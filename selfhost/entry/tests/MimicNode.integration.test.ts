@@ -6,8 +6,8 @@ import type { SchemaObject, Value } from "@voidhash/mimic-core";
 import {
   DurableEntityHost,
   makeDurableEntityAddress,
-} from "@voidhash/platform/DurableEntity";
-import { NodeDurableEntityControl } from "@voidhash/platform-node/DurableEntity";
+} from "@orbian/sdk/DurableEntity";
+import { NodeDurableEntityControl } from "@orbian/node/DurableEntity";
 import { Effect, ManagedRuntime, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 import WebSocket from "ws";

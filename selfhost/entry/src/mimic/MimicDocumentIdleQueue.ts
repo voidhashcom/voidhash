@@ -2,8 +2,8 @@ import {
   MimicDocumentIdleMessage,
   type MimicDocumentIdleMessageType,
 } from "@voidhash/mimic-db/ws/idle-notify";
-import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
-import { QueueDriver } from "@voidhash/platform/Queue";
+import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
+import { QueueDriver } from "@orbian/sdk/Queue";
 import { Effect } from "effect";
 
 /** Logical PostgreSQL queue carrying idle Mimic document revisions. */

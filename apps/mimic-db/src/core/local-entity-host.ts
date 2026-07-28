@@ -3,7 +3,7 @@ import {
   type DurableEntityContext,
   type DurableEntityHostShape,
   type DurableEntitySession,
-} from "@voidhash/platform/DurableEntity";
+} from "@orbian/sdk/DurableEntity";
 import { Effect, Layer, Semaphore } from "effect";
 
 interface MemoryEntityState {

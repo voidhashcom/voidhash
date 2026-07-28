@@ -1,5 +1,5 @@
 import type { Effect } from "effect";
-import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import type { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 
 import type {
   PolicyCounterStoreShape,

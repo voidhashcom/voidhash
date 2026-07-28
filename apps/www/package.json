@@ -68,6 +68,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cross-fetch": "catalog:",
+    "date-fns": "^4.1.0",
     "effect": "catalog:",
     "effect-query": "catalog:",
     "esbuild-wasm": "^0.25.10",

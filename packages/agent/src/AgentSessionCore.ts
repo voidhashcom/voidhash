@@ -5,7 +5,7 @@ import {
   type DurableEntityHostShape,
   type DurableEntitySession,
   makeDurableEntityAddress,
-} from "@voidhash/platform/DurableEntity";
+} from "@orbian/sdk/DurableEntity";
 import { Effect, Semaphore } from "effect";
 
 import {

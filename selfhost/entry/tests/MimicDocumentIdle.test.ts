@@ -3,9 +3,9 @@ import {
   IDLE_NOTIFIED_SEQ_KEY,
   type MimicDocumentIdleMessageType,
 } from "@voidhash/mimic-db/ws/idle-notify";
-import { makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
-import type { NodeDurableEntityControlShape } from "@voidhash/platform-node/DurableEntity";
-import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
+import { makeDurableEntityAddress } from "@orbian/sdk/DurableEntity";
+import type { NodeDurableEntityControlShape } from "@orbian/node/DurableEntity";
+import { makeMemoryDurableEntityHost } from "@orbian/node/MemoryDurableEntity";
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
 

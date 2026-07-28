@@ -12,7 +12,7 @@
  * Tests / non-worker hosts get {@link AnalyticsDispatchService.noop}.
  */
 import { Context, Effect, Layer } from "effect";
-import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import type { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 
 import {
   type CapturedEventV1Type,

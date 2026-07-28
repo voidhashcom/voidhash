@@ -1,5 +1,5 @@
 import { makePgDocumentConfig } from "@voidhash/mimic-db/core/pg-store";
-import type { PgDurableEntityConfig } from "@voidhash/platform-node/DurableEntity";
+import type { PgDurableEntityConfig } from "@orbian/node/DurableEntity";
 import { Redacted } from "effect";
 
 import type { MimicNodeConfig } from "./MimicNode.ts";

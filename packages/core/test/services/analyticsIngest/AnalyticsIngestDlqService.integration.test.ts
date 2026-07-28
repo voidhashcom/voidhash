@@ -41,7 +41,7 @@ import {
   CaptureIngress,
   type PublishableCaptureEvent,
 } from "@voidhash/core/services/analyticsIngest/CaptureIngress";
-import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";

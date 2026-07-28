@@ -1,4 +1,4 @@
-import { defineWorkflow } from "@voidhash/platform/Workflow";
+import { defineWorkflow } from "@orbian/sdk/Workflow";
 import { Schema } from "effect";
 
 export const DeliverWebhookDefinition = defineWorkflow({

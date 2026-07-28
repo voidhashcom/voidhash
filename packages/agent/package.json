@@ -31,12 +31,12 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.80.7",
     "@earendil-works/pi-ai": "0.80.7",
-    "@voidhash/platform": "workspace:*",
+    "@orbian/sdk": "workspace:*",
     "effect": "catalog:",
     "typebox": "1.1.38"
   },
   "devDependencies": {
-    "@voidhash/platform-node": "workspace:*",
+    "@orbian/node": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "catalog:",
     "vite-plus": "catalog:",

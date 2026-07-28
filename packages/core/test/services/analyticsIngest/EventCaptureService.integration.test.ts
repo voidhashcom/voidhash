@@ -50,7 +50,7 @@ import {
 import { apiKeys, captureProjectPolicies, Db, eq, inArray } from "@voidhash/db";
 import { Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
-import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";

@@ -1,5 +1,5 @@
-import type { DurableEntityAddress } from "@voidhash/platform/DurableEntity";
-import type { NodeDurableEntityControlShape } from "@voidhash/platform-node/DurableEntity";
+import type { DurableEntityAddress } from "@orbian/sdk/DurableEntity";
+import type { NodeDurableEntityControlShape } from "@orbian/node/DurableEntity";
 import { Effect } from "effect";
 
 /** Handler for one durable-entity alarm type. */

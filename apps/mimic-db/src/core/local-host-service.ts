@@ -2,7 +2,7 @@ import {
   type DurableEntityContext,
   DurableEntityHost,
   makeDurableEntityAddress,
-} from "@voidhash/platform/DurableEntity";
+} from "@orbian/sdk/DurableEntity";
 import { Effect, Layer } from "effect";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import { NotFoundError } from "@voidhash/mimic-server/rpc";

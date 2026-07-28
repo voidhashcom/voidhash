@@ -158,7 +158,7 @@
     "@voidhash/lib": "workspace:*",
     "@voidhash/paywall-build": "workspace:*",
     "@voidhash/paywall-workspace": "workspace:*",
-    "@voidhash/platform": "workspace:*",
+    "@orbian/sdk": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@workos-inc/node": "9.2.0",
     "nanoid": "^5.1.5",

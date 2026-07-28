@@ -8,7 +8,7 @@ import {
   Workos,
 } from "@voidhash/core/services";
 import { Db } from "@voidhash/db";
-import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
+import { makeMemoryDurableEntityHost } from "@orbian/node/MemoryDurableEntity";
 import { Context, Effect, Redacted } from "effect";
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it } from "vite-plus/test";

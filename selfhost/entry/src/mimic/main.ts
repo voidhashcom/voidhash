@@ -4,12 +4,12 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
 import { getConfig } from "@voidhash/mimic-db/config";
 import { makeRoutesLive } from "@voidhash/mimic-db/http/rpc-app";
-import { DurableEntityHost } from "@voidhash/platform/DurableEntity";
+import { DurableEntityHost } from "@orbian/sdk/DurableEntity";
 import {
   NodeDurableEntityControl,
-} from "@voidhash/platform-node/DurableEntity";
-import { NodePlatformRuntimeLive } from "@voidhash/platform-node/PlatformRuntime";
-import { PgQueueLive } from "@voidhash/platform-node/Queue";
+} from "@orbian/node/DurableEntity";
+import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
+import { PgQueueLive } from "@orbian/node/Queue";
 import { Context, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 

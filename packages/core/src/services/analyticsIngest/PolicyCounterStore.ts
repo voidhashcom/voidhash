@@ -12,7 +12,7 @@
  * port to a provider implementation.
  */
 import { Context, Effect, Layer, Schema } from "effect";
-import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import type { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 
 export class PolicyStoreError extends Schema.TaggedErrorClass<PolicyStoreError>("PolicyStoreError")(
   "PolicyStoreError",

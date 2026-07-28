@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import type { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 
 /**
  * Catch-all dispatch error. Wraps the underlying queue `send`/encode failure at
