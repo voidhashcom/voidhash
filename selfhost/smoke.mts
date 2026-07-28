@@ -26,10 +26,7 @@ const assertApplicationSurface = async (): Promise<void> => {
     throw new Error(`Runtime capabilities returned ${capabilitiesResponse.status}`);
   }
   const capabilities = await capabilitiesResponse.json();
-  if (
-    JSON.stringify(capabilities) !==
-    JSON.stringify({ enterprise: { auditLogs: false, billing: false } })
-  ) {
+  if (JSON.stringify(capabilities) !== JSON.stringify({ enterprise: {} })) {
     throw new Error(`Unexpected Community capabilities: ${JSON.stringify(capabilities)}`);
   }
 

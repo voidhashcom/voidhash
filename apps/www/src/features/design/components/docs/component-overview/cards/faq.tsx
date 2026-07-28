@@ -20,18 +20,18 @@ const GENERAL_QUESTIONS = [
   },
 ];
 
-const BILLING_QUESTIONS = [
+const SYNC_QUESTIONS = [
   {
-    q: "What is the difference between Basic and Pro pricing tiers?",
-    a: "Basic includes budgeting, goal tracking, and up to 3 linked accounts. Pro adds unlimited accounts, dividend tracking, portfolio analysis, and priority support.",
+    q: "How often does data refresh?",
+    a: "Connected institutions sync every six hours, and you can pull a manual refresh from the account detail view at any time.",
   },
   {
-    q: "How do I cancel my subscription?",
-    a: "Go to Settings > Billing > Manage Plan and click Cancel. Your access continues until the end of your current billing period.",
+    q: "Why is a transaction missing?",
+    a: "Pending transactions appear once the institution posts them. If a posted transaction is still missing after 48 hours, reconnect the account from Settings.",
   },
   {
-    q: "Do you offer a free trial?",
-    a: "Yes. All new accounts start with a 14-day Pro trial. No credit card required.",
+    q: "Can I import a statement manually?",
+    a: "Yes. Upload a CSV or OFX file from the account detail view and map the columns once — the mapping is remembered for later imports.",
   },
 ];
 
@@ -72,8 +72,8 @@ export function Faq() {
             <TabsTrigger value="general" className="flex-1">
               General
             </TabsTrigger>
-            <TabsTrigger value="billing" className="flex-1">
-              Billing
+            <TabsTrigger value="sync" className="flex-1">
+              Sync
             </TabsTrigger>
             <TabsTrigger value="goals" className="flex-1">
               Goals
@@ -82,8 +82,8 @@ export function Faq() {
           <TabsContent value="general">
             <QuestionList questions={GENERAL_QUESTIONS} />
           </TabsContent>
-          <TabsContent value="billing">
-            <QuestionList questions={BILLING_QUESTIONS} />
+          <TabsContent value="sync">
+            <QuestionList questions={SYNC_QUESTIONS} />
           </TabsContent>
           <TabsContent value="goals">
             <QuestionList questions={GOALS_QUESTIONS} />

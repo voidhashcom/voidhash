@@ -2,8 +2,6 @@ import {
   apiKeys,
   apikey,
   auditLogs,
-  BillingSubscriptionStatus,
-  BillingTier,
   captureProjectPolicies,
   Db,
   eq,
@@ -15,7 +13,6 @@ import {
   invitation,
   member,
   organization,
-  organizationBilling,
   paymentProviderConfigurationProducts,
   paymentProviderConfigurations,
   paywallLocationShowings,
@@ -33,8 +30,6 @@ import {
   productPerks,
   products,
   projects,
-  usageAggregates,
-  usageRecords,
   user,
   webhookDeliveries,
   webhookDeliveryAttempts,
@@ -46,8 +41,8 @@ import { makeSmokeIds } from "./smoke-ids.ts";
 
 /**
  * Deterministic fixture for the backend RPC smoke. Seeds an `admin`-role user, a
- * normal user, their organization/memberships, a project, a seeded API key, and a
- * billing row — everything the {@link rpcSmokeCases} manifest reads or scopes
+ * normal user, their organization/memberships, a project, and a seeded API key
+ * — everything the {@link rpcSmokeCases} manifest reads or scopes
  * against. Kept separate from the lean shared `CoreTestFixture` because the smoke
  * needs a richer, smoke-specific tenant; it still rides the same once-deployed
  * stack + `testConnections` as the service-level integration tests.
@@ -186,11 +181,6 @@ export const resetSmokeData = (runId: string) =>
       .where(eq(captureProjectPolicies.projectId, ids.projectId));
     yield* db.delete(projects).where(eq(projects.id, ids.projectId));
 
-    yield* db.delete(usageRecords).where(eq(usageRecords.organizationId, ids.organizationId));
-    yield* db.delete(usageAggregates).where(eq(usageAggregates.organizationId, ids.organizationId));
-    yield* db
-      .delete(organizationBilling)
-      .where(eq(organizationBilling.organizationId, ids.organizationId));
     yield* db.delete(invitation).where(eq(invitation.organizationId, ids.organizationId));
     yield* db.delete(member).where(eq(member.organizationId, ids.organizationId));
     yield* db.delete(organization).where(eq(organization.id, ids.organizationId));
@@ -295,16 +285,5 @@ export const seedSmokeData = (runId: string) =>
       prefix: "smk",
       projectId: ids.projectId,
       updatedAt: now,
-    });
-    yield* db.insert(organizationBilling).values({
-      billingProviderId: "smoke",
-      currentPeriodEnd: null,
-      currentPeriodStart: null,
-      externalCustomerId: null,
-      externalSubscriptionId: null,
-      id: ids.billingId,
-      organizationId: ids.organizationId,
-      subscriptionStatus: BillingSubscriptionStatus.None,
-      tier: BillingTier.Free,
     });
   });

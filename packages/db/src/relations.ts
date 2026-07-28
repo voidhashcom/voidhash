@@ -149,12 +149,6 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.paywallDeploys.id,
     }),
   },
-  organizationBilling: {
-    organization: r.one.organization({
-      from: r.organizationBilling.organizationId,
-      to: r.organization.id,
-    }),
-  },
   webhookEndpoints: {
     project: r.one.projects({ from: r.webhookEndpoints.projectId, to: r.projects.id }),
     deliveries: r.many.webhookDeliveries(),

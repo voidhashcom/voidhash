@@ -18,7 +18,6 @@ export const makeSmokeIds = (runId: string) => {
     adminMemberId: `smk_mem_admin_${suffix}`,
     adminUserId: `smk_admin_${suffix}`,
     apiKeyId: `smk_api_key_${suffix}`,
-    billingId: `smk_billing_${suffix}`,
     invitedEmail: `smoke-invite-${suffix}@example.test`,
     invitedUserId: `smk_invite_${suffix}`,
     normalEmail: `smoke-user-${suffix}@example.test`,

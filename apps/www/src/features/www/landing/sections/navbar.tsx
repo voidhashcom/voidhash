@@ -24,10 +24,10 @@ import {
   LayoutTemplateIcon,
   type LucideIcon,
   MenuIcon,
-  TagIcon,
   UsersIcon,
 } from "lucide-react";
 
+import { MARKETING_COMPANY_LINKS } from "@/features/www/landing/marketing-nav-config";
 import { signUpCtaLabel } from "@/lib/waitlist";
 
 type NavLink = {
@@ -38,8 +38,9 @@ type NavLink = {
 };
 
 /**
- * Product links point at landing page sections, so they stay root-relative: from `/pricing` a
- * bare `#paywalls` fragment resolves against a page that has no such section and goes nowhere.
+ * Product links point at landing page sections, so they stay root-relative: from a standalone
+ * marketing page a bare `#paywalls` fragment resolves against a page that has no such section
+ * and goes nowhere.
  */
 const PRODUCT_LINKS: NavLink[] = [
   {
@@ -72,8 +73,6 @@ const DEVELOPER_LINKS: NavLink[] = [
   { label: "Documentation", href: "/docs", icon: BookOpenIcon },
   { label: "API reference", href: "/docs/api", icon: BracesIcon },
 ];
-
-const PRICING_LINK: NavLink = { label: "Pricing", href: "/pricing", icon: TagIcon };
 
 /** Shared look for the top-level triggers and links. */
 const NAV_ITEM_CLASS =
@@ -147,14 +146,16 @@ export function LandingNavbar() {
                 </ul>
               </NavigationMenuContent>
             </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                className={`${navigationMenuTriggerStyle()} ${NAV_ITEM_CLASS}`}
-                render={<a href={PRICING_LINK.href} />}
-              >
-                {PRICING_LINK.label}
-              </NavigationMenuLink>
-            </NavigationMenuItem>
+            {MARKETING_COMPANY_LINKS.map((link) => (
+              <NavigationMenuItem key={link.href}>
+                <NavigationMenuLink
+                  className={`${navigationMenuTriggerStyle()} ${NAV_ITEM_CLASS}`}
+                  render={<a href={link.href} />}
+                >
+                  {link.label}
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            ))}
           </NavigationMenuList>
         </NavigationMenu>
         <div className="hidden items-center gap-4 lg:flex">
@@ -177,25 +178,27 @@ export function LandingNavbar() {
               {[
                 { title: "Product", links: PRODUCT_LINKS },
                 { title: "Developers", links: DEVELOPER_LINKS },
-                { title: "Company", links: [PRICING_LINK] },
-              ].map((group) => (
-                <div className="flex flex-col gap-4" key={group.title}>
-                  <div className="font-sans text-zinc-500 text-xs/4 tracking-[-0.01em]">
-                    {group.title}
+                { title: "Company", links: MARKETING_COMPANY_LINKS },
+              ]
+                .filter((group) => group.links.length > 0)
+                .map((group) => (
+                  <div className="flex flex-col gap-4" key={group.title}>
+                    <div className="font-sans text-zinc-500 text-xs/4 tracking-[-0.01em]">
+                      {group.title}
+                    </div>
+                    {group.links.map((link) => (
+                      <SheetClose asChild key={link.href}>
+                        <a
+                          className="flex items-center gap-3 font-sans text-zinc-200 text-base tracking-[-0.02em] transition-colors hover:text-white"
+                          href={link.href}
+                        >
+                          <link.icon className="size-4 shrink-0 text-zinc-500" />
+                          {link.label}
+                        </a>
+                      </SheetClose>
+                    ))}
                   </div>
-                  {group.links.map((link) => (
-                    <SheetClose asChild key={link.href}>
-                      <a
-                        className="flex items-center gap-3 font-sans text-zinc-200 text-base tracking-[-0.02em] transition-colors hover:text-white"
-                        href={link.href}
-                      >
-                        <link.icon className="size-4 shrink-0 text-zinc-500" />
-                        {link.label}
-                      </a>
-                    </SheetClose>
-                  ))}
-                </div>
-              ))}
+                ))}
             </nav>
             <div className="mt-auto flex flex-col gap-3 px-6 pb-8">
               <Button asChild size="lg" variant="outline">

@@ -172,13 +172,13 @@ export function SidebarNav() {
                     <SidebarMenuItem>
                       <SidebarMenuButton isActive>
                         <IconPlaceholder
-                          lucide="CreditCardIcon"
-                          tabler="IconCreditCard"
-                          hugeicons="CreditCardIcon"
-                          phosphor="CreditCardIcon"
-                          remixicon="RiBankCardLine"
+                          lucide="UsersIcon"
+                          tabler="IconUsers"
+                          hugeicons="UserMultipleIcon"
+                          phosphor="UsersIcon"
+                          remixicon="RiTeamLine"
                         />
-                        Billing
+                        Members
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>

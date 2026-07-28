@@ -12,7 +12,7 @@ import { generateId } from "../../src/utils/generate-id.ts";
 
 // (prefix-key, expected string prefix) pairs lifted from the `prefixes` const in
 // the source. We deliberately spot-check a representative spread of entity types
-// (auth, billing, payment providers, webhooks, feature flags, …) including a few
+// (auth, payment providers, webhooks, feature flags, …) including a few
 // where the literal prefix is a non-obvious abbreviation (org, pw_loc_show, …).
 const PREFIX_CASES = [
   ["user", "user"],

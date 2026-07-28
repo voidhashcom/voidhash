@@ -36,7 +36,7 @@ import {
   NotificationSendingService,
   NotificationsConfigurationService,
   NotificationTokenService,
-  OrganizationBillingPort,
+  OrganizationLifecyclePort,
   OrganizationMembershipSyncPort,
   OrganizationMembershipWebhookPort,
   OrganizationService,
@@ -637,10 +637,8 @@ const HealthCheckRoute = Layer.effectDiscard(
   }),
 );
 
-export interface BackendRuntimeCapabilities {
-  readonly auditLogs: boolean;
-  readonly billing: boolean;
-}
+/** Feature-supplied capability flags advertised to clients, keyed by feature name. */
+export type BackendRuntimeCapabilities = Readonly<Record<string, boolean>>;
 
 const RuntimeCapabilitiesRoute = (capabilities: BackendRuntimeCapabilities) =>
   Layer.effectDiscard(
@@ -658,7 +656,7 @@ const RuntimeCapabilitiesRoute = (capabilities: BackendRuntimeCapabilities) =>
 
 export type BackendCoreFeatureServices =
   | AuditLogPort
-  | OrganizationBillingPort
+  | OrganizationLifecyclePort
   | OrganizationMembershipSyncPort
   | OrganizationMembershipWebhookPort;
 
@@ -924,12 +922,12 @@ export interface BackendFeatureComposition<RFeatureRpcs extends Rpc.Any, RFeatur
 export const NoBackendFeatures: BackendFeatureComposition<never, never> = {
   group: RpcGroup.make(),
   routes: () => Layer.empty,
-  runtimeCapabilities: { auditLogs: false, billing: false },
+  runtimeCapabilities: {},
   services: () => Layer.empty,
   supportServices: () =>
     Layer.mergeAll(
       AuditLogPort.noop,
-      OrganizationBillingPort.noop,
+      OrganizationLifecyclePort.noop,
       OrganizationMembershipSyncPort.noop,
       OrganizationMembershipWebhookPort.noop,
     ),
@@ -1067,10 +1065,10 @@ export const buildBackendFetch = <
   // layer dependency — so `Layer.provide` does not discharge it (it would
   // silently leak to the request handler and die with "Service not found").
   // `HttpRouter.provideRequest` is the combinator that satisfies these
-  // request-scoped requirements. The Autumn webhook handler resolves `Db` +
-  // `BillingService` at request time (both part of the merged graph below);
-  // the Apple handler resolves the live public App Store service the same way;
-  // the Google handler additionally resolves its Pub/Sub OIDC verifier.
+  // request-scoped requirements. Feature-supplied webhook routes resolve their
+  // own services at request time the same way (all part of the merged graph
+  // below); the Apple handler resolves the live public App Store service; the
+  // Google handler additionally resolves its Pub/Sub OIDC verifier.
   const WebhookRoutesLayer = Layer.mergeAll(
     AppleServerToServerNotificationRouteLayer,
     GooglePlayRtdnNotificationRouteLayer,

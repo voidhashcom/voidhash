@@ -2,11 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import { env } from "@/lib/env";
 
-const disabledCapabilities = {
-  enterprise: { auditLogs: false, billing: false },
-} as const;
+/** Enabled enterprise capability ids advertised by the host composition. */
+export type EnterpriseCapabilities = Readonly<Record<string, boolean>>;
 
-const loadRuntimeCapabilities = async () => {
+export interface RuntimeCapabilities {
+  readonly enterprise: EnterpriseCapabilities;
+}
+
+const disabledCapabilities: RuntimeCapabilities = {
+  enterprise: {},
+};
+
+const loadRuntimeCapabilities = async (): Promise<RuntimeCapabilities> => {
   try {
     const apiBaseUrl = env.VITE_APP_API_URL.replace(/\/+$/, "");
     const response = await fetch(`${apiBaseUrl}/api/runtime-capabilities`, {
@@ -15,17 +22,15 @@ const loadRuntimeCapabilities = async () => {
     if (!response.ok) return disabledCapabilities;
 
     const body = (await response.json()) as {
-      readonly enterprise?: {
-        readonly auditLogs?: unknown;
-        readonly billing?: unknown;
-      };
+      readonly enterprise?: Readonly<Record<string, unknown>>;
     };
-    return {
-      enterprise: {
-        auditLogs: body.enterprise?.auditLogs === true,
-        billing: body.enterprise?.billing === true,
-      },
-    };
+    const enterprise: Record<string, boolean> = {};
+    for (const [capability, enabled] of Object.entries(body.enterprise ?? {})) {
+      if (enabled === true) {
+        enterprise[capability] = true;
+      }
+    }
+    return { enterprise };
   } catch {
     return disabledCapabilities;
   }

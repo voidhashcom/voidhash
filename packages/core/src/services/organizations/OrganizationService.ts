@@ -16,7 +16,7 @@ import { createSlug } from "../../utils/create-slug.ts";
 import { generateId } from "../../utils/generate-id.ts";
 import { checkOrganizationPermission } from "../../utils/permissions.ts";
 import { PublicFileStore } from "../storage/PublicFileStore.ts";
-import { OrganizationBillingPort } from "./OrganizationBillingPort.ts";
+import { OrganizationLifecyclePort } from "./OrganizationLifecyclePort.ts";
 import { WorkosOrgPort } from "./WorkosOrgPort.ts";
 
 /**
@@ -39,17 +39,17 @@ export class OrganizationServiceError extends Schema.TaggedErrorClass<Organizati
  * policies keyed on the per-query `SQL_organization_id` setting, so adding a
  * tenant is zero ClickHouse DDL.
  *
- * `Db`, `WorkosOrgPort`, `OrganizationBillingPort`, and `AuthSession` are
+ * `Db`, `WorkosOrgPort`, `OrganizationLifecyclePort`, and `AuthSession` are
  * provided by the application root. Community deployments use the no-op
- * billing port; cloud and Enterprise deployments provide their billing
- * extension without coupling this service to its implementation.
+ * lifecycle port; hosted deployments provide their own lifecycle extension
+ * without coupling this service to its implementation.
  */
 export class OrganizationService extends Context.Service<OrganizationService>()(
   "OrganizationService",
   {
     make: Effect.gen(function* () {
       const workosOrgPort = yield* WorkosOrgPort;
-      const organizationBilling = yield* OrganizationBillingPort;
+      const organizationLifecycle = yield* OrganizationLifecyclePort;
       const publicFileStore = yield* PublicFileStore;
       const db = yield* Db;
 
@@ -278,15 +278,17 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
               ),
             );
 
-          // Provision billing — non-fatal: log and continue if it fails.
-          yield* organizationBilling
-            .initializeOrganizationBilling({
+          // Run the organization-created hook — non-fatal: log and continue if it fails.
+          yield* organizationLifecycle
+            .organizationCreated({
               email: sessionUser.email,
               organizationId: orgId,
             })
             .pipe(
               Effect.catch((error) =>
-                Effect.logWarning(`Failed to initialize billing for org ${orgId}: ${error}`),
+                Effect.logWarning(
+                  `Failed to run the organization-created hook for org ${orgId}: ${error}`,
+                ),
               ),
             );
 

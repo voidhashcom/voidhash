@@ -14,9 +14,9 @@
  * *real* database, and each test asserts the persisted side effect rather than
  * just the return value.
  *
- * `OrganizationBillingPort` is the optional extension seam; a recording stub
- * stands in so the non-fatal provisioning step can be driven to succeed or
- * fail.
+ * `OrganizationLifecyclePort` is the optional extension seam; a recording stub
+ * stands in so the non-fatal organization-created hook can be driven to succeed
+ * or fail.
  *
  * Conventions used throughout:
  *  - Names/slugs/ids are unique per call so a leftover row from a crashed run
@@ -40,8 +40,8 @@ import { Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
 
 import {
-  OrganizationBillingPort,
-  OrganizationBillingPortError,
+  OrganizationLifecyclePort,
+  OrganizationLifecyclePortError,
   OrganizationService,
   OrganizationServiceError,
   WorkosOrgPort,
@@ -308,25 +308,28 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
   return { calls, layer };
 };
 
-// --- fake OrganizationBillingPort ------------------------------------------
+// --- fake OrganizationLifecyclePort ----------------------------------------
 
-interface BillingCalls {
-  initializeOrganizationBilling: Array<{ organizationId: string; email?: string }>;
+interface LifecycleCalls {
+  organizationCreated: Array<{ organizationId: string; email?: string }>;
 }
 
-interface FakeBilling {
-  readonly calls: BillingCalls;
-  readonly layer: Layer.Layer<OrganizationBillingPort>;
+interface FakeLifecycle {
+  readonly calls: LifecycleCalls;
+  readonly layer: Layer.Layer<OrganizationLifecyclePort>;
 }
 
-const makeFakeBilling = (options: { fail?: boolean } = {}): FakeBilling => {
-  const calls: BillingCalls = { initializeOrganizationBilling: [] };
-  const layer = Layer.succeed(OrganizationBillingPort, {
-    initializeOrganizationBilling: (input) => {
-      calls.initializeOrganizationBilling.push(input);
+const makeFakeLifecycle = (options: { fail?: boolean } = {}): FakeLifecycle => {
+  const calls: LifecycleCalls = { organizationCreated: [] };
+  const layer = Layer.succeed(OrganizationLifecyclePort, {
+    organizationCreated: (input) => {
+      calls.organizationCreated.push(input);
       if (options.fail) {
         return Effect.fail(
-          new OrganizationBillingPortError({ cause: "fake", message: "billing init failed" }),
+          new OrganizationLifecyclePortError({
+            cause: "fake",
+            message: "organization-created hook failed",
+          }),
         );
       }
       return Effect.void;
@@ -339,17 +342,17 @@ const makeFakeBilling = (options: { fail?: boolean } = {}): FakeBilling => {
 
 /**
  * Provide `OrganizationService` plus its non-harness collaborators: the fake
- * WorkOS port and a recording billing stub. Provided at the top-level test pipe so the body's
+ * WorkOS port and a recording lifecycle stub. Provided at the top-level test pipe so the body's
  * `OrganizationService` requirement is fully discharged before the harness sees
  * it (leaving only harness services in `R`).
  */
-const orgServiceLayer = (port: FakePort, billing: FakeBilling) =>
+const orgServiceLayer = (port: FakePort, lifecycle: FakeLifecycle) =>
   Layer.mergeAll(
     OrganizationService.layer.pipe(
-      Layer.provide(Layer.mergeAll(port.layer, billing.layer)),
+      Layer.provide(Layer.mergeAll(port.layer, lifecycle.layer)),
     ),
     port.layer,
-    billing.layer,
+    lifecycle.layer,
   );
 
 // --- session builders -------------------------------------------------------
@@ -419,7 +422,7 @@ describe("OrganizationService.getOrganizationById", () => {
       expect(org.id).toBe(CoreTestFixture.organizationId);
       expect(org.slug).toBe(CoreTestFixture.organizationSlug);
     }).pipe(
-      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeBilling())),
+      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
       CoreAuthSession.authenticate(),
     ),
   );
@@ -431,7 +434,7 @@ describe("OrganizationService.getOrganizationById", () => {
       const error = yield* Effect.flip(svc.getOrganizationById(`org_missing_${Date.now()}`));
       expect(error).toBeInstanceOf(OrganizationNotFoundError);
     }).pipe(
-      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeBilling())),
+      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
       CoreAuthSession.authenticate(),
     ),
   );
@@ -445,7 +448,7 @@ describe("OrganizationService.getOrganizationById", () => {
       );
       expect(error).toBeInstanceOf(ActionForbiddenError);
     }).pipe(
-      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeBilling())),
+      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
       CoreAuthSession.authenticate(),
     ),
   );
@@ -461,7 +464,7 @@ describe("OrganizationService.getOrganizationBySlug", () => {
         .pipe(as(userSessionWithOrgs([CoreTestFixture.organizationId])));
       expect(org.id).toBe(CoreTestFixture.organizationId);
     }).pipe(
-      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeBilling())),
+      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
       CoreAuthSession.authenticate(),
     ),
   );
@@ -473,7 +476,7 @@ describe("OrganizationService.getOrganizationBySlug", () => {
       const error = yield* Effect.flip(svc.getOrganizationBySlug(`it-missing-${Date.now()}`));
       expect(error).toBeInstanceOf(OrganizationNotFoundError);
     }).pipe(
-      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeBilling())),
+      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
       CoreAuthSession.authenticate(),
     ),
   );
@@ -489,7 +492,7 @@ describe("OrganizationService.getOrganizationBySlug", () => {
       );
       expect(error).toBeInstanceOf(ActionForbiddenError);
     }).pipe(
-      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeBilling())),
+      Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
       CoreAuthSession.authenticate(),
     ),
   );
@@ -497,10 +500,10 @@ describe("OrganizationService.getOrganizationBySlug", () => {
 
 describe("OrganizationService.createOrganization", () => {
   test(
-    "creates the WorkOS org, local org + owner member, provisions billing, returns {id,name,slug}",
+    "creates the WorkOS org, local org + owner member, runs the created hook, returns {id,name,slug}",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       return withCleanup((track) =>
         Effect.gen(function* () {
           const svc = yield* OrganizationService;
@@ -527,14 +530,14 @@ describe("OrganizationService.createOrganization", () => {
           expect(owner).toBeDefined();
           expect(owner?.role).toBe("owner");
 
-          // Billing was invoked for the new org (non-fatal step, but it ran).
+          // The lifecycle hook was invoked for the new org (non-fatal step, but it ran).
           expect(
-            billing.calls.initializeOrganizationBilling.some(
+            lifecycle.calls.organizationCreated.some(
               (c) => c.organizationId === created.id,
             ),
           ).toBe(true);
         }),
-      ).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      ).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -542,7 +545,7 @@ describe("OrganizationService.createOrganization", () => {
     "appends a short id when the base slug is in SLUG_BLACKLIST",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       return withCleanup((track) =>
         Effect.gen(function* () {
           const svc = yield* OrganizationService;
@@ -556,7 +559,7 @@ describe("OrganizationService.createOrganization", () => {
           const orgRow = yield* findOrgRow(created.id);
           expect(orgRow?.slug).toBe(created.slug);
         }),
-      ).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      ).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -564,7 +567,7 @@ describe("OrganizationService.createOrganization", () => {
     "appends a short id when the base slug already exists in the DB",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       return withCleanup((track) =>
         Effect.gen(function* () {
           const svc = yield* OrganizationService;
@@ -584,7 +587,7 @@ describe("OrganizationService.createOrganization", () => {
           expect(firstRow?.slug).toBe(first.slug);
           expect(secondRow?.slug).toBe(second.slug);
         }),
-      ).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      ).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -594,7 +597,7 @@ describe("OrganizationService.createOrganization", () => {
       const port = makeFakePort({
         onCreateOrganization: () => Effect.fail(portError("workos org create boom")),
       });
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const name = uniqueName("wos-fail");
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
@@ -605,7 +608,7 @@ describe("OrganizationService.createOrganization", () => {
         expect(port.calls.createMembership.length).toBe(0);
         const orgRow = yield* findOrgRowBySlug(slugFor(name));
         expect(orgRow).toBeUndefined();
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -615,7 +618,7 @@ describe("OrganizationService.createOrganization", () => {
       const port = makeFakePort({
         onCreateMembership: () => Effect.fail(portError("workos membership boom")),
       });
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const name = uniqueName("wm-fail");
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
@@ -626,7 +629,7 @@ describe("OrganizationService.createOrganization", () => {
         expect(port.calls.deleteOrganization.length).toBe(1);
         const orgRow = yield* findOrgRowBySlug(slugFor(name));
         expect(orgRow).toBeUndefined();
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -644,7 +647,7 @@ describe("OrganizationService.createOrganization", () => {
             name: input.name,
           }),
       });
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const name = uniqueName("db-fail");
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
@@ -655,33 +658,33 @@ describe("OrganizationService.createOrganization", () => {
         expect(port.calls.deleteOrganization.length).toBe(1);
         const orgRow = yield* findOrgRowBySlug(slugFor(name));
         expect(orgRow).toBeUndefined();
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
   test(
-    "still creates the org when billing init fails (non-fatal)",
+    "still creates the org when the organization-created hook fails (non-fatal)",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling({ fail: true });
+      const lifecycle = makeFakeLifecycle({ fail: true });
       return withCleanup((track) =>
         Effect.gen(function* () {
           const svc = yield* OrganizationService;
-          const name = uniqueName("billing-fail");
+          const name = uniqueName("lifecycle-fail");
 
           const created = yield* svc.createOrganization({ name });
           track.orgs.push(created.id);
 
           expect(created.name).toBe(name);
-          expect(billing.calls.initializeOrganizationBilling.length).toBe(1);
+          expect(lifecycle.calls.organizationCreated.length).toBe(1);
 
-          // The org + owner member persisted despite the billing failure.
+          // The org + owner member persisted despite the hook failure.
           const orgRow = yield* findOrgRow(created.id);
           expect(orgRow).toBeDefined();
           const members = yield* findMembersInOrg(created.id);
           expect(members.length).toBe(1);
         }),
-      ).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      ).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -689,7 +692,7 @@ describe("OrganizationService.createOrganization", () => {
     "fails with OrganizationServiceError for an api-key (no user) session, writing nothing",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const name = uniqueName("no-user");
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
@@ -702,7 +705,7 @@ describe("OrganizationService.createOrganization", () => {
         expect(port.calls.createOrganization.length).toBe(0);
         const orgRow = yield* findOrgRowBySlug(slugFor(name));
         expect(orgRow).toBeUndefined();
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -710,7 +713,7 @@ describe("OrganizationService.createOrganization", () => {
     "fails with OrganizationServiceError when the session user has no WorkOS id and none is found by email",
     (() => {
       const port = makeFakePort({ findUserByEmail: null });
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const name = uniqueName("no-workos-id");
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
@@ -726,7 +729,7 @@ describe("OrganizationService.createOrganization", () => {
         expect(port.calls.createOrganization.length).toBe(0);
         const orgRow = yield* findOrgRowBySlug(slugFor(name));
         expect(orgRow).toBeUndefined();
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 });
@@ -736,7 +739,7 @@ describe("OrganizationService.updateOrganization", () => {
     "renames the org in WorkOS and the local DB",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const orgId = uniqueId("upd-org");
       const wo = uniqueId("upd-wo");
       return withCleanup((track) =>
@@ -761,7 +764,7 @@ describe("OrganizationService.updateOrganization", () => {
           const orgRow = yield* findOrgRow(orgId);
           expect(orgRow?.name).toBe(newName);
         }),
-      ).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      ).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -769,7 +772,7 @@ describe("OrganizationService.updateOrganization", () => {
     "forbids a caller without organization:all and writes nothing",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
         const before = yield* findOrgRow(CoreTestFixture.organizationId);
@@ -786,7 +789,7 @@ describe("OrganizationService.updateOrganization", () => {
         expect(port.calls.updateOrganization.length).toBe(0);
         const after = yield* findOrgRow(CoreTestFixture.organizationId);
         expect(after?.name).toBe(before?.name);
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -794,7 +797,7 @@ describe("OrganizationService.updateOrganization", () => {
     "fails with OrganizationNotFoundError for an unknown org",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const orgId = `org_missing_${Date.now()}`;
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
@@ -805,7 +808,7 @@ describe("OrganizationService.updateOrganization", () => {
         );
         expect(error).toBeInstanceOf(OrganizationNotFoundError);
         expect(port.calls.updateOrganization.length).toBe(0);
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -815,7 +818,7 @@ describe("OrganizationService.updateOrganization", () => {
       const port = makeFakePort({
         onUpdateOrganization: () => Effect.fail(portError("workos update boom")),
       });
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const orgId = uniqueId("upd-fail-org");
       return withCleanup((track) =>
         Effect.gen(function* () {
@@ -838,7 +841,7 @@ describe("OrganizationService.updateOrganization", () => {
           const orgRow = yield* findOrgRow(orgId);
           expect(orgRow?.name).toBe("Keep");
         }),
-      ).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      ).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 });
@@ -848,7 +851,7 @@ describe("OrganizationService.deleteOrganization", () => {
     "deletes the org in WorkOS and locally, cascading members",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const orgId = uniqueId("del-org");
       const wo = uniqueId("del-wo");
       return withCleanup((track) =>
@@ -878,7 +881,7 @@ describe("OrganizationService.deleteOrganization", () => {
           const members = yield* findMembersInOrg(orgId);
           expect(members.length).toBe(0);
         }),
-      ).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      ).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -886,7 +889,7 @@ describe("OrganizationService.deleteOrganization", () => {
     "forbids a caller without organization:all and retains the org",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
         const error = yield* Effect.flip(
@@ -899,7 +902,7 @@ describe("OrganizationService.deleteOrganization", () => {
         expect(port.calls.deleteOrganization.length).toBe(0);
         const orgRow = yield* findOrgRow(CoreTestFixture.organizationId);
         expect(orgRow).toBeDefined();
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 
@@ -907,7 +910,7 @@ describe("OrganizationService.deleteOrganization", () => {
     "succeeds silently and skips WorkOS when the org row is absent (idempotent)",
     (() => {
       const port = makeFakePort();
-      const billing = makeFakeBilling();
+      const lifecycle = makeFakeLifecycle();
       const orgId = `org_missing_${Date.now()}`;
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
@@ -917,7 +920,7 @@ describe("OrganizationService.deleteOrganization", () => {
 
         // No WorkOS delete fired because there was no local org to mirror.
         expect(port.calls.deleteOrganization.length).toBe(0);
-      }).pipe(Effect.provide(orgServiceLayer(port, billing)), CoreAuthSession.authenticate());
+      }).pipe(Effect.provide(orgServiceLayer(port, lifecycle)), CoreAuthSession.authenticate());
     })(),
   );
 });

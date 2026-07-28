@@ -113,7 +113,7 @@
     "./services/schema/SchemaService": "./src/services/schema/SchemaService.ts",
     "./services/schema/SchemaInvalidator": "./src/services/schema/SchemaInvalidator.ts",
     "./services/organizations/OrganizationService": "./src/services/organizations/OrganizationService.ts",
-    "./services/organizations/OrganizationBillingPort": "./src/services/organizations/OrganizationBillingPort.ts",
+    "./services/organizations/OrganizationLifecyclePort": "./src/services/organizations/OrganizationLifecyclePort.ts",
     "./services/organizations/OrganizationMembershipSyncPort": "./src/services/organizations/OrganizationMembershipSyncPort.ts",
     "./services/organizations/OrganizationMembershipWebhookPort": "./src/services/organizations/OrganizationMembershipWebhookPort.ts",
     "./services/organizations/WorkosOrgPort": "./src/services/organizations/WorkosOrgPort.ts",

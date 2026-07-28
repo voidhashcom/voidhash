@@ -407,7 +407,7 @@ describe("Backend runtime capabilities", () => {
     );
 
     expect(status).toBe(200);
-    expect(JSON.parse(text)).toEqual({ enterprise: { auditLogs: false, billing: false } });
+    expect(JSON.parse(text)).toEqual({ enterprise: {} });
   });
 });
 

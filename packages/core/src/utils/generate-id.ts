@@ -46,12 +46,6 @@ const prefixes = {
   appStoreTransaction: "app_store_tx",
   analyticsIngestDlq: "an_ing_dlq",
   analyticsEvent: "an_evt",
-  // Billing
-  organizationBilling: "org_bill",
-  usageRecord: "usage",
-  usageAggregate: "usage_agg",
-  billingWebhookEvent: "bill_wh",
-  billingProviderMeter: "bill_meter",
   // Webhooks
   webhookEndpoint: "wh_ep",
   webhookDelivery: "wh_del",
@@ -93,5 +87,14 @@ const prefixes = {
   pushNotificationDeliveryAttempt: "push_att",
 } as const;
 
-export const generateId = <TPrefix extends keyof typeof prefixes>(prefix: TPrefix) =>
-  `${prefixes[prefix]}_${createId()}`;
+/**
+ * Builds a prefixed cuid2 id generator over a caller-owned prefix table, so
+ * host packages can mint ids in the same `<prefix>_<cuid2>` shape without
+ * registering their prefixes in core.
+ */
+export const createIdGenerator =
+  <const TPrefixes extends Record<string, string>>(table: TPrefixes) =>
+  <TPrefix extends keyof TPrefixes>(prefix: TPrefix) =>
+    `${table[prefix]}_${createId()}`;
+
+export const generateId = createIdGenerator(prefixes);
