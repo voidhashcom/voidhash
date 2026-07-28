@@ -31,12 +31,12 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.80.7",
     "@earendil-works/pi-ai": "0.80.7",
-    "@orbian/sdk": "workspace:*",
+    "@orbian/sdk": "https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
     "effect": "catalog:",
     "typebox": "1.1.38"
   },
   "devDependencies": {
-    "@orbian/node": "workspace:*",
+    "@orbian/node": "https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "catalog:",
     "vite-plus": "catalog:",

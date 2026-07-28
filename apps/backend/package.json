@@ -39,7 +39,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@orbian/sdk": "workspace:*",
+    "@orbian/sdk": "https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
     "@voidhash/tsconfig": "workspace:*",
     "alchemy": "catalog:",
     "typescript": "catalog:",

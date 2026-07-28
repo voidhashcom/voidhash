@@ -1,7 +1,4 @@
 packages:
-  - ../orbian/packages/core
-  - ../orbian/packages/node
-  - ../orbian/packages/sdk
   - apps/*
   - packages/*
   - libraries/*

@@ -26,7 +26,7 @@
     "@effect/sql-pg": "catalog:",
     "@voidhash/mimic-core": "workspace:*",
     "@voidhash/mimic-server": "workspace:*",
-    "@orbian/sdk": "workspace:*",
+    "@orbian/sdk": "https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
     "effect": "catalog:"
   },
   "devDependencies": {
