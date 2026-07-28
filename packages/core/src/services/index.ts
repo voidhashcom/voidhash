@@ -24,7 +24,7 @@ export * from "./fxRates/FxRateService.ts";
 export * from "./slack/slack-client.ts";
 export * from "./internalFeatureFlags/InternalFeatureFlagService.ts";
 export * from "./organizations/OrganizationService.ts";
-export * from "./organizations/OrganizationBillingPort.ts";
+export * from "./organizations/OrganizationLifecyclePort.ts";
 export * from "./organizations/OrganizationMembershipSyncPort.ts";
 export * from "./organizations/OrganizationMembershipWebhookPort.ts";
 export * from "./organizations/WorkosOrgPort.ts";

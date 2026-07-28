@@ -127,26 +127,9 @@ export type PaywallLocationShowing = InferSelectModel<typeof schema.paywallLocat
 export type InsertPaywallLocationShowing = InferInsertModel<typeof schema.paywallLocationShowings>;
 export type UpdatePaywallLocationShowing = InferUpdateModel<typeof schema.paywallLocationShowings>;
 
-// Billing Types
-export type OrganizationBilling = InferSelectModel<typeof schema.organizationBilling>;
-export type InsertOrganizationBilling = InferInsertModel<typeof schema.organizationBilling>;
-export type UpdateOrganizationBilling = InferUpdateModel<typeof schema.organizationBilling>;
-
-export type UsageRecord = InferSelectModel<typeof schema.usageRecords>;
-export type InsertUsageRecord = InferInsertModel<typeof schema.usageRecords>;
-
-export type UsageAggregate = InferSelectModel<typeof schema.usageAggregates>;
-export type InsertUsageAggregate = InferInsertModel<typeof schema.usageAggregates>;
-export type UpdateUsageAggregate = InferUpdateModel<typeof schema.usageAggregates>;
-
-export type BillingWebhookEvent = InferSelectModel<typeof schema.billingWebhookEvents>;
-export type InsertBillingWebhookEvent = InferInsertModel<typeof schema.billingWebhookEvents>;
-
+// WorkOS Webhook Types
 export type WorkosWebhookEvent = InferSelectModel<typeof schema.workosWebhookEvents>;
 export type InsertWorkosWebhookEvent = InferInsertModel<typeof schema.workosWebhookEvents>;
-
-export type BillingProviderMeter = InferSelectModel<typeof schema.billingProviderMeters>;
-export type InsertBillingProviderMeter = InferInsertModel<typeof schema.billingProviderMeters>;
 
 // Feature Flag Types
 export type FeatureFlag = InferSelectModel<typeof schema.featureFlags>;

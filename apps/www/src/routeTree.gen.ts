@@ -26,7 +26,6 @@ import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-passw
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
-import { Route as MarketingPricingRouteImport } from './routes/_marketing/pricing'
 import { Route as StudioAuthenticatedRouteRouteImport } from './routes/studio/_authenticated/route'
 import { Route as StudioAuthenticatedIndexRouteImport } from './routes/studio/_authenticated/index'
 import { Route as AuthDevicesIndexRouteImport } from './routes/auth/devices/index'
@@ -167,11 +166,6 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
   getParentRoute: () => AuthRouteRoute,
-} as any)
-const MarketingPricingRoute = MarketingPricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => MarketingRouteRoute,
 } as any)
 const StudioAuthenticatedRouteRoute =
   StudioAuthenticatedRouteRouteImport.update({
@@ -614,7 +608,6 @@ export interface FileRoutesByFullPath {
   '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
-  '/pricing': typeof MarketingPricingRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -683,7 +676,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/studio': typeof StudioAuthenticatedIndexRoute
-  '/pricing': typeof MarketingPricingRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -756,7 +748,6 @@ export interface FileRoutesById {
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/studio/_authenticated': typeof StudioAuthenticatedRouteRouteWithChildren
-  '/_marketing/pricing': typeof MarketingPricingRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -833,7 +824,6 @@ export interface FileRouteTypes {
     | '/design'
     | '/docs'
     | '/studio'
-    | '/pricing'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -902,7 +892,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/studio'
-    | '/pricing'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -974,7 +963,6 @@ export interface FileRouteTypes {
     | '/docs'
     | '/studio'
     | '/studio/_authenticated'
-    | '/_marketing/pricing'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -1181,13 +1169,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/forgot-password'
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof AuthRouteRoute
-    }
-    '/_marketing/pricing': {
-      id: '/_marketing/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof MarketingPricingRouteImport
-      parentRoute: typeof MarketingRouteRoute
     }
     '/studio/_authenticated': {
       id: '/studio/_authenticated'
@@ -1585,12 +1566,10 @@ declare module '@tanstack/react-router' {
 }
 
 interface MarketingRouteRouteChildren {
-  MarketingPricingRoute: typeof MarketingPricingRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
 }
 
 const MarketingRouteRouteChildren: MarketingRouteRouteChildren = {
-  MarketingPricingRoute: MarketingPricingRoute,
   MarketingIndexRoute: MarketingIndexRoute,
 }
 

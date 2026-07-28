@@ -1,5 +1,7 @@
 import { Logo } from "@voidhash/ui";
 
+import { MARKETING_COMPANY_LINKS } from "@/features/www/landing/marketing-nav-config";
+
 const GITHUB_REPO = "https://github.com/voidhashcom/voidhash";
 
 const LINK_COLUMNS: {
@@ -39,7 +41,7 @@ const LINK_COLUMNS: {
   {
     title: "COMPANY",
     links: [
-      { label: "Pricing", href: "/pricing" },
+      ...MARKETING_COMPANY_LINKS.map((link) => ({ label: link.label, href: link.href })),
       { label: "Blog" },
       { label: "Security" },
       { label: "Privacy" },

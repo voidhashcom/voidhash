@@ -4,9 +4,9 @@
  * but generic enough for any internal notification.
  *
  * Uses the runtime's built-in `fetch` so it runs natively on Cloudflare Workers
- * without an Effect `HttpClient` dependency — same approach as
- * {@link createAutumnClient}. The bot token (`xoxb-…`) and default channel are
- * read from {@link SlackConfig} at layer build (worker boot), keeping the
+ * without an Effect `HttpClient` dependency. The bot token (`xoxb-…`) and
+ * default channel are read from {@link SlackConfig} at layer build (worker
+ * boot), keeping the
  * resolver (Alchemy secrets / `Config`) decoupled from the constructor.
  *
  * When the bot token or the target channel is missing the client **fails
@@ -53,7 +53,7 @@ export class SlackClientTag extends Context.Service<SlackClientTag, SlackClient>
 /**
  * Runtime configuration for the live Slack client. Fields are Effect-of-string
  * so the resolver (Alchemy secrets / `Config`) is decoupled from the
- * constructor — matches the {@link AutumnConfig} pattern.
+ * constructor.
  */
 export interface SlackConfig {
   readonly botToken: Effect.Effect<string>;

@@ -14,6 +14,7 @@ import {
 import { Grid2X2, Plus, Settings } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/features/studio/components/auth-context";
+import { organizationSettingsNavItems } from "@/features/studio/enterprise/organization-nav-slot";
 import { useRuntimeCapabilities } from "@/features/studio/enterprise/runtime-capabilities";
 import { CreateProjectModal } from "@/features/studio/projects/create-project-modal";
 
@@ -61,14 +62,7 @@ export function OrganizationSidebar({
                 title: "General",
                 url: `/studio/${organizationSlug}/~/settings`,
               },
-              ...(capabilities?.enterprise.billing
-                ? [{
-                    isActive: () =>
-                      pathname.startsWith(`/studio/${organizationSlug}/~/settings/billing`),
-                    title: "Billing",
-                    url: `/studio/${organizationSlug}/~/settings/billing`,
-                  }]
-                : []),
+              ...organizationSettingsNavItems({ capabilities, organizationSlug, pathname }),
             ],
           },
         ],
