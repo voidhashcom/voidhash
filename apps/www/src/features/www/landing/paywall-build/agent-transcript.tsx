@@ -90,6 +90,7 @@ function ToolCallBlock({
 /**
  * The Claude Code pane of the illustration: one user prompt followed by the Voidhash
  * MCP calls that compose the paywall. Scrolls itself so the newest call stays in view.
+ * Fills its container's width; only the height is fixed.
  */
 export function AgentTranscript({ playback }: { playback: TranscriptPlayback }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -105,18 +106,18 @@ export function AgentTranscript({ playback }: { playback: TranscriptPlayback }) 
 
   return (
     <div
-      className="absolute top-0 left-0 h-129.25 w-99.75 rounded-[16px] border border-zinc-800 border-solid bg-origin-border bg-zinc-950 [box-shadow:#00000040_0px_2px_16px]"
+      className="relative h-129.25 w-full rounded-[16px] border border-zinc-800 border-solid bg-origin-border bg-zinc-950 [box-shadow:#00000040_0px_2px_16px]"
       style={{ backgroundImage: TERMINAL_BACKGROUND }}
     >
       <div className="absolute top-3 left-3.25 size-3.25 rounded-full bg-zinc-700" />
       <div className="absolute top-3 left-8.5 size-3.25 rounded-full bg-zinc-700" />
       <div className="absolute top-3 left-13.75 size-3.25 rounded-full bg-zinc-700" />
-      <div className="absolute top-2.5 left-38.75 font-sans text-xs text-zinc-600 leading-[142.857%]">
+      <div className="absolute inset-x-0 top-2.5 text-center font-sans text-xs text-zinc-600 leading-[142.857%]">
         Claude Code
       </div>
 
       <div
-        className="absolute top-9.75 left-6 h-114.5 w-88.75 overflow-hidden font-mono text-xs text-zinc-400 leading-[142.857%]"
+        className="absolute inset-x-6 top-9.75 h-114.5 overflow-hidden font-mono text-xs text-zinc-400 leading-[142.857%]"
         onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 4)}
         ref={scrollerRef}
       >

@@ -69,7 +69,7 @@ body:
     attributes:
       label: Checklist
       options:
-        - label: I reproduced this on the latest preview revision.
+        - label: I reproduced this on the latest `main` revision.
           required: true
         - label: This report does not contain a vulnerability or sensitive data.
           required: true

@@ -3,7 +3,7 @@
 ## Supported Versions
 
 Voidhash is currently in private alpha and is not yet supported for production
-use. Security fixes are applied to the latest `preview` branch. Older commits,
+use. Security fixes are applied to the latest `main` branch. Older commits,
 preview builds, and unpublished alpha artifacts are not supported.
 
 This policy will be updated with a version support table before the first

@@ -37,7 +37,7 @@ Software is governed only by terms that expressly identify it.
 
 ## Is self-hosting production supported today?
 
-Not yet. The repository is in private alpha and the latest `preview` branch is
+Not yet. The repository is in private alpha and the latest `main` branch is
 the only security-maintained line. The supported path for evaluation is the
 documented Docker Compose configuration. A production support matrix and
 version table will replace this answer before the first public release.

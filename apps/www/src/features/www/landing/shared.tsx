@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@voidhash/ui";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 /** Full-bleed landing section: bottom hairline plus a centered, side-bordered content column. */
 export function LandingSection({
@@ -69,42 +69,82 @@ export function SectionHeader({
  * Scales a fixed-width design fragment down to fit its container.
  *
  * The product mockups are pixel-faithful exports from the 1810px artboard, so instead of
- * re-flowing their internals we shrink each one with `zoom` — unlike `transform: scale`
- * it keeps the layout height in sync with the scaled content.
+ * re-flowing their internals we shrink each one with `transform: scale`. `zoom` would keep
+ * layout height in sync for free, but iOS Safari shrinks only the boxes and re-renders the
+ * text near its original size, leaving the copy overlapping — a transform scales the rendered
+ * pixels wholesale, text included. The wrapper's height is synced to the scaled frame instead.
+ *
+ * @param designWidth Intrinsic width of the exported fragment, in artboard pixels.
+ * @param compactDesignWidth Narrower intrinsic width used below `xl`, for mockups whose markup
+ *   drops its outer columns there. Scaling to the trimmed width rather than the full artboard is
+ *   what actually buys the phone-sized viewport its resolution back.
  */
 export function ScaledMock({
   designWidth,
+  compactDesignWidth,
   className,
   children,
 }: {
   designWidth: number;
+  compactDesignWidth?: number;
   className?: string;
   children: ReactNode;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
+  const sizerRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
 
   useEffect(() => {
-    const frame = frameRef.current;
-    const viewport = frame?.parentElement;
-    if (!frame || !viewport) {
+    if (compactDesignWidth === undefined) {
       return;
     }
 
-    const applyZoom = () => {
-      frame.style.zoom = `${Math.min(1, viewport.clientWidth / designWidth)}`;
+    // Matches Tailwind's `xl` breakpoint, which is where the mockups drop their outer columns.
+    const query = window.matchMedia("(width < 80rem)");
+    const sync = () => setCompact(query.matches);
+
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, [compactDesignWidth]);
+
+  const width = compact && compactDesignWidth !== undefined ? compactDesignWidth : designWidth;
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    const sizer = sizerRef.current;
+    const viewport = viewportRef.current;
+    if (!frame || !sizer || !viewport) {
+      return;
+    }
+
+    const applyScale = () => {
+      const scale = Math.min(1, viewport.clientWidth / width);
+      frame.style.transform = `scale(${scale})`;
+      sizer.style.height = `${frame.offsetHeight * scale}px`;
     };
 
-    applyZoom();
+    applyScale();
 
-    const observer = new ResizeObserver(applyZoom);
+    // The frame is observed too: offsetHeight ignores the transform, so a content-height
+    // change (fonts loading, animated blocks) must re-sync the sizer height.
+    const observer = new ResizeObserver(applyScale);
     observer.observe(viewport);
+    observer.observe(frame);
     return () => observer.disconnect();
-  }, [designWidth]);
+  }, [width]);
 
   return (
-    <div className={cn("w-full min-w-0", className)}>
-      <div ref={frameRef} style={{ width: designWidth }}>
-        {children}
+    <div className={cn("w-full min-w-0", className)} ref={viewportRef}>
+      {/* The scaled height lives on this inner div: callers pass flex classes for the outer
+          wrapper, and a flex-basis would override an inline height set directly on it. */}
+      <div ref={sizerRef}>
+        {/* flow-root keeps child margins inside the frame's box, so they get measured and
+            scaled with the rest of the mockup instead of collapsing out past the transform. */}
+        <div className="flow-root origin-top-left" ref={frameRef} style={{ width }}>
+          {children}
+        </div>
       </div>
     </div>
   );

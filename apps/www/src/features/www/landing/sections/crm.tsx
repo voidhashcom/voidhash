@@ -10,9 +10,11 @@ export function LandingCrm() {
           eyebrow="CRM"
           title="Know the people behind your growth."
         />
-        <ScaledMock designWidth={1400}>
-          <div className="w-350 h-125 mt-6 shrink-0 relative">
-          <div className="left-97.5 top-0 w-252.5 flex flex-col items-start rounded-lg overflow-clip absolute">
+        <ScaledMock compactDesignWidth={1010} designWidth={1400}>
+          {/* Below xl the detail card stops floating over the table and stacks above it, so the
+              two panels become an ordinary flex column instead of the artboard's overlap. */}
+          <div className="w-full xl:w-350 xl:h-125 mt-6 shrink-0 relative flex flex-col gap-10 xl:block">
+          <div className="xl:left-97.5 xl:top-0 w-full xl:w-252.5 flex flex-col items-start rounded-lg overflow-clip relative xl:absolute">
             <div className="self-stretch flex items-center py-3.5 px-6 gap-4 border-b border-b-solid [border-bottom-color:var(--color-zinc-900)]">
               <div className="w-75 shrink-0 font-sans text-zinc-400 text-xs/4">
                 Person
@@ -205,9 +207,13 @@ export function LandingCrm() {
                 6 days ago
               </div>
             </div>
-            <div className="absolute top-px -bottom-2 inset-x-px" style={{ backgroundImage: 'radial-gradient(ellipse 67.23% 100% at 21.92% 0% in oklab, oklab(17.1% 0 0 / 0%) 17.44%, oklab(16.1% .0004 -0.001 / 33.8%) 45.31%, oklab(14.1% 0.001 -0.004) 100%)' }} />
+            {/* Blends the table under the floating detail card — its focal point sits where the
+                card overlaps, so it only makes sense while the two are stacked in z, not in flow. */}
+            <div className="hidden xl:block absolute top-px -bottom-2 inset-x-px" style={{ backgroundImage: 'radial-gradient(ellipse 67.23% 100% at 21.92% 0% in oklab, oklab(17.1% 0 0 / 0%) 17.44%, oklab(16.1% .0004 -0.001 / 33.8%) 45.31%, oklab(14.1% 0.001 -0.004) 100%)' }} />
+            {/* Mobile keeps just the bottom fade, so the row list still reads as continuing. */}
+            <div className="xl:hidden absolute top-px -bottom-2 inset-x-px" style={{ backgroundImage: 'linear-gradient(to bottom, oklab(17.1% 0 0 / 0%) 55%, oklab(14.1% 0.001 -0.004) 100%)' }} />
           </div>
-          <div className="absolute left-0 -top-6 w-126 flex flex-col items-start rounded-2xl overflow-clip [box-shadow:#000000B8_0px_28px_90px] bg-origin-border border border-solid [border-color:var(--color-zinc-800)]" style={{ backgroundImage: 'radial-gradient(ellipse 87.36% 97.41499999999999% at 100% 0% in oklab, var(--color-zinc-900) 0%, var(--color-zinc-950) 100%)' }}>
+          <div className="relative xl:absolute -order-1 xl:order-none xl:left-0 xl:-top-6 w-full xl:w-126 flex flex-col items-start rounded-2xl overflow-clip [box-shadow:#000000B8_0px_28px_90px] bg-origin-border border border-solid [border-color:var(--color-zinc-800)]" style={{ backgroundImage: 'radial-gradient(ellipse 87.36% 97.41499999999999% at 100% 0% in oklab, var(--color-zinc-900) 0%, var(--color-zinc-950) 100%)' }}>
             <div className="self-stretch flex items-center pt-6 pb-4 overflow-clip gap-4.5 px-7">
               <div className="shrink-0 rounded-[999px] size-14" style={{ backgroundImage: 'linear-gradient(in oklab 135deg, oklab(68.1% -0.134 0.027) 0%, oklab(36.1% 0.011 -0.231) 100%)' }} />
               <div className="flex flex-col grow basis-[0%] gap-1">
