@@ -1,4 +1,8 @@
-import { PaywallBuild } from "../paywall-build/paywall-build";
+import {
+  PaywallBuildCanvas,
+  PaywallBuildProvider,
+  PaywallBuildTerminal,
+} from "../paywall-build/paywall-build";
 import { LandingSection, ScaledMock, SectionHeader } from "../shared";
 import { LandingAgentCompatibility } from "./agent-compatibility";
 
@@ -12,9 +16,11 @@ export function LandingPaywalls() {
           eyebrow="Paywalls"
           title="Ship paywalls in minutes with our no-code designer and full AI integration."
         />
-        <ScaledMock designWidth={1368}>
-          <div className="h-195.5 w-342 relative shrink-0">
-          <div className="flex absolute w-342 left-0 top-0 flex-col items-start rounded-lg overflow-clip [background-color:var(--color-zinc-950)] border border-solid [border-color:var(--zinc-800)]">
+        <PaywallBuildProvider className="flex flex-col gap-6 self-stretch">
+        <PaywallBuildTerminal />
+        <ScaledMock compactDesignWidth={520} designWidth={1368}>
+          <div className="h-211 xl:h-195.5 w-130 xl:w-342 relative shrink-0">
+          <div className="flex absolute w-130 xl:w-342 left-0 top-0 flex-col items-start rounded-lg overflow-clip [background-color:var(--color-zinc-950)] border border-solid [border-color:var(--zinc-800)]">
             <div className="flex items-start gap-6.5 self-stretch p-3 border-b border-b-solid border-b-zinc-800/50">
               <div className="flex w-3.25 items-start gap-2.5 shrink-0">
                 <div className="h-3.25 rounded-full self-stretch w-3.25 shrink-0 bg-zinc-700" />
@@ -22,8 +28,8 @@ export function LandingPaywalls() {
                 <div className="h-3.25 rounded-full self-stretch w-3.25 shrink-0 bg-zinc-700" />
               </div>
             </div>
-            <div className="h-186 w-342 relative shrink-0 border border-solid border-zinc-800/50">
-              <div className="w-342 h-186 top-[50%] left-[50%] absolute bg-zinc-900" style={{ translate: '-50% -50%' }} />
+            <div className="h-201.5 xl:h-186 w-130 xl:w-342 relative shrink-0 border border-solid border-zinc-800/50">
+              <div className="w-130 xl:w-342 h-201.5 xl:h-186 top-[50%] left-[50%] absolute bg-zinc-900" style={{ translate: '-50% -50%' }} />
               <div className="items-center h-13.5 flex top-0 justify-between absolute px-3 bg-zinc-900 border-b border-b-solid border-b-zinc-800 -inset-x-px">
                 <div className="items-center flex justify-center absolute gap-2 inset-0">
                   <div className="text-sm leading-[142.857%] font-sans text-zinc-50">
@@ -39,7 +45,7 @@ export function LandingPaywalls() {
                       <path d="m6 9 6 6 6-6" fontSize="16px" fill="none" stroke="var(--zinc-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ boxSizing: 'border-box', transformOrigin: '0px 0px' }} />
                     </svg>
                   </div>
-                  <div className="items-center flex w-fit rounded-lg relative [box-shadow:#0000000D_0px_1px_2px] bg-[#27272A4D] border border-solid border-zinc-800">
+                  <div className="items-center hidden xl:flex w-fit rounded-lg relative [box-shadow:#0000000D_0px_1px_2px] bg-[#27272A4D] border border-solid border-zinc-800">
                     <div className="h-full w-[91.5px] top-0 left-0 absolute rounded-[9px] bg-zinc-800" />
                     <div className="items-center h-7 flex shrink-0 justify-center min-w-0 px-3 rounded-[9px] gap-1.5 relative">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fontSize="14px" fontWeight="500" style={{ height: '16px', flexShrink: '0', width: '16px', overflow: 'clip' }}>
@@ -86,15 +92,6 @@ export function LandingPaywalls() {
                   </div>
                 </div>
                 <div className="items-center flex gap-2 relative">
-                  <div className="items-center h-7 flex shrink-0 justify-center px-2.5 rounded-md gap-1 border border-solid border-[#00000000]">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fontSize="12.8px" fontWeight="500" style={{ height: '16px', flexShrink: '0', width: '16px', marginRight: '4px', opacity: '0.7', overflow: 'clip' }}>
-                      <path d="m16 18 6-6-6-6" fontSize="12.8px" fontWeight="500" fill="none" stroke="var(--zinc-50)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ boxSizing: 'border-box', transformOrigin: '0px 0px' }} />
-                      <path d="m8 6-6 6 6 6" fontSize="12.8px" fontWeight="500" fill="none" stroke="var(--zinc-50)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ boxSizing: 'border-box', transformOrigin: '0px 0px' }} />
-                    </svg>
-                    <div className="inline-block text-[12.8px] leading-[150%] text-center w-max shrink-0 font-sans font-medium text-zinc-50">
-                      Dev
-                    </div>
-                  </div>
                   <div className="items-center h-7 flex shrink-0 justify-center px-2.5 rounded-md gap-1 bg-zinc-800 border border-solid border-[#00000000]">
                     <div className="flex text-[12.8px] leading-[150%] text-center w-max shrink-0 font-sans font-medium text-zinc-50">
                       Share
@@ -107,7 +104,7 @@ export function LandingPaywalls() {
                   </div>
                 </div>
               </div>
-              <div className="-bottom-0.5 flex flex-col w-69 top-13.5 -right-px absolute bg-zinc-900 border-l border-l-solid border-l-zinc-800">
+              <div className="-bottom-0.5 hidden xl:flex flex-col w-69 top-13.5 -right-px absolute bg-zinc-900 border-l border-l-solid border-l-zinc-800">
                 <div className="flex basis-[0%] flex-col grow overflow-clip relative">
                   <div className="absolute inset-0">
                     <div className="h-full">
@@ -385,7 +382,7 @@ export function LandingPaywalls() {
                   <div className="h-full w-px mx-auto" />
                 </div>
               </div>
-              <div className="-bottom-0.75 flex flex-col w-60.75 top-13.5 left-0 absolute bg-zinc-900 border-r border-r-solid border-r-zinc-800">
+              <div className="-bottom-0.75 hidden xl:flex flex-col w-60.75 top-13.5 left-0 absolute bg-zinc-900 border-r border-r-solid border-r-zinc-800">
                 <div className="flex basis-[0%] flex-col grow overflow-clip relative">
                   <div className="absolute inset-0">
                     <div className="h-full">
@@ -565,12 +562,13 @@ export function LandingPaywalls() {
                   <div className="h-full w-px mx-auto" />
                 </div>
               </div>
-              <div className="w-342 h-186 top-0 left-0 absolute" style={{ backgroundImage: 'radial-gradient(ellipse 50.4% 92.66499999999999% at 50% -5.790000000000006% in oklab, oklab(18.2% 0 0 / 0%) 0.14%, oklab(14.1% 0.001 -0.004) 100%)' }} />
+              <div className="w-130 xl:w-342 h-201.5 xl:h-186 top-0 left-0 absolute" style={{ backgroundImage: 'radial-gradient(ellipse 50.4% 92.66499999999999% at 50% -5.790000000000006% in oklab, oklab(18.2% 0 0 / 0%) 0.14%, oklab(14.1% 0.001 -0.004) 100%)' }} />
             </div>
           </div>
-          <PaywallBuild />
+          <PaywallBuildCanvas />
           </div>
         </ScaledMock>
+        </PaywallBuildProvider>
       </div>
       <LandingAgentCompatibility />
     </LandingSection>
