@@ -7,7 +7,7 @@ import {
   DurableEntityHost,
   makeDurableEntityAddress,
 } from "@orbian/sdk/DurableEntity";
-import { NodeDurableEntityControl } from "@orbian/node/DurableEntity";
+import { NodeDurableEntityControl } from "../src/runtime/DurableEntity.ts";
 import { Effect, ManagedRuntime, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 import WebSocket from "ws";

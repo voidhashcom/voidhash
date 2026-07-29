@@ -9,6 +9,9 @@ catalogs:
     '@better-auth/api-key':
       specifier: ^1.6.23
       version: 1.6.23
+    '@effect-aws/client-s3':
+      specifier: 2.0.0-beta.4
+      version: 2.0.0-beta.4
     '@effect/language-service':
       specifier: ^0.86.2
       version: 0.86.6
@@ -60,6 +63,9 @@ catalogs:
     '@tanstack/zod-adapter':
       specifier: 1.167.0
       version: 1.167.0
+    '@types/nodemailer':
+      specifier: 8.0.1
+      version: 8.0.1
     '@types/react':
       specifier: ^19.1.0
       version: 19.1.17
@@ -93,6 +99,12 @@ catalogs:
     lucide-react:
       specifier: ^0.555.0
       version: 0.555.0
+    nodemailer:
+      specifier: 9.0.3
+      version: 9.0.3
+    playwright-core:
+      specifier: 1.61.1
+      version: 1.61.1
     react:
       specifier: 19.2.7
       version: 19.2.7
@@ -1304,9 +1316,9 @@ importers:
         specifier: 1.1.38
         version: 1.1.38
     devDependencies:
-      '@orbian/node':
-        specifier: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.84)
+      '@effect/sql-pg':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.84(effect@4.0.0-beta.84)
       '@voidhash/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1984,15 +1996,15 @@ importers:
 
   selfhost/entry:
     dependencies:
+      '@effect-aws/client-s3':
+        specifier: 'catalog:'
+        version: 2.0.0-beta.4(effect@4.0.0-beta.84)
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.0-beta.84(effect@4.0.0-beta.84)(ioredis@5.9.1)
       '@effect/sql-pg':
         specifier: 'catalog:'
         version: 4.0.0-beta.84(effect@4.0.0-beta.84)
-      '@orbian/node':
-        specifier: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.84)
       '@orbian/sdk':
         specifier: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
         version: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.84)
@@ -2044,6 +2056,12 @@ importers:
       jose:
         specifier: 'catalog:'
         version: 6.1.3
+      nodemailer:
+        specifier: 'catalog:'
+        version: 9.0.3
+      playwright-core:
+        specifier: 'catalog:'
+        version: 1.61.1
       preact:
         specifier: ^10.25.4
         version: 10.29.2
@@ -2066,6 +2084,9 @@ importers:
       '@types/node':
         specifier: ^24.0.12
         version: 24.10.4
+      '@types/nodemailer':
+        specifier: 'catalog:'
+        version: 8.0.1
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
@@ -5008,26 +5029,8 @@ packages:
     resolution: {integrity: sha512-a61ljmRVVyG5MC/698C8/FfFDw5a8LOIvyOLW5fztgUXqUpc1jOfQzOitSCbge657OgXXThmY3Tk8fpiDb4UcA==}
     engines: {node: '>= 20.0.0'}
 
-  '@orbian/core@https://pkg.voidha.sh/orbian-core/fc444ba':
-    resolution: {integrity: sha512-YxCHTGwpot5BvvILMBmBa1M5WbkJgIm8AySmFUAyVLUQwEKOjzyYSLDPmCSxKKoutWxrOw3m7HtRx2Q9Nc1WQw==, tarball: https://pkg.voidha.sh/orbian-core/fc444ba}
-    version: 0.0.0-gfc444ba
-    peerDependencies:
-      effect: 4.0.0-beta.84
-
-  '@orbian/node@https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526':
-    resolution: {integrity: sha512-2jPjjl/oXbyi+2zai62MJxcf3ZMXQnIw2dgTnP4k7cxp9vQBl5UFfM2THY3SR5y/sgzGvVmtR8GNJiD3IrkXEQ==, tarball: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526}
-    version: 0.0.0-gfc444ba
-    peerDependencies:
-      effect: 4.0.0-beta.84
-
-  '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444ba':
-    resolution: {integrity: sha512-3gM8r6ZIaZGWiLAGLtxWwbse4gmfmr/dX/t6BhYAqV13cxUsZR9M4hJoA0rSDXv/Kdy5oD2ynZCSPF/R7Bsc+w==, tarball: https://pkg.voidha.sh/orbian-sdk/fc444ba}
-    version: 0.0.0-gfc444ba
-    peerDependencies:
-      effect: 4.0.0-beta.84
-
   '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526':
-    resolution: {integrity: sha512-3gM8r6ZIaZGWiLAGLtxWwbse4gmfmr/dX/t6BhYAqV13cxUsZR9M4hJoA0rSDXv/Kdy5oD2ynZCSPF/R7Bsc+w==, tarball: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526}
+    resolution: {tarball: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526}
     version: 0.0.0-gfc444ba
     peerDependencies:
       effect: 4.0.0-beta.84
@@ -7965,6 +7968,9 @@ packages:
 
   '@types/node@24.10.4':
     resolution: {integrity: sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg==}
+
+  '@types/nodemailer@8.0.1':
+    resolution: {integrity: sha512-PxpaInm8V1JQDd4j0ds5HfvWQk8JupS1C0Picb96QJsrrRDjBH+DlK7L4ZdNSqNULhiZRQHc40nLVShaGxXAMw==}
 
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
@@ -19441,27 +19447,6 @@ snapshots:
 
   '@orama/orama@3.1.18': {}
 
-  '@orbian/core@https://pkg.voidha.sh/orbian-core/fc444ba(effect@4.0.0-beta.84)':
-    dependencies:
-      '@orbian/sdk': https://pkg.voidha.sh/orbian-sdk/fc444ba(effect@4.0.0-beta.84)
-      effect: 4.0.0-beta.84
-
-  '@orbian/node@https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.84)':
-    dependencies:
-      '@effect-aws/client-s3': 2.0.0-beta.4(effect@4.0.0-beta.84)
-      '@effect/sql-pg': 4.0.0-beta.84(effect@4.0.0-beta.84)
-      '@orbian/core': https://pkg.voidha.sh/orbian-core/fc444ba(effect@4.0.0-beta.84)
-      '@orbian/sdk': https://pkg.voidha.sh/orbian-sdk/fc444ba(effect@4.0.0-beta.84)
-      effect: 4.0.0-beta.84
-      nodemailer: 9.0.3
-      playwright-core: 1.61.1
-    transitivePeerDependencies:
-      - pg-native
-
-  '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444ba(effect@4.0.0-beta.84)':
-    dependencies:
-      effect: 4.0.0-beta.84
-
   '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.84)':
     dependencies:
       effect: 4.0.0-beta.84
@@ -23386,6 +23371,10 @@ snapshots:
   '@types/node@24.10.4':
     dependencies:
       undici-types: 7.16.0
+
+  '@types/nodemailer@8.0.1':
+    dependencies:
+      '@types/node': 24.10.4
 
   '@types/offscreencanvas@2019.7.3': {}
 

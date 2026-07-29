@@ -1,5 +1,5 @@
 import type { DurableEntityAddress } from "@orbian/sdk/DurableEntity";
-import type { NodeDurableEntityControlShape } from "@orbian/node/DurableEntity";
+import type { NodeDurableEntityControlShape } from "./runtime/DurableEntity.ts";
 import { Effect } from "effect";
 
 /** Handler for one durable-entity alarm type. */

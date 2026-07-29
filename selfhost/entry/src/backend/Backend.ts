@@ -11,7 +11,7 @@ import type { PublicFileStore } from "@voidhash/core/services/storage/PublicFile
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
 import { Db } from "@voidhash/db";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
+import { NodePlatformRuntimeLive } from "../runtime/PlatformRuntime.ts";
 import { Effect, Layer } from "effect";
 
 import type { SelfhostRuntimeConfig, SelfhostWorkosConfig } from "../config.ts";

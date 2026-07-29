@@ -4,8 +4,8 @@ import {
   type MimicDocumentIdleMessageType,
 } from "@voidhash/mimic-db/ws/idle-notify";
 import { makeDurableEntityAddress } from "@orbian/sdk/DurableEntity";
-import type { NodeDurableEntityControlShape } from "@orbian/node/DurableEntity";
-import { makeMemoryDurableEntityHost } from "@orbian/node/MemoryDurableEntity";
+import type { NodeDurableEntityControlShape } from "../src/runtime/DurableEntity.ts";
+import { makeMemoryDurableEntityHost } from "../src/runtime/MemoryDurableEntity.ts";
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
 

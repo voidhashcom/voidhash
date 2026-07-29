@@ -36,7 +36,7 @@
     "typebox": "1.1.38"
   },
   "devDependencies": {
-    "@orbian/node": "https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
+    "@effect/sql-pg": "catalog:",
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "catalog:",
     "vite-plus": "catalog:",

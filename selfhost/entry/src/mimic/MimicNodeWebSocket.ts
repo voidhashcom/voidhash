@@ -20,8 +20,8 @@ import {
   type DurableEntityContext,
   makeDurableEntityAddress,
 } from "@orbian/sdk/DurableEntity";
-import type { NodeDurableEntityControlShape } from "@orbian/node/DurableEntity";
-import { makeNodeDurableEntitySession } from "@orbian/node/NodeDurableEntitySession";
+import type { NodeDurableEntityControlShape } from "../runtime/DurableEntity.ts";
+import { makeNodeDurableEntitySession } from "../runtime/NodeDurableEntitySession.ts";
 import { Duration, Effect, Fiber, Semaphore } from "effect";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 

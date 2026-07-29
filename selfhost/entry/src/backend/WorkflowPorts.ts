@@ -8,8 +8,8 @@ import { WebhookDeliveryWorkflow } from "@voidhash/core/services/webhookDispatch
 import { Db } from "@voidhash/db";
 import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 import { WorkflowRunner } from "@orbian/sdk/Workflow";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
-import { PgWorkflowRunnerLive } from "@orbian/node/Workflow";
+import { NodePlatformRuntimeLive } from "../runtime/PlatformRuntime.ts";
+import { PgWorkflowRunnerLive } from "../runtime/Workflow.ts";
 import { Effect, Layer, Redacted } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";

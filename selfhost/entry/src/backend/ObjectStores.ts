@@ -11,7 +11,7 @@ import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 import {
   S3ObjectStoreLive,
   type S3ObjectStoreConfig,
-} from "@orbian/node/ObjectStore";
+} from "../runtime/ObjectStore.ts";
 import { Effect, Layer, Option } from "effect";
 
 const objectStoreCause = (cause: unknown): string =>

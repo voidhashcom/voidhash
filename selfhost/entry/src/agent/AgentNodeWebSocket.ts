@@ -20,7 +20,7 @@ import { AgentSessionIndexService, LocalUserSessionService, Workos } from "@void
 import type { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import { Db } from "@voidhash/db";
 import type { DurableEntityHostShape } from "@orbian/sdk/DurableEntity";
-import { makeNodeDurableEntitySession } from "@orbian/node/NodeDurableEntitySession";
+import { makeNodeDurableEntitySession } from "../runtime/NodeDurableEntitySession.ts";
 import { Context, Effect, Redacted } from "effect";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import { WebSocketServer, type RawData } from "ws";

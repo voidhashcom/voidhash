@@ -1,6 +1,6 @@
 import type { DbConfig } from "@voidhash/db/db";
-import type { SmtpMailerConfig } from "@orbian/node/Mailer";
-import type { S3ObjectStoreConfig } from "@orbian/node/ObjectStore";
+import type { SmtpMailerConfig } from "./runtime/Mailer.ts";
+import type { S3ObjectStoreConfig } from "./runtime/ObjectStore.ts";
 import { Redacted } from "effect";
 
 const positiveIntegerFromEnv = (name: string, fallback: number): number => {

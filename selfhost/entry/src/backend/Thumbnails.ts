@@ -22,8 +22,8 @@ import { Screenshot } from "@orbian/sdk/Screenshot";
 import {
   ChromiumScreenshotLive,
   type ChromiumScreenshotConfig,
-} from "@orbian/node/Screenshot";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
+} from "../runtime/Screenshot.ts";
+import { NodePlatformRuntimeLive } from "../runtime/PlatformRuntime.ts";
 import { Cause, Effect, Layer } from "effect";
 
 import { mimicDocumentIdleQueueName } from "../mimic/MimicDocumentIdleQueue.ts";

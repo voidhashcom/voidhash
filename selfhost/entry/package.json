@@ -20,6 +20,7 @@
     "test": "vp test run -c vitest.mts"
   },
   "dependencies": {
+    "@effect-aws/client-s3": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@voidhash/agent": "workspace:*",
@@ -36,10 +37,11 @@
     "@voidhash/paywall-renderer-web-core": "workspace:*",
     "@voidhash/paywalls": "workspace:*",
     "@orbian/sdk": "https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
-    "@orbian/node": "https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
     "effect": "catalog:",
     "esbuild": "^0.25.10",
     "jose": "catalog:",
+    "nodemailer": "catalog:",
+    "playwright-core": "catalog:",
     "preact": "^10.25.4",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -49,6 +51,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.12",
+    "@types/nodemailer": "catalog:",
     "@types/ws": "^8.18.1",
     "@voidhash/mimic-core": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",

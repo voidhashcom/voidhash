@@ -25,9 +25,9 @@ import { Db } from "@voidhash/db";
 import { KeyValueStore } from "@orbian/sdk/KeyValueStore";
 import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
 import { QueueDriver } from "@orbian/sdk/Queue";
-import { PgKeyValueStoreLive } from "@orbian/node/KeyValueStore";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
-import { PgQueueLive } from "@orbian/node/Queue";
+import { PgKeyValueStoreLive } from "../runtime/KeyValueStore.ts";
+import { NodePlatformRuntimeLive } from "../runtime/PlatformRuntime.ts";
+import { PgQueueLive } from "../runtime/Queue.ts";
 import { Context, Effect, Layer, Redacted } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";

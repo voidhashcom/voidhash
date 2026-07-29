@@ -32,11 +32,11 @@ flowchart TD
   storage, object storage, screenshots, and mail.
 - `packages/core`, `packages/db`, `packages/rpc`, and the remaining service
   packages own portable application and domain behavior.
-- `@orbian/node` implements those contracts for a single Node deployment.
-  `selfhost/entry` composes the Community application.
+- Trusted host services stay inside `selfhost/entry`, which composes the
+  Community application.
 
-Release lockfiles pin `@orbian/sdk` and `@orbian/node` to immutable Orbian
-commit artifacts. Contributors working in adjacent checkouts can switch to the
+Release lockfiles pin `@orbian/sdk` to an immutable Orbian commit artifact.
+Contributors working in adjacent checkouts can switch to the
 sibling workspace with `pnpm orbian:source workspace`; maintainers prepare a
 standalone release with `pnpm orbian:source <full-commit-sha>`.
 

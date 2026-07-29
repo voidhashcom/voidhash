@@ -7,9 +7,9 @@ import { makeRoutesLive } from "@voidhash/mimic-db/http/rpc-app";
 import { DurableEntityHost } from "@orbian/sdk/DurableEntity";
 import {
   NodeDurableEntityControl,
-} from "@orbian/node/DurableEntity";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
-import { PgQueueLive } from "@orbian/node/Queue";
+} from "../runtime/DurableEntity.ts";
+import { NodePlatformRuntimeLive } from "../runtime/PlatformRuntime.ts";
+import { PgQueueLive } from "../runtime/Queue.ts";
 import { Context, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 

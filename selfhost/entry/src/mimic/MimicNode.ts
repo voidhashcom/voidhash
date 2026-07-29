@@ -16,7 +16,7 @@ import {
   NodeDurableEntityControl,
   type PgDurableEntityConfig,
   PgDurableEntityHostLive,
-} from "@orbian/node/DurableEntity";
+} from "../runtime/DurableEntity.ts";
 import { Effect, Layer } from "effect";
 
 import { PgControlStoreLive } from "./PgControlStore.ts";

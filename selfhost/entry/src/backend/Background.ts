@@ -11,7 +11,7 @@ import {
   CronScheduler,
 } from "@orbian/sdk/CronScheduler";
 import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
-import { PgCronSchedulerLive } from "@orbian/node/CronScheduler";
+import { PgCronSchedulerLive } from "../runtime/CronScheduler.ts";
 import { Context, Effect, Layer, Redacted } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";

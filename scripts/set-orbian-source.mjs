@@ -17,12 +17,10 @@ const packageOrigin = (process.env.ORBIAN_PACKAGE_ORIGIN ?? "https://pkg.voidha.
 );
 const packageProjects = new Map([
   ["@orbian/core", "orbian-core"],
-  ["@orbian/node", "orbian-node"],
   ["@orbian/sdk", "orbian-sdk"],
 ]);
 const workspacePackages = [
   "../orbian/packages/core",
-  "../orbian/packages/node",
   "../orbian/packages/sdk",
 ];
 
