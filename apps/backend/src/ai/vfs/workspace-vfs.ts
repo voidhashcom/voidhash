@@ -17,11 +17,7 @@ import { serializeDocument, type SnapshotDocumentNode } from "@voidhash/ai-share
 import { fileNameFromDocRelative } from "@voidhash/paywall-workspace";
 import { InMemoryFs, MountableFs, type IFileSystem } from "just-bash/browser";
 
-import {
-  LazyReadOnlyFs,
-  type ReadOnlyDirEntry,
-  type ReadOnlyDirProvider,
-} from "./readonly-fs.ts";
+import { LazyReadOnlyFs, type ReadOnlyDirEntry, type ReadOnlyDirProvider } from "./readonly-fs.ts";
 
 /** One paywall of the scoped project, as listed by the workspace service. */
 export interface WorkspaceVfsPaywall {
@@ -78,8 +74,11 @@ const DOCUMENT_FILE = "document.json";
 export class PaywallsProvider implements ReadOnlyDirProvider {
   private listing: Promise<ReadonlyArray<WorkspaceVfsPaywall>> | undefined;
   private readonly files = new Map<string, Promise<PaywallVfsFiles | null>>();
+  private readonly sources: WorkspaceVfsSources;
 
-  constructor(private readonly sources: WorkspaceVfsSources) {}
+  constructor(sources: WorkspaceVfsSources) {
+    this.sources = sources;
+  }
 
   private list(): Promise<ReadonlyArray<WorkspaceVfsPaywall>> {
     this.listing ??= this.sources.listPaywalls();

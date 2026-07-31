@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@voidhash/mimic-core": "workspace:*",
-    "effect": "4.0.0-beta.84"
+    "effect": "4.0.0-beta.100"
   },
   "devDependencies": {
     "tsdown": "^0.18.2",

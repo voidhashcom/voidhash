@@ -147,7 +147,7 @@
     "test:watch": "vp test -c vitest.unit.mts"
   },
   "dependencies": {
-    "@distilled.cloud/stripe": "0.24.9",
+    "@distilled.cloud/stripe": "0.30.3",
     "@effect/sql-clickhouse": "catalog:",
     "@paralleldrive/cuid2": "^2.2.2",
     "@voidhash/api-contracts": "workspace:*",

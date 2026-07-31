@@ -340,6 +340,10 @@ export const make = (
         return this.run(sql, params, "JSONCompact");
       }
 
+      executeValuesUnprepared(sql: string, params: ReadonlyArray<unknown>) {
+        return this.run(sql, params, "JSONCompact");
+      }
+
       executeUnprepared(sql: string, params: ReadonlyArray<unknown>, transformRows?: any) {
         return this.execute(sql, params, transformRows);
       }
@@ -593,6 +597,10 @@ export const makeUnchecked = (
       }
 
       executeValues(sql: string, params: ReadonlyArray<unknown>) {
+        return this.run(sql, params, "JSONCompact");
+      }
+
+      executeValuesUnprepared(sql: string, params: ReadonlyArray<unknown>) {
         return this.run(sql, params, "JSONCompact");
       }
 

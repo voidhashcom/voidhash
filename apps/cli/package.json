@@ -34,12 +34,12 @@
   },
   "dependencies": {
     "@better-auth/api-key": "catalog:",
-    "@effect/platform-node": "4.0.0-beta.84",
+    "@effect/platform-node": "4.0.0-beta.100",
     "@voidhash/generated-clients": "workspace:*",
     "@voidhash/shared": "workspace:*",
     "@voidhash/studio": "workspace:*",
     "better-auth": "catalog:",
-    "effect": "4.0.0-beta.84",
+    "effect": "4.0.0-beta.100",
     "esbuild": "^0.25.10",
     "esbuild-register": "^3.6.0",
     "nanoid": "^5.1.5",
@@ -47,7 +47,7 @@
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",
-    "@effect/vitest": "4.0.0-beta.84",
+    "@effect/vitest": "4.0.0-beta.100",
     "@voidhash/tsconfig": "workspace:*",
     "dotenv-cli": "^10.0.0",
     "esbuild": "^0.25.10",

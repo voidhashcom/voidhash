@@ -81,7 +81,7 @@ const startup = Effect.gen(function* () {
   return { dbHandle, colHandle } as const;
 }).pipe(
   Effect.tapCause((cause) => Effect.log(`Startup failed: ${cause}`)),
-  Effect.retry(Schedule.exponential("1 second").pipe(Schedule.both(Schedule.recurs(15)))),
+  Effect.retry(Schedule.exponential("1 second").pipe(Schedule.upTo({ times: 15 }))),
 );
 
 // ---------------------------------------------------------------------------

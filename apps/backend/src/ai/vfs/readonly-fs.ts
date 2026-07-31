@@ -72,11 +72,10 @@ const DIR_MODE = 0o755;
 export class LazyReadOnlyFs implements IFileSystem {
   private readonly mtime = new Date();
   private readonly pathPrefix: string;
+  private readonly provider: ReadOnlyDirProvider;
 
-  constructor(
-    private readonly provider: ReadOnlyDirProvider,
-    options: { readonly pathPrefix?: string } = {},
-  ) {
+  constructor(provider: ReadOnlyDirProvider, options: { readonly pathPrefix?: string } = {}) {
+    this.provider = provider;
     this.pathPrefix = options.pathPrefix ?? "";
   }
 

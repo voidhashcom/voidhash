@@ -73,7 +73,7 @@ const parseRetryAfterMs = (value: string | null | undefined): number | undefined
  * cool-down behavior expected by the rate-limit tests.
  */
 const inlineRetrySchedule = Schedule.exponential(Duration.seconds(1), 2).pipe(
-  Schedule.both(Schedule.recurs(2)),
+  Schedule.upTo({ times: 2 }),
 );
 
 /**
