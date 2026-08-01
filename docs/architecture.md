@@ -10,7 +10,7 @@ repository.
 ```mermaid
 flowchart TD
   Community["voidhash Community codebase<br/>MIT SDKs + AGPL services"]
-  Platform["@orbian/sdk<br/>provider-neutral contracts"]
+  Platform["@voidhash/platform<br/>provider-neutral contracts"]
   Node["Community self-host<br/>Node + PostgreSQL + MinIO + optional ClickHouse"]
   Cloud["Managed Cloud<br/>Cloudflare + PlanetScale adapters"]
   Private["Private composition<br/>Enterprise + Overwatch + deployment graph"]
@@ -27,18 +27,21 @@ flowchart TD
 - `libraries/` contains MIT SDKs embedded in customer applications.
 - `apps/backend`, `apps/www`, and `apps/mimic-db` are the AGPL service entry
   points.
-- `@orbian/sdk` defines provider-neutral Effect services and application
-  primitives for durable objects, queues, workflows, scheduled jobs, key-value
+- `@voidhash/platform` defines provider-neutral Effect services and application
+  primitives for durable entities, queues, workflows, scheduled jobs, key-value
   storage, object storage, screenshots, and mail.
 - `packages/core`, `packages/db`, `packages/rpc`, and the remaining service
   packages own portable application and domain behavior.
-- `@orbian/node` implements those contracts for a single Node deployment.
-  `selfhost/entry` composes the Community application.
+- `@voidhash/platform-node` implements those contracts for a single Node
+  deployment on PostgreSQL. `selfhost/entry` composes the Community application.
+- `@voidhash/platform-cluster` implements the same contracts on Effect Cluster
+  and Effect Workflow, and is the portable default for operators who want
+  durable execution without a bespoke Postgres engine.
 
-Release lockfiles pin `@orbian/sdk` and `@orbian/node` to immutable Orbian
-commit artifacts. Contributors working in adjacent checkouts can switch to the
-sibling workspace with `pnpm orbian:source workspace`; maintainers prepare a
-standalone release with `pnpm orbian:source <full-commit-sha>`.
+Runtime backends are selected per primitive, not per provider: a deployment may
+combine, for example, cluster workflows with a Postgres queue driver. Every
+adapter is validated against the shared conformance suite in
+`@voidhash/platform/conformance`.
 
 The publication-boundary check rejects private package scopes, infrastructure
 directories, Enterprise code, operations-plane code, and incomplete package
@@ -58,8 +61,8 @@ path and operational requirements.
 
 ## Managed cloud composition
 
-The private repository can deploy the same Orbian application primitives to
-Cloudflare through `@orbian/alchemy`, and owns deployment state, environments,
+The private repository can deploy the same application primitives to
+Cloudflare through Alchemy, and owns deployment state, environments,
 secrets, and cloud-only integration tests. Product services continue to import
 provider-neutral interfaces; a zero-baseline seam check rejects new Cloudflare
 or Alchemy imports from application code.

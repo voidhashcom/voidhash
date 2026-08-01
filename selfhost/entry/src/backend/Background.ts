@@ -9,9 +9,9 @@ import { Db } from "@voidhash/db";
 import {
   type CronJob,
   CronScheduler,
-} from "@orbian/sdk/CronScheduler";
-import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
-import { PgCronSchedulerLive } from "@orbian/node/CronScheduler";
+} from "@voidhash/platform/CronScheduler";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { PgCronSchedulerLive } from "@voidhash/platform-node/CronScheduler";
 import { Context, Effect, Layer, Redacted } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";

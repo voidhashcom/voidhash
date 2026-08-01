@@ -11,12 +11,12 @@ import {
   makePgDocumentStore,
   type PgDocumentConfig,
 } from "@voidhash/mimic-db/core/pg-store";
-import { DurableEntityHost } from "@orbian/sdk/DurableEntity";
+import { DurableEntityHost } from "@voidhash/platform/DurableEntity";
 import {
   NodeDurableEntityControl,
   type PgDurableEntityConfig,
   PgDurableEntityHostLive,
-} from "@orbian/node/DurableEntity";
+} from "@voidhash/platform-node/DurableEntity";
 import { Effect, Layer } from "effect";
 
 import { PgControlStoreLive } from "./PgControlStore.ts";

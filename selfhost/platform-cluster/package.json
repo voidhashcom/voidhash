@@ -1,0 +1,36 @@
+{
+  "name": "@voidhash/platform-cluster",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "selfhost/platform-cluster"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./CronScheduler": "./src/CronScheduler.ts",
+    "./DurableEntity": "./src/DurableEntity.ts",
+    "./PlatformRuntime": "./src/PlatformRuntime.ts",
+    "./Queue": "./src/Queue.ts",
+    "./Topology": "./src/Topology.ts",
+    "./Workflow": "./src/Workflow.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run -c vitest.mts"
+  },
+  "dependencies": {
+    "@voidhash/platform": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.12",
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "@effect/sql-pg": "catalog:"
+  }
+}

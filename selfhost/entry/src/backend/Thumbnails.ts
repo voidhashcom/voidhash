@@ -16,14 +16,14 @@ import type {
   PreviewTree,
   SnapshotNode,
 } from "@voidhash/paywall-renderer-web-core";
-import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
-import { QueueDriver } from "@orbian/sdk/Queue";
-import { Screenshot } from "@orbian/sdk/Screenshot";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { QueueDriver } from "@voidhash/platform/Queue";
+import { Screenshot } from "@voidhash/platform/Screenshot";
 import {
   ChromiumScreenshotLive,
   type ChromiumScreenshotConfig,
-} from "@orbian/node/Screenshot";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
+} from "@voidhash/platform-node/Screenshot";
+import { NodePlatformRuntimeLive } from "@voidhash/platform-node/PlatformRuntime";
 import { Cause, Effect, Layer } from "effect";
 
 import { mimicDocumentIdleQueueName } from "../mimic/MimicDocumentIdleQueue.ts";

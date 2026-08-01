@@ -37,7 +37,12 @@ describePg("self-host scheduled jobs", () => {
                   ORDER BY job_name
                 `)
                 .pipe(Effect.catch(() => Effect.succeed([])));
-              const registered = rows.map((row) => String(row.jobName));
+              // Drizzle's `execute` yields a driver QueryResult on pg rather
+              // than a bare array, so normalize before reading rows.
+              const resultRows = Array.isArray(rows)
+                ? rows
+                : ((rows as { rows?: ReadonlyArray<Record<string, unknown>> }).rows ?? []);
+              const registered = resultRows.map((row) => String(row.jobName));
               if (registered.length === requiredJobNames.length) return registered;
               yield* Effect.sleep("25 millis");
             }

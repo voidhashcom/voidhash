@@ -3,7 +3,7 @@ import { Effect, Redacted } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MemoryProjectSchemaCacheLive } from "../src/backend/ProjectSchemaCache.ts";
-import { getSelfhostRuntimeConfig } from "../src/config.ts";
+import { getSelfhostMigrationDatabaseConfig, getSelfhostRuntimeConfig } from "../src/config.ts";
 
 const originalEnvironment = { ...process.env };
 
@@ -118,6 +118,47 @@ describe("self-host runtime configuration", () => {
     process.env.DATABASE_SSL = "false";
 
     expect(getSelfhostRuntimeConfig().database).toMatchObject({ host: "postgres", ssl: false });
+  });
+
+  it("falls back to the application connection for migrations", () => {
+    process.env.DATABASE_HOST = "postgres";
+    process.env.DATABASE_PORT = "6543";
+    process.env.DATABASE_NAME = "voidhash";
+    process.env.DATABASE_USERNAME = "voidhash";
+    process.env.DATABASE_PASSWORD = "application-secret";
+    process.env.DATABASE_SSL = "false";
+    delete process.env.DATABASE_DIRECT_HOST;
+
+    expect(getSelfhostMigrationDatabaseConfig()).toEqual({
+      databaseName: "voidhash",
+      host: "postgres",
+      password: "application-secret",
+      port: 6543,
+      ssl: false,
+      username: "voidhash",
+    });
+  });
+
+  it("overrides only the direct-TCP fields migrations need", () => {
+    process.env.DATABASE_HOST = "broker.internal.local";
+    process.env.DATABASE_PORT = "5432";
+    process.env.DATABASE_NAME = "voidhash";
+    process.env.DATABASE_USERNAME = "voidhash";
+    process.env.DATABASE_PASSWORD = "application-secret";
+    process.env.DATABASE_SSL = "false";
+    process.env.DATABASE_DIRECT_HOST = "postgres";
+    process.env.DATABASE_DIRECT_PORT = "6543";
+    process.env.DATABASE_DIRECT_SSL = "true";
+
+    expect(getSelfhostRuntimeConfig().database.host).toBe("broker.internal.local");
+    expect(getSelfhostMigrationDatabaseConfig()).toEqual({
+      databaseName: "voidhash",
+      host: "postgres",
+      password: "application-secret",
+      port: 6543,
+      ssl: true,
+      username: "voidhash",
+    });
   });
 
   it("enables ClickHouse only when its URL is configured", () => {

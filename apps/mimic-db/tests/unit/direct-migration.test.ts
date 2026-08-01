@@ -4,7 +4,7 @@ import {
   defineMigrationRegistry,
   type AnyDirectMigration,
 } from "@voidhash/mimic-server/migrate";
-import { makeDurableEntityAddress } from "@orbian/sdk/DurableEntity";
+import { makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 

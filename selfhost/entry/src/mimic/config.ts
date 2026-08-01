@@ -1,40 +1,33 @@
+import type { DbConfig } from "@voidhash/db/db";
 import { makePgDocumentConfig } from "@voidhash/mimic-db/core/pg-store";
-import type { PgDurableEntityConfig } from "@orbian/node/DurableEntity";
+import type { PgDurableEntityConfig } from "@voidhash/platform-node/DurableEntity";
 import { Redacted } from "effect";
 
+import { getSelfhostDatabaseConfig } from "../config.ts";
 import type { MimicNodeConfig } from "./MimicNode.ts";
 
-const numberFromEnv = (name: string, fallback: number): number => {
-  const value = process.env[name]?.trim();
-  if (!value) return fallback;
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-  return parsed;
-};
-
-/** Reads the self-host mimic database configuration from environment variables. */
-export const getMimicNodeConfig = (): MimicNodeConfig => {
-  const host = process.env.DATABASE_HOST?.trim() || "127.0.0.1";
-  const port = numberFromEnv("DATABASE_PORT", 5432);
-  const database = process.env.DATABASE_NAME?.trim() || "voidhash";
-  const username = process.env.DATABASE_USERNAME?.trim() || "voidhash";
-  const passwordValue = process.env.DATABASE_PASSWORD ?? "password";
-  const password = Redacted.make(passwordValue);
+/**
+ * Reads the self-host mimic database configuration. Defaults to the shared
+ * application connection; the migration entrypoint passes the direct-TCP
+ * connection instead, because building this host also issues DDL.
+ */
+export const getMimicNodeConfig = (
+  connection: DbConfig = getSelfhostDatabaseConfig(),
+): MimicNodeConfig => {
+  const { databaseName: database, host, port, username } = connection;
   const databaseConfig: PgDurableEntityConfig = {
     host,
     port,
     database,
     username,
-    password,
+    password: Redacted.make(connection.password),
   };
   const documents = makePgDocumentConfig({
     host,
     port,
     database,
     username,
-    password: passwordValue,
+    password: connection.password,
   });
   return { database: databaseConfig, documents };
 };

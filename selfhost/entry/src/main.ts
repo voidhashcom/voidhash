@@ -16,9 +16,9 @@ import { PaywallThumbnailService } from "@voidhash/core/services/paywallThumbnai
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
 import { getConfig as getMimicConfig } from "@voidhash/mimic-db/config";
 import { makeRoutesLive } from "@voidhash/mimic-db/http/rpc-app";
-import { DurableEntityHost } from "@orbian/sdk/DurableEntity";
-import { NodeDurableEntityControl } from "@orbian/node/DurableEntity";
-import { SmtpMailerLive } from "@orbian/node/Mailer";
+import { DurableEntityHost } from "@voidhash/platform/DurableEntity";
+import { NodeDurableEntityControl } from "@voidhash/platform-node/DurableEntity";
+import { SmtpMailerLive } from "@voidhash/platform-node/Mailer";
 import { Context, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";

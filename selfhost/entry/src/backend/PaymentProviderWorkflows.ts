@@ -4,7 +4,7 @@ import { GooglePlayWebhookHandlerService } from "@voidhash/core/services/payment
 import { StripeWebhookHandlerService } from "@voidhash/core/services/paymentProviders/stripe/stripe-webhook-handler-service";
 import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { Db } from "@voidhash/db";
-import { WorkflowRunner } from "@orbian/sdk/Workflow";
+import { WorkflowRunner } from "@voidhash/platform/Workflow";
 import { Effect, Layer, Schema } from "effect";
 
 import {

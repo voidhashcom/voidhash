@@ -9,6 +9,9 @@ catalogs:
     '@better-auth/api-key':
       specifier: ^1.6.23
       version: 1.6.23
+    '@effect-aws/client-s3':
+      specifier: 2.0.0-beta.4
+      version: 2.0.0-beta.4
     '@effect/language-service':
       specifier: ^0.86.2
       version: 0.86.6
@@ -60,6 +63,9 @@ catalogs:
     '@tanstack/zod-adapter':
       specifier: 1.167.0
       version: 1.167.0
+    '@types/nodemailer':
+      specifier: 8.0.1
+      version: 8.0.1
     '@types/react':
       specifier: ^19.1.0
       version: 19.1.17
@@ -93,6 +99,12 @@ catalogs:
     lucide-react:
       specifier: ^0.555.0
       version: 0.555.0
+    nodemailer:
+      specifier: 9.0.3
+      version: 9.0.3
+    playwright-core:
+      specifier: 1.61.1
+      version: 1.61.1
     react:
       specifier: 19.2.7
       version: 19.2.7
@@ -311,9 +323,6 @@ importers:
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.0-beta.100(effect@4.0.0-beta.100)(ioredis@5.9.1)
-      '@orbian/sdk':
-        specifier: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)
       '@types/bun':
         specifier: latest
         version: 1.3.14
@@ -326,6 +335,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.1.9(@types/react@19.1.17)
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
       '@voidhash/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -508,15 +520,15 @@ importers:
       '@effect/sql-pg':
         specifier: 'catalog:'
         version: 4.0.0-beta.100(effect@4.0.0-beta.100)
-      '@orbian/sdk':
-        specifier: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)
       '@voidhash/mimic-core':
         specifier: workspace:*
         version: link:../../packages/mimic-core
       '@voidhash/mimic-server':
         specifier: workspace:*
         version: link:../../packages/mimic-server
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
       effect:
         specifier: 4.0.0-beta.100
         version: 4.0.0-beta.100
@@ -1294,9 +1306,9 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 0.80.7
         version: 0.80.7(patch_hash=3fbb9897213abf111acd834b26232ea390b59077e07751ef66a6e45bd00a4bd3)(ws@8.21.0)(zod@4.4.3)
-      '@orbian/sdk':
-        specifier: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../platform
       effect:
         specifier: 4.0.0-beta.100
         version: 4.0.0-beta.100
@@ -1304,9 +1316,9 @@ importers:
         specifier: 1.1.38
         version: 1.1.38
     devDependencies:
-      '@orbian/node':
-        specifier: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)
+      '@voidhash/platform-node':
+        specifier: workspace:*
+        version: link:../../selfhost/platform-node
       '@voidhash/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1419,9 +1431,6 @@ importers:
       '@effect/sql-clickhouse':
         specifier: 'catalog:'
         version: 4.0.0-beta.100(@effect/platform-node@4.0.0-beta.100(effect@4.0.0-beta.100)(ioredis@5.9.1))(effect@4.0.0-beta.100)
-      '@orbian/sdk':
-        specifier: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.3.1
@@ -1449,6 +1458,9 @@ importers:
       '@voidhash/paywall-workspace':
         specifier: workspace:*
         version: link:../paywall-workspace
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../platform
       '@voidhash/rpc':
         specifier: workspace:*
         version: link:../rpc
@@ -1863,6 +1875,21 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/debug@4.1.12)(@types/node@20.19.43)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
 
+  packages/platform:
+    devDependencies:
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      effect:
+        specifier: 4.0.0-beta.100
+        version: 4.0.0-beta.100
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.1.24(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@24.10.4)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
   packages/rpc:
     dependencies:
       effect:
@@ -1990,12 +2017,6 @@ importers:
       '@effect/sql-pg':
         specifier: 'catalog:'
         version: 4.0.0-beta.100(effect@4.0.0-beta.100)
-      '@orbian/node':
-        specifier: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)
-      '@orbian/sdk':
-        specifier: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526
-        version: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)
       '@voidhash/agent':
         specifier: workspace:*
         version: link:../../packages/agent
@@ -2035,6 +2056,12 @@ importers:
       '@voidhash/paywalls':
         specifier: workspace:*
         version: link:../../libraries/paywalls
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
+      '@voidhash/platform-node':
+        specifier: workspace:*
+        version: link:../platform-node
       effect:
         specifier: 4.0.0-beta.100
         version: 4.0.0-beta.100
@@ -2078,6 +2105,68 @@ importers:
       vite-plus:
         specifier: 'catalog:'
         version: 0.1.24(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.7.0)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@24.10.4)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
+  selfhost/platform-cluster:
+    dependencies:
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
+      effect:
+        specifier: 4.0.0-beta.100
+        version: 4.0.0-beta.100
+    devDependencies:
+      '@effect/sql-pg':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.100(effect@4.0.0-beta.100)
+      '@types/node':
+        specifier: ^24.0.12
+        version: 24.10.4
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.1.24(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@24.10.4)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
+  selfhost/platform-node:
+    dependencies:
+      '@effect-aws/client-s3':
+        specifier: 'catalog:'
+        version: 2.0.0-beta.4(effect@4.0.0-beta.100)
+      '@effect/sql-pg':
+        specifier: 'catalog:'
+        version: 4.0.0-beta.100(effect@4.0.0-beta.100)
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../../packages/platform
+      effect:
+        specifier: 4.0.0-beta.100
+        version: 4.0.0-beta.100
+      nodemailer:
+        specifier: 'catalog:'
+        version: 9.0.3
+      playwright-core:
+        specifier: 'catalog:'
+        version: 1.61.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.12
+        version: 24.10.4
+      '@types/nodemailer':
+        specifier: 'catalog:'
+        version: 8.0.1
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.1.24(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@24.10.4)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
 
 packages:
 
@@ -3642,11 +3731,6 @@ packages:
     peerDependencies:
       effect: 4.0.0-beta.100
 
-  '@effect/sql-pg@4.0.0-beta.84':
-    resolution: {integrity: sha512-DPEwPlbF4ECwQIMpGLKORB+Dxvvv8Hf9yUGrY3QtorT2U9xyzFAi6NAhU0HGox+WfSvnBvfFGK2Z9Y3UBEQOnw==}
-    peerDependencies:
-      effect: 4.0.0-beta.100
-
   '@effect/vitest@4.0.0-beta.100':
     resolution: {integrity: sha512-WoxrzPuxc+4QXb+7D1j8PwaBb9zVxHM2yw0sDz7fXij1Sx7X7T6LkYJ7m2xzWbfskIXxIdXVA+NnDSF8qAOGsw==}
     peerDependencies:
@@ -5072,30 +5156,6 @@ packages:
   '@orama/orama@3.1.18':
     resolution: {integrity: sha512-a61ljmRVVyG5MC/698C8/FfFDw5a8LOIvyOLW5fztgUXqUpc1jOfQzOitSCbge657OgXXThmY3Tk8fpiDb4UcA==}
     engines: {node: '>= 20.0.0'}
-
-  '@orbian/core@https://pkg.voidha.sh/orbian-core/fc444ba':
-    resolution: {tarball: https://pkg.voidha.sh/orbian-core/fc444ba}
-    version: 0.0.0-gfc444ba
-    peerDependencies:
-      effect: 4.0.0-beta.100
-
-  '@orbian/node@https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526':
-    resolution: {tarball: https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526}
-    version: 0.0.0-gfc444ba
-    peerDependencies:
-      effect: 4.0.0-beta.100
-
-  '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444ba':
-    resolution: {tarball: https://pkg.voidha.sh/orbian-sdk/fc444ba}
-    version: 0.0.0-gfc444ba
-    peerDependencies:
-      effect: 4.0.0-beta.100
-
-  '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526':
-    resolution: {tarball: https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526}
-    version: 0.0.0-gfc444ba
-    peerDependencies:
-      effect: 4.0.0-beta.100
 
   '@oxc-project/runtime@0.133.0':
     resolution: {integrity: sha512-PkvjA1Lq5++V5S1E6Patr92ZVcieE6EalDr1VJTqv4BnjZdOUC4W3p8k1wMXSd5/2aFP4b/A6N5sg2Bkzcr9vQ==}
@@ -8051,6 +8111,9 @@ packages:
 
   '@types/node@24.10.4':
     resolution: {integrity: sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg==}
+
+  '@types/nodemailer@8.0.1':
+    resolution: {integrity: sha512-PxpaInm8V1JQDd4j0ds5HfvWQk8JupS1C0Picb96QJsrrRDjBH+DlK7L4ZdNSqNULhiZRQHc40nLVShaGxXAMw==}
 
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
@@ -13429,9 +13492,6 @@ packages:
   pg-cloudflare@1.4.0:
     resolution: {integrity: sha512-Vo7z/6rrQYxpNRylp4Tlob2elzbh+N/MOQbxFVWCxS7oEx6jF53GTJFxK2WWpKuBRkmiin4Mt+xofFDjx09R0A==}
 
-  pg-connection-string@2.12.0:
-    resolution: {integrity: sha512-U7qg+bpswf3Cs5xLzRqbXbQl85ng0mfSV/J0nnA31MCLgvEaAo7CIhmeyrmJpOr7o+zm0rXK+hNnT5l9RHkCkQ==}
-
   pg-connection-string@2.14.0:
     resolution: {integrity: sha512-XwWDGcLRGCXAR8F/AM5bG7Q+A3Wm2s6QeEjlOKZLlH3UYcguiqCWKyWXVag5TLTIjR7oOJUY8kcADaZgWPyLeg==}
 
@@ -18172,17 +18232,6 @@ snapshots:
     transitivePeerDependencies:
       - pg-native
 
-  '@effect/sql-pg@4.0.0-beta.84(effect@4.0.0-beta.100)':
-    dependencies:
-      effect: 4.0.0-beta.100
-      pg: 8.22.0
-      pg-connection-string: 2.12.0
-      pg-cursor: 2.21.0(pg@8.22.0)
-      pg-pool: 3.14.0(pg@8.22.0)
-      pg-types: 4.1.0
-    transitivePeerDependencies:
-      - pg-native
-
   '@effect/vitest@4.0.0-beta.100(@voidzero-dev/vite-plus-test@0.1.24(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3))(effect@4.0.0-beta.100)':
     dependencies:
       effect: 4.0.0-beta.100
@@ -19799,31 +19848,6 @@ snapshots:
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
   '@orama/orama@3.1.18': {}
-
-  '@orbian/core@https://pkg.voidha.sh/orbian-core/fc444ba(effect@4.0.0-beta.100)':
-    dependencies:
-      '@orbian/sdk': https://pkg.voidha.sh/orbian-sdk/fc444ba(effect@4.0.0-beta.100)
-      effect: 4.0.0-beta.100
-
-  '@orbian/node@https://pkg.voidha.sh/orbian-node/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)':
-    dependencies:
-      '@effect-aws/client-s3': 2.0.0-beta.4(effect@4.0.0-beta.100)
-      '@effect/sql-pg': 4.0.0-beta.84(effect@4.0.0-beta.100)
-      '@orbian/core': https://pkg.voidha.sh/orbian-core/fc444ba(effect@4.0.0-beta.100)
-      '@orbian/sdk': https://pkg.voidha.sh/orbian-sdk/fc444ba(effect@4.0.0-beta.100)
-      effect: 4.0.0-beta.100
-      nodemailer: 9.0.3
-      playwright-core: 1.61.1
-    transitivePeerDependencies:
-      - pg-native
-
-  '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444ba(effect@4.0.0-beta.100)':
-    dependencies:
-      effect: 4.0.0-beta.100
-
-  '@orbian/sdk@https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526(effect@4.0.0-beta.100)':
-    dependencies:
-      effect: 4.0.0-beta.100
 
   '@oxc-project/runtime@0.133.0': {}
 
@@ -23783,6 +23807,10 @@ snapshots:
   '@types/node@24.10.4':
     dependencies:
       undici-types: 7.16.0
+
+  '@types/nodemailer@8.0.1':
+    dependencies:
+      '@types/node': 24.10.4
 
   '@types/offscreencanvas@2019.7.3': {}
 
@@ -31340,8 +31368,6 @@ snapshots:
 
   pg-cloudflare@1.4.0:
     optional: true
-
-  pg-connection-string@2.12.0: {}
 
   pg-connection-string@2.14.0: {}
 

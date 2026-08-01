@@ -1,8 +1,8 @@
 /**
  * Compatibility export for the provider-neutral queue contract now owned by
- * `@orbian/sdk`.
+ * `@voidhash/platform`.
  */
 export {
   QueueProducerError,
   type QueueProducer,
-} from "@orbian/sdk/Queue";
+} from "@voidhash/platform/Queue";

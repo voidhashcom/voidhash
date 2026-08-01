@@ -3,7 +3,7 @@ import {
   nextWebhookDeliveryRetryTime,
 } from "@voidhash/core/services/webhookDispatch/WebhookDeliveryService";
 import { Db } from "@voidhash/db";
-import { WorkflowRunner } from "@orbian/sdk/Workflow";
+import { WorkflowRunner } from "@voidhash/platform/Workflow";
 import { Effect, Layer, Schema } from "effect";
 
 import { DeliverWebhookDefinition } from "./WorkflowDefinitions.ts";

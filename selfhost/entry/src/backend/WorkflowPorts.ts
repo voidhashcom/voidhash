@@ -6,10 +6,10 @@ import { StripeReplayParkedNotificationsWorkflow } from "@voidhash/core/services
 import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { WebhookDeliveryWorkflow } from "@voidhash/core/services/webhookDispatch/WebhookDeliveryWorkflow";
 import { Db } from "@voidhash/db";
-import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
-import { WorkflowRunner } from "@orbian/sdk/Workflow";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
-import { PgWorkflowRunnerLive } from "@orbian/node/Workflow";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { WorkflowRunner } from "@voidhash/platform/Workflow";
+import { NodePlatformRuntimeLive } from "@voidhash/platform-node/PlatformRuntime";
+import { PgWorkflowRunnerLive } from "@voidhash/platform-node/Workflow";
 import { Effect, Layer, Redacted } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";

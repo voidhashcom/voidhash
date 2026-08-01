@@ -40,7 +40,7 @@
  */
 import { Effect, Layer } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
-import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 
 import { AnalyticsDispatchService } from "@voidhash/core/services/analyticsIngest/AnalyticsDispatchService";
 import { PurchaseLedgerWorkerService } from "@voidhash/core/services/purchaseProcessing/PurchaseLedgerWorkerService";

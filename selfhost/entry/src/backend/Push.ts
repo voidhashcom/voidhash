@@ -13,8 +13,8 @@ import {
 } from "@voidhash/core/services/notifications/PushDeliveryDispatch";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { Db } from "@voidhash/db";
-import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
-import { QueueDriver } from "@orbian/sdk/Queue";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { QueueDriver } from "@voidhash/platform/Queue";
 import { Context, Effect, Layer } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";

@@ -13,7 +13,7 @@ import {
 } from "@voidhash/core/domain/person/Person";
 import { IdentityMutationService } from "@voidhash/core/services/personIdentity/IdentityMutationService";
 import { generateId } from "@voidhash/core/utils/generate-id";
-import { WorkflowRunner } from "@orbian/sdk/Workflow";
+import { WorkflowRunner } from "@voidhash/platform/Workflow";
 import { Effect, Layer, Schema } from "effect";
 
 import { IdentifyDistinctIdCompletionDefinition } from "./WorkflowDefinitions.ts";

@@ -22,12 +22,12 @@ import {
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { Db } from "@voidhash/db";
-import { KeyValueStore } from "@orbian/sdk/KeyValueStore";
-import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
-import { QueueDriver } from "@orbian/sdk/Queue";
-import { PgKeyValueStoreLive } from "@orbian/node/KeyValueStore";
-import { NodePlatformRuntimeLive } from "@orbian/node/PlatformRuntime";
-import { PgQueueLive } from "@orbian/node/Queue";
+import { KeyValueStore } from "@voidhash/platform/KeyValueStore";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { QueueDriver } from "@voidhash/platform/Queue";
+import { PgKeyValueStoreLive } from "@voidhash/platform-node/KeyValueStore";
+import { NodePlatformRuntimeLive } from "@voidhash/platform-node/PlatformRuntime";
+import { PgQueueLive } from "@voidhash/platform-node/Queue";
 import { Context, Effect, Layer, Redacted } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";

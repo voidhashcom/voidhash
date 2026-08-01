@@ -4,12 +4,12 @@ import {
   type AssistantMessage,
   type Model,
 } from "@earendil-works/pi-ai";
-import { DurableEntityHost } from "@orbian/sdk/DurableEntity";
-import { makeNodeDurableEntitySession } from "@orbian/node/NodeDurableEntitySession";
+import { DurableEntityHost } from "@voidhash/platform/DurableEntity";
+import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurableEntitySession";
 import {
   PgDurableEntityHostLive,
   type PgDurableEntityConfig,
-} from "@orbian/node/DurableEntity";
+} from "@voidhash/platform-node/DurableEntity";
 import { Effect, ManagedRuntime, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 

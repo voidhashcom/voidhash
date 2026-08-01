@@ -11,6 +11,30 @@ application services and platform contracts as the Cloudflare composition.
 ClickHouse OSS is an optional `analytics` profile; without it, capture still
 processes identity state in PostgreSQL and analytics reads return empty results.
 
+## Local development
+
+The stack doubles as the default development environment. The dev overlay
+publishes Postgres and the compiler to the host so tests and tooling reach the
+same services the app uses:
+
+```sh
+cp selfhost/.env.example selfhost/.env   # adjust ports/credentials as needed
+pnpm stack:up                            # compose up with the analytics profile
+pnpm test:integration                    # every integration suite, sequentially
+pnpm selfhost:smoke                      # e2e against the running app
+```
+
+`pnpm test:integration` reads `selfhost/.env`, derives host-side connection
+settings (container hostnames become `127.0.0.1` plus the published port),
+enables every suite's opt-in flag, and runs the suites one after another —
+they share one Postgres and one ClickHouse, so parallel runs would race on
+schema setup. Pass suite names to narrow the run, for example
+`pnpm test:integration platform-cluster selfhost-entry`.
+
+In the production compose file PostgreSQL stays unpublished and the compiler
+is reachable only on its internal network; only the dev overlay
+(`docker-compose.dev.yml`) exposes them.
+
 ## Start
 
 For an infrastructure and Mimic evaluation with local defaults:

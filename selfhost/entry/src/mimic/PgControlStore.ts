@@ -10,7 +10,7 @@ import type {
   UserRecord,
 } from "@voidhash/mimic-db/core/store";
 import { ControlStore } from "@voidhash/mimic-db/core/store";
-import type { PgDurableEntityConfig } from "@orbian/node/DurableEntity";
+import type { PgDurableEntityConfig } from "@voidhash/platform-node/DurableEntity";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 

@@ -19,9 +19,9 @@ import {
   DurableEntityHost,
   type DurableEntityContext,
   makeDurableEntityAddress,
-} from "@orbian/sdk/DurableEntity";
-import type { NodeDurableEntityControlShape } from "@orbian/node/DurableEntity";
-import { makeNodeDurableEntitySession } from "@orbian/node/NodeDurableEntitySession";
+} from "@voidhash/platform/DurableEntity";
+import type { NodeDurableEntityControlShape } from "@voidhash/platform-node/DurableEntity";
+import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurableEntitySession";
 import { Duration, Effect, Fiber, Semaphore } from "effect";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 

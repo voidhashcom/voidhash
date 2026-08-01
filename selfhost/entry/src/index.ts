@@ -5,7 +5,11 @@ export {
   makeSelfhostWorkflowRuntimeLive,
   registerSelfhostWorkflows,
 } from "./backend/WorkflowPorts.ts";
-export { getSelfhostDatabaseConfig, getSelfhostRuntimeConfig } from "./config.ts";
+export {
+  getSelfhostDatabaseConfig,
+  getSelfhostMigrationDatabaseConfig,
+  getSelfhostRuntimeConfig,
+} from "./config.ts";
 export { getMimicNodeConfig } from "./mimic/config.ts";
 export { makeMimicNodeHostLive, type MimicNodeConfig } from "./mimic/MimicNode.ts";
 export { installMimicNodeWebSocketServer } from "./mimic/MimicNodeWebSocket.ts";

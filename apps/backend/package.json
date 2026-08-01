@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck-go": "tsgo --noEmit",
     "lint": "vp lint .",
-    "format": "vp fmt ."
+    "format": "vp fmt .",
+    "test:integration": "vp test run -c vitest.integration.mts"
   },
   "dependencies": {
     "@voidhash/agent": "workspace:*",
@@ -39,7 +40,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@orbian/sdk": "https://pkg.voidha.sh/orbian-sdk/fc444bad5db7da1302f6fa0b1a9bd7cadd800526",
+    "@voidhash/platform": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
     "alchemy": "catalog:",
     "typescript": "catalog:",

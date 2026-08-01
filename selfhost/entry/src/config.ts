@@ -1,6 +1,6 @@
 import type { DbConfig } from "@voidhash/db/db";
-import type { SmtpMailerConfig } from "@orbian/node/Mailer";
-import type { S3ObjectStoreConfig } from "@orbian/node/ObjectStore";
+import type { SmtpMailerConfig } from "@voidhash/platform-node/Mailer";
+import type { S3ObjectStoreConfig } from "@voidhash/platform-node/ObjectStore";
 import { Redacted } from "effect";
 
 const positiveIntegerFromEnv = (name: string, fallback: number): number => {
@@ -199,6 +199,32 @@ export const getSelfhostDatabaseConfig = (): DbConfig => {
     port: positiveIntegerFromEnv("DATABASE_PORT", 5432),
     ...(ssl === undefined ? {} : { ssl }),
     username: process.env.DATABASE_USERNAME?.trim() || "voidhash",
+  };
+};
+
+/**
+ * Reads the application database connection used by out-of-band tooling that
+ * opens its own TCP socket — currently the migration entrypoint, which runs as
+ * a separate process before the server starts.
+ *
+ * Every `DATABASE_DIRECT_*` variable falls back to its `DATABASE_*` counterpart,
+ * so operators whose application already dials Postgres directly never set them.
+ * They exist for deployments where `DATABASE_HOST` names a sandboxed or proxied
+ * endpoint (a connection broker, a Hyperdrive-style local socket) that only
+ * resolves inside the runtime serving requests. Migrations need multi-statement
+ * SQL and a session-scoped advisory lock, so they always take the origin.
+ */
+export const getSelfhostMigrationDatabaseConfig = (): DbConfig => {
+  const fallback = getSelfhostDatabaseConfig();
+  const ssl = optionalBooleanFromEnv("DATABASE_DIRECT_SSL");
+  return {
+    ...fallback,
+    databaseName: process.env.DATABASE_DIRECT_NAME?.trim() || fallback.databaseName,
+    host: process.env.DATABASE_DIRECT_HOST?.trim() || fallback.host,
+    password: process.env.DATABASE_DIRECT_PASSWORD ?? fallback.password,
+    port: positiveIntegerFromEnv("DATABASE_DIRECT_PORT", fallback.port),
+    ...(ssl === undefined ? {} : { ssl }),
+    username: process.env.DATABASE_DIRECT_USERNAME?.trim() || fallback.username,
   };
 };
 

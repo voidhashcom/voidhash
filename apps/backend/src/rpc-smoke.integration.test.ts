@@ -32,7 +32,7 @@ import { describe, expect, inject, test } from "vitest";
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import { PaywallArtifactStore, Workos } from "@voidhash/core/services";
 import { Db } from "@voidhash/db";
-import { PlatformRuntime } from "@orbian/sdk/PlatformRuntime";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 
 import {
   BackendComponentCompilerStubLive,

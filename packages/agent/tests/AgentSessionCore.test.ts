@@ -5,8 +5,8 @@ import {
   type Context as PiContext,
   type Model,
 } from "@earendil-works/pi-ai";
-import { makeMemoryDurableEntityHost } from "@orbian/node/MemoryDurableEntity";
-import { makeNodeDurableEntitySession } from "@orbian/node/NodeDurableEntitySession";
+import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
+import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurableEntitySession";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 

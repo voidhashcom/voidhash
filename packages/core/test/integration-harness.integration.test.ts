@@ -5,14 +5,11 @@ import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness"
 const { stack, test } = CoreIntegrationTestHarness.make();
 
 test(
-  "deploys the backend stack",
+  "shares the environment contract with the suite",
   Effect.gen(function* () {
     const output = yield* stack;
-    expect(output.backendUrl).toBeDefined();
-    expect(output.hyperdriveId).toBeDefined();
-    expect(output.mimicDbUrl).toBeDefined();
-    expect(output.wwwUrl).toBeDefined();
-    // Ephemeral stages expose credentials for the in-process harness layers.
+    // The composition (self-host locally, richer stacks downstream) must
+    // expose credentials for the in-process harness layers.
     expect(output.testConnections).not.toBeNull();
     expect(output.testConnections?.db.host).toBeDefined();
     expect(output.testConnections?.clickhouse.url).toBeDefined();
