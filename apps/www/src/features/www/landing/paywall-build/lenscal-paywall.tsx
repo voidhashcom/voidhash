@@ -1,6 +1,8 @@
 import { cn } from "@voidhash/ui";
 import type { ReactNode } from "react";
 
+import boiledEggImage from "../assets/lenscal/boiled-egg.webp";
+import calorieTrackerImage from "../assets/lenscal/calorie-tracker.webp";
 import type { PaywallPart } from "./transcript";
 
 export const PAYWALL_WIDTH = 402;
@@ -33,73 +35,9 @@ function Part({ children, className, delay = 0, part, revealed }: PartProps) {
   );
 }
 
-/** The concentric scan rings behind the app icon, widest to tightest. */
-const SCAN_RINGS = [
-  "left-32.25 top-32.75 size-36 [border-width:1.5px] border-[#6E9BFFB3]",
-  "left-24.25 top-24.75 size-52 border border-[#5A8AFF73]",
-  "left-14.75 top-15.25 h-71 w-71 border border-[#5A8AFF45]",
-  "left-3.25 top-3.75 h-94 w-94 border border-[#5A8AFF30]",
-  "-left-10.25 -top-9.75 h-121 w-121 border border-[#5A8AFF21]",
-  "-left-25.75 -top-25.25 h-152 w-152 border border-[#5A8AFF17]",
-  "-left-43.25 -top-42.75 h-187 w-187 border border-[#5A8AFF0F]",
-  "-left-62.75 -top-62.25 h-226 w-226 border border-[#5A8AFF0A]",
-];
+const OFFER_LINE = "font-sans text-[#FFFFFFB0] text-[15px]/5.5";
 
-/** The camera-detection chips floating over the hero. */
-const DETECTION_CHIPS = [
-  { className: "left-5.5 top-27.5", delay: 0, label: "Avocado toast · 412 kcal" },
-  { className: "left-41.5 top-80.5", delay: 140, label: "Protein 32 g · Carbs 41 g" },
-];
-
-/** The laurel that brackets each award badge; `flipped` mirrors it for the right side. */
-function Laurel({ flipped }: { flipped?: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      height="44"
-      style={{ flexShrink: 0, transform: flipped ? "scaleX(-1)" : undefined }}
-      viewBox="0 0 14 44"
-      width="14"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M11 4 C3 13, 2 27, 8 41" fill="none" stroke="#6B6B72" strokeWidth="1.3" />
-      <circle cx="9.2" cy="8" fill="#6B6B72" r="2" />
-      <circle cx="6" cy="12.5" fill="#6B6B72" r="2" />
-      <circle cx="4" cy="18" fill="#6B6B72" r="2" />
-      <circle cx="3.2" cy="24" fill="#6B6B72" r="2" />
-      <circle cx="3.6" cy="30" fill="#6B6B72" r="2" />
-      <circle cx="5" cy="35.5" fill="#6B6B72" r="2" />
-    </svg>
-  );
-}
-
-function AwardBadge({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-18 grow basis-[0%] items-center justify-center gap-1 rounded-[12px] border border-[#1B2133] border-solid bg-[#0A0D15] px-2">
-      <Laurel />
-      {children}
-      <Laurel flipped />
-    </div>
-  );
-}
-
-function AppleMark() {
-  return (
-    <svg
-      aria-hidden="true"
-      height="18"
-      style={{ flexShrink: 0 }}
-      viewBox="0 0 15 18"
-      width="15"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M12.4 9.5c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.5-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .7 1 1.5 2.1 2.5 2 1 0 1.4-.6 2.6-.6s1.5.6 2.6.6c1.1 0 1.8-1 2.4-2 .8-1.1 1.1-2.3 1.1-2.3s-2.2-.9-2.2-3zM10.4 3.3c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.4 1.2-.5.6-1 1.6-.8 2.5.9.1 1.8-.4 2.4-1.2z"
-        fill="#E4E4E7"
-      />
-    </svg>
-  );
-}
+const FINE_PRINT_LINE = "text-center font-sans text-[#FFFFFFB3] text-[11px]/3.75";
 
 /**
  * The Lenscal Pro paywall the landing-page agent builds, rendered at its native
@@ -107,65 +45,26 @@ function AppleMark() {
  */
 export function LenscalPaywall({ revealed }: { revealed: ReadonlySet<PaywallPart> }) {
   return (
-    <div className="flex h-218.5 w-100.5 flex-col overflow-clip bg-black">
-      <div className="relative h-106 w-100.5 shrink-0 overflow-clip">
-        <Part className="absolute top-0 left-0 h-106 w-100.5" part="backdrop" revealed={revealed}>
-          <div
-            className="size-full"
-            style={{
-              backgroundImage:
-                "radial-gradient(ellipse 114.99999999999999% 80% at 50% 48% in oklab, oklab(29.5% -0.007 -0.103) 0%, oklab(20.6% -0.004 -0.061) 32%, oklab(11.7% -0.004 -0.027) 62%, oklab(0% 0 0) 82%)",
-            }}
-          />
-        </Part>
+    <div className="relative flex h-218.5 w-100.5 flex-col overflow-clip bg-black">
+      <Part className="absolute inset-0" part="backdrop" revealed={revealed}>
+        <div className="size-full bg-[#0088FF]" />
+        <div
+          className="absolute top-0 left-0 h-106.25 w-100.5"
+          style={{
+            backgroundImage:
+              "radial-gradient(ellipse 137.15% 95.41% at 52.16% 0% in oklab, oklab(48.2% 0.115 -0.237) 53.27%, oklab(0% 0 0 / 0%) 100%)",
+          }}
+        />
+        <div
+          className="absolute top-75 left-0 h-31 w-100.5"
+          style={{
+            backgroundImage:
+              "linear-gradient(in oklab 180deg, oklab(0% 0 0 / 0%) 0%, oklab(63.2% -0.055 -0.194 / 28%) 46%, oklab(63.2% -0.055 -0.194) 77.72%, oklab(63.2% -0.055 -0.194) 100%)",
+          }}
+        />
+      </Part>
 
-        <div className="absolute top-0 left-0 h-106 w-100.5">
-          {SCAN_RINGS.map((ring, index) => (
-            <Part
-              className={cn("absolute rounded-[999px] border-solid", ring)}
-              delay={index * 70}
-              key={ring}
-              part="rings"
-              revealed={revealed}
-            />
-          ))}
-        </div>
-
-        <Part
-          className="absolute top-39.5 left-39 flex size-22.5 items-center justify-center rounded-[24px] border border-[#23325E] border-solid bg-[#0B1020] [box-shadow:#3A6EFF61_0px_0px_84px_24px,#000000B3_0px_18px_44px]"
-          part="appIcon"
-          revealed={revealed}
-        >
-          <svg
-            aria-hidden="true"
-            height="54"
-            style={{ flexShrink: 0 }}
-            viewBox="0 0 54 54"
-            width="54"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="27" cy="27" fill="none" r="22" stroke="#22304F" strokeWidth="5" />
-            <path
-              d="M27 5 A22 22 0 1 1 6.33 34.52"
-              fill="none"
-              stroke="var(--color-brand-primary)"
-              strokeLinecap="round"
-              strokeWidth="5"
-            />
-            <circle cx="27" cy="27" fill="none" r="9" stroke="#F4F4F5" strokeWidth="4" />
-          </svg>
-        </Part>
-
-        <Part className="absolute top-75 left-0 h-31 w-100.5" part="backdrop" revealed={revealed}>
-          <div
-            className="size-full"
-            style={{
-              backgroundImage:
-                "linear-gradient(in oklab 180deg, oklab(0% 0 0 / 0%) 0%, oklab(0% 0 0 / 55%) 46%, oklab(0% 0 0 / 92%) 78%, oklab(0% 0 0) 100%)",
-            }}
-          />
-        </Part>
-
+      <div className="relative h-106.25 w-100.5 shrink-0 overflow-clip">
         <Part
           className="absolute top-0 left-0 flex w-100.5 items-center gap-38.5 px-6 pt-5.25 pb-4.75"
           part="statusBar"
@@ -215,77 +114,56 @@ export function LenscalPaywall({ revealed }: { revealed: ReadonlySet<PaywallPart
           </div>
         </Part>
 
-        {DETECTION_CHIPS.map((chip) => (
-          <Part
-            className={cn(
-              "absolute flex items-center gap-2 rounded-[999px] border border-[#5A8AFF3D] border-solid bg-[#090F21C7] py-1.75 pr-3.25 pl-2.75",
-              chip.className,
-            )}
-            delay={chip.delay}
-            key={chip.label}
-            part="chips"
-            revealed={revealed}
-          >
-            <div className="size-1.5 shrink-0 rounded-[999px] [background-color:var(--color-brand-primary)]" />
-            <div className="font-medium font-sans text-[#D3DCF0] text-xs/4 tracking-[-0.005em]">
-              {chip.label}
-            </div>
-          </Part>
-        ))}
-      </div>
-
-      {/* Vertical rhythm is tuned so the whole column clears the 450px left under the hero —
-          the artboard's own spacing overflowed and clipped the pricing terms. */}
-      <div className="flex w-100.5 grow basis-[0%] flex-col bg-black px-5 pt-2 pb-4">
-        <Part className="flex gap-2.5" part="badges" revealed={revealed}>
-          <AwardBadge>
-            <div className="flex grow basis-[0%] flex-col items-center gap-1.25">
-              <AppleMark />
-              <div className="flex flex-wrap justify-center whitespace-pre-wrap text-center font-sans font-semibold text-[#E4E4E7] text-xs/4 tracking-[-0.01em]">
-                Editors'
-                <br />
-                Choice
-              </div>
-            </div>
-          </AwardBadge>
-          <AwardBadge>
-            <div className="flex grow basis-[0%] flex-col items-center gap-1.25">
-              <AppleMark />
-              <div className="flex flex-wrap justify-center whitespace-pre-wrap text-center font-sans font-semibold text-[#E4E4E7] text-xs/4 tracking-[-0.01em]">
-                App of
-                <br />
-                the Day
-              </div>
-            </div>
-          </AwardBadge>
-          <AwardBadge>
-            <div className="flex grow basis-[0%] flex-col items-center gap-0.5">
-              <div className="font-medium font-sans text-[#8F8F96] text-[10px]/3">80k Ratings</div>
-              <div className="font-sans font-semibold text-[#F4F4F5] text-xl/normal tracking-[-0.02em]">
-                4.9
-              </div>
-              <svg
-                aria-hidden="true"
-                height="11"
-                style={{ flexShrink: 0 }}
-                viewBox="0 0 62 11"
-                width="62"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {[0, 13, 26, 39, 52].map((offset) => (
-                  <path
-                    d={`M${5.5 + offset} 0.5 L${6.9 + offset} 3.9 L${10.5 + offset} 4.2 L${7.8 + offset} 6.6 L${8.6 + offset} 10.2 L${5.5 + offset} 8.3 L${2.4 + offset} 10.2 L${3.2 + offset} 6.6 L${0.5 + offset} 4.2 L${4.1 + offset} 3.9 Z`}
-                    fill="#6F9DFF"
-                    key={offset}
-                  />
-                ))}
-              </svg>
-            </div>
-          </AwardBadge>
+        {/* Sits directly on the hero (not inside the phone Part) because mix-blend-overlay
+            must blend with the backdrop, and the Part's translate isolates its children. */}
+        <Part
+          className="absolute top-0 left-10.5 h-106.25 w-79.25 rounded-b-[64px] bg-[#0000003D] mix-blend-overlay"
+          part="screenshot"
+          revealed={revealed}
+        />
+        <Part className="absolute inset-0" part="screenshot" revealed={revealed}>
+          <div className="absolute -top-1.25 left-13.5 h-104.25 w-73.25 rounded-b-[54px] bg-[#DDDDDD]" />
+          <div
+            className="absolute -top-55 left-13.5 h-158 w-73.25 rounded-b-[54px] bg-center bg-cover"
+            style={{ backgroundImage: `url(${calorieTrackerImage})` }}
+          />
         </Part>
 
-        <Part className="flex flex-col items-center pt-6" part="title" revealed={revealed}>
-          <div className="flex flex-wrap justify-center whitespace-pre-wrap text-center font-bold font-sans text-[#FAFAFA] text-[27px]/8.5 [letter-spacing:-0.025em]">
+        <Part className="absolute inset-0" part="foodCard" revealed={revealed}>
+          <div
+            className="absolute top-1/2 left-1/2 h-[72.181px] w-[317.491px] origin-top-left rounded-[22px] bg-[#1A70FD] [box-shadow:#00000033_0px_2px_13px]"
+            style={{ rotate: "-0.41deg", translate: "calc(-50% - 1.258px) calc(-50% + 72.586px)" }}
+          >
+            <div
+              className="absolute top-1/2 left-1/2 h-[82.899px] w-87 origin-top-left rounded-[22px] [box-shadow:#FFFFFF_0px_2px_2px_inset,#00000033_0px_2px_7px]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(in oklab 180deg, oklab(97.8% 0.011 -0.011) 0%, oklab(93.3% 0.009 -0.032) 100%)",
+                rotate: "1.25deg",
+                translate: "calc(-50% + 1.465px) calc(-50% - 23.74px)",
+              }}
+            >
+              <div
+                className="absolute top-3 left-4 h-14.75 w-15.5 rounded-[11px] bg-center bg-cover"
+                style={{ backgroundImage: `url(${boiledEggImage})` }}
+              />
+              <div className="absolute top-3.75 left-22.75 font-sans font-semibold text-base/8.5 text-black tracking-[-0.025em]">
+                Boiled Egg
+              </div>
+              <div className="absolute top-9.25 left-22.75 font-sans font-semibold text-[#9E9E9E] text-base/8.5 tracking-[-0.025em]">
+                2 large
+              </div>
+              <div className="absolute top-3.75 left-75 font-sans font-semibold text-base/8.5 text-black tracking-[-0.025em]">
+                180
+              </div>
+            </div>
+          </div>
+        </Part>
+      </div>
+
+      <div className="relative flex w-100.5 grow basis-[0%] flex-col items-center justify-center px-5 pt-2 pb-6">
+        <Part className="flex flex-col items-center self-stretch pt-7.5" part="title" revealed={revealed}>
+          <div className="flex flex-wrap justify-center whitespace-pre-wrap text-center font-bold font-sans text-3xl/8.5 text-[#FAFAFA] tracking-[-0.025em]">
             Lenscal Pro
             <br />
             7-Day Free Trial
@@ -293,61 +171,59 @@ export function LenscalPaywall({ revealed }: { revealed: ReadonlySet<PaywallPart
         </Part>
 
         <Part
-          className="flex flex-col items-center gap-0.75 pt-3"
+          className="flex flex-col items-center gap-0.75 self-stretch pt-3"
           delay={120}
           part="offer"
           revealed={revealed}
         >
-          <div className="font-sans text-[#A1A1AA] text-[15px]/5.5">
-            Subscribe to Pro for just $29.99/year for a
-          </div>
-          <div className="flex items-baseline">
-            <div className="font-sans text-[#A1A1AA] text-[15px]/5.5">limited time</div>
-            <div className="font-sans text-[#71717A] text-[15px]/5.5 [text-decoration:line-through_1px] [text-underline-position:from-font]">
+          <div className={OFFER_LINE}>Subscribe to Pro for just $29.99/year for a</div>
+          <div className="flex items-baseline gap-1">
+            <div className={OFFER_LINE}>limited time</div>
+            <div className="font-sans text-[15px]/5.5 text-white [text-decoration:line-through_1px] [text-underline-position:from-font]">
               ($49.99/year)
             </div>
-            <div className="font-sans text-[#A1A1AA] text-[15px]/5.5">and unlock</div>
+            <div className={OFFER_LINE}>and unlock</div>
           </div>
-          <div className="flex items-baseline gap-1.25">
-            <div className="font-sans text-[#A1A1AA] text-[15px]/5.5">unlimited scans.</div>
-            <div className="font-medium font-sans text-[#6F9DFF] text-[15px]/5.5">View More &gt;</div>
-          </div>
+          <div className={OFFER_LINE}>unlimited scans.</div>
         </Part>
 
-        <Part className="flex items-center gap-3.5 pt-5" part="toggle" revealed={revealed}>
-          <div className="flex h-7.75 w-12.75 shrink-0 items-center rounded-[999px] border border-[#2C3450] border-solid bg-[#0F121C] p-0.5">
-            <div className="size-6.25 shrink-0 rounded-[999px] bg-[#FAFAFA] [box-shadow:#00000080_0px_1px_3px]" />
+        <Part
+          className="flex items-center justify-center gap-3.5 self-stretch pt-6.5"
+          part="toggle"
+          revealed={revealed}
+        >
+          <div className="flex h-7.75 w-12.75 shrink-0 items-center rounded-[999px] bg-[#86BEFF] p-0.5">
+            <div className="size-6.25 shrink-0 rounded-[999px] bg-[#FAFAFA]" />
           </div>
           <div className="font-sans text-[#E4E4E7] text-[15px]/5">
             Remind me before free trial ends
           </div>
         </Part>
 
-        <Part className="flex pt-4" delay={120} part="cta" revealed={revealed}>
-          <div className="flex h-14 grow basis-[0%] items-center justify-center rounded-[999px] [background-color:var(--color-brand-primary)]">
-            <div className="font-sans font-semibold text-[17px]/5.5 [color:var(--color-primary-foreground)] tracking-[-0.01em]">
+        <Part className="flex self-stretch pt-5" delay={120} part="cta" revealed={revealed}>
+          <div
+            className="flex h-14 grow basis-[0%] items-center justify-center rounded-[999px] [box-shadow:#FFFFFF_0px_2px_3px_inset,#00000033_0px_2px_7px]"
+            style={{
+              backgroundImage:
+                "radial-gradient(ellipse 94.235% 609.11% at 50% 50% in oklab, oklab(97.9% -0.002 -0.010) 0%, oklab(91.4% -0.008 -0.041) 100%)",
+            }}
+          >
+            <div className="font-sans font-semibold text-[17px]/5.5 text-black tracking-[-0.01em]">
               Try It Free
             </div>
           </div>
         </Part>
 
-        <Part className="flex items-start gap-1.75 pt-3.5" part="finePrint" revealed={revealed}>
-          <div className="size-3.25 shrink-0 rounded-[999px] border border-[#4B5570] border-solid" />
-          <div className="flex grow basis-[0%] flex-col gap-0.5">
-            <div className="flex flex-wrap items-baseline">
-              <div className="font-sans text-[#8B8B93] text-[11px]/3.75">
-                I have read and accept
-              </div>
-              <div className="font-sans text-[#C4C4CB] text-[11px]/3.75 [text-decoration:underline_1px] [text-underline-position:from-font]">
-                Pricing Terms.
-              </div>
-              <div className="font-sans text-[#8B8B93] text-[11px]/3.75">
-                Auto renew plans, cancel
-              </div>
+        <Part className="flex flex-col gap-0.5 self-stretch pt-4" part="finePrint" revealed={revealed}>
+          <div className="flex flex-wrap items-baseline justify-center gap-x-0.75">
+            <div className={FINE_PRINT_LINE}>I have read and accept</div>
+            <div className="font-sans text-[#C4C4CB] text-[11px]/3.75 [text-decoration:underline_1px] [text-underline-position:from-font]">
+              Pricing Terms.
             </div>
-            <div className="font-sans text-[#8B8B93] text-[11px]/3.75">
-              anytime. Auto renew at $29.99 / Y after the trial, cancel anytime.
-            </div>
+            <div className={FINE_PRINT_LINE}>Auto renew plans, cancel</div>
+          </div>
+          <div className={FINE_PRINT_LINE}>
+            anytime. Auto renew at $29.99 / Y after the trial, cancel anytime.
           </div>
         </Part>
       </div>
