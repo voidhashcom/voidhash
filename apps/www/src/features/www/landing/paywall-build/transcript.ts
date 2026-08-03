@@ -5,10 +5,8 @@
 export type PaywallPart =
   | "backdrop"
   | "statusBar"
-  | "rings"
-  | "appIcon"
-  | "chips"
-  | "badges"
+  | "screenshot"
+  | "foodCard"
   | "title"
   | "offer"
   | "toggle"
@@ -30,7 +28,7 @@ export interface TranscriptStep {
 }
 
 export const AGENT_PROMPT =
-  "Build the Lenscal Pro paywall: dark scan-ring hero, App Store awards, 7-day free trial at $29.99/year.";
+  "Build the Lenscal Pro paywall: electric-blue hero, app shot with a scanned meal, 7-day free trial at $29.99/year.";
 
 export const AGENT_INTRO = "I'll compose it on the live document, then preview before publishing.";
 
@@ -62,50 +60,43 @@ export const TRANSCRIPT_STEPS: readonly TranscriptStep[] = [
     tool: "get_components",
   },
   {
-    args: ["insert · column + radial backdrop, status bar"],
+    args: ["insert · column + brand-blue backdrop, status bar"],
     result: "ok · 6 nodes minted · v1",
     reveals: ["backdrop", "statusBar"],
     runningMs: 1500,
     tool: "edit_paywall",
   },
   {
-    args: ["insert · scan rings ×8, app icon"],
-    result: "ok · 11 nodes minted · v2",
-    reveals: ["rings", "appIcon"],
+    args: ["insert · app screenshot in device frame"],
+    result: "ok · 4 nodes minted · v2",
+    reveals: ["screenshot"],
     runningMs: 1500,
     tool: "edit_paywall",
   },
   {
-    args: ["insert · detection chips ×2"],
-    result: "ok · 6 nodes minted · v3",
-    reveals: ["chips"],
+    args: ["insert · scanned-meal card"],
+    result: "ok · 7 nodes minted · v3",
+    reveals: ["foodCard"],
     runningMs: 1250,
     tool: "edit_paywall",
   },
   {
-    args: ["insert · award badges ×3"],
-    result: "ok · 9 nodes minted · v4",
-    reveals: ["badges"],
-    runningMs: 1400,
-    tool: "edit_paywall",
-  },
-  {
     args: ["insert · headline, offer copy"],
-    result: "ok · 8 nodes minted · v5",
+    result: "ok · 8 nodes minted · v4",
     reveals: ["title", "offer"],
     runningMs: 1400,
     tool: "edit_paywall",
   },
   {
     args: ['insert · reminder toggle, "Try It Free"'],
-    result: "ok · 7 nodes minted · v6",
+    result: "ok · 7 nodes minted · v5",
     reveals: ["toggle", "cta"],
     runningMs: 1400,
     tool: "edit_paywall",
   },
   {
     args: ["insert · pricing terms"],
-    result: "ok · 5 nodes minted · v7",
+    result: "ok · 5 nodes minted · v6",
     reveals: ["finePrint"],
     runningMs: 1200,
     tool: "edit_paywall",
@@ -118,7 +109,7 @@ export const TRANSCRIPT_STEPS: readonly TranscriptStep[] = [
   },
   {
     args: ['verdict: "matches the brief"', "unresolvedIssues: []"],
-    result: "session closed · published v7",
+    result: "session closed · published v6",
     runningMs: 1100,
     tool: "finish_paywall_edit",
   },
