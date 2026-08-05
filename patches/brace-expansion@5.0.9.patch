@@ -1,7 +1,7 @@
 diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
 --- a/dist/commonjs/index.js
 +++ b/dist/commonjs/index.js
-@@ -259,5 +259,8 @@
+@@ -285,5 +285,8 @@
          str = m.post;
      }
      return acc;
