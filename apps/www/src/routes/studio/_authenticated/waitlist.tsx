@@ -4,7 +4,7 @@ import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, Logo } from "@voidhash/ui";
 import { Check } from "lucide-react";
 
-import { redirectToSignOut } from "@/features/auth/lib/workos";
+import { redirectToSignOut } from "@/features/auth/lib/sign-out";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { isOrganizationWaitlisted } from "@/lib/waitlist";
 

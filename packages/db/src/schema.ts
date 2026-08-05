@@ -1292,7 +1292,6 @@ export const appStoreTransactions = pgTable(
 );
 
 // Design file
-// biome-ignore lint/suspicious/noEmptyInterface: ok
 export interface DesignFileMetadata {}
 
 // Paywall source enum — how the paywall is authored.

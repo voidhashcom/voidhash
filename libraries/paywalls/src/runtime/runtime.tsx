@@ -196,7 +196,7 @@ export const PaywallRuntimeProvider = ({
       purchase: (productId) => {
         const target = productId ?? selectedProductId;
         if (!target) {
-          // biome-ignore lint/suspicious/noConsole: dev-visible signal — a purchase that silently no-ops is undebuggable from inside a WebView.
+          // dev-visible signal — a purchase that silently no-ops is undebuggable from inside a WebView.
           console.warn(
             "[voidhash-paywall] purchase() called with no selected or available product — did the host send a configure message with products?",
           );

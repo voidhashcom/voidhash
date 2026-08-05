@@ -4,50 +4,52 @@ import type { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/htt
 const cloneWithPrototype = <T extends object>(value: T, properties: Record<string, unknown>): T =>
   Object.assign(Object.create(Object.getPrototypeOf(value)), value, properties) as T;
 
-const mapPayloadSchemas = (
-  payload: HttpApiEndpoint.AnyWithProps["payload"],
-): HttpApiEndpoint.AnyWithProps["payload"] =>
+const mapPayloadSchemas = (payload: HttpApiEndpoint.PayloadMap): HttpApiEndpoint.PayloadMap =>
   new Map(
-    Array.from(payload.entries(), ([contentType, value]) => [
-      contentType,
-      {
-        ...value,
-        schemas: value.schemas.map((schema) => Schema.toCodecJson(schema)) as typeof value.schemas,
-      },
-    ]),
+    Array.from(payload.entries(), ([contentType, value]) => {
+      const [first, ...rest] = value.schemas;
+      return [
+        contentType,
+        {
+          ...value,
+          schemas: [
+            Schema.toCodecJson(first),
+            ...rest.map((schema) => Schema.toCodecJson(schema)),
+          ] as const,
+        },
+      ];
+    }),
   );
 
-const mapEndpoint = <TEndpoint extends HttpApiEndpoint.AnyWithProps>(
-  endpoint: TEndpoint,
-): TEndpoint =>
+const mapEndpoint = <TEndpoint extends HttpApiEndpoint.Top>(endpoint: TEndpoint): TEndpoint =>
   cloneWithPrototype(endpoint, {
-    error: new Set(
-      Array.from(endpoint.error, (schema) => Schema.toCodecJson(schema)),
-    ) as TEndpoint["error"],
+    error: new Set(Array.from(endpoint.error, (schema) => Schema.toCodecJson(schema))),
     headers: endpoint.headers ? Schema.toCodecJson(endpoint.headers) : undefined,
     params: endpoint.params ? Schema.toCodecJson(endpoint.params) : undefined,
-    payload: mapPayloadSchemas(endpoint.payload) as TEndpoint["payload"],
+    payload: mapPayloadSchemas(endpoint.payload),
     query: endpoint.query ? Schema.toCodecJson(endpoint.query) : undefined,
-    success: new Set(
-      Array.from(endpoint.success, (schema) => Schema.toCodecJson(schema)),
-    ) as TEndpoint["success"],
+    success: new Set(Array.from(endpoint.success, (schema) => Schema.toCodecJson(schema))),
   });
 
-const mapGroup = <TGroup extends HttpApiGroup.AnyWithProps>(group: TGroup): TGroup =>
+const mapGroup = <TGroup extends HttpApiGroup.Top>(group: TGroup): TGroup =>
   cloneWithPrototype(group, {
     endpoints: Object.fromEntries(
       Object.entries(group.endpoints).map(([endpointName, endpoint]) => [
         endpointName,
-        mapEndpoint(endpoint as HttpApiEndpoint.AnyWithProps),
+        mapEndpoint(endpoint),
       ]),
-    ) as TGroup["endpoints"],
+    ),
   });
 
-export const toJsonCompatibleApi = <TApi extends HttpApi.Any>(api: TApi): TApi =>
+/**
+ * Deep-clones an `HttpApi`, replacing every endpoint schema with its
+ * JSON-compatible codec so the API can be served or consumed over transports
+ * that only carry JSON. Prototypes are preserved, so the clone keeps behaving
+ * like the original `HttpApi`, group, and endpoint instances.
+ */
+export const toJsonCompatibleApi = <TApi extends HttpApi.Top>(api: TApi): TApi =>
   cloneWithPrototype(api, {
     groups: Object.fromEntries(
-      Object.entries(
-        (api as TApi & { groups: Record<string, HttpApiGroup.AnyWithProps> }).groups,
-      ).map(([groupName, group]) => [groupName, mapGroup(group as HttpApiGroup.AnyWithProps)]),
+      Object.entries(api.groups).map(([groupName, group]) => [groupName, mapGroup(group)]),
     ),
   });

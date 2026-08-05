@@ -37,7 +37,7 @@ abstract class HybridGoogleBillingSpec: HybridObject() {
   }
 
   // Properties
-
+  
 
   // Methods
   abstract fun initConnection(onPurchase: ((purchase: HybridGoogleBillingPurchaseSpec) -> Unit)?): Promise<Boolean>
@@ -64,11 +64,11 @@ abstract class HybridGoogleBillingSpec: HybridObject() {
   @DoNotStrip
   @Keep
   abstract fun acknowledgePurchase(token: String): Promise<HybridGoogleBillingAcknowledgeResultSpec>
-
+  
   @DoNotStrip
   @Keep
   abstract fun consumeProduct(token: String): Promise<HybridGoogleBillingAcknowledgeResultSpec>
-
+  
   @DoNotStrip
   @Keep
   abstract fun getAvailableItemsByType(type: GoogleBillingProductType): Promise<Array<HybridGoogleBillingPurchaseSpec>>

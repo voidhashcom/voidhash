@@ -16,7 +16,7 @@
  *
  * The concrete {@link WebhookDeliveryWorkflow} is a Cloudflare Workflow adapter
  * wired at the application root and absent in-process, so we substitute a
- * recording stub (mirroring `apps/backend` `TestLayers`). `updateEndpoint`
+ * recording stub (mirroring `packages/backend` `TestLayers`). `updateEndpoint`
  * intentionally does *not* dispatch; only `retryDelivery` and `testEndpoint`
  * hand a delivery off, and they do so via `Effect.forkDetach` (fire-and-forget).
  * Those tests assert the synchronous, deterministic persisted state and use

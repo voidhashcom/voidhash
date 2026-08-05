@@ -90,7 +90,6 @@ function PaywallsPageSkeleton() {
       </PageBar>
       <div className="grid w-full grid-cols-2 gap-6 px-4 pt-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
           <PaywallCardSkeleton key={index} />
         ))}
       </div>

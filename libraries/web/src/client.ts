@@ -59,7 +59,7 @@ export class VoidhashWebClient {
     this.runtime = CreateEffectRuntime(config, this.eventBus);
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: Effect requires service type parameter
+  // Effect requires service type parameter
   private async runEffect<T>(
     effect: Effect.Effect<T, unknown, any>,
     errorCode: string,

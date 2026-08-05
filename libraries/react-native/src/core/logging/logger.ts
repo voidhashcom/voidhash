@@ -74,27 +74,22 @@ export class ConsoleLogHandler implements LogHandler {
 
     switch (entry.level) {
       case LogLevel.DEBUG: {
-        // biome-ignore lint/suspicious/noConsole: It is a console logger
         console.debug(logMessage);
         break;
       }
       case LogLevel.INFO: {
-        // biome-ignore lint/suspicious/noConsole: It is a console logger
         console.info(logMessage);
         break;
       }
       case LogLevel.WARN: {
-        // biome-ignore lint/suspicious/noConsole: It is a console logger
         console.warn(logMessage);
         break;
       }
       case LogLevel.ERROR: {
-        // biome-ignore lint/suspicious/noConsole: It is a console logger
         console.error(logMessage);
         break;
       }
       default: {
-        // biome-ignore lint/suspicious/noConsole: It is a console logger
         console.log(logMessage);
       }
     }
@@ -158,7 +153,6 @@ export class Logger {
       try {
         handler.handle(entry);
       } catch (error) {
-        // biome-ignore lint/suspicious/noConsole: It is a console logger
         console.error("Logger handler error:", error);
       }
     }

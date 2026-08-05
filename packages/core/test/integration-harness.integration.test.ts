@@ -13,6 +13,5 @@ test(
     expect(output.testConnections).not.toBeNull();
     expect(output.testConnections?.db.host).toBeDefined();
     expect(output.testConnections?.clickhouse.url).toBeDefined();
-    expect(output.testConnections?.workos.clientId).toBeDefined();
   }),
 );

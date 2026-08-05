@@ -4,10 +4,11 @@
 # internal-only network. Local development runs tests and tooling on the host
 # against the same stack, so this overlay publishes both:
 #
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml \
-#     --profile analytics up -d --build
+#   docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml \
+#     --env-file .env --profile analytics up -d --build
 #
-# Host ports come from `.env` (see `.env.example`); every default matches what
+# Host ports come from the repo-root `.env` (see `.env.example`); every default
+# matches what
 # the integration suites assume.
 services:
   postgres:

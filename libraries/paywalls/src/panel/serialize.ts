@@ -27,7 +27,7 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const warn = (message: string): void => {
   if (isDev) {
-    // biome-ignore lint/suspicious/noConsole: dev-only diagnostic for panel authors.
+    // dev-only diagnostic for panel authors.
     console.warn(`[@voidhash/paywalls/panel] ${message}`);
   }
 };

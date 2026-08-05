@@ -37,6 +37,32 @@ export interface DurableEntityAlarm {
   readonly delete: Effect.Effect<void>;
 }
 
+/** A persisted alarm whose scheduled time has arrived. */
+export interface DueDurableEntityAlarm {
+  readonly address: DurableEntityAddress;
+  readonly scheduledTime: number;
+}
+
+/** Control plane a scheduler polls to find the entities whose alarms are due. */
+export interface DurableEntityAlarmControlShape {
+  readonly listDueAlarms: (
+    now: number,
+    limit: number,
+  ) => Effect.Effect<ReadonlyArray<DueDurableEntityAlarm>>;
+}
+
+/**
+ * Exposes persisted alarms to an out-of-band dispatcher.
+ *
+ * Runtimes whose entity storage fires alarms by itself (Cloudflare Durable
+ * Objects) never publish this service; runtimes whose storage cannot enumerate
+ * pending alarms have to, or an armed alarm can never fire.
+ */
+export class DurableEntityAlarmControl extends Context.Service<
+  DurableEntityAlarmControl,
+  DurableEntityAlarmControlShape
+>()("@voidhash/platform/DurableEntityAlarmControl") {}
+
 /** Live sessions currently attached to an entity instance. */
 export interface DurableEntitySessions {
   readonly get: (sessionId: string) => Effect.Effect<DurableEntitySession | undefined>;

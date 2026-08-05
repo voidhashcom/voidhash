@@ -35,7 +35,6 @@ function ProjectWebhooksPageSkeleton() {
     <SettingsPage description="Manage your webhook endpoints." title="Webhooks">
       <SettingsCard className="grid gap-0 divide-y">
         {Array.from({ length: 3 }).map((_, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: just a skeleton
           <WebhookEndpointRecordSkeleton key={index} />
         ))}
       </SettingsCard>

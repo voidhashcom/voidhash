@@ -21,7 +21,6 @@ export function PersonsTableSkeleton() {
         </TableHeader>
         <TableBody>
           {Array.from({ length: 8 }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
             <TableRow key={`persons-skeleton-${index}`}>
               <TableCell>
                 <Skeleton className="h-4 w-40" />

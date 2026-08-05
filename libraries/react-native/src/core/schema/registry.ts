@@ -12,7 +12,7 @@
  * isolated tests), the resolved types degrade gracefully to `string`.
  */
 
-// biome-ignore lint/suspicious/noEmptyInterface: intentional - user code augments this
+// intentional - user code augments this
 export interface VoidhashRegister {}
 
 /**

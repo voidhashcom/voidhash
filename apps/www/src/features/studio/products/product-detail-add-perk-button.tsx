@@ -57,7 +57,6 @@ export function ProductDetailAddPerkButton({
   return (
     <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>
-        {/** biome-ignore lint/a11y/useSemanticElements: custom component */}
         <Button aria-expanded={open} role="combobox" variant={variant}>
           Add perk
         </Button>

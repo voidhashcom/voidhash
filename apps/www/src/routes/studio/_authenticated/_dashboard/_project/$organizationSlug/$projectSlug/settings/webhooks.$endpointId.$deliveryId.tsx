@@ -70,7 +70,6 @@ function WebhookDeliveryDetailPageSkeleton() {
               <CardContent>
                 <div className="space-y-4">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
                     <Skeleton key={i} className="h-16 w-full" />
                   ))}
                 </div>

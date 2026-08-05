@@ -15,7 +15,7 @@ import type { User } from "@voidhash/rpc";
 import { BadgeCheck, LogOut, Settings, Settings2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
-import { redirectToSignOut } from "@/features/auth/lib/workos";
+import { redirectToSignOut } from "@/features/auth/lib/sign-out";
 
 export function NavUserDropdown({
   user,

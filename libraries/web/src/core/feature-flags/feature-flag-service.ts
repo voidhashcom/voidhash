@@ -22,7 +22,7 @@ const make = Effect.gen(function* effect() {
   const latestFlags = new Map<string, FeatureFlagEntry>();
   const trackedKeySets = new Set<string>();
 
-  // biome-ignore lint/suspicious/noExplicitAny: SDK headers match the schema shape at runtime
+  // SDK headers match the schema shape at runtime
   const buildHeaders = (distinctId: string) =>
     ({
       ...platform.getSdkHeaders({

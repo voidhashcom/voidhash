@@ -232,7 +232,6 @@ export function ProjectLayoutSkeleton({
                                 setSubmenuOpen(true);
                               }
                             }}
-                            // biome-ignore lint/suspicious/noExplicitAny: mirrors SidebarShell typing
                             to={item.url as any}
                           >
                             {item.icon && <item.icon />}
@@ -275,7 +274,6 @@ export function ProjectLayoutSkeleton({
                               isActive={subItem.isActive()}
                             >
                               <TanstackLink
-                                // biome-ignore lint/suspicious/noExplicitAny: mirrors SidebarShell typing
                                 to={subItem.url as any}
                               >
                                 {subItem.icon && <subItem.icon />}

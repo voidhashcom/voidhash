@@ -106,7 +106,6 @@ function startWatcher(options: WithVoidhashOptions) {
     });
 
     activeChildProcess.on("error", (error) => {
-      // biome-ignore lint/suspicious/noConsole: dev-time diagnostic
       console.warn(
         `[voidhash/metro] Failed to spawn '${binary} ${args.join(" ")}': ${error.message}. ` +
           "Ensure voidhash-cli is installed in this project.",
@@ -120,7 +119,6 @@ function startWatcher(options: WithVoidhashOptions) {
 
     ensureTeardownHandlers();
   } catch (error) {
-    // biome-ignore lint/suspicious/noConsole: dev-time diagnostic
     console.warn(
       `[voidhash/metro] Could not start types watcher: ${
         error instanceof Error ? error.message : String(error)

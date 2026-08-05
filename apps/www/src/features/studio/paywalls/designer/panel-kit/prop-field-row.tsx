@@ -366,7 +366,7 @@ function ArrayPropRow({
       {items.length > 0 && (
         <div className="flex flex-col gap-1">
           {items.map((item, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional; the whole binding is rewritten per change
+            // rows are positional; the whole binding is rewritten per change
             <div className="flex flex-row items-center gap-1" key={index}>
               {arrayKey === "string-array" && (
                 <StringInput

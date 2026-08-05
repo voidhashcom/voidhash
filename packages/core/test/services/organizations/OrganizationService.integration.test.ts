@@ -7,7 +7,7 @@
  * source of truth and every write goes there first, then is mirrored to the
  * `organization` / `member` tables. WorkOS itself is an external provider we
  * cannot stand up in-process, so the tests provide a configurable fake
- * {@link WorkosOrgPort} (the same provider-agnostic seam the app root wires a
+ * {@link OrgDirectoryPort} (the same provider-agnostic seam the app root wires a
  * live `@workos-inc/node` adapter into) to drive successes and failures.
  * Everything below the port — the DB writes, transactions, rollback
  * compensation, slug uniqueness, and permission checks — runs against the
@@ -44,15 +44,15 @@ import {
   OrganizationLifecyclePortError,
   OrganizationService,
   OrganizationServiceError,
-  WorkosOrgPort,
+  OrgDirectoryPort,
 } from "@voidhash/core/services";
 import { OrganizationNotFoundError } from "@voidhash/core/domain/organization/Organization";
-import { WorkosOrgPortError } from "@voidhash/core/services/organizations/WorkosOrgPort";
+import { OrgDirectoryPortError } from "@voidhash/core/services/organizations/OrgDirectoryPort";
 import type {
-  WorkosPortMembership,
-  WorkosPortOrganization,
-  WorkosPortUser,
-} from "@voidhash/core/services/organizations/WorkosOrgPort";
+  OrgDirectoryMembership,
+  OrgDirectoryOrganization,
+  OrgDirectoryUser,
+} from "@voidhash/core/services/organizations/OrgDirectoryPort";
 import {
   ActionForbiddenError,
   type SecretKeySession,
@@ -184,7 +184,7 @@ const withCleanup = <E, R>(
   return body(tracked).pipe(Effect.ensuring(cleanup(tracked)));
 };
 
-// --- fake WorkosOrgPort -----------------------------------------------------
+// --- fake OrgDirectoryPort -----------------------------------------------------
 
 /** Records every call the service makes against the port. */
 interface PortCalls {
@@ -206,27 +206,27 @@ interface FakePortConfig {
   readonly onCreateOrganization?: (input: {
     name: string;
     externalId: string;
-  }) => Effect.Effect<WorkosPortOrganization, WorkosOrgPortError>;
-  readonly onUpdateOrganization?: () => Effect.Effect<WorkosPortOrganization, WorkosOrgPortError>;
+  }) => Effect.Effect<OrgDirectoryOrganization, OrgDirectoryPortError>;
+  readonly onUpdateOrganization?: () => Effect.Effect<OrgDirectoryOrganization, OrgDirectoryPortError>;
   readonly onCreateMembership?: (input: {
     workosOrganizationId: string;
     workosUserId: string;
-  }) => Effect.Effect<WorkosPortMembership, WorkosOrgPortError>;
-  readonly onDeleteMembership?: () => Effect.Effect<void, WorkosOrgPortError>;
-  readonly onUpdateMembershipRole?: () => Effect.Effect<WorkosPortMembership, WorkosOrgPortError>;
-  readonly findUserByEmail?: WorkosPortUser | null;
-  readonly listMembershipsForUser?: ReadonlyArray<WorkosPortMembership>;
+  }) => Effect.Effect<OrgDirectoryMembership, OrgDirectoryPortError>;
+  readonly onDeleteMembership?: () => Effect.Effect<void, OrgDirectoryPortError>;
+  readonly onUpdateMembershipRole?: () => Effect.Effect<OrgDirectoryMembership, OrgDirectoryPortError>;
+  readonly findUserByEmail?: OrgDirectoryUser | null;
+  readonly listMembershipsForUser?: ReadonlyArray<OrgDirectoryMembership>;
 }
 
-const portError = (message: string) => new WorkosOrgPortError({ cause: "fake", message });
+const portError = (message: string) => new OrgDirectoryPortError({ cause: "fake", message });
 
 interface FakePort {
   readonly calls: PortCalls;
-  readonly layer: Layer.Layer<WorkosOrgPort>;
+  readonly layer: Layer.Layer<OrgDirectoryPort>;
 }
 
 /**
- * Build a fake {@link WorkosOrgPort} layer plus the call log it records into.
+ * Build a fake {@link OrgDirectoryPort} layer plus the call log it records into.
  * Defaults are "everything succeeds"; pass overrides to inject failures or
  * pre-existing WorkOS state. The returned `calls` object lets tests assert
  * which port operations ran (e.g. that a rollback `deleteOrganization` fired).
@@ -244,7 +244,7 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
   };
 
   let portSeq = 0;
-  const layer = Layer.succeed(WorkosOrgPort, {
+  const layer = Layer.succeed(OrgDirectoryPort, {
     createMembership: (input) => {
       calls.createMembership.push(input);
       if (config.onCreateMembership) return config.onCreateMembership(input);
@@ -253,7 +253,7 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
         organizationId: input.workosOrganizationId,
         role: input.roleSlug ?? "member",
         userId: input.workosUserId,
-      } satisfies WorkosPortMembership);
+      } satisfies OrgDirectoryMembership);
     },
     createOrganization: (input) => {
       calls.createOrganization.push(input);
@@ -262,7 +262,7 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
         externalId: input.externalId,
         id: `wo_${Date.now()}_${portSeq++}`,
         name: input.name,
-      } satisfies WorkosPortOrganization);
+      } satisfies OrgDirectoryOrganization);
     },
     deleteMembership: (workosMembershipId) => {
       calls.deleteMembership.push(workosMembershipId);
@@ -292,7 +292,7 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
         organizationId: "wo_x",
         role: input.roleSlug,
         userId: "wu_x",
-      } satisfies WorkosPortMembership);
+      } satisfies OrgDirectoryMembership);
     },
     updateOrganization: (input) => {
       calls.updateOrganization.push(input);
@@ -301,7 +301,7 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
         externalId: null,
         id: input.workosOrganizationId,
         name: input.name ?? "fake",
-      } satisfies WorkosPortOrganization);
+      } satisfies OrgDirectoryOrganization);
     },
   });
 

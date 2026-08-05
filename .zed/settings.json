@@ -5,49 +5,66 @@
     "JavaScript": {
       "formatter": {
         "language_server": {
-          "name": "biome"
+          "name": "oxfmt"
         }
       },
       "code_actions_on_format": {
-        "source.fixAll.biome": true,
-        "source.organizeImports.biome": true
+        "source.fixAll.oxc": true,
+        "source.organizeImports.oxc": true
       }
     },
     "TypeScript": {
       "formatter": {
         "language_server": {
-          "name": "biome"
+          "name": "oxfmt"
         }
       },
       "code_actions_on_format": {
-        "source.fixAll.biome": true,
-        "source.organizeImports.biome": true
+        "source.fixAll.oxc": true,
+        "source.organizeImports.oxc": true
       }
     },
     "JSX": {
       "formatter": {
         "language_server": {
-          "name": "biome"
+          "name": "oxfmt"
         }
       },
       "code_actions_on_format": {
-        "source.fixAll.biome": true,
-        "source.organizeImports.biome": true
+        "source.fixAll.oxc": true,
+        "source.organizeImports.oxc": true
       }
     },
     "TSX": {
       "formatter": {
         "language_server": {
-          "name": "biome"
+          "name": "oxfmt"
         }
       },
       "code_actions_on_format": {
-        "source.fixAll.biome": true,
-        "source.organizeImports.biome": true
+        "source.fixAll.oxc": true,
+        "source.organizeImports.oxc": true
       }
     }
   },
   "lsp": {
+    "oxlint": {
+      "initialization_options": {
+        "settings": {
+          "run": "onType",
+          "fixKind": "safe_fix",
+          "typeAware": true,
+          "unusedDisableDirectives": "deny"
+        }
+      }
+    },
+    "oxfmt": {
+      "initialization_options": {
+        "settings": {
+          "run": "onSave"
+        }
+      }
+    },
     "typescript-language-server": {
       "settings": {
         "typescript": {

@@ -59,7 +59,6 @@ function WebhookEndpointDetailPageSkeleton() {
               </CardHeader>
               <CardContent className="divide-y divide-border border-border border-t px-0">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
                   <WebhookDeliveryRecordSkeleton key={i} />
                 ))}
               </CardContent>

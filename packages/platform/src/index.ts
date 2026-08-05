@@ -11,6 +11,9 @@ export {
 } from "./CronScheduler.ts";
 export { type PrimitiveDefinition, type PrimitiveKind } from "./Primitive.ts";
 export {
+  type DueDurableEntityAlarm,
+  DurableEntityAlarmControl,
+  type DurableEntityAlarmControlShape,
   DurableEntityHost,
   makeDurableEntityAddress,
   type DurableEntityAddress,

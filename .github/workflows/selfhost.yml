@@ -40,39 +40,66 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      # The stack and the host-side tiers authenticate against each other, so
+      # they have to read one environment: the repo-root `.env` a developer
+      # keeps (and `pnpm test:integration` creates on a first checkout). It must
+      # exist *before* the stack starts — Compose otherwise falls back to the
+      # built-in defaults in the compose file while the tiers read the file, and
+      # every host-side connection fails authentication. Compose consumes it via
+      # `--env-file`; the tiers that read `process.env` rather than the file (the
+      # two smoke tiers) get the same values from the job environment.
+      - name: Prepare the stack environment
+        run: |
+          cp .env.example .env
+          # `.env.example` is a deployment template, so it selects production
+          # mode, which refuses its own placeholder secrets. This is a loopback
+          # CI stack: `pnpm stack:up` forces the same mode locally.
+          sed -i 's|^SELFHOST_MODE=.*|SELFHOST_MODE=local-evaluation|' .env
+          # The thumbnail assertions wait on the idle debounce.
+          sed -i 's|^MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS=.*|MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS=250|' .env
+          grep -E '^[A-Z][A-Z0-9_]*=' .env >> "$GITHUB_ENV"
+
       - name: Start stateful stores
-        run: docker compose -f selfhost/docker-compose.yml --profile analytics up -d clickhouse minio --wait --wait-timeout 180
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics up -d clickhouse minio --wait --wait-timeout 180
 
       - name: Initialize object store
-        run: docker compose -f selfhost/docker-compose.yml --profile analytics run --rm minio-init
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics run --rm minio-init
 
-      - name: Verify S3-compatible object store
-        env:
-          PLATFORM_NODE_S3_ENDPOINT: http://127.0.0.1:9000
-          PLATFORM_NODE_S3_TEST: 1
-        run: pnpm --filter @voidhash/platform-node exec vp test run -c vitest.mts tests/S3ObjectStore.integration.test.ts
-
+      # The dev overlay publishes Postgres and the compiler, which the
+      # host-side integration tier connects to. `CLICKHOUSE_URL` stays a shell
+      # override rather than an entry in `.env`: it names the compose-internal
+      # endpoint the application dials, while every host-side tier reaches
+      # ClickHouse on the published port instead.
       - name: Build and start Community Compose
         env:
           CLICKHOUSE_URL: http://clickhouse:8123
-          MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS: 250
-        run: docker compose -f selfhost/docker-compose.yml --profile analytics up --build --wait --wait-timeout 180
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics up --build --wait --wait-timeout 180
 
       - name: Reclaim image build cache
         run: docker builder prune --all --force
 
-      - name: Run self-host smoke
-        run: pnpm exec tsx selfhost/smoke.mts
+      # Same scripts developers run locally; this workflow owns the stack the
+      # two tiers need. With the unit tier in Repository CI, this completes the
+      # coverage of `pnpm verify`.
+      - name: Integration tier
+        run: pnpm test:integration
 
-      - name: Run self-host release smoke
-        run: pnpm exec tsx selfhost/release-smoke.mts
+      - name: End-to-end tier
+        run: pnpm test:e2e
 
+      - name: End-to-end tier (release)
+        run: pnpm test:e2e:release
+
+      # These two run even when the environment step never did, so they stay off
+      # `--env-file` (a missing file is a hard Compose error). They need no
+      # interpolated value: both address the project by name, and the job
+      # environment already carries what `.env` set.
       - name: Show Compose diagnostics
         if: always()
         run: |
-          docker compose -f selfhost/docker-compose.yml --profile analytics ps || true
-          docker compose -f selfhost/docker-compose.yml --profile analytics logs --no-color || true
+          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --profile analytics ps || true
+          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --profile analytics logs --no-color || true
 
       - name: Stop Compose
         if: always()
-        run: docker compose -f selfhost/docker-compose.yml --profile analytics down --volumes --remove-orphans
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --profile analytics down --volumes --remove-orphans

@@ -1,2 +1,2 @@
 export * from "./OrganizationService.ts";
-export * from "./WorkosOrgPort.ts";
+export * from "./OrgDirectoryPort.ts";

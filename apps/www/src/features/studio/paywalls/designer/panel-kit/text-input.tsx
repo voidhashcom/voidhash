@@ -325,9 +325,7 @@ export function TextInput({
       {icon ? (
         <InputGroupAddon className="py-1 pr-0.5 pl-2">
           {type === "number" ? (
-            // biome-ignore lint/a11y/noStaticElementInteractions: We need to use a div to get the pointer lock to work
-            // biome-ignore lint/nursery/noNoninteractiveElementInteractions: We need to use a div to get the pointer lock to work
-            // biome-ignore lint/a11y/useAriaPropsSupportedByRole: We need to use a div to get the pointer lock to work
+            // We need to use a div to get the pointer lock to work
             <div
               aria-label="Drag to adjust value"
               className={cn(

@@ -1,0 +1,17 @@
+{
+  "extends": "@voidhash/tsconfig/alchemy-base.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "allowImportingTsExtensions": true,
+    "composite": true,
+    "stripInternal": true,
+    "noEmit": false,
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["**/node_modules/**"]
+}

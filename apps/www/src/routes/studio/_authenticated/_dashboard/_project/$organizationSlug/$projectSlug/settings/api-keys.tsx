@@ -34,7 +34,6 @@ function ProjectApiKeysPageSkeleton() {
     <SettingsPage description="Manage your API keys." title="API Keys">
       <SettingsCard className="grid gap-0 divide-y">
         {Array.from({ length: 3 }).map((_, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: just a skeleton
           <ApiKeyRecordSkeleton key={index} />
         ))}
       </SettingsCard>

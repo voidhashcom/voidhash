@@ -42,6 +42,17 @@ Use `pnpm check:publication` to validate license metadata and the public/private
 repository boundary. The [self-hosting guide](selfhost/README.md) documents the
 local Compose environment and its smoke tests.
 
+Linting and formatting go through vite-plus: `pnpm lint` (`vp check`) and
+`pnpm format` (`vp check --fix`).
+
+The steps above describe a **standalone clone** of this repository, which installs
+its own `node_modules` from this repository's lockfile. This repository is also
+consumed as a nested workspace by Voidhash's private monorepo. In that mode the
+superproject's root install is authoritative: it already covers every package here,
+this directory must **not** have its own `node_modules` (two installs give
+`drizzle-orm`/`@types/react` duplicate TypeScript type identities), and all commands
+are run from the superproject root rather than from here.
+
 ## Testing
 
 Run the smallest relevant package tests while iterating, then run the repository

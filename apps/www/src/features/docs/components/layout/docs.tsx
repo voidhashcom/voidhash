@@ -364,7 +364,7 @@ function NodeIcon({ icon }: { icon?: ReactElement }) {
     return (
       <span
         className="*:size-4 shrink-0 text-muted-foreground"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: It is safe - static icon markup
+        // It is safe - static icon markup
         dangerouslySetInnerHTML={{ __html: icon }}
       />
     );

@@ -396,9 +396,13 @@ try {
       DELETE FROM person WHERE project_id = ${quoteSql(projectId)};
       DELETE FROM paywall WHERE id = ${quoteSql(paywallId)};
       DELETE FROM project WHERE id = ${quoteSql(projectId)};
-      DELETE FROM platform_queue_messages
-      WHERE body_json -> 'envelope' ->> 'projectId' = ${quoteSql(projectId)}
-         OR body_json ->> 'documentId' = ${quoteSql(paywallId)};
+      -- The cluster queue driver hands the store a JSON string, which the store
+      -- then JSON-encodes into the element column, so the body is doubly
+      -- encoded: unwrap the outer JSON scalar with #>> '{}' before reading the
+      -- payload's fields.
+      DELETE FROM effect_queue
+      WHERE (element::jsonb #>> '{}')::jsonb -> 'envelope' ->> 'projectId' = ${quoteSql(projectId)}
+         OR (element::jsonb #>> '{}')::jsonb ->> 'documentId' = ${quoteSql(paywallId)};
     `);
   }
 }

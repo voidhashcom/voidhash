@@ -18,8 +18,9 @@ deployment systems are not part of the Community repository.
 The self-host composition runs the same application services as Voidhash Cloud
 through provider-neutral platform contracts. It uses Node, PostgreSQL, MinIO,
 an isolated component compiler, Chromium, SMTP, and optional ClickHouse.
-Community v1 uses your own WorkOS and provider credentials. Cloud remains the
-zero-operations path; pricing is not being announced with this release.
+Community signs in with a root account you configure in the environment and
+uses your own provider credentials. Cloud remains the zero-operations path;
+pricing is not being announced with this release.
 
 We assembled and tested the complete repository privately before publication,
 including tenant-boundary tests, provider-signature and replay tests, secret

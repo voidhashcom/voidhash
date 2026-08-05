@@ -1,20 +1,20 @@
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
-import { getAuth } from "@workos/authkit-tanstack-react-start";
 import { Button } from "@voidhash/ui";
 import { LogOut } from "lucide-react";
 
 import { AuthHeader, AuthLayout } from "@/features/auth/components/auth-layout";
+import { getSessionUser } from "@/features/auth/lib/session";
 import { authMiddleware } from "@/features/auth/middleware/auth";
-import { redirectToSignOut } from "@/features/auth/lib/workos";
+import { redirectToSignOut } from "@/features/auth/lib/sign-out";
 
 export const Route = createFileRoute("/auth/")({
   component: HomePage,
   loader: async () => {
-    const auth = await getAuth();
-    if (!auth.user) {
+    const user = await getSessionUser();
+    if (!user) {
       throw redirect({ to: "/auth/login" });
     }
-    return auth;
+    return { user };
   },
   server: {
     middleware: [authMiddleware],

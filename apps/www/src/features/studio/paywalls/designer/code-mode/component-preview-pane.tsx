@@ -98,7 +98,7 @@ export function ComponentPreviewPane({ definitionId }: { definitionId: string })
           {compiled.diagnostics.map((diagnostic, index) => (
             <div
               className="flex items-start gap-2 py-0.5 font-mono text-[11px] text-destructive"
-              // biome-ignore lint/suspicious/noArrayIndexKey: diagnostics are positional and ephemeral
+              // diagnostics are positional and ephemeral
               key={index}
             >
               <span className="shrink-0 rounded-sm bg-destructive/10 px-1 uppercase">

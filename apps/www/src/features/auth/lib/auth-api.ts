@@ -1,71 +1,11 @@
+/**
+ * Browser client for the dashboard's own auth endpoints.
+ *
+ * Provider-specific flows (OAuth, passwords, email verification) live with the
+ * screens that use them, behind the auth adapter slot.
+ */
 type AuthApiErrorPayload = {
   error?: string;
-};
-
-type AuthRedirectResponse = {
-  redirectTo?: string;
-};
-
-/**
- * Fields returned by sign-up / sign-in when the account exists but its email is
- * not yet verified. The client uses these to drive the verify-email step.
- */
-type EmailVerificationChallenge = {
-  email?: string;
-  emailVerificationRequired?: boolean;
-  pendingAuthenticationToken?: string;
-  userId?: string;
-};
-
-type SignUpResponse = AuthRedirectResponse & EmailVerificationChallenge;
-
-type SignInResponse = AuthRedirectResponse & EmailVerificationChallenge;
-
-type VerifyEmailResponse = AuthRedirectResponse & {
-  verified?: boolean;
-};
-
-type ResendVerificationResponse = {
-  ok?: boolean;
-};
-
-type ForgotPasswordResponse = {
-  message?: string;
-};
-
-type SignInPasswordInput = {
-  email: string;
-  password: string;
-  returnPathname?: string;
-};
-
-type SignUpPasswordInput = {
-  email: string;
-  firstName: string;
-  lastName: string;
-  password: string;
-  returnPathname?: string;
-};
-
-type ForgotPasswordInput = {
-  email: string;
-};
-
-type ResetPasswordInput = {
-  password: string;
-  token: string;
-};
-
-type VerifyEmailInput = {
-  code: string;
-  email?: string;
-  pendingAuthenticationToken?: string;
-  returnPathname?: string;
-};
-
-type ResendVerificationInput = {
-  email?: string;
-  userId?: string;
 };
 
 const postAuthJson = async <TResponse>(
@@ -87,40 +27,21 @@ const postAuthJson = async <TResponse>(
   return payload;
 };
 
-export const signInWithPassword = (input: SignInPasswordInput) =>
-  postAuthJson<SignInResponse>("/api/auth/password/sign-in", input, "We could not sign you in.");
+export type RootSignInInput = {
+  username: string;
+  password: string;
+  returnPathname?: string;
+};
 
-export const verifyEmailCode = (input: VerifyEmailInput) =>
-  postAuthJson<VerifyEmailResponse>(
-    "/api/auth/email/verify",
-    input,
-    "We could not verify your email.",
-  );
+export type RootSignInResponse = {
+  accessToken: string;
+  redirectTo: string;
+};
 
-export const resendVerificationCode = (input: ResendVerificationInput) =>
-  postAuthJson<ResendVerificationResponse>(
-    "/api/auth/email/resend",
+/** Standalone sign-in with the deployment's configured root credentials. */
+export const signInWithRootCredentials = (input: RootSignInInput) =>
+  postAuthJson<RootSignInResponse>(
+    "/api/auth/sign-in",
     input,
-    "We could not send a new code.",
-  );
-
-export const signUpWithPassword = (input: SignUpPasswordInput) =>
-  postAuthJson<SignUpResponse>(
-    "/api/auth/password/sign-up",
-    input,
-    "We could not create your account.",
-  );
-
-export const requestPasswordReset = (input: ForgotPasswordInput) =>
-  postAuthJson<ForgotPasswordResponse>(
-    "/api/auth/password/forgot-password",
-    input,
-    "We could not send a reset link.",
-  );
-
-export const resetPassword = (input: ResetPasswordInput) =>
-  postAuthJson<AuthRedirectResponse>(
-    "/api/auth/password/reset-password",
-    input,
-    "We could not reset your password.",
+    "We could not sign you in.",
   );

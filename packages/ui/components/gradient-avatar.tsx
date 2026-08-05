@@ -5,10 +5,7 @@ function simpleHash(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.codePointAt(i) ?? 0;
-    // biome-ignore lint/nursery/noBitwiseOperators: required
     hash = (hash << 5) - hash + char;
-    // biome-ignore lint/style/useShorthandAssign: required
-    // biome-ignore lint/nursery/noBitwiseOperators: required
     hash &= hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
@@ -86,9 +83,7 @@ class ColorHash {
       return Array.isArray(paramValue) ? paramValue.concat() : [paramValue];
     });
 
-    // biome-ignore lint/style/noNonNullAssertion: required
     this.L = L!;
-    // biome-ignore lint/style/noNonNullAssertion: required
     this.S = S!;
 
     if (typeof options.hue === "number") {
@@ -117,13 +112,10 @@ class ColorHash {
     let hash = simpleHash(str);
     const hueResolution = 727;
     let H: number;
-    // biome-ignore lint/style/useConst: let me live
     let S: number;
-    // biome-ignore lint/style/useConst: let me live
     let L: number;
 
     if (this.hueRanges.length) {
-      // biome-ignore lint/style/noNonNullAssertion: required
       const range = this.hueRanges[hash % this.hueRanges.length]!;
       H =
         (((hash / this.hueRanges.length) % hueResolution) * (range.max - range.min)) /
@@ -133,13 +125,10 @@ class ColorHash {
       H = hash % 359;
     }
     hash = Math.ceil(hash / 360);
-    // biome-ignore lint/style/noNonNullAssertion: required
     S = this.S[hash % this.S.length]!;
     hash = Math.ceil(hash / this.S.length);
-    // biome-ignore lint/style/noNonNullAssertion: required
     L = this.L[hash % this.L.length]!;
 
-    // biome-ignore lint/style/noNonNullAssertion: required
     return [H, S!, L!];
   }
 
@@ -184,7 +173,6 @@ const stringToColours = (s: string): string[] => colorHash.hexPair(s);
 const generateColours = (s: string): [string, string] => {
   const s1 = s.slice(0, s.length / 2);
   const [c1, c2] = stringToColours(s1);
-  // biome-ignore lint/style/noNonNullAssertion: required
   return [c1!, c2!];
 };
 
@@ -230,7 +218,6 @@ export function GradientAvatar({
       {src ? (
         <AvatarImage alt={alt} src={avatarSrc} />
       ) : (
-        // biome-ignore lint/performance/noImgElement: custom image loading
         <img alt={alt} className="aspect-square size-full" src={avatarSrc} />
       )}
       <AvatarFallback>{fallback?.slice(0, 2)}</AvatarFallback>

@@ -8,7 +8,6 @@ export function Spinner({
   ...props
 }: React.HTMLAttributes<HTMLDivElement> & { pathClassName?: string }) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: shadcn
     <div aria-label="Loading..." role="status" {...props}>
       <svg className={cn("animate-spin", "text-foreground", className)} viewBox="3 3 18 18">
         <title>Loading...</title>

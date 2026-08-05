@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { getAuth } from "@workos/authkit-tanstack-react-start";
-import type { User as WorkosUser } from "@workos-inc/node";
 import type { User as RpcUser } from "@voidhash/rpc";
 import { Spinner } from "@voidhash/ui";
+import {
+  getSessionUser,
+  type SessionUser,
+} from "@/features/auth/lib/session";
 import { AuthProvider } from "@/features/studio/components/auth-context";
 import { DefaultCatchBoundary } from "@/features/studio/components/default-cache-boundary";
 import { DashboardShellSkeleton } from "@/features/studio/shell/components/skeleton";
@@ -70,19 +72,23 @@ const toDate = (value: unknown) => {
   return new Date();
 };
 
-const getWorkosUserName = (user: WorkosUser) => {
+const getSessionUserName = (user: SessionUser) => {
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   return name.length > 0 ? name : user.email;
 };
 
-const getWorkosFallbackUser = (user: WorkosUser) =>
+/**
+ * Minimal user assembled from the identity provider's session when the
+ * `CurrentUser` RPC cannot reach the database, so the shell still renders.
+ */
+const getSessionFallbackUser = (user: SessionUser) =>
   ({
     createdAt: toDate(user.createdAt),
     email: user.email,
     emailVerified: user.emailVerified,
     id: user.externalId ?? user.id,
     image: user.profilePictureUrl ?? null,
-    name: getWorkosUserName(user),
+    name: getSessionUserName(user),
     organizations: [],
     projects: [],
     role: null,
@@ -92,7 +98,7 @@ const getWorkosFallbackUser = (user: WorkosUser) =>
 export const Route = createFileRoute("/studio/_authenticated")({
   ssr: false,
   loader: async ({ context, location }) => {
-    const auth = await getAuth();
+    const sessionUser = await getSessionUser();
 
     const redirectToLogin = (): never => {
       const nextPath = `${location.pathname}${location.searchStr}${location.hash}`;
@@ -100,7 +106,7 @@ export const Route = createFileRoute("/studio/_authenticated")({
       throw redirect({ href: `/auth/login?${searchParams.toString()}` });
     };
 
-    const authenticatedWorkosUser = auth.user ?? redirectToLogin();
+    const authenticatedUser = sessionUser ?? redirectToLogin();
 
     try {
       // Read through the query cache so an optimistic write (e.g. right after
@@ -116,7 +122,7 @@ export const Route = createFileRoute("/studio/_authenticated")({
       return user;
     } catch (error) {
       if (isDatabaseAuthenticationError(error)) {
-        const user = getWorkosFallbackUser(authenticatedWorkosUser);
+        const user = getSessionFallbackUser(authenticatedUser);
         context.queryClient.setQueryData(queryKeys.user.getUser(), user);
         return user;
       }

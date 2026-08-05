@@ -65,7 +65,6 @@ export function OrganizationLayoutSkeleton({ organizationSlug }: { organizationS
                   <Skeleton className="size-7 rounded-md" />
                 </div>
                 {Array.from({ length: 4 }).map((_, index) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton row
                   <SidebarMenuItem key={index}>
                     <div className="flex h-9 w-full items-center gap-3 rounded-md p-2">
                       <Skeleton className="size-5 shrink-0 rounded" />

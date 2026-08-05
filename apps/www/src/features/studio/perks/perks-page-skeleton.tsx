@@ -15,7 +15,6 @@ export function PerksPageSkeleton() {
       <div className="mt-8">
         <Card className="grid gap-0 divide-y p-0">
           {Array.from({ length: 3 }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
             <PerkRecordSkeleton key={index} />
           ))}
         </Card>

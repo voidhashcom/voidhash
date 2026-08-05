@@ -10,7 +10,7 @@ import { cleanupFixture, seedFixture } from "./CoreTestSeed.ts";
 /**
  * Community composition of the core integration environment: the local
  * self-host stack. Connections are derived from the environment (see
- * `selfhost/.env.example` and `scripts/run-local-integration.mjs`), the shared
+ * the repo-root `.env.example` and `scripts/run-local-integration.mjs`), the shared
  * fixture is seeded, and the contract is shared with every test file via
  * vitest's `provide`/`inject`.
  *

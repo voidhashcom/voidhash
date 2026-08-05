@@ -127,7 +127,6 @@ export default defineConfig(() => ({
       tslib: tslibPath,
     },
     // TanStack's server-function compiler must transform WorkOS-owned createServerFn calls.
-    noExternal: ["@workos/authkit-tanstack-react-start"],
     tsconfigPaths: true,
   },
   server: {

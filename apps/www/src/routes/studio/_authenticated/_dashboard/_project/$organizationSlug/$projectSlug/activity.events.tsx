@@ -382,7 +382,6 @@ function PropertyRow({ name, value }: { name: string; value: unknown }) {
         <div className="ml-3 border-border/60 border-l pl-2">
           {isArray
             ? (value as unknown[]).map((entry, index) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: arrays are static per render
                 <PropertyRow key={index} name={String(index)} value={entry} />
               ))
             : Object.entries(value as Record<string, unknown>).map(([k, v]) => (

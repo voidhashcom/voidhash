@@ -137,7 +137,6 @@ export function AssetLibrary({
       {isPending ? (
         <div className={GRID_CLASSES}>
           {Array.from({ length: 10 }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length skeleton grid
             <Skeleton className="aspect-square w-full rounded-md" key={index} />
           ))}
         </div>

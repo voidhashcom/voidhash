@@ -53,7 +53,6 @@ const colorSchemes = new Set(["light", "dark"]);
 const MEDIA = "(prefers-color-scheme: dark)";
 const isServer = typeof window === "undefined";
 const ThemeContext = React.createContext<UseThemeProps | undefined>(undefined);
-// biome-ignore lint/suspicious/noEmptyBlockStatements: default value
 const defaultContext: UseThemeProps = { setTheme: (_) => {}, themes: [] };
 
 export const useTheme = () => React.useContext(ThemeContext) ?? defaultContext;
@@ -89,7 +88,6 @@ const Theme = ({
   const attrs = value ? Object.values(value) : themes;
 
   // apply selected theme function (light, dark, system)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   const applyTheme = React.useCallback((theme: string | undefined) => {
     let resolved = theme;
     if (!resolved) {
@@ -137,9 +135,7 @@ const Theme = ({
   }, []);
 
   // Set theme state and save to local storage
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   const setTheme = React.useCallback(
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     (value: any) => {
       const newTheme = typeof value === "function" ? value(theme) : value;
       setThemeState(newTheme);
@@ -154,7 +150,6 @@ const Theme = ({
     [theme],
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   const handleMediaQuery = React.useCallback(
     (e: MediaQueryListEvent | MediaQueryList) => {
       getSystemTheme(e);
@@ -178,7 +173,6 @@ const Theme = ({
   }, [handleMediaQuery]);
 
   // localStorage event handling, allow to sync theme changes between tabs
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   React.useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       if (e.key !== storageKey) {
@@ -195,7 +189,6 @@ const Theme = ({
   }, [setTheme]);
 
   // Whenever theme or forcedTheme changes, apply it
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   React.useEffect(() => {
     applyTheme(forcedTheme ?? theme);
   }, [forcedTheme, theme]);
@@ -255,12 +248,12 @@ const ThemeScript = React.memo(
 
     return (
       <script
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: Needed to inject script before hydration
+        // Needed to inject script before hydration
         dangerouslySetInnerHTML={{
           __html: `(${script.toString()})(${scriptArgs})`,
         }}
         nonce={typeof window === "undefined" ? nonce : ""}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: Needed to inject script before hydration
+        // Needed to inject script before hydration
         suppressHydrationWarning
       />
       // <></>
@@ -314,7 +307,6 @@ const getSystemTheme = (e?: MediaQueryList | MediaQueryListEvent) => {
   next-themes can be found at https://github.com/pacocoursey/next-themes under the MIT license.
 */
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export const script: (...args: any[]) => void = (
   attribute,
   storageKey,

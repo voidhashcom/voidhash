@@ -78,7 +78,7 @@ export function FlagDetailHeader({ flagType, slug }: FlagDetailHeaderProps) {
         </button>
       ) : (
         <Textarea
-          // biome-ignore lint/a11y/noAutofocus: the field only exists once the user opts into editing
+          // the field only exists once the user opts into editing
           autoFocus
           aria-label="Flag description"
           className="-mx-2 min-h-0 w-[calc(100%+1rem)] resize-none border-transparent bg-muted/60 px-2 py-0.5 text-sm shadow-none"

@@ -1,22 +1,21 @@
 import { defineConfig } from "vite-plus";
 
-// Backend RPC + webhook smoke against a provisioned environment. Locally the
-// self-host stack supplies it via the shared core globalSetup; downstream
-// compositions substitute their own globalSetup providing the same
-// `coreStackOutput` contract.
+// Integration tier: runs against the provisioned self-host stack via
+// `pnpm test:integration`. Timeouts are generous because these tests wait on
+// real containers rather than fakes.
+//
+// Files run one at a time. Most of them build a single-node cluster, and a
+// single-node cluster claims every shard in its database: two files running at
+// once would take each other's messages exactly the way a test process and a
+// running deployment do.
 export default defineConfig({
-  resolve: {
-    tsconfigPaths: true,
-  },
   test: {
-    include: ["./src/**/*.integration.test.ts"],
-    exclude: ["./node_modules/**"],
-    globalSetup: ["../../packages/core/test/_testing/globalSetup.ts"],
-    passWithNoTests: true,
-    pool: "threads",
+    environment: "node",
+    include: ["./**/*.integration.test.ts"],
+    exclude: ["./node_modules/**", "./dist/**"],
+    reporters: ["verbose"],
     fileParallelism: false,
     hookTimeout: 300_000,
-    reporters: ["verbose"],
     teardownTimeout: 300_000,
     testTimeout: 120_000,
   },

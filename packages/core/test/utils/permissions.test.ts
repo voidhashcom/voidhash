@@ -182,7 +182,7 @@ describe("checkProjectPermission", () => {
     // ActionForbiddenError. We pin that real boundary here so a future change
     // making the service genuinely optional shows up as a test break.
     const exit = await Effect.runPromiseExit(
-      // biome-ignore lint/suspicious/noExplicitAny: deliberately running without
+      // deliberately running without
       // the AuthSession requirement satisfied to observe the missing-service defect.
       checkProjectPermission(
         "project_target",

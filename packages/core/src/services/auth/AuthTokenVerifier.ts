@@ -11,7 +11,7 @@ export class JwtAuthError extends Data.TaggedError("JwtAuthError")<{
   readonly message: string;
 }> {}
 
-/** Claims required from a verified WorkOS identity token. */
+/** Claims required from a verified identity token. */
 export const JwtAuthPayloadSchema = Schema.Struct({
   sub: Schema.String,
   email: Schema.String,
@@ -19,13 +19,19 @@ export const JwtAuthPayloadSchema = Schema.Struct({
   image: Schema.optional(Schema.String),
 });
 
-/** Claims decoded from a verified WorkOS identity token. */
+/** Claims decoded from a verified identity token. */
 export type JwtAuthPayload = typeof JwtAuthPayloadSchema.Type;
 
-/** Provider-qualified result returned by {@link AuthTokenVerifier}. */
+/**
+ * Provider-qualified result returned by {@link AuthTokenVerifier}.
+ *
+ * `provider` is an open string rather than a closed union: trust derives from
+ * which verifier validated the token, not from the tag, and the shared contract
+ * should not have to enumerate every deployment's providers.
+ */
 export const ValidatedJwtSchema = Schema.Struct({
   payload: JwtAuthPayloadSchema,
-  provider: Schema.Literal("workos"),
+  provider: Schema.String,
 });
 
 /** Verified token plus the identity provider that issued it. */

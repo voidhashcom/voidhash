@@ -20,7 +20,6 @@
         "VOIDHASH_SECRET_KEY",
         "GITHUB_CLIENT_ID",
         "GITHUB_CLIENT_SECRET",
-        "WORKOS_AUTHKIT_DOMAIN",
         "AXIOM_TOKEN",
         "AXIOM_LOGS_DATASET",
         "AXIOM_LOG_LEVEL"

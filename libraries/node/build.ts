@@ -29,7 +29,7 @@ const main = async () => {
 };
 
 main().catch((error) => {
-  // biome-ignore lint/suspicious/noConsole: Build script should print the failure.
+  // Build script should print the failure.
   console.error(error);
   process.exit(1);
 });

@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { findSkill } from "../apps/backend/src/ai/skills/registry.ts";
+import { findSkill } from "../packages/backend/src/ai/skills/registry.ts";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const skills = [

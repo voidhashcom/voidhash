@@ -160,7 +160,7 @@ export class VoidhashClient {
         throw error;
       }
 
-      // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
+      // This warning is intentionally surfaced in all environments.
       console.warn(`[voidhash] swallowed error in ${operation}`, error);
     }
   }
@@ -210,7 +210,7 @@ export class VoidhashClient {
         initializedClient.captureAutomaticStartupEvents(),
         "FAILED_TO_CAPTURE_STARTUP_EVENTS",
       ).catch((error) => {
-        // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
+        // This warning is intentionally surfaced in all environments.
         console.warn("[voidhash] failed to capture automatic startup analytics", error);
       });
 
@@ -504,12 +504,12 @@ export class VoidhashClient {
 
   private triggerBackgroundFlush(operation: string) {
     void this.flush().catch((error) => {
-      // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
+      // This warning is intentionally surfaced in all environments.
       console.warn(`[voidhash] failed to ${operation}`, error);
     });
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: Effect requires service type parameter
+  // Effect requires service type parameter
   private async runEffect<T>(
     effect: Effect.Effect<T, unknown, any>,
     errorCode: string,

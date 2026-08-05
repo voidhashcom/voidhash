@@ -93,7 +93,7 @@ if (requestedDeployment) {
         "--config.node-linker=isolated",
         "--config.block-exotic-subdeps=false",
         "--filter",
-        "@voidhash/selfhost-entry",
+        "@voidhash/backend-app",
         "deploy",
         "--prod",
         "--legacy",

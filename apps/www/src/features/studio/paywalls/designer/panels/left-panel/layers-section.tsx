@@ -662,8 +662,8 @@ function SortableTreeItem({
           />
         )}
 
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit requires a div for drag handling */}
-        {/* biome-ignore lint/a11y/useKeyWithClickEvents: dnd-kit handles keyboard interactions via attributes */}
+        {/* dnd-kit requires a div for drag handling */}
+        {/* dnd-kit handles keyboard interactions via attributes */}
         <div
           className={cn(
             "flex h-7 items-center gap-1 rounded-sm px-1",

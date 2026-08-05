@@ -1,5 +1,3 @@
-/** biome-ignore-all lint/style/noNamespace: <explanation> */
-
 // import type { LayoutContainer } from '@pixi/layout/components';
 import type { PixiReactElementProps } from "@pixi/react";
 // import type { Input } from '@pixi/ui';

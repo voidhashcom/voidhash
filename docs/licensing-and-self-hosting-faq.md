@@ -42,14 +42,15 @@ the only security-maintained line. The supported path for evaluation is the
 documented Docker Compose configuration. A production support matrix and
 version table will replace this answer before the first public release.
 
-## Why does Community v1 require WorkOS?
+## How does authentication work, and why only one user?
 
-The application already isolates authentication behind a platform port, but
-the first Community composition uses operator-supplied WorkOS credentials so
-the complete product can ship without weakening authentication during the
-open-source migration. Use a WorkOS staging environment for local evaluation
-and your own production environment for any network-accessible deployment. A
-bundled authentication adapter remains a public roadmap item.
+Community ships a built-in authentication provider and needs no external
+identity service. It is single-player: one root account, whose username and
+password come from `VOIDHASH_ROOT_USERNAME` and `VOIDHASH_ROOT_PASSWORD`. There
+is no sign-up and no code path that can create a second user, which is what
+keeps the model easy to reason about while the project is young. Multi-user
+self-host — most likely as a generic OIDC adapter behind the same identity
+port the hosted cloud uses — is a public roadmap item.
 
 ## Is analytics required?
 

@@ -94,7 +94,7 @@ function PreviewNodeView({
       return (
         <div style={previewNodeStyle(node.style, node.type, node.motion)}>
           {node.children.map((child, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: preview trees are immutable per contentHash+state
+            // preview trees are immutable per contentHash+state
             <PreviewNodeView fireAction={fireAction} key={index} node={child} slot={slot} />
           ))}
         </div>
@@ -106,7 +106,7 @@ function PreviewNodeView({
       return (
         <div onClick={onClick} style={previewNodeStyle(node.style, "pressable", node.motion)}>
           {node.children.map((child, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: preview trees are immutable per contentHash+state
+            // preview trees are immutable per contentHash+state
             <PreviewNodeView fireAction={fireAction} key={index} node={child} slot={slot} />
           ))}
         </div>

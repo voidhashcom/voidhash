@@ -47,7 +47,6 @@
 
 //   const [state, dispatch] = useReducer(fetchReducer, initialState);
 
-//   // biome-ignore lint/correctness/useExhaustiveDependencies: ok
 //   useEffect(() => {
 //     // Do nothing if the url is not given
 //     if (!url) {
@@ -69,7 +68,6 @@
 //         const response = await fetch(url, options);
 //         if (!response.ok) {
 //           if (response.status >= 400) {
-//             // biome-ignore lint/suspicious/noExplicitAny: ok
 //             const error: any = await response.json();
 //             throw new VoidhashError(
 //               'API_ERROR',

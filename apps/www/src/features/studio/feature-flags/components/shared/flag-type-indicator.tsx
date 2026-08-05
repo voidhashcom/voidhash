@@ -1,5 +1,5 @@
 import { cn } from "@voidhash/ui";
-import { Braces, CaseSensitive, Hash, ToggleRight } from "lucide-react";
+import { Braces, CaseSensitive, Hash, ToggleRight, type LucideIcon } from "lucide-react";
 
 import { FLAG_TYPE_LABELS, type FlagType } from "../../lib/flag-type";
 
@@ -10,7 +10,7 @@ import { FLAG_TYPE_LABELS, type FlagType } from "../../lib/flag-type";
  */
 export const FLAG_TYPE_PRESENTATION: Record<
   FlagType,
-  { accentClassName: string; icon: React.ElementType }
+  { accentClassName: string; icon: LucideIcon }
 > = {
   boolean: { accentClassName: "text-chart-1", icon: ToggleRight },
   json: { accentClassName: "text-chart-3", icon: Braces },

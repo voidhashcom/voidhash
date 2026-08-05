@@ -1,5 +1,4 @@
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
-import { Workos } from "@voidhash/core/services/auth/Workos";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
 import { generateId } from "@voidhash/core/utils";
 import {
@@ -18,7 +17,7 @@ import type {} from "./provided-context.d.ts";
 
 /**
  * The common services every core integration test gets for free. The harness
- * provides infra (`Db`, `ClickhouseWebClient`, `Workos`) plus the cross-cutting support
+ * provides infra (`Db`, `ClickhouseWebClient`) plus the cross-cutting support
  * services (`ProjectSchemaCache` stub, database-backed `AuditLogPort`,
  * `SchemaCacheInvalidationService`) that most feature-service layers depend on.
  * A test still provides its own service-under-test layer (e.g.
@@ -29,7 +28,6 @@ import type {} from "./provided-context.d.ts";
 type HarnessServices =
   | Db
   | ClickhouseWebClient.ClickhouseWebClient
-  | Workos
   | ProjectSchemaCache
   | AuditLogPort
   | PublicFileStore
@@ -122,23 +120,14 @@ const AuditLogPortTestLive: Layer.Layer<AuditLogPort, never, Db> = Layer.effect(
 /**
  * Build the live infra + support layer from the shared
  * {@link CoreTestConnections}. Every credential is real (Db/Clickhouse over
- * the network, Workos SDK); only the schema cache is a stub.
+ * the network); only the schema cache is a stub.
  */
 const makeHarnessLayer = (tc: CoreTestConnections): Layer.Layer<HarnessServices> => {
   const DbLive: Layer.Layer<Db> = Db.layer(tc.db);
   const ClickhouseLive = ClickhouseWebClient.layer(tc.clickhouse).pipe(Layer.orDie);
-  const WorkosLive: Layer.Layer<Workos> = Workos.layer({
-    apiKey: Effect.succeed(tc.workos.apiKey),
-    clientId: Effect.succeed(tc.workos.clientId),
-    cookieName: Effect.succeed(tc.workos.cookieName),
-    cookiePassword: Effect.succeed(tc.workos.cookiePassword),
-    webhookSecret: Effect.succeed(tc.workos.webhookSecret),
-  });
-
   const InfraLayer = Layer.mergeAll(
     DbLive,
     ClickhouseLive,
-    WorkosLive,
     ProjectSchemaCacheStubLive,
     PublicFileStoreStubLive,
   );

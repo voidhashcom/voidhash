@@ -45,7 +45,7 @@ import {
   type RuntimeSchema,
   Transaction as ReactNativeTransaction,
 } from "@testing/ReactNativePurchaseHarness";
-import { makePurchaseSdkHttpHandler } from "../../../../../../apps/backend/src/testing/PurchaseSdkHttpHarness.ts";
+import { makePurchaseSdkHttpHandler } from "../../../../../backend/src/testing/PurchaseSdkHttpHarness.ts";
 
 const { test } = PurchaseIntegrationTestHarness.make();
 const projectId = CoreTestFixture.projectId;

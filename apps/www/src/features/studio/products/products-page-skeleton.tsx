@@ -11,7 +11,6 @@ export function ProductsPageSkeleton() {
         </PageHeader>
         <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto">
           {Array.from({ length: 3 }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
             <ProductRecordSkeleton key={index} />
           ))}
         </div>

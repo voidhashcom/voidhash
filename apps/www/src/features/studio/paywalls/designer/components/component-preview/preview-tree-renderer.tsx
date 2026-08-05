@@ -29,7 +29,7 @@ function PreviewNodeView({
         <div style={buildPreviewNodeStyles(node.style, node.type, node.motion)}>
           {node.children.map((child, index) => (
             <PreviewNodeView
-              // biome-ignore lint/suspicious/noArrayIndexKey: preview trees are immutable per contentHash+state
+              // preview trees are immutable per contentHash+state
               key={index}
               node={child}
               renderSlot={renderSlot}
