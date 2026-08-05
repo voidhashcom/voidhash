@@ -8,7 +8,9 @@ import { ChromiumScreenshotLive } from "../src/Screenshot.ts";
 
 const executablePath =
   process.env.PLATFORM_SELFHOST_CHROMIUM_EXECUTABLE_PATH ??
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  (process.platform === "darwin"
+    ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    : undefined);
 const screenshotLayer = () =>
   Layer.merge(ChromiumScreenshotLive({ executablePath }), SelfhostPlatformRuntimeLive);
 

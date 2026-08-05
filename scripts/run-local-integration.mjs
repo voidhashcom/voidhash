@@ -56,6 +56,12 @@ const minioPort = value("MINIO_API_PORT", "9000");
 const mailpitSmtpPort = value("MAILPIT_SMTP_PORT", "1025");
 const mailpitUiPort = value("MAILPIT_UI_PORT", "8025");
 const compilerPort = value("COMPILER_HOST_PORT", "5002");
+const chromiumExecutablePath = value(
+  "PLATFORM_SELFHOST_CHROMIUM_EXECUTABLE_PATH",
+  process.platform === "darwin"
+    ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    : undefined,
+);
 
 // Several suites build their own single-node cluster, and a single-node cluster
 // claims *every* shard in the database it is built over. Sharing the running
@@ -89,7 +95,10 @@ const testEnv = {
   CLICKHOUSE_PASSWORD: value("CLICKHOUSE_PASSWORD", "password"),
   CLICKHOUSE_RO_USERNAME: value("CLICKHOUSE_RO_USERNAME", "voidhash_ro"),
   CLICKHOUSE_RO_PASSWORD: value("CLICKHOUSE_RO_PASSWORD", "password"),
-  CLICKHOUSE_ANALYTICS_QUERY_USERNAME: value("CLICKHOUSE_ANALYTICS_QUERY_USERNAME", "voidhash_query"),
+  CLICKHOUSE_ANALYTICS_QUERY_USERNAME: value(
+    "CLICKHOUSE_ANALYTICS_QUERY_USERNAME",
+    "voidhash_query",
+  ),
   CLICKHOUSE_ANALYTICS_QUERY_PASSWORD: value("CLICKHOUSE_ANALYTICS_QUERY_PASSWORD", "password"),
 
   ROOT_USERNAME: value("MIMIC_ROOT_USERNAME", "root"),
@@ -124,11 +133,9 @@ const testEnv = {
   PLATFORM_SELFHOST_SMTP_PORT: mailpitSmtpPort,
   PLATFORM_SELFHOST_MAILPIT_API: `http://127.0.0.1:${mailpitUiPort}`,
 
-  PLATFORM_SELFHOST_CHROMIUM_EXECUTABLE_PATH: value(
-    "PLATFORM_SELFHOST_CHROMIUM_EXECUTABLE_PATH",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  ),
-
+  ...(chromiumExecutablePath
+    ? { PLATFORM_SELFHOST_CHROMIUM_EXECUTABLE_PATH: chromiumExecutablePath }
+    : {}),
 };
 
 // Every suite runs `vitest.integration.mts`, which selects `*.integration.test.ts`
@@ -178,8 +185,18 @@ const compose = (args, options = {}) =>
   spawnSync("docker", [...composeArgs, ...args], {
     cwd: repoRoot,
     ...options,
-    env: { ...composeEnv, ...(options.env ?? {}) },
+    env: { ...composeEnv, ...options.env },
   });
+
+const prerequisiteBuild = spawnSync("pnpm", ["--filter", "@voidhash/paywalls", "build"], {
+  cwd: repoRoot,
+  env: process.env,
+  stdio: "inherit",
+});
+if (prerequisiteBuild.error || prerequisiteBuild.status !== 0) {
+  console.error("Failed to build integration test prerequisites.");
+  process.exit(1);
+}
 
 // The suites need the stack, so the runner provisions it rather than failing on
 // a forgotten `pnpm stack:up`. `compose up` is idempotent: already-healthy
