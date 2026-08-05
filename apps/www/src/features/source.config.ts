@@ -1,22 +1,13 @@
 import { defineConfig, defineDocs, frontmatterSchema, metaSchema } from "./fumadocs-config.ts";
 import { voidhashShikiDark, voidhashShikiLight } from "./docs/lib/shiki-theme.ts";
 
-// Both documentation surfaces (product docs + design system) are declared as
-// collections in a single config so fumadocs-mdx emits one `.source` runtime
-// bundle. Keeping them in one config avoids running two `mdx()` plugin
-// instances against the same output directory (which would clobber each other).
+// A host that adds documentation surfaces of its own replaces this config
+// wholesale rather than registering a second `mdx()` plugin — two instances
+// writing the same output directory clobber each other. See
+// `apps/www/src/features/source.config.ts` in voidhash-mono, which re-declares
+// this collection alongside its own.
 export const docs = defineDocs({
   dir: "src/features/docs/content/docs",
-  docs: {
-    schema: frontmatterSchema,
-  },
-  meta: {
-    schema: metaSchema,
-  },
-});
-
-export const design = defineDocs({
-  dir: "src/features/design/content/docs",
   docs: {
     schema: frontmatterSchema,
   },

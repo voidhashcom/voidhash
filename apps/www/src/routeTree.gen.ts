@@ -11,15 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudioRouteRouteImport } from './routes/studio/route'
 import { Route as DocsRouteRouteImport } from './routes/docs/route'
-import { Route as DesignRouteRouteImport } from './routes/design/route'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as MarketingRouteRouteImport } from './routes/_marketing/route'
 import { Route as DocsIndexRouteImport } from './routes/docs/index'
-import { Route as DesignIndexRouteImport } from './routes/design/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
 import { Route as DocsSplatRouteImport } from './routes/docs/$'
-import { Route as DesignSplatRouteImport } from './routes/design/$'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as AuthSignUpRouteImport } from './routes/auth/sign-up'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
@@ -32,7 +29,6 @@ import { Route as AuthDevicesIndexRouteImport } from './routes/auth/devices/inde
 import { Route as StudioAuthenticatedWaitlistRouteImport } from './routes/studio/_authenticated/waitlist'
 import { Route as DocsApiSearchRouteImport } from './routes/docs/api/search'
 import { Route as DocsApiProxyRouteImport } from './routes/docs/api/proxy'
-import { Route as DesignApiSearchRouteImport } from './routes/design/api/search'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
 import { Route as StudioAuthenticatedDashboardRouteRouteImport } from './routes/studio/_authenticated/_dashboard/route'
 import { Route as StudioAuthenticatedCreateOrganizationIndexRouteImport } from './routes/studio/_authenticated/create-organization/index'
@@ -93,11 +89,6 @@ const DocsRouteRoute = DocsRouteRouteImport.update({
   path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DesignRouteRoute = DesignRouteRouteImport.update({
-  id: '/design',
-  path: '/design',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRouteRoute = AuthRouteRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -111,11 +102,6 @@ const DocsIndexRoute = DocsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DocsRouteRoute,
-} as any)
-const DesignIndexRoute = DesignIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DesignRouteRoute,
 } as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
@@ -131,11 +117,6 @@ const DocsSplatRoute = DocsSplatRouteImport.update({
   id: '/$',
   path: '/$',
   getParentRoute: () => DocsRouteRoute,
-} as any)
-const DesignSplatRoute = DesignSplatRouteImport.update({
-  id: '/$',
-  path: '/$',
-  getParentRoute: () => DesignRouteRoute,
 } as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -198,11 +179,6 @@ const DocsApiProxyRoute = DocsApiProxyRouteImport.update({
   id: '/api/proxy',
   path: '/api/proxy',
   getParentRoute: () => DocsRouteRoute,
-} as any)
-const DesignApiSearchRoute = DesignApiSearchRouteImport.update({
-  id: '/api/search',
-  path: '/api/search',
-  getParentRoute: () => DesignRouteRoute,
 } as any)
 const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
   id: '/api/auth/callback',
@@ -605,7 +581,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebh
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
-  '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -614,13 +589,10 @@ export interface FileRoutesByFullPath {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/design/$': typeof DesignSplatRoute
   '/docs/$': typeof DocsSplatRoute
   '/auth/': typeof AuthIndexRoute
-  '/design/': typeof DesignIndexRoute
   '/docs/': typeof DocsIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/design/api/search': typeof DesignApiSearchRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
@@ -682,14 +654,11 @@ export interface FileRoutesByTo {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/design/$': typeof DesignSplatRoute
   '/docs/$': typeof DocsSplatRoute
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthIndexRoute
-  '/design': typeof DesignIndexRoute
   '/docs': typeof DocsIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/design/api/search': typeof DesignApiSearchRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
@@ -744,7 +713,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_marketing': typeof MarketingRouteRouteWithChildren
   '/auth': typeof AuthRouteRouteWithChildren
-  '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/studio/_authenticated': typeof StudioAuthenticatedRouteRouteWithChildren
@@ -754,15 +722,12 @@ export interface FileRoutesById {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/design/$': typeof DesignSplatRoute
   '/docs/$': typeof DocsSplatRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/auth/': typeof AuthIndexRoute
-  '/design/': typeof DesignIndexRoute
   '/docs/': typeof DocsIndexRoute
   '/studio/_authenticated/_dashboard': typeof StudioAuthenticatedDashboardRouteRouteWithChildren
   '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/design/api/search': typeof DesignApiSearchRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/_authenticated/waitlist': typeof StudioAuthenticatedWaitlistRoute
@@ -821,7 +786,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/design'
     | '/docs'
     | '/studio'
     | '/auth/forgot-password'
@@ -830,13 +794,10 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/design/$'
     | '/docs/$'
     | '/auth/'
-    | '/design/'
     | '/docs/'
     | '/api/auth/callback'
-    | '/design/api/search'
     | '/docs/api/proxy'
     | '/docs/api/search'
     | '/studio/waitlist'
@@ -898,14 +859,11 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/design/$'
     | '/docs/$'
     | '/'
     | '/auth'
-    | '/design'
     | '/docs'
     | '/api/auth/callback'
-    | '/design/api/search'
     | '/docs/api/proxy'
     | '/docs/api/search'
     | '/studio/waitlist'
@@ -959,7 +917,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_marketing'
     | '/auth'
-    | '/design'
     | '/docs'
     | '/studio'
     | '/studio/_authenticated'
@@ -969,15 +926,12 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/design/$'
     | '/docs/$'
     | '/_marketing/'
     | '/auth/'
-    | '/design/'
     | '/docs/'
     | '/studio/_authenticated/_dashboard'
     | '/api/auth/callback'
-    | '/design/api/search'
     | '/docs/api/proxy'
     | '/docs/api/search'
     | '/studio/_authenticated/waitlist'
@@ -1035,7 +989,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   MarketingRouteRoute: typeof MarketingRouteRouteWithChildren
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
-  DesignRouteRoute: typeof DesignRouteRouteWithChildren
   DocsRouteRoute: typeof DocsRouteRouteWithChildren
   StudioRouteRoute: typeof StudioRouteRouteWithChildren
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
@@ -1065,13 +1018,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/design': {
-      id: '/design'
-      path: '/design'
-      fullPath: '/design'
-      preLoaderRoute: typeof DesignRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -1093,13 +1039,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/design/': {
-      id: '/design/'
-      path: '/'
-      fullPath: '/design/'
-      preLoaderRoute: typeof DesignIndexRouteImport
-      parentRoute: typeof DesignRouteRoute
-    }
     '/auth/': {
       id: '/auth/'
       path: '/'
@@ -1120,13 +1059,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/$'
       preLoaderRoute: typeof DocsSplatRouteImport
       parentRoute: typeof DocsRouteRoute
-    }
-    '/design/$': {
-      id: '/design/$'
-      path: '/$'
-      fullPath: '/design/$'
-      preLoaderRoute: typeof DesignSplatRouteImport
-      parentRoute: typeof DesignRouteRoute
     }
     '/auth/verify-email': {
       id: '/auth/verify-email'
@@ -1211,13 +1143,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/api/proxy'
       preLoaderRoute: typeof DocsApiProxyRouteImport
       parentRoute: typeof DocsRouteRoute
-    }
-    '/design/api/search': {
-      id: '/design/api/search'
-      path: '/api/search'
-      fullPath: '/design/api/search'
-      preLoaderRoute: typeof DesignApiSearchRouteImport
-      parentRoute: typeof DesignRouteRoute
     }
     '/api/auth/callback': {
       id: '/api/auth/callback'
@@ -1603,22 +1528,6 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
   AuthRouteRouteChildren,
 )
 
-interface DesignRouteRouteChildren {
-  DesignSplatRoute: typeof DesignSplatRoute
-  DesignIndexRoute: typeof DesignIndexRoute
-  DesignApiSearchRoute: typeof DesignApiSearchRoute
-}
-
-const DesignRouteRouteChildren: DesignRouteRouteChildren = {
-  DesignSplatRoute: DesignSplatRoute,
-  DesignIndexRoute: DesignIndexRoute,
-  DesignApiSearchRoute: DesignApiSearchRoute,
-}
-
-const DesignRouteRouteWithChildren = DesignRouteRoute._addFileChildren(
-  DesignRouteRouteChildren,
-)
-
 interface DocsRouteRouteChildren {
   DocsSplatRoute: typeof DocsSplatRoute
   DocsIndexRoute: typeof DocsIndexRoute
@@ -1824,7 +1733,6 @@ const StudioRouteRouteWithChildren = StudioRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   MarketingRouteRoute: MarketingRouteRouteWithChildren,
   AuthRouteRoute: AuthRouteRouteWithChildren,
-  DesignRouteRoute: DesignRouteRouteWithChildren,
   DocsRouteRoute: DocsRouteRouteWithChildren,
   StudioRouteRoute: StudioRouteRouteWithChildren,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
