@@ -82,7 +82,6 @@
     "./services/paymentProviders/AppStorePaymentProviderService": "./src/services/paymentProviders/AppStorePaymentProviderService.ts",
     "./services/paymentProviders/GooglePlayPaymentProviderService": "./src/services/paymentProviders/GooglePlayPaymentProviderService.ts",
     "./services/paymentProviders/StripePaymentProviderService": "./src/services/paymentProviders/StripePaymentProviderService.ts",
-    "./services/paymentProviders/StripeReplayParkedNotificationsWorkflow": "./src/services/paymentProviders/StripeReplayParkedNotificationsWorkflow.ts",
     "./services/paymentProviders/stripe/payment-provider": "./src/services/paymentProviders/stripe/payment-provider.ts",
     "./services/paymentProviders/stripe/payment-provider-service": "./src/services/paymentProviders/stripe/payment-provider-service.ts",
     "./services/paymentProviders/stripe/payment-provider-service-queries": "./src/services/paymentProviders/stripe/payment-provider-service-queries.ts",
@@ -136,13 +135,10 @@
     "./services/webhookManager/WebhookManagerService": "./src/services/webhookManager/WebhookManagerService.ts",
     "./services/webhookManager/event-types": "./src/services/webhookManager/event-types.ts",
     "./services/webhookDispatch/WebhookDispatchService": "./src/services/webhookDispatch/WebhookDispatchService.ts",
-    "./services/webhookDispatch/WebhookDeliveryWorkflow": "./src/services/webhookDispatch/WebhookDeliveryWorkflow.ts",
     "./services/webhookDispatch/WebhookDeliveryService": "./src/services/webhookDispatch/WebhookDeliveryService.ts",
-    "./services/personIdentity/IdentifyDistinctIdCompletionWorkflow": "./src/services/personIdentity/IdentifyDistinctIdCompletionWorkflow.ts",
-    "./services/paymentProviders/AppStoreReplayParkedNotificationsWorkflow": "./src/services/paymentProviders/AppStoreReplayParkedNotificationsWorkflow.ts",
-    "./services/paymentProviders/AppStoreReplayParkedSdkNotificationsWorkflow": "./src/services/paymentProviders/AppStoreReplayParkedSdkNotificationsWorkflow.ts",
-    "./services/paymentProviders/AppStoreReconcileOriginalTransactionWorkflow": "./src/services/paymentProviders/AppStoreReconcileOriginalTransactionWorkflow.ts",
-    "./services/paymentProviders/GooglePlayReplayParkedNotificationsWorkflow": "./src/services/paymentProviders/GooglePlayReplayParkedNotificationsWorkflow.ts"
+    "./workflows/definitions": "./src/workflows/definitions.ts",
+    "./workflows/DeliverWebhook": "./src/workflows/DeliverWebhook.ts",
+    "./workflows/registry": "./src/workflows/registry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

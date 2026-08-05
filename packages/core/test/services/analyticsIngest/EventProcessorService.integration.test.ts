@@ -51,7 +51,6 @@ import { AnalyticsIngestDlqService } from "@voidhash/core/services/analyticsInge
 import { CaptureIngress } from "@voidhash/core/services/analyticsIngest/CaptureIngress";
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { IdentityProjectionPublisher } from "@voidhash/core/services/personIdentity/IdentityProjectionPublisher";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { REVENUE_TRUSTED_SOURCE_TOPIC } from "@voidhash/core/domain/internalAnalytics/InternalAnalyticsEvents";
 import {
   Db,
@@ -80,23 +79,15 @@ const organizationId = CoreTestFixture.organizationId;
  * harness does not provide. After this layer, the only outstanding requirement
  * is `Db` (plus the harness's own services), satisfying `R extends
  * HarnessServices`. The DLQ + identity collaborators are the real layers so the
- * DB side effects they produce can be verified; the queue/workflow ports that
- * carry no in-process seam are wired to their no-op variants.
+ * DB side effects they produce can be verified; external publication is wired
+ * to its no-op variant.
  */
-const IdentifyWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
 const TestLayer = EventProcessorService.layer.pipe(
   Layer.provide(DlqProducer.dbLive),
   Layer.provide(AnalyticsIngestDlqService.layer),
   Layer.provide(CaptureIngress.noop),
   Layer.provide(PersonIdentityService.layer),
   Layer.provide(IdentityProjectionPublisher.noop),
-  // `PersonIdentityService.identifyDistinctId` resolves the completion workflow
-  // lazily, so the requirement surfaces on `processRecordToOutputs`'s effect
-  // rather than on the layer — merge the stub so the effect can draw it.
-  Layer.provideMerge(IdentifyWorkflowStub),
 );
 
 /** Monotonic counter so ids stay unique even within the same millisecond. */

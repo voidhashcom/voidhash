@@ -13,15 +13,15 @@ import type { McpOAuth } from "@voidhash/backend/McpOAuth";
 import { RpcAuthLive } from "@voidhash/backend/RpcMiddlewares";
 import { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import { EventCaptureService } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
+import { AnalyticsDispatchService } from "@voidhash/core/services/analyticsIngest/AnalyticsDispatchService";
 import { PushDeliveryDispatch } from "@voidhash/core/services/notifications/PushDeliveryDispatch";
 import { PaywallThumbnailService } from "@voidhash/core/services/paywallThumbnails/PaywallThumbnailService";
+import { backendWorkflows } from "@voidhash/core/workflows/registry";
+import { Db } from "@voidhash/db";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
 import { getConfig as getMimicConfig } from "@voidhash/mimic-db/config";
 import { makeRoutesLive } from "@voidhash/mimic-db/http/rpc-app";
-import {
-  DurableEntityAlarmControl,
-  DurableEntityHost,
-} from "@voidhash/platform/DurableEntity";
+import { DurableEntityAlarmControl, DurableEntityHost } from "@voidhash/platform/DurableEntity";
 import { SmtpMailerLive } from "@voidhash/platform-selfhost/Mailer";
 import { Context, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
@@ -45,10 +45,6 @@ import {
   makeSelfhostSnapshotImageRendererLive,
   runSelfhostPaywallThumbnailConsumer,
 } from "./backend/Thumbnails.ts";
-import {
-  makeSelfhostWorkflowRuntimeLive,
-  registerSelfhostWorkflows,
-} from "./backend/WorkflowPorts.ts";
 import { makeSelfhostPlatformLayers } from "./backend/PlatformProfile.ts";
 import { getSelfhostRuntimeConfig, type SelfhostRuntimeConfig } from "./config.ts";
 import { installAgentNodeWebSocketServer } from "./agent/AgentNodeWebSocket.ts";
@@ -143,7 +139,9 @@ export const runSelfhostServer = <
       const entityControl = Context.get(hostContext, DurableEntityAlarmControl);
       const hostLayer = Layer.succeed(HostServiceTag, host);
       const authLayers = makeSelfhostAuthLayers(config.auth);
-      yield* Effect.logInfo(`Identity provider: standalone (root user ${config.auth.rootUsername})`);
+      yield* Effect.logInfo(
+        `Identity provider: standalone (root user ${config.auth.rootUsername})`,
+      );
       const clickhouse = config.clickhouse
         ? makeSelfhostClickhouseLayers(config.clickhouse)
         : undefined;
@@ -168,7 +166,7 @@ export const runSelfhostServer = <
       const authContext = yield* Layer.build(authLayers.authTokenVerifier);
       const authTokenVerifier = Context.get(authContext, AuthTokenVerifier);
       const rpcExtension = options.rpcExtension({ authTokenVerifier, config });
-      const workflowRuntime = makeSelfhostWorkflowRuntimeLive(config);
+      const workflowRuntime = Layer.merge(platform.workflowRunner, platform.runtime);
       const analyticsRuntime = makeSelfhostAnalyticsRuntimeLive(config);
       const runtimeContext = yield* Layer.build(
         Layer.mergeAll(
@@ -199,7 +197,18 @@ export const runSelfhostServer = <
           infrastructure,
         ),
       );
-      yield* registerSelfhostWorkflows(config).pipe(Effect.provide(runtimeContext));
+      const workflowInfra = Layer.mergeAll(
+        Db.layer(config.database),
+        Layer.succeed(
+          AnalyticsDispatchService,
+          Context.get(runtimeContext, AnalyticsDispatchService),
+        ),
+      );
+      yield* Effect.forEach(
+        backendWorkflows,
+        (registration) => registration.register(workflowInfra),
+        { discard: true },
+      ).pipe(Effect.provide(runtimeContext), Effect.orDie);
       yield* Effect.forkScoped(
         runSelfhostAnalyticsConsumers(config, clickhouse?.readWrite).pipe(
           Effect.provide(runtimeContext),
@@ -209,7 +218,7 @@ export const runSelfhostServer = <
         runSelfhostPushDeliveryConsumers(config).pipe(Effect.provide(runtimeContext)),
       );
       yield* Effect.forkScoped(
-        runSelfhostCronJobs(config, clickhouse?.readWrite).pipe(Effect.provide(runtimeContext)),
+        runSelfhostCronJobs(clickhouse?.readWrite).pipe(Effect.provide(runtimeContext)),
       );
       if (chromiumConfig !== undefined) {
         const thumbnailContext = yield* Layer.build(
@@ -235,9 +244,7 @@ export const runSelfhostServer = <
         infrastructure,
         ...(clickhouse === undefined ? {} : { analyticsQueryClient: clickhouse.analyticsQuery }),
         pushDeliveryDispatch,
-        ...(options.routeExtension === undefined
-          ? {}
-          : { routeExtension: options.routeExtension }),
+        ...(options.routeExtension === undefined ? {} : { routeExtension: options.routeExtension }),
         ...(options.mcpOAuth === undefined ? {} : { mcpOAuth: options.mcpOAuth }),
       }).pipe(Effect.provide(runtimeContext));
       const mimicEffect = yield* makeRoutesLive(hostLayer).pipe(

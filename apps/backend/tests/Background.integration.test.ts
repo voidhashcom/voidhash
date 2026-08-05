@@ -1,7 +1,8 @@
-import { Db } from "@voidhash/db";
 import { type CronJob, CronScheduler } from "@voidhash/platform/CronScheduler";
 import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
-import { Effect } from "effect";
+import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
+import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
+import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { makeSelfhostAnalyticsRuntimeLive } from "../src/backend/Analytics.ts";
@@ -9,8 +10,8 @@ import { makeSelfhostCronJobs } from "../src/backend/Background.ts";
 import { getSelfhostRuntimeConfig } from "../src/config.ts";
 
 const requiredJobNames = [
-  "app-store-expire-parked-notifications",
-  "purchase-ledger-drain",
+  "AppStoreExpireParkedNotificationsWorkflow",
+  "PurchaseLedgerDrainWorkflow",
 ] as const;
 
 const twoDaysMillis = 2 * 24 * 60 * 60 * 1000;
@@ -54,13 +55,13 @@ const runThroughScheduler = <R>(job: CronJob<R>) =>
 
 describe("self-host scheduled jobs", () => {
   it("registers the required background jobs and executes them through the scheduler", async () => {
-    const config = getSelfhostRuntimeConfig();
+    const testRunner = TestWorkflowRunner.make();
 
     const outcome = await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
-          const jobs: ReadonlyArray<CronJob<PlatformRuntime | Db>> =
-            yield* makeSelfhostCronJobs(config);
+          const jobs: ReadonlyArray<CronJob<PlatformRuntime | WorkflowRunner>> =
+            yield* makeSelfhostCronJobs();
           const registered = jobs.map((job) => job.name);
           const executions: Record<string, number> = {};
           for (const name of requiredJobNames) {
@@ -70,8 +71,8 @@ describe("self-host scheduled jobs", () => {
           }
           return { executions, registered };
         }).pipe(
-          Effect.provide(Db.layer(config.database)),
-          Effect.provide(makeSelfhostAnalyticsRuntimeLive(config)),
+          Effect.provide(Layer.succeed(WorkflowRunner, testRunner)),
+          Effect.provide(makeSelfhostAnalyticsRuntimeLive(getSelfhostRuntimeConfig())),
         ),
       ),
     );

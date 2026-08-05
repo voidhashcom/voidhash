@@ -29,7 +29,6 @@ import {
 import { StripePaymentProvider } from "@voidhash/core/services/paymentProviders/stripe/payment-provider";
 import { StripePaymentProviderServiceLive } from "@voidhash/core/services/paymentProviders/stripe/payment-provider-service";
 import { StripeWebhookHandlerService } from "@voidhash/core/services/paymentProviders/stripe/stripe-webhook-handler-service";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { generateId } from "@voidhash/core/utils";
 import { ProductType } from "@voidhash/lib/constants";
@@ -184,10 +183,6 @@ export const checkoutLineItemsRoute = (input: {
   path: `/v1/checkout/sessions/${input.sessionId}/line_items`,
 });
 
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
 const stripeLeafDeps = (httpClient: HttpClient.HttpClient) =>
   Layer.mergeAll(
     PurchaseProcessingService.layer,
@@ -197,11 +192,7 @@ const stripeLeafDeps = (httpClient: HttpClient.HttpClient) =>
     Layer.succeed(HttpClient.HttpClient, httpClient),
   );
 
-const stripeLeafStubs = Layer.mergeAll(
-  PerkGrantService.layer,
-  IdentityProjectionPublisher.noop,
-  CompletionWorkflowStub,
-);
+const stripeLeafStubs = Layer.mergeAll(PerkGrantService.layer, IdentityProjectionPublisher.noop);
 
 /**
  * Full dependency graph for the Stripe record engine, over a fake `HttpClient`.

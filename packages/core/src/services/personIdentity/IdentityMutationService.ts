@@ -92,16 +92,16 @@ const toMappingEvent = ({
 
 /**
  * Person-identity write operations, each running on a caller-supplied
- * transaction handle (`tx`) so the surrounding service or workflow controls
- * commit/rollback. Consumed by {@link PersonIdentityService} (synchronous
- * resolve/identify) and the identity completion workflow (durable source-side
- * merge). Pure projection types and trait/version rules live in the
- * `domain/person` model; this service owns only the database mutations.
+ * transaction handle (`tx`) so the surrounding service controls
+ * commit/rollback. Consumed by {@link PersonIdentityService} for synchronous
+ * resolve and identify operations. Pure projection types and trait/version
+ * rules live in the `domain/person` model; this service owns only the database
+ * mutations.
  */
 export class IdentityMutationService extends Context.Service<IdentityMutationService>()(
   "IdentityMutationService",
   {
-    make: Effect.gen(function* () {
+    make: Effect.sync(() => {
       const findPersonById = Effect.fn("findPersonById")(
         (db: DbTransaction, { personId }: { readonly personId: string }) =>
           Effect.gen(function* () {
@@ -532,8 +532,7 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
        * Idempotent and repointing: the UNIQUE `(projectId, serviceId, identifier)`
        * key serializes concurrent writers, and `ON CONFLICT ... DO UPDATE
        * person_id` moves an existing binding onto the new canonical person —
-       * which is exactly what an identify-merge needs (the completion workflow
-       * does not repoint external identifiers).
+       * exactly what a synchronous identify merge needs.
        */
       const upsertAccountTokenBinding = Effect.fn("upsertAccountTokenBinding")(
         (

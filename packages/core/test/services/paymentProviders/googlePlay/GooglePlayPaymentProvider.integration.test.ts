@@ -28,7 +28,6 @@ import {
   PurchaseProcessingService,
 } from "@voidhash/core/services";
 import { GooglePlayPaymentProvider } from "@voidhash/core/services/paymentProviders/googlePlay/payment-provider";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import {
   ACCOUNT_TOKEN_SERVICE_ID,
@@ -73,10 +72,6 @@ const projectId = CoreTestFixture.projectId;
 let seq = 0;
 const uniq = (label: string) => `it-gp-${label}-${Date.now()}-${seq++}`;
 
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
 /**
  * Full dependency graph for the Google Play record engine. Everything is either
  * a real `Db`-backed service or a leaf stub, so the only escaping requirements
@@ -92,13 +87,7 @@ const GooglePlayEngineLive = GooglePlayPaymentProvider.layer.pipe(
       GooglePlayServerApi.layer,
     ),
   ),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      PerkGrantService.layer,
-      IdentityProjectionPublisher.noop,
-      CompletionWorkflowStub,
-    ),
-  ),
+  Layer.provideMerge(Layer.mergeAll(PerkGrantService.layer, IdentityProjectionPublisher.noop)),
 );
 
 // ----------------------------------------------------------------------------

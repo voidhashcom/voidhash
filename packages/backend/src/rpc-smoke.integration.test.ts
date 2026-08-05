@@ -52,7 +52,7 @@ import {
   TestClickhouseLive,
   TestProjectSchemaCacheLive,
   TestWebhookManagerServiceLive,
-  TestWorkflowPortsLive,
+  TestWorkflowRunnerLive,
   TestOrgDirectoryLive,
 } from "./testing/TestLayers.ts";
 import { TestRpcAuthLive } from "./testing/TestRpcAuth.ts";
@@ -257,7 +257,12 @@ describe("Backend RPC smoke", () => {
         for (const smokeCase of rpcSmokeCases) {
           yield* runRpcSmokeCase(client as never, smokeCase, context);
         }
-      }).pipe(Effect.provide(rpcServices), Effect.provide(TestWorkflowPortsLive), Effect.scoped),
+      }).pipe(
+        Effect.provide(rpcServices),
+        Effect.provide(TestWorkflowRunnerLive),
+        Effect.provide(SmokePlatformRuntimeStub),
+        Effect.scoped,
+      ),
     );
   }, 600_000);
 });
@@ -277,12 +282,12 @@ const requestBackend = (tc: BackendTestConnections, path: string, init: RequestI
         features: NoBackendFeatures,
         rpcExtension: NoBackendRpcExtension,
         infrastructure: makeRouteInfra(tc),
-      }).pipe(Effect.provide(TestWorkflowPortsLive));
+      }).pipe(Effect.provide(TestWorkflowRunnerLive));
 
       const request = HttpServerRequest.fromWeb(new Request(`http://backend.local${path}`, init));
       const response = yield* handler.pipe(
         Effect.provideService(HttpServerRequest.HttpServerRequest, request),
-        Effect.provide(TestWorkflowPortsLive),
+        Effect.provide(TestWorkflowRunnerLive),
         // The push send path colors its effects with the runtime-phase marker
         // (queue dispatch); the deployed worker's fetch provides it, so mirror
         // that here with a minimal stub.
@@ -295,7 +300,7 @@ const requestBackend = (tc: BackendTestConnections, path: string, init: RequestI
       // The auth middleware now resolves `Db` ambiently, so its requirement
       // surfaces on the built handler (exactly as in the deployed worker, which
       // provides `Db` at the outer fetch scope). Provide it here to match.
-    }).pipe(Effect.provide(Db.layer(tc.db))),
+    }).pipe(Effect.provide(Db.layer(tc.db)), Effect.provide(SmokePlatformRuntimeStub)),
   );
 
 describe("Backend runtime capabilities", () => {
@@ -309,4 +314,3 @@ describe("Backend runtime capabilities", () => {
     expect(JSON.parse(text)).toEqual({ enterprise: {} });
   });
 });
-

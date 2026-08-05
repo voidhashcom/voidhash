@@ -11,12 +11,8 @@
  * method's return value.
  *
  * Dependency wiring: `PersonService` needs `PersonIdentityService`, which in
- * turn needs an `IdentityProjectionPublisher` and an abstract
- * `IdentifyDistinctIdCompletionWorkflow`. Neither is a harness service, so the
- * test provides the publisher's {@link IdentityProjectionPublisher.noop} (the
- * intended test/seam variant) and a no-op completion-workflow layer. The
- * completion workflow is only ever dispatched from `identifyDistinctId`, which
- * `PersonService` never calls, so the stub is purely there to satisfy the type.
+ * turn needs an `IdentityProjectionPublisher`. The test provides the
+ * publisher's {@link IdentityProjectionPublisher.noop} test variant.
  *
  * Conventions used throughout (see PerkService.integration.test.ts):
  *  - Every test shares the one seeded fixture project ({@link CoreTestFixture})
@@ -37,14 +33,9 @@ import { describe, expect, test as vitestTest } from "vitest";
 import { PersonService } from "@voidhash/core/services/persons/PersonService";
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { IdentityProjectionPublisher } from "@voidhash/core/services/personIdentity/IdentityProjectionPublisher";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
-import {
-  PersonIdentityKind,
-  PersonNotFoundError,
-  type PersonProfile,
-} from "@voidhash/core/domain/person/Person";
+import { PersonIdentityKind, PersonNotFoundError } from "@voidhash/core/domain/person/Person";
 import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
-import { Db, PersonOrigin, and, eq, inArray, personIdentities, persons } from "@voidhash/db";
+import { Db, PersonOrigin, inArray, personIdentities, persons } from "@voidhash/db";
 
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
@@ -65,14 +56,9 @@ const uniqueDistinctId = (label: string) => `it-person-${label}-${Date.now()}-${
  * seam variant and the completion workflow is a no-op (only dispatched by
  * `identifyDistinctId`, which `PersonService` never calls).
  */
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
 const PersonServiceUnderTest = PersonService.layer.pipe(
   Layer.provideMerge(PersonIdentityService.layer),
   Layer.provide(IdentityProjectionPublisher.noop),
-  Layer.provide(CompletionWorkflowStub),
 );
 
 /** Read a person row straight from the database, bypassing the service. */

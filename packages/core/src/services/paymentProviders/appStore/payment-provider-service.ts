@@ -6,19 +6,15 @@
  * decode → forward to {@link AppStorePaymentProvider.recordPurchase}) and
  * delegates webhook ingress to {@link AppStoreWebhookHandlerService}.
  *
- * Ported from `internal/packages/core/.../app-store-payment-provider-service.ts`
- * with two backend-specific changes:
+ * The implementation differs from the original authenticated SDK path in two
+ * ways:
  *   1. The SDK path resolves the project from an explicit `projectId` input
  *      instead of yielding `AuthSession` from context — this keeps the method's
  *      `R` channel `never` as the service shape requires. `SdkService` passes
  *      the project-elevated id.
  *   2. The deferred-replay and lazy first-seen reconciliation workflow triggers
- *      ARE fired here, through abstract ports
- *      ({@link AppStoreReplayParkedSdkNotificationsWorkflow},
- *      {@link AppStoreReconcileOriginalTransactionWorkflow}) that the
- *      application root wires to concrete Cloudflare Workflows. Both are
- *      fire-and-forget (awaited `create` + log-on-failure, never `forkDetach`),
- *      and the synchronous record path does not depend on their completion.
+ *      are dispatched here through the shared workflow runtime. The
+ *      synchronous record path does not depend on their completion.
  */
 import { Effect, Layer, Option, Schema } from "effect";
 
@@ -27,8 +23,11 @@ import {
   AppStorePaymentProviderServiceError,
   type AppStorePaymentProviderServiceShape,
 } from "../AppStorePaymentProviderService.ts";
-import { AppStoreReconcileOriginalTransactionWorkflow } from "../AppStoreReconcileOriginalTransactionWorkflow.ts";
-import { AppStoreReplayParkedSdkNotificationsWorkflow } from "../AppStoreReplayParkedSdkNotificationsWorkflow.ts";
+import * as Workflow from "@voidhash/platform/Workflow";
+import {
+  AppStoreReconcileOriginalTransaction,
+  AppStoreReplayParkedSdkNotifications,
+} from "../../../workflows/definitions.ts";
 import { AppStoreWebhookHandlerService } from "./app-store-webhook-handler-service.ts";
 import { getActiveAppStorePaymentProviderConfiguration } from "./helpers.ts";
 import { AppStorePaymentProvider, globalConfigurationSchema } from "./payment-provider.ts";
@@ -169,20 +168,11 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
             paymentProviderConfigurationId: configuration.id,
           });
           if (parked.length > 0) {
-            yield* AppStoreReplayParkedSdkNotificationsWorkflow.pipe(
-              Effect.flatMap((workflow) =>
-                workflow.dispatch({
-                  originalTransactionId,
-                  paymentProviderConfigurationId: configuration.id,
-                }),
-              ),
-              Effect.catchCause((cause) =>
-                Effect.logWarning("Failed to schedule App Store parked SDK-notification replay", {
-                  cause,
-                  originalTransactionId,
-                }),
-              ),
-            );
+            yield* Workflow.dispatchAndForget(AppStoreReplayParkedSdkNotifications, {
+              originalTransactionId,
+              paymentProviderConfigurationId: configuration.id,
+              requestedAt: input.receivedAt.toISOString(),
+            });
           }
         }
 
@@ -190,25 +180,15 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
         // it fires at most once per `originalTransactionId` per flag-on tenant;
         // Cloudflare handles Apple 429 backoff at the workflow level, and each
         // replayed event is idempotent. Admin-repair / install-backfill remain
-        // separate manual triggers. Awaited `create` + log-on-failure (mirrors
-        // the parked-replay dispatch above); never `forkDetach`.
+        // separate manual triggers. Dispatch is scheduled through the shared
+        // workflow runtime, mirroring the parked replay above.
         if (shouldReconcileFirstSeen && originalTransactionId) {
-          yield* AppStoreReconcileOriginalTransactionWorkflow.pipe(
-            Effect.flatMap((workflow) =>
-              workflow.dispatch({
-                originalTransactionId,
-                paymentProviderConfigurationId: configuration.id,
-                reason: "first_seen",
-                triggeredAt: input.receivedAt.toISOString(),
-              }),
-            ),
-            Effect.catchCause((cause) =>
-              Effect.logWarning("Failed to schedule App Store first-seen reconciliation", {
-                cause,
-                originalTransactionId,
-              }),
-            ),
-          );
+          yield* Workflow.dispatchAndForget(AppStoreReconcileOriginalTransaction, {
+            originalTransactionId,
+            paymentProviderConfigurationId: configuration.id,
+            reason: "first_seen",
+            triggeredAt: input.receivedAt.toISOString(),
+          });
         }
 
         yield* Effect.annotateCurrentSpan("voidhash.person.id", result.personId);

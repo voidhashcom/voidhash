@@ -30,14 +30,10 @@
  *    ({@link PersonServiceError}), paired with a DB-state assertion proving the
  *    rejected write left nothing behind.
  */
-import { Effect, Layer, Ref } from "effect";
+import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { IdentityProjectionPublisher, PersonIdentityService } from "@voidhash/core/services";
-import {
-  type IdentifyDistinctIdCompletionInput,
-  IdentifyDistinctIdCompletionWorkflow,
-} from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PersonServiceError } from "@voidhash/core/services/persons/PersonService";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
 import {
@@ -217,36 +213,9 @@ const withCleanup = <E, R>(
   }).pipe(Effect.ensuring(cleanup(tracked)));
 };
 
-// --- workflow dispatch tracking stub ----------------------------------------
-
-/**
- * A {@link IdentifyDistinctIdCompletionWorkflow} layer that records every
- * `dispatch` payload into the supplied {@link Ref}. The concrete workflow is a
- * Cloudflare Workflow (no in-process seam), so this stub lets us assert *that*
- * (and with what payload) `identifyDistinctId` schedules the async migration.
- */
-const trackingWorkflowLayer = (ref: Ref.Ref<ReadonlyArray<IdentifyDistinctIdCompletionInput>>) =>
-  Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-    dispatch: (input) => Ref.update(ref, (calls) => [...calls, input]),
-  });
-
-/**
- * Build the service-under-test wiring for one test: the real
- * {@link PersonIdentityService} layer over the noop projection publisher,
- * merged with a fresh dispatch-tracking workflow stub. The workflow is resolved
- * inside `identifyDistinctId`'s body (not at layer-build time), so it must be
- * provided at the call-site level — hence it is merged into `layer` rather than
- * provided *into* `PersonIdentityService.layer`. The `Ref` is created
- * synchronously so the same instance can be closed over by both the provided
- * `layer` (which discharges `R` to the harness services) and the assertions.
- */
 const makeServiceWiring = () => {
-  const dispatches = Effect.runSync(Ref.make<ReadonlyArray<IdentifyDistinctIdCompletionInput>>([]));
-  const layer = Layer.mergeAll(
-    PersonIdentityService.layer.pipe(Layer.provide(IdentityProjectionPublisher.noop)),
-    trackingWorkflowLayer(dispatches),
-  );
-  return { dispatches, layer };
+  const layer = PersonIdentityService.layer.pipe(Layer.provide(IdentityProjectionPublisher.noop));
+  return { layer };
 };
 
 const baseInput = (distinctId: string, eventTimestamp: Date) => ({
@@ -518,7 +487,6 @@ describe("PersonIdentityService.identifyDistinctId", () => {
           "from-anon",
         );
         yield* Effect.sleep("20 millis");
-        expect(yield* Ref.get(promote.dispatches)).toEqual([]);
         expect(yield* findMigrationJobsForDistinctId(distinctId)).toEqual([]);
       }),
     ).pipe(Effect.provide(promote.layer), CoreAuthSession.authenticate()),
@@ -548,7 +516,6 @@ describe("PersonIdentityService.identifyDistinctId", () => {
       // before any insert, and the early failure precedes dispatch).
       expect(yield* findIdentityRow(distinctId)).toBeUndefined();
       expect(yield* findIdentityRow(previousDistinctId)).toBeUndefined();
-      expect(yield* Ref.get(anonTarget.dispatches)).toEqual([]);
     }).pipe(Effect.provide(anonTarget.layer), CoreAuthSession.authenticate()),
   );
 
@@ -574,7 +541,6 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         expect(yield* findIdentityRow(distinctId)).toBeDefined();
         expect(yield* findMigrationJobsForDistinctId(distinctId)).toEqual([]);
         yield* Effect.sleep("50 millis");
-        expect(yield* Ref.get(selfIdentify.dispatches)).toEqual([]);
       }),
     ).pipe(Effect.provide(selfIdentify.layer), CoreAuthSession.authenticate()),
   );
@@ -621,7 +587,6 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         // Conflict short-circuits the async path: no job, no dispatch.
         expect(yield* findMigrationJobsForDistinctId(distinctId)).toEqual([]);
         yield* Effect.sleep("50 millis");
-        expect(yield* Ref.get(conflict.dispatches)).toEqual([]);
       }),
     ).pipe(Effect.provide(conflict.layer), CoreAuthSession.authenticate()),
   );
@@ -750,7 +715,8 @@ describe("PersonIdentityService — order-agnostic behavior (Option B)", () => {
         });
 
         const row = yield* findPersonRow(personId!);
-        expect((row?.traits as Record<string, unknown>).plan).toBe("pro");
+        expect(row).toBeDefined();
+        expect((row!.traits as Record<string, unknown>).plan).toBe("pro");
         expect(row?.traitsMeta?.plan?.ts).toBe(newer.getTime());
         expect(row?.traitsMeta?.plan?.mode).toBe("set");
       }),

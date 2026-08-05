@@ -51,8 +51,11 @@ export class CronScheduler extends Context.Service<CronScheduler, CronSchedulerS
   "@voidhash/platform/CronScheduler",
 ) {}
 
-/** Defines a provider-neutral scheduled job while preserving its requirements. */
-export const defineCron = <R>(job: CronJob<R>): CronJob<R> => job;
+/** Cron-job constructors. */
+export const CronJob = {
+  /** Defines a provider-neutral cron job while preserving its requirements. */
+  define: <R>(job: CronJob<R>): CronJob<R> => job,
+};
 
 /**
  * A scheduled job definition with operations bound to the installed runtime.
@@ -61,8 +64,7 @@ export const defineCron = <R>(job: CronJob<R>): CronJob<R> => job;
  * definition, so a schedule is declared exactly once.
  */
 export interface CronDefinition<Name extends string, R>
-  extends CronJob<R>,
-    PrimitiveDefinition<"cron", Name> {
+  extends CronJob<R>, PrimitiveDefinition<"cron", Name> {
   readonly name: Name;
   /** Claims and executes at most one due schedule slot. */
   readonly tick: (
@@ -75,15 +77,18 @@ export interface CronDefinition<Name extends string, R>
 }
 
 /** Creates a scheduled job definition without selecting a runtime backend. */
-export const defineScheduledJob = <const Name extends string, R>(
-  job: CronJob<R> & { readonly name: Name },
-): CronDefinition<Name, R> => {
-  const definition = { ...job, kind: "cron" as const };
-  return {
-    ...definition,
-    tick: (now) =>
-      CronScheduler.pipe(Effect.flatMap((scheduler) => scheduler.tick(definition, now))),
-    start: (options) =>
-      CronScheduler.pipe(Effect.flatMap((scheduler) => scheduler.run(definition, options))),
-  };
+export const ScheduledJob = {
+  /** Creates a scheduled job definition without selecting a runtime backend. */
+  define: <const Name extends string, R>(
+    job: CronJob<R> & { readonly name: Name },
+  ): CronDefinition<Name, R> => {
+    const definition = { ...job, kind: "cron" as const };
+    return {
+      ...definition,
+      tick: (now) =>
+        CronScheduler.pipe(Effect.flatMap((scheduler) => scheduler.tick(definition, now))),
+      start: (options) =>
+        CronScheduler.pipe(Effect.flatMap((scheduler) => scheduler.run(definition, options))),
+    };
+  },
 };

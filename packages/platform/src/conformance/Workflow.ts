@@ -2,7 +2,8 @@ import { Effect, Layer, Schedule, type Scope, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import type { PlatformRuntime } from "../PlatformRuntime.ts";
-import { defineWorkflow, WorkflowRunner } from "../Workflow.ts";
+import * as Workflow from "../Workflow.ts";
+import { WorkflowRunner } from "../WorkflowRunner.ts";
 
 /** Wiring one adapter must supply for the workflow conformance suite. */
 export interface WorkflowConformanceOptions {
@@ -19,7 +20,7 @@ export interface WorkflowConformanceOptions {
  */
 const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-const Greet = defineWorkflow({
+const Greet = Workflow.define({
   name: "conformance-greet",
   payload: { subject: Schema.String },
   success: Schema.String,
@@ -71,7 +72,11 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
       const result = await run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
-          yield* runner.register(Greet, (payload) => Effect.succeed(`hello ${payload.subject}`));
+          yield* runner.register(
+            Greet,
+            (payload) => Effect.succeed(`hello ${payload.subject}`),
+            Layer.empty,
+          );
           return yield* runner.execute(Greet, { subject: `world-${runId}` });
         }),
       );
@@ -85,18 +90,21 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
       const result = await run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
-          yield* runner.register(Greet, (payload, context) =>
-            Effect.gen(function* () {
-              const upper = yield* context.step({
-                name: "shout",
-                success: Schema.String,
-                execute: Effect.sync(() => {
-                  steps.push("shout");
-                  return payload.subject.toUpperCase();
-                }),
-              });
-              return `hello ${upper}`;
-            }),
+          yield* runner.register(
+            Greet,
+            (payload, context) =>
+              Effect.gen(function* () {
+                const upper = yield* context.step({
+                  name: "shout",
+                  success: Schema.String,
+                  execute: Effect.sync(() => {
+                    steps.push("shout");
+                    return payload.subject.toUpperCase();
+                  }),
+                });
+                return `hello ${upper}`;
+              }),
+            Layer.empty,
           );
           return yield* runner.execute(Greet, { subject: `steps-${runId}` });
         }),
@@ -112,11 +120,14 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
       const [first, second] = await run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
-          yield* runner.register(Greet, (payload) =>
-            Effect.sync(() => {
-              started.push(payload.subject);
-              return `hello ${payload.subject}`;
-            }),
+          yield* runner.register(
+            Greet,
+            (payload) =>
+              Effect.sync(() => {
+                started.push(payload.subject);
+                return `hello ${payload.subject}`;
+              }),
+            Layer.empty,
           );
           const first = yield* runner.dispatch(Greet, { subject: `same-${runId}` });
           yield* awaitResult(first);
@@ -135,7 +146,11 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
       const polled = await run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
-          yield* runner.register(Greet, (payload) => Effect.succeed(`hello ${payload.subject}`));
+          yield* runner.register(
+            Greet,
+            (payload) => Effect.succeed(`hello ${payload.subject}`),
+            Layer.empty,
+          );
           const executionId = yield* runner.dispatch(Greet, { subject: `polled-${runId}` });
           return yield* awaitResult(executionId);
         }),
@@ -154,7 +169,7 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
       const polled = await run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
-          yield* runner.register(Greet, () => Effect.fail("boom"));
+          yield* runner.register(Greet, () => Effect.fail("boom"), Layer.empty);
           const executionId = yield* runner.dispatch(Greet, { subject: `failing-${runId}` });
           return yield* awaitResult(executionId);
         }),

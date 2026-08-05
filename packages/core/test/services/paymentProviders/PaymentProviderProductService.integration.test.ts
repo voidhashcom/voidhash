@@ -47,11 +47,12 @@ import {
   StripePaymentProvider,
 } from "@voidhash/core/services/paymentProviders/PaymentProvider";
 import {
-  AppStoreReplayParkedNotificationsWorkflow,
+  AppStoreReplayParkedNotifications,
   type AppStoreReplayParkedNotificationsInput,
-} from "@voidhash/core/services/paymentProviders/AppStoreReplayParkedNotificationsWorkflow";
-import { GooglePlayReplayParkedNotificationsWorkflow } from "@voidhash/core/services/paymentProviders/GooglePlayReplayParkedNotificationsWorkflow";
-import { StripeReplayParkedNotificationsWorkflow } from "@voidhash/core/services/paymentProviders/StripeReplayParkedNotificationsWorkflow";
+} from "@voidhash/core/workflows/definitions";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
+import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
 import {
   PaymentProviderProductNotFoundError,
@@ -145,23 +146,22 @@ const makeServiceLayer = (dispatches: DispatchLog) => {
     title: "Google Play",
     type: "native",
   };
+  const runner = TestWorkflowRunner.make();
 
   const StubbedProviders = Layer.mergeAll(
     Layer.succeed(StripePaymentProvider, stripeStub),
     Layer.succeed(AppStorePaymentProvider, appStoreStub),
     Layer.succeed(GooglePlayPaymentProvider, googlePlayStub),
-    Layer.succeed(AppStoreReplayParkedNotificationsWorkflow, {
-      dispatch: (input: AppStoreReplayParkedNotificationsInput) =>
+    Layer.succeed(WorkflowRunner, {
+      ...runner,
+      dispatch: (workflow, input) =>
         Effect.sync(() => {
-          dispatches.push(input);
-        }),
+          if (workflow.name === AppStoreReplayParkedNotifications.name) {
+            dispatches.push(input as AppStoreReplayParkedNotificationsInput);
+          }
+        }).pipe(Effect.andThen(runner.dispatch(workflow, input))),
     }),
-    Layer.succeed(GooglePlayReplayParkedNotificationsWorkflow, {
-      dispatch: () => Effect.void,
-    }),
-    // Stripe replay port: not exercised by these App-Store-focused assertions,
-    // stubbed to a no-op so the service's request-time requirement is satisfied.
-    Layer.succeed(StripeReplayParkedNotificationsWorkflow, { dispatch: () => Effect.void }),
+    Layer.succeed(PlatformRuntime, PlatformRuntime.of({})),
   );
 
   return PaymentProviderProductService.layer.pipe(Layer.provideMerge(StubbedProviders));

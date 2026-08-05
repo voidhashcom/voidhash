@@ -25,10 +25,6 @@
  * infrastructure of their own:
  *  - `PerkGrantService.layer` (real, `Db` + `AuthSession`),
  *  - `IdentityProjectionPublisher.noop` (synchronous projection is a no-op),
- *  - an in-memory `IdentifyDistinctIdCompletionWorkflow` (the async identity-
- *    migration workflow is a Cloudflare adapter at runtime; the only path that
- *    dispatches it — the webhook-stand-in merge — wraps the call in a logging
- *    `catch`, so a no-op dispatch is faithful),
  *  - `AppStoreServerSdk.layer` over `FetchHttpClient.layer` (the REST SDK is
  *    only touched by `buildSdkContextFromConfiguration`; the `record*` paths
  *    operate purely on already-decoded JWS payloads and never make a request).
@@ -62,7 +58,6 @@ import {
   PurchaseProcessingService,
 } from "@voidhash/core/services";
 import { AppStorePaymentProvider } from "@voidhash/core/services/paymentProviders/appStore/payment-provider";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import {
   ACCOUNT_TOKEN_SERVICE_ID,
@@ -91,7 +86,6 @@ import {
   personIdentities,
   persons,
   products,
-  projects,
   purchaseLedger,
   purchases,
   subscriptions,
@@ -111,25 +105,13 @@ let seq = 0;
 const uniq = (label: string) => `it-as-${label}-${Date.now()}-${seq++}`;
 
 /**
- * In-memory no-op for the async identity-migration completion workflow. The
- * real adapter is a Cloudflare Workflow wired at the application root; the only
- * engine path that dispatches it (webhook-stand-in merge) wraps the call in a
- * logging `catch`, so a no-op faithfully represents "dispatched, fire-and-
- * forget".
- */
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
-/**
  * Full dependency graph for the App Store record engine. Everything here is
  * either a real `Db`-backed service or a leaf stub with no infrastructure of
  * its own, so the only requirements that escape are the harness `Db` and the
  * per-test `AuthSession` supplied by `CoreAuthSession.authenticate`. The two
  * `provideMerge` layers cascade downward: the inner leaf stubs satisfy
  * `PurchaseProcessingService` (needs `PerkGrantService`) and
- * `PersonIdentityService` (needs `IdentityProjectionPublisher` +
- * `IdentifyDistinctIdCompletionWorkflow`).
+ * `PersonIdentityService` (needs `IdentityProjectionPublisher`).
  */
 const AppStoreEngineLive = AppStorePaymentProvider.layer.pipe(
   Layer.provideMerge(
@@ -141,13 +123,7 @@ const AppStoreEngineLive = AppStorePaymentProvider.layer.pipe(
       AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer)),
     ),
   ),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      PerkGrantService.layer,
-      IdentityProjectionPublisher.noop,
-      CompletionWorkflowStub,
-    ),
-  ),
+  Layer.provideMerge(Layer.mergeAll(PerkGrantService.layer, IdentityProjectionPublisher.noop)),
 );
 
 // ----------------------------------------------------------------------------

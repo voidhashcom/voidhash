@@ -17,7 +17,6 @@ import {
 import type { PublishableKeySession } from "@voidhash/core/domain/auth/Auth";
 import { GooglePlayPaymentProvider } from "@voidhash/core/services/paymentProviders/googlePlay/payment-provider";
 import { GooglePlayServerApi } from "@voidhash/core/services/paymentProviders/googlePlay/sdk-context";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { deriveAccountToken } from "@voidhash/core/utils/crypto/account-token";
 import { generateId } from "@voidhash/core/utils";
@@ -51,10 +50,6 @@ const { test } = PurchaseIntegrationTestHarness.make();
 const projectId = CoreTestFixture.projectId;
 let sequence = 0;
 const unique = (label: string) => `it-gp-sdk-${label}-${Date.now()}-${sequence++}`;
-
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
 
 const appStoreStub = Layer.succeed(AppStorePaymentProviderService, {
   acceptServerNotification: () => Effect.die("App Store webhook must not run"),
@@ -99,13 +94,7 @@ const GooglePlayEngineLive = GooglePlayPaymentProvider.layer.pipe(
       GooglePlayServerApi.layer,
     ),
   ),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      PerkGrantService.layer,
-      IdentityProjectionPublisher.noop,
-      CompletionWorkflowStub,
-    ),
-  ),
+  Layer.provideMerge(Layer.mergeAll(PerkGrantService.layer, IdentityProjectionPublisher.noop)),
 );
 
 describe("GooglePlayPaymentProviderService.processSdkTransaction", () => {
@@ -248,7 +237,6 @@ describe("GooglePlayPaymentProviderService.processSdkTransaction", () => {
               IdentityProjectionPublisher.noop,
               serviceLayer,
               appStoreStub,
-              CompletionWorkflowStub,
             ),
           ),
         );

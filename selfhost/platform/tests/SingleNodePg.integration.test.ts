@@ -1,8 +1,5 @@
 import * as PgClient from "@effect/sql-pg/PgClient";
-import {
-  DurableEntityHost,
-  makeDurableEntityAddress,
-} from "@voidhash/platform/DurableEntity";
+import { DurableEntityHost, makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
 import { QueueDriver } from "@voidhash/platform/Queue";
 import {
   durableEntityHostConformance,
@@ -21,7 +18,7 @@ import { PgEntityAlarmStoreLive } from "../src/EntityAlarmStore.ts";
 import { SelfhostPlatformRuntimeLive } from "../src/PlatformRuntime.ts";
 import { ClusterQueueLive } from "../src/Queue.ts";
 import { SingleNodeClusterLive } from "../src/Topology.ts";
-import { ClusterWorkflowRunnerLive } from "../src/Workflow.ts";
+import * as ClusterWorkflowRunner from "../src/Workflow.ts";
 
 /**
  * Exercises the production self-host topology: one runner whose mailboxes,
@@ -43,7 +40,7 @@ const ClusterLive = SingleNodeClusterLive({ runnerStorage: "memory" }).pipe(
 );
 
 const workflowLayer = () =>
-  ClusterWorkflowRunnerLive.pipe(
+  ClusterWorkflowRunner.layer.pipe(
     Layer.provide(ClusterLive),
     Layer.merge(SelfhostPlatformRuntimeLive),
   );

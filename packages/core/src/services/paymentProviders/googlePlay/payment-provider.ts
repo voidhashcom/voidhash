@@ -424,9 +424,9 @@ const make = Effect.gen(function* () {
     // Existing `google-play` binding (keyed on purchaseToken / orderId, or the
     // account token itself). Checked BEFORE the account-token binding because it
     // reflects cross-owner transfers that the per-user token binding deliberately
-    // does NOT (mirrors the App Store ordering). Canonicalized because the
-    // identify-completion workflow never repoints external identifiers, so a
-    // post-merge event would otherwise resolve to the archived source person.
+    // does NOT (mirrors the App Store ordering). Person merges do not repoint
+    // provider identifiers, so canonicalize the result to avoid resolving a
+    // post-merge event to the archived source person.
     const externalIdentifier = yield* queries.findExternalIdentifier({
       identifier: input.personIdentifier,
       projectId: input.projectId,

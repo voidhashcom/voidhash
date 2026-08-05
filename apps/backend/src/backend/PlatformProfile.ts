@@ -8,7 +8,7 @@ import type {
 import type { KeyValueStore } from "@voidhash/platform/KeyValueStore";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import type { QueueDriver } from "@voidhash/platform/Queue";
-import type { WorkflowRunner } from "@voidhash/platform/Workflow";
+import type { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import {
   ClusterDurableEntityControlLive,
   ClusterDurableEntityHostLive,
@@ -20,7 +20,7 @@ import { SelfhostPlatformRuntimeLive } from "@voidhash/platform-selfhost/Platfor
 import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
 import { ClusterQueueLive } from "@voidhash/platform-selfhost/Queue";
 import { SingleNodeClusterLive } from "@voidhash/platform-selfhost/Topology";
-import { ClusterWorkflowRunnerLive } from "@voidhash/platform-selfhost/Workflow";
+import * as ClusterWorkflowRunner from "@voidhash/platform-selfhost/Workflow";
 import { Layer, Redacted } from "effect";
 import {
   KeyValueStore as PersistenceKeyValueStore,
@@ -124,7 +124,7 @@ const platformLayers = (postgres: PgPlatformConfig): SelfhostPlatformLayers => {
       Layer.provide(persistenceKeyValueStore),
       Layer.provide(topology),
     ),
-    workflowRunner: ClusterWorkflowRunnerLive.pipe(Layer.provide(topology)),
+    workflowRunner: ClusterWorkflowRunner.layer.pipe(Layer.provide(topology)),
     runtime: SelfhostPlatformRuntimeLive,
   };
 };
@@ -149,8 +149,8 @@ export const makeSelfhostPlatformLayers = (
 
 /**
  * The process-wide platform layer: every swappable primitive except the
- * workflow runner, which {@link makeSelfhostWorkflowRuntimeLive} owns because
- * it also binds the workflow dispatch ports.
+ * workflow runner, which the server root builds once before registering the
+ * shared workflow registry.
  */
 export const makeSelfhostPlatformLive = (
   config: SelfhostRuntimeConfig,

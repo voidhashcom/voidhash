@@ -9,9 +9,9 @@ import {
   webhookEndpoints,
 } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
-import type { DeliverWebhookInput } from "./WebhookDeliveryWorkflow.ts";
+import type { DeliverWebhookInput } from "../../workflows/definitions.ts";
 
-export type { DeliverWebhookInput } from "./WebhookDeliveryWorkflow.ts";
+export type { DeliverWebhookInput } from "../../workflows/definitions.ts";
 
 /** Outcome of a single HTTP delivery attempt. Never throws — failures are
  * captured as a non-succeeded result so the workflow can decide to retry. */

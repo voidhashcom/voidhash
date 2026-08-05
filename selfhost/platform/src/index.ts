@@ -28,9 +28,6 @@ export { S3ObjectStoreLive, type S3ObjectStoreConfig } from "./ObjectStore.ts";
 export { SelfhostPlatformRuntimeLive } from "./PlatformRuntime.ts";
 export { PgPlatformClientLive, type PgPlatformConfig } from "./Postgres.ts";
 export { ClusterQueueLive } from "./Queue.ts";
-export {
-  ChromiumScreenshotLive,
-  type ChromiumScreenshotConfig,
-} from "./Screenshot.ts";
+export { ChromiumScreenshotLive, type ChromiumScreenshotConfig } from "./Screenshot.ts";
 export { type ClusterTopology, SingleNodeClusterLive, TestClusterLive } from "./Topology.ts";
-export { ClusterWorkflowRunnerLive } from "./Workflow.ts";
+export * as ClusterWorkflowRunner from "./Workflow.ts";

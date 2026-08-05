@@ -1,4 +1,5 @@
 import { DurableEntityHost } from "@voidhash/platform/DurableEntity";
+import * as MemoryWorkflowRunner from "@voidhash/platform/MemoryWorkflowRunner";
 import {
   cronSchedulerConformance,
   durableEntityHostConformance,
@@ -19,7 +20,7 @@ import { DurableEntityAlarmStore, MemoryEntityAlarmStoreLive } from "../src/Enti
 import { SelfhostPlatformRuntimeLive } from "../src/PlatformRuntime.ts";
 import { ClusterQueueLive } from "../src/Queue.ts";
 import { TestClusterLive } from "../src/Topology.ts";
-import { ClusterWorkflowRunnerLive } from "../src/Workflow.ts";
+import * as ClusterWorkflowRunner from "../src/Workflow.ts";
 
 /**
  * Each suite builds its own cluster so state cannot leak between tests. The
@@ -74,10 +75,13 @@ const unownedEntityLayer = () =>
   );
 
 const workflowLayer = () =>
-  ClusterWorkflowRunnerLive.pipe(
+  ClusterWorkflowRunner.layer.pipe(
     Layer.provide(TestClusterLive),
     Layer.merge(SelfhostPlatformRuntimeLive),
   );
+
+const memoryWorkflowLayer = () =>
+  MemoryWorkflowRunner.layer.pipe(Layer.merge(SelfhostPlatformRuntimeLive));
 
 queueDriverConformance({ name: "cluster", layer: queueLayer });
 cronSchedulerConformance({ name: "cluster", layer: cronLayer });
@@ -88,3 +92,4 @@ durableEntityHostConformance({
   requiresShardLocality: unownedEntityLayer,
 });
 workflowRunnerConformance({ name: "cluster", layer: workflowLayer });
+workflowRunnerConformance({ name: "memory", layer: memoryWorkflowLayer });

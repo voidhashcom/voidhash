@@ -9,6 +9,9 @@ import {
   SchemaCacheInvalidationService,
 } from "@voidhash/core/services";
 import { AuditLogActorType, Db, auditLogs } from "@voidhash/db";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
+import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import { Effect, Layer, Option } from "effect";
 import { inject, test as vitestTest } from "vitest";
 import type { CoreTestConnections } from "./CoreTestConnections.ts";
@@ -31,7 +34,9 @@ type HarnessServices =
   | ProjectSchemaCache
   | AuditLogPort
   | PublicFileStore
-  | SchemaCacheInvalidationService;
+  | SchemaCacheInvalidationService
+  | PlatformRuntime
+  | WorkflowRunner;
 
 /** Default per-test timeout; the heavy deploy already happened in globalSetup. */
 const DEFAULT_TEST_TIMEOUT = 120_000;
@@ -139,7 +144,12 @@ const makeHarnessLayer = (tc: CoreTestConnections): Layer.Layer<HarnessServices>
     SchemaCacheInvalidationService.layer,
   ).pipe(Layer.provide(InfraLayer));
 
-  return Layer.mergeAll(InfraLayer, SupportLayer);
+  const WorkflowTestLayer = Layer.mergeAll(
+    Layer.succeed(WorkflowRunner, TestWorkflowRunner.make()),
+    Layer.succeed(PlatformRuntime, PlatformRuntime.of({})),
+  );
+
+  return Layer.mergeAll(InfraLayer, SupportLayer, WorkflowTestLayer);
 };
 
 const timeoutOf = (options: number | { timeout?: number } | undefined): number =>

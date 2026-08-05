@@ -4,13 +4,8 @@ import {
   WebhookValidationError,
 } from "@voidhash/core/domain/webhook/Webhook";
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
-import { AppStoreReconcileOriginalTransactionWorkflow } from "@voidhash/core/services/paymentProviders/AppStoreReconcileOriginalTransactionWorkflow";
-import { AppStoreReplayParkedNotificationsWorkflow } from "@voidhash/core/services/paymentProviders/AppStoreReplayParkedNotificationsWorkflow";
-import { AppStoreReplayParkedSdkNotificationsWorkflow } from "@voidhash/core/services/paymentProviders/AppStoreReplayParkedSdkNotificationsWorkflow";
-import { GooglePlayReplayParkedNotificationsWorkflow } from "@voidhash/core/services/paymentProviders/GooglePlayReplayParkedNotificationsWorkflow";
-import { StripeReplayParkedNotificationsWorkflow } from "@voidhash/core/services/paymentProviders/StripeReplayParkedNotificationsWorkflow";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
-import { WebhookDeliveryWorkflow } from "@voidhash/core/services/webhookDispatch/WebhookDeliveryWorkflow";
+import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
+import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import {
   Db,
   eq,
@@ -57,21 +52,8 @@ export const TestClickhouseLive = Layer.succeed(
   clickhouseStub,
 );
 
-// The asynchronous workflow ports the route graph dispatches to
-// (`PersonIdentityService` → identity completion, webhook dispatch → delivery,
-// App Store reconciliation → replay). Every one is a fire-and-forget `dispatch`,
-// so the smoke stubs are no-ops. Unlike the other infrastructure services these
-// surface as request-scoped requirements on the built handler, so they are
-// provided to the worker's `fetch` directly rather than via the infra layer.
-export const TestWorkflowPortsLive = Layer.mergeAll(
-  Layer.succeed(IdentifyDistinctIdCompletionWorkflow, { dispatch: () => Effect.void }),
-  Layer.succeed(WebhookDeliveryWorkflow, { dispatch: () => Effect.void }),
-  Layer.succeed(AppStoreReplayParkedNotificationsWorkflow, { dispatch: () => Effect.void }),
-  Layer.succeed(AppStoreReplayParkedSdkNotificationsWorkflow, { dispatch: () => Effect.void }),
-  Layer.succeed(AppStoreReconcileOriginalTransactionWorkflow, { dispatch: () => Effect.void }),
-  Layer.succeed(GooglePlayReplayParkedNotificationsWorkflow, { dispatch: () => Effect.void }),
-  Layer.succeed(StripeReplayParkedNotificationsWorkflow, { dispatch: () => Effect.void }),
-);
+/** Recording workflow runner used by backend smoke tests. */
+export const TestWorkflowRunnerLive = Layer.succeed(WorkflowRunner, TestWorkflowRunner.make());
 
 // In-memory no-op project schema cache. The smoke path never relies on a cache
 // hit, so every read misses and writes are dropped.

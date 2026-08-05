@@ -1,10 +1,6 @@
 export { makeBackendInfrastructureLive, makeSelfhostAuthLayers } from "./backend/Backend.ts";
 export { makeBackendMimicHostLive } from "./backend/MimicHost.ts";
 export {
-  makeSelfhostWorkflowRuntimeLive,
-  registerSelfhostWorkflows,
-} from "./backend/WorkflowPorts.ts";
-export {
   getSelfhostDatabaseConfig,
   getSelfhostMigrationDatabaseConfig,
   getSelfhostPlatformDatabaseConfig,

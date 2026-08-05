@@ -1,7 +1,8 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { WebhookDeliveryWorkflow } from "@voidhash/core/services/webhookDispatch/WebhookDeliveryWorkflow";
+import { DeliverWebhookRegistration } from "@voidhash/core/workflows/DeliverWebhook";
+import { DeliverWebhook } from "@voidhash/core/workflows/definitions";
 import {
   Db,
   WebhookDeliveryStatus,
@@ -11,13 +12,11 @@ import {
   webhookDeliveryAttempts,
   webhookEndpoints,
 } from "@voidhash/db";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
+import * as Workflow from "@voidhash/platform/Workflow";
 import { describe, expect, it } from "vitest";
 
-import {
-  makeSelfhostWorkflowRuntimeLive,
-  registerSelfhostWorkflows,
-} from "../src/backend/WorkflowPorts.ts";
+import { makeSelfhostPlatformLayers } from "../src/backend/PlatformProfile.ts";
 import { getSelfhostRuntimeConfig } from "../src/config.ts";
 
 describe("self-host workflow composition", () => {
@@ -43,6 +42,8 @@ describe("self-host workflow composition", () => {
     const deliveryId = `webhookDelivery_${suffix}`;
     const database = Db.layer(config.database);
     const platformDatabase = Db.layer(config.platformDatabase);
+    const platform = makeSelfhostPlatformLayers(config);
+    const workflowRuntime = Layer.merge(platform.workflowRunner, platform.runtime);
 
     try {
       await Effect.runPromise(
@@ -70,9 +71,8 @@ describe("self-host workflow composition", () => {
       const attempts = await Effect.runPromise(
         Effect.scoped(
           Effect.gen(function* () {
-            yield* registerSelfhostWorkflows(config);
-            const delivery = yield* WebhookDeliveryWorkflow;
-            yield* delivery.dispatch({
+            yield* DeliverWebhookRegistration.register(database);
+            yield* Workflow.execute(DeliverWebhook, {
               attemptNumber: 1,
               deliveryId,
               endpointId,
@@ -96,10 +96,7 @@ describe("self-host workflow composition", () => {
               yield* Effect.sleep("25 millis");
             }
             return yield* Effect.die("webhook workflow timed out");
-          }).pipe(
-            Effect.provide(database),
-            Effect.provide(makeSelfhostWorkflowRuntimeLive(config)),
-          ),
+          }).pipe(Effect.provide(database), Effect.provide(workflowRuntime)),
         ),
       );
 

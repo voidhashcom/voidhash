@@ -73,12 +73,11 @@ export { AppStorePaymentProvider as AppStorePaymentProviderEngine } from "./paym
 // with the config-adapter tag in `PaymentProvider.ts`; alias it so both are
 // importable (same pattern as the App Store engine).
 export { GooglePlayPaymentProvider as GooglePlayPaymentProviderEngine } from "./paymentProviders/googlePlay/payment-provider.ts";
-// Stripe record engine, webhook handler, public service, queries, errors, and
-// the replay workflow port (the config-write slice is exported above). The
-// engine shares the bare name `StripePaymentProvider` with the config-adapter
-// tag in `PaymentProvider.ts`, so alias it as `StripePaymentProviderEngine`.
+// Stripe record engine, webhook handler, public service, queries, and errors
+// (the config-write slice is exported above). The engine shares the bare name
+// `StripePaymentProvider` with the config-adapter tag in `PaymentProvider.ts`,
+// so alias it as `StripePaymentProviderEngine`.
 export * from "./paymentProviders/StripePaymentProviderService.ts";
-export * from "./paymentProviders/StripeReplayParkedNotificationsWorkflow.ts";
 export * from "./paymentProviders/stripe/payment-provider-service.ts";
 export * from "./paymentProviders/stripe/stripe-webhook-handler-service.ts";
 export * from "./paymentProviders/stripe/payment-provider-service-queries.ts";

@@ -1,20 +1,15 @@
-import type { Option, Scope } from "effect";
-import { Context, Effect, Schema } from "effect";
+import type { Option, Schema } from "effect";
+import { Effect } from "effect";
 
 import type { PlatformRuntime } from "./PlatformRuntime.ts";
-import type { PrimitiveDefinition } from "./Primitive.ts";
-
-/** Stable failure raised by a durable workflow runtime. */
-export class WorkflowRunnerError extends Schema.TaggedErrorClass<WorkflowRunnerError>(
-  "WorkflowRunnerError",
-)("WorkflowRunnerError", {
-  cause: Schema.String,
-  operation: Schema.String,
-  workflowName: Schema.String,
-}) {}
+import {
+  WorkflowRunner,
+  type WorkflowExecutionResult,
+  type WorkflowRunnerError,
+} from "./WorkflowRunner.ts";
 
 /** Provider-neutral durable workflow definition. */
-export interface WorkflowDefinition<
+export interface Workflow<
   Name extends string,
   Payload extends Schema.Struct.Fields,
   Success extends Schema.Top,
@@ -25,183 +20,139 @@ export interface WorkflowDefinition<
   readonly idempotencyKey: (payload: Schema.Struct.Type<Payload>) => string;
 }
 
+/** Any provider-neutral durable workflow definition. */
+export type Any = Workflow<string, any, any>;
+
+/** Retry policy understood by every workflow adapter. */
+export type StepRetry = "platform-default" | "none";
+
 /** Options for one durable workflow activity. */
-export interface WorkflowStepOptions<Success extends Schema.Top, R> {
+export interface StepOptions<Success extends Schema.Top, RSteps> {
   readonly name: string;
   readonly success: Success;
-  readonly execute: Effect.Effect<Success["Type"], unknown, R>;
+  readonly execute: Effect.Effect<
+    Success["Type"],
+    unknown,
+    RSteps | WorkflowRunner | PlatformRuntime
+  >;
+  readonly retry?: StepRetry;
 }
 
 /** Durable operations available while a workflow handler is running. */
-export interface WorkflowHandlerContext {
+export interface Context<RSteps> {
   readonly executionId: string;
-  readonly step: <Success extends Schema.Top, R>(
-    options: WorkflowStepOptions<Success, R>,
-  ) => Effect.Effect<Success["Type"], WorkflowRunnerError, PlatformRuntime | R>;
+  readonly step: <Success extends Schema.Top>(
+    options: StepOptions<Success, RSteps>,
+  ) => Effect.Effect<Success["Type"], WorkflowRunnerError, WorkflowRunner | PlatformRuntime>;
   readonly sleepUntil: (
     name: string,
     scheduledTime: Date,
   ) => Effect.Effect<void, WorkflowRunnerError, PlatformRuntime>;
 }
 
-/** Persisted state returned when polling a workflow execution. */
-export type WorkflowExecutionResult<A> =
-  | { readonly status: "interrupted" }
-  | { readonly status: "suspended" }
-  | { readonly status: "succeeded"; readonly value: A }
-  | { readonly status: "failed"; readonly error: WorkflowRunnerError };
-
-/** Provider-neutral durable workflow capabilities. */
-export interface WorkflowRunnerShape {
-  readonly register: <
-    Name extends string,
-    Payload extends Schema.Struct.Fields,
-    Success extends Schema.Top,
-    R,
-  >(
-    workflow: WorkflowDefinition<Name, Payload, Success>,
-    handler: (
-      payload: Schema.Struct.Type<Payload>,
-      context: WorkflowHandlerContext,
-    ) => Effect.Effect<Success["Type"], unknown, R>,
-  ) => Effect.Effect<void, WorkflowRunnerError, Scope.Scope | PlatformRuntime | R>;
-  readonly dispatch: <
-    Name extends string,
-    Payload extends Schema.Struct.Fields,
-    Success extends Schema.Top,
-  >(
-    workflow: WorkflowDefinition<Name, Payload, Success>,
-    payload: Schema.Struct.Type<Payload>,
-  ) => Effect.Effect<string, WorkflowRunnerError, PlatformRuntime>;
-  readonly execute: <
-    Name extends string,
-    Payload extends Schema.Struct.Fields,
-    Success extends Schema.Top,
-  >(
-    workflow: WorkflowDefinition<Name, Payload, Success>,
-    payload: Schema.Struct.Type<Payload>,
-  ) => Effect.Effect<Success["Type"], WorkflowRunnerError, PlatformRuntime>;
-  readonly poll: <
-    Name extends string,
-    Payload extends Schema.Struct.Fields,
-    Success extends Schema.Top,
-  >(
-    workflow: WorkflowDefinition<Name, Payload, Success>,
-    executionId: string,
-  ) => Effect.Effect<
-    Option.Option<WorkflowExecutionResult<Success["Type"]>>,
-    WorkflowRunnerError,
-    PlatformRuntime
-  >;
-  readonly resume: <
-    Name extends string,
-    Payload extends Schema.Struct.Fields,
-    Success extends Schema.Top,
-  >(
-    workflow: WorkflowDefinition<Name, Payload, Success>,
-    executionId: string,
-  ) => Effect.Effect<void, WorkflowRunnerError, PlatformRuntime>;
-  readonly interrupt: <
-    Name extends string,
-    Payload extends Schema.Struct.Fields,
-    Success extends Schema.Top,
-  >(
-    workflow: WorkflowDefinition<Name, Payload, Success>,
-    executionId: string,
-  ) => Effect.Effect<void, WorkflowRunnerError, PlatformRuntime>;
-}
-
-/** Provider-neutral durable workflow runtime used by composition roots. */
-export class WorkflowRunner extends Context.Service<WorkflowRunner, WorkflowRunnerShape>()(
-  "@voidhash/platform/WorkflowRunner",
-) {}
-
-/** Defines a provider-neutral workflow while preserving schema inference. */
-export const defineWorkflow = <
-  const Name extends string,
-  Payload extends Schema.Struct.Fields,
-  Success extends Schema.Top,
->(
-  definition: WorkflowDefinition<Name, Payload, Success>,
-): WorkflowDefinition<Name, Payload, Success> => definition;
+const MAX_DURABLE_OPERATION_NAME_BYTES = 96;
 
 /**
- * A workflow definition bundled with its handler, so a single declaration
- * carries both the client operations and the body every runtime registers.
+ * Bounds a task or clock name for durable backends while preserving short,
+ * readable names verbatim. Long names use a readable prefix plus the complete
+ * SHA-256 digest, so identifiers accepted by workflow payload schemas cannot
+ * overflow a provider's composed persistence key.
  */
-export interface WorkflowProgram<
-  Name extends string,
-  Payload extends Schema.Struct.Fields,
-  Success extends Schema.Top,
-  R,
-> extends WorkflowDefinition<Name, Payload, Success>,
-    PrimitiveDefinition<"workflow", Name> {
-  readonly run: (
-    payload: Schema.Struct.Type<Payload>,
-    context: WorkflowHandlerContext,
-  ) => Effect.Effect<Success["Type"], unknown, R>;
-  /** Registers this workflow handler in the installed runtime. */
-  readonly register: Effect.Effect<
-    void,
-    WorkflowRunnerError,
-    Scope.Scope | PlatformRuntime | WorkflowRunner | R
-  >;
-  /** Starts the workflow and returns its stable execution ID. */
-  readonly dispatch: (
-    payload: Schema.Struct.Type<Payload>,
-  ) => Effect.Effect<string, WorkflowRunnerError, PlatformRuntime | WorkflowRunner>;
-  /** Starts or joins the workflow and awaits successful completion. */
-  readonly execute: (
-    payload: Schema.Struct.Type<Payload>,
-  ) => Effect.Effect<Success["Type"], WorkflowRunnerError, PlatformRuntime | WorkflowRunner>;
-  /** Reads one persisted execution result. */
-  readonly poll: (
-    executionId: string,
-  ) => Effect.Effect<
-    Option.Option<WorkflowExecutionResult<Success["Type"]>>,
-    WorkflowRunnerError,
-    PlatformRuntime | WorkflowRunner
-  >;
-  /** Resumes a suspended workflow execution. */
-  readonly resume: (
-    executionId: string,
-  ) => Effect.Effect<void, WorkflowRunnerError, PlatformRuntime | WorkflowRunner>;
-  /** Interrupts a workflow execution. */
-  readonly interrupt: (
-    executionId: string,
-  ) => Effect.Effect<void, WorkflowRunnerError, PlatformRuntime | WorkflowRunner>;
-}
+export const durableOperationName = (name: string): Effect.Effect<string> => {
+  const encoded = new TextEncoder().encode(name);
+  if (encoded.byteLength <= MAX_DURABLE_OPERATION_NAME_BYTES) return Effect.succeed(name);
 
-/** Creates a durable workflow program without selecting a runtime backend. */
-export const defineWorkflowProgram = <
+  return Effect.promise(async () => {
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoded));
+    const hash = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const prefix = name.slice(0, 24).replaceAll(/[^a-zA-Z0-9._-]/g, "_");
+    return `${prefix}:${hash}`;
+  });
+};
+
+/** Defines a provider-neutral workflow while preserving schema inference. */
+export const define = <
   const Name extends string,
   Payload extends Schema.Struct.Fields,
   Success extends Schema.Top,
-  R,
 >(
-  definition: WorkflowDefinition<Name, Payload, Success> & {
-    readonly run: (
-      payload: Schema.Struct.Type<Payload>,
-      context: WorkflowHandlerContext,
-    ) => Effect.Effect<Success["Type"], unknown, R>;
-  },
-): WorkflowProgram<Name, Payload, Success, R> => {
-  const workflow = defineWorkflow(definition);
-  return {
-    ...definition,
-    kind: "workflow",
-    register: WorkflowRunner.pipe(
-      Effect.flatMap((runner) => runner.register(workflow, definition.run)),
+  definition: Workflow<Name, Payload, Success>,
+): Workflow<Name, Payload, Success> => definition;
+
+/** Starts a workflow and returns its stable execution ID. */
+export const dispatch = <
+  const Name extends string,
+  Payload extends Schema.Struct.Fields,
+  Success extends Schema.Top,
+>(
+  workflow: Workflow<Name, Payload, Success>,
+  payload: Schema.Struct.Type<Payload>,
+): Effect.Effect<string, WorkflowRunnerError, WorkflowRunner | PlatformRuntime> =>
+  WorkflowRunner.pipe(Effect.flatMap((runner) => runner.dispatch(workflow, payload)));
+
+/** Starts a workflow, logging and terminating the caller fiber if dispatch fails. */
+export const dispatchAndForget = <
+  const Name extends string,
+  Payload extends Schema.Struct.Fields,
+  Success extends Schema.Top,
+>(
+  workflow: Workflow<Name, Payload, Success>,
+  payload: Schema.Struct.Type<Payload>,
+): Effect.Effect<void, never, WorkflowRunner | PlatformRuntime> =>
+  dispatch(workflow, payload).pipe(
+    Effect.tapError((error) =>
+      Effect.logError("Failed to dispatch workflow", {
+        error,
+        workflowName: workflow.name,
+      }),
     ),
-    dispatch: (payload) =>
-      WorkflowRunner.pipe(Effect.flatMap((runner) => runner.dispatch(workflow, payload))),
-    execute: (payload) =>
-      WorkflowRunner.pipe(Effect.flatMap((runner) => runner.execute(workflow, payload))),
-    poll: (executionId) =>
-      WorkflowRunner.pipe(Effect.flatMap((runner) => runner.poll(workflow, executionId))),
-    resume: (executionId) =>
-      WorkflowRunner.pipe(Effect.flatMap((runner) => runner.resume(workflow, executionId))),
-    interrupt: (executionId) =>
-      WorkflowRunner.pipe(Effect.flatMap((runner) => runner.interrupt(workflow, executionId))),
-  };
-};
+    Effect.orDie,
+    Effect.asVoid,
+  );
+
+/** Starts or joins a workflow and awaits successful completion. */
+export const execute = <
+  const Name extends string,
+  Payload extends Schema.Struct.Fields,
+  Success extends Schema.Top,
+>(
+  workflow: Workflow<Name, Payload, Success>,
+  payload: Schema.Struct.Type<Payload>,
+): Effect.Effect<Success["Type"], WorkflowRunnerError, WorkflowRunner | PlatformRuntime> =>
+  WorkflowRunner.pipe(Effect.flatMap((runner) => runner.execute(workflow, payload)));
+
+/** Reads one persisted workflow execution result. */
+export const poll = <
+  const Name extends string,
+  Payload extends Schema.Struct.Fields,
+  Success extends Schema.Top,
+>(
+  workflow: Workflow<Name, Payload, Success>,
+  executionId: string,
+): Effect.Effect<
+  Option.Option<WorkflowExecutionResult<Success["Type"]>>,
+  WorkflowRunnerError,
+  WorkflowRunner | PlatformRuntime
+> => WorkflowRunner.pipe(Effect.flatMap((runner) => runner.poll(workflow, executionId)));
+
+/** Resumes a suspended workflow execution. */
+export const resume = <
+  const Name extends string,
+  Payload extends Schema.Struct.Fields,
+  Success extends Schema.Top,
+>(
+  workflow: Workflow<Name, Payload, Success>,
+  executionId: string,
+): Effect.Effect<void, WorkflowRunnerError, WorkflowRunner | PlatformRuntime> =>
+  WorkflowRunner.pipe(Effect.flatMap((runner) => runner.resume(workflow, executionId)));
+
+/** Interrupts a workflow execution. */
+export const interrupt = <
+  const Name extends string,
+  Payload extends Schema.Struct.Fields,
+  Success extends Schema.Top,
+>(
+  workflow: Workflow<Name, Payload, Success>,
+  executionId: string,
+): Effect.Effect<void, WorkflowRunnerError, WorkflowRunner | PlatformRuntime> =>
+  WorkflowRunner.pipe(Effect.flatMap((runner) => runner.interrupt(workflow, executionId)));

@@ -1,9 +1,7 @@
-import {
-  DurableEntityHost,
-  makeDurableEntityAddress,
-} from "@voidhash/platform/DurableEntity";
+import { DurableEntityHost, makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
 import { QueueDriver } from "@voidhash/platform/Queue";
-import { defineWorkflow, WorkflowRunner } from "@voidhash/platform/Workflow";
+import * as Workflow from "@voidhash/platform/Workflow";
+import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import { Effect, Layer, Schema } from "effect";
 import { KeyValueStore, PersistedQueue } from "effect/unstable/persistence";
 import { describe, expect, it } from "vitest";
@@ -13,7 +11,7 @@ import { MemoryEntityAlarmStoreLive } from "../src/EntityAlarmStore.ts";
 import { SelfhostPlatformRuntimeLive } from "../src/PlatformRuntime.ts";
 import { ClusterQueueLive } from "../src/Queue.ts";
 import { TestClusterLive } from "../src/Topology.ts";
-import { ClusterWorkflowRunnerLive } from "../src/Workflow.ts";
+import * as ClusterWorkflowRunner from "../src/Workflow.ts";
 
 const Message = Schema.Struct({ id: Schema.String });
 
@@ -23,7 +21,7 @@ const queueLayer = ClusterQueueLive.pipe(
   Layer.merge(SelfhostPlatformRuntimeLive),
 );
 
-const workflowLayer = ClusterWorkflowRunnerLive.pipe(
+const workflowLayer = ClusterWorkflowRunner.layer.pipe(
   Layer.provide(TestClusterLive),
   Layer.merge(SelfhostPlatformRuntimeLive),
 );
@@ -90,7 +88,7 @@ describe("cluster queue driver", () => {
 });
 
 describe("cluster workflow runner", () => {
-  const Sleeper = defineWorkflow({
+  const Sleeper = Workflow.define({
     name: "cluster-sleeper",
     payload: { subject: Schema.String },
     success: Schema.String,
@@ -102,13 +100,16 @@ describe("cluster workflow runner", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
-          yield* runner.register(Sleeper, (payload, context) =>
-            Effect.gen(function* () {
-              // Already in the past, so the durable clock resolves immediately
-              // instead of parking the execution.
-              yield* context.sleepUntil("wait", new Date(Date.now() - 1_000));
-              return `woke ${payload.subject}`;
-            }),
+          yield* runner.register(
+            Sleeper,
+            (payload, context) =>
+              Effect.gen(function* () {
+                // Already in the past, so the durable clock resolves immediately
+                // instead of parking the execution.
+                yield* context.sleepUntil("wait", new Date(Date.now() - 1_000));
+                return `woke ${payload.subject}`;
+              }),
+            Layer.empty,
           );
           return yield* runner.execute(Sleeper, { subject: "up" });
         }).pipe(Effect.provide(workflowLayer)),
@@ -121,7 +122,7 @@ describe("cluster workflow runner", () => {
   it("memoizes a durable step so a retried body does not repeat it", async () => {
     let sideEffects = 0;
 
-    const Flaky = defineWorkflow({
+    const Flaky = Workflow.define({
       name: "cluster-flaky",
       payload: { subject: Schema.String },
       success: Schema.String,
@@ -132,15 +133,18 @@ describe("cluster workflow runner", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
-          yield* runner.register(Flaky, (payload, context) =>
-            Effect.gen(function* () {
-              const value = yield* context.step({
-                name: "count",
-                success: Schema.Number,
-                execute: Effect.sync(() => ++sideEffects),
-              });
-              return `${payload.subject}:${value}`;
-            }),
+          yield* runner.register(
+            Flaky,
+            (payload, context) =>
+              Effect.gen(function* () {
+                const value = yield* context.step({
+                  name: "count",
+                  success: Schema.Number,
+                  execute: Effect.sync(() => ++sideEffects),
+                });
+                return `${payload.subject}:${value}`;
+              }),
+            Layer.empty,
           );
           // Executing the same idempotency key twice joins one execution.
           yield* runner.execute(Flaky, { subject: "once" });

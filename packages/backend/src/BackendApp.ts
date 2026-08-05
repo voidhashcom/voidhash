@@ -968,9 +968,7 @@ export const NoBackendRpcExtension: BackendRpcExtension<never> = {
  * in-process integration smoke to dispatch RPCs against the real handler graph
  * without an HTTP transport. The only requirements that remain are the
  * {@link InfraServices} (provided by the caller's `infrastructure` layer) and
- * the asynchronous workflow ports the handlers resolve lazily at request time
- * (`WebhookDeliveryWorkflow`, `IdentifyDistinctIdCompletionWorkflow`,
- * `AppStoreReplayParkedNotificationsWorkflow`).
+ * the shared workflow runtime resolved lazily at request time.
  */
 export const buildBackendRpcServices = <
   RInfrastructure = never,

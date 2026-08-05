@@ -13,6 +13,8 @@
     ".": "./src/index.ts",
     "./CronScheduler": "./src/CronScheduler.ts",
     "./EffectWorkflowRunner": "./src/EffectWorkflowRunner.ts",
+    "./MemoryWorkflowRunner": "./src/MemoryWorkflowRunner.ts",
+    "./TestWorkflowRunner": "./src/TestWorkflowRunner.ts",
     "./DurableEntity": "./src/DurableEntity.ts",
     "./KeyValueStore": "./src/KeyValueStore.ts",
     "./Mailer": "./src/Mailer.ts",
@@ -22,6 +24,8 @@
     "./Queue": "./src/Queue.ts",
     "./Screenshot": "./src/Screenshot.ts",
     "./Workflow": "./src/Workflow.ts",
+    "./WorkflowRegistration": "./src/WorkflowRegistration.ts",
+    "./WorkflowRunner": "./src/WorkflowRunner.ts",
     "./conformance": "./src/conformance/index.ts"
   },
   "scripts": {

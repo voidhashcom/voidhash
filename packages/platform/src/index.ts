@@ -1,13 +1,12 @@
 export {
   type CronDefinition,
-  defineCron,
-  defineScheduledJob,
-  type CronJob,
+  CronJob,
   type CronJobContext,
   type CronRunOptions,
   CronScheduler,
   CronSchedulerError,
   type CronSchedulerShape,
+  ScheduledJob,
 } from "./CronScheduler.ts";
 export { type PrimitiveDefinition, type PrimitiveKind } from "./Primitive.ts";
 export {
@@ -68,14 +67,8 @@ export {
   type ScreenshotShape,
 } from "./Screenshot.ts";
 export {
-  defineWorkflow,
-  defineWorkflowProgram,
-  type WorkflowProgram,
-  type WorkflowDefinition,
   type WorkflowExecutionResult,
-  type WorkflowHandlerContext,
   WorkflowRunner,
   WorkflowRunnerError,
   type WorkflowRunnerShape,
-  type WorkflowStepOptions,
-} from "./Workflow.ts";
+} from "./WorkflowRunner.ts";

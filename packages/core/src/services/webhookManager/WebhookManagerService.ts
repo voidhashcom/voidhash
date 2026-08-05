@@ -15,10 +15,10 @@ import {
   type WebhookEndpointStatusValue,
   eq,
   webhookDeliveries,
-  webhookDeliveryAttempts,
   webhookEndpoints,
 } from "@voidhash/db";
-import { WebhookDeliveryWorkflow } from "../webhookDispatch/WebhookDeliveryWorkflow.ts";
+import * as Workflow from "@voidhash/platform/Workflow";
+import { DeliverWebhook } from "../../workflows/definitions.ts";
 import { generateId } from "../../utils/generate-id.ts";
 import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
 import { type WebhookEventType, isValidWebhookEvent } from "./event-types.ts";
@@ -629,18 +629,15 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             })
             .where(eq(webhookDeliveries.id, input.deliveryId));
 
-          const webhookDelivery = yield* WebhookDeliveryWorkflow;
-          yield* webhookDelivery
-            .dispatch({
-              attemptNumber: nextAttemptNumber,
-              deliveryId: delivery.id,
-              endpointId: endpoint.id,
-              eventType: delivery.eventType,
-              payload: delivery.payload,
-              secret: endpoint.secret,
-              url: endpoint.url,
-            })
-            .pipe(Effect.forkDetach);
+          yield* Workflow.dispatchAndForget(DeliverWebhook, {
+            attemptNumber: nextAttemptNumber,
+            deliveryId: delivery.id,
+            endpointId: endpoint.id,
+            eventType: delivery.eventType,
+            payload: delivery.payload,
+            secret: endpoint.secret,
+            url: endpoint.url,
+          }).pipe(Effect.forkDetach);
 
           return mapDeliveryToResponse({
             ...delivery,
@@ -703,18 +700,15 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             webhookEndpointId: endpoint.id,
           });
 
-          const webhookDelivery = yield* WebhookDeliveryWorkflow;
-          yield* webhookDelivery
-            .dispatch({
-              attemptNumber: 1,
-              deliveryId,
-              endpointId: endpoint.id,
-              eventType,
-              payload,
-              secret: endpoint.secret,
-              url: endpoint.url,
-            })
-            .pipe(Effect.forkDetach);
+          yield* Workflow.dispatchAndForget(DeliverWebhook, {
+            attemptNumber: 1,
+            deliveryId,
+            endpointId: endpoint.id,
+            eventType,
+            payload,
+            secret: endpoint.secret,
+            url: endpoint.url,
+          }).pipe(Effect.forkDetach);
 
           return mapDeliveryToResponse({
             attemptCount: 0,
