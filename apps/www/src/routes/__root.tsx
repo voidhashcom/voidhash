@@ -1,13 +1,14 @@
-/** biome-ignore-all lint/style/noHeadElement: Head element is required for TanStack Router */
+/** Head element is required for TanStack Router */
 import type { QueryClient } from "@tanstack/react-query";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import {
-  AuthKitProvider,
-  useAccessToken,
-} from "@workos/authkit-tanstack-react-start/client";
 import { ThemeProviderTanstack, Toaster } from "@voidhash/ui";
 import { useEffect } from "react";
 
+import {
+  AuthProvider,
+  resetBrowserAccessToken,
+  useBrowserAccessTokenProvider,
+} from "@/features/auth/adapter/ui-adapter";
 import { setBrowserAccessTokenProvider } from "@/lib/effect-query";
 import appCss from "@/styles/globals.css?url";
 
@@ -54,7 +55,7 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className="text-pretty antialiased bg-sidebar">
-        <AuthKitProvider>
+        <AuthProvider>
           <ThemeProviderTanstack
             attribute="class"
             defaultTheme="dark"
@@ -62,28 +63,35 @@ function RootComponent() {
             // enableSystem
             suppressHydrationWarning
           >
-            <WorkOsAccessTokenBridge />
+            <AccessTokenBridge />
             <Outlet />
             <Toaster />
           </ThemeProviderTanstack>
-        </AuthKitProvider>
+        </AuthProvider>
         <Scripts />
       </body>
     </html>
   );
 }
 
-function WorkOsAccessTokenBridge() {
-  const { getAccessToken } = useAccessToken();
+/**
+ * Supplies the browser RPC client's bearer credential from whichever identity
+ * provider the deployment runs, without the root route needing to know which
+ * one that is (a root loader would make every navigation depend on it, and the
+ * answer is a deployment constant).
+ */
+function AccessTokenBridge() {
+  const getAccessToken = useBrowserAccessTokenProvider();
 
   if (!import.meta.env.SSR) {
-    setBrowserAccessTokenProvider(async () => (await getAccessToken()) ?? undefined);
+    setBrowserAccessTokenProvider(getAccessToken);
   }
 
   useEffect(
     () => () => {
       if (!import.meta.env.SSR) {
         setBrowserAccessTokenProvider(undefined);
+        resetBrowserAccessToken();
       }
     },
     [],

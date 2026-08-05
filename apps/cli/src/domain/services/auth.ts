@@ -183,7 +183,6 @@ const make = Effect.gen(function* effect() {
       yield* Effect.logDebug(`Starting callback server on ${host}:${port}`);
       yield* Effect.forkChild(
         Effect.catch(runCallbackServer(callbackEventsPubSub), (error) => {
-          // biome-ignore lint/suspicious/noConsole: Error logging
           console.log(error);
           return Effect.die(error);
         }),

@@ -1,4 +1,4 @@
-import { makeDurableEntityAddress, type DurableEntitySession } from "@orbian/sdk/DurableEntity";
+import { makeDurableEntityAddress, type DurableEntitySession } from "@voidhash/platform/DurableEntity";
 import { Effect } from "effect";
 import { describe, expect, test } from "vitest";
 

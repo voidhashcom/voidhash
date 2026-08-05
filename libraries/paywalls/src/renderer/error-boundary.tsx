@@ -30,7 +30,7 @@ export class PaywallErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error): void {
-    // biome-ignore lint/suspicious/noConsole: deliberate crash signal — the WebView has no other visible failure channel.
+    // deliberate crash signal — the WebView has no other visible failure channel.
     console.error("[voidhash-paywall] paywall render crashed", error);
     const post = this.props.post ?? postOutboundEnvelope;
     post(

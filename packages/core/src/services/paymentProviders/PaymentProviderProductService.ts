@@ -5,9 +5,12 @@ import {
   PaymentProviderProductNotFoundError,
   PaymentProviderProductValidationError,
 } from "../../domain/paymentProvider/PaymentProviderProduct.ts";
-import { AppStoreReplayParkedNotificationsWorkflow } from "./AppStoreReplayParkedNotificationsWorkflow.ts";
-import { GooglePlayReplayParkedNotificationsWorkflow } from "./GooglePlayReplayParkedNotificationsWorkflow.ts";
-import { StripeReplayParkedNotificationsWorkflow } from "./StripeReplayParkedNotificationsWorkflow.ts";
+import * as Workflow from "@voidhash/platform/Workflow";
+import {
+  AppStoreReplayParkedNotifications,
+  GooglePlayReplayParkedNotifications,
+  StripeReplayParkedNotifications,
+} from "../../workflows/definitions.ts";
 import {
   AuditLogAction,
   AuditLogEntityType,
@@ -89,8 +92,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
       /**
        * Background-schedules the App Store parked-notification replay
        * workflow when a new `(configurationId, providerProductKey)` mapping
-       * exists. Fire-and-forget — the workflow body itself is a stub until
-       * the App Store payment-provider migration lands.
+       * exists.
        */
       const scheduleAppStoreParkedReplayIfApplicable = (input: {
         readonly providerId: string;
@@ -101,24 +103,12 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         if (input.providerId !== "apple-app-store") {
           return Effect.void;
         }
-        return AppStoreReplayParkedNotificationsWorkflow.pipe(
-          Effect.flatMap((appStoreReplayParkedNotifications) =>
-            appStoreReplayParkedNotifications.dispatch({
-              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-              paymentProviderProductId: input.paymentProviderProductId,
-              providerProductKey: input.providerProductKey,
-            }),
-          ),
-          Effect.catchCause((cause) =>
-            Effect.logWarning("Failed to schedule App Store parked notification replay", {
-              cause,
-              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-              paymentProviderProductId: input.paymentProviderProductId,
-              providerProductKey: input.providerProductKey,
-            }),
-          ),
-          Effect.asVoid,
-        );
+        return Workflow.dispatchAndForget(AppStoreReplayParkedNotifications, {
+          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+          paymentProviderProductId: input.paymentProviderProductId,
+          providerProductKey: input.providerProductKey,
+          requestedAt: new Date().toISOString(),
+        });
       };
 
       /**
@@ -137,24 +127,12 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         if (input.providerId !== "google-play") {
           return Effect.void;
         }
-        return GooglePlayReplayParkedNotificationsWorkflow.pipe(
-          Effect.flatMap((googlePlayReplayParkedNotifications) =>
-            googlePlayReplayParkedNotifications.dispatch({
-              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-              paymentProviderProductId: input.paymentProviderProductId,
-              providerProductKey: input.providerProductKey,
-            }),
-          ),
-          Effect.catchCause((cause) =>
-            Effect.logWarning("Failed to schedule Google Play parked notification replay", {
-              cause,
-              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-              paymentProviderProductId: input.paymentProviderProductId,
-              providerProductKey: input.providerProductKey,
-            }),
-          ),
-          Effect.asVoid,
-        );
+        return Workflow.dispatchAndForget(GooglePlayReplayParkedNotifications, {
+          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+          paymentProviderProductId: input.paymentProviderProductId,
+          providerProductKey: input.providerProductKey,
+          requestedAt: new Date().toISOString(),
+        });
       };
 
       /**
@@ -171,24 +149,12 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         if (input.providerId !== "stripe") {
           return Effect.void;
         }
-        return StripeReplayParkedNotificationsWorkflow.pipe(
-          Effect.flatMap((stripeReplayParkedNotifications) =>
-            stripeReplayParkedNotifications.dispatch({
-              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-              paymentProviderProductId: input.paymentProviderProductId,
-              providerProductKey: input.providerProductKey,
-            }),
-          ),
-          Effect.catchCause((cause) =>
-            Effect.logWarning("Failed to schedule Stripe parked notification replay", {
-              cause,
-              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-              paymentProviderProductId: input.paymentProviderProductId,
-              providerProductKey: input.providerProductKey,
-            }),
-          ),
-          Effect.asVoid,
-        );
+        return Workflow.dispatchAndForget(StripeReplayParkedNotifications, {
+          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+          paymentProviderProductId: input.paymentProviderProductId,
+          providerProductKey: input.providerProductKey,
+          requestedAt: new Date().toISOString(),
+        });
       };
 
       const getProviderProductsByProjectId = Effect.fn("getProviderProductsByProjectId")(

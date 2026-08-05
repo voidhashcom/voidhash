@@ -73,7 +73,7 @@ for (const path of tracked.filter(
 const forbiddenAdminPaths = [
   "packages/core/src/services/admin/",
   "packages/rpc/src/groups/admin/",
-  "apps/backend/src/rpc/groups/admin/",
+  "packages/backend/src/rpc/groups/admin/",
 ];
 for (const path of tracked) {
   if (forbiddenAdminPaths.some((prefix) => path.startsWith(prefix))) {

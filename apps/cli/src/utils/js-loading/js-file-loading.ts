@@ -10,11 +10,9 @@ export class FailedToLoadJsFileError extends Data.TaggedError("FailedToLoadJsFil
 const assertES5 = ({ unregister }: { unregister: () => void }) =>
   Effect.try({
     try: () => require("./_es5.ts"),
-    // biome-ignore lint/suspicious/noExplicitAny: yolo
     catch: (e: any) => {
       unregister();
       if ("errors" in e && Array.isArray(e.errors) && e.errors.length > 0) {
-        // biome-ignore lint/suspicious/noExplicitAny: yolo
         const es5Error = (e.errors as any[]).some((it) =>
           it.text?.includes(`("es5") is not supported yet`),
         );
@@ -57,7 +55,7 @@ export const safeRegister = () =>
     }).pipe(
       Effect.catch(() =>
         Effect.succeed({
-          // biome-ignore lint/suspicious/noEmptyBlockStatements: it is on purpose an empty function. It is here instead of try-catch due to tsx.
+          // it is on purpose an empty function. It is here instead of try-catch due to tsx.
           unregister(): void {},
         }),
       ),

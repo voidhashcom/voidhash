@@ -1,5 +1,3 @@
-/** biome-ignore-all lint/a11y/noStaticElementInteractions: shadcn */
-/** biome-ignore-all lint/nursery/noNoninteractiveElementInteractions: shadcn */
 import { UploadIcon } from "lucide-react";
 import * as React from "react";
 

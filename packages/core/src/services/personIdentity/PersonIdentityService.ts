@@ -81,9 +81,8 @@ export interface PersonIdentityResult {
  *   given distinct id; the result drives every SDK call that needs to attach a
  *   person to an analytics event.
  * - `identifyDistinctId` — promote an anonymous identity to an identified one.
- *   The synchronous transaction reconciles only the target person so the
- *   caller sees a consistent view; the source-side merge work is durable and
- *   handed off to {@link IdentifyDistinctIdCompletionWorkflow}.
+ *   The transaction synchronously reconciles the full source and target state,
+ *   then publishes the resulting projection events.
  */
 export class PersonIdentityService extends Context.Service<PersonIdentityService>()(
   "PersonIdentityService",

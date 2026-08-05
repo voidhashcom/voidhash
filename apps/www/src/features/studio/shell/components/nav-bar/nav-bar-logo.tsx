@@ -25,7 +25,6 @@ export function NavBarLogo({
   })();
 
   return (
-    // biome-ignore lint/suspicious/noExplicitAny: Any link
     <Link to={homeLink?.href as any}>
       <Logo className="ml-2 h-4" color="mono" variant="symbol" />
     </Link>

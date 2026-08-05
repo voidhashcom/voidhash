@@ -23,7 +23,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod/v3";
 
-import { redirectToSignOut } from "@/features/auth/lib/workos";
+import { redirectToSignOut } from "@/features/auth/lib/sign-out";
 import {
   addCreatedOrganizationToCurrentUserCache,
   createOrganizationOptions,

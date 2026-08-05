@@ -7,12 +7,8 @@
  * `SdkService` owns no domain logic — it composes `PersonIdentityService`,
  * `PerkGrantService`, `PurchaseService`, `AppStorePaymentProviderService` and
  * the pure snapshot-builder. So these tests provide each collaborator's *real*
- * layer (all of which bottom out at harness services) plus two stubs for the
- * abstract ports core never implements:
- *  - `IdentityProjectionPublisher.noop` (analytics fan-out is a no-op here), and
- *  - an inert {@link IdentifyDistinctIdCompletionWorkflow} (the durable
- *    source-merge job is a Cloudflare Workflow with no in-process seam — we
- *    only assert the *synchronous* identify transaction commits).
+ * layer (all of which bottom out at harness services) plus
+ * `IdentityProjectionPublisher.noop` (analytics fan-out is a no-op here).
  *  - `AppStorePaymentProviderService` is itself a stub tag in core (the Apple
  *    REST client / reconcile workflows live in `internal/`), so its layer is
  *    provided per-test to exercise both the success and failure branches of
@@ -48,7 +44,6 @@ import {
   AppStorePaymentProviderServiceError,
 } from "@voidhash/core/services/paymentProviders/AppStorePaymentProviderService";
 import { GooglePlayPaymentProviderService } from "@voidhash/core/services/paymentProviders/GooglePlayPaymentProviderService";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { AuthenticationError, type PublishableKeySession } from "@voidhash/core/domain/auth/Auth";
 import {
   SdkPersonNotFoundError,
@@ -85,15 +80,6 @@ const uniqueAnonId = (label: string) => `vh:anon:${uniqueDistinctId(label)}`;
 // =============================================================================
 
 /**
- * Inert {@link IdentifyDistinctIdCompletionWorkflow}: the real adapter is a
- * Cloudflare Workflow with no in-process runtime, so dispatch is a no-op. The
- * synchronous identify transaction (the part under test) commits regardless.
- */
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
-/**
  * `AppStorePaymentProviderService` stub. The real Apple-backed implementation
  * lives in `internal/` and needs a signed JWS payload + REST client we don't
  * have in-process, so the boundary is faked at the tag level (core ships only
@@ -111,11 +97,7 @@ const appStoreStub = (
 
 /**
  * Full layer the SdkService-under-test needs: the service itself plus every
- * real collaborator (each bottoms out at harness `Db`/`AuthSession`) and the
- * two stubs. `IdentifyDistinctIdCompletionWorkflow` is resolved *inside*
- * `PersonIdentityService.identifyDistinctId` at call time, so it surfaces as a
- * method-level requirement of `SdkService` — it must be in the output layer
- * (via `provideMerge`), not merely fed into `PersonIdentityService.layer`.
+ * real collaborator (each bottoms out at harness `Db`/`AuthSession`).
  * `AppStorePaymentProviderService` is layered in per-test.
  */
 /**
@@ -142,7 +124,6 @@ const sdkLayer = (appStore: Layer.Layer<AppStorePaymentProviderService>) =>
         IdentityProjectionPublisher.noop,
         appStore,
         googlePlayStub,
-        CompletionWorkflowStub,
       ),
     ),
   );
@@ -901,7 +882,6 @@ describe("SdkService.submitPurchaseTransaction", () => {
                     return Effect.succeed({ personId: submitGooglePersonId });
                   },
                 }),
-                CompletionWorkflowStub,
               ),
             ),
           ),

@@ -29,7 +29,7 @@ import { Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { WebhookDeliveryService } from "@voidhash/core/services/webhookDispatch/WebhookDeliveryService";
-import type { DeliverWebhookInput } from "@voidhash/core/services/webhookDispatch/WebhookDeliveryWorkflow";
+import type { DeliverWebhookInput } from "@voidhash/core/workflows/definitions";
 import {
   Db,
   WebhookDeliveryStatus,

@@ -67,7 +67,7 @@ function InlineTextarea({
   }
   return (
     <Textarea
-      // biome-ignore lint/a11y/noAutofocus: the field only exists once the user opts into editing
+      // the field only exists once the user opts into editing
       autoFocus
       aria-label={ariaLabel}
       className="-mx-2 min-h-0 w-[calc(100%+1rem)] resize-none border-transparent bg-muted/60 px-2 py-0.5 text-sm shadow-none"
@@ -123,7 +123,7 @@ export function ExperimentDetailHeader() {
           </button>
         ) : (
           <Input
-            // biome-ignore lint/a11y/noAutofocus: the field only exists once the user opts into editing
+            // the field only exists once the user opts into editing
             autoFocus
             aria-label="A/B test name"
             className="-mx-2 h-auto w-[calc(100%+1rem)] border-transparent bg-muted/60 px-2 py-0.5 font-semibold text-3xl tracking-tight shadow-none md:text-3xl"

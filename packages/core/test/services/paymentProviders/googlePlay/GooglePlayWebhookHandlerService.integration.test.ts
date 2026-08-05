@@ -21,7 +21,6 @@ import {
   PersonIdentityService,
   PurchaseProcessingService,
 } from "@voidhash/core/services";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { generateId } from "@voidhash/core/utils";
 import { GooglePlayPaymentProviderConfigurationNotFoundError } from "../../../../src/services/paymentProviders/googlePlay/errors.ts";
@@ -46,10 +45,6 @@ const projectId = CoreTestFixture.projectId;
 let seq = 0;
 const uniq = (label: string) => `it-gpwh-${label}-${Date.now()}-${seq++}`;
 
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
 const HandlerLive = GooglePlayWebhookHandlerService.layer.pipe(
   Layer.provideMerge(
     Layer.mergeAll(
@@ -60,13 +55,7 @@ const HandlerLive = GooglePlayWebhookHandlerService.layer.pipe(
       GooglePlayServerApi.layer,
     ),
   ),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      PerkGrantService.layer,
-      IdentityProjectionPublisher.noop,
-      CompletionWorkflowStub,
-    ),
-  ),
+  Layer.provideMerge(Layer.mergeAll(PerkGrantService.layer, IdentityProjectionPublisher.noop)),
 );
 
 /** Base64-encoded Pub/Sub push envelope around a DeveloperNotification. */

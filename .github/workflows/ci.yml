@@ -14,6 +14,11 @@ concurrency:
   group: repository-ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+env:
+  # Keeps turbo within the runner's 4 vCPUs; the scripts stay flag-free so the
+  # local and CI invocations are the same command.
+  TURBO_CONCURRENCY: 2
+
 jobs:
   validate:
     name: Validate
@@ -32,6 +37,9 @@ jobs:
 
       - name: Check publication boundary
         run: node scripts/check-publication-boundary.mjs
+
+      - name: Check platform seam
+        run: node scripts/check-platform-seam.mjs
 
       - name: Setup Node.js
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -62,10 +70,9 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: pnpm build --concurrency=2
 
-      - name: Typecheck
+      # The same command developers run locally. The stack-backed tiers
+      # (`test:integration`, `test:e2e`) run in the Self-host Compose workflow,
+      # which owns the Compose lifecycle; together they cover `pnpm verify`.
+      - name: Verify (typecheck + unit tier)
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-        run: pnpm typecheck --concurrency=2
-
-      - name: Test
-        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-        run: pnpm test --concurrency=2
+        run: pnpm verify:quick

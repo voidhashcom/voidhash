@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { Logo, SidebarProvider, useIsMobile } from "@voidhash/ui";
 
-import { redirectToSignOut } from "@/features/auth/lib/workos";
+import { redirectToSignOut } from "@/features/auth/lib/sign-out";
 
 export const Route = createFileRoute("/studio/_authenticated/_dashboard")({
   component: RouteComponent,

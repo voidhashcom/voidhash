@@ -210,8 +210,7 @@ export function TextNodeRenderer({
         const { role, onMouseDown, onDoubleClick: _, ...otherSelectableProps } = selectableProps;
         const elementRole = isFocused ? "textbox" : role;
         return (
-          // biome-ignore lint/a11y/noStaticElementInteractions: We need a div to support both selectable (button role) and editable (textbox role) modes
-          // biome-ignore lint/nursery/noNoninteractiveElementInteractions: We need a div to support both selectable (button role) and editable (textbox role) modes
+          // We need a div to support both selectable (button role) and editable (textbox role) modes
           <div
             contentEditable={isTextEditingMode}
             data-text-node="true"

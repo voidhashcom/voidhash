@@ -1,0 +1,44 @@
+{
+  "name": "@voidhash/platform",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/platform"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./CronScheduler": "./src/CronScheduler.ts",
+    "./EffectWorkflowRunner": "./src/EffectWorkflowRunner.ts",
+    "./MemoryWorkflowRunner": "./src/MemoryWorkflowRunner.ts",
+    "./TestWorkflowRunner": "./src/TestWorkflowRunner.ts",
+    "./DurableEntity": "./src/DurableEntity.ts",
+    "./KeyValueStore": "./src/KeyValueStore.ts",
+    "./Mailer": "./src/Mailer.ts",
+    "./ObjectStore": "./src/ObjectStore.ts",
+    "./PlatformRuntime": "./src/PlatformRuntime.ts",
+    "./Primitive": "./src/Primitive.ts",
+    "./Queue": "./src/Queue.ts",
+    "./Screenshot": "./src/Screenshot.ts",
+    "./Workflow": "./src/Workflow.ts",
+    "./WorkflowRegistration": "./src/WorkflowRegistration.ts",
+    "./WorkflowRunner": "./src/WorkflowRunner.ts",
+    "./conformance": "./src/conformance/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "effect": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

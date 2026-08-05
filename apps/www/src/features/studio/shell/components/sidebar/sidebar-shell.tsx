@@ -92,9 +92,7 @@ export function SidebarShell({
                               setSubmenuOpen(true);
                             }
                           }}
-                          // biome-ignore lint/suspicious/noExplicitAny: <explanation>
                           params={{ ...(item as any).params } as any}
-                          // biome-ignore lint/suspicious/noExplicitAny: <explanation>
                           to={item.url as any}
                         >
                           {item.icon && <item.icon />}
@@ -134,7 +132,6 @@ export function SidebarShell({
                         <SidebarMenuItem key={subItem.title}>
                           <SidebarMenuButton asChild isActive={subItem.isActive?.()}>
                             <TanstackLink
-                              // biome-ignore lint/suspicious/noExplicitAny: <explanation>
                               to={subItem.url as any}
                             >
                               {subItem.icon && <subItem.icon />}

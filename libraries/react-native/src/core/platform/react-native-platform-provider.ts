@@ -58,7 +58,7 @@ function getAppName(): string | undefined {
 
 function isDebugBuild(): boolean {
   try {
-    // biome-ignore lint/correctness/noUndeclaredVariables: __DEV__ is defined by Expo
+    // __DEV__ is defined by Expo
     return typeof __DEV__ !== "undefined" && __DEV__;
   } catch {
     return false;

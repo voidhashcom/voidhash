@@ -1,5 +1,6 @@
 import { createCsrfMiddleware, createStart } from "@tanstack/react-start";
-import { authkitMiddleware } from "@workos/authkit-tanstack-react-start";
+
+import { authRequestMiddleware } from "@/features/auth/adapter/session-adapter";
 
 const localHostnames = new Set(["0.0.0.0", "127.0.0.1", "[::1]", "localhost"]);
 
@@ -38,5 +39,7 @@ const csrfMiddleware = createCsrfMiddleware({
 });
 
 export const startInstance = createStart(() => ({
-  requestMiddleware: [csrfMiddleware, authkitMiddleware()],
+  // Providers that maintain a server-side session (refreshing a sealed cookie,
+  // for example) contribute their middleware through the adapter slot.
+  requestMiddleware: [csrfMiddleware, ...authRequestMiddleware],
 }));

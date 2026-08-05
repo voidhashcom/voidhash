@@ -20,7 +20,6 @@ const config: DbConfig = {
   port: adminConfig.port,
   username: adminConfig.user,
 };
-const describeMigrations = process.env.DB_MIGRATIONS_TEST === "1" ? describe : describe.skip;
 
 const withAdminClient = async (run: (client: Client) => Promise<void>) => {
   const client = new Client(adminConfig);
@@ -32,7 +31,7 @@ const withAdminClient = async (run: (client: Client) => Promise<void>) => {
   }
 };
 
-describeMigrations("application database migrations", () => {
+describe("application database migrations", () => {
   beforeAll(() =>
     withAdminClient(async (client) => {
       await client.query(`CREATE DATABASE "${databaseName}"`);

@@ -1,11 +1,11 @@
 import { redirect } from "@tanstack/react-router";
 import { createMiddleware } from "@tanstack/react-start";
-import { getAuth } from "@workos/authkit-tanstack-react-start";
+import { getSessionUser } from "../lib/session";
 
 export const authMiddleware = createMiddleware().server(async ({ next }) => {
-  const auth = await getAuth();
+  const user = await getSessionUser();
 
-  if (!auth.user) {
+  if (!user) {
     throw redirect({ to: "/auth/login" });
   }
 

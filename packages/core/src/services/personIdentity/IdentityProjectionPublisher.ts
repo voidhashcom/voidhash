@@ -84,9 +84,8 @@ const toProcessorPersonIdentityEvent = ({
 /**
  * Publishes identity projection events produced outside the capture flush
  * batch. The analytics ingest path uses {@link noop} because its processor
- * returns these events to `AnalyticsIngestFlushWorkflow`; the identify
- * completion workflow uses {@link analyticsWriterLayer} for direct ClickHouse
- * writes.
+ * returns these events to its batch writer; the SDK composition uses
+ * {@link analyticsWriterLayer} for direct ClickHouse writes.
  */
 export class IdentityProjectionPublisher extends Context.Service<
   IdentityProjectionPublisher,
@@ -96,7 +95,7 @@ export class IdentityProjectionPublisher extends Context.Service<
     ) => Effect.Effect<void, QueueProducerError, Db>;
   }
 >()("IdentityProjectionPublisher", {
-  make: Effect.gen(function* () {
+  make: Effect.sync(() => {
     return { publishIdentityResult: () => Effect.void };
   }),
 }) {

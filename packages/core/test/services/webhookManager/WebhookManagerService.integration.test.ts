@@ -14,9 +14,7 @@
  *  - the matching `audit_log` row (entity, action, actor, change snapshot),
  *  - the generated `whsec_<64 hex>` secret on create / rotate.
  *
- * The concrete {@link WebhookDeliveryWorkflow} is a Cloudflare Workflow adapter
- * wired at the application root and absent in-process, so we substitute a
- * recording stub (mirroring `apps/backend` `TestLayers`). `updateEndpoint`
+ * The test substitutes a recording workflow runner. `updateEndpoint`
  * intentionally does *not* dispatch; only `retryDelivery` and `testEndpoint`
  * hand a delivery off, and they do so via `Effect.forkDetach` (fire-and-forget).
  * Those tests assert the synchronous, deterministic persisted state and use
@@ -40,10 +38,10 @@ import {
   WebhookEndpointNotFoundError,
   WebhookValidationError,
 } from "@voidhash/core/domain/webhook/Webhook";
-import {
-  type DeliverWebhookInput,
-  WebhookDeliveryWorkflow,
-} from "@voidhash/core/services/webhookDispatch/WebhookDeliveryWorkflow";
+import type { DeliverWebhookInput } from "@voidhash/core/workflows/definitions";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
+import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import {
   AuditLogAction,
   AuditLogActorType,
@@ -73,28 +71,34 @@ let seq = 0;
 const uniqueSlug = (label: string) => `it-wh-${label}-${Date.now()}-${seq++}`;
 
 // ---------------------------------------------------------------------------
-// Recording WebhookDeliveryWorkflow stub. The concrete adapter is a Cloudflare
-// Workflow wired at the app root; here we substitute a layer whose `dispatch`
-// records its input (and completes a Deferred so a test can await the detached
-// fork). One fresh recorder per test so calls never leak between tests.
+// Recording workflow runner. The layer records each dispatch and completes a
+// Deferred so a test can await the detached fork. One fresh recorder per test
+// keeps calls isolated.
 // ---------------------------------------------------------------------------
 
 interface Recorder {
   readonly calls: DeliverWebhookInput[];
   readonly firstDispatch: Deferred.Deferred<DeliverWebhookInput>;
-  readonly layer: Layer.Layer<WebhookDeliveryWorkflow>;
+  readonly layer: Layer.Layer<WorkflowRunner | PlatformRuntime>;
 }
 
 const makeRecorder = (): Recorder => {
   const calls: DeliverWebhookInput[] = [];
   const firstDispatch = Deferred.makeUnsafe<DeliverWebhookInput>();
-  const layer = Layer.succeed(WebhookDeliveryWorkflow, {
-    dispatch: (input: DeliverWebhookInput) =>
-      Effect.gen(function* () {
-        calls.push(input);
-        yield* Deferred.succeed(firstDispatch, input);
-      }),
-  });
+  const runner = TestWorkflowRunner.make();
+  const layer = Layer.mergeAll(
+    Layer.succeed(WorkflowRunner, {
+      ...runner,
+      dispatch: (workflow, input) =>
+        Effect.gen(function* () {
+          const delivery = input as DeliverWebhookInput;
+          calls.push(delivery);
+          yield* Deferred.succeed(firstDispatch, delivery);
+          return yield* runner.dispatch(workflow, input);
+        }),
+    }),
+    Layer.succeed(PlatformRuntime, PlatformRuntime.of({})),
+  );
   return { calls, firstDispatch, layer };
 };
 

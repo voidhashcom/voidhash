@@ -15,12 +15,5 @@ const browserCollections = {
     },
     "eager": false
   })),
-  design: create.doc("design", import.meta.glob(["./**/*.{mdx,md}"], {
-    "base": "./../src/features/design/content/docs",
-    "query": {
-      "collection": "design"
-    },
-    "eager": false
-  })),
 };
 export default browserCollections;

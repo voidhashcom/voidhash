@@ -66,9 +66,9 @@
     "test:storekit-purchase-coordinator": "swift test --package-path .",
     "test:storekit-simulator": "bash ios-storekit-tests/run-tests.sh",
     "clean": "rm -rf android/build node_modules/**/android/build lib",
-    "lint": "biome check .",
-    "lint-ci": "biome check .",
-    "format": "biome format . --write",
+    "lint": "vp check",
+    "lint-ci": "vp check",
+    "format": "vp check --fix",
     "typescript": "tsc -p tsconfig.test.json --noEmit",
     "specs": "pnpm run typescript && nitro-codegen --logLevel=\"debug\""
   },
@@ -91,7 +91,6 @@
     "react-native": "0.81.5",
     "react-native-nitro-modules": "0.26.4",
     "typescript": "5.9.3",
-    "ultracite": "5.0.39",
     "vite-tsconfig-paths": "catalog:",
     "vitest": "catalog:"
   },

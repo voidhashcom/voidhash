@@ -53,7 +53,6 @@ export function useConfirmDialog() {
   }, [resolveCallback]);
 
   const ConfirmationDialog = useCallback(() => {
-    // biome-ignore lint/correctness/useHookAtTopLevel: Nested component
     const [confirmInput, setConfirmInput] = useState<string | undefined>();
     return (
       <AlertDialog open={isOpen}>

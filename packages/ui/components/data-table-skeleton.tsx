@@ -9,7 +9,6 @@ export function DataTableSkeleton() {
             which desyncs SSR markup from the client tree and breaks hydration. */}
         <TableBody>
           {Array.from({ length: 10 }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
             <TableRow key={index}>
               <TableCell>
                 <Skeleton className="h-4 w-full" />

@@ -9,15 +9,20 @@ const forbiddenPackages = new Set([
   "miniflare",
   "workerd",
   "wrangler",
-  "@orbian/alchemy",
-  "@orbian/cloudflare",
   "@distilled.cloud/cloudflare",
   "@distilled.cloud/cloudflare-rolldown-plugin",
   "@distilled.cloud/cloudflare-runtime",
   "@distilled.cloud/cloudflare-vite-plugin",
 ]);
 
-const isForbidden = (name) => forbiddenPackages.has(name) || name.startsWith("@cloudflare/");
+// Types-only packages carry no runtime cloud coupling. `@cloudflare/workers-types`
+// reaches the prod tree as an optional peer of better-auth's kysely adapter and
+// contains nothing but declaration files.
+const allowedTypeOnlyPackages = new Set(["@cloudflare/workers-types"]);
+
+const isForbidden = (name) =>
+  !allowedTypeOnlyPackages.has(name) &&
+  (forbiddenPackages.has(name) || name.startsWith("@cloudflare/"));
 
 const readPackage = (packageDirectory, installed) => {
   const manifestPath = path.join(packageDirectory, "package.json");
@@ -88,7 +93,7 @@ if (requestedDeployment) {
         "--config.node-linker=isolated",
         "--config.block-exotic-subdeps=false",
         "--filter",
-        "@voidhash/selfhost-entry",
+        "@voidhash/backend-app",
         "deploy",
         "--prod",
         "--legacy",

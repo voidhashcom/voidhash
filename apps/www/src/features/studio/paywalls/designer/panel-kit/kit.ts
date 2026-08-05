@@ -32,7 +32,7 @@ import { VariableBindingField } from "./variable-binding-field";
  * wire props/events onto each component's concrete signature, so this map only
  * needs to centralize the type → component association.
  */
-// biome-ignore lint/suspicious/noExplicitAny: renderer supplies the adapted props per node type
+// renderer supplies the adapted props per node type
 type KitComponent = ComponentType<any>;
 
 /**

@@ -33,7 +33,7 @@ export class UserService extends Context.Service<UserService>()("UserService", {
       yield* Effect.annotateCurrentSpan("voidhash.auth.method", session.method);
       yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
       if (session.user.workosUserId)
-        yield* Effect.annotateCurrentSpan("voidhash.user.workos_id", session.user.workosUserId);
+        yield* Effect.annotateCurrentSpan("voidhash.user.external_id", session.user.workosUserId);
       yield* Effect.annotateCurrentSpan(
         "voidhash.organization.count",
         session.organizations.length,
@@ -44,7 +44,7 @@ export class UserService extends Context.Service<UserService>()("UserService", {
         yield* Effect.annotateCurrentSpan("voidhash.organization.id", activeOrganization.id);
         if (activeOrganization.workosOrganizationId)
           yield* Effect.annotateCurrentSpan(
-            "voidhash.organization.workos_id",
+            "voidhash.organization.external_id",
             activeOrganization.workosOrganizationId,
           );
       }

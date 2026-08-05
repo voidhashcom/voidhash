@@ -3,7 +3,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { getAuth } from "@workos/authkit-tanstack-react-start";
 import { Button } from "@voidhash/ui";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
@@ -11,6 +10,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { AuthHeader, AuthLayout } from "@/features/auth/components/auth-layout";
+import { getSessionUser } from "@/features/auth/lib/session";
 import { createUserApiKeyOptions } from "@/features/auth/lib/tanstack-query";
 import {
   DEVICE_CODE_EXPIRY_MS,
@@ -27,8 +27,8 @@ const devicesSearchSchema = z.object({
 export const Route = createFileRoute("/auth/devices/")({
   component: AuthDevicesPage,
   loader: async ({ location }) => {
-    const auth = await getAuth();
-    if (!auth.user) {
+    const user = await getSessionUser();
+    if (!user) {
       const params = new URLSearchParams(location.searchStr);
       const nextUrl = `/auth/devices?${params.toString()}`;
       throw redirect({ search: { next: nextUrl }, to: "/auth/login" });
@@ -178,7 +178,6 @@ function AuthDevicesPage() {
               <CodeCharacter
                 char={char}
                 key={`${char}-${
-                  // biome-ignore lint/suspicious/noArrayIndexKey: OK in this case
                   i
                 }`}
               />

@@ -11,3 +11,8 @@
 **/.env
 **/.env.*
 *.log
+**/ios/Pods
+**/ios/build
+**/android/build
+**/android/.gradle
+**/.expo

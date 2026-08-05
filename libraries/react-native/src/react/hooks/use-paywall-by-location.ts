@@ -145,7 +145,7 @@ async function sendConfigureMessage(options: {
       createPaywallBridgeConfigureMessage(runtimeConfig, requestId),
     );
   } catch (error) {
-    // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
+    // This warning is intentionally surfaced in all environments.
     console.warn("[voidhash] failed to send paywall configure message", error);
 
     try {
@@ -161,7 +161,7 @@ async function sendConfigureMessage(options: {
         ),
       );
     } catch (fallbackError) {
-      // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
+      // This warning is intentionally surfaced in all environments.
       console.warn("[voidhash] failed to send fallback paywall configure message", fallbackError);
     }
   }
@@ -182,7 +182,7 @@ async function handlePaywallBridgeEvent(options: {
   try {
     bridgeEvent = parsePaywallBridgeEnvelope(rawBridgeEvent);
   } catch (error) {
-    // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
+    // This warning is intentionally surfaced in all environments.
     console.warn("[voidhash] ignoring unparseable paywall bridge message", error);
     return;
   }

@@ -61,7 +61,7 @@ run the Community platform locally, see the [self-hosting guide](selfhost/README
 The [architecture overview](docs/architecture.md) explains the Community,
 Cloud, and Enterprise composition boundaries, and the
 [licensing and self-hosting FAQ](docs/licensing-and-self-hosting-faq.md) covers
-AGPL and the current BYO WorkOS requirement.
+AGPL and the self-hosting model.
 
 ## 🤝 Contributing
 

@@ -13,7 +13,7 @@
 import { makeMethods } from "@effect/vitest";
 import { describe, expect, it as baseIt, test, vi } from "vite-plus/test";
 
-// biome-ignore lint/suspicious/noExplicitAny: TestAPI types differ slightly between
+// TestAPI types differ slightly between
 // @effect/vitest's vendored vitest and vite-plus/test, but the runtime shape (`it`,
 // `it.skip`, `it.only`, `it.each`, etc.) is identical. Casting through any keeps the
 // shim a one-liner.

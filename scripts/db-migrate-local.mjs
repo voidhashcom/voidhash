@@ -23,6 +23,11 @@
 // Connection is read from env with local-dev defaults:
 //   DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432 DATABASE_NAME=voidhash
 //   DATABASE_USERNAME=voidhash DATABASE_PASSWORD=password
+// Each `DATABASE_DIRECT_*` override wins over its `DATABASE_*` counterpart, for
+// the same reason `getSelfhostMigrationDatabaseConfig` exists: when the app is
+// pointed at a sandboxed or proxied endpoint (a connection broker, a
+// Hyperdrive-style local socket), that hostname resolves only inside the
+// runtime serving requests, while this script needs a real TCP socket.
 // The Docker image (docker-compose.yml) creates `voidhash` as a superuser that
 // owns the `voidhash` database, so the app user has full DDL locally.
 
@@ -50,12 +55,15 @@ const isLocalHost = (host) => {
   return LOCAL_HOSTS.has(h) || h.endsWith(".localhost");
 };
 
+const direct = (name, fallback) =>
+  process.env[`DATABASE_DIRECT_${name}`] ?? process.env[`DATABASE_${name}`] ?? fallback;
+
 const config = {
-  host: process.env.DATABASE_HOST ?? "127.0.0.1",
-  port: Number.parseInt(process.env.DATABASE_PORT ?? "5432", 10),
-  database: process.env.DATABASE_NAME ?? "voidhash",
-  user: process.env.DATABASE_USERNAME ?? "voidhash",
-  password: process.env.DATABASE_PASSWORD ?? "password",
+  host: direct("HOST", "127.0.0.1"),
+  port: Number.parseInt(direct("PORT", "5432"), 10),
+  database: direct("NAME", "voidhash"),
+  user: direct("USERNAME", "voidhash"),
+  password: direct("PASSWORD", "password"),
 };
 
 const force = process.argv.includes("--force");

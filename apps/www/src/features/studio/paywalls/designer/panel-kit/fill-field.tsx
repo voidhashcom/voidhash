@@ -427,7 +427,6 @@ function FillEditorPopoverContent({
             {gradient.stops.map((stop, index) => (
               // Stops are positional; no stable id exists on the write shape, so
               // the index is the key.
-              // biome-ignore lint/suspicious/noArrayIndexKey: positional stop row
               <div
                 className="flex flex-row items-center gap-2"
                 key={index}

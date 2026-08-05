@@ -11,15 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudioRouteRouteImport } from './routes/studio/route'
 import { Route as DocsRouteRouteImport } from './routes/docs/route'
-import { Route as DesignRouteRouteImport } from './routes/design/route'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as MarketingRouteRouteImport } from './routes/_marketing/route'
 import { Route as DocsIndexRouteImport } from './routes/docs/index'
-import { Route as DesignIndexRouteImport } from './routes/design/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
 import { Route as DocsSplatRouteImport } from './routes/docs/$'
-import { Route as DesignSplatRouteImport } from './routes/design/$'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as AuthSignUpRouteImport } from './routes/auth/sign-up'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
@@ -32,18 +29,11 @@ import { Route as AuthDevicesIndexRouteImport } from './routes/auth/devices/inde
 import { Route as StudioAuthenticatedWaitlistRouteImport } from './routes/studio/_authenticated/waitlist'
 import { Route as DocsApiSearchRouteImport } from './routes/docs/api/search'
 import { Route as DocsApiProxyRouteImport } from './routes/docs/api/proxy'
-import { Route as DesignApiSearchRouteImport } from './routes/design/api/search'
-import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
+import { Route as ApiAuthSignOutRouteImport } from './routes/api/auth/sign-out'
+import { Route as ApiAuthSignInRouteImport } from './routes/api/auth/sign-in'
+import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as StudioAuthenticatedDashboardRouteRouteImport } from './routes/studio/_authenticated/_dashboard/route'
 import { Route as StudioAuthenticatedCreateOrganizationIndexRouteImport } from './routes/studio/_authenticated/create-organization/index'
-import { Route as ApiAuthPasswordSignUpRouteImport } from './routes/api/auth/password/sign-up'
-import { Route as ApiAuthPasswordSignInRouteImport } from './routes/api/auth/password/sign-in'
-import { Route as ApiAuthPasswordResetPasswordRouteImport } from './routes/api/auth/password/reset-password'
-import { Route as ApiAuthPasswordForgotPasswordRouteImport } from './routes/api/auth/password/forgot-password'
-import { Route as ApiAuthOauthCallbackRouteImport } from './routes/api/auth/oauth/callback'
-import { Route as ApiAuthOauthProviderRouteImport } from './routes/api/auth/oauth/$provider'
-import { Route as ApiAuthEmailVerifyRouteImport } from './routes/api/auth/email/verify'
-import { Route as ApiAuthEmailResendRouteImport } from './routes/api/auth/email/resend'
 import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport } from './routes/studio/_authenticated/_dashboard/_organization/$organizationSlug/route'
 import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_organization/$organizationSlug/index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/route'
@@ -93,11 +83,6 @@ const DocsRouteRoute = DocsRouteRouteImport.update({
   path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DesignRouteRoute = DesignRouteRouteImport.update({
-  id: '/design',
-  path: '/design',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRouteRoute = AuthRouteRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -111,11 +96,6 @@ const DocsIndexRoute = DocsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DocsRouteRoute,
-} as any)
-const DesignIndexRoute = DesignIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DesignRouteRoute,
 } as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
@@ -131,11 +111,6 @@ const DocsSplatRoute = DocsSplatRouteImport.update({
   id: '/$',
   path: '/$',
   getParentRoute: () => DocsRouteRoute,
-} as any)
-const DesignSplatRoute = DesignSplatRouteImport.update({
-  id: '/$',
-  path: '/$',
-  getParentRoute: () => DesignRouteRoute,
 } as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -199,14 +174,19 @@ const DocsApiProxyRoute = DocsApiProxyRouteImport.update({
   path: '/api/proxy',
   getParentRoute: () => DocsRouteRoute,
 } as any)
-const DesignApiSearchRoute = DesignApiSearchRouteImport.update({
-  id: '/api/search',
-  path: '/api/search',
-  getParentRoute: () => DesignRouteRoute,
+const ApiAuthSignOutRoute = ApiAuthSignOutRouteImport.update({
+  id: '/api/auth/sign-out',
+  path: '/api/auth/sign-out',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
-  id: '/api/auth/callback',
-  path: '/api/auth/callback',
+const ApiAuthSignInRoute = ApiAuthSignInRouteImport.update({
+  id: '/api/auth/sign-in',
+  path: '/api/auth/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
+  id: '/api/auth/session',
+  path: '/api/auth/session',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioAuthenticatedDashboardRouteRoute =
@@ -220,48 +200,6 @@ const StudioAuthenticatedCreateOrganizationIndexRoute =
     path: '/create-organization/',
     getParentRoute: () => StudioAuthenticatedRouteRoute,
   } as any)
-const ApiAuthPasswordSignUpRoute = ApiAuthPasswordSignUpRouteImport.update({
-  id: '/api/auth/password/sign-up',
-  path: '/api/auth/password/sign-up',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthPasswordSignInRoute = ApiAuthPasswordSignInRouteImport.update({
-  id: '/api/auth/password/sign-in',
-  path: '/api/auth/password/sign-in',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthPasswordResetPasswordRoute =
-  ApiAuthPasswordResetPasswordRouteImport.update({
-    id: '/api/auth/password/reset-password',
-    path: '/api/auth/password/reset-password',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiAuthPasswordForgotPasswordRoute =
-  ApiAuthPasswordForgotPasswordRouteImport.update({
-    id: '/api/auth/password/forgot-password',
-    path: '/api/auth/password/forgot-password',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiAuthOauthCallbackRoute = ApiAuthOauthCallbackRouteImport.update({
-  id: '/api/auth/oauth/callback',
-  path: '/api/auth/oauth/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthOauthProviderRoute = ApiAuthOauthProviderRouteImport.update({
-  id: '/api/auth/oauth/$provider',
-  path: '/api/auth/oauth/$provider',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthEmailVerifyRoute = ApiAuthEmailVerifyRouteImport.update({
-  id: '/api/auth/email/verify',
-  path: '/api/auth/email/verify',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthEmailResendRoute = ApiAuthEmailResendRouteImport.update({
-  id: '/api/auth/email/resend',
-  path: '/api/auth/email/resend',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute =
   StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport.update(
     {
@@ -605,7 +543,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebh
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
-  '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -614,26 +551,17 @@ export interface FileRoutesByFullPath {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/design/$': typeof DesignSplatRoute
   '/docs/$': typeof DocsSplatRoute
   '/auth/': typeof AuthIndexRoute
-  '/design/': typeof DesignIndexRoute
   '/docs/': typeof DocsIndexRoute
-  '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/design/api/search': typeof DesignApiSearchRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/auth/sign-out': typeof ApiAuthSignOutRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/': typeof StudioAuthenticatedIndexRoute
-  '/api/auth/email/resend': typeof ApiAuthEmailResendRoute
-  '/api/auth/email/verify': typeof ApiAuthEmailVerifyRoute
-  '/api/auth/oauth/$provider': typeof ApiAuthOauthProviderRoute
-  '/api/auth/oauth/callback': typeof ApiAuthOauthCallbackRoute
-  '/api/auth/password/forgot-password': typeof ApiAuthPasswordForgotPasswordRoute
-  '/api/auth/password/reset-password': typeof ApiAuthPasswordResetPasswordRoute
-  '/api/auth/password/sign-in': typeof ApiAuthPasswordSignInRoute
-  '/api/auth/password/sign-up': typeof ApiAuthPasswordSignUpRoute
   '/studio/create-organization/': typeof StudioAuthenticatedCreateOrganizationIndexRoute
   '/studio/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
   '/studio/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
@@ -682,26 +610,17 @@ export interface FileRoutesByTo {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/design/$': typeof DesignSplatRoute
   '/docs/$': typeof DocsSplatRoute
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthIndexRoute
-  '/design': typeof DesignIndexRoute
   '/docs': typeof DocsIndexRoute
-  '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/design/api/search': typeof DesignApiSearchRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/auth/sign-out': typeof ApiAuthSignOutRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices': typeof AuthDevicesIndexRoute
-  '/api/auth/email/resend': typeof ApiAuthEmailResendRoute
-  '/api/auth/email/verify': typeof ApiAuthEmailVerifyRoute
-  '/api/auth/oauth/$provider': typeof ApiAuthOauthProviderRoute
-  '/api/auth/oauth/callback': typeof ApiAuthOauthCallbackRoute
-  '/api/auth/password/forgot-password': typeof ApiAuthPasswordForgotPasswordRoute
-  '/api/auth/password/reset-password': typeof ApiAuthPasswordResetPasswordRoute
-  '/api/auth/password/sign-in': typeof ApiAuthPasswordSignInRoute
-  '/api/auth/password/sign-up': typeof ApiAuthPasswordSignUpRoute
   '/studio/create-organization': typeof StudioAuthenticatedCreateOrganizationIndexRoute
   '/studio/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
   '/studio/$organizationSlug/$projectSlug/overview': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
@@ -744,7 +663,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_marketing': typeof MarketingRouteRouteWithChildren
   '/auth': typeof AuthRouteRouteWithChildren
-  '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/studio/_authenticated': typeof StudioAuthenticatedRouteRouteWithChildren
@@ -754,28 +672,19 @@ export interface FileRoutesById {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/design/$': typeof DesignSplatRoute
   '/docs/$': typeof DocsSplatRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/auth/': typeof AuthIndexRoute
-  '/design/': typeof DesignIndexRoute
   '/docs/': typeof DocsIndexRoute
   '/studio/_authenticated/_dashboard': typeof StudioAuthenticatedDashboardRouteRouteWithChildren
-  '/api/auth/callback': typeof ApiAuthCallbackRoute
-  '/design/api/search': typeof DesignApiSearchRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/auth/sign-out': typeof ApiAuthSignOutRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/_authenticated/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/_authenticated/': typeof StudioAuthenticatedIndexRoute
-  '/api/auth/email/resend': typeof ApiAuthEmailResendRoute
-  '/api/auth/email/verify': typeof ApiAuthEmailVerifyRoute
-  '/api/auth/oauth/$provider': typeof ApiAuthOauthProviderRoute
-  '/api/auth/oauth/callback': typeof ApiAuthOauthCallbackRoute
-  '/api/auth/password/forgot-password': typeof ApiAuthPasswordForgotPasswordRoute
-  '/api/auth/password/reset-password': typeof ApiAuthPasswordResetPasswordRoute
-  '/api/auth/password/sign-in': typeof ApiAuthPasswordSignInRoute
-  '/api/auth/password/sign-up': typeof ApiAuthPasswordSignUpRoute
   '/studio/_authenticated/create-organization/': typeof StudioAuthenticatedCreateOrganizationIndexRoute
   '/studio/_authenticated/_dashboard/_organization/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
@@ -821,7 +730,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/design'
     | '/docs'
     | '/studio'
     | '/auth/forgot-password'
@@ -830,26 +738,17 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/design/$'
     | '/docs/$'
     | '/auth/'
-    | '/design/'
     | '/docs/'
-    | '/api/auth/callback'
-    | '/design/api/search'
+    | '/api/auth/session'
+    | '/api/auth/sign-in'
+    | '/api/auth/sign-out'
     | '/docs/api/proxy'
     | '/docs/api/search'
     | '/studio/waitlist'
     | '/auth/devices/'
     | '/studio/'
-    | '/api/auth/email/resend'
-    | '/api/auth/email/verify'
-    | '/api/auth/oauth/$provider'
-    | '/api/auth/oauth/callback'
-    | '/api/auth/password/forgot-password'
-    | '/api/auth/password/reset-password'
-    | '/api/auth/password/sign-in'
-    | '/api/auth/password/sign-up'
     | '/studio/create-organization/'
     | '/studio/$organizationSlug'
     | '/studio/$organizationSlug/$projectSlug'
@@ -898,26 +797,17 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/design/$'
     | '/docs/$'
     | '/'
     | '/auth'
-    | '/design'
     | '/docs'
-    | '/api/auth/callback'
-    | '/design/api/search'
+    | '/api/auth/session'
+    | '/api/auth/sign-in'
+    | '/api/auth/sign-out'
     | '/docs/api/proxy'
     | '/docs/api/search'
     | '/studio/waitlist'
     | '/auth/devices'
-    | '/api/auth/email/resend'
-    | '/api/auth/email/verify'
-    | '/api/auth/oauth/$provider'
-    | '/api/auth/oauth/callback'
-    | '/api/auth/password/forgot-password'
-    | '/api/auth/password/reset-password'
-    | '/api/auth/password/sign-in'
-    | '/api/auth/password/sign-up'
     | '/studio/create-organization'
     | '/studio/$organizationSlug'
     | '/studio/$organizationSlug/$projectSlug/overview'
@@ -959,7 +849,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_marketing'
     | '/auth'
-    | '/design'
     | '/docs'
     | '/studio'
     | '/studio/_authenticated'
@@ -969,28 +858,19 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/design/$'
     | '/docs/$'
     | '/_marketing/'
     | '/auth/'
-    | '/design/'
     | '/docs/'
     | '/studio/_authenticated/_dashboard'
-    | '/api/auth/callback'
-    | '/design/api/search'
+    | '/api/auth/session'
+    | '/api/auth/sign-in'
+    | '/api/auth/sign-out'
     | '/docs/api/proxy'
     | '/docs/api/search'
     | '/studio/_authenticated/waitlist'
     | '/auth/devices/'
     | '/studio/_authenticated/'
-    | '/api/auth/email/resend'
-    | '/api/auth/email/verify'
-    | '/api/auth/oauth/$provider'
-    | '/api/auth/oauth/callback'
-    | '/api/auth/password/forgot-password'
-    | '/api/auth/password/reset-password'
-    | '/api/auth/password/sign-in'
-    | '/api/auth/password/sign-up'
     | '/studio/_authenticated/create-organization/'
     | '/studio/_authenticated/_dashboard/_organization/$organizationSlug'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug'
@@ -1035,18 +915,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   MarketingRouteRoute: typeof MarketingRouteRouteWithChildren
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
-  DesignRouteRoute: typeof DesignRouteRouteWithChildren
   DocsRouteRoute: typeof DocsRouteRouteWithChildren
   StudioRouteRoute: typeof StudioRouteRouteWithChildren
-  ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
-  ApiAuthEmailResendRoute: typeof ApiAuthEmailResendRoute
-  ApiAuthEmailVerifyRoute: typeof ApiAuthEmailVerifyRoute
-  ApiAuthOauthProviderRoute: typeof ApiAuthOauthProviderRoute
-  ApiAuthOauthCallbackRoute: typeof ApiAuthOauthCallbackRoute
-  ApiAuthPasswordForgotPasswordRoute: typeof ApiAuthPasswordForgotPasswordRoute
-  ApiAuthPasswordResetPasswordRoute: typeof ApiAuthPasswordResetPasswordRoute
-  ApiAuthPasswordSignInRoute: typeof ApiAuthPasswordSignInRoute
-  ApiAuthPasswordSignUpRoute: typeof ApiAuthPasswordSignUpRoute
+  ApiAuthSessionRoute: typeof ApiAuthSessionRoute
+  ApiAuthSignInRoute: typeof ApiAuthSignInRoute
+  ApiAuthSignOutRoute: typeof ApiAuthSignOutRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1063,13 +936,6 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof DocsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/design': {
-      id: '/design'
-      path: '/design'
-      fullPath: '/design'
-      preLoaderRoute: typeof DesignRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -1093,13 +959,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/design/': {
-      id: '/design/'
-      path: '/'
-      fullPath: '/design/'
-      preLoaderRoute: typeof DesignIndexRouteImport
-      parentRoute: typeof DesignRouteRoute
-    }
     '/auth/': {
       id: '/auth/'
       path: '/'
@@ -1120,13 +979,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/$'
       preLoaderRoute: typeof DocsSplatRouteImport
       parentRoute: typeof DocsRouteRoute
-    }
-    '/design/$': {
-      id: '/design/$'
-      path: '/$'
-      fullPath: '/design/$'
-      preLoaderRoute: typeof DesignSplatRouteImport
-      parentRoute: typeof DesignRouteRoute
     }
     '/auth/verify-email': {
       id: '/auth/verify-email'
@@ -1212,18 +1064,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsApiProxyRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/design/api/search': {
-      id: '/design/api/search'
-      path: '/api/search'
-      fullPath: '/design/api/search'
-      preLoaderRoute: typeof DesignApiSearchRouteImport
-      parentRoute: typeof DesignRouteRoute
+    '/api/auth/sign-out': {
+      id: '/api/auth/sign-out'
+      path: '/api/auth/sign-out'
+      fullPath: '/api/auth/sign-out'
+      preLoaderRoute: typeof ApiAuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/api/auth/callback': {
-      id: '/api/auth/callback'
-      path: '/api/auth/callback'
-      fullPath: '/api/auth/callback'
-      preLoaderRoute: typeof ApiAuthCallbackRouteImport
+    '/api/auth/sign-in': {
+      id: '/api/auth/sign-in'
+      path: '/api/auth/sign-in'
+      fullPath: '/api/auth/sign-in'
+      preLoaderRoute: typeof ApiAuthSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/session': {
+      id: '/api/auth/session'
+      path: '/api/auth/session'
+      fullPath: '/api/auth/session'
+      preLoaderRoute: typeof ApiAuthSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio/_authenticated/_dashboard': {
@@ -1239,62 +1098,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio/create-organization/'
       preLoaderRoute: typeof StudioAuthenticatedCreateOrganizationIndexRouteImport
       parentRoute: typeof StudioAuthenticatedRouteRoute
-    }
-    '/api/auth/password/sign-up': {
-      id: '/api/auth/password/sign-up'
-      path: '/api/auth/password/sign-up'
-      fullPath: '/api/auth/password/sign-up'
-      preLoaderRoute: typeof ApiAuthPasswordSignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/password/sign-in': {
-      id: '/api/auth/password/sign-in'
-      path: '/api/auth/password/sign-in'
-      fullPath: '/api/auth/password/sign-in'
-      preLoaderRoute: typeof ApiAuthPasswordSignInRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/password/reset-password': {
-      id: '/api/auth/password/reset-password'
-      path: '/api/auth/password/reset-password'
-      fullPath: '/api/auth/password/reset-password'
-      preLoaderRoute: typeof ApiAuthPasswordResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/password/forgot-password': {
-      id: '/api/auth/password/forgot-password'
-      path: '/api/auth/password/forgot-password'
-      fullPath: '/api/auth/password/forgot-password'
-      preLoaderRoute: typeof ApiAuthPasswordForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/oauth/callback': {
-      id: '/api/auth/oauth/callback'
-      path: '/api/auth/oauth/callback'
-      fullPath: '/api/auth/oauth/callback'
-      preLoaderRoute: typeof ApiAuthOauthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/oauth/$provider': {
-      id: '/api/auth/oauth/$provider'
-      path: '/api/auth/oauth/$provider'
-      fullPath: '/api/auth/oauth/$provider'
-      preLoaderRoute: typeof ApiAuthOauthProviderRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/email/verify': {
-      id: '/api/auth/email/verify'
-      path: '/api/auth/email/verify'
-      fullPath: '/api/auth/email/verify'
-      preLoaderRoute: typeof ApiAuthEmailVerifyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/email/resend': {
-      id: '/api/auth/email/resend'
-      path: '/api/auth/email/resend'
-      fullPath: '/api/auth/email/resend'
-      preLoaderRoute: typeof ApiAuthEmailResendRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/studio/_authenticated/_dashboard/_organization/$organizationSlug': {
       id: '/studio/_authenticated/_dashboard/_organization/$organizationSlug'
@@ -1603,22 +1406,6 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
   AuthRouteRouteChildren,
 )
 
-interface DesignRouteRouteChildren {
-  DesignSplatRoute: typeof DesignSplatRoute
-  DesignIndexRoute: typeof DesignIndexRoute
-  DesignApiSearchRoute: typeof DesignApiSearchRoute
-}
-
-const DesignRouteRouteChildren: DesignRouteRouteChildren = {
-  DesignSplatRoute: DesignSplatRoute,
-  DesignIndexRoute: DesignIndexRoute,
-  DesignApiSearchRoute: DesignApiSearchRoute,
-}
-
-const DesignRouteRouteWithChildren = DesignRouteRoute._addFileChildren(
-  DesignRouteRouteChildren,
-)
-
 interface DocsRouteRouteChildren {
   DocsSplatRoute: typeof DocsSplatRoute
   DocsIndexRoute: typeof DocsIndexRoute
@@ -1824,18 +1611,11 @@ const StudioRouteRouteWithChildren = StudioRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   MarketingRouteRoute: MarketingRouteRouteWithChildren,
   AuthRouteRoute: AuthRouteRouteWithChildren,
-  DesignRouteRoute: DesignRouteRouteWithChildren,
   DocsRouteRoute: DocsRouteRouteWithChildren,
   StudioRouteRoute: StudioRouteRouteWithChildren,
-  ApiAuthCallbackRoute: ApiAuthCallbackRoute,
-  ApiAuthEmailResendRoute: ApiAuthEmailResendRoute,
-  ApiAuthEmailVerifyRoute: ApiAuthEmailVerifyRoute,
-  ApiAuthOauthProviderRoute: ApiAuthOauthProviderRoute,
-  ApiAuthOauthCallbackRoute: ApiAuthOauthCallbackRoute,
-  ApiAuthPasswordForgotPasswordRoute: ApiAuthPasswordForgotPasswordRoute,
-  ApiAuthPasswordResetPasswordRoute: ApiAuthPasswordResetPasswordRoute,
-  ApiAuthPasswordSignInRoute: ApiAuthPasswordSignInRoute,
-  ApiAuthPasswordSignUpRoute: ApiAuthPasswordSignUpRoute,
+  ApiAuthSessionRoute: ApiAuthSessionRoute,
+  ApiAuthSignInRoute: ApiAuthSignInRoute,
+  ApiAuthSignOutRoute: ApiAuthSignOutRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

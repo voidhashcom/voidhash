@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/style/noNonNullAssertion: we use it for Storekit that is only available on iOS */
+/** we use it for Storekit that is only available on iOS */
 
 import { Effect, Layer } from "effect";
 

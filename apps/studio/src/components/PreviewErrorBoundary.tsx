@@ -26,7 +26,7 @@ export class PreviewErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // biome-ignore lint/suspicious/noConsole: surface author errors in the dev console.
+    // surface author errors in the dev console.
     console.error("[voidhash-studio] preview render error", error, info);
   }
 

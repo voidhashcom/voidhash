@@ -127,8 +127,6 @@ export function OrganizationProjectSwitcher({
         sideOffset={4}
       >
         {activeOrganization && (
-          // biome-ignore lint/a11y/noStaticElementInteractions: visual effect
-          // biome-ignore lint/nursery/noNoninteractiveElementInteractions: visual effect
           <div
             className="flex flex-row divide-x divide-border"
             onMouseLeave={() => setHighlightedOrganizationIndex(null)}

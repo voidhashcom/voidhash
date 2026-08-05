@@ -2,7 +2,7 @@
 
 Status: alpha review draft  
 Last updated: 2026-07-12<br>
-Scope: `apps/backend`, `apps/mimic-db`, `apps/www`, `packages/core`, and
+Scope: `packages/backend`, `apps/mimic-db`, `apps/www`, `packages/core`, and
 `selfhost`
 
 This document records the security analysis required before the repository can
@@ -29,13 +29,13 @@ operational objective, but not a guarantee made by the Community Edition.
 
 ## Assets and actors
 
-Protected assets include WorkOS sessions, user and project API keys, payment
+Protected assets include dashboard sessions, user and project API keys, payment
 provider credentials, webhook signing secrets, tenant database rows,
 ClickHouse events, Mimic documents and document tokens, unpublished paywall
 artifacts, object-store credentials, and compiler/container integrity.
 
 Relevant actors are anonymous internet clients, SDK clients holding a
-publishable key, users holding a WorkOS session or user API key, server
+publishable key, users holding a dashboard session or user API key, server
 integrations holding a project secret key, tenant administrators, payment and
 identity providers, self-host operators, and a malicious authenticated tenant
 submitting component source.
@@ -69,7 +69,8 @@ Current controls:
 - `ApiMiddlewares.ts` selects exactly one authentication method and resolves it
   to a typed user, secret-key, or publishable-key session before API handlers
   run.
-- WorkOS session cookies are authenticated by the WorkOS adapter; local access
+- Session cookies are authenticated by the active `IdentityProvider` adapter,
+  which also owns the cookie name the method selector matches on; local access
   is loaded from server-side membership state.
 - Project secret keys establish a session containing only their project.
   Publishable keys establish an SDK identity with no management permissions.
@@ -80,15 +81,46 @@ Current controls:
   errors rather than returning stored credential details.
 
 Evidence includes API-key integration tests for disabled/expired keys and
-forbidden mutation, RPC smoke coverage, MCP protocol/dispatch tests, and WorkOS
-signature tests.
+forbidden mutation, RPC smoke coverage, MCP protocol/dispatch tests, and
+standalone sign-in tests.
 
 Residual work:
 
 - Beta must add explicit cookie fixation, malformed-cookie, revoked-membership,
   and authentication-method-confusion tests.
-- Deployments that change `WORKOS_COOKIE_NAME` must verify that middleware
-  method selection and the WorkOS adapter use the same configured name.
+- The session-cookie name is read from `IdentityProvider.cookieName` by both the
+  method selector and the session resolver, so a provider that issues a
+  differently named cookie needs no change at either site.
+
+### Standalone identity provider
+
+Self-host authenticates a **single root account** whose username and password
+come from `VOIDHASH_ROOT_USERNAME` and `VOIDHASH_ROOT_PASSWORD`. There is no
+sign-up and no code path that can mint a second identity: the provider only
+ever emits the root subject, so single-user is a structural property rather
+than a policy. Sessions are HS256 tokens signed with `VOIDHASH_AUTH_SECRET`,
+used as both the `vh-session` cookie and the API bearer token.
+
+Trust rests on the root password and on transport security, so the controls are:
+
+- Credentials are compared in constant time, after hashing both sides so the
+  comparison cannot leak the configured password's length.
+- Sign-in is throttled per source address: five consecutive failures trigger a
+  fixed lockout, and a failed attempt never reveals which field was wrong.
+- `validateSelfhostSecurityConfig` refuses to start a production deployment
+  whose root password or signing secret is missing or still an evaluation
+  default, before migrations or the application run.
+- Production mode requires HTTPS public, file, and Mimic URLs, so the bearer
+  token and cookie are not exposed in transit.
+- The session endpoint returns the raw token to same-origin scripts so the
+  browser can seed its bearer credential from an `HttpOnly` cookie. This
+  deliberately trades XSS-hardening for a single token pipeline; a successful
+  XSS on the dashboard origin already implies session compromise.
+
+The documented evaluation defaults (`root` / `voidhash` and the shared signing
+secret) are public knowledge and reachable only under
+`SELFHOST_MODE=local-evaluation`, which the self-hosting guide restricts to
+loopback.
 
 ## API keys and credential storage
 
@@ -151,8 +183,10 @@ Current controls:
 - Stripe verifies the signature over the exact raw body and enforces its
   timestamp tolerance. Tests reject wrong signatures, stale timestamps, and
   malformed signature headers.
-- WorkOS verifies its signed raw body and timestamp, records the external event
-  ID under a uniqueness constraint, and treats processed redelivery as a no-op.
+- A composition that mounts an identity-directory webhook through the backend's
+  route extension is responsible for its own signature verification; the shared
+  event table records the external event ID under a uniqueness constraint so
+  processed redelivery is a no-op.
 - Apple verifies signed JWS data and application identity through the App Store
   SDK. Google Play RTDN verifies the Pub/Sub OIDC signature, issuer, lifetime,
   configured audience, verified email claim, and configured push service
@@ -270,7 +304,7 @@ Current controls:
 - Self-host runs the compiler as an unprivileged user with a read-only root
   filesystem, dropped Linux capabilities, `no-new-privileges`, a PID limit, and
   a private internal Docker network shared only with the application. It does
-  not receive database, object-store, WorkOS, or payment credentials.
+  not receive database, object-store, identity, or payment credentials.
 - Cloud invokes a dedicated container through a Durable Object boundary and
   bounds the caller's compile round trip.
 
@@ -283,20 +317,22 @@ Node runtime patched.
 ## Self-host operator boundary
 
 The sample Compose defaults are for loopback evaluation only. They include
-known passwords and placeholder WorkOS credentials. Compose explicitly marks
-the no-env quick start as `local-evaluation`; exposing that composition
+known passwords and the documented default root credentials. Compose explicitly
+marks the no-env quick start as `local-evaluation`; exposing that composition
 unchanged would compromise all stored data.
 
 Before any non-local deployment, the operator must replace every example
-password, configure HTTPS at the reverse proxy, restrict MinIO/Mailpit/
-ClickHouse host ports, configure CORS and public URLs, use real WorkOS and SMTP
-credentials, back up persistent volumes, and apply host/container updates.
+password, set real root credentials and a real session signing secret,
+configure HTTPS at the reverse proxy, restrict MinIO/Mailpit/ClickHouse host
+ports, configure CORS and public URLs, use real SMTP credentials, back up
+persistent volumes, and apply host/container updates.
 
 Production mode validates configuration before migrations or the application
-start. It refuses missing and known example database, object-store, Mimic,
-WorkOS, and enabled ClickHouse credentials, and requires HTTPS for every public,
-file, Mimic, and WorkOS redirect URL. Tests cover explicit mode selection, every
-credential class, optional ClickHouse, and every URL boundary. Independent
+start. It refuses missing and known example root credentials, session signing
+secret, database, object-store, Mimic, and enabled ClickHouse credentials, and
+requires HTTPS for every public, file, and Mimic URL. Tests cover explicit mode
+selection, every credential class, optional ClickHouse, and every URL
+boundary. Independent
 review must still confirm the list remains complete as new infrastructure is
 added.
 

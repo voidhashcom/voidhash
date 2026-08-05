@@ -3,8 +3,8 @@
  * backend stack provisioned once by `test/_testing/globalSetup.ts` (live
  * PlanetScale DB). The producer side of outbound webhooks: `emit` finds the
  * project's active, subscribed endpoints, writes a `webhook_delivery` row per
- * endpoint, then forks a fire-and-forget dispatch onto {@link
- * WebhookDeliveryWorkflow}.
+ * endpoint, then forks a fire-and-forget dispatch of the shared
+ * `DeliverWebhook` definition.
  *
  * Each test drives `emit` end-to-end and verifies the *persisted* side effects
  * rather than just the return value:
@@ -13,11 +13,9 @@
  *  - the `deliveriesCreated` count returned,
  *  - the dispatch hand-off recorded by an in-process workflow stub.
  *
- * `WebhookDeliveryWorkflow` is an abstract port whose only concrete adapter is a
- * Cloudflare Workflow — there is no in-process seam for it — so it is replaced
- * by a recording stub layer that captures each `dispatch` call. The real
- * delivery (HTTP POST + retry) is the workflow runtime's concern and is covered
- * by a `test.todo` below.
+ * A recording workflow runner captures each dispatch. The real delivery (HTTP
+ * POST + retry) is the workflow runtime's concern and is covered by a
+ * `test.todo` below.
  *
  * Conventions used throughout:
  *  - Every test shares the one seeded fixture project ({@link CoreTestFixture})
@@ -34,10 +32,10 @@ import { Effect, Layer, Ref } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import { WebhookDispatchService } from "@voidhash/core/services/webhookDispatch/WebhookDispatchService";
-import {
-  type DeliverWebhookInput,
-  WebhookDeliveryWorkflow,
-} from "@voidhash/core/services/webhookDispatch/WebhookDeliveryWorkflow";
+import type { DeliverWebhookInput } from "@voidhash/core/workflows/definitions";
+import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
+import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import { WebhookServiceError } from "@voidhash/core/services/webhookManager/WebhookManagerService";
 import {
   WebhookDeliveryStatus,
@@ -60,26 +58,25 @@ let idSeq = 0;
 const uniqueId = (label: string) => `it-wh-${label}-${Date.now()}-${idSeq++}`;
 
 /**
- * Recording {@link WebhookDeliveryWorkflow} stub. The concrete adapter is a
- * Cloudflare Workflow with no in-process seam, so dispatches are captured into a
- * `Ref` instead. `dispatch` returns immediately (`Effect.void`); the service
- * forks it fire-and-forget, so a test reads the recorded calls after giving the
- * detached fibers a tick to run.
+ * Recording workflow runner. Dispatches are captured into a `Ref`; the service
+ * forks them fire-and-forget, so a test reads the recorded calls after giving
+ * the detached fibers a tick to run.
  */
 const makeRecordingWorkflow = Effect.gen(function* () {
   const calls = yield* Ref.make<ReadonlyArray<DeliverWebhookInput>>([]);
-  const layer = Layer.succeed(WebhookDeliveryWorkflow, {
-    dispatch: (input: DeliverWebhookInput) => Ref.update(calls, (prev) => [...prev, input]),
-  });
+  const runner = TestWorkflowRunner.make();
+  const layer = Layer.mergeAll(
+    Layer.succeed(WorkflowRunner, {
+      ...runner,
+      dispatch: (workflow, input) =>
+        Ref.update(calls, (prev) => [...prev, input as DeliverWebhookInput]).pipe(
+          Effect.andThen(runner.dispatch(workflow, input)),
+        ),
+    }),
+    Layer.succeed(PlatformRuntime, PlatformRuntime.of({})),
+  );
   return { calls, layer } as const;
 });
-
-/** Read a single delivery row straight from the database, bypassing the service. */
-const findDeliveryRow = (id: string) =>
-  Effect.gen(function* () {
-    const db = yield* Db;
-    return yield* db.query.webhookDeliveries.findFirst({ where: { id } });
-  });
 
 /** All delivery rows recorded for a given endpoint. */
 const findDeliveriesForEndpoint = (endpointId: string) =>
@@ -156,19 +153,18 @@ const withCleanup = <E, R>(
 
 /**
  * Provide the service-under-test layer backed by a fresh recording workflow
- * stub, and expose that stub's `calls` Ref to the body. The harness supplies
- * `Db`; the stub discharges {@link WebhookDeliveryWorkflow}, the service's only
- * non-harness dependency.
+ * runner, and expose its `calls` Ref to the body. The harness supplies `Db` and
+ * the shared runtime services.
  */
 const runEmit = <E>(
   body: (
     recorded: Ref.Ref<ReadonlyArray<DeliverWebhookInput>>,
-  ) => Effect.Effect<void, E, Db | WebhookDispatchService>,
+  ) => Effect.Effect<void, E, Db | WebhookDispatchService | WorkflowRunner | PlatformRuntime>,
 ): Effect.Effect<void, E, Db> =>
   Effect.gen(function* () {
     const workflow = yield* makeRecordingWorkflow;
     yield* body(workflow.calls).pipe(
-      Effect.provide(WebhookDispatchService.layer.pipe(Layer.provide(workflow.layer))),
+      Effect.provide(WebhookDispatchService.layer.pipe(Layer.provideMerge(workflow.layer))),
     );
   });
 
@@ -412,11 +408,10 @@ describe("WebhookDispatchService.emit", () => {
   );
 
   // Real outbound delivery (signed HTTP POST + retry/backoff + attempt-log rows)
-  // lives in the Cloudflare `DeliverWebhookWorkflow` adapter behind the abstract
-  // `WebhookDeliveryWorkflow` port. There is no in-process seam for it, so it is
-  // deferred to an app-level test running against the workflow runtime. The
-  // producer's hand-off (delivery row + dispatch call) is fully covered above.
+  // is deferred to an app-level test running against a durable workflow
+  // runtime. The producer's hand-off (delivery row + dispatch call) is fully
+  // covered above.
   vitestTest.todo(
-    "delivers the webhook over HTTP and records attempt rows — deferred: requires the Cloudflare Workflow runtime backing WebhookDeliveryWorkflow",
+    "delivers the webhook over HTTP and records attempt rows — deferred: requires a durable workflow runtime",
   );
 });

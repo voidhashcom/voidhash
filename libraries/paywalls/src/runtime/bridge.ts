@@ -59,7 +59,7 @@ let inboundInstalled = false;
 const dispatchInbound = (raw: unknown): void => {
   const envelope = parseInboundEnvelope(raw);
   if (!envelope) {
-    // biome-ignore lint/suspicious/noConsole: dev-visible signal — a host message that fails to parse would otherwise vanish silently.
+    // dev-visible signal — a host message that fails to parse would otherwise vanish silently.
     console.warn("[voidhash-paywall] ignoring unparseable inbound bridge message", raw);
     return;
   }
@@ -142,7 +142,7 @@ const flushPending = (): void => {
 const giveUpPending = (): void => {
   stopRetrying();
   for (const envelope of pendingOutbound.splice(0)) {
-    // biome-ignore lint/suspicious/noConsole: deliberate standalone-preview fallback.
+    // deliberate standalone-preview fallback.
     console.info("[voidhash-paywall]", envelope);
   }
 };

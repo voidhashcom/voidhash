@@ -16,17 +16,9 @@ import {
   eq,
   lt,
   PersonOrigin,
-  paymentProviderConfigurationProducts,
-  paymentProviderConfigurations,
   paymentProviderNotificationProcessed,
   personExternalIdentifiers,
-  personIdentities,
-  persons,
-  projects,
-  purchases,
   sql,
-  subscriptions,
-  transactions,
   type Project as DbProject,
   type DbError,
   Db,
@@ -184,10 +176,9 @@ const make = Effect.gen(function* () {
    * Follows `persons.mergedIntoPersonId` to the surviving canonical person,
    * bounded to {@link MAX_MERGE_CHAIN_HOPS} so a (theoretical) cycle can't
    * spin. External-identifier rows are NOT repointed when their person is
-   * merged away (the identify-completion workflow only touches
-   * `person_identity`), so a webhook resolving an `apple-app-store` /
-   * account-token binding must canonicalize the result before returning it,
-   * else post-merge renewals would attribute to an archived person.
+   * merged away, so a webhook resolving an `apple-app-store` / account-token
+   * binding must canonicalize the result before returning it, else post-merge
+   * renewals would attribute to an archived person.
    */
   const resolveCanonicalPersonId = Effect.fn("resolveCanonicalPersonId")(
     (input: { readonly personId: string }): Effect.Effect<string, DbError, Db> =>

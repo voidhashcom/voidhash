@@ -67,7 +67,7 @@ describeBuilt("sandbox IIFE (node integration, mirrors the studio sandbox path)"
 
     // Eval the IIFE into a fresh global, exactly like the iframe bootstrap.
     const globalObject = globalThis as Record<string, unknown>;
-    // biome-ignore lint/security/noGlobalEval: exercising the sandbox's eval path
+    // exercising the sandbox's eval path
     (0, eval)(sandboxRuntimeBundle);
     const sandbox = globalObject[SANDBOX_GLOBAL_NAME] as SandboxSurface;
     expect(sandbox).toBeDefined();
@@ -91,7 +91,7 @@ describeBuilt("sandbox IIFE (node integration, mirrors the studio sandbox path)"
       return mod;
     };
     const moduleObj = { exports: {} as Record<string, unknown> };
-    // biome-ignore lint/security/noGlobalEval: executing our own compiled fixture
+    // executing our own compiled fixture
     new Function("require", "module", "exports", compiled.code)(
       requireShim,
       moduleObj,

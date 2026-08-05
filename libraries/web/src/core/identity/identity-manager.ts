@@ -36,7 +36,7 @@ const make = Effect.gen(function* effect() {
       publishableKey: config.publishableKey,
     });
 
-  // biome-ignore lint/suspicious/noExplicitAny: SDK headers match the schema shape at runtime
+  // SDK headers match the schema shape at runtime
   const buildHeaders = (distinctId: string) =>
     ({
       ...getSdkHeaders(),

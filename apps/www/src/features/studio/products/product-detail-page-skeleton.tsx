@@ -21,7 +21,6 @@ export function ProductsDetailPageSkeleton() {
         </div>
         <div className="mt-8">
           {Array.from({ length: 2 }).map((_, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
             <SettingsCardSkeleton key={index} />
           ))}
         </div>

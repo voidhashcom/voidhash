@@ -48,7 +48,6 @@ import {
   AppStorePaymentProviderServiceError,
   AppStoreTransactionVerifier,
 } from "@voidhash/core/services";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { deriveAccountToken } from "@voidhash/core/utils/crypto/account-token";
 import { generateId } from "@voidhash/core/utils";
@@ -80,7 +79,7 @@ import {
   type RuntimeSchema,
   Transaction as ReactNativeTransaction,
 } from "@testing/ReactNativePurchaseHarness";
-import { makePurchaseSdkHttpHandler } from "../../../../../../apps/backend/src/testing/PurchaseSdkHttpHarness.ts";
+import { makePurchaseSdkHttpHandler } from "../../../../../backend/src/testing/PurchaseSdkHttpHarness.ts";
 
 const { test } = PurchaseIntegrationTestHarness.make();
 
@@ -97,10 +96,6 @@ const uniq = (label: string) => `it-asps-${label}-${Date.now()}-${seq++}`;
  * `PersonIdentityService` dependency graph, so it must be provided to build
  * the layer.
  */
-const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
 const googlePlayStub = Layer.succeed(GooglePlayPaymentProviderService, {
   acceptRtdnNotification: () => Effect.die("Google Play webhook must not run"),
   processSdkTransaction: () => Effect.die("Google Play purchase must not run"),
@@ -151,13 +146,7 @@ const AppStoreEngineLive = AppStorePaymentProvider.layer.pipe(
       AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer)),
     ),
   ),
-  Layer.provideMerge(
-    Layer.mergeAll(
-      PerkGrantService.layer,
-      IdentityProjectionPublisher.noop,
-      CompletionWorkflowStub,
-    ),
-  ),
+  Layer.provideMerge(Layer.mergeAll(PerkGrantService.layer, IdentityProjectionPublisher.noop)),
 );
 
 const AppStoreServiceLive = AppStorePaymentProviderServiceLive.pipe(
@@ -184,7 +173,6 @@ describe("AppStorePaymentProviderService.processSdkTransaction", () => {
       const providerProductId = generateId("paymentProviderProduct");
       const productId = generateId("product");
       const purchasedAt = Date.now();
-      const receivedAt = new Date(purchasedAt);
       const idempotencyKey = `apple:${transactionId}:purchase:${purchasedAt}`;
       let personId: string | undefined;
       let disposeHttp: (() => Promise<void>) | undefined;
@@ -312,7 +300,6 @@ describe("AppStorePaymentProviderService.processSdkTransaction", () => {
               IdentityProjectionPublisher.noop,
               serviceLayer,
               googlePlayStub,
-              CompletionWorkflowStub,
             ),
           ),
         );

@@ -139,8 +139,6 @@ export function FlexAlignmentInput({
                   const selected = isSelected(item.alignItems, item.justifyContent);
 
                   return (
-                    // biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
-                    // biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
                     <div
                       className="group relative w-7 flex-1 items-center justify-center py-1 hover:bg-input/80"
                       key={`cell-${rowIndex}-${columnIndex}-${flexDirection}`}
@@ -177,8 +175,6 @@ export function FlexAlignmentInput({
               const selected = itemAlignItems === alignItems;
 
               return (
-                // biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
-                // biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
                 <div
                   className={cn(
                     "group group relative flex w-21 flex-1 flex-row items-center justify-center py-1 text-gray-400 hover:bg-input/80",
@@ -212,8 +208,6 @@ export function FlexAlignmentInput({
               const selected = itemAlignItems === alignItems;
 
               return (
-                // biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
-                // biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
                 <div
                   className={cn(
                     "group group relative flex h-full w-7 flex-1 flex-col items-center justify-center py-1 text-gray-400 hover:bg-input/80",
@@ -248,8 +242,6 @@ export function FlexAlignmentInput({
               const selected = itemJustify === justifyContent;
 
               return (
-                // biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
-                // biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
                 <div
                   className={cn(
                     "group group relative flex h-full w-7 flex-1 flex-col items-center justify-center py-1 text-gray-400 hover:bg-input/80",
@@ -283,8 +275,6 @@ export function FlexAlignmentInput({
               const selected = itemJustify === justifyContent;
 
               return (
-                // biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
-                // biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
                 <div
                   className={cn(
                     "group group relative flex w-21 flex-1 flex-row items-center justify-center py-1 text-gray-400 hover:bg-input/80",

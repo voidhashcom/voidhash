@@ -164,7 +164,6 @@ export function GradientStopBar({
       {stops.map((stop, index) => (
         // Stops are positional; the logical write shape has no stable id, so the
         // index is the key.
-        // biome-ignore lint/suspicious/noArrayIndexKey: positional stop marker
         <button
           aria-label={`Gradient stop ${index + 1}`}
           className={cn(

@@ -332,7 +332,7 @@ export class FxRateService extends Context.Service<FxRateService>()("core/FxRate
    * Live layer. Wires the ExchangeRate-API fetcher from the provided
    * {@link FxRateConfig}. The daily refresh is dispatched by
    * `FxRateSyncWorkflow` on the `0 5 * * *` cron registered in
-   * `apps/backend/src/Service.ts`.
+   * `packages/backend/src/Service.ts`.
    */
   static readonly layer = (config: FxRateConfig): Layer.Layer<FxRateService, never, Db> =>
     Layer.effect(FxRateService)(FxRateService.make).pipe(Layer.provide(liveFetcherLayer(config)));

@@ -290,7 +290,7 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
   const [showHandles, setShowHandles] = useState(false);
 
   // Draw function that reads directly from store - use ref to avoid stale closures
-  // biome-ignore lint/suspicious/noEmptyBlockStatements: Initial no-op function for ref
+  // Initial no-op function for ref
   const drawRef = useRef<() => void>(() => {});
 
   // Update drawRef to always have the latest implementation

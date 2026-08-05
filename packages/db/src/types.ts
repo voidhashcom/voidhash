@@ -2,7 +2,6 @@ import type { InferInsertModel, InferSelectModel, Table } from "drizzle-orm";
 
 import type * as schema from "./schema.ts";
 
-// biome-ignore lint/suspicious/noExplicitAny: should be ok
 type InferUpdateModel<T extends Table<any>> = Partial<InferSelectModel<T>> & {
   id: string;
 };

@@ -3,7 +3,7 @@ import type {
   DurableEntityAddress,
   DurableEntityContext,
   DurableEntityHostShape,
-} from "@orbian/sdk/DurableEntity";
+} from "@voidhash/platform/DurableEntity";
 import { Effect } from "effect";
 
 const LOG_META_KEY = "agent-session/log/meta";

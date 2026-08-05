@@ -1,10 +1,10 @@
 name: voidhash-selfhost
 
-x-entry-image: &entry-image
-  image: ${VOIDHASH_SELFHOST_IMAGE:-voidhash-selfhost-entry:local}
+x-backend-image: &backend-image
+  image: ${VOIDHASH_SELFHOST_IMAGE:-voidhash-selfhost:local}
   build:
     context: ..
-    dockerfile: selfhost/entry/Dockerfile
+    dockerfile: apps/backend/Dockerfile
 
 services:
   postgres:
@@ -103,7 +103,7 @@ services:
       retries: 30
 
   migrate:
-    <<: *entry-image
+    <<: *backend-image
     command: ["./node_modules/.bin/tsx", "src/migrate.ts"]
     environment: &database-environment
       SELFHOST_MODE: ${SELFHOST_MODE:-local-evaluation}
@@ -125,6 +125,23 @@ services:
       CLICKHOUSE_ANALYTICS_QUERY_PASSWORD: ${CLICKHOUSE_ANALYTICS_QUERY_PASSWORD:-password}
       ROOT_USERNAME: ${MIMIC_ROOT_USERNAME:-root}
       ROOT_PASSWORD: ${MIMIC_ROOT_PASSWORD:-password}
+      # The single root account. Defaults are the documented evaluation
+      # credentials, which production mode refuses.
+      VOIDHASH_ROOT_USERNAME: ${VOIDHASH_ROOT_USERNAME:-root}
+      VOIDHASH_ROOT_PASSWORD: ${VOIDHASH_ROOT_PASSWORD:-voidhash}
+      VOIDHASH_ROOT_EMAIL: ${VOIDHASH_ROOT_EMAIL:-root@voidhash.local}
+      VOIDHASH_AUTH_SECRET: ${VOIDHASH_AUTH_SECRET:-}
+      # `migrate` runs the same production security validation as `app`, so the
+      # settings that validation reads have to reach it too — otherwise a
+      # correctly configured production deployment fails before its first
+      # migration.
+      MIMIC_ROOT_PASSWORD: ${MIMIC_ROOT_PASSWORD:-password}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-password}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5001}
+      PUBLIC_FILES_BASE_URL: ${PUBLIC_FILES_BASE_URL:-http://localhost:5001}
+      MIMIC_PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5001}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -133,7 +150,7 @@ services:
     restart: "no"
 
   compiler:
-    <<: *entry-image
+    <<: *backend-image
     command: ["./node_modules/.bin/tsx", "src/compiler/main.ts"]
     cap_drop:
       - ALL
@@ -164,7 +181,7 @@ services:
       retries: 30
 
   app:
-    <<: *entry-image
+    <<: *backend-image
     environment:
       <<: *database-environment
       PORT: 5001
@@ -180,13 +197,6 @@ services:
       S3_FORCE_PATH_STYLE: "true"
       S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-voidhash-public}
       S3_ARTIFACT_BUCKET: ${S3_ARTIFACT_BUCKET:-voidhash-artifacts}
-      WORKOS_API_KEY: ${WORKOS_API_KEY:-sk_test_selfhost_not_configured}
-      WORKOS_AUTHKIT_DOMAIN: ${WORKOS_AUTHKIT_DOMAIN:-}
-      WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-client_selfhost_not_configured}
-      WORKOS_COOKIE_NAME: ${WORKOS_COOKIE_NAME:-wos-session}
-      WORKOS_COOKIE_PASSWORD: ${WORKOS_COOKIE_PASSWORD:-selfhost-development-cookie-password-change-me}
-      WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:5001/api/auth/callback}
-      WORKOS_WEBHOOK_SECRET: ${WORKOS_WEBHOOK_SECRET:-whsec_selfhost_not_configured}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}

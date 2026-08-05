@@ -121,7 +121,6 @@ function Carousel({
         scrollPrev,
       }}
     >
-      {/** biome-ignore lint/a11y/useSemanticElements: shadcn */}
       <div
         aria-roledescription="carousel"
         className={cn("relative", className)}

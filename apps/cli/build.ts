@@ -45,7 +45,7 @@ const main = async () => {
 };
 
 main().catch((error) => {
-  // biome-ignore lint/suspicious/noConsole: User facing console error.
+  // User facing console error.
   console.error(error);
   process.exit(1);
 });

@@ -17,7 +17,7 @@ document load** instead of an eager "migration push" over every document.
 | `node:vm` (`Script`/`createContext`) migration sandbox | in-process `evaluateBundledMigration` (`new Function`, **no `node:vm`/quickjs**) — see "Migration execution" below |
 | eager "migration push" iterates every document         | `MimicHostObject` records new schema versions; each document **migrates itself on load**                           |
 | standalone/gateway/worker Node entrypoints             | `MimicDbWorker` Cloudflare Worker (one fetch entrypoint)                                                           |
-| deployed standalone; backend points at external URL    | **provisioned from `apps/backend`** alchemy stack; service binding + `MIMIC_HOST_URL`                              |
+| deployed standalone; backend points at external URL    | **provisioned from `packages/backend`** alchemy stack; service binding + `MIMIC_HOST_URL`                              |
 
 ## Preserved contracts (so clients/backend keep working)
 

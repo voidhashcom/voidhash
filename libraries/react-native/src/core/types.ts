@@ -85,7 +85,6 @@ export interface ConfigurationResponse {
       paymentProviderConfigurationProducts: {
         paymentProviderConfigurationProductId: string;
         paymentProviderConfigurationId: string;
-        // biome-ignore lint/suspicious/noExplicitAny: ok
         configuration: Record<string, any>;
       }[];
     }[];

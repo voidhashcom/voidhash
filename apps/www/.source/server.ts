@@ -22,18 +22,3 @@ export const docs = await create.docs("docs", "src/features/docs/content/docs", 
   },
   "eager": true
 }));
-
-export const design = await create.docs("design", "src/features/design/content/docs", import.meta.glob(["./**/*.{json,yaml}"], {
-  "base": "./../src/features/design/content/docs",
-  "query": {
-    "collection": "design"
-  },
-  "import": "default",
-  "eager": true
-}), import.meta.glob(["./**/*.{mdx,md}"], {
-  "base": "./../src/features/design/content/docs",
-  "query": {
-    "collection": "design"
-  },
-  "eager": true
-}));

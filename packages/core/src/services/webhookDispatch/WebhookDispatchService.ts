@@ -1,12 +1,8 @@
 import { Context, Effect, Layer } from "effect";
+import * as Workflow from "@voidhash/platform/Workflow";
 
-import {
-  Db,
-  WebhookDeliveryStatus,
-  WebhookEndpointStatus,
-  webhookDeliveries,
-} from "@voidhash/db";
-import { WebhookDeliveryWorkflow } from "./WebhookDeliveryWorkflow.ts";
+import { Db, WebhookDeliveryStatus, WebhookEndpointStatus, webhookDeliveries } from "@voidhash/db";
+import { DeliverWebhook } from "../../workflows/definitions.ts";
 import { generateId } from "../../utils/generate-id.ts";
 import { WebhookServiceError } from "../webhookManager/WebhookManagerService.ts";
 import type { WebhookEventType } from "../webhookManager/event-types.ts";
@@ -20,7 +16,6 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
   "WebhookDispatchService",
   {
     make: Effect.gen(function* () {
-      const webhookDelivery = yield* WebhookDeliveryWorkflow;
       const db = yield* Db;
 
       const emit = Effect.fn("webhookDispatch.emit")(
@@ -87,17 +82,15 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
               webhookEndpointId: endpoint.id,
             });
 
-            yield* webhookDelivery
-              .dispatch({
-                attemptNumber: 1,
-                deliveryId,
-                endpointId: endpoint.id,
-                eventType: input.eventType,
-                payload: input.payload,
-                secret: endpoint.secret,
-                url: endpoint.url,
-              })
-              .pipe(Effect.forkDetach);
+            yield* Workflow.dispatchAndForget(DeliverWebhook, {
+              attemptNumber: 1,
+              deliveryId,
+              endpointId: endpoint.id,
+              eventType: input.eventType,
+              payload: input.payload,
+              secret: endpoint.secret,
+              url: endpoint.url,
+            }).pipe(Effect.forkDetach);
           }
 
           yield* Effect.logInfo(

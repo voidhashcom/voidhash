@@ -21,7 +21,7 @@ export function ProductDetailPerkRecord({
   perks,
 }: {
   productPerk: typeof ProductPerk.Type;
-  // biome-ignore lint/style/useConsistentArrayType: We need to use ReadonlyArray to avoid mutation
+  // We need to use ReadonlyArray to avoid mutation
   perks: readonly (typeof Perk.Type)[];
 }) {
   const perk = perks.find((p) => p.id === productPerk.perkId);

@@ -3,8 +3,13 @@
   "include": ["src", "test", "sst-env.d.ts"],
   "exclude": [
     "**/node_modules/**",
-    "**/*.integration.test.ts",
-    "test/services/paymentProviders/stripe/stripe-test-support.ts"
+    // These three reach across package roots (react-native SDK internals and
+    // the backend's SDK HTTP harness), which rootDir rejects. They are also
+    // excluded from the shared-fixture integration run; the purchase pipeline
+    // typechecks them in their home packages.
+    "test/_testing/ReactNativePurchaseHarness.ts",
+    "test/services/paymentProviders/appStore/AppStorePaymentProviderService.integration.test.ts",
+    "test/services/paymentProviders/googlePlay/GooglePlayPaymentProviderService.integration.test.ts"
   ],
   "compilerOptions": {
     "rootDir": ".",

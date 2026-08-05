@@ -14,20 +14,23 @@ export * from "./analyticsIngest/ProcessorOutputs.ts";
 export * from "./apiKeys/ApiKeyService.ts";
 export * from "./auditLog/AuditLogPort.ts";
 export * from "./auth/AuthTokenVerifier.ts";
+export * from "./auth/IdentityProvider.ts";
 export * from "./auth/LocalUserSessionService.ts";
-export * from "./auth/WorkosLocalSyncService.ts";
-export * from "./auth/Workos.ts";
+export * from "./auth/StandaloneAuthConfig.ts";
+export * from "./auth/StandaloneIdentityProvider.ts";
+export * from "./auth/IdentityLinkBackfillService.ts";
 export * from "./experiments/ExperimentService.ts";
 export * from "./featureFlags/FeatureFlagService.ts";
 export * from "./feedback/FeedbackService.ts";
 export * from "./fxRates/FxRateService.ts";
 export * from "./slack/slack-client.ts";
 export * from "./internalFeatureFlags/InternalFeatureFlagService.ts";
+export * from "./organizations/StandaloneOrgDirectory.ts";
 export * from "./organizations/OrganizationService.ts";
 export * from "./organizations/OrganizationLifecyclePort.ts";
 export * from "./organizations/OrganizationMembershipSyncPort.ts";
 export * from "./organizations/OrganizationMembershipWebhookPort.ts";
-export * from "./organizations/WorkosOrgPort.ts";
+export * from "./organizations/OrgDirectoryPort.ts";
 export * from "./paymentProviders/AppStorePaymentProviderService.ts";
 export * from "./paymentProviders/appStore/payment-provider-service.ts";
 export * from "./paymentProviders/appStore/app-store-reconciliation-service.ts";
@@ -70,12 +73,11 @@ export { AppStorePaymentProvider as AppStorePaymentProviderEngine } from "./paym
 // with the config-adapter tag in `PaymentProvider.ts`; alias it so both are
 // importable (same pattern as the App Store engine).
 export { GooglePlayPaymentProvider as GooglePlayPaymentProviderEngine } from "./paymentProviders/googlePlay/payment-provider.ts";
-// Stripe record engine, webhook handler, public service, queries, errors, and
-// the replay workflow port (the config-write slice is exported above). The
-// engine shares the bare name `StripePaymentProvider` with the config-adapter
-// tag in `PaymentProvider.ts`, so alias it as `StripePaymentProviderEngine`.
+// Stripe record engine, webhook handler, public service, queries, and errors
+// (the config-write slice is exported above). The engine shares the bare name
+// `StripePaymentProvider` with the config-adapter tag in `PaymentProvider.ts`,
+// so alias it as `StripePaymentProviderEngine`.
 export * from "./paymentProviders/StripePaymentProviderService.ts";
-export * from "./paymentProviders/StripeReplayParkedNotificationsWorkflow.ts";
 export * from "./paymentProviders/stripe/payment-provider-service.ts";
 export * from "./paymentProviders/stripe/stripe-webhook-handler-service.ts";
 export * from "./paymentProviders/stripe/payment-provider-service-queries.ts";

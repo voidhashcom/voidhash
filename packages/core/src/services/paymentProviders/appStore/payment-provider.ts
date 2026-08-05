@@ -561,9 +561,9 @@ const make = Effect.gen(function* () {
       // transactionId, or — for token-bearing series — the token itself).
       // Checked before the account-token binding because it reflects
       // cross-owner transfers that the per-user token binding deliberately
-      // doesn't. Canonicalized: the identify-completion workflow never repoints
-      // external identifiers, so a post-merge renewal would otherwise resolve
-      // to the archived source person.
+      // doesn't. Person merges do not repoint provider identifiers, so
+      // canonicalize to avoid resolving a post-merge renewal to the archived
+      // source person.
       const externalIdentifier = yield* queries.findExternalIdentifier({
         identifier: input.personIdentifier,
         projectId: input.projectId,

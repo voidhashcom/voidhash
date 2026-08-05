@@ -17,10 +17,10 @@ import { generateId } from "../../utils/generate-id.ts";
 import { checkOrganizationPermission } from "../../utils/permissions.ts";
 import { PublicFileStore } from "../storage/PublicFileStore.ts";
 import { OrganizationLifecyclePort } from "./OrganizationLifecyclePort.ts";
-import { WorkosOrgPort } from "./WorkosOrgPort.ts";
+import { OrgDirectoryPort } from "./OrgDirectoryPort.ts";
 
 /**
- * Catch-all service error. Wraps `DatabaseError`, `WorkosOrgPortError`, and
+ * Catch-all service error. Wraps `DatabaseError`, `OrgDirectoryPortError`, and
  * other infrastructural failures at the public-method boundary so callers
  * see one stable error tag.
  */
@@ -39,7 +39,7 @@ export class OrganizationServiceError extends Schema.TaggedErrorClass<Organizati
  * policies keyed on the per-query `SQL_organization_id` setting, so adding a
  * tenant is zero ClickHouse DDL.
  *
- * `Db`, `WorkosOrgPort`, `OrganizationLifecyclePort`, and `AuthSession` are
+ * `Db`, `OrgDirectoryPort`, `OrganizationLifecyclePort`, and `AuthSession` are
  * provided by the application root. Community deployments use the no-op
  * lifecycle port; hosted deployments provide their own lifecycle extension
  * without coupling this service to its implementation.
@@ -48,7 +48,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
   "OrganizationService",
   {
     make: Effect.gen(function* () {
-      const workosOrgPort = yield* WorkosOrgPort;
+      const workosOrgPort = yield* OrgDirectoryPort;
       const organizationLifecycle = yield* OrganizationLifecyclePort;
       const publicFileStore = yield* PublicFileStore;
       const db = yield* Db;
@@ -65,7 +65,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
             yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
           }
           if (session.user?.workosUserId) {
-            yield* Effect.annotateCurrentSpan("voidhash.user.workos_id", session.user.workosUserId);
+            yield* Effect.annotateCurrentSpan("voidhash.user.external_id", session.user.workosUserId);
           }
           if (session.person?.distinctId) {
             yield* Effect.annotateCurrentSpan(
@@ -115,7 +115,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           yield* Effect.annotateCurrentSpan("voidhash.organization.slug", org.slug);
           if (org.workosOrganizationId) {
             yield* Effect.annotateCurrentSpan(
-              "voidhash.organization.workos_id",
+              "voidhash.organization.external_id",
               org.workosOrganizationId,
             );
           }
@@ -147,7 +147,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           yield* Effect.annotateCurrentSpan("voidhash.organization.id", org.id);
           if (org.workosOrganizationId) {
             yield* Effect.annotateCurrentSpan(
-              "voidhash.organization.workos_id",
+              "voidhash.organization.external_id",
               org.workosOrganizationId,
             );
           }
@@ -207,7 +207,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
             );
 
           yield* Effect.log(`Created WorkOS org ${workosOrg.id} for ${orgId} (${input.name})`);
-          yield* Effect.annotateCurrentSpan("voidhash.organization.workos_id", workosOrg.id);
+          yield* Effect.annotateCurrentSpan("voidhash.organization.external_id", workosOrg.id);
 
           const workosMembership = yield* workosOrgPort
             .createMembership({
@@ -237,7 +237,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           const now = new Date();
           const ownerMembershipId = generateId("member");
           yield* Effect.annotateCurrentSpan("voidhash.member.id", ownerMembershipId);
-          yield* Effect.annotateCurrentSpan("voidhash.member.workos_id", workosMembership.id);
+          yield* Effect.annotateCurrentSpan("voidhash.member.external_id", workosMembership.id);
           yield* Effect.annotateCurrentSpan("voidhash.member.role", "owner");
 
           // Local mirror in a single transaction. On failure, compensate by
@@ -301,7 +301,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
                 Effect.fail(new OrganizationServiceError({ cause: String(error.cause) })),
               SqlError: (error) =>
                 Effect.fail(new OrganizationServiceError({ cause: String(error.cause) })),
-              WorkosOrgPortError: (error) =>
+              OrgDirectoryPortError: (error) =>
                 Effect.fail(new OrganizationServiceError({ cause: error.message })),
             }),
           ),
@@ -323,7 +323,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           yield* Effect.annotateCurrentSpan("voidhash.organization.slug", org.slug);
           if (org.workosOrganizationId) {
             yield* Effect.annotateCurrentSpan(
-              "voidhash.organization.workos_id",
+              "voidhash.organization.external_id",
               org.workosOrganizationId,
             );
           }
@@ -350,7 +350,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
             Effect.catchTags({
               EffectDrizzleQueryError: (error) =>
                 Effect.fail(new OrganizationServiceError({ cause: String(error.cause) })),
-              WorkosOrgPortError: (error) =>
+              OrgDirectoryPortError: (error) =>
                 Effect.fail(new OrganizationServiceError({ cause: error.message })),
             }),
           ),
@@ -486,7 +486,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           if (org) {
             if (org.workosOrganizationId) {
               yield* Effect.annotateCurrentSpan(
-                "voidhash.organization.workos_id",
+                "voidhash.organization.external_id",
                 org.workosOrganizationId,
               );
             }
@@ -500,7 +500,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
             Effect.catchTags({
               EffectDrizzleQueryError: (error) =>
                 Effect.fail(new OrganizationServiceError({ cause: String(error.cause) })),
-              WorkosOrgPortError: (error) =>
+              OrgDirectoryPortError: (error) =>
                 Effect.fail(new OrganizationServiceError({ cause: error.message })),
             }),
           ),

@@ -13,7 +13,7 @@ import {
 import type {
   DurableEntityHostShape,
   DurableEntitySession,
-} from "@orbian/sdk/DurableEntity";
+} from "@voidhash/platform/DurableEntity";
 import { Context, Effect, Semaphore } from "effect";
 
 declare class WebSocketPair {

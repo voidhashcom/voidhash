@@ -77,5 +77,5 @@ export const none = (): Action => ACTION_MARKER;
  * the component's action. Inert marker (typed `any` so it slots into any
  * expected value position).
  */
-// biome-ignore lint/suspicious/noExplicitAny: payload slots into any action value position.
+// payload slots into any action value position.
 export const payload = (_field: string): any => undefined;

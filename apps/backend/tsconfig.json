@@ -1,17 +1,12 @@
 {
-  "extends": "@voidhash/tsconfig/alchemy-base.json",
+  "extends": "@voidhash/tsconfig/typescript-6.json",
   "compilerOptions": {
-    "types": ["bun"],
-    "allowImportingTsExtensions": true,
-    "composite": true,
-    "stripInternal": true,
-    "noEmit": false,
-    "outDir": "./lib",
-    "rootDir": "./src",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "types": ["node"],
+    "noEmit": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true
   },
-  "include": ["src"],
+  "include": ["src", "tests", "vitest.mts"],
   "exclude": ["**/node_modules/**"]
 }

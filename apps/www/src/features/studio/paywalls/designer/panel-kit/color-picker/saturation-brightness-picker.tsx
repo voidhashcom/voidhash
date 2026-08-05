@@ -87,7 +87,7 @@ export function SaturationBrightnessPicker({
   const hueColor = `rgb(${hueRgb.r}, ${hueRgb.g}, ${hueRgb.b})`;
 
   return (
-    // biome-ignore lint/nursery/noNoninteractiveElementInteractions: TODO: Fix accessibility issues
+    // TODO: Fix accessibility issues
     <div
       aria-label={`Color picker. Saturation: ${Math.round(saturation * 100)}%, Brightness: ${Math.round(brightness * 100)}%`}
       className="relative h-[200px] w-full cursor-crosshair rounded-md"
@@ -111,7 +111,7 @@ export function SaturationBrightnessPicker({
       ref={containerRef}
       role="application"
       style={{ backgroundColor: hueColor }}
-      // biome-ignore lint/a11y/noNoninteractiveTabindex: TODO: Fix accessibility issues
+      // TODO: Fix accessibility issues
       tabIndex={0}
     >
       {/* White gradient (left to right) */}

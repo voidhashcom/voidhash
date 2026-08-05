@@ -58,7 +58,6 @@ import { AppStorePaymentProvider } from "@voidhash/core/services/paymentProvider
 import { FxRateService } from "@voidhash/core/services/fxRates/FxRateService";
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { IdentityProjectionPublisher } from "@voidhash/core/services/personIdentity/IdentityProjectionPublisher";
-import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PurchaseProcessingService } from "@voidhash/core/services/purchaseProcessing/PurchaseProcessingService";
 import { PerkGrantService } from "@voidhash/core/services/perkGrants/PerkGrantService";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
@@ -91,10 +90,6 @@ const stubFxFetcher = {
  * (surfaces on the effect, not the layer); none of the paths under test
  * dispatches it, so a void stub suffices.
  */
-const IdentifyWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflow, {
-  dispatch: () => Effect.void,
-});
-
 /**
  * Service-under-test layer composed with the full `AppStorePaymentProvider`
  * record graph it depends on, mirroring `stacks/backend/workflows/
@@ -117,7 +112,6 @@ const TestLayer = AppStoreReconciliationService.layer.pipe(
       Layer.provide(PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") })),
     ),
   ),
-  Layer.provideMerge(IdentifyWorkflowStub),
 );
 
 /** Read a payment-provider configuration row straight from the DB. */

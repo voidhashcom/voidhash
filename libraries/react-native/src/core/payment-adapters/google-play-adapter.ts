@@ -1,4 +1,4 @@
-/** biome-ignore-all lint/style/noNonNullAssertion: we use it for GoogleBilling that is only available on Android */
+/** we use it for GoogleBilling that is only available on Android */
 
 import { Effect, Layer } from "effect";
 
