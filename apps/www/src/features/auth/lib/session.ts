@@ -12,4 +12,4 @@ export {
   getSessionUser,
   performSignOut,
   type SessionUser,
-} from "../adapter/session-adapter";
+} from "@/features/auth/adapter/session-adapter";
