@@ -12,6 +12,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { integrationSuites } from "./integration-suites.mjs";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const skipDirectories = new Set(["node_modules", "dist", ".git", ".turbo", "build", ".next"]);
@@ -76,11 +78,24 @@ const integrationDirectories = new Set(
     }),
 );
 
+// …and needs to be registered with the runner: a package with a valid config
+// that is missing from the suite list would pass every check here and still
+// never run.
+const registeredDirectories = new Set(
+  integrationSuites.map((suite) => path.resolve(repoRoot, suite.directory)),
+);
+
 for (const directory of integrationDirectories) {
   if (!fs.existsSync(path.join(directory, "vitest.integration.mts"))) {
     failures.push(
       `${path.relative(repoRoot, directory)}: has *.integration.test.ts files but no ` +
         `vitest.integration.mts, so \`pnpm test:integration\` cannot run them.`,
+    );
+  }
+  if (!registeredDirectories.has(directory)) {
+    failures.push(
+      `${path.relative(repoRoot, directory)}: has *.integration.test.ts files but is not ` +
+        `registered in scripts/integration-suites.mjs, so \`pnpm test:integration\` never runs it.`,
     );
   }
 }

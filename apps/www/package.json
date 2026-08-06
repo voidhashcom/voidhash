@@ -10,7 +10,8 @@
     "preview": "vp preview",
     "typecheck": "pnpm run generate:docs && tsc --noEmit",
     "generate:docs": "fumadocs-mdx src/features/source.config.ts .source",
-    "generate:openapi": "bun scripts/generate-openapi.ts"
+    "generate:openapi": "bun scripts/generate-openapi.ts",
+    "test:components": "vp test run"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^1.6.0",

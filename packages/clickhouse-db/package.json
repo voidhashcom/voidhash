@@ -14,7 +14,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "typecheck-go": "tsgo --noEmit"
+    "typecheck-go": "tsgo --noEmit",
+    "test": "vp test run -c vitest.mts"
   },
   "dependencies": {
     "@clickhouse/client-web": "^1.12.0",

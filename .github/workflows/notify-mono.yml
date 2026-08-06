@@ -1,0 +1,31 @@
+# Tells the monorepo that main moved, so its Bump voidhash workflow can open a
+# submodule bump PR immediately (its daily cron is the fallback). MONO_DISPATCH_TOKEN
+# must be a PAT that can send repository_dispatch to voidhashcom/voidhash-mono;
+# when it is missing the step warns and succeeds, because the cron still covers
+# detection.
+name: Notify mono
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch bump event
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Send repository_dispatch to voidhash-mono
+        env:
+          GH_TOKEN: ${{ secrets.MONO_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning title=MONO_DISPATCH_TOKEN not set::Skipping the dispatch; voidhash-mono's daily bump cron remains the only drift detection."
+            exit 0
+          fi
+          gh api repos/voidhashcom/voidhash-mono/dispatches \
+            -f event_type=voidhash-main-push \
+            -f 'client_payload[sha]='"${GITHUB_SHA}"

@@ -28,9 +28,6 @@
     "clean": {},
     "format": {},
     "lint": {},
-    "knip": {
-      "cache": true
-    },
     "start": {
       "cache": false
     },

@@ -19,6 +19,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { integrationSuites } from "./integration-suites.mjs";
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const parseEnvFile = (filePath) => {
@@ -138,16 +140,7 @@ const testEnv = {
     : {}),
 };
 
-// Every suite runs `vitest.integration.mts`, which selects `*.integration.test.ts`
-// and nothing else. Unit files stay with `pnpm test`; no suite appears in both.
-const suites = [
-  { name: "platform", directory: "selfhost/platform" },
-  { name: "backend", directory: "apps/backend" },
-  { name: "core", directory: "packages/core" },
-  { name: "backend-smoke", directory: "packages/backend" },
-  { name: "agent", directory: "packages/agent" },
-  { name: "db", directory: "packages/db" },
-];
+const suites = integrationSuites;
 
 const requested = process.argv.slice(2);
 const selected = requested.length

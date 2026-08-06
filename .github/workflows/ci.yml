@@ -10,9 +10,11 @@ on:
 permissions:
   contents: read
 
+# Superseded PR pushes cancel their stale runs; main never cancels, so every
+# main commit keeps a complete CI verdict.
 concurrency:
   group: repository-ci-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   # Keeps turbo within the runner's 4 vCPUs; the scripts stay flag-free so the
@@ -73,6 +75,6 @@ jobs:
       # The same command developers run locally. The stack-backed tiers
       # (`test:integration`, `test:e2e`) run in the Self-host Compose workflow,
       # which owns the Compose lifecycle; together they cover `pnpm verify`.
-      - name: Verify (typecheck + unit tier)
+      - name: Verify (lint + typecheck + unit tier)
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: pnpm verify:quick

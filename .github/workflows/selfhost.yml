@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: selfhost-compose-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   COMPOSE_PROJECT_NAME: voidhash-selfhost-ci-${{ github.run_id }}-${{ github.run_attempt }}
