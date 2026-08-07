@@ -8,7 +8,7 @@ import {
   type DatabasePermission,
   type DocumentPermission,
 } from "@voidhash/mimic-server/rpc";
-import { Effect } from "effect";
+import { Clock, Effect } from "effect";
 
 import { normalizeSchemaObject, sanitizeValueForSchema } from "../document/schema.ts";
 import { hashHex, randomId } from "./ids.ts";
@@ -24,8 +24,11 @@ const unauthorized = (message: string): UnauthorizedError =>
 const forbidden = (message: string): ForbiddenError =>
   new ForbiddenError({ code: "forbidden", message });
 
-const permissionRank = (permission: DatabasePermission): number =>
-  permission === "read" ? 1 : permission === "write" ? 2 : 3;
+const permissionRank = (permission: DatabasePermission): number => {
+  if (permission === "read") return 1;
+  if (permission === "write") return 2;
+  return 3;
+};
 
 interface CollectionView {
   readonly id: string;
@@ -180,15 +183,17 @@ export const makeControlEngine = (
   registry: MigrationRegistry = EmptyMigrationRegistry,
 ): ControlEngineApi => {
   const findCollection: ControlEngineApi["findCollection"] = (collectionId) =>
-    store
-      .findCollectionById(collectionId)
-      .pipe(
-        Effect.flatMap((record) =>
-          record
-            ? Effect.succeed(record)
-            : Effect.fail(notFound(`Collection not found: ${collectionId}`)),
-        ),
-      );
+    store.findCollectionById(collectionId).pipe(
+      Effect.flatMap((record) => {
+        if (!record) return Effect.fail(notFound(`Collection not found: ${collectionId}`));
+        return Effect.succeed(record);
+      }),
+    );
+
+  const listGrantRows = (userId: string | undefined) => {
+    if (!userId) return store.listGrants();
+    return store.listGrantsByUser(userId);
+  };
 
   return {
     store,
@@ -207,33 +212,35 @@ export const makeControlEngine = (
 
     authenticateBasic: (username, password) =>
       store.findUserByUsername(username).pipe(
-        Effect.flatMap((user) =>
-          !user || user.passwordHash !== hashHex(password)
-            ? Effect.fail(unauthorized("Invalid credentials"))
-            : Effect.succeed({
-                userId: user.id,
-                username: user.username,
-                isSuperuser: user.isSuperuser,
-              }),
-        ),
+        Effect.flatMap((user) => {
+          if (!user || user.passwordHash !== hashHex(password)) {
+            return Effect.fail(unauthorized("Invalid credentials"));
+          }
+          return Effect.succeed({
+            userId: user.id,
+            username: user.username,
+            isSuperuser: user.isSuperuser,
+          });
+        }),
       ),
 
     authenticateDocumentToken: (token, collectionId, documentId, origin) =>
       Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
         const record = yield* store.findTokenByHash(hashHex(token));
         if (
           !record ||
           record.collectionId !== collectionId ||
           record.documentId !== documentId ||
           record.usedAt !== null ||
-          record.expiresAtMs < Date.now()
+          record.expiresAtMs < now
         ) {
           return yield* Effect.fail(unauthorized("Invalid document token"));
         }
         if (record.origins.length > 0 && origin !== null && !record.origins.includes(origin)) {
           return yield* Effect.fail(unauthorized("Document token origin is not allowed"));
         }
-        yield* store.markTokenUsed(record.id, Date.now());
+        yield* store.markTokenUsed(record.id, now);
         return { tokenId: record.id, permission: record.permission };
       }),
 
@@ -337,13 +344,12 @@ export const makeControlEngine = (
       ),
 
     deleteUser: (userId) =>
-      store
-        .findUserById(userId)
-        .pipe(
-          Effect.flatMap((user) =>
-            user ? store.deleteUser(userId) : Effect.fail(notFound(`User not found: ${userId}`)),
-          ),
-        ),
+      store.findUserById(userId).pipe(
+        Effect.flatMap((user) => {
+          if (!user) return Effect.fail(notFound(`User not found: ${userId}`));
+          return store.deleteUser(userId);
+        }),
+      ),
 
     grantPermission: (userId, databaseId, permission) =>
       Effect.gen(function* () {
@@ -355,20 +361,17 @@ export const makeControlEngine = (
       }),
 
     revokePermission: (userId, databaseId) =>
-      store
-        .findGrant(userId, databaseId)
-        .pipe(
-          Effect.flatMap((grant) =>
-            grant
-              ? store.removeGrant(userId, databaseId)
-              : Effect.fail(
-                  notFound(`Grant not found for user ${userId} on database ${databaseId}`),
-                ),
-          ),
-        ),
+      store.findGrant(userId, databaseId).pipe(
+        Effect.flatMap((grant) => {
+          if (!grant) {
+            return Effect.fail(notFound(`Grant not found for user ${userId} on database ${databaseId}`));
+          }
+          return store.removeGrant(userId, databaseId);
+        }),
+      ),
 
     listGrants: (userId) =>
-      (userId ? store.listGrantsByUser(userId) : store.listGrants()).pipe(
+      listGrantRows(userId).pipe(
         Effect.map((rows) =>
           rows.map((row) => ({
             id: row.id,
@@ -386,6 +389,7 @@ export const makeControlEngine = (
         if (!index || index.collectionId !== collectionId || index.deletedAt !== null) {
           return yield* Effect.fail(notFound(`Document not found: ${documentId}`));
         }
+        const now = yield* Clock.currentTimeMillis;
         const token = randomId();
         yield* store.createToken({
           id: randomId(),
@@ -394,7 +398,7 @@ export const makeControlEngine = (
           documentId,
           permission,
           origins,
-          expiresAtMs: Date.now() + (expiresInSeconds ?? 300) * 1000,
+          expiresAtMs: now + (expiresInSeconds ?? 300) * 1000,
           usedAt: null,
         });
         return { token };
@@ -432,8 +436,10 @@ export const makeControlEngine = (
             // When the caller can prove the object is unmaterialized, re-seed
             // it (fall through to registerDocument, which the caller pairs with
             // a fresh document-object create) instead of conflicting.
-            const materialized =
-              isMaterialized === undefined ? true : yield* isMaterialized(documentId);
+            if (isMaterialized === undefined) {
+              return yield* Effect.fail(conflict(`Document '${documentId}' already exists`));
+            }
+            const materialized = yield* isMaterialized(documentId);
             if (materialized) {
               return yield* Effect.fail(conflict(`Document '${documentId}' already exists`));
             }
@@ -464,15 +470,14 @@ export const makeControlEngine = (
       }),
 
     findDocument: (collectionId, documentId) =>
-      store
-        .findDocumentIndex(documentId)
-        .pipe(
-          Effect.flatMap((index) =>
-            index && index.collectionId === collectionId && index.deletedAt === null
-              ? Effect.void
-              : Effect.fail(notFound(`Document not found: ${documentId}`)),
-          ),
-        ),
+      store.findDocumentIndex(documentId).pipe(
+        Effect.flatMap((index) => {
+          if (index && index.collectionId === collectionId && index.deletedAt === null) {
+            return Effect.void;
+          }
+          return Effect.fail(notFound(`Document not found: ${documentId}`));
+        }),
+      ),
 
     listDocumentIds: (collectionId) =>
       findCollection(collectionId).pipe(
@@ -480,6 +485,10 @@ export const makeControlEngine = (
         Effect.map((rows) => rows.map((row) => row.documentId)),
       ),
 
-    markDocumentDeleted: (documentId) => store.markDocumentDeleted(documentId, Date.now()),
+    markDocumentDeleted: (documentId) =>
+      Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
+        yield* store.markDocumentDeleted(documentId, now);
+      }),
   };
 };

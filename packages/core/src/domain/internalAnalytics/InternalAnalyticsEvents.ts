@@ -19,6 +19,7 @@
  * (event-capture, event-processor) can import them without depending on
  * purchase-processing.
  */
+import { constant } from "@voidhash/lib/lang";
 import { Schema } from "effect";
 
 import { SubscriptionTransferModeSchema } from "../paymentProvider/SubscriptionTransfer.ts";
@@ -75,8 +76,11 @@ export const RESERVED_REVENUE_EVENT_NAMES: ReadonlySet<RevenueAnalyticsEventName
     "$subscription.transferred_in",
   ]);
 
+/** Widened view of {@link RESERVED_REVENUE_EVENT_NAMES} for arbitrary-string membership checks. */
+const reservedRevenueEventNames: ReadonlySet<string> = RESERVED_REVENUE_EVENT_NAMES;
+
 export const isReservedRevenueEventName = (name: string): name is RevenueAnalyticsEventName =>
-  RESERVED_REVENUE_EVENT_NAMES.has(name as RevenueAnalyticsEventName);
+  reservedRevenueEventNames.has(name);
 
 /**
  * Event names exempt from the per-event capture quota regardless of trust
@@ -108,7 +112,7 @@ export const shouldBypassQuota = (input: {
  * events from any reserved-named event that somehow reached the capture
  * pipeline.
  */
-export const REVENUE_TRUSTED_SOURCE_TOPIC = "revenue.trusted.v1" as const;
+export const REVENUE_TRUSTED_SOURCE_TOPIC = constant("revenue.trusted.v1");
 
 /**
  * The `routing.sourceTopic` stamped onto server-emitted experiment-exposure
@@ -117,7 +121,7 @@ export const REVENUE_TRUSTED_SOURCE_TOPIC = "revenue.trusted.v1" as const;
  * and the reserved revenue event-name set — `$experiment.exposed` is in
  * neither).
  */
-export const EXPERIMENT_TRUSTED_SOURCE_TOPIC = "experiment.trusted.v1" as const;
+export const EXPERIMENT_TRUSTED_SOURCE_TOPIC = constant("experiment.trusted.v1");
 
 const baseEventFields = {
   context: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),

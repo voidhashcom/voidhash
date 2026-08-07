@@ -16,7 +16,7 @@ export type VoidhashPersonAttributes = {
 export interface FeatureFlagEntry {
   readonly enabled: boolean;
   readonly key: string;
-  readonly payload: unknown | null;
+  readonly payload: unknown;
   readonly variantKey: string | null;
 }
 

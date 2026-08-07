@@ -1,5 +1,6 @@
 import { TextNode, ViewNode } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -89,7 +90,7 @@ function insertAbsoluteView(
   let viewId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const view = screen.children.insertLast({ type: "view" });
     viewId = view.id;
     view.as(ViewNode).data.style.update({ position: "absolute", ...style });
@@ -99,7 +100,7 @@ function insertAbsoluteView(
 
 function styleOf(doc: OfflineDesignerDocument, viewId: string) {
   const data = findTypedNode(doc.root, viewId, ViewNode)?.get()?.data;
-  if (data === undefined) throw new Error("expected the view node");
+  if (data === undefined) return Effect.runSync(Effect.die(new Error("expected the view node")));
   return data.style;
 }
 
@@ -112,7 +113,7 @@ function insertAbsoluteText(
   let textId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const text = screen.children.insertLast({ type: "text" });
     textId = text.id;
     text.as(TextNode).data.style.update({ position: "absolute", ...style });
@@ -122,7 +123,7 @@ function insertAbsoluteText(
 
 function textStyleOf(doc: OfflineDesignerDocument, textId: string) {
   const data = findTypedNode(doc.root, textId, TextNode)?.get()?.data;
-  if (data === undefined) throw new Error("expected the text node");
+  if (data === undefined) return Effect.runSync(Effect.die(new Error("expected the text node")));
   return data.style;
 }
 
@@ -170,7 +171,7 @@ function seedStateOverride(
   let entryId = "";
   doc.transaction((root) => {
     const node = root.findByIdAcrossTree(nodeId);
-    if (!node) throw new Error("expected the stateful node");
+    if (!node) return Effect.runSync(Effect.die(new Error("expected the stateful node")));
     const created = (
       node as unknown as {
         data: { states: { push: (value: unknown) => { id: string } } };
@@ -253,7 +254,7 @@ describe("move-actions", () => {
     let viewId = "";
     doc.transaction((root) => {
       const screen = root.findByIdAcrossTree(screenId);
-      if (!screen) throw new Error("expected the seeded screen node");
+      if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
       // Relative (default) position — not draggable.
       viewId = screen.children.insertLast({ type: "view" }).id;
     });

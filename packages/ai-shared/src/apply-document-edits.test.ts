@@ -41,6 +41,17 @@ function byId(root: EditableDocumentNode): Map<string, EditableDocumentNode> {
   return map;
 }
 
+/** A non-null, non-array object. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Read `key` off a value that is a record, else `undefined`. */
+function field(value: unknown, key: string): unknown {
+  if (!isRecord(value)) return undefined;
+  return value[key];
+}
+
 const childIds = (node: EditableDocumentNode | undefined): string[] =>
   (node?.children ?? []).map((child) => child.id);
 
@@ -52,7 +63,7 @@ describe("applyDocumentEdits", () => {
         parentId: "screen1",
         node: { type: "view", name: "Card", style: { paddingTop: 16 } },
       },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
 
     const minted = mintedIds["0"];
     expect(minted).toBeDefined();
@@ -82,7 +93,7 @@ describe("applyDocumentEdits", () => {
           ],
         },
       },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const minted = mintedIds["0"]!;
     expect(minted).toHaveLength(3); // view + 2 texts
     // All distinct.
@@ -101,19 +112,19 @@ describe("applyDocumentEdits", () => {
     };
     const inRange = applyDocumentEdits(tree, [
       { op: "insert", parentId: "root1", index: 1, node: { type: "view" } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const midId = inRange.mintedIds["0"]![0]!;
     expect(childIds(inRange.root)).toEqual(["a", midId, "b"]);
 
     const clamped = applyDocumentEdits(tree, [
       { op: "insert", parentId: "root1", index: 99, node: { type: "view" } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const endId = clamped.mintedIds["0"]![0]!;
     expect(childIds(clamped.root)).toEqual(["a", "b", endId]);
 
     const negative = applyDocumentEdits(tree, [
       { op: "insert", parentId: "root1", index: -5, node: { type: "view" } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const startId = negative.mintedIds["0"]![0]!;
     expect(childIds(negative.root)).toEqual([startId, "a", "b"]);
   });
@@ -121,7 +132,7 @@ describe("applyDocumentEdits", () => {
   test("update deep-merges nested structs and replaces scalars/arrays", () => {
     const { root } = applyDocumentEdits(makeTree(), [
       { op: "update", nodeId: "view1", set: { style: { paddingTop: 24 } } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const view = byId(root).get("view1")!;
     // paddingTop overridden; paddingBottom + backgroundColor untouched (per-field merge).
     expect(view.data).toEqual({
@@ -132,12 +143,12 @@ describe("applyDocumentEdits", () => {
   test("update replaces a scalar wholesale and deletes on undefined", () => {
     const replaced = applyDocumentEdits(makeTree(), [
       { op: "update", nodeId: "text1", set: { text: "Bye" } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     expect(byId(replaced.root).get("text1")!.data).toEqual({ text: "Bye" });
 
     const deleted = applyDocumentEdits(makeTree(), [
       { op: "update", nodeId: "text1", set: { text: undefined } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     expect(byId(deleted.root).get("text1")!.data).toEqual({});
   });
 
@@ -145,16 +156,16 @@ describe("applyDocumentEdits", () => {
     const tree = makeTree();
     applyDocumentEdits(tree, [
       { op: "update", nodeId: "view1", set: { style: { paddingTop: 99 } } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     // Original untouched.
     const original = byId(tree).get("view1")!;
-    expect((original.data!["style"] as Record<string, unknown>)["paddingTop"]).toBe(8);
+    expect(field(original.data?.["style"], "paddingTop")).toBe(8);
   });
 
   test("move reparents preserving the node id and its subtree", () => {
     const { root } = applyDocumentEdits(makeTree(), [
       { op: "move", nodeId: "text1", parentId: "screen1", index: 0 },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const nodes = byId(root);
     // text1 left view1 and now leads screen1's children.
     expect(childIds(nodes.get("view1"))).toEqual([]);
@@ -166,7 +177,7 @@ describe("applyDocumentEdits", () => {
   test("remove drops the node and its whole subtree", () => {
     const { root } = applyDocumentEdits(makeTree(), [
       { op: "remove", nodeId: "view1" },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const nodes = byId(root);
     expect(nodes.has("view1")).toBe(false);
     expect(nodes.has("text1")).toBe(false); // subtree gone
@@ -183,7 +194,7 @@ describe("applyDocumentEdits", () => {
           { type: "text", text: "Two" },
         ],
       },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const minted = mintedIds["0"]!;
     expect(minted).toHaveLength(2);
     const nodes = byId(root);
@@ -200,7 +211,7 @@ describe("applyDocumentEdits", () => {
       // Second op inserts under the id minted by the first — but ids are minted
       // at apply time, so this batch style addresses via a follow-up call in
       // practice; here we verify the first op's id exists to be addressed.
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     const rowId = mintedIds["0"]![0]!;
     expect(byId(root).has(rowId)).toBe(true);
   });
@@ -209,7 +220,7 @@ describe("applyDocumentEdits", () => {
     const { root, mintedIds } = applyDocumentEdits(makeTree(), [
       { op: "update", nodeId: "ghost", set: { text: "x" } },
       { op: "insert", parentId: "screen1", node: { type: "view" } },
-    ] as DocumentEdit[]);
+    ] satisfies DocumentEdit[]);
     // The ghost update was skipped; the valid insert still applied at index 1.
     expect(mintedIds["0"]).toBeUndefined();
     expect(mintedIds["1"]).toHaveLength(1);

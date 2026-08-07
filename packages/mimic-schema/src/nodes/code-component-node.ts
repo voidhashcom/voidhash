@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 const codeComponentNodeData = Primitive.Struct({
@@ -20,7 +21,7 @@ const codeComponentNodeData = Primitive.Struct({
  * node; they have no children.
  */
 export const CodeComponentNode = Primitive.TreeNode("codeComponent", {
-  children: [] as const,
+  children: constant([]),
   data: codeComponentNodeData,
 });
 

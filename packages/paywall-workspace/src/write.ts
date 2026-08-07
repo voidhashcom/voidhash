@@ -109,9 +109,10 @@ export function uniqueComponentFileName(base: string, existingFileNames: Iterabl
 
 /** Split a file name into its `stem` and `.tsx` `ext` (`ext` empty when absent). */
 function splitFileName(fileName: string): { readonly stem: string; readonly ext: string } {
-  return fileName.endsWith(".tsx")
-    ? { stem: fileName.slice(0, -".tsx".length), ext: ".tsx" }
-    : { stem: fileName, ext: ".tsx" };
+  if (fileName.endsWith(".tsx")) {
+    return { stem: fileName.slice(0, -".tsx".length), ext: ".tsx" };
+  }
+  return { stem: fileName, ext: ".tsx" };
 }
 
 /**
@@ -225,9 +226,10 @@ function deleteComponent(liveTree: TreeValue, path: string): TreeValue | undefin
  * nodes. This is the component's identity.
  */
 function codeComponentPath(node: TreeNode): string | undefined {
-  return stringField(node.value, "type") === "codeComponent"
-    ? stringField(node.value, "path")
-    : undefined;
+  if (stringField(node.value, "type") !== "codeComponent") {
+    return undefined;
+  }
+  return stringField(node.value, "path");
 }
 
 /**
@@ -239,9 +241,10 @@ function localInstanceComponentPath(node: TreeNode): string | undefined {
   if (stringField(node.value, "type") !== "component") {
     return undefined;
   }
-  return stringField(node.value, "componentSource") === "local"
-    ? stringField(node.value, "componentPath")
-    : undefined;
+  if (stringField(node.value, "componentSource") !== "local") {
+    return undefined;
+  }
+  return stringField(node.value, "componentPath");
 }
 
 /** Rewrite a `codeComponent` node's `path` field to `path`, preserving all other fields. */
@@ -269,5 +272,8 @@ function withInstanceComponentPath(node: TreeNode, componentPath: string): TreeN
 /** Reads a string field off an object value, or `undefined` when absent/non-string. */
 function stringField(object: ObjectValue, key: string): string | undefined {
   const field: Value | undefined = object.fields[key];
-  return field && field.kind === "string" ? field.value : undefined;
+  if (field?.kind === "string") {
+    return field.value;
+  }
+  return undefined;
 }

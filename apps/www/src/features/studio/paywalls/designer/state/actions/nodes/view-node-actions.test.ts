@@ -1,4 +1,5 @@
 import { ViewNode } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -82,7 +83,7 @@ describe("createViewNode", () => {
     let rowParentId = "";
     doc.transaction((root) => {
       const screen = root.findByIdAcrossTree(screenId);
-      if (!screen) throw new Error("expected the seeded screen node");
+      if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
       rowParentId = screen.children.insertLast({ type: "view", style: { flexDirection: "row" } }).id;
     });
 

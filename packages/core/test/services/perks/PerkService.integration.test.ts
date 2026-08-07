@@ -25,9 +25,10 @@
  *  - Typed failures are asserted with `Effect.flip` (project convention),
  *    narrowing the swapped error with `instanceof` before reading its fields.
  */
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
+import { generateId } from "@voidhash/core/utils";
 import { PerkService, ProjectSchemaCache } from "@voidhash/core/services";
 import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
 import {
@@ -54,9 +55,11 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
-/** Monotonic counter so slugs stay unique even within the same millisecond. */
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
+/** Monotonic counter so slugs stay unique within one run; the cuid2 keeps them unique across runs. */
 let slugSeq = 0;
-const uniqueSlug = (label: string) => `it-perk-${label}-${Date.now()}-${slugSeq++}`;
+const uniqueSlug = (label: string) => `it-perk-${label}-${generateId("test")}-${slugSeq++}`;
 
 /** Read a perk row straight from the database, bypassing the service. */
 const findPerkRow = (id: string) =>
@@ -134,14 +137,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -288,7 +291,9 @@ describe("PerkService.getPerkById", () => {
     "fails with PerkNotFoundError for an unknown id",
     Effect.gen(function* () {
       const perkService = yield* PerkService;
-      const error = yield* Effect.flip(perkService.getPerkById(`perk_missing_${Date.now()}`));
+      const error = yield* Effect.flip(
+        perkService.getPerkById(`perk_missing_${generateId("test")}`),
+      );
       expect(error).toBeInstanceOf(PerkNotFoundError);
     }).pipe(Effect.provide(PerkService.layer), CoreAuthSession.authenticate()),
   );
@@ -444,7 +449,7 @@ describe("PerkService.deletePerk", () => {
     Effect.gen(function* () {
       const perkService = yield* PerkService;
       const error = yield* Effect.flip(
-        perkService.deletePerk({ perkId: `perk_missing_${Date.now()}` }),
+        perkService.deletePerk({ perkId: `perk_missing_${generateId("test")}` }),
       );
       expect(error).toBeInstanceOf(PerkNotFoundError);
     }).pipe(Effect.provide(PerkService.layer), CoreAuthSession.authenticate()),

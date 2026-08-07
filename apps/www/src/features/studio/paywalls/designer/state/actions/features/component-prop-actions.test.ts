@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 import { performUndo } from "@voidhash/mimic/zustand-commander";
 
 import { createDesignerStore } from "../../designer-store";
@@ -25,7 +26,7 @@ function seedComponentNodes(
   const ids: string[] = [];
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     for (let i = 0; i < count; i++) {
       const node = (
         screen.children as unknown as { insertLast: (value: unknown) => { id: string } }

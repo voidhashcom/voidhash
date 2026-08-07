@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { type AnyAuthSession, AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -28,6 +29,9 @@ export class PersonServiceError extends Schema.TaggedErrorClass<PersonServiceErr
   "PersonServiceError",
 )("PersonServiceError", { cause: Schema.String }) {}
 
+/** `person_identity.kind` is a plain smallint column mirroring `PersonIdentityKind`. */
+const asPersonIdentityKind = (kind: any): PersonIdentityKindValue => kind;
+
 /**
  * Builds the {@link DomainPerson} aggregate from raw DB rows. Kept private to
  * the service per the "Drizzle-first with Schema at boundaries" convention —
@@ -50,7 +54,7 @@ const buildPerson = (row: DbPerson, identities: ReadonlyArray<DbPersonIdentity>)
           distinctId: identity.distinctId,
           personId: identity.personId,
           projectId: identity.projectId,
-          kind: identity.kind as PersonIdentityKindValue,
+          kind: asPersonIdentityKind(identity.kind),
           version: identity.version,
           createdAt: identity.createdAt ?? null,
           updatedAt: identity.updatedAt ?? null,
@@ -257,10 +261,11 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
         yield* Effect.annotateCurrentSpan("voidhash.person.distinct_id", input.distinctId);
         yield* Effect.annotateCurrentSpan("voidhash.person.origin", input.origin);
+        const eventTimestamp = yield* DateTime.nowAsDate;
         const result = yield* personIdentityService.resolveDistinctId({
           distinctId: input.distinctId,
           email: input.email ?? undefined,
-          eventTimestamp: new Date(),
+          eventTimestamp,
           name: input.name ?? undefined,
           origin: input.origin,
           projectId: input.projectId,
@@ -317,10 +322,11 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         yield* Effect.annotateCurrentSpan("voidhash.person.source_id", fromPersonId);
         yield* Effect.annotateCurrentSpan("voidhash.person.target_id", toPersonId);
         yield* Effect.annotateCurrentSpan("voidhash.person.merged_into_id", toPersonId);
+        const archivedAt = yield* DateTime.nowAsDate;
         yield* db
           .update(persons)
           .set({
-            archivedAt: new Date(),
+            archivedAt,
             mergedIntoPersonId: toPersonId,
           })
           .where(eq(persons.id, fromPersonId));
@@ -336,13 +342,13 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         ),
     );
 
-    return {
+    return constant({
       createPerson,
       getPersonByDistinctId,
       getPersonById,
       getPersons,
       mergePersons,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(PersonService)(PersonService.make);

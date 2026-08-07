@@ -1,4 +1,5 @@
-import { Context, Effect, Layer } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 import * as Workflow from "@voidhash/platform/Workflow";
 
 import { Db, WebhookDeliveryStatus, WebhookEndpointStatus, webhookDeliveries } from "@voidhash/db";
@@ -6,6 +7,8 @@ import { DeliverWebhook } from "../../workflows/definitions.ts";
 import { generateId } from "../../utils/generate-id.ts";
 import { WebhookServiceError } from "../webhookManager/WebhookManagerService.ts";
 import type { WebhookEventType } from "../webhookManager/event-types.ts";
+
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 /**
  * Producer side of outbound webhooks. Creates delivery rows for all active
@@ -35,7 +38,7 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
           // here so it fails as a typed `WebhookServiceError` before any delivery
           // row is written, instead of escaping as an unhandled defect.
           yield* Effect.try({
-            try: () => JSON.stringify(input.payload),
+            try: () => encodeJson(input.payload),
             catch: (cause) =>
               new WebhookServiceError({
                 cause: `Failed to emit webhook event: ${String(cause)}`,
@@ -65,14 +68,14 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
             return { deliveriesCreated: 0 };
           }
 
-          const eventOccurredAt = new Date();
+          const eventOccurredAt = yield* DateTime.nowAsDate;
 
           for (const endpoint of subscribedEndpoints) {
             const deliveryId = generateId("webhookDelivery");
 
             yield* db.insert(webhookDeliveries).values({
               attemptCount: 0,
-              createdAt: new Date(),
+              createdAt: yield* DateTime.nowAsDate,
               eventOccurredAt,
               eventType: input.eventType,
               id: deliveryId,
@@ -112,7 +115,7 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
           ),
       );
 
-      return { emit } as const;
+      return constant({ emit });
     }),
   },
 ) {

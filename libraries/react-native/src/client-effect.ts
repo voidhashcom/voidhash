@@ -260,29 +260,27 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       iosPresentCodeRedemptionSheet: () =>
         Effect.gen(function* iosPresentCodeRedemptionSheet() {
           const paymentAdapter = yield* PaymentAdapter;
-          const { presentCodeRedemptionSheet } = paymentAdapter;
-          if (!presentCodeRedemptionSheet) {
+          if (!paymentAdapter.presentCodeRedemptionSheet) {
             return yield* Effect.fail(
               new UnsupportedPlatformError(
                 "Present code redemption sheet is not supported on this platform",
               ),
             );
           }
-          return yield* presentCodeRedemptionSheet();
+          return yield* paymentAdapter.presentCodeRedemptionSheet();
         }),
 
       iosShowManageSubscriptions: () =>
         Effect.gen(function* iosShowManageSubscriptions() {
           const paymentAdapter = yield* PaymentAdapter;
-          const { showManageSubscriptions } = paymentAdapter;
-          if (!showManageSubscriptions) {
+          if (!paymentAdapter.showManageSubscriptions) {
             return yield* Effect.fail(
               new UnsupportedPlatformError(
                 "Show manage subscriptions is not supported on this platform",
               ),
             );
           }
-          return yield* showManageSubscriptions();
+          return yield* paymentAdapter.showManageSubscriptions();
         }),
 
       processObservedTransaction: (transaction: Transaction) =>

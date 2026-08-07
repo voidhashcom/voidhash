@@ -1,6 +1,8 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
+import { constant } from "@voidhash/lib/lang";
+
 import {
   CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_TABLE,
@@ -10,7 +12,7 @@ import { ClickhouseWebClient } from "../clickhouse-client-web/index.ts";
 
 const KAFKA_BROKER_LIST = "redpanda:9092";
 
-const statements = [
+const statements = constant([
   `CREATE TABLE IF NOT EXISTS ${CLICKHOUSE_PERSON_IDENTITY_TABLE}
 	(
 		project_id String,
@@ -122,7 +124,7 @@ const statements = [
 		version,
 		changed_at
 	FROM ${CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE}`,
-] as const;
+]);
 
 export default Effect.gen(function* () {
   const ch = yield* ClickhouseWebClient.ClickhouseWebClient;

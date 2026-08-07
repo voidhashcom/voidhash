@@ -71,7 +71,7 @@ export function CreateWebhookModal({
     onSuccess: (data) => {
       onSuccess?.(data);
       toast.success("Webhook created successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.list({ projectId }),
       });
       handleOpenChange(false);

@@ -70,6 +70,15 @@ export interface DurableHostServiceDeps {
 const notFound = (message: string): NotFoundError =>
   new NotFoundError({ code: "not_found", message });
 
+/** Builds the presence entry for a headless connection, omitting an absent `userId`. */
+const presenceEntry = (
+  data: Value,
+  userId: string | undefined,
+): { readonly data: Value; readonly userId?: string } => {
+  if (userId === undefined) return { data };
+  return { data, userId };
+};
+
 const isSubmitResponse = (
   value: SubmitTransactionResponse | { notFound: true },
 ): value is SubmitTransactionResponse => !("notFound" in value);
@@ -161,16 +170,15 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
           docStub(collectionId, documentId)
             .getSnapshot()
             .pipe(
-              Effect.map((snapshot) =>
-                snapshot.found
-                  ? ({
-                      id: documentId,
-                      collectionId,
-                      value: snapshot.value,
-                      version: snapshot.version,
-                    } satisfies DocumentSnapshotResponse)
-                  : undefined,
-              ),
+              Effect.map((snapshot) => {
+                if (!snapshot.found) return undefined;
+                return {
+                  id: documentId,
+                  collectionId,
+                  value: snapshot.value,
+                  version: snapshot.version,
+                } satisfies DocumentSnapshotResponse;
+              }),
             ),
         );
         return snapshots.filter((entry): entry is DocumentSnapshotResponse => entry !== undefined);
@@ -209,7 +217,7 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
         }
         const snapshot = yield* docStub(collectionId, documentId).openConnection(
           connectionId,
-          { data: presence, ...(userId === undefined ? {} : { userId }) },
+          presenceEntry(presence, userId),
           connectionLeaseMs(leaseMs),
         );
         if (!("found" in snapshot)) {
@@ -221,34 +229,37 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
       docStub(collectionId, documentId)
         .heartbeatConnection(connectionId, connectionLeaseMs(leaseMs))
         .pipe(
-          Effect.flatMap((found) =>
-            found ? Effect.void : Effect.fail(notFound(`Connection not found: ${connectionId}`)),
-          ),
+          Effect.flatMap((found) => {
+            if (found) return Effect.void;
+            return Effect.fail(notFound(`Connection not found: ${connectionId}`));
+          }),
         ),
     getConnectionDocument: (collectionId, documentId, connectionId, leaseMs) =>
       docStub(collectionId, documentId)
         .getConnectionSnapshot(connectionId, connectionLeaseMs(leaseMs))
         .pipe(
-          Effect.flatMap((snapshot) =>
-            "found" in snapshot
-              ? Effect.succeed({
-                  id: documentId,
-                  collectionId,
-                  value: snapshot.value,
-                  version: snapshot.version,
-                })
-              : Effect.fail(notFound(`Connection not found: ${connectionId}`)),
-          ),
+          Effect.flatMap((snapshot) => {
+            if (!("found" in snapshot)) {
+              return Effect.fail(notFound(`Connection not found: ${connectionId}`));
+            }
+            return Effect.succeed({
+              id: documentId,
+              collectionId,
+              value: snapshot.value,
+              version: snapshot.version,
+            });
+          }),
         ),
     submitConnectionTransaction: (collectionId, documentId, connectionId, transaction, leaseMs) =>
       docStub(collectionId, documentId)
         .submitConnection(connectionId, connectionLeaseMs(leaseMs), transaction)
         .pipe(
-          Effect.flatMap((result) =>
-            "notFound" in result
-              ? Effect.fail(notFound(`Connection not found: ${connectionId}`))
-              : Effect.succeed(result),
-          ),
+          Effect.flatMap((result) => {
+            if ("notFound" in result) {
+              return Effect.fail(notFound(`Connection not found: ${connectionId}`));
+            }
+            return Effect.succeed(result);
+          }),
         ),
     detachConnection: (collectionId, documentId, connectionId) =>
       docStub(collectionId, documentId).closeConnection(connectionId).pipe(Effect.asVoid),

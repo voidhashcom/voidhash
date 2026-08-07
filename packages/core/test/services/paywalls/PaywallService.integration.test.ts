@@ -28,7 +28,7 @@
  * "belongs to a different project" case below seeds exactly that via a raw
  * insert under a fabricated project id the session has no access to.
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { PaywallService } from "@voidhash/core/services";
@@ -57,9 +57,12 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
 /** Monotonic counter so slugs stay unique even within the same millisecond. */
 let slugSeq = 0;
-const uniqueSlug = (label: string) => `it-paywall-${label}-${Date.now()}-${slugSeq++}`;
+const uniqueSlug = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-paywall-${label}-${now}-${slugSeq++}`);
 
 /** Read a paywall row straight from the database, bypassing the service. */
 const findPaywallRow = (id: string) =>
@@ -149,14 +152,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -175,9 +178,9 @@ describe("PaywallService.getPaywalls", () => {
     withPaywallCleanup((track) =>
       Effect.gen(function* () {
         const paywallService = yield* PaywallService;
-        const slugA = uniqueSlug("list-a");
-        const slugB = uniqueSlug("list-b");
-        const absentSlug = uniqueSlug("list-absent");
+        const slugA = yield* uniqueSlug("list-a");
+        const slugB = yield* uniqueSlug("list-b");
+        const absentSlug = yield* uniqueSlug("list-absent");
 
         const a = yield* paywallService.createPaywall({ name: "A", projectId, slug: slugA });
         track(a.id);
@@ -196,7 +199,7 @@ describe("PaywallService.getPaywalls", () => {
     "returns a list (possibly empty) for a project with no matching slug",
     Effect.gen(function* () {
       const paywallService = yield* PaywallService;
-      const absentSlug = uniqueSlug("empty");
+      const absentSlug = yield* uniqueSlug("empty");
 
       // The fixture project is shared, so other tests may have left rows; assert
       // the contract (an array) and that our never-created slug is absent.
@@ -222,7 +225,7 @@ describe("PaywallService.getPaywallById", () => {
     withPaywallCleanup((track) =>
       Effect.gen(function* () {
         const paywallService = yield* PaywallService;
-        const slug = uniqueSlug("by-id");
+        const slug = yield* uniqueSlug("by-id");
         const created = yield* paywallService.createPaywall({ name: "Lookup", projectId, slug });
         track(created.id);
 
@@ -239,7 +242,7 @@ describe("PaywallService.getPaywallById", () => {
     "fails with PaywallNotFoundError for an unknown id",
     Effect.gen(function* () {
       const paywallService = yield* PaywallService;
-      const missingId = `pw_missing_${Date.now()}`;
+      const missingId = `pw_missing_${yield* Clock.currentTimeMillis}`;
       const error = yield* Effect.flip(paywallService.getPaywallById(missingId));
       expect(error).toBeInstanceOf(PaywallNotFoundError);
 
@@ -257,13 +260,14 @@ describe("PaywallService.getPaywallById", () => {
         // Seed a paywall under a project the default session has no access to.
         // The fetch succeeds, then the post-fetch permission check against the
         // foreign projectId rejects with ActionForbiddenError.
-        const foreignProjectId = `it-other-project-${Date.now()}-${slugSeq++}`;
-        const id = `pw_foreign_${Date.now()}_${slugSeq++}`;
+        const nowMillis = yield* Clock.currentTimeMillis;
+        const foreignProjectId = `it-other-project-${nowMillis}-${slugSeq++}`;
+        const id = `pw_foreign_${nowMillis}_${slugSeq++}`;
         yield* insertPaywallRow({
           id,
           name: "Foreign",
           projectId: foreignProjectId,
-          slug: uniqueSlug("foreign"),
+          slug: yield* uniqueSlug("foreign"),
         });
         track(id);
 
@@ -282,7 +286,7 @@ describe("PaywallService.getPaywallById", () => {
     withPaywallCleanup((track) =>
       Effect.gen(function* () {
         const paywallService = yield* PaywallService;
-        const slug = uniqueSlug("by-id-forbidden");
+        const slug = yield* uniqueSlug("by-id-forbidden");
         const created = yield* paywallService.createPaywall({ name: "Guarded", projectId, slug });
         track(created.id);
 
@@ -301,7 +305,7 @@ describe("PaywallService.createPaywall", () => {
         const paywallService = yield* PaywallService;
 
         const name = "Integration Paywall";
-        const slug = uniqueSlug("create");
+        const slug = yield* uniqueSlug("create");
 
         const created = yield* paywallService.createPaywall({ name, projectId, slug });
         track(created.id);
@@ -331,7 +335,7 @@ describe("PaywallService.createPaywall", () => {
     withPaywallCleanup((track) =>
       Effect.gen(function* () {
         const paywallService = yield* PaywallService;
-        const slug = uniqueSlug("duplicate");
+        const slug = yield* uniqueSlug("duplicate");
 
         const first = yield* paywallService.createPaywall({ name: "First", projectId, slug });
         track(first.id);
@@ -354,7 +358,7 @@ describe("PaywallService.createPaywall", () => {
     // No cleanup wrapper: a forbidden create writes no row.
     Effect.gen(function* () {
       const paywallService = yield* PaywallService;
-      const slug = uniqueSlug("forbidden");
+      const slug = yield* uniqueSlug("forbidden");
 
       const error = yield* Effect.flip(
         asUnauthorized(paywallService.createPaywall({ name: "Nope", projectId, slug })),
@@ -376,7 +380,7 @@ describe("PaywallService.deletePaywall", () => {
         const created = yield* paywallService.createPaywall({
           name: "Doomed",
           projectId,
-          slug: uniqueSlug("delete"),
+          slug: yield* uniqueSlug("delete"),
         });
         track(created.id);
 
@@ -406,7 +410,7 @@ describe("PaywallService.deletePaywall", () => {
     Effect.gen(function* () {
       const paywallService = yield* PaywallService;
       const error = yield* Effect.flip(
-        paywallService.deletePaywall({ paywallId: `pw_missing_${Date.now()}` }),
+        paywallService.deletePaywall({ paywallId: `pw_missing_${yield* Clock.currentTimeMillis}` }),
       );
       expect(error).toBeInstanceOf(PaywallNotFoundError);
     }).pipe(Effect.provide(PaywallService.layer), CoreAuthSession.authenticate()),
@@ -420,7 +424,7 @@ describe("PaywallService.deletePaywall", () => {
         const created = yield* paywallService.createPaywall({
           name: "Protected",
           projectId,
-          slug: uniqueSlug("delete-forbidden"),
+          slug: yield* uniqueSlug("delete-forbidden"),
         });
         track(created.id);
 
@@ -444,7 +448,7 @@ describe("PaywallService.renamePaywall", () => {
     withPaywallCleanup((track) =>
       Effect.gen(function* () {
         const paywallService = yield* PaywallService;
-        const slug = uniqueSlug("rename");
+        const slug = yield* uniqueSlug("rename");
         const created = yield* paywallService.createPaywall({
           name: "Original",
           projectId,
@@ -475,7 +479,10 @@ describe("PaywallService.renamePaywall", () => {
     Effect.gen(function* () {
       const paywallService = yield* PaywallService;
       const error = yield* Effect.flip(
-        paywallService.renamePaywall({ name: "X", paywallId: `pw_missing_${Date.now()}` }),
+        paywallService.renamePaywall({
+          name: "X",
+          paywallId: `pw_missing_${yield* Clock.currentTimeMillis}`,
+        }),
       );
       expect(error).toBeInstanceOf(PaywallNotFoundError);
     }).pipe(Effect.provide(PaywallService.layer), CoreAuthSession.authenticate()),
@@ -489,7 +496,7 @@ describe("PaywallService.renamePaywall", () => {
         const created = yield* paywallService.createPaywall({
           name: "Keep",
           projectId,
-          slug: uniqueSlug("rename-forbidden"),
+          slug: yield* uniqueSlug("rename-forbidden"),
         });
         track(created.id);
 
@@ -511,7 +518,7 @@ describe("PaywallService.archivePaywall / restorePaywall", () => {
     withPaywallCleanup((track) =>
       Effect.gen(function* () {
         const paywallService = yield* PaywallService;
-        const slug = uniqueSlug("archive");
+        const slug = yield* uniqueSlug("archive");
         const created = yield* paywallService.createPaywall({
           name: "ToArchive",
           projectId,
@@ -547,7 +554,7 @@ describe("PaywallService.archivePaywall / restorePaywall", () => {
         const created = yield* paywallService.createPaywall({
           name: "ToRestore",
           projectId,
-          slug: uniqueSlug("restore"),
+          slug: yield* uniqueSlug("restore"),
         });
         track(created.id);
 
@@ -576,7 +583,7 @@ describe("PaywallService.archivePaywall / restorePaywall", () => {
         const created = yield* paywallService.createPaywall({
           name: "Guarded",
           projectId,
-          slug: uniqueSlug("archive-forbidden"),
+          slug: yield* uniqueSlug("archive-forbidden"),
         });
         track(created.id);
 

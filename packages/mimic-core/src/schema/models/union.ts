@@ -8,6 +8,8 @@ import {
   serializeRequired,
 } from "../shared.ts";
 import type { ObjectSchema, UnionSchema } from "../types.ts";
+import type { Mutable } from "../../internal/lang.ts";
+import { objectSchemaModel } from "./object.ts";
 
 export const unionSchemaModel: SchemaModel<UnionSchema> = {
   kind: "union",
@@ -53,21 +55,24 @@ export const unionSchemaModel: SchemaModel<UnionSchema> = {
       },
       input["default"],
       schemaPath,
-    ) as UnionSchema;
+    );
   },
   serialize: (schema, serializeSchema) => {
     const variants: Record<string, ObjectSchema> = {};
     for (const [key, variant] of Object.entries(schema.variants)) {
-      variants[key] = serializeSchema(variant) as ObjectSchema;
+      variants[key] = objectSchemaModel.serialize(variant, serializeSchema);
     }
 
-    return {
+    const serialized: Mutable<UnionSchema> = {
       kind: "union",
       discriminator: schema.discriminator,
       variants,
       ...serializeRequired(schema.required),
-      ...(schema.default !== undefined ? { default: cloneSchemaDefault(schema.default) } : {}),
     };
+    if (schema.default !== undefined) {
+      serialized.default = cloneSchemaDefault(schema.default);
+    }
+    return serialized;
   },
   validate: (schema, value, context, valuePath, schemaPath) => {
     const object = expectObjectValue(schema.kind, value, valuePath, schemaPath);

@@ -1,3 +1,4 @@
+import { constant, pick } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { Db, PushNotificationDeliveryStatus, PushNotificationSendStatus } from "@voidhash/db";
@@ -92,7 +93,7 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
               failedCount: row.failedCount,
               id: row.id,
               idempotencyKey: row.idempotencyKey,
-              message: row.messagePurgedAt === null ? row.message : {},
+              message: pick(row.messagePurgedAt === null, row.message, {}),
               messagePurged: row.messagePurgedAt !== null,
               requestedDistinctIdCount: row.requestedDistinctIds.length,
               requestedPersonCount: row.requestedPersonIds.length,
@@ -169,7 +170,7 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
           ),
       );
 
-      return { getSendDeliveries, listSends } as const;
+      return constant({ getSendDeliveries, listSends });
     }),
   },
 ) {

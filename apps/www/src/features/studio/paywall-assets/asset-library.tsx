@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PaywallAssetSchema } from "@voidhash/rpc";
 import { Button, Skeleton, cn } from "@voidhash/ui";
+import { Effect, Result } from "effect";
 import { ImagesIcon, UploadIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -84,24 +85,36 @@ export function AssetLibrary({
 
     setIsUploading(true);
     let uploaded = 0;
-    try {
-      // Sequential uploads keep memory low and give per-file error toasts.
+    // Sequential uploads keep memory low and give per-file error toasts.
+    const uploadAll = Effect.promise(async () => {
       for (const file of files) {
-        try {
-          const prepared = await prepareAssetUpload(file);
-          await uploadAsset.mutateAsync({ organizationId, ...prepared });
-          uploaded += 1;
-        } catch (error) {
+        const outcome = await Effect.runPromise(
+          Effect.gen(function* () {
+            const prepared = yield* Effect.tryPromise({
+              catch: (error: unknown) => error,
+              try: () => prepareAssetUpload(file),
+            });
+            yield* Effect.tryPromise({
+              catch: (error: unknown) => error,
+              try: () => uploadAsset.mutateAsync({ organizationId, ...prepared }),
+            });
+          }).pipe(Effect.result),
+        );
+        if (Result.isFailure(outcome)) {
+          const error = outcome.failure;
           if (error instanceof AssetUploadValidationError) {
             toast.error(error.message);
           } else {
             toast.error(uploadErrorMessage(error, file.name));
           }
+          continue;
         }
+        uploaded += 1;
       }
-    } finally {
-      setIsUploading(false);
-    }
+    });
+    await Effect.runPromise(
+      uploadAll.pipe(Effect.ensuring(Effect.sync(() => setIsUploading(false)))),
+    );
 
     if (uploaded > 0) {
       await queryClient.invalidateQueries({

@@ -5,7 +5,7 @@
  */
 
 import { commander } from "../designer-commander";
-import type { AvailableTool, DesignerStoreState } from "../designer-store-state";
+import type { AvailableTool } from "../designer-store-state";
 
 // =============================================================================
 // Tool Commands

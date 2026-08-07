@@ -1,19 +1,21 @@
+import { constant } from "../internal/lang.ts";
+
 export const HiddenTreeRootId = "$root";
 
-export const ValueKinds = {
+export const ValueKinds = constant({
   String: "string",
   Number: "number",
   Boolean: "boolean",
   Object: "object",
   Array: "array",
   Tree: "tree",
-} as const;
+});
 
 export type ValueKind = (typeof ValueKinds)[keyof typeof ValueKinds];
 
 export type Path = readonly PathSegment[];
 
-export const CommandKinds = {
+export const CommandKinds = constant({
   ValueSet: "value.set",
   ObjectSet: "object.set",
   ObjectDelete: "object.delete",
@@ -23,7 +25,7 @@ export const CommandKinds = {
   TreeInsert: "tree.insert",
   TreeMove: "tree.move",
   TreeDelete: "tree.delete",
-} as const;
+});
 
 export type CommandKind = (typeof CommandKinds)[keyof typeof CommandKinds];
 
@@ -177,7 +179,18 @@ export type Command =
   | TreeMoveCommand
   | TreeDeleteCommand;
 
-export const clonePath = (path: Path | undefined): Path => (path ? [...path] : []);
+export const clonePath = (path: Path | undefined): Path => {
+  if (path) return [...path];
+  return [];
+};
+
+export const cloneObjectValue = (value: ObjectValue): ObjectValue => {
+  const fields: Record<string, Value> = {};
+  for (const [key, field] of Object.entries(value.fields)) {
+    fields[key] = cloneValue(field);
+  }
+  return { kind: "object", fields };
+};
 
 export const cloneValue = (value: Value): Value => {
   switch (value.kind) {
@@ -185,13 +198,8 @@ export const cloneValue = (value: Value): Value => {
     case "number":
     case "boolean":
       return { ...value };
-    case "object": {
-      const fields: Record<string, Value> = {};
-      for (const [key, field] of Object.entries(value.fields)) {
-        fields[key] = cloneValue(field);
-      }
-      return { kind: "object", fields };
-    }
+    case "object":
+      return cloneObjectValue(value);
     case "array":
       return {
         kind: "array",
@@ -208,7 +216,7 @@ export const cloneValue = (value: Value): Value => {
           id: node.id,
           parent: node.parent,
           pos: node.pos,
-          value: cloneValue(node.value) as ObjectValue,
+          value: cloneObjectValue(node.value),
         })),
       };
   }

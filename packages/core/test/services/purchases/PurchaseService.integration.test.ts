@@ -28,7 +28,7 @@
  *    {@link asUnauthorized}; the inner provision shadows the harness's default
  *    full-permission session for the wrapped call only.
  */
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { PurchaseService } from "@voidhash/core/services";
@@ -39,14 +39,18 @@ import { Db, inArray, persons, purchases } from "@voidhash/db";
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
+import { generateId } from "@voidhash/core/utils/generate-id";
 
 const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
-/** Monotonic counter so ids stay unique even within the same millisecond. */
+/** Per-run token plus a monotonic counter so ids stay unique across and within runs. */
+const runToken = generateId("test");
 let idSeq = 0;
-const uniqueId = (label: string) => `it-purchase-${label}-${Date.now()}-${idSeq++}`;
+const uniqueId = (label: string) => `it-purchase-${label}-${runToken}-${idSeq++}`;
+
+const epoch = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 
 /** Insert a bare person row under the fixture project and return its id. */
 const insertPerson = (id: string, ownerProjectId: string = projectId) =>
@@ -137,14 +141,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: epoch,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: epoch,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });

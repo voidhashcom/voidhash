@@ -2,7 +2,7 @@ import { StandaloneOrgDirectoryLive } from "@voidhash/core/services/organization
 import { OrgDirectoryPort } from "@voidhash/core/services/organizations/OrgDirectoryPort";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import { Db, eq, member, organization, user } from "@voidhash/db";
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { getSelfhostDatabaseConfig } from "../src/config.ts";
@@ -24,28 +24,29 @@ const withServices = <A, E>(effect: Effect.Effect<A, E, Db | OrgDirectoryPort>) 
   );
 
 describe("local organization directory", () => {
-  afterAll(async () => {
-    await withServices(
+  afterAll(() =>
+    withServices(
       Effect.gen(function* () {
         const db = yield* Db;
         yield* db.delete(member).where(eq(member.id, memberId));
         yield* db.delete(organization).where(eq(organization.id, orgId));
         yield* db.delete(user).where(eq(user.id, userId));
       }),
-    );
-  });
+    ),
+  );
 
-  it("synthesizes provider ids that satisfy the NOT NULL workos columns", async () => {
-    await withServices(
+  it("synthesizes provider ids that satisfy the NOT NULL workos columns", () =>
+    withServices(
       Effect.gen(function* () {
         const port = yield* OrgDirectoryPort;
         const db = yield* Db;
+        const now = yield* DateTime.nowAsDate;
 
         yield* db.insert(user).values({
           banned: false,
           banExpires: null,
           banReason: null,
-          createdAt: new Date(),
+          createdAt: now,
           customImageUrl: null,
           email,
           emailVerified: true,
@@ -53,7 +54,7 @@ describe("local organization directory", () => {
           image: null,
           name: "Directory Dev",
           role: null,
-          updatedAt: new Date(),
+          updatedAt: now,
           workosUserId: `local_${"a".repeat(24)}`,
         });
 
@@ -76,7 +77,7 @@ describe("local organization directory", () => {
         // The real INSERTs OrganizationService performs — proof the synthesized
         // ids actually satisfy the constraints.
         yield* db.insert(organization).values({
-          createdAt: new Date(),
+          createdAt: now,
           id: orgId,
           logo: null,
           metadata: null,
@@ -85,7 +86,7 @@ describe("local organization directory", () => {
           workosOrganizationId: createdOrg.id,
         });
         yield* db.insert(member).values({
-          createdAt: new Date(),
+          createdAt: now,
           id: memberId,
           organizationId: orgId,
           role: "admin",
@@ -93,11 +94,10 @@ describe("local organization directory", () => {
           workosMembershipId: membership.id,
         });
       }),
-    );
-  });
+    ));
 
-  it("reads users and memberships back out of the local tables", async () => {
-    await withServices(
+  it("reads users and memberships back out of the local tables", () =>
+    withServices(
       Effect.gen(function* () {
         const port = yield* OrgDirectoryPort;
 
@@ -115,15 +115,13 @@ describe("local organization directory", () => {
         const org = yield* port.getOrganizationByExternalId(orgId);
         expect(org?.name).toBe("Directory Org");
       }),
-    );
-  });
+    ));
 
-  it("returns null for an unknown email", async () => {
-    await withServices(
+  it("returns null for an unknown email", () =>
+    withServices(
       Effect.gen(function* () {
         const port = yield* OrgDirectoryPort;
         expect(yield* port.findUserByEmail("nobody@integration.test")).toBeNull();
       }),
-    );
-  });
+    ));
 });

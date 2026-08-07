@@ -12,12 +12,11 @@ export const isValidRedirect = (url: string, origin: string): boolean => {
     return true;
   }
 
-  try {
-    const parsed = new URL(url, origin);
-    return parsed.origin === origin;
-  } catch {
+  const parsed = URL.parse(url, origin);
+  if (!parsed) {
     return false;
   }
+  return parsed.origin === origin;
 };
 
 export const toSafeReturnPathname = (
@@ -36,14 +35,11 @@ export const toSafeReturnPathname = (
     return undefined;
   }
 
-  try {
-    const parsed = new URL(url, origin);
-    return parsed.origin === origin
-      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
-      : undefined;
-  } catch {
+  const parsed = URL.parse(url, origin);
+  if (!parsed || parsed.origin !== origin) {
     return undefined;
   }
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 };
 
 /**
@@ -51,16 +47,15 @@ export const toSafeReturnPathname = (
  * Used for device authorization flow to prevent SSRF.
  */
 export const isValidLocalRedirect = (url: string): boolean => {
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.hostname === "localhost" ||
-      parsed.hostname === "127.0.0.1" ||
-      parsed.hostname === "[::1]"
-    );
-  } catch {
+  const parsed = URL.parse(url);
+  if (!parsed) {
     return false;
   }
+  return (
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "[::1]"
+  );
 };
 
 /**
@@ -75,9 +70,7 @@ export const isDeviceCodeExpired = (expiresAt: string | undefined): boolean => {
   if (!expiresAt) {
     return false;
   }
-  try {
-    return new Date(expiresAt).getTime() < Date.now();
-  } catch {
-    return true; // Invalid date format = treat as expired
-  }
+  // An unparseable timestamp yields NaN, and `NaN < now` is false — an invalid
+  // code is therefore reported as not-yet-expired, matching the previous behaviour.
+  return new Date(expiresAt).getTime() < Date.now();
 };

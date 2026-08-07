@@ -1,5 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import { subtle } from "uncrypto";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -27,9 +29,6 @@ import {
   featureFlagVariants,
   featureFlags,
   isNull,
-  personExternalIdentifiers,
-  personIdentities,
-  persons,
   sql,
 } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
@@ -49,7 +48,7 @@ interface EvaluationResult {
   readonly enabled: boolean;
   readonly flagId: string;
   readonly key: string;
-  readonly payload: unknown | null;
+  readonly payload: unknown;
   readonly reason: string;
   readonly variantKey: string | null;
 }
@@ -81,9 +80,10 @@ const isJsonValue = (value: unknown, seen = new WeakSet<object>()): boolean => {
     return false;
   }
   seen.add(value);
-  const valid = Array.isArray(value)
-    ? value.every((item) => isJsonValue(item, seen))
-    : Object.values(value).every((item) => isJsonValue(item, seen));
+  let valid = Object.values(value).every((item) => isJsonValue(item, seen));
+  if (Array.isArray(value)) {
+    valid = value.every((item) => isJsonValue(item, seen));
+  }
   seen.delete(value);
   return valid;
 };
@@ -123,7 +123,10 @@ const distributeVariantWeights = (count: number): number[] => {
   }
   const baseWeight = Math.floor(10000 / count);
   const remainder = 10000 - baseWeight * count;
-  return Array.from({ length: count }, (_, index) => baseWeight + (index < remainder ? 1 : 0));
+  return Array.from({ length: count }, (_, index) => {
+    if (index < remainder) return baseWeight + 1;
+    return baseWeight;
+  });
 };
 
 /**
@@ -140,14 +143,35 @@ export const EXPERIMENT_FLAG_OWNER_TYPE = "experiment";
  * subject. SHA-256 keeps the bucketing stable across processes and Cloudflare
  * isolates without needing a seeded RNG.
  */
-const hashToBucket = async (input: string): Promise<number> => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = new Uint8Array(hashBuffer);
-  const value =
-    (hashArray[0]! << 24) | (hashArray[1]! << 16) | (hashArray[2]! << 8) | hashArray[3]!;
-  return (value >>> 0) % 10000;
+const hashToBucket = (input: string): Effect.Effect<number> =>
+  Effect.promise(() => subtle.digest("SHA-256", new TextEncoder().encode(input))).pipe(
+    Effect.map((hashBuffer) => {
+      const hashArray = new Uint8Array(hashBuffer);
+      const value =
+        (hashArray[0]! << 24) | (hashArray[1]! << 16) | (hashArray[2]! << 8) | hashArray[3]!;
+      return (value >>> 0) % 10000;
+    }),
+  );
+
+/** Archived-flag filter fragment: archived rows are excluded unless requested. */
+const archivedFilter = (includeArchived: boolean): { archivedAt?: { isNull: true } } => {
+  if (includeArchived) return {};
+  return { archivedAt: { isNull: true } };
+};
+
+/** Key filter fragment: only applied when the caller narrowed the flag keys. */
+const keyFilter = (keys: ReadonlyArray<string> | undefined): { key?: { in: string[] } } => {
+  if (keys && keys.length > 0) return { key: { in: [...keys] } };
+  return {};
+};
+
+/** Existing variant row for an optional variant id. */
+const lookupExistingVariant = <T>(
+  existingById: ReadonlyMap<string, T>,
+  id: string | undefined,
+): T | undefined => {
+  if (!id) return undefined;
+  return existingById.get(id);
 };
 
 const groupByToMap = <T, K>(items: readonly T[], key: (item: T) => K): Map<K, T[]> => {
@@ -210,9 +234,10 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           }
 
           const requestedWeights = variants.map((variant) => variant.weightBps);
-          const weights = requestedWeights.every((weight): weight is number => weight !== undefined)
-            ? requestedWeights
-            : distributeVariantWeights(variants.length);
+          let weights = distributeVariantWeights(variants.length);
+          if (requestedWeights.every((weight): weight is number => weight !== undefined)) {
+            weights = requestedWeights;
+          }
           if (weights.length > 0 && weights.reduce((sum, weight) => sum + weight, 0) !== 10000) {
             return yield* Effect.fail(
               new FeatureFlagServiceError({
@@ -547,7 +572,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
 
           yield* db
             .update(featureFlags)
-            .set({ archivedAt: new Date() })
+            .set({ archivedAt: yield* DateTime.nowAsDate })
             .where(eq(featureFlags.id, input.id));
 
           yield* auditLog.append({
@@ -674,7 +699,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             where: {
               projectId: input.projectId,
               internal: false,
-              ...(includeArchived ? {} : { archivedAt: { isNull: true } }),
+              ...archivedFilter(includeArchived),
             },
             with: {
               variants: {
@@ -745,7 +770,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           }
 
           const existingById = new Map(
-            existingFlag.variants.map((variant) => [variant.id, variant] as const),
+            existingFlag.variants.map((variant) => constant([variant.id, variant])),
           );
           const seenIds = new Set<string>();
           for (const variant of input.variants) {
@@ -777,7 +802,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                 .where(eq(featureFlagVariants.featureFlagId, input.featureFlagId));
 
               for (const [index, variant] of input.variants.entries()) {
-                const existingVariant = variant.id ? existingById.get(variant.id) : undefined;
+                const existingVariant = lookupExistingVariant(existingById, variant.id);
                 const id = existingVariant?.id ?? generateId("featureFlagVariant");
                 yield* tx.insert(featureFlagVariants).values({
                   id,
@@ -1044,7 +1069,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
 
           yield* db
             .update(featureFlagTargets)
-            .set({ archivedAt: new Date() })
+            .set({ archivedAt: yield* DateTime.nowAsDate })
             .where(eq(featureFlagTargets.id, input.id));
 
           yield* auditLog.append({
@@ -1208,7 +1233,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
 
           yield* db
             .update(featureFlagOverrides)
-            .set({ archivedAt: new Date() })
+            .set({ archivedAt: yield* DateTime.nowAsDate })
             .where(eq(featureFlagOverrides.id, input.id));
 
           yield* auditLog.append({
@@ -1344,14 +1369,15 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             where: {
               projectId: input.projectId,
               archivedAt: { isNull: true },
-              ...(input.keys && input.keys.length > 0 ? { key: { in: [...input.keys] } } : {}),
+              ...keyFilter(input.keys),
             },
           });
 
           yield* Effect.annotateCurrentSpan("voidhash.feature_flag.count", flags.length);
 
           if (flags.length === 0) {
-            return [] as EvaluationResult[];
+            const empty: EvaluationResult[] = [];
+            return empty;
           }
 
           const flagIds = flags.map((f) => f.id);
@@ -1377,36 +1403,42 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             }),
           ]);
 
-          const personContext = input.personId
-            ? yield* Effect.gen(function* () {
-                const [person, distinctIdentities, externalIdentifiers] = yield* Effect.all([
-                  db.query.persons.findFirst({
-                    where: {
-                      id: input.personId!,
-                      projectId: input.projectId,
-                    },
-                  }),
-                  db.query.personIdentities.findMany({
-                    where: {
-                      personId: input.personId!,
-                      projectId: input.projectId,
-                    },
-                  }),
-                  db.query.personExternalIdentifiers.findMany({
-                    where: {
-                      personId: input.personId!,
-                      projectId: input.projectId,
-                    },
-                  }),
-                ]);
+          let personContext:
+            | {
+                readonly distinctIds: string[];
+                readonly email: string | undefined;
+                readonly externalIds: string[];
+              }
+            | undefined;
+          if (input.personId) {
+            const personId = input.personId;
+            const [person, distinctIdentities, externalIdentifiers] = yield* Effect.all([
+              db.query.persons.findFirst({
+                where: {
+                  id: personId,
+                  projectId: input.projectId,
+                },
+              }),
+              db.query.personIdentities.findMany({
+                where: {
+                  personId,
+                  projectId: input.projectId,
+                },
+              }),
+              db.query.personExternalIdentifiers.findMany({
+                where: {
+                  personId,
+                  projectId: input.projectId,
+                },
+              }),
+            ]);
 
-                return {
-                  distinctIds: distinctIdentities.map((identity) => identity.distinctId),
-                  email: person?.email ?? undefined,
-                  externalIds: externalIdentifiers.map((identifier) => identifier.identifier),
-                };
-              })
-            : undefined;
+            personContext = {
+              distinctIds: distinctIdentities.map((identity) => identity.distinctId),
+              email: person?.email ?? undefined,
+              externalIds: externalIdentifiers.map((identifier) => identifier.identifier),
+            };
+          }
 
           const targetsByFlag = groupByToMap(allTargets, (t) => t.featureFlagId);
           const overridesByFlag = groupByToMap(allOverrides, (o) => o.featureFlagId);
@@ -1548,9 +1580,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                     } satisfies EvaluationResult;
                   }
 
-                  const rolloutBucket = yield* Effect.promise(() =>
-                    hashToBucket(`${flag.salt}:rollout:${subjectKey}`),
-                  );
+                  const rolloutBucket = yield* hashToBucket(`${flag.salt}:rollout:${subjectKey}`);
 
                   if (rolloutBucket >= flag.rolloutBps) {
                     return {
@@ -1572,8 +1602,8 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                     .sort((a, b) => a.key.localeCompare(b.key));
 
                   if (activeVariants.length > 0) {
-                    const variantBucket = yield* Effect.promise(() =>
-                      hashToBucket(`${flag.salt}:variant:${subjectKey}`),
+                    const variantBucket = yield* hashToBucket(
+                      `${flag.salt}:variant:${subjectKey}`,
                     );
 
                     let cumulative = 0;
@@ -1625,7 +1655,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           ),
       );
 
-      return {
+      return constant({
         archiveFlag,
         archiveOverride,
         archiveTarget,
@@ -1643,7 +1673,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
         updateFlagVariants,
         upsertOverride,
         upsertTarget,
-      } as const;
+      });
     }),
   },
 ) {

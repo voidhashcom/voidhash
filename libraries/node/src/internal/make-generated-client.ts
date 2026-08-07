@@ -1,4 +1,4 @@
-import { make as makeCoreClient, type VoidhashCoreClient } from "@voidhash/generated-clients";
+import { make as makeCoreClient } from "@voidhash/generated-clients";
 import { Effect } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
@@ -23,54 +23,59 @@ const normalizeHeaders = (
     ),
   );
 
-const resolveBaseUrl = (baseUrl: string | undefined) => {
-  try {
-    const resolved = new URL(baseUrl ?? DEFAULT_BASE_URL);
+const resolveBaseUrl = (
+  baseUrl: string | undefined,
+): Effect.Effect<string, VoidhashNodeConfigurationError> =>
+  Effect.gen(function* () {
+    const resolved = yield* Effect.try({
+      try: () => new URL(baseUrl ?? DEFAULT_BASE_URL),
+      catch: (cause) =>
+        new VoidhashNodeConfigurationError("baseUrl must be a valid URL.", {
+          cause,
+        }),
+    });
 
     if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
-      throw new VoidhashNodeConfigurationError("baseUrl must use the http or https protocol.");
+      return yield* Effect.fail(
+        new VoidhashNodeConfigurationError("baseUrl must use the http or https protocol."),
+      );
     }
 
     return resolved.toString();
-  } catch (error) {
-    if (error instanceof VoidhashNodeConfigurationError) {
-      throw error;
+  });
+
+const resolveOptions = (options: VoidhashNodeClientOptions) =>
+  Effect.gen(function* () {
+    if (!options.secretKey.trim()) {
+      return yield* Effect.fail(new VoidhashNodeConfigurationError("secretKey is required."));
     }
 
-    throw new VoidhashNodeConfigurationError("baseUrl must be a valid URL.", {
-      cause: error,
-    });
-  }
-};
+    if (typeof globalThis.fetch !== "function") {
+      return yield* Effect.fail(
+        new VoidhashNodeConfigurationError("globalThis.fetch must be available."),
+      );
+    }
 
-const resolveOptions = (options: VoidhashNodeClientOptions) => {
-  if (!options.secretKey.trim()) {
-    throw new VoidhashNodeConfigurationError("secretKey is required.");
-  }
+    if (hasSecretKeyHeader(options.headers)) {
+      return yield* Effect.fail(
+        new VoidhashNodeConfigurationError("headers.x-secret-key cannot be set explicitly."),
+      );
+    }
 
-  if (typeof globalThis.fetch !== "function") {
-    throw new VoidhashNodeConfigurationError("globalThis.fetch must be available.");
-  }
-
-  if (hasSecretKeyHeader(options.headers)) {
-    throw new VoidhashNodeConfigurationError("headers.x-secret-key cannot be set explicitly.");
-  }
-
-  return {
-    baseUrl: resolveBaseUrl(options.baseUrl),
-    headers: normalizeHeaders(options.headers),
-    secretKey: options.secretKey,
-  };
-};
+    return {
+      baseUrl: yield* resolveBaseUrl(options.baseUrl),
+      headers: normalizeHeaders(options.headers),
+      secretKey: options.secretKey,
+    };
+  });
 
 export const makeGeneratedClient = (
   options: VoidhashNodeClientOptions,
-): Effect.Effect<GeneratedVoidhashNodeEffectClient> => {
-  const resolvedOptions = resolveOptions(options);
-
-  return Effect.gen(function* () {
+): Effect.Effect<GeneratedVoidhashNodeEffectClient, VoidhashNodeConfigurationError> =>
+  Effect.gen(function* () {
+    const resolvedOptions = yield* resolveOptions(options);
     const httpClient = yield* HttpClient.HttpClient;
-    const client = makeCoreClient(httpClient as VoidhashCoreClient["httpClient"], {
+    const client = makeCoreClient(httpClient, {
       transformClient: (httpClient) =>
         Effect.succeed(
           httpClient.pipe(
@@ -90,4 +95,3 @@ export const makeGeneratedClient = (
 
     return groupCoreClient(client);
   }).pipe(Effect.provide(FetchHttpClient.layer));
-};

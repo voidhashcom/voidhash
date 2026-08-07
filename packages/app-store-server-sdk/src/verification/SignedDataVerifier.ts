@@ -89,11 +89,22 @@ export interface SignedDataVerifier {
   ) => Effect.Effect<DecodedRealtimeRequestBody, VerificationError | CertificateError>;
 }
 
+/**
+ * Apple encodes the environment in the external purchase id prefix: sandbox
+ * tokens start with `SANDBOX`, everything else is production.
+ */
+const environmentFromExternalPurchaseId = (externalPurchaseId: string): string => {
+  if (externalPurchaseId.startsWith("SANDBOX")) return Environment.SANDBOX;
+  return Environment.PRODUCTION;
+};
+
 const makeVerificationError = (status: VerificationStatus): VerificationError =>
   new VerificationError({ status, cause: Option.none() });
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> =>
-  Option.isOption(value) ? value : Option.fromNullishOr(value);
+const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+  if (Option.isOption(value)) return value;
+  return Option.fromNullishOr(value);
+};
 
 export const SignedDataVerifier = {
   /**
@@ -168,17 +179,21 @@ export const SignedDataVerifier = {
         return payload;
       });
 
-    const checkBundle = (bundleId: Option.Option<string>): Effect.Effect<void, VerificationError> =>
-      Option.isSome(bundleId) && bundleId.value !== config.bundleId
-        ? Effect.fail(makeVerificationError(VerificationStatus.INVALID_APP_IDENTIFIER))
-        : Effect.void;
+    const checkBundle = (bundleId: Option.Option<string>): Effect.Effect<void, VerificationError> => {
+      if (Option.isSome(bundleId) && bundleId.value !== config.bundleId) {
+        return Effect.fail(makeVerificationError(VerificationStatus.INVALID_APP_IDENTIFIER));
+      }
+      return Effect.void;
+    };
 
     const checkEnvironment = (
       environment: Option.Option<string>,
-    ): Effect.Effect<void, VerificationError> =>
-      Option.isSome(environment) && environment.value !== config.environment
-        ? Effect.fail(makeVerificationError(VerificationStatus.INVALID_ENVIRONMENT))
-        : Effect.void;
+    ): Effect.Effect<void, VerificationError> => {
+      if (Option.isSome(environment) && environment.value !== config.environment) {
+        return Effect.fail(makeVerificationError(VerificationStatus.INVALID_ENVIRONMENT));
+      }
+      return Effect.void;
+    };
 
     const validateTransactionPayload = (
       payload: JWSTransactionDecodedPayload,
@@ -233,18 +248,19 @@ export const SignedDataVerifier = {
     ): Effect.Effect<void, VerificationError> =>
       Effect.suspend(() => {
         if (Option.isNone(verifyNotificationOverrideConfig)) return Effect.void;
-        try {
-          const result = verifyNotificationOverrideConfig.value(bundleId, appAppleId, environment);
-          if (Effect.isEffect(result)) {
-            return result as Effect.Effect<void, VerificationError>;
-          }
-          return Effect.void;
-        } catch (e) {
-          if (e instanceof VerificationError) {
-            return Effect.fail(e);
-          }
-          return Effect.fail(makeVerificationError(VerificationStatus.INVALID_APP_IDENTIFIER));
-        }
+        const override = verifyNotificationOverrideConfig.value;
+        return Effect.try({
+          try: () => override(bundleId, appAppleId, environment),
+          catch: (error) => {
+            if (error instanceof VerificationError) return error;
+            return makeVerificationError(VerificationStatus.INVALID_APP_IDENTIFIER);
+          },
+        }).pipe(
+          Effect.flatMap((result) => {
+            if (Effect.isEffect(result)) return result;
+            return Effect.void;
+          }),
+        );
       });
 
     const validateNotificationPayload = (
@@ -267,10 +283,7 @@ export const SignedDataVerifier = {
           bundleId = payload.externalPurchaseToken.value.bundleId;
           environment = Option.map(
             payload.externalPurchaseToken.value.externalPurchaseId,
-            (externalPurchaseId) =>
-              externalPurchaseId.startsWith("SANDBOX")
-                ? Environment.SANDBOX
-                : Environment.PRODUCTION,
+            environmentFromExternalPurchaseId,
           );
         } else if (Option.isSome(payload.appData)) {
           appAppleId = payload.appData.value.appAppleId;

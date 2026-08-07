@@ -4,7 +4,8 @@
  * Each returns `ReadonlyArray<AnalyticsDataPoint>` with the period column
  * normalised to `Date`.
  */
-import { Effect } from "effect";
+import { DateTime, Effect, Option } from "effect";
+import { causeMessage, constant, numberOr } from "@voidhash/lib/lang";
 
 import type {
   AnalyticsDataPoint,
@@ -29,9 +30,9 @@ import type { SqlError } from "effect/unstable/sql/SqlError";
 // Unqualified table names — the runtime Clickhouse client connects with the
 // per-stage database (provisioned by `Clickhouse.Database`) as its default,
 // so these resolve correctly without a hardcoded database prefix.
-const CLICKHOUSE_EVENTS_FULL_TABLE = "events_v2" as const;
-const CLICKHOUSE_PERSONS_FULL_TABLE = "persons_v1" as const;
-const CLICKHOUSE_PENDING_OVERRIDES_FULL_TABLE = "person_identity_pending_overrides_v2" as const;
+const CLICKHOUSE_EVENTS_FULL_TABLE = constant("events_v2");
+const CLICKHOUSE_PERSONS_FULL_TABLE = constant("persons_v1");
+const CLICKHOUSE_PENDING_OVERRIDES_FULL_TABLE = constant("person_identity_pending_overrides_v2");
 
 const EVENT_ALIAS = "events";
 const OVERRIDES_ALIAS = "pending_overrides";
@@ -115,17 +116,30 @@ interface AnalyticsRow {
   total: string | number | null;
 }
 
+/** Normalises a ClickHouse `DateTime` string to an ISO-8601 UTC instant. */
+const withDateTimeSeparator = (trimmed: string): string => {
+  if (trimmed.includes("T")) return trimmed;
+  return trimmed.replace(" ", "T");
+};
+
+const toUtcInstantString = (trimmed: string): string => {
+  const normalized = withDateTimeSeparator(trimmed);
+  if (/(?:Z|[+-]\d{2}:\d{2})$/.test(normalized)) return normalized;
+  return `${normalized}Z`;
+};
+
 const parsePeriod = (value: unknown): Date | null => {
   if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
+    if (Number.isNaN(value.getTime())) return null;
+    return value;
   }
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (trimmed.length === 0) return null;
-    const normalized = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T");
-    const withZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(normalized) ? normalized : `${normalized}Z`;
-    const parsed = new Date(withZone);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return Option.match(DateTime.make(toUtcInstantString(trimmed)), {
+      onNone: () => null,
+      onSome: (instant) => DateTime.toDateUtc(instant),
+    });
   }
   return null;
 };
@@ -134,8 +148,7 @@ const parseRowsToDataPoints = (rows: ReadonlyArray<AnalyticsRow>): AnalyticsData
   rows.flatMap((row) => {
     const timestamp = parsePeriod(row.period);
     if (!timestamp) return [];
-    const value = Number(row.total ?? 0);
-    return [{ timestamp, value: Number.isFinite(value) ? value : 0 }];
+    return [{ timestamp, value: numberOr(Number(row.total ?? 0), 0) }];
   });
 
 const jsonString = (...keys: readonly string[]): string =>
@@ -195,26 +208,49 @@ const buildEventFilters = (
   filters: CompiledAnalyticsFilter,
 ) => {
   const terms = [
-    { values: filters.productIds, expression: productIdExpression, kind: "String" as const },
+    { values: filters.productIds, expression: productIdExpression, kind: constant("String") },
     {
       values: filters.providerEnvironments,
       expression: providerEnvironmentExpression,
-      kind: "Float64" as const,
+      kind: constant("Float64"),
     },
     {
       values: filters.subscriptionStatuses,
       expression: subscriptionStatusExpression,
-      kind: "Float64" as const,
+      kind: constant("Float64"),
     },
   ];
-  return terms.reduce(
-    (acc, term) =>
-      term.values && term.values.length > 0
-        ? ch`${acc}
-        AND ${ch.literal(term.expression)} IN ${ch.param(`Array(${term.kind})`, term.values)}`
-        : acc,
-    ch``,
-  );
+  return terms.reduce((acc, term) => {
+    if (!term.values || term.values.length === 0) return acc;
+    return ch`${acc}
+        AND ${ch.literal(term.expression)} IN ${ch.param(`Array(${term.kind})`, term.values)}`;
+  }, ch``);
+};
+
+/** The composed SQL fragment type produced by the `ch` tagged template. */
+type SqlFragment = ReturnType<typeof buildEventFilters>;
+
+/**
+ * Lazily selects one of two branches. Stands in for the conditional expressions
+ * this module used to build its SQL fragments with (banned by the lint preset)
+ * while keeping the unchosen branch unevaluated.
+ */
+const branch = <A>(condition: boolean, onTrue: () => A, onFalse: () => A): A => {
+  if (condition) return onTrue();
+  return onFalse();
+};
+
+/**
+ * Applies `onDefined` to a present optional value, otherwise yields
+ * `onAbsent()` — the fragment-building counterpart of `Option.match`.
+ */
+const whenDefined = <T, A>(
+  value: T | undefined,
+  onDefined: (value: T) => A,
+  onAbsent: () => A,
+): A => {
+  if (value === undefined) return onAbsent();
+  return onDefined(value);
 };
 
 /**
@@ -349,56 +385,79 @@ const customEventField = (
 const analyticsActorKey = (
   ch: ClickhouseWebClient.ClickhouseWebClient,
   actor: AnalyticsActorType | undefined,
-): ReturnType<typeof buildEventFilters> =>
-  actor?.kind === "group"
-    ? ch`nullIf(JSONExtractString(
+): SqlFragment => {
+  if (actor?.kind === "group") {
+    return ch`nullIf(JSONExtractString(
         ${ch.literal(EVENT_PROPERTIES)},
         ${ch.param("String", actor.property)}
-      ), '')`
-    : ch`${ch.literal(
-        `coalesce(${effectivePersonIdExpression}, ${effectiveDistinctIdExpression})`,
-      )}`;
+      ), '')`;
+  }
+  return ch`${ch.literal(
+    `coalesce(${effectivePersonIdExpression}, ${effectiveDistinctIdExpression})`,
+  )}`;
+};
+
+const analyticsCohortFilter = (
+  ch: ClickhouseWebClient.ClickhouseWebClient,
+  cohortPersonIds: readonly string[] | undefined,
+): SqlFragment => {
+  if (cohortPersonIds === undefined) return ch`1 = 1`;
+  if (cohortPersonIds.length === 0) return ch`0 = 1`;
+  return ch`${ch.literal(effectivePersonIdExpression)} IN ${ch.param(
+    "Array(String)",
+    cohortPersonIds,
+  )}`;
+};
 
 const analyticsActorFilter = (
   ch: ClickhouseWebClient.ClickhouseWebClient,
   input: AnalyticsActorQueryInput,
-): ReturnType<typeof buildEventFilters> => {
+): SqlFragment => {
   const actorKey = analyticsActorKey(ch, input.actor);
-  const cohortFilter =
-    input.cohortPersonIds === undefined
-      ? ch`1 = 1`
-      : input.cohortPersonIds.length === 0
-        ? ch`0 = 1`
-        : ch`${ch.literal(effectivePersonIdExpression)} IN ${ch.param(
-            "Array(String)",
-            input.cohortPersonIds,
-          )}`;
+  const cohortFilter = analyticsCohortFilter(ch, input.cohortPersonIds);
   return ch`notEmpty(toString(${actorKey})) AND ${cohortFilter}`;
 };
 
-const stringFilterValue = (value: unknown): string => String(value ?? "");
+const stringFilterValue = (value: unknown): string => causeMessage(value ?? "");
+
+const OPERATOR_BY_FILTER_TYPE = constant({ and: "AND", or: "OR" });
+
+/**
+ * Narrows a filter node to its leaf predicate. The `and` / `or` member of
+ * {@link AnalyticsFilterType} carries a two-literal `type`, which control-flow
+ * analysis cannot discriminate away on its own.
+ */
+const isFilterPredicate = (
+  filter: AnalyticsFilterType,
+): filter is Extract<AnalyticsFilterType, { readonly type: "predicate" }> =>
+  filter.type === "predicate";
+
+/** Coerces a predicate's value to the string array an `IN` / `NOT IN` term binds. */
+const stringFilterValues = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.map(stringFilterValue);
+  return [];
+};
 
 const buildCustomEventFilter = (
   ch: ClickhouseWebClient.ClickhouseWebClient,
   filter: AnalyticsFilterType,
 ): ReturnType<typeof buildEventFilters> => {
   if (filter.type === "and" || filter.type === "or") {
-    const operator = filter.type === "and" ? "AND" : "OR";
+    const operator = OPERATOR_BY_FILTER_TYPE[filter.type];
     return filter.filters
-      .reduce(
-        (acc, child, index) =>
-          index === 0
-            ? ch`(${buildCustomEventFilter(ch, child)}`
-            : ch`${acc} ${ch.literal(operator)} ${buildCustomEventFilter(ch, child)}`,
-        ch``,
-      )
+      .reduce((acc, child, index) => {
+        if (index === 0) return ch`(${buildCustomEventFilter(ch, child)}`;
+        return ch`${acc} ${ch.literal(operator)} ${buildCustomEventFilter(ch, child)}`;
+      }, ch``)
       .pipe((fragment) => ch`${fragment})`);
   }
   if (filter.type === "not") {
     return ch`NOT (${buildCustomEventFilter(ch, filter.filter)})`;
   }
 
-  const predicate = filter as Extract<AnalyticsFilterType, { readonly type: "predicate" }>;
+  if (!isFilterPredicate(filter)) return ch`0 = 1`;
+
+  const predicate = filter;
   const expression = customEventField(ch, predicate.field);
   switch (predicate.op) {
     case "eq":
@@ -406,14 +465,11 @@ const buildCustomEventFilter = (
     case "neq":
       return ch`${expression} != ${ch.param("String", stringFilterValue(predicate.value))}`;
     case "in":
-      return ch`${expression} IN ${ch.param(
-        "Array(String)",
-        Array.isArray(predicate.value) ? predicate.value.map(stringFilterValue) : [],
-      )}`;
+      return ch`${expression} IN ${ch.param("Array(String)", stringFilterValues(predicate.value))}`;
     case "not_in":
       return ch`${expression} NOT IN ${ch.param(
         "Array(String)",
-        Array.isArray(predicate.value) ? predicate.value.map(stringFilterValue) : [],
+        stringFilterValues(predicate.value),
       )}`;
     case "contains":
       return ch`positionCaseInsensitive(
@@ -431,6 +487,54 @@ const buildCustomEventFilter = (
   return ch`0 = 1`;
 };
 
+/** Renders a breakdown's sort order as the SQL keyword. */
+const sortDirection = (order: AnalyticsBreakdownType["order"]): string => {
+  if (order === "asc") return "ASC";
+  return "DESC";
+};
+
+/** Only breakdown queries carry a `breakdownValue` on their series groups. */
+const breakdownValueEntry = (
+  breakdown: AnalyticsBreakdownType | undefined,
+  breakdownValue: string,
+) => {
+  if (breakdown === undefined) return {};
+  return { breakdownValue };
+};
+
+/** Maps a trend series' aggregation to its ClickHouse aggregate expression. */
+const eventTrendAggregate = (
+  ch: ClickhouseWebClient.ClickhouseWebClient,
+  aggregation: EventTrendQueryInput["aggregation"],
+  actorKey: SqlFragment,
+  propertyExpression: SqlFragment,
+): SqlFragment => {
+  switch (aggregation) {
+    case "unique_users":
+      return ch`countDistinct(${actorKey})`;
+    case "property_sum":
+      return ch`sum(${propertyExpression})`;
+    case "property_average":
+      return ch`avg(${propertyExpression})`;
+    case "property_minimum":
+      return ch`min(${propertyExpression})`;
+    case "property_maximum":
+      return ch`max(${propertyExpression})`;
+    case "property_median":
+      return ch`quantileExact(0.5)(${propertyExpression})`;
+    case "property_p75":
+      return ch`quantileExact(0.75)(${propertyExpression})`;
+    case "property_p90":
+      return ch`quantileExact(0.9)(${propertyExpression})`;
+    case "property_p95":
+      return ch`quantileExact(0.95)(${propertyExpression})`;
+    case "property_p99":
+      return ch`quantileExact(0.99)(${propertyExpression})`;
+    default:
+      return ch`count()`;
+  }
+};
+
 /**
  * Query a custom event series using the identity-stitched analytics event view.
  * Number displays can aggregate the whole range into one point without summing per-bucket users.
@@ -440,42 +544,36 @@ export const getEventTrendSeries = (input: EventTrendQueryInput) =>
     const ch = yield* ClickhouseWebClient.ClickhouseWebClient;
     const actorKey = analyticsActorKey(ch, input.actor);
     const actorFilter = analyticsActorFilter(ch, input);
-    const period = input.aggregateOverRange
-      ? "toDateTime('1970-01-01 00:00:00')"
-      : getDateTruncExpression(EVENT_TS, input.params.granularity);
+    const period = branch(
+      input.aggregateOverRange === true,
+      () => "toDateTime('1970-01-01 00:00:00')",
+      () => getDateTruncExpression(EVENT_TS, input.params.granularity),
+    );
     const propertyExpression = ch`toFloat64OrNull(JSONExtractRaw(
       ${ch.literal(EVENT_PROPERTIES)},
       ${ch.param("String", input.mathProperty ?? "")}
     ))`;
-    const aggregateExpression =
-      input.aggregation === "unique_users"
-        ? ch`countDistinct(${actorKey})`
-        : input.aggregation === "property_sum"
-          ? ch`sum(${propertyExpression})`
-          : input.aggregation === "property_average"
-            ? ch`avg(${propertyExpression})`
-            : input.aggregation === "property_minimum"
-              ? ch`min(${propertyExpression})`
-              : input.aggregation === "property_maximum"
-                ? ch`max(${propertyExpression})`
-                : input.aggregation === "property_median"
-                  ? ch`quantileExact(0.5)(${propertyExpression})`
-                  : input.aggregation === "property_p75"
-                    ? ch`quantileExact(0.75)(${propertyExpression})`
-                    : input.aggregation === "property_p90"
-                      ? ch`quantileExact(0.9)(${propertyExpression})`
-                      : input.aggregation === "property_p95"
-                        ? ch`quantileExact(0.95)(${propertyExpression})`
-                        : input.aggregation === "property_p99"
-                          ? ch`quantileExact(0.99)(${propertyExpression})`
-                          : ch`count()`;
-    const breakdownExpression = input.breakdown
-      ? customEventField(ch, input.breakdown.field)
-      : ch`${ch.param("String", "")}`;
-    const customFilter = input.propertyFilter
-      ? buildCustomEventFilter(ch, input.propertyFilter)
-      : ch`1 = 1`;
-    const perPeriodLimit = input.breakdown ? Math.min((input.breakdown.limit ?? 10) * 4, 400) : 1;
+    const aggregateExpression = eventTrendAggregate(
+      ch,
+      input.aggregation,
+      actorKey,
+      propertyExpression,
+    );
+    const breakdownExpression = whenDefined(
+      input.breakdown,
+      (breakdown) => customEventField(ch, breakdown.field),
+      () => ch`${ch.param("String", "")}`,
+    );
+    const customFilter = whenDefined(
+      input.propertyFilter,
+      (filter) => buildCustomEventFilter(ch, filter),
+      () => ch`1 = 1`,
+    );
+    const perPeriodLimit = whenDefined(
+      input.breakdown,
+      (breakdown) => Math.min((breakdown.limit ?? 10) * 4, 400),
+      () => 1,
+    );
     const dedupedEvents = resolvedEventsFrom(
       ch,
       ch`project_id IN ${ch.param("Array(String)", input.filters.projectIds)}
@@ -504,19 +602,28 @@ export const getEventTrendSeries = (input: EventTrendQueryInput) =>
     for (const row of rows) {
       const points = parseRowsToDataPoints([row]);
       if (points.length === 0) continue;
-      const key = input.breakdown ? row.breakdown : "";
+      const key = whenDefined(
+        input.breakdown,
+        () => row.breakdown,
+        () => "",
+      );
       const existing = grouped.get(key);
       if (existing) existing.push(points[0]);
       else grouped.set(key, points);
     }
 
+    const breakdown = input.breakdown;
     const groups = [...grouped.entries()].map(([breakdownValue, points]) => ({
-      ...(input.breakdown ? { breakdownValue } : {}),
+      ...breakdownValueEntry(breakdown, breakdownValue),
       points,
     }));
-    if (!input.breakdown) return groups;
+    if (!breakdown) return groups;
 
-    const direction = input.breakdown.order === "asc" ? 1 : -1;
+    const direction = branch(
+      breakdown.order === "asc",
+      () => 1,
+      () => -1,
+    );
     return groups
       .sort(
         (left, right) =>
@@ -524,7 +631,7 @@ export const getEventTrendSeries = (input: EventTrendQueryInput) =>
           (left.points.reduce((sum, point) => sum + point.value, 0) -
             right.points.reduce((sum, point) => sum + point.value, 0)),
       )
-      .slice(0, input.breakdown.limit ?? 10);
+      .slice(0, breakdown.limit ?? 10);
   });
 
 export interface EventPersonDrilldownQueryInput {
@@ -554,17 +661,24 @@ interface EventPersonDrilldownSqlRow {
 export const getEventPersonDrilldown = (input: EventPersonDrilldownQueryInput) =>
   Effect.gen(function* () {
     const ch = yield* ClickhouseWebClient.ClickhouseWebClient;
-    const propertyFilter = input.filters ? buildCustomEventFilter(ch, input.filters) : ch`1 = 1`;
+    const propertyFilter = whenDefined(
+      input.filters,
+      (filters) => buildCustomEventFilter(ch, filters),
+      () => ch`1 = 1`,
+    );
     const cohortFilter = analyticsActorFilter(ch, {
       actor: { kind: "person" },
       cohortPersonIds: input.cohortPersonIds,
     });
-    const groupFilter = input.group
-      ? ch`${customEventField(ch, `event.properties.${input.group.property}`)} = ${ch.param(
+    const groupFilter = whenDefined(
+      input.group,
+      (group) =>
+        ch`${customEventField(ch, `event.properties.${group.property}`)} = ${ch.param(
           "String",
-          input.group.value,
-        )}`
-      : ch`1 = 1`;
+          group.value,
+        )}`,
+      () => ch`1 = 1`,
+    );
     const dedupedEvents = resolvedEventsFrom(
       ch,
       ch`project_id = ${ch.param("String", input.projectId)}
@@ -593,9 +707,8 @@ export const getEventPersonDrilldown = (input: EventPersonDrilldownQueryInput) =
 
     return rows.flatMap((row) => {
       const lastSeenAt = parsePeriod(row.last_seen_at);
-      return lastSeenAt
-        ? [{ eventCount: Number(row.event_count ?? 0), lastSeenAt, personId: row.person_id }]
-        : [];
+      if (!lastSeenAt) return [];
+      return [{ eventCount: Number(row.event_count ?? 0), lastSeenAt, personId: row.person_id }];
     });
   });
 
@@ -615,11 +728,10 @@ const joinSqlFragments = (
   fragments: ReadonlyArray<ReturnType<typeof buildEventFilters>>,
   separator = ", ",
 ): ReturnType<typeof buildEventFilters> =>
-  fragments.reduce(
-    (acc, fragment, index) =>
-      index === 0 ? fragment : ch`${acc}${ch.literal(separator)}${fragment}`,
-    ch``,
-  );
+  fragments.reduce((acc, fragment, index) => {
+    if (index === 0) return fragment;
+    return ch`${acc}${ch.literal(separator)}${fragment}`;
+  }, ch``);
 
 interface EventFunnelBreakdownCounts {
   readonly breakdownValue: string;
@@ -636,13 +748,18 @@ const queryEventFunnelRows = (
 > =>
   Effect.gen(function* () {
     const ch = yield* ClickhouseWebClient.ClickhouseWebClient;
-    const breakdown = withBreakdown ? input.breakdown : undefined;
+    const breakdown = branch(
+      withBreakdown,
+      () => input.breakdown,
+      () => undefined,
+    );
     const conversionWindowMilliseconds = input.conversionWindowSeconds * 1_000;
     const allEventNames = [...new Set(input.steps.flatMap((step) => [...step.eventNames]))];
-    const eventNameScope =
-      input.order === "strict"
-        ? ch``
-        : ch`AND event_name IN ${ch.param("Array(String)", allEventNames)}`;
+    const eventNameScope = branch(
+      input.order === "strict",
+      () => ch``,
+      () => ch`AND event_name IN ${ch.param("Array(String)", allEventNames)}`,
+    );
     const dedupedEvents = resolvedEventsFrom(
       ch,
       ch`project_id IN ${ch.param("Array(String)", input.filters.projectIds)}
@@ -653,7 +770,11 @@ const queryEventFunnelRows = (
     const actorKey = analyticsActorKey(ch, input.actor);
     const actorFilter = analyticsActorFilter(ch, input);
     const stepConditions = input.steps.map((step) => {
-      const propertyFilter = step.filters ? buildCustomEventFilter(ch, step.filters) : ch`1 = 1`;
+      const propertyFilter = whenDefined(
+        step.filters,
+        (filters) => buildCustomEventFilter(ch, filters),
+        () => ch`1 = 1`,
+      );
       return ch`(
         ${ch.literal(`${EVENT_ALIAS}.event_name`)} IN ${ch.param("Array(String)", step.eventNames)}
         AND ${propertyFilter}
@@ -664,24 +785,36 @@ const queryEventFunnelRows = (
       input.steps.length - 1,
     );
     const attributionCondition = stepConditions[attributionIndex] ?? ch`0 = 1`;
-    const breakdownAggregate = breakdown
-      ? ch`argMinIf(
-          toString(${customEventField(ch, breakdown.field)}),
+    const breakdownAggregate = whenDefined<AnalyticsBreakdownType, SqlFragment | undefined>(
+      breakdown,
+      (value) =>
+        ch`argMinIf(
+          toString(${customEventField(ch, value.field)}),
           ${ch.literal(EVENT_TS)},
           ${attributionCondition}
-        )`
-      : undefined;
-    const breakdownProjection = breakdownAggregate
-      ? ch`, ${breakdownAggregate} AS breakdown_value`
-      : ch``;
-    const breakdownSelect = breakdown ? ch`breakdown_value,` : ch``;
-    const breakdownGrouping = breakdown
-      ? ch`GROUP BY breakdown_value
+        )`,
+      () => undefined,
+    );
+    const breakdownProjection = whenDefined(
+      breakdownAggregate,
+      (aggregate) => ch`, ${aggregate} AS breakdown_value`,
+      () => ch``,
+    );
+    const breakdownSelect = whenDefined(
+      breakdown,
+      () => ch`breakdown_value,`,
+      () => ch``,
+    );
+    const breakdownGrouping = whenDefined(
+      breakdown,
+      (value) =>
+        ch`GROUP BY breakdown_value
           ORDER BY ${ch.literal(`step_${input.steps.length - 1}`)}
-            ${ch.literal(breakdown.order === "asc" ? "ASC" : "DESC")},
+            ${ch.literal(sortDirection(value.order))},
             breakdown_value ASC
-          LIMIT ${ch.param("UInt32", breakdown.limit ?? 10)}`
-      : ch``;
+          LIMIT ${ch.param("UInt32", value.limit ?? 10)}`,
+      () => ch``,
+    );
 
     if (input.order === "any") {
       const timeArrays = stepConditions.map(
@@ -740,10 +873,12 @@ const queryEventFunnelRows = (
       );
     }
 
-    const modes =
-      input.order === "strict"
-        ? ch`${ch.param("UInt64", conversionWindowMilliseconds)}, 'strict_deduplication', 'strict_order'`
-        : ch`${ch.param("UInt64", conversionWindowMilliseconds)}, 'strict_deduplication'`;
+    const modes = branch(
+      input.order === "strict",
+      () =>
+        ch`${ch.param("UInt64", conversionWindowMilliseconds)}, 'strict_deduplication', 'strict_order'`,
+      () => ch`${ch.param("UInt64", conversionWindowMilliseconds)}, 'strict_deduplication'`,
+    );
     const funnelLevel = ch`windowFunnel(${modes})(
       toUInt64(toUnixTimestamp64Milli(${ch.literal(EVENT_TS)})),
       ${joinSqlFragments(ch, stepConditions)}
@@ -789,17 +924,17 @@ export const getEventFunnelBreakdownCounts = (
   ReadonlyArray<EventFunnelBreakdownCounts>,
   SqlError,
   ClickhouseWebClient.ClickhouseWebClient
-> =>
-  input.breakdown
-    ? queryEventFunnelRows(input, true).pipe(
-        Effect.map((rows) =>
-          rows.map((row) => ({
-            breakdownValue: String(row.breakdown_value ?? ""),
-            counts: funnelCountsFromRow(row, input.steps.length),
-          })),
-        ),
-      )
-    : Effect.succeed([]);
+> => {
+  if (!input.breakdown) return Effect.succeed([]);
+  return queryEventFunnelRows(input, true).pipe(
+    Effect.map((rows) =>
+      rows.map((row) => ({
+        breakdownValue: String(row.breakdown_value ?? ""),
+        counts: funnelCountsFromRow(row, input.steps.length),
+      })),
+    ),
+  );
+};
 
 export interface EventRetentionQueryInput extends AnalyticsActorQueryInput {
   readonly cumulative: boolean;
@@ -831,23 +966,28 @@ export const getEventRetentionCohorts = (input: EventRetentionQueryInput) =>
     const periodExpression = getDateTruncExpression(EVENT_TS, input.period);
     const actorKey = analyticsActorKey(ch, input.actor);
     const actorFilter = analyticsActorFilter(ch, input);
-    const startFilter = input.start.filters
-      ? buildCustomEventFilter(ch, input.start.filters)
-      : ch`1 = 1`;
-    const returningFilter = input.returning.filters
-      ? buildCustomEventFilter(ch, input.returning.filters)
-      : ch`1 = 1`;
+    const startFilter = whenDefined(
+      input.start.filters,
+      (filters) => buildCustomEventFilter(ch, filters),
+      () => ch`1 = 1`,
+    );
+    const returningFilter = whenDefined(
+      input.returning.filters,
+      (filters) => buildCustomEventFilter(ch, filters),
+      () => ch`1 = 1`,
+    );
     const startFrom = resolvedEventsFrom(
       ch,
       ch`project_id IN ${ch.param("Array(String)", input.filters.projectIds)}
-          ${
-            input.retentionType === "recurring"
-              ? ch`AND event_ts >= ${ch.param(
-                  "DateTime",
-                  toClickhouseDateTime(input.params.startDate),
-                )}`
-              : ch``
-          }
+          ${branch(
+            input.retentionType === "recurring",
+            () =>
+              ch`AND event_ts >= ${ch.param(
+                "DateTime",
+                toClickhouseDateTime(input.params.startDate),
+              )}`,
+            () => ch``,
+          )}
           AND event_ts <= ${ch.param("DateTime", toClickhouseDateTime(input.params.endDate))}
           AND event_name IN ${ch.param("Array(String)", [...input.start.eventNames])}`,
     );
@@ -858,9 +998,9 @@ export const getEventRetentionCohorts = (input: EventRetentionQueryInput) =>
           AND event_ts <= ${ch.param("DateTime", toClickhouseDateTime(input.params.endDate))}
           AND event_name IN ${ch.param("Array(String)", [...input.returning.eventNames])}`,
     );
-    const starts =
-      input.retentionType === "recurring"
-        ? ch`
+    const starts = branch(
+      input.retentionType === "recurring",
+      () => ch`
             SELECT
               ${actorKey} AS person_key,
               ${ch.literal(periodExpression)} AS cohort_start
@@ -868,8 +1008,8 @@ export const getEventRetentionCohorts = (input: EventRetentionQueryInput) =>
             ${ch.literal(RESOLVED_EVENTS_JOIN)}
             WHERE ${startFilter} AND ${actorFilter}
             GROUP BY person_key, cohort_start
-          `
-        : ch`
+          `,
+      () => ch`
             SELECT
               ${actorKey} AS person_key,
               min(${ch.literal(periodExpression)}) AS cohort_start
@@ -881,7 +1021,8 @@ export const getEventRetentionCohorts = (input: EventRetentionQueryInput) =>
               "DateTime",
               toClickhouseDateTime(input.params.startDate),
             )}
-          `;
+          `,
+    );
     const returns = ch`
       SELECT
         ${actorKey} AS person_key,
@@ -892,12 +1033,15 @@ export const getEventRetentionCohorts = (input: EventRetentionQueryInput) =>
       GROUP BY person_key, return_period
     `;
     const intervalCounts = Array.from({ length: input.intervals }, (_, interval) => {
-      const intervalCondition =
-        input.cumulative && interval > 0
-          ? ch`dateDiff(${ch.param("String", input.period)}, starts.cohort_start, returns.return_period)
-                >= ${ch.param("UInt8", interval)}`
-          : ch`dateDiff(${ch.param("String", input.period)}, starts.cohort_start, returns.return_period)
-                = ${ch.param("UInt8", interval)}`;
+      const intervalCondition = branch(
+        input.cumulative && interval > 0,
+        () =>
+          ch`dateDiff(${ch.param("String", input.period)}, starts.cohort_start, returns.return_period)
+                >= ${ch.param("UInt8", interval)}`,
+        () =>
+          ch`dateDiff(${ch.param("String", input.period)}, starts.cohort_start, returns.return_period)
+                = ${ch.param("UInt8", interval)}`,
+      );
       return ch`uniqExactIf(
         starts.person_key,
         notEmpty(returns.person_key) AND ${intervalCondition}
@@ -972,10 +1116,11 @@ export const getEventPathLinks = (input: EventPathsQueryInput) =>
   Effect.gen(function* () {
     const ch = yield* ClickhouseWebClient.ClickhouseWebClient;
     const definition = input.definition;
-    const includeEvents =
-      definition.eventNames.length > 0
-        ? ch`AND event_name IN ${ch.param("Array(String)", [...definition.eventNames])}`
-        : ch``;
+    const includeEvents = branch(
+      definition.eventNames.length > 0,
+      () => ch`AND event_name IN ${ch.param("Array(String)", [...definition.eventNames])}`,
+      () => ch``,
+    );
     const dedupedEvents = resolvedEventsFrom(
       ch,
       ch`project_id IN ${ch.param("Array(String)", input.filters.projectIds)}
@@ -985,17 +1130,22 @@ export const getEventPathLinks = (input: EventPathsQueryInput) =>
     );
     const actorKey = analyticsActorKey(ch, input.actor);
     const actorFilter = analyticsActorFilter(ch, input);
-    const pathItem =
-      definition.pathItem === "screen_name"
-        ? ch`${ch.literal(jsonString("$screen_name", "screen_name", "screenName"))}`
-        : ch`${ch.literal(`${EVENT_ALIAS}.event_name`)}`;
-    const propertyFilter = definition.filters
-      ? buildCustomEventFilter(ch, definition.filters)
-      : ch`1 = 1`;
-    const excludePathItems =
-      definition.excludeEventNames && definition.excludeEventNames.length > 0
-        ? ch`AND ${pathItem} NOT IN ${ch.param("Array(String)", [...definition.excludeEventNames])}`
-        : ch``;
+    const pathItem = branch(
+      definition.pathItem === "screen_name",
+      () => ch`${ch.literal(jsonString("$screen_name", "screen_name", "screenName"))}`,
+      () => ch`${ch.literal(`${EVENT_ALIAS}.event_name`)}`,
+    );
+    const propertyFilter = whenDefined(
+      definition.filters,
+      (filters) => buildCustomEventFilter(ch, filters),
+      () => ch`1 = 1`,
+    );
+    const excludeEventNames = definition.excludeEventNames;
+    const excludePathItems = branch(
+      (excludeEventNames?.length ?? 0) > 0,
+      () => ch`AND ${pathItem} NOT IN ${ch.param("Array(String)", [...(excludeEventNames ?? [])])}`,
+      () => ch``,
+    );
     const sessionGapSeconds = definition.sessionGapSeconds ?? 1_800;
     const orderedEvents = ch`
       SELECT
@@ -1029,15 +1179,16 @@ export const getEventPathLinks = (input: EventPathsQueryInput) =>
         GROUP BY person_key
       )
     `;
-    const compactPath =
-      definition.collapseRepeated === false
-        ? ch`session`
-        : ch`arrayFilter(
+    const compactPath = branch(
+      definition.collapseRepeated === false,
+      () => ch`session`,
+      () => ch`arrayFilter(
             (item, item_index) -> item_index = 1
               OR tupleElement(item, 1) != tupleElement(session[item_index - 1], 1),
             session,
             arrayEnumerate(session)
-          )`;
+          )`,
+    );
     const compactedPaths = ch`
       SELECT
         person_key,
@@ -1046,29 +1197,49 @@ export const getEventPathLinks = (input: EventPathsQueryInput) =>
       ARRAY JOIN sessions AS session
       WHERE length(session) >= 2
     `;
-    const startIndex = definition.startEventName
-      ? ch`indexOf(path_names, ${ch.param("String", definition.startEventName)})`
-      : ch`1`;
-    const endIndex = definition.endEventName
-      ? definition.startEventName
-        ? ch`if(
+    const startEventName = definition.startEventName;
+    const endEventName = definition.endEventName;
+    const hasStart = Boolean(startEventName);
+    const hasEnd = Boolean(endEventName);
+    const startIndex = branch(
+      hasStart,
+      () => ch`indexOf(path_names, ${ch.param("String", startEventName ?? "")})`,
+      () => ch`1`,
+    );
+    const endIndexWithinStart = branch(
+      hasStart,
+      () => ch`if(
             indexOf(
               arraySlice(path_names, start_index),
-              ${ch.param("String", definition.endEventName)}
+              ${ch.param("String", endEventName ?? "")}
             ) > 0,
             indexOf(
               arraySlice(path_names, start_index),
-              ${ch.param("String", definition.endEventName)}
+              ${ch.param("String", endEventName ?? "")}
             ) + start_index - 1,
             0
-          )`
-        : ch`indexOf(path_names, ${ch.param("String", definition.endEventName)})`
-      : ch`length(path_names)`;
+          )`,
+      () => ch`indexOf(path_names, ${ch.param("String", endEventName ?? "")})`,
+    );
+    const endIndex = branch(
+      hasEnd,
+      () => endIndexWithinStart,
+      () => ch`length(path_names)`,
+    );
     const prefixSteps = Math.ceil((definition.maxDepth - 1) / 2);
     const suffixSteps = Math.floor((definition.maxDepth - 1) / 2);
-    const selectedPath =
-      definition.startEventName && definition.endEventName
-        ? ch`if(
+    const selectedPathWithoutStart = branch(
+      hasEnd,
+      () => ch`arraySlice(
+                compact_path,
+                greatest(1, end_index - ${ch.param("UInt8", definition.maxDepth)} + 1),
+                least(${ch.param("UInt8", definition.maxDepth)}, end_index)
+              )`,
+      () => ch`arraySlice(compact_path, 1, ${ch.param("UInt8", definition.maxDepth)})`,
+    );
+    const selectedPathWithStart = branch(
+      hasEnd,
+      () => ch`if(
             end_index - start_index + 1 <= ${ch.param("UInt8", definition.maxDepth)},
             arraySlice(compact_path, start_index, end_index - start_index + 1),
             arrayConcat(
@@ -1084,25 +1255,36 @@ export const getEventPathLinks = (input: EventPathsQueryInput) =>
                 ${ch.param("UInt8", suffixSteps)}
               )
             )
-          )`
-        : definition.startEventName
-          ? ch`arraySlice(compact_path, start_index, ${ch.param("UInt8", definition.maxDepth)})`
-          : definition.endEventName
-            ? ch`arraySlice(
-                compact_path,
-                greatest(1, end_index - ${ch.param("UInt8", definition.maxDepth)} + 1),
-                least(${ch.param("UInt8", definition.maxDepth)}, end_index)
-              )`
-            : ch`arraySlice(compact_path, 1, ${ch.param("UInt8", definition.maxDepth)})`;
+          )`,
+      () => ch`arraySlice(compact_path, start_index, ${ch.param("UInt8", definition.maxDepth)})`,
+    );
+    const selectedPath = branch(
+      hasStart,
+      () => selectedPathWithStart,
+      () => selectedPathWithoutStart,
+    );
     const endpointConditions = [
-      ...(definition.startEventName ? [ch`start_index > 0`] : []),
-      ...(definition.endEventName ? [ch`end_index > 0`] : []),
-      ...(definition.startEventName && definition.endEventName
-        ? [ch`end_index >= start_index`]
-        : []),
+      ...branch(
+        hasStart,
+        () => [ch`start_index > 0`],
+        () => [],
+      ),
+      ...branch(
+        hasEnd,
+        () => [ch`end_index > 0`],
+        () => [],
+      ),
+      ...branch(
+        hasStart && hasEnd,
+        () => [ch`end_index >= start_index`],
+        () => [],
+      ),
     ];
-    const endpointWhere =
-      endpointConditions.length > 0 ? joinSqlFragments(ch, endpointConditions, " AND ") : ch`1 = 1`;
+    const endpointWhere = branch(
+      endpointConditions.length > 0,
+      () => joinSqlFragments(ch, endpointConditions, " AND "),
+      () => ch`1 = 1`,
+    );
     const selectedPaths = ch`
       SELECT
         person_key,
@@ -1133,18 +1315,25 @@ export const getEventPathLinks = (input: EventPathsQueryInput) =>
       ARRAY JOIN arrayEnumerate(selected_path) AS target_step
       WHERE target_step > 1
     `;
+    const minEdgeCount = definition.minEdgeCount;
+    const maxEdgeCount = definition.maxEdgeCount;
     const edgeConditions = [
-      ...(definition.minEdgeCount
-        ? [ch`count() >= ${ch.param("UInt32", definition.minEdgeCount)}`]
-        : []),
-      ...(definition.maxEdgeCount
-        ? [ch`count() <= ${ch.param("UInt32", definition.maxEdgeCount)}`]
-        : []),
+      ...branch(
+        Boolean(minEdgeCount),
+        () => [ch`count() >= ${ch.param("UInt32", minEdgeCount)}`],
+        () => [],
+      ),
+      ...branch(
+        Boolean(maxEdgeCount),
+        () => [ch`count() <= ${ch.param("UInt32", maxEdgeCount)}`],
+        () => [],
+      ),
     ];
-    const edgeHaving =
-      edgeConditions.length > 0
-        ? ch`HAVING ${joinSqlFragments(ch, edgeConditions, " AND ")}`
-        : ch``;
+    const edgeHaving = branch(
+      edgeConditions.length > 0,
+      () => ch`HAVING ${joinSqlFragments(ch, edgeConditions, " AND ")}`,
+      () => ch``,
+    );
     const rows = yield* ch.withClickhouseSettings(
       ch<EventPathRow>`
         SELECT
@@ -1192,6 +1381,21 @@ interface EventStickinessRow {
   actor_count: string | number;
 }
 
+/** Renders the per-interval occurrence predicate a stickiness bucket must satisfy. */
+const stickinessOccurrenceCondition = (
+  ch: ClickhouseWebClient.ClickhouseWebClient,
+  criteria: EventStickinessQueryInput["occurrenceCriteria"],
+): SqlFragment => {
+  switch (criteria.operator) {
+    case "exact":
+      return ch`count() = ${ch.param("UInt16", criteria.value)}`;
+    case "lte":
+      return ch`count() <= ${ch.param("UInt16", criteria.value)}`;
+    default:
+      return ch`count() >= ${ch.param("UInt16", criteria.value)}`;
+  }
+};
+
 /** Query the exact activity-frequency distribution for an identity-stitched event series. */
 export const getEventStickinessBuckets = (input: EventStickinessQueryInput) =>
   Effect.gen(function* () {
@@ -1199,15 +1403,12 @@ export const getEventStickinessBuckets = (input: EventStickinessQueryInput) =>
     const periodExpression = getDateTruncExpression(EVENT_TS, input.interval);
     const actorKey = analyticsActorKey(ch, input.actor);
     const actorFilter = analyticsActorFilter(ch, input);
-    const propertyFilter = input.series.filters
-      ? buildCustomEventFilter(ch, input.series.filters)
-      : ch`1 = 1`;
-    const occurrenceCondition =
-      input.occurrenceCriteria.operator === "exact"
-        ? ch`count() = ${ch.param("UInt16", input.occurrenceCriteria.value)}`
-        : input.occurrenceCriteria.operator === "lte"
-          ? ch`count() <= ${ch.param("UInt16", input.occurrenceCriteria.value)}`
-          : ch`count() >= ${ch.param("UInt16", input.occurrenceCriteria.value)}`;
+    const propertyFilter = whenDefined(
+      input.series.filters,
+      (filters) => buildCustomEventFilter(ch, filters),
+      () => ch`1 = 1`,
+    );
+    const occurrenceCondition = stickinessOccurrenceCondition(ch, input.occurrenceCriteria);
     const dedupedEvents = resolvedEventsFrom(
       ch,
       ch`project_id IN ${ch.param("Array(String)", input.filters.projectIds)}
@@ -1245,9 +1446,8 @@ export const getEventStickinessBuckets = (input: EventStickinessQueryInput) =>
     return rows.flatMap((row) => {
       const intervals = Number(row.active_intervals);
       const count = Number(row.actor_count);
-      return Number.isSafeInteger(intervals) && intervals > 0 && Number.isFinite(count)
-        ? [{ count, intervals }]
-        : [];
+      if (!Number.isSafeInteger(intervals) || intervals <= 0 || !Number.isFinite(count)) return [];
+      return [{ count, intervals }];
     });
   });
 
@@ -1275,17 +1475,30 @@ const startOfLifecycleInterval = (
   date: Date,
   granularity: EventLifecycleQueryInput["granularity"],
 ): Date => {
-  const value = new Date(date);
-  value.setUTCMinutes(0, 0, 0);
-  if (granularity === "hour") return value;
-  value.setUTCHours(0);
-  if (granularity === "day") return value;
+  const value = DateTime.makeUnsafe(date);
+  if (granularity === "hour") return DateTime.toDateUtc(DateTime.startOf(value, "hour"));
+  if (granularity === "day") return DateTime.toDateUtc(DateTime.startOf(value, "day"));
   if (granularity === "week") {
-    value.setUTCDate(value.getUTCDate() - ((value.getUTCDay() + 6) % 7));
-    return value;
+    // ISO weeks start on Monday, matching the previous `(getUTCDay() + 6) % 7` shift.
+    return DateTime.toDateUtc(DateTime.startOf(value, "week", { weekStartsOn: 1 }));
   }
-  value.setUTCDate(1);
-  return value;
+  return DateTime.toDateUtc(DateTime.startOf(value, "month"));
+};
+
+/** The ClickHouse expression that advances a lifecycle period by one interval. */
+const addLifecycleIntervalExpression = (
+  granularity: EventLifecycleQueryInput["granularity"],
+): string => {
+  switch (granularity) {
+    case "hour":
+      return "addHours(current_period, 1)";
+    case "day":
+      return "addDays(current_period, 1)";
+    case "week":
+      return "addWeeks(current_period, 1)";
+    default:
+      return "addMonths(current_period, 1)";
+  }
 };
 
 /** Query new, returning, resurrecting, and dormant people for an event series. */
@@ -1293,18 +1506,23 @@ export const getEventLifecyclePoints = (input: EventLifecycleQueryInput) =>
   Effect.gen(function* () {
     const ch = yield* ClickhouseWebClient.ClickhouseWebClient;
     const periodExpression = getDateTruncExpression(EVENT_TS, input.granularity);
-    const actorKey =
-      input.actor?.kind === "group"
-        ? analyticsActorKey(ch, input.actor)
-        : ch`${ch.literal(effectivePersonIdExpression)}`;
-    const actorFilter =
-      input.actor?.kind === "group"
-        ? analyticsActorFilter(ch, input)
-        : ch`${analyticsActorFilter(ch, input)}
-            AND notEmpty(${ch.literal(effectivePersonIdExpression)})`;
-    const propertyFilter = input.series.filters
-      ? buildCustomEventFilter(ch, input.series.filters)
-      : ch`1 = 1`;
+    const isGroupActor = input.actor?.kind === "group";
+    const actorKey = branch(
+      isGroupActor,
+      () => analyticsActorKey(ch, input.actor),
+      () => ch`${ch.literal(effectivePersonIdExpression)}`,
+    );
+    const actorFilter = branch(
+      isGroupActor,
+      () => analyticsActorFilter(ch, input),
+      () => ch`${analyticsActorFilter(ch, input)}
+            AND notEmpty(${ch.literal(effectivePersonIdExpression)})`,
+    );
+    const propertyFilter = whenDefined(
+      input.series.filters,
+      (filters) => buildCustomEventFilter(ch, filters),
+      () => ch`1 = 1`,
+    );
     const matchingActivity = ch`(
       ${ch.literal(`${EVENT_ALIAS}.event_name`)} IN ${ch.param("Array(String)", [
         ...input.series.eventNames,
@@ -1347,14 +1565,7 @@ export const getEventLifecyclePoints = (input: EventLifecycleQueryInput) =>
       FROM (${actorActivity})
       ARRAY JOIN arrayEnumerate(activity_periods) AS activity_index
     `;
-    const addIntervalExpression =
-      input.granularity === "hour"
-        ? "addHours(current_period, 1)"
-        : input.granularity === "day"
-          ? "addDays(current_period, 1)"
-          : input.granularity === "week"
-            ? "addWeeks(current_period, 1)"
-            : "addMonths(current_period, 1)";
+    const addIntervalExpression = addLifecycleIntervalExpression(input.granularity);
     const dormantRows = ch`
       SELECT
         person_key,

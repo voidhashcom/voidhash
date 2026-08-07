@@ -13,30 +13,28 @@ interface ReactNativeAppState {
 }
 
 /**
- * Dynamically resolve `react-native`'s `AppState` so that the SDK degrades
+ * Lazily resolve `react-native`'s `AppState` so that the SDK degrades
  * gracefully in environments where React Native isn't installed (e.g. Jest
  * tests, Node-only consumers).
  */
-const getReactNativeAppState = (): ReactNativeAppState | null => {
-  try {
-    const reactNative = require("react-native") as {
-      readonly AppState?: ReactNativeAppState;
-    };
-    return reactNative.AppState ?? null;
-  } catch {
-    return null;
-  }
-};
+const loadReactNativeAppState = (): Effect.Effect<ReactNativeAppState | null> =>
+  Effect.tryPromise(() => import("react-native")).pipe(
+    Effect.map(
+      (reactNative) =>
+        (reactNative as { readonly AppState?: ReactNativeAppState }).AppState ?? null,
+    ),
+    Effect.orElseSucceed(() => null),
+  );
 
 /**
  * Default `LifecycleAdapter` implementation that bridges to React Native's
- * `AppState`. Owns the dynamic `require("react-native")` so the rest of the
+ * `AppState`. Owns the lazy `import("react-native")` so the rest of the
  * SDK can stay React-Native-independent.
  */
 export const ReactNativeLifecycleAdapter = Layer.succeed(LifecycleAdapter, {
   subscribe: (listener) =>
-    Effect.sync(() => {
-      const appState = getReactNativeAppState();
+    Effect.gen(function* () {
+      const appState = yield* loadReactNativeAppState();
       if (!appState || typeof appState.addEventListener !== "function") {
         return null;
       }

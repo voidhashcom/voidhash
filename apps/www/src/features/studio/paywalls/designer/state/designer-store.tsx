@@ -8,6 +8,7 @@ import {
   PresenceSchema,
   type PresenceInput,
 } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 
@@ -284,44 +285,42 @@ export function PaywallDesignerStoreProvider({
     setPhase({ status: "loading" });
 
     void (async () => {
-      try {
-        const { url } = await requestPaywallEditToken(paywallId);
-        if (cancelled) {
-          return;
-        }
+      const { url } = await requestPaywallEditToken(paywallId);
+      if (cancelled) {
+        return;
+      }
 
-        document = createPaywallDesignerDocument({
-          initialPresence: initialPresenceRef.current ?? createInitialPresence(),
-          // Auth failures are terminal (the transport stops reconnecting)
-          // and can fire at ANY reconnect, long after connect() resolved —
-          // flip to the error phase whenever they happen so the editor never
-          // keeps queueing edits against a dead transport.
-          onAuthFailure: (error) => {
-            if (cancelled) {
-              return;
-            }
-            document?.disconnect();
-            setPhase({ status: "error", error });
-          },
-          paywallId,
-          url,
-        });
-        const store = createPaywallDesignerStore(document);
-        setPhase({ status: "ready", store });
-
-        document.connect().catch((error: unknown) => {
-          if (cancelled || !isTerminalTransportError(error)) {
+      document = createPaywallDesignerDocument({
+        initialPresence: initialPresenceRef.current ?? createInitialPresence(),
+        // Auth failures are terminal (the transport stops reconnecting)
+        // and can fire at ANY reconnect, long after connect() resolved —
+        // flip to the error phase whenever they happen so the editor never
+        // keeps queueing edits against a dead transport.
+        onAuthFailure: (error) => {
+          if (cancelled) {
             return;
           }
           document?.disconnect();
-          setPhase({ status: "error", error: toError(error) });
-        });
-      } catch (error) {
-        if (!cancelled) {
-          setPhase({ status: "error", error: toError(error) });
+          setPhase({ status: "error", error });
+        },
+        paywallId,
+        url,
+      });
+      const store = createPaywallDesignerStore(document);
+      setPhase({ status: "ready", store });
+
+      document.connect().catch((error: unknown) => {
+        if (cancelled || !isTerminalTransportError(error)) {
+          return;
         }
+        document?.disconnect();
+        setPhase({ status: "error", error: toError(error) });
+      });
+    })().catch((error: unknown) => {
+      if (!cancelled) {
+        setPhase({ status: "error", error: toError(error) });
       }
-    })();
+    });
 
     return () => {
       cancelled = true;
@@ -347,7 +346,7 @@ export function PaywallDesignerStoreProvider({
 export function usePaywallDesignerStore() {
   const store = useContext(PaywallStoreContext);
   if (!store) {
-    throw new Error("Missing DesignerStoreProvider");
+    return Effect.runSync(Effect.die(new Error("Missing DesignerStoreProvider")));
   }
   return store;
 }

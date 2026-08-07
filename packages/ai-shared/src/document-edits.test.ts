@@ -11,7 +11,20 @@ import type { DocumentEdit } from "./surfaces.ts";
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function decodeData(prim: any, input: unknown): Record<string, unknown> {
-  return prim.data.decode(prim.data.encode(input)) as Record<string, unknown>;
+  return prim.data.decode(prim.data.encode(input));
+}
+
+/** A non-null, non-array object. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** The `style` sub-object of a node input / update `set`, or `{}` when absent. */
+function styleIn(container: unknown): Record<string, unknown> {
+  if (!isRecord(container)) return {};
+  const style = container["style"];
+  if (!isRecord(style)) return {};
+  return style;
 }
 
 /** A small realistic tree: root → screen → view → text. */
@@ -43,7 +56,7 @@ function makeTree(): EditableDocumentNode {
 describe("validateDocumentEdits — error quality", () => {
   test("unknown style field: did-you-mean + allowed list", () => {
     const result = validateDocumentEdits(
-      [{ op: "update", nodeId: "view1", set: { style: { backgroundEnable: true } } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "view1", set: { style: { backgroundEnable: true } } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -61,7 +74,7 @@ describe("validateDocumentEdits — error quality", () => {
 
   test("bad enum value names the allowed values", () => {
     const result = validateDocumentEdits(
-      [{ op: "update", nodeId: "view1", set: { style: { justifyContent: "middle" } } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "view1", set: { style: { justifyContent: "middle" } } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -76,7 +89,7 @@ describe("validateDocumentEdits — error quality", () => {
 
   test("wrong scalar family names the expected type", () => {
     const result = validateDocumentEdits(
-      [{ op: "update", nodeId: "view1", set: { style: { paddingTop: "big" } } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "view1", set: { style: { paddingTop: "big" } } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -90,7 +103,7 @@ describe("validateDocumentEdits — error quality", () => {
   test("illegal child type names the allowed children", () => {
     // text nodes have no children
     const result = validateDocumentEdits(
-      [{ op: "insert", parentId: "text1", node: { type: "view" } }] as DocumentEdit[],
+      [{ op: "insert", parentId: "text1", node: { type: "view" } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -103,7 +116,7 @@ describe("validateDocumentEdits — error quality", () => {
 
   test("illegal child under a container names the allowed set", () => {
     const result = validateDocumentEdits(
-      [{ op: "insert", parentId: "view1", node: { type: "screen" } }] as DocumentEdit[],
+      [{ op: "insert", parentId: "view1", node: { type: "screen" } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -115,7 +128,7 @@ describe("validateDocumentEdits — error quality", () => {
 
   test("scrollView is an insertable node type (legal child of view)", () => {
     const result = validateDocumentEdits(
-      [{ op: "insert", parentId: "view1", node: { type: "scrollView" } }] as DocumentEdit[],
+      [{ op: "insert", parentId: "view1", node: { type: "scrollView" } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -123,7 +136,7 @@ describe("validateDocumentEdits — error quality", () => {
 
   test("unknown node id names the id", () => {
     const result = validateDocumentEdits(
-      [{ op: "update", nodeId: "ghost", set: { name: "x" } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "ghost", set: { name: "x" } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -135,7 +148,7 @@ describe("validateDocumentEdits — error quality", () => {
   test("move into own subtree is a cycle", () => {
     // screen1 contains view1 → moving screen1 under view1 is a cycle
     const result = validateDocumentEdits(
-      [{ op: "move", nodeId: "screen1", parentId: "view1", index: 0 }] as DocumentEdit[],
+      [{ op: "move", nodeId: "screen1", parentId: "view1", index: 0 }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -150,7 +163,7 @@ describe("validateDocumentEdits — error quality", () => {
       [
         { op: "insert", parentId: "view1", node: { type: "root" } },
         { op: "insert", parentId: "view1", node: { type: "codeComponent" } },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -167,7 +180,7 @@ describe("validateDocumentEdits — error quality", () => {
         { op: "update", nodeId: "view1", set: { style: { backgroundEnable: true } } }, // 0
         { op: "update", nodeId: "view1", set: { style: { justifyContent: "nope" } } }, // 1
         { op: "update", nodeId: "ghost", set: { name: "x" } }, // 2
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -207,7 +220,7 @@ describe("validateDocumentEdits — protected targets", () => {
       [
         { op: "remove", nodeId: "root1" },
         { op: "move", nodeId: "root1", parentId: "screen1", index: 0 },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -224,7 +237,7 @@ describe("validateDocumentEdits — protected targets", () => {
       [
         { op: "remove", nodeId: "cc1" },
         { op: "remove", nodeId: "lib1" },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTreeWithLibrary(),
     );
     expect(result.ok).toBe(false);
@@ -239,7 +252,7 @@ describe("validateDocumentEdits — protected targets", () => {
 
   test("replaceChildren of a codeComponent is rejected (target type gated)", () => {
     const result = validateDocumentEdits(
-      [{ op: "replaceChildren", nodeId: "cc1", children: [] }] as DocumentEdit[],
+      [{ op: "replaceChildren", nodeId: "cc1", children: [] }] satisfies DocumentEdit[],
       makeTreeWithLibrary(),
     );
     expect(result.ok).toBe(false);
@@ -254,7 +267,7 @@ describe("validateDocumentEdits — overlapping edits", () => {
       [
         { op: "update", nodeId: "view1", set: { name: "X" } },
         { op: "remove", nodeId: "view1" },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -271,7 +284,7 @@ describe("validateDocumentEdits — overlapping edits", () => {
       [
         { op: "remove", nodeId: "view1" },
         { op: "update", nodeId: "text1", set: { text: "Y" } },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -288,7 +301,7 @@ describe("validateDocumentEdits — overlapping edits", () => {
       [
         { op: "remove", nodeId: "screen1" },
         { op: "remove", nodeId: "view1" },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -302,7 +315,7 @@ describe("validateDocumentEdits — overlapping edits", () => {
       [
         { op: "update", nodeId: "view1", set: { name: "A" } },
         { op: "update", nodeId: "text1", set: { text: "B" } },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -310,7 +323,7 @@ describe("validateDocumentEdits — overlapping edits", () => {
 
   test("removing A alone (its subtree comes along) is legal", () => {
     const result = validateDocumentEdits(
-      [{ op: "remove", nodeId: "view1" }] as DocumentEdit[],
+      [{ op: "remove", nodeId: "view1" }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -320,7 +333,7 @@ describe("validateDocumentEdits — overlapping edits", () => {
 describe("validateDocumentEdits — component identity", () => {
   test("an identity-less component insert is rejected", () => {
     const result = validateDocumentEdits(
-      [{ op: "insert", parentId: "view1", node: { type: "component" } }] as DocumentEdit[],
+      [{ op: "insert", parentId: "view1", node: { type: "component" } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -340,7 +353,7 @@ describe("validateDocumentEdits — component identity", () => {
           parentId: "view1",
           node: { type: "component", componentPath: "components/x.tsx" },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -356,7 +369,7 @@ describe("validateDocumentEdits — component identity", () => {
           parentId: "view1",
           node: { type: "component", componentSlug: "hero-banner" },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -374,7 +387,7 @@ describe("validateDocumentEdits — component identity", () => {
             componentSource: "local",
           },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -392,7 +405,7 @@ describe("validateDocumentEdits — component identity", () => {
             componentSlug: "sample-badge",
           },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -410,7 +423,7 @@ describe("validateDocumentEdits — component identity", () => {
             componentSlug: "does-not-exist",
           },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -431,7 +444,7 @@ describe("validateDocumentEdits — component identity", () => {
           parentId: "view1",
           node: { type: "component", componentSource: "builtin" },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -457,7 +470,7 @@ describe("validateDocumentEdits — component identity", () => {
             contentHash: "abc",
           },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(false);
@@ -490,7 +503,7 @@ describe("validateDocumentEdits — accepts a realistic valid batch", () => {
         },
         { op: "update", nodeId: "text1", set: { text: "Updated", style: { fontSize: 24 } } },
         { op: "move", nodeId: "view1", parentId: "screen1", index: 0 },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -507,7 +520,7 @@ describe("validateDocumentEdits — accepts a realistic valid batch", () => {
             { type: "view", style: { gap: 8 } },
           ],
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -515,7 +528,7 @@ describe("validateDocumentEdits — accepts a realistic valid batch", () => {
 
   test("out-of-range index is clamped, not rejected", () => {
     const result = validateDocumentEdits(
-      [{ op: "insert", parentId: "screen1", index: 999, node: { type: "view" } }] as DocumentEdit[],
+      [{ op: "insert", parentId: "screen1", index: 999, node: { type: "view" } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -528,15 +541,15 @@ describe("validateDocumentEdits — accepts a realistic valid batch", () => {
 
 /** The `style` object of a normalized edit's `set` (update) or `node` (insert). */
 function styleOf(edit: DocumentEdit | undefined): Record<string, unknown> {
-  if (edit?.op === "update") return (edit.set as { style?: Record<string, unknown> }).style ?? {};
-  if (edit?.op === "insert") return (edit.node as { style?: Record<string, unknown> }).style ?? {};
+  if (edit?.op === "update") return styleIn(edit.set);
+  if (edit?.op === "insert") return styleIn(edit.node);
   return {};
 }
 
 describe("validateDocumentEdits — derived *Enabled flags", () => {
   test("update setting backgroundColor on a view injects backgroundEnabled", () => {
     const result = validateDocumentEdits(
-      [{ op: "update", nodeId: "view1", set: { style: { backgroundColor: "rgba(1, 2, 3, 1)" } } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "view1", set: { style: { backgroundColor: "rgba(1, 2, 3, 1)" } } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -557,7 +570,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
             children: [{ type: "text", text: "Hi", style: { borderColor: "rgba(0, 0, 0, 1)" } }],
           },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -565,12 +578,12 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
     const inserted = result.edits[0];
     expect(inserted?.op === "insert").toBe(true);
     if (inserted?.op !== "insert") return;
-    const parentStyle = (inserted.node as { style?: Record<string, unknown> }).style ?? {};
+    const parentStyle = styleIn(inserted.node);
     expect(parentStyle.backgroundEnabled).toBe(true);
     // The text child gets its own group's flag (border), NOT the parent's.
-    const child = (inserted.node.children ?? [])[0] as { style?: Record<string, unknown> };
-    expect(child.style?.borderEnabled).toBe(true);
-    expect(child.style?.backgroundEnabled).toBeUndefined();
+    const childStyle = styleIn((inserted.node.children ?? [])[0]);
+    expect(childStyle.borderEnabled).toBe(true);
+    expect(childStyle.backgroundEnabled).toBeUndefined();
   });
 
   test("an explicit backgroundEnabled: false is not overridden", () => {
@@ -581,7 +594,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
           nodeId: "view1",
           set: { style: { backgroundColor: "rgba(1, 2, 3, 1)", backgroundEnabled: false } },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -591,7 +604,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
 
   test("a border RADIUS field alone does NOT inject borderEnabled", () => {
     const result = validateDocumentEdits(
-      [{ op: "update", nodeId: "view1", set: { style: { borderTopLeftRadius: 12 } } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "view1", set: { style: { borderTopLeftRadius: 12 } } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -626,7 +639,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
         { op: "update", nodeId: "text1", set: { style: { borderColor: "rgba(0, 0, 0, 1)" } } },
         { op: "update", nodeId: "path1", set: { style: { fillColor: "rgba(1, 1, 1, 1)" } } },
         { op: "update", nodeId: "screen1", set: { style: { backgroundType: "gradient" } } },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       tree,
     );
     expect(result.ok).toBe(true);
@@ -637,7 +650,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
 
     // strokeWidth on a path → strokeEnabled (separate case for the stroke group).
     const stroke = validateDocumentEdits(
-      [{ op: "update", nodeId: "path1", set: { style: { strokeWidth: 2 } } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "path1", set: { style: { strokeWidth: 2 } } }] satisfies DocumentEdit[],
       tree,
     );
     expect(stroke.ok).toBe(true);
@@ -647,7 +660,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
 
   test("an update with no group keys is untouched (no flag injected)", () => {
     const result = validateDocumentEdits(
-      [{ op: "update", nodeId: "view1", set: { style: { paddingTop: 8 } } }] as DocumentEdit[],
+      [{ op: "update", nodeId: "view1", set: { style: { paddingTop: 8 } } }] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -663,7 +676,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
           nodeId: "view1",
           children: [{ type: "view", style: { backgroundColor: "rgba(1, 2, 3, 1)" } }],
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(result.ok).toBe(true);
@@ -671,8 +684,7 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
     const edit = result.edits[0];
     expect(edit?.op === "replaceChildren").toBe(true);
     if (edit?.op !== "replaceChildren") return;
-    const child = edit.children[0] as { style?: Record<string, unknown> };
-    expect(child.style?.backgroundEnabled).toBe(true);
+    expect(styleIn(edit.children[0]).backgroundEnabled).toBe(true);
   });
 
   test("re-validating a normalized batch is stable (idempotent)", () => {
@@ -688,12 +700,12 @@ describe("validateDocumentEdits — derived *Enabled flags", () => {
             children: [{ type: "text", text: "Hi", style: { shadowColor: "rgba(0, 0, 0, 1)" } }],
           },
         },
-      ] as DocumentEdit[],
+      ] satisfies DocumentEdit[],
       makeTree(),
     );
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    const second = validateDocumentEdits(first.edits as DocumentEdit[], makeTree());
+    const second = validateDocumentEdits(first.edits, makeTree());
     expect(second.ok).toBe(true);
     if (!second.ok) return;
     expect(second.edits).toEqual(first.edits);

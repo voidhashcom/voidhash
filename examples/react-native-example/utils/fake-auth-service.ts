@@ -1,6 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Data, Effect } from "effect";
 import { useEffect, useState } from "react";
 import type { ImageSourcePropType } from "react-native";
+
+import daisyAvatar from "../assets/images/daisy.png";
+import johnAvatar from "../assets/images/john.png";
 
 interface User {
   id: string;
@@ -14,15 +18,25 @@ export const users: Record<string, User> = {
     id: "837b3d38-d8d3-4a97-9137-5bfdb6c14577", // Strong, unique id
     email: "daisy@duck.com",
     name: "Daisy",
-    avatar: require("../assets/images/daisy.png"),
+    avatar: daisyAvatar,
   },
   john: {
-    avatar: require("../assets/images/john.png"),
+    avatar: johnAvatar,
     email: "john@wick.com",
     id: "7208b0f5-56c9-48e8-976f-b1be5ccdb029",
     name: "John",
   },
 };
+
+const STORAGE_KEY = "fake-auth:signed-in-user";
+
+class AuthStorageError extends Data.TaggedError("AuthStorageError")<{
+  readonly cause: unknown;
+}> {}
+
+class UserNotFoundError extends Data.TaggedError("UserNotFoundError")<{
+  readonly email: string;
+}> {}
 
 let cachedUser: User | null = null;
 
@@ -33,20 +47,44 @@ function notifyAuthStateChanged() {
   }
 }
 
+const storage = <A>(run: () => Promise<A>) =>
+  Effect.tryPromise({ try: run, catch: (cause) => new AuthStorageError({ cause }) });
+
+const getCurrentUser = Effect.gen(function* () {
+  if (cachedUser) {
+    return cachedUser;
+  }
+
+  const userId = yield* storage(() => AsyncStorage.getItem(STORAGE_KEY));
+  if (!userId) {
+    return null;
+  }
+
+  const user = Object.values(users).find((candidate) => candidate.id === userId);
+  return user ?? null;
+});
+
+const signIn = (email: string) =>
+  Effect.gen(function* () {
+    const user = Object.values(users).find((candidate) => candidate.email === email);
+    if (!user) {
+      return yield* new UserNotFoundError({ email });
+    }
+
+    yield* storage(() => AsyncStorage.setItem(STORAGE_KEY, user.id));
+    cachedUser = user;
+    notifyAuthStateChanged();
+    return user;
+  });
+
+const signOut = Effect.gen(function* () {
+  yield* storage(() => AsyncStorage.removeItem(STORAGE_KEY));
+  cachedUser = null;
+  notifyAuthStateChanged();
+});
+
 export const fakeAuthService = {
-  async getCurrentUser() {
-    if (cachedUser) {
-      return cachedUser;
-    }
-
-    const userId = await AsyncStorage.getItem("fake-auth:signed-in-user");
-    if (!userId) {
-      return null;
-    }
-
-    const user = Object.values(users).find((user) => user.id === userId);
-    return user ?? null;
-  },
+  getCurrentUser: () => Effect.runPromise(getCurrentUser),
 
   onSignIn(listener: () => void) {
     fakeAuthServiceEventListeners.add(listener);
@@ -55,23 +93,9 @@ export const fakeAuthService = {
     };
   },
 
-  async signIn(email: string) {
-    const user = Object.values(users).find((user) => user.email === email);
-    if (!user) {
-      throw new Error("User not found");
-    }
+  signIn: (email: string) => Effect.runPromise(signIn(email)),
 
-    await AsyncStorage.setItem("fake-auth:signed-in-user", user.id);
-    cachedUser = user;
-    notifyAuthStateChanged();
-    return user;
-  },
-
-  async signOut() {
-    await AsyncStorage.removeItem("fake-auth:signed-in-user");
-    cachedUser = null;
-    notifyAuthStateChanged();
-  },
+  signOut: () => Effect.runPromise(signOut),
 };
 
 export const useCurrentUser = () => {
@@ -80,7 +104,7 @@ export const useCurrentUser = () => {
 
   useEffect(() => {
     const unsubscribe = fakeAuthService.onSignIn(() => {
-      fakeAuthService.getCurrentUser().then((user) => {
+      void fakeAuthService.getCurrentUser().then((user) => {
         setUser(user);
       });
     });
@@ -90,7 +114,7 @@ export const useCurrentUser = () => {
 
   useEffect(() => {
     setIsLoading(true);
-    fakeAuthService
+    void fakeAuthService
       .getCurrentUser()
       .then((user) => {
         setUser(user);

@@ -771,10 +771,6 @@ export function LayersSection() {
     store,
     useShallow((state) => selectedNodeIdsFromPresence(state.mimic.presence?.self)),
   );
-  const highlightedNodeId = useStore(
-    store,
-    useShallow((state) => state.highlightedNodeId ?? null),
-  );
   const previewSelectedNodeIds = useStore(
     store,
     useShallow((state) => state.dragSelect.previewSelectedNodeIds ?? []),

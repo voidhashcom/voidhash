@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@voidhash/ui";
+import { Effect } from "effect";
 import { CopyIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -60,14 +61,13 @@ export function AssetTile({ organizationId, asset, selectable, onSelect }: Asset
 
   const isDeleting = deleteStatus === "pending";
 
-  const copyUrl = async () => {
-    try {
-      await navigator.clipboard.writeText(asset.url);
-      toast.success("Image URL copied");
-    } catch {
-      toast.error("Could not copy the URL");
-    }
-  };
+  const copyUrl = () =>
+    Effect.runPromise(
+      Effect.tryPromise(() => navigator.clipboard.writeText(asset.url)).pipe(
+        Effect.tap(() => Effect.sync(() => toast.success("Image URL copied"))),
+        Effect.catchCause(() => Effect.sync(() => toast.error("Could not copy the URL"))),
+      ),
+    );
 
   const thumbnail = (
     <div className="relative aspect-square w-full overflow-hidden rounded-md border bg-muted">

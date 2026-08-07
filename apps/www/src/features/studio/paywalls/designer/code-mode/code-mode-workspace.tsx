@@ -23,9 +23,10 @@ import type { OpenBuffer } from "./code-editor-pane";
 import { CodeEditorTabs } from "./code-editor-tabs";
 import { ComponentPreviewPane } from "./component-preview-pane";
 
-const CodeEditorPane = lazy(() =>
-  import("./code-editor-pane").then((module) => ({ default: module.CodeEditorPane })),
-);
+const importCodeEditorPane = () => import("./code-editor-pane");
+const loadCodeEditorPane = () =>
+  importCodeEditorPane().then((module) => ({ default: module.CodeEditorPane }));
+const CodeEditorPane = lazy(loadCodeEditorPane);
 
 function CenteredMessage({ children }: { children: React.ReactNode }) {
   return (

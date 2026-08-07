@@ -10,7 +10,6 @@ import {
 } from "node:fs";
 import { dirname as nodeDirname, join, posix } from "node:path";
 import type { BuildFileEntry, BuildFs } from "./fs.ts";
-import { makeNodeCapabilities, type NodeCapabilityOptions } from "./node-capabilities.ts";
 
 export type { NodeCapabilityOptions } from "./node-capabilities.ts";
 export { makeNodeCapabilities } from "./node-capabilities.ts";
@@ -47,7 +46,7 @@ export class NodeFs implements BuildFs {
   list(dir: string): readonly string[] {
     const full = this.resolve(dir);
     if (!existsSync(full) || !statSync(full).isDirectory()) return [];
-    const base = dir.endsWith("/") ? dir.slice(0, -1) : dir;
+    const base = dir.replace(/\/$/, "");
     return readdirSync(full)
       .filter((entry) => statSync(join(full, entry)).isFile())
       .map((entry) => posix.join(base, entry))
@@ -73,10 +72,18 @@ export class NodeFs implements BuildFs {
   /** Read every file under `root` recursively as `{ path, content }[]`. */
   toFiles(): BuildFileEntry[] {
     const out: BuildFileEntry[] = [];
+    const dirPath = (relDir: string): string => {
+      if (relDir === "") return this.root;
+      return join(this.root, ...relDir.split("/"));
+    };
+    const childPath = (relDir: string, entry: string): string => {
+      if (relDir === "") return entry;
+      return `${relDir}/${entry}`;
+    };
     const walk = (relDir: string): void => {
-      const full = relDir === "" ? this.root : join(this.root, ...relDir.split("/"));
+      const full = dirPath(relDir);
       for (const entry of readdirSync(full).sort()) {
-        const childRel = relDir === "" ? entry : `${relDir}/${entry}`;
+        const childRel = childPath(relDir, entry);
         const childFull = join(full, entry);
         if (statSync(childFull).isDirectory()) {
           walk(childRel);

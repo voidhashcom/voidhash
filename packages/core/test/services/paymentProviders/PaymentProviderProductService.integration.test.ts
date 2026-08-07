@@ -36,7 +36,7 @@
  *    error with `instanceof` before reading its fields, always paired with a
  *    DB-state assertion on the failure path.
  */
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 import { describe, expect } from "vitest";
 
 import { PaymentProviderProductService, ProjectSchemaCache } from "@voidhash/core/services";
@@ -58,6 +58,7 @@ import {
   PaymentProviderProductNotFoundError,
   PaymentProviderProductValidationError,
 } from "@voidhash/core/domain/paymentProvider/PaymentProviderProduct";
+import { constant, stringOr } from "@voidhash/lib/lang";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import {
   AuditLogAction,
@@ -81,9 +82,16 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
-/** Monotonic counter so ids/keys stay unique even within the same millisecond. */
-let seq = 0;
-const uniqueKey = (label: string) => `it-ppprod-${label}-${Date.now()}-${seq++}`;
+/** Cuid2-backed suffix so keys stay unique even within the same millisecond. */
+const uniqueKey = (label: string) => `it-ppprod-${label}-${generateId("test")}`;
+
+/** Decodes a dispatched workflow payload into the replay input shape. */
+const decodeReplayInput = Schema.decodeUnknownSync(
+  Schema.Struct(AppStoreReplayParkedNotifications.payload),
+);
+
+/** Epoch timestamp used by the synthetic session fixture. */
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 
 /**
  * Validation error config marker. When a configuration blob carries
@@ -91,7 +99,7 @@ const uniqueKey = (label: string) => `it-ppprod-${label}-${Date.now()}-${seq++}`
  * {@link PaymentProviderProductValidationError}, letting tests exercise the
  * provider-validation failure branch without any real SDK.
  */
-const FAIL_MARKER = "fail" as const;
+const FAIL_MARKER = constant("fail");
 
 /**
  * Records of every replay-workflow `dispatch` the service fires, captured so
@@ -103,9 +111,9 @@ type DispatchLog = AppStoreReplayParkedNotificationsInput[];
 
 /** Deterministic Stripe provider stub: echoes config, derives the product key. */
 const stripeStub: PaymentProviderShape<"stripe"> = {
-  createGlobalKey: (configuration) => Effect.succeed(String(configuration.key ?? "stripe-global")),
+  createGlobalKey: (configuration) => Effect.succeed(stringOr(configuration.key, "stripe-global")),
   createProductKey: (configuration) =>
-    Effect.succeed(String(configuration.productKey ?? "stripe-product")),
+    Effect.succeed(stringOr(configuration.productKey, "stripe-product")),
   defaultGlobalConfiguration: () => Effect.succeed({}),
   defaultProductConfiguration: () => Effect.succeed({}),
   id: "stripe",
@@ -113,17 +121,19 @@ const stripeStub: PaymentProviderShape<"stripe"> = {
   type: "web-checkout",
   validateGlobalConfiguration: (configuration) =>
     Effect.succeed({ parsedConfiguration: configuration, paymentProviderKey: "stripe-global" }),
-  validateProductConfiguration: (configuration) =>
-    configuration[FAIL_MARKER] === true
-      ? Effect.fail(
-          new PaymentProviderProductValidationError({
-            message: "stub: invalid product configuration",
-          }),
-        )
-      : Effect.succeed({
-          parsedConfiguration: { ...configuration, validated: true },
-          productKey: String(configuration.productKey ?? "stripe-product"),
+  validateProductConfiguration: (configuration) => {
+    if (configuration[FAIL_MARKER] === true) {
+      return Effect.fail(
+        new PaymentProviderProductValidationError({
+          message: "stub: invalid product configuration",
         }),
+      );
+    }
+    return Effect.succeed({
+      parsedConfiguration: { ...configuration, validated: true },
+      productKey: stringOr(configuration.productKey, "stripe-product"),
+    });
+  },
 };
 
 /**
@@ -157,7 +167,7 @@ const makeServiceLayer = (dispatches: DispatchLog) => {
       dispatch: (workflow, input) =>
         Effect.sync(() => {
           if (workflow.name === AppStoreReplayParkedNotifications.name) {
-            dispatches.push(input as AppStoreReplayParkedNotificationsInput);
+            dispatches.push(decodeReplayInput(input));
           }
         }).pipe(Effect.andThen(runner.dispatch(workflow, input))),
     }),
@@ -336,14 +346,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -453,7 +463,7 @@ describe("PaymentProviderProductService.createPaymentProviderProduct", () => {
           service.createPaymentProviderProduct({
             configuration: { productKey: uniqueKey("missing-product") },
             paymentProviderConfigurationId: configId,
-            productId: `prod_missing_${Date.now()}`,
+            productId: generateId("product"),
           }),
         );
         expect(error).toBeInstanceOf(PaymentProviderProductValidationError);
@@ -471,7 +481,7 @@ describe("PaymentProviderProductService.createPaymentProviderProduct", () => {
         const error = yield* Effect.flip(
           service.createPaymentProviderProduct({
             configuration: { productKey: uniqueKey("missing-config") },
-            paymentProviderConfigurationId: `pp_conf_missing_${Date.now()}`,
+            paymentProviderConfigurationId: generateId("paymentProviderConfiguration"),
             productId,
           }),
         );
@@ -631,7 +641,7 @@ describe("PaymentProviderProductService.setActivePaymentProviderProduct", () => 
         const error = yield* Effect.flip(
           service.setActivePaymentProviderProduct({
             paymentProviderConfigurationId: configId,
-            productId: `prod_missing_${Date.now()}`,
+            productId: generateId("product"),
             providerProductKey: uniqueKey("set-missing-product"),
           }),
         );
@@ -649,7 +659,7 @@ describe("PaymentProviderProductService.setActivePaymentProviderProduct", () => 
 
         const error = yield* Effect.flip(
           service.setActivePaymentProviderProduct({
-            paymentProviderConfigurationId: `pp_conf_missing_${Date.now()}`,
+            paymentProviderConfigurationId: generateId("paymentProviderConfiguration"),
             productId,
             providerProductKey: uniqueKey("set-missing-config"),
           }),
@@ -747,7 +757,7 @@ describe("PaymentProviderProductService.updatePaymentProviderProduct", () => {
       const error = yield* Effect.flip(
         service.updatePaymentProviderProduct({
           configuration: { productKey: "x" },
-          id: `pp_prod_missing_${Date.now()}`,
+          id: generateId("paymentProviderProduct"),
         }),
       );
       expect(error).toBeInstanceOf(PaymentProviderProductNotFoundError);
@@ -828,7 +838,7 @@ describe("PaymentProviderProductService.deletePaymentProviderProduct", () => {
     Effect.gen(function* () {
       const service = yield* PaymentProviderProductService;
       const error = yield* Effect.flip(
-        service.deletePaymentProviderProduct({ id: `pp_prod_missing_${Date.now()}` }),
+        service.deletePaymentProviderProduct({ id: generateId("paymentProviderProduct") }),
       );
       expect(error).toBeInstanceOf(PaymentProviderProductValidationError);
     }).pipe(Effect.provide(makeServiceLayer([])), CoreAuthSession.authenticate()),
@@ -940,7 +950,7 @@ describe("PaymentProviderProductService.getProviderProductsByProductId", () => {
     Effect.gen(function* () {
       const service = yield* PaymentProviderProductService;
       const error = yield* Effect.flip(
-        service.getProviderProductsByProductId(`prod_missing_${Date.now()}`),
+        service.getProviderProductsByProductId(generateId("product")),
       );
       expect(error).toBeInstanceOf(PaymentProviderProductValidationError);
     }).pipe(Effect.provide(makeServiceLayer([])), CoreAuthSession.authenticate()),
@@ -992,7 +1002,7 @@ describe("PaymentProviderProductService.getProviderProductById", () => {
     Effect.gen(function* () {
       const service = yield* PaymentProviderProductService;
       const error = yield* Effect.flip(
-        service.getProviderProductById(`pp_prod_missing_${Date.now()}`),
+        service.getProviderProductById(generateId("paymentProviderProduct")),
       );
       expect(error).toBeInstanceOf(PaymentProviderProductNotFoundError);
     }).pipe(Effect.provide(makeServiceLayer([])), CoreAuthSession.authenticate()),

@@ -5,6 +5,7 @@ import {
   type TransactionEnvelope,
 } from "@voidhash/mimic";
 import { type Value } from "@voidhash/mimic-core";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import { createInitialPaywallDocumentInput, PaywallDesignerDocument } from "../document.ts";
@@ -19,7 +20,9 @@ import { ViewNode } from "./view-node.ts";
 class StubTransport implements DocumentTransport {
   readonly submitted: TransactionEnvelope[] = [];
 
-  async connect(): Promise<void> {}
+  connect(): Promise<void> {
+    return Effect.runPromise(Effect.void);
+  }
   disconnect(): void {}
   subscribe(_handler: (message: ServerMessage) => void): () => void {
     return () => {};
@@ -60,6 +63,12 @@ function makeDocumentWithScrollView() {
   return { doc, ids };
 }
 
+// Snapshot children are widened by the recursion-breaking ScrollViewNode
+// annotation, so scrollView nodes are narrowed structurally before assertions.
+function isScrollViewNodeData(node: { readonly type: string }): node is ScrollViewNodeData {
+  return node.type === "scrollView";
+}
+
 function findScrollViewSnapshot(
   doc: ReturnType<typeof makeDocumentWithScrollView>["doc"],
 ): ScrollViewNodeData {
@@ -70,7 +79,10 @@ function findScrollViewSnapshot(
   const scrollView = screen!.children[0];
   expect(scrollView).toBeDefined();
   expect(scrollView!.type).toBe("scrollView");
-  return scrollView as ScrollViewNodeData;
+  if (scrollView === undefined || !isScrollViewNodeData(scrollView)) {
+    return Effect.runSync(Effect.die(new Error("expected a scrollView node")));
+  }
+  return scrollView;
 }
 
 describe("ScrollViewNode", () => {

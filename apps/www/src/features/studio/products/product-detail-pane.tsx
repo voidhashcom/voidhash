@@ -58,7 +58,7 @@ function ProductDetailPaneContent({
     ...deleteProductOptions(),
     onSuccess: () => {
       toast.success("Product successfully deleted");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.product.list({ projectId }),
       });
       onDeleted();

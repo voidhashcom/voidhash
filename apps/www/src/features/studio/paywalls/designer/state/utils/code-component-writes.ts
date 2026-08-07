@@ -1,5 +1,6 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import { CodeComponentNode, LibraryNode, type CodeComponentNodeData } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 import { findTypedNode, type DesignerDocumentRoot } from "./node-proxies";
 
@@ -59,12 +60,11 @@ export function insertCodeComponent(
   if (library === undefined) {
     return null;
   }
-  try {
-    const node = library.children.insertLast({ type: "codeComponent", ...data });
-    return node.id;
-  } catch {
-    return null;
-  }
+  return Effect.runSync(
+    Effect.try(() => library.children.insertLast({ type: "codeComponent", ...data }).id).pipe(
+      Effect.orElseSucceed(() => null),
+    ),
+  );
 }
 
 /** Updates a definition's `source`, returning the previous value for undo. */

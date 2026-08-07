@@ -9,6 +9,7 @@ import {
   createInitialPaywallDocumentInput,
   PaywallDesignerDocument,
 } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 /**
  * Offline transport stub for engine-backed state tests: transactions apply
@@ -56,11 +57,11 @@ export type OfflineDesignerDocument = ReturnType<typeof createOfflineDesignerDoc
 export function seededIds(doc: OfflineDesignerDocument): { rootId: string; screenId: string } {
   const rootNode = doc.root.children.first();
   if (!rootNode) {
-    throw new Error("expected the seeded root node");
+    return Effect.runSync(Effect.die(new Error("expected the seeded root node")));
   }
   const screen = rootNode.children.first();
   if (!screen) {
-    throw new Error("expected the seeded screen node");
+    return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
   }
   return { rootId: rootNode.id, screenId: screen.id };
 }

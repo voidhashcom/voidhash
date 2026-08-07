@@ -51,7 +51,7 @@ export function PersonFlagOverridesPanel({
   const flagMap = new Map(flags.map((flag) => [flag.id, flag]));
 
   const invalidate = () => {
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: queryKeys.featureFlag.overridesByPerson({
         identityType: 1,
         identityValue: personId,

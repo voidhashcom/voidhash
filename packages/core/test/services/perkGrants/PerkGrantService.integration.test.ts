@@ -26,7 +26,8 @@
  *    a DB-state assertion proving the failure wrote nothing.
  */
 import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
-import { Effect } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Clock, DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { PerkGrantService } from "@voidhash/core/services";
@@ -70,7 +71,11 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so generated provider keys stay unique within a millisecond. */
 let seq = 0;
-const uniqueKey = (label: string) => `it-perkgrant-${label}-${Date.now()}-${seq++}`;
+const uniqueKey = (label: string, nowMillis: number) =>
+  `it-perkgrant-${label}-${nowMillis}-${seq++}`;
+
+/** `Date` at `millis` since the epoch — the `new Date(millis)` seam. */
+const dateAtMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
 
 /**
  * Tracks every row a test creates so {@link withGraphCleanup} can delete them on
@@ -193,6 +198,7 @@ const seedEntitlementGraph = (created: CreatedIds, label: string) =>
   Effect.gen(function* () {
     const db = yield* Db;
 
+    const nowMillis = yield* Clock.currentTimeMillis;
     const personId = generateId("person");
     const perkId = generateId("perk");
     const productId = generateId("product");
@@ -210,13 +216,13 @@ const seedEntitlementGraph = (created: CreatedIds, label: string) =>
       id: perkId,
       name: `Perk ${label}`,
       projectId,
-      slug: uniqueKey(`perk-${label}`),
+      slug: uniqueKey(`perk-${label}`, nowMillis),
     });
     yield* db.insert(products).values({
       id: productId,
       name: `Product ${label}`,
       projectId,
-      slug: uniqueKey(`product-${label}`),
+      slug: uniqueKey(`product-${label}`, nowMillis),
     });
     yield* db.insert(productPerks).values({
       id: productPerkId,
@@ -226,7 +232,7 @@ const seedEntitlementGraph = (created: CreatedIds, label: string) =>
     yield* db.insert(paymentProviderConfigurations).values({
       id: configurationId,
       name: `Config ${label}`,
-      paymentProviderKey: uniqueKey(`config-${label}`),
+      paymentProviderKey: uniqueKey(`config-${label}`, nowMillis),
       projectId,
       providerId: "app_store",
     });
@@ -234,7 +240,7 @@ const seedEntitlementGraph = (created: CreatedIds, label: string) =>
       id: configurationProductId,
       paymentProviderConfigurationId: configurationId,
       productId,
-      providerProductKey: uniqueKey(`pp-${label}`),
+      providerProductKey: uniqueKey(`pp-${label}`, nowMillis),
     });
 
     created.persons.push(personId);
@@ -244,7 +250,7 @@ const seedEntitlementGraph = (created: CreatedIds, label: string) =>
     created.configurations.push(configurationId);
     created.configurationProducts.push(configurationProductId);
 
-    return { configurationProductId, perkId, personId, productId } as const;
+    return constant({ configurationProductId, perkId, personId, productId });
   });
 
 /** Insert a subscription for the given person + configuration product. */
@@ -260,18 +266,18 @@ const seedSubscription = (
   Effect.gen(function* () {
     const db = yield* Db;
     const id = generateId("subscription");
-    const now = new Date();
+    const now = yield* DateTime.nowAsDate;
     yield* db.insert(subscriptions).values({
       expiresAt: args.expiresAt,
       id,
-      initialTransactionId: uniqueKey("sub-init"),
-      latestTransactionId: uniqueKey("sub-latest"),
+      initialTransactionId: uniqueKey("sub-init", now.getTime()),
+      latestTransactionId: uniqueKey("sub-latest", now.getTime()),
       paymentProviderConfigurationProductId: args.configurationProductId,
       personId: args.personId,
       purchasedAt: now,
       startsAt: now,
       status: args.status,
-      storeSubscriptionId: uniqueKey("sub-store"),
+      storeSubscriptionId: uniqueKey("sub-store", now.getTime()),
     });
     created.subscriptions.push(id);
     return id;
@@ -290,12 +296,13 @@ const seedPurchase = (
   Effect.gen(function* () {
     const db = yield* Db;
     const id = generateId("purchase");
+    const nowMillis = yield* Clock.currentTimeMillis;
     yield* db.insert(purchases).values({
       id,
       paymentProviderConfigurationProductId: args.configurationProductId,
       personId: args.personId,
       providerEnvironment: ProviderEnvironment.Production,
-      providerKey: uniqueKey("pur"),
+      providerKey: uniqueKey("pur", nowMillis),
       refundedAt: args.refundedAt ?? null,
       revokedAt: args.revokedAt ?? null,
       type: PurchaseType.OneTime,
@@ -340,14 +347,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: dateAtMillis(0),
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: dateAtMillis(0),
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -373,7 +380,8 @@ describe("PerkGrantService.syncUnlockedPerks", () => {
         // The `expires_at` column is a plain MySQL TIMESTAMP (no fractional
         // seconds), so the millisecond component is dropped on round-trip; zero
         // it here to keep the `getTime()` comparison exact.
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const nowMillis = yield* Clock.currentTimeMillis;
+        const expiresAt = dateAtMillis(nowMillis + 30 * 24 * 60 * 60 * 1000);
         expiresAt.setMilliseconds(0);
         const subscriptionId = yield* seedSubscription(created, {
           configurationProductId,
@@ -459,10 +467,11 @@ describe("PerkGrantService.syncUnlockedPerks", () => {
           created,
           "pur-refunded",
         );
+        const refundedAt = yield* DateTime.nowAsDate;
         yield* seedPurchase(created, {
           configurationProductId,
           personId,
-          refundedAt: new Date(),
+          refundedAt,
         });
 
         const affected = yield* inTransaction((tx) => service.syncUnlockedPerks(tx, personId));
@@ -483,10 +492,11 @@ describe("PerkGrantService.syncUnlockedPerks", () => {
           created,
           "pur-revoked",
         );
+        const revokedAt = yield* DateTime.nowAsDate;
         yield* seedPurchase(created, {
           configurationProductId,
           personId,
-          revokedAt: new Date(),
+          revokedAt,
         });
 
         const affected = yield* inTransaction((tx) => service.syncUnlockedPerks(tx, personId));
@@ -509,7 +519,8 @@ describe("PerkGrantService.syncUnlockedPerks", () => {
         );
         // Zero milliseconds: `expires_at` is a second-precision TIMESTAMP, so a
         // sub-second component would not survive the DB round-trip below.
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const nowMillis = yield* Clock.currentTimeMillis;
+        const expiresAt = dateAtMillis(nowMillis + 7 * 24 * 60 * 60 * 1000);
         expiresAt.setMilliseconds(0);
         const subscriptionId = yield* seedSubscription(created, {
           configurationProductId,
@@ -558,7 +569,7 @@ describe("PerkGrantService.syncUnlockedPerks", () => {
           personId,
         });
         const existingId = yield* seedUnlockedPerk(created, {
-          expiresAt: new Date(Date.now() + 1000),
+          expiresAt: dateAtMillis((yield* Clock.currentTimeMillis) + 1000),
           perkId,
           personId,
           status: PersonUnlockedPerkStatus.Active,
@@ -621,10 +632,11 @@ describe("PerkGrantService.syncUnlockedPerks", () => {
           created,
           "pur-expire",
         );
+        const refundedAt = yield* DateTime.nowAsDate;
         const purchaseId = yield* seedPurchase(created, {
           configurationProductId,
           personId,
-          refundedAt: new Date(),
+          refundedAt,
         });
         const existingId = yield* seedUnlockedPerk(created, {
           perkId,
@@ -652,7 +664,8 @@ describe("PerkGrantService.syncUnlockedPerks", () => {
           created,
           "noop",
         );
-        const expiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+        const nowMillis = yield* Clock.currentTimeMillis;
+        const expiresAt = dateAtMillis(nowMillis + 10 * 24 * 60 * 60 * 1000);
         const subscriptionId = yield* seedSubscription(created, {
           configurationProductId,
           expiresAt,
@@ -741,7 +754,7 @@ describe("PerkGrantService.getPersonUnlockedPerks", () => {
     // No cleanup wrapper: a not-found lookup writes nothing.
     Effect.gen(function* () {
       const service = yield* PerkGrantService;
-      const missingId = `person_missing_${Date.now()}`;
+      const missingId = `person_missing_${yield* Clock.currentTimeMillis}`;
 
       const error = yield* Effect.flip(service.getPersonUnlockedPerks(missingId));
       expect(error).toBeInstanceOf(PersonNotFoundError);

@@ -16,7 +16,7 @@
  *      are dispatched here through the shared workflow runtime. The
  *      synchronous record path does not depend on their completion.
  */
-import { Effect, Layer, Option, Schema } from "effect";
+import { Effect, Layer, Option, Predicate, Schema } from "effect";
 
 import {
   AppStorePaymentProviderService,
@@ -34,6 +34,12 @@ import { AppStorePaymentProvider, globalConfigurationSchema } from "./payment-pr
 import { AppStorePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import { AppStoreTransactionVerifier } from "./transaction-verifier.ts";
 
+/** Reads a property off an unknown value without an `as` assertion. */
+const readProperty = <P extends string>(value: unknown, property: P): unknown => {
+  if (Predicate.hasProperty(value, property)) return value[property];
+  return undefined;
+};
+
 /**
  * Best-effort extraction of a human-readable cause from any upstream failure
  * (SDK errors carry `errorMessage: Option<string>`, infra errors carry
@@ -44,26 +50,24 @@ import { AppStoreTransactionVerifier } from "./transaction-verifier.ts";
 const extractCause = (error: unknown): string => {
   if (error instanceof AppStorePaymentProviderServiceError) return error.cause;
   if (typeof error === "object" && error !== null) {
-    const candidate = error as {
-      errorMessage?: unknown;
-      message?: unknown;
-      cause?: unknown;
-      status?: unknown;
-    };
-    if (Option.isOption(candidate.errorMessage) && Option.isSome(candidate.errorMessage)) {
-      return String(candidate.errorMessage.value);
+    const errorMessage = readProperty(error, "errorMessage");
+    if (Option.isOption(errorMessage) && Option.isSome(errorMessage)) {
+      return String(errorMessage.value);
     }
-    if (typeof candidate.message === "string") return candidate.message;
-    if (typeof candidate.cause === "string") return candidate.cause;
-    if (typeof candidate.status === "string") return String(candidate.status);
+    const message = readProperty(error, "message");
+    if (typeof message === "string") return message;
+    const cause = readProperty(error, "cause");
+    if (typeof cause === "string") return cause;
+    const status = readProperty(error, "status");
+    if (typeof status === "string") return String(status);
   }
   return String(error);
 };
 
-const toServiceError = (error: unknown): AppStorePaymentProviderServiceError =>
-  error instanceof AppStorePaymentProviderServiceError
-    ? error
-    : new AppStorePaymentProviderServiceError({ cause: extractCause(error) });
+const toServiceError = (error: unknown): AppStorePaymentProviderServiceError => {
+  if (error instanceof AppStorePaymentProviderServiceError) return error;
+  return new AppStorePaymentProviderServiceError({ cause: extractCause(error) });
+};
 
 /**
  * Live layer for {@link AppStorePaymentProviderService}. Composes the ported
@@ -124,24 +128,25 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
         const originalTransactionId = Option.getOrUndefined(
           decodedTransaction.originalTransactionId,
         );
-        const shouldReconcileFirstSeen = originalTransactionId
-          ? yield* Effect.gen(function* () {
-              const parsedGlobalConfiguration = yield* Schema.decodeUnknownEffect(
-                globalConfigurationSchema,
-              )(configuration.configuration).pipe(Effect.option);
-              const enabled = Option.match(parsedGlobalConfiguration, {
-                onNone: () => false,
-                onSome: (parsed) => parsed.enableFirstSeenReconciliation === true,
-              });
-              if (!enabled) {
-                return false;
-              }
-              const alreadyRecorded = yield* queries.hasAnyAppStoreRecordForOriginalTransactionId({
-                originalTransactionId,
-              });
-              return !alreadyRecorded;
-            })
-          : false;
+        const shouldReconcileFirstSeen = yield* Effect.gen(function* () {
+          if (!originalTransactionId) {
+            return false;
+          }
+          const parsedGlobalConfiguration = yield* Schema.decodeUnknownEffect(
+            globalConfigurationSchema,
+          )(configuration.configuration).pipe(Effect.option);
+          const enabled = Option.match(parsedGlobalConfiguration, {
+            onNone: () => false,
+            onSome: (parsed) => parsed.enableFirstSeenReconciliation === true,
+          });
+          if (!enabled) {
+            return false;
+          }
+          const alreadyRecorded = yield* queries.hasAnyAppStoreRecordForOriginalTransactionId({
+            originalTransactionId,
+          });
+          return !alreadyRecorded;
+        });
 
         const result = yield* appStorePaymentProvider.recordPurchase({
           configuration,

@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Cause, Effect, Layer, Option, Schema, Context } from "effect";
 import { AuthenticationError, AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -18,7 +19,7 @@ export class UserServiceError extends Schema.TaggedErrorClass<UserServiceError>(
 ) {}
 
 export class UserService extends Context.Service<UserService>()("UserService", {
-  make: Effect.gen(function* () {
+  make: Effect.sync(() => {
     const getUser = Effect.fn("getUser")(function* () {
       const maybeSession = yield* Effect.serviceOption(AuthSession);
       if (Option.isNone(maybeSession) || !maybeSession.value.user) {
@@ -56,17 +57,18 @@ export class UserService extends Context.Service<UserService>()("UserService", {
       // resolution failure must never break CurrentUser, so orgs simply fall
       // back to no extra flags.
       const maybeInternalFlags = yield* Effect.serviceOption(InternalFeatureFlagService);
-      const enabledFlagsByOrg = Option.isSome(maybeInternalFlags)
-        ? yield* maybeInternalFlags.value
-            .resolveEnabledForOrganizations(session.organizations.map((o) => o.id))
-            .pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("Failed to resolve internal feature flags for CurrentUser", {
-                  cause: error.message,
-                }).pipe(Effect.as({} as Record<string, readonly string[]>)),
-              ),
-            )
-        : ({} as Record<string, readonly string[]>);
+      let enabledFlagsByOrg: Record<string, readonly string[]> = {};
+      if (Option.isSome(maybeInternalFlags)) {
+        enabledFlagsByOrg = yield* maybeInternalFlags.value
+          .resolveEnabledForOrganizations(session.organizations.map((o) => o.id))
+          .pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("Failed to resolve internal feature flags for CurrentUser", {
+                cause: error.message,
+              }).pipe(Effect.as<Record<string, readonly string[]>>({})),
+            ),
+          );
+      }
 
       return {
         ...session.user,
@@ -182,7 +184,7 @@ export class UserService extends Context.Service<UserService>()("UserService", {
         ),
     );
 
-    return { getUser, removeAvatar, setAvatar } as const;
+    return constant({ getUser, removeAvatar, setAvatar });
   }),
 }) {
   static layer = Layer.effect(UserService)(UserService.make);

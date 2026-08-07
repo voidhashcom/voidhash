@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import { CodeComponentNode } from "./code-component-node.ts";
@@ -9,7 +10,7 @@ import { CodeComponentNode } from "./code-component-node.ts";
  * Created lazily on first component creation; carries no data of its own.
  */
 export const LibraryNode = Primitive.TreeNode("library", {
-  children: () => [CodeComponentNode] as const,
+  children: () => constant([CodeComponentNode]),
   data: Primitive.Struct({}).required(),
 });
 

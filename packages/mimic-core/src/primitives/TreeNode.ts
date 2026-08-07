@@ -1,24 +1,23 @@
 import type { AnyPrimitive, InferInput } from "./shared.ts";
 import type { StructPrimitive } from "./Struct.ts";
 
-const TreeNodeSelfSymbol = Symbol.for("TreeNode.Self");
+const TreeNodeSelfSymbol: unique symbol = Symbol.for("TreeNode.Self");
 
-declare const SelfBrand: unique symbol;
 export interface TreeNodeSelfType {
   readonly _tag: "TreeNodeSelf";
-  readonly _brand: typeof SelfBrand;
+  readonly _brand: typeof TreeNodeSelfSymbol;
 }
 
 export const TreeNodeSelf: TreeNodeSelfType = {
   _tag: "TreeNodeSelf",
-  _brand: TreeNodeSelfSymbol as unknown as typeof SelfBrand,
-} as TreeNodeSelfType;
+  _brand: TreeNodeSelfSymbol,
+};
 
 const isSelf = (value: unknown): value is TreeNodeSelfType =>
   typeof value === "object" &&
   value !== null &&
   "_brand" in value &&
-  (value as TreeNodeSelfType)._brand === (TreeNodeSelfSymbol as unknown as typeof SelfBrand);
+  value._brand === TreeNodeSelfSymbol;
 
 export type TreeNodeChildrenInput =
   | readonly (AnyTreeNodePrimitive | TreeNodeSelfType)[]
@@ -45,6 +44,13 @@ export interface TreeNodeConfig<
   readonly children: TChildren | (() => TChildren);
 }
 
+const resolveChildrenInput = (
+  input: TreeNodeChildrenInput,
+): readonly (AnyTreeNodePrimitive | TreeNodeSelfType)[] => {
+  if (typeof input === "function") return input();
+  return input;
+};
+
 export class TreeNodePrimitive<
   TType extends string,
   TData extends StructPrimitive<Record<string, AnyPrimitive>, any, any>,
@@ -69,9 +75,10 @@ export class TreeNodePrimitive<
 
   get children(): readonly AnyTreeNodePrimitive[] {
     if (this.resolvedChildren === undefined) {
-      const resolved =
-        typeof this.childrenInput === "function" ? this.childrenInput() : this.childrenInput;
-      this.resolvedChildren = resolved.map((child) => (isSelf(child) ? this : child));
+      this.resolvedChildren = resolveChildrenInput(this.childrenInput).map((child) => {
+        if (isSelf(child)) return this;
+        return child;
+      });
     }
     return this.resolvedChildren;
   }
@@ -113,8 +120,8 @@ export const TreeNode = <
   TData,
   ResolveChildrenUnion<TChildren, TreeNodePrimitive<TType, TData, any>>
 > =>
-  new TreeNodePrimitive(type, config.data, config.children) as TreeNodePrimitive<
+  new TreeNodePrimitive<
     TType,
     TData,
     ResolveChildrenUnion<TChildren, TreeNodePrimitive<TType, TData, any>>
-  >;
+  >(type, config.data, config.children);

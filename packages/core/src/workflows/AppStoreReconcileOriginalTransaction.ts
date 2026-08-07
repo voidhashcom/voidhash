@@ -1,5 +1,5 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 
 import { AppStoreReconciliationService } from "../services/paymentProviders/appStore/app-store-reconciliation-service.ts";
 import { AppStorePaymentProvider } from "../services/paymentProviders/appStore/payment-provider.ts";
@@ -33,7 +33,7 @@ export const AppStoreReconcileOriginalTransactionRegistration = WorkflowRegistra
             originalTransactionId: input.originalTransactionId,
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             reason: input.reason,
-            triggeredAt: new Date(input.triggeredAt),
+            triggeredAt: DateTime.toDateUtc(DateTime.makeUnsafe(input.triggeredAt)),
           });
         }),
       }),

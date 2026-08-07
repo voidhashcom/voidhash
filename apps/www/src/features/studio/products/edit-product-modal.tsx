@@ -52,7 +52,7 @@ export function EditProductModal({ open, onClose, product }: EditProductModalPro
     ...updateProductOptions(),
     onSuccess: () => {
       toast.success("Product updated successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.product.list({ projectId: product.projectId }),
       });
       onClose?.();

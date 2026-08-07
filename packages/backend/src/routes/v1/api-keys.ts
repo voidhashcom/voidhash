@@ -10,6 +10,12 @@ import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
+/** Public keys echo their raw value back; secret keys never do. */
+const rawKeyFields = (apiKey: { readonly isPublic: boolean; readonly key: string }) => {
+  if (apiKey.isPublic) return { rawKey: apiKey.key };
+  return {};
+};
+
 import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
 
 export const ApiKeysGroupLive = HttpApiBuilder.group(VoidhashV1Api, "api_keys", (handlers) =>
@@ -36,7 +42,7 @@ export const ApiKeysGroupLive = HttpApiBuilder.group(VoidhashV1Api, "api_keys", 
               (apiKey) =>
                 new ApiKey({
                   ...apiKey,
-                  ...(apiKey.isPublic ? { rawKey: apiKey.key } : {}),
+                  ...rawKeyFields(apiKey),
                 }),
             );
           }),
@@ -54,7 +60,7 @@ export const ApiKeysGroupLive = HttpApiBuilder.group(VoidhashV1Api, "api_keys", 
             (apiKey) =>
               new ApiKey({
                 ...apiKey,
-                ...(apiKey.isPublic ? { rawKey: apiKey.key } : {}),
+                ...rawKeyFields(apiKey),
               }),
           ),
           Effect.catchTags({

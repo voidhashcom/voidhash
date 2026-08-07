@@ -45,7 +45,7 @@ export function useNotificationConfigurationMutations({
     onSuccess: () => {
       void invalidateConfigurations();
       toast.success(`${providerTitle} configuration deleted successfully`);
-      navigate({
+      void navigate({
         params: {
           organizationSlug,
           projectSlug,

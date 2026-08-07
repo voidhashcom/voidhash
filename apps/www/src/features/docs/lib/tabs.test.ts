@@ -1,14 +1,22 @@
+import { stringOr } from "@voidhash/lib/lang";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { describe, expect, it } from "vitest";
 
 import { getSource } from "./source";
 import { DOCS_TABS, activeTabForPathname, tabIdForUrl, tabNodes } from "./tabs";
 
+/**
+ * A page-tree `name` is a `ReactNode`; the docs tree only ever carries plain
+ * strings (meta titles), so anything else reads as the empty string rather than
+ * as `[object Object]`.
+ */
+const nameOf = (name: unknown): string => stringOr(name, "");
+
 const pageUrls = (nodes: PageTree.Node[]): string[] =>
   nodes.flatMap((node) => (node.type === "page" ? [node.url] : []));
 
 const separatorNames = (nodes: PageTree.Node[]): string[] =>
-  nodes.flatMap((node) => (node.type === "separator" ? [String(node.name)] : []));
+  nodes.flatMap((node) => (node.type === "separator" ? [nameOf(node.name)] : []));
 
 describe("docs tabs partition", () => {
   it("maps meta separators into section headings and splits tabs by folder", async () => {
@@ -37,10 +45,10 @@ describe("docs tabs partition", () => {
     expect(pageUrls(apiNodes)).toContain("/docs/api/overview");
     const apiFolders = apiNodes.filter((node): node is PageTree.Folder => node.type === "folder");
     // The `reference` container itself is gone; its tag folders (e.g. Persons) surface directly.
-    expect(apiFolders.some((folder) => String(folder.name).toLowerCase() === "reference")).toBe(
+    expect(apiFolders.some((folder) => nameOf(folder.name).toLowerCase() === "reference")).toBe(
       false,
     );
-    expect(apiFolders.some((folder) => String(folder.name) === "Persons")).toBe(true);
+    expect(apiFolders.some((folder) => nameOf(folder.name) === "Persons")).toBe(true);
 
     // Guides tab: the guides folder has content.
     expect(tabNodes(tree, DOCS_TABS[1]).length).toBeGreaterThan(0);
@@ -49,7 +57,7 @@ describe("docs tabs partition", () => {
     // nodes, so the slide-in submenu can render subgroups within a folder.
     const reactNative = docNodes.find(
       (node): node is PageTree.Folder =>
-        node.type === "folder" && String(node.name).includes("React Native"),
+        node.type === "folder" && nameOf(node.name).includes("React Native"),
     );
     expect(reactNative).toBeDefined();
     expect(separatorNames(reactNative?.children ?? [])).toEqual(

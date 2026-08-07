@@ -1,4 +1,5 @@
 import { MenuItem } from "components/menu-item";
+import { Effect } from "effect";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,6 +7,11 @@ import { fakeAuthService, useCurrentUser } from "utils/fake-auth-service";
 import { voidhash } from "utils/voidhash/client";
 
 import { Logo } from "../components/logo";
+
+const accountActionTitle = (hasUser: boolean) => {
+  if (hasUser) return "Switch account";
+  return "Sign in";
+};
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -15,14 +21,17 @@ export default function HomeScreen() {
   const { user, isLoading } = useCurrentUser();
 
   // Resets the current identity and signs the example user out.
-  const handleSignOut = async () => {
-    await fakeAuthService.signOut();
-    await voidhash.client.reset();
-  };
+  const handleSignOut = () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        yield* Effect.promise(() => fakeAuthService.signOut());
+        yield* Effect.promise(() => voidhash.client.reset());
+      }),
+    );
 
   // Resets the Voidhash cache. This is useful for testing.
   const handleResetCache = () => {
-    voidhash.client.resetCache();
+    void voidhash.client.resetCache();
   };
 
   if (isLoading) {
@@ -69,7 +78,7 @@ export default function HomeScreen() {
           onPress={() => {
             router.push("/menu/sign-in");
           }}
-          title={user ? "Switch account" : "Sign in"}
+          title={accountActionTitle(Boolean(user))}
         />
       </View>
       <View style={styles.menuSection}>

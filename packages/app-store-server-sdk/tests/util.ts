@@ -1,6 +1,5 @@
 import fs from "node:fs";
-import path from "node:path";
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { exportPKCS8, generateKeyPair } from "jose";
 import { Environment } from "../src/schemas/index.ts";
@@ -8,11 +7,13 @@ import { AppStoreServerSdk } from "../src/sdk.ts";
 import { SignedDataVerifier } from "../src/verification/index.ts";
 import { AppStoreServerSdkClient } from "../src/client/index.ts";
 
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 /**
  * Read a file from the tests/resources directory.
  */
 export const readFile = (filePath: string): string => {
-  const fullPath = path.join(process.cwd(), filePath);
+  const fullPath = `${process.cwd()}/${filePath}`;
   return fs.readFileSync(fullPath, "utf-8");
 };
 
@@ -20,27 +21,34 @@ export const readFile = (filePath: string): string => {
  * Read a binary file from the tests/resources directory.
  */
 export const readBinaryFile = (filePath: string): Buffer => {
-  const fullPath = path.join(process.cwd(), filePath);
+  const fullPath = `${process.cwd()}/${filePath}`;
   return fs.readFileSync(fullPath);
 };
 
-export const unwrapOptionsDeep = <T>(value: T): T => {
+// The unwrapped shape is structurally different from the input (every `Option`
+// collapses to its value or `undefined`), so the recursion is typed loosely and
+// the exported wrapper restores the caller-facing shape.
+const unwrapDeep = (value: unknown): any => {
   if (Option.isOption(value)) {
     return Option.match(value, {
-      onNone: () => undefined as T,
-      onSome: (some) => unwrapOptionsDeep(some) as T,
+      onNone: () => undefined,
+      onSome: (some) => unwrapDeep(some),
     });
   }
   if (Array.isArray(value)) {
-    return value.map(unwrapOptionsDeep) as T;
+    return value.map(unwrapDeep);
   }
   if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, unwrapOptionsDeep(item)]),
-    ) as T;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, unwrapDeep(item)]));
   }
   return value;
 };
+
+/**
+ * Recursively replaces every `Option` in a decoded payload with its value (or
+ * `undefined`), so assertions can read plain fields.
+ */
+export const unwrapOptionsDeep = <T>(value: T): T => unwrapDeep(value);
 
 /** Ephemeral ES256 signing key used only by this test process. */
 export const TEST_SIGNING_KEY = await generateKeyPair("ES256", { extractable: true }).then(
@@ -61,6 +69,23 @@ export const ROOT_CA_BASE64_ENCODED_1 =
 export const ROOT_CA_BASE64_ENCODED_2 =
   "MIIBgjCCASmgAwIBAgIJALUc5ALiH5pbMAoGCCqGSM49BAMDMDYxCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRIwEAYDVQQHDAlDdXBlcnRpbm8wHhcNMjMwMTA1MjEzMDIyWhcNMzMwMTAyMjEzMDIyWjA2MQswCQYDVQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTESMBAGA1UEBwwJQ3VwZXJ0aW5vMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc+/Bl+gospo6tf9Z7io5tdKdrlN1YdVnqEhEDXDShzdAJPQijamXIMHf8xWWTa1zgoYTxOKpbuJtDplz1XriTaMgMB4wDAYDVR0TBAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwCgYIKoZIzj0EAwMDRwAwRAIgemWQXnMAdTad2JDJWng9U4uBBL5mA7WI05H7oH7c6iQCIHiRqMjNfzUAyiu9h6rOU/K+iTR0I/3Y/NSWsXHX+acc";
 
+const hasTaggedBody =(body: unknown): body is { _tag: string; body?: unknown } =>
+  typeof body === "object" && body !== null && "_tag" in body;
+
+/** Best-effort text rendering of a request body, mirroring the tagged shapes we send. */
+const requestBodyString = (body: unknown): string | undefined => {
+  if (!hasTaggedBody(body)) return undefined;
+  if (body._tag === "Uint8Array" && body.body instanceof Uint8Array) {
+    return new TextDecoder().decode(body.body);
+  }
+  if (body._tag === "Raw") {
+    const rawBody = body.body;
+    if (typeof rawBody === "string") return rawBody;
+    if (rawBody instanceof Uint8Array) return new TextDecoder().decode(rawBody);
+  }
+  return undefined;
+};
+
 /**
  * Build a mock `HttpClient.HttpClient` that returns predefined responses.
  */
@@ -75,32 +100,20 @@ export const createMockHttpClient = (
   ) => void,
 ): HttpClient.HttpClient =>
   HttpClient.make((request, url, _signal, _fiber) =>
-    Effect.sync(() => {
+    Effect.gen(function* () {
       if (callback) {
-        let bodyString: string | undefined;
-        try {
-          if (request.body && "_tag" in request.body) {
-            const body = request.body as { _tag: string; body?: unknown };
-            if (body._tag === "Uint8Array" && body.body instanceof Uint8Array) {
-              bodyString = new TextDecoder().decode(body.body);
-            } else if (body._tag === "Raw") {
-              const rawBody = body.body;
-              if (typeof rawBody === "string") {
-                bodyString = rawBody;
-              } else if (rawBody instanceof Uint8Array) {
-                bodyString = new TextDecoder().decode(rawBody);
-              }
-            }
-          }
-        } catch {}
+        const bodyString = yield* Effect.try(() => requestBodyString(request.body)).pipe(
+          Effect.orElseSucceed((): string | undefined => undefined),
+        );
 
         const pathAndQuery = url.pathname + url.search;
-        const headers: Record<string, string> = {};
-        try {
+        const headers = yield* Effect.try(() => {
+          const collected: Record<string, string> = {};
           for (const [key, value] of request.headers) {
-            headers[key] = value;
+            collected[key] = value;
           }
-        } catch {}
+          return collected;
+        }).pipe(Effect.orElseSucceed((): Record<string, string> => ({})));
         callback(pathAndQuery, request.method, bodyString, headers);
       }
 
@@ -132,6 +145,37 @@ const noopMockSdk = createMockSdk(
   HttpClient.make(() => Effect.die("HttpClient not configured for SignedDataVerifier tests")),
 );
 
+/** Adapts the plain-value test override to the `Option`-based verifier hook. */
+const toOptionOverride = (
+  override:
+    | ((
+        bundleId: string | undefined,
+        appAppleId: number | undefined,
+        environment: string | undefined,
+      ) => void)
+    | undefined,
+): Option.Option<
+  (
+    bundleId: Option.Option<string>,
+    appAppleId: Option.Option<number>,
+    environment: Option.Option<string>,
+  ) => void
+> => {
+  if (override === undefined) return Option.none();
+  return Option.some(
+    (
+      bundleId: Option.Option<string>,
+      appAppleId: Option.Option<number>,
+      environment: Option.Option<string>,
+    ) =>
+      override(
+        Option.getOrUndefined(bundleId),
+        Option.getOrUndefined(appAppleId),
+        Option.getOrUndefined(environment),
+      ),
+  );
+};
+
 /**
  * Build a `SignedDataVerifier` instance with the test root certificates.
  *
@@ -156,20 +200,7 @@ export const getSignedPayloadVerifier = (
     environment,
     bundleId,
     appAppleId: Option.fromNullishOr(appAppleId),
-    verifyNotificationOverride: Option.fromNullishOr(
-      verifyNotificationOverride
-        ? (
-            bundleId: Option.Option<string>,
-            appAppleId: Option.Option<number>,
-            environment: Option.Option<string>,
-          ) =>
-            verifyNotificationOverride(
-              Option.getOrUndefined(bundleId),
-              Option.getOrUndefined(appAppleId),
-              Option.getOrUndefined(environment),
-            )
-        : undefined,
-    ),
+    verifyNotificationOverride: toOptionOverride(verifyNotificationOverride),
   });
 
 /**
@@ -196,7 +227,7 @@ export const getDefaultSignedPayloadVerifier = (): SignedDataVerifier =>
  */
 export const createSignedDataFromJson = (filePath: string): string => {
   const fileContents = readFile(filePath);
-  const header = Buffer.from(JSON.stringify({ alg: "ES256" })).toString("base64url");
+  const header = Buffer.from(encodeJson({ alg: "ES256" })).toString("base64url");
   const payload = Buffer.from(fileContents).toString("base64url");
   const signature = Buffer.from("unsigned-local-testing-fixture").toString("base64url");
   return `${header}.${payload}.${signature}`;

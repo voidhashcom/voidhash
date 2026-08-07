@@ -4,6 +4,8 @@
  * resize drag ends, so a user's layout survives reloads.
  */
 
+import { Effect } from "effect";
+
 import type { DesignerStoreState } from "../state/designer-store-state";
 
 const STORAGE_KEY = "voidhash.designer.panelWidths";
@@ -24,24 +26,24 @@ export function loadPanelWidths(): PersistedPanelWidths {
   if (typeof window === "undefined") {
     return {};
   }
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw === null) {
-      return {};
-    }
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) {
-      return {};
-    }
-    const record = parsed as Record<string, unknown>;
-    return {
-      ai: asFiniteNumber(record.ai),
-      left: asFiniteNumber(record.left),
-      right: asFiniteNumber(record.right),
-    };
-  } catch {
-    return {};
-  }
+  return Effect.runSync(
+    Effect.try(() => {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw === null) {
+        return {};
+      }
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== "object" || parsed === null) {
+        return {};
+      }
+      const record = parsed as Record<string, unknown>;
+      return {
+        ai: asFiniteNumber(record.ai),
+        left: asFiniteNumber(record.left),
+        right: asFiniteNumber(record.right),
+      };
+    }).pipe(Effect.orElseSucceed((): PersistedPanelWidths => ({}))),
+  );
 }
 
 /** Persist the current widths of all resizable panels (called when a drag ends). */
@@ -49,16 +51,17 @@ export function persistPanelWidths(state: DesignerStoreState): void {
   if (typeof window === "undefined") {
     return;
   }
-  try {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ai: state.ai.width,
-        left: state.viewport.panels.left.width,
-        right: state.viewport.panels.right.width,
-      }),
-    );
-  } catch {
-    // Storage may be unavailable (private mode, quota) — resizing still works, it just won't persist.
-  }
+  // Storage may be unavailable (private mode, quota) — resizing still works, it just won't persist.
+  Effect.runSync(
+    Effect.try(() => {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          ai: state.ai.width,
+          left: state.viewport.panels.left.width,
+          right: state.viewport.panels.right.width,
+        }),
+      );
+    }).pipe(Effect.ignore),
+  );
 }

@@ -1,11 +1,15 @@
+import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { decodeAgentClientMessage, encodeAgentServerMessage } from "../src/Protocol.ts";
 
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
+
 describe("agent session protocol", () => {
   it("decodes versioned prompt messages with images", () => {
     const message = decodeAgentClientMessage(
-      JSON.stringify({
+      encodeJson({
         v: 1,
         requestId: "request-1",
         type: "prompt",
@@ -25,16 +29,16 @@ describe("agent session protocol", () => {
 
   it("rejects unknown versions and malformed commands", () => {
     expect(() =>
-      decodeAgentClientMessage(JSON.stringify({ v: 2, requestId: "request-1", type: "abort" })),
+      decodeAgentClientMessage(encodeJson({ v: 2, requestId: "request-1", type: "abort" })),
     ).toThrow();
     expect(() =>
-      decodeAgentClientMessage(JSON.stringify({ v: 1, requestId: "request-1", type: "prompt" })),
+      decodeAgentClientMessage(encodeJson({ v: 1, requestId: "request-1", type: "prompt" })),
     ).toThrow();
   });
 
   it("encodes server events as JSON", () => {
     expect(
-      JSON.parse(
+      decodeJson(
         encodeAgentServerMessage({
           v: 1,
           type: "ack",

@@ -6,6 +6,8 @@
  * keyword rejection, PII gating, out-of-band parameter binding, and the LIMIT
  * clamp. No ClickHouse, no Db, no Auth.
  */
+import { Predicate, Result } from "effect";
+
 import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 
 import type { Capability } from "../../../src/services/voidql/catalog/types.ts";
@@ -29,14 +31,19 @@ const compile = (text: string, caps: ReadonlySet<Capability> = NO_PII, scope = S
   return { sql: rendered.sql, binds: rendered.binds, columns: ir.shape, injected: ir.injected };
 };
 
+/** Reads the `_tag` of a thrown value without an `as` assertion. */
+const tagOf = (error: unknown): unknown => {
+  if (Predicate.hasProperty(error, "_tag")) return error._tag;
+  return undefined;
+};
+
+/** Asserts `fn` throws a tagged error carrying `tag`. */
 const expectTag = (fn: () => unknown, tag: string): void => {
-  try {
-    fn();
-  } catch (error) {
-    expect((error as { _tag?: string })?._tag).toBe(tag);
-    return;
+  const result = Result.try(fn);
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isFailure(result)) {
+    expect(tagOf(result.failure)).toBe(tag);
   }
-  throw new Error(`expected ${tag} to be thrown, but nothing was`);
 };
 
 const countOccurrences = (haystack: string, needle: string): number =>

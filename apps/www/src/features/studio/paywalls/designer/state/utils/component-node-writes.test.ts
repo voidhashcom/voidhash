@@ -1,6 +1,7 @@
 import type { ComponentPropDefinition } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
 import { ComponentNode } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -29,7 +30,7 @@ function makeDocumentWithComponent() {
   let componentId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     componentId = screen.children.insertLast({
       type: "component",
       componentSlug: "product-option",
@@ -43,7 +44,7 @@ function makeDocumentWithComponent() {
 function rawComponentData(doc: OfflineDesignerDocument, nodeId: string) {
   const data = findTypedNode(doc.root, nodeId, ComponentNode)?.get()?.data;
   if (data === undefined) {
-    throw new Error("expected a component node");
+    return Effect.runSync(Effect.die(new Error("expected a component node")));
   }
   return data;
 }
@@ -74,7 +75,10 @@ describe("prefillComponentDefaultProps", () => {
     });
 
     const entries = rawPropEntries(doc, componentId);
-    expect(entries.map((entry) => entry.value?.name).sort()).toEqual([
+    const names = entries
+      .map((entry) => entry.value?.name)
+      .sort((a, b) => (a ?? "").localeCompare(b ?? ""));
+    expect(names).toEqual([
       "accentColor",
       "count",
       "tags",
@@ -89,7 +93,7 @@ describe("prefillComponentDefaultProps", () => {
     expect(tags?.value?.value.type).toBe("literal");
     const tagsValue = tags?.value?.value;
     if (tagsValue?.type !== "literal" || tagsValue.value.key !== "string-array") {
-      throw new Error("expected a string-array literal");
+      return Effect.runSync(Effect.die(new Error("expected a string-array literal")));
     }
     expect(tagsValue.value.value.map((entry) => entry.value)).toEqual(["a", "b"]);
   });
@@ -107,7 +111,10 @@ describe("prefillBuiltinDefaultProps", () => {
     });
 
     const entries = rawPropEntries(doc, componentId);
-    expect(entries.map((entry) => entry.value?.name).sort()).toEqual(["label", "tone"]);
+    const names = entries
+      .map((entry) => entry.value?.name)
+      .sort((a, b) => (a ?? "").localeCompare(b ?? ""));
+    expect(names).toEqual(["label", "tone"]);
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(2);
     expect(new Set(entries.map((entry) => entry.pos)).size).toBe(2);
     const label = entries.find((entry) => entry.value?.name === "label");
@@ -217,7 +224,10 @@ describe("removeComponentPropEntries", () => {
       restoreComponentPropBindings(root, componentId, removed);
     });
     const entries = rawPropEntries(doc, componentId);
-    expect(entries.map((entry) => entry.value?.name).sort()).toEqual([
+    const names = entries
+      .map((entry) => entry.value?.name)
+      .sort((a, b) => (a ?? "").localeCompare(b ?? ""));
+    expect(names).toEqual([
       "droppedA",
       "droppedB",
       "kept",

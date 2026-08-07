@@ -1,3 +1,4 @@
+import { causeMessage } from "@voidhash/lib/lang";
 import type { Value } from "@voidhash/mimic-core";
 import { Effect } from "effect";
 
@@ -229,9 +230,7 @@ export const handleDocumentSocketMessage = <TSocket>(
       }
     }
   }).pipe(
-    Effect.catch((error) =>
-      ctx.send(socket, errorMessage(error instanceof Error ? error.message : String(error))),
-    ),
+    Effect.catch((error) => ctx.send(socket, errorMessage(causeMessage(error)))),
   );
 
 /**

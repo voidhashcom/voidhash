@@ -4,6 +4,8 @@
  * Extracted so the standalone routes and any private identity-provider adapter
  * can build responses the same way without depending on each other.
  */
+import { Effect } from "effect";
+
 import { toSafeReturnPathname } from "./validation";
 
 export type JsonBody = Record<string, unknown>;
@@ -42,13 +44,12 @@ export const authErrorResponse = (message: string, status = 400) =>
   jsonResponse({ error: message }, { status });
 
 /** Parses a JSON request body, treating malformed input as empty. */
-export const getJsonBody = async <T extends object>(request: Request): Promise<Partial<T>> => {
-  try {
-    return (await request.json()) as Partial<T>;
-  } catch {
-    return {} as Partial<T>;
-  }
-};
+export const getJsonBody = <T extends object>(request: Request): Promise<Partial<T>> =>
+  Effect.runPromise(
+    Effect.tryPromise(() => request.json() as Promise<Partial<T>>).pipe(
+      Effect.catchCause(() => Effect.succeed({} as Partial<T>)),
+    ),
+  );
 
 /** Same-origin `returnPathname` from the query string, or the fallback. */
 export const getSafeReturnPathnameFromRequest = (request: Request, fallback = "/studio") => {

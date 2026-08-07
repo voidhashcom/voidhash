@@ -1,5 +1,6 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
+import { constant } from "@voidhash/lib/lang";
 import { AuthSession, AuthenticationError } from "../../domain/auth/Auth.ts";
 import {
   SdkPersonAlreadyIdentifiedError,
@@ -7,13 +8,7 @@ import {
   type SdkPersonSnapshot,
   SdkValidationError,
 } from "../../domain/sdkPerson/SdkPerson.ts";
-import {
-  type PaymentProviderConfigurationProduct as DbPaymentProviderConfigurationProduct,
-  type Subscription as DbSubscription,
-  Db,
-  PersonOrigin,
-  type PersonOriginValue,
-} from "@voidhash/db";
+import { Db, PersonOrigin, type PersonOriginValue } from "@voidhash/db";
 import { isAnonymousId } from "../../utils/sdk.ts";
 import { AppStorePaymentProviderService } from "../paymentProviders/AppStorePaymentProviderService.ts";
 import { GooglePlayPaymentProviderService } from "../paymentProviders/GooglePlayPaymentProviderService.ts";
@@ -91,6 +86,11 @@ export class SdkServiceError extends Schema.TaggedErrorClass<SdkServiceError>("S
 ) {}
 
 const CONFLICTING_IDENTIFIED_WARNING_FRAGMENT = "different identified person";
+
+const eventIdPatch = (clientEventId: string | undefined): { eventId?: string } => {
+  if (!clientEventId) return {};
+  return { eventId: clientEventId };
+};
 
 const originFromPersonMetadata = (metadata: PersonMetadata): PersonOriginValue => {
   const platform = metadata.platform.toLowerCase();
@@ -245,12 +245,14 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         yield* Effect.annotateCurrentSpan("voidhash.organization.id", organizationId);
       }
 
-      const sourceMapping =
-        input.previousDistinctId && input.previousDistinctId !== input.distinctId
-          ? yield* db.query.personIdentities.findFirst({
-              where: { projectId: input.projectId, distinctId: input.previousDistinctId },
-            })
-          : undefined;
+      const sourceMapping = yield* Effect.gen(function* () {
+        if (!input.previousDistinctId || input.previousDistinctId === input.distinctId) {
+          return undefined;
+        }
+        return yield* db.query.personIdentities.findFirst({
+          where: { projectId: input.projectId, distinctId: input.previousDistinctId },
+        });
+      });
 
       const activeJob = yield* db.query.personIdentityMigrationJobs.findFirst({
         orderBy: { createdAt: "desc" },
@@ -280,12 +282,12 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         scope.includedPersonIds.length,
       );
 
-      const personRows =
-        scope.includedPersonIds.length === 0
-          ? []
-          : yield* db.query.persons.findMany({
-              where: { id: { in: [...scope.includedPersonIds] } },
-            });
+      const personRows = yield* Effect.gen(function* () {
+        if (scope.includedPersonIds.length === 0) return [];
+        return yield* db.query.persons.findMany({
+          where: { id: { in: [...scope.includedPersonIds] } },
+        });
+      });
       const targetPerson = personRows.find((person) => person.id === input.personId);
       if (!targetPerson) {
         return yield* Effect.fail(
@@ -300,19 +302,16 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
       const [subscriptionRows, purchaseRows, unlockedPerkRows] = yield* Effect.all(
         [
           Effect.gen(function* () {
-            if (existingPersonIds.length === 0) {
-              return [] as ReadonlyArray<SubscriptionWithProduct>;
-            }
-            return (yield* db.query.subscriptions.findMany({
-              where: { personId: { in: [...existingPersonIds] } },
-              with: {
-                paymentProviderConfigurationProduct: true,
-              },
-            })) as ReadonlyArray<
-              DbSubscription & {
-                paymentProviderConfigurationProduct: DbPaymentProviderConfigurationProduct | null;
-              }
-            >;
+            const empty: ReadonlyArray<SubscriptionWithProduct> = [];
+            if (existingPersonIds.length === 0) return empty;
+            const rows: ReadonlyArray<SubscriptionWithProduct> =
+              yield* db.query.subscriptions.findMany({
+                where: { personId: { in: [...existingPersonIds] } },
+                with: {
+                  paymentProviderConfigurationProduct: true,
+                },
+              });
+            return rows;
           }),
           loadPurchasesForPersonIds(existingPersonIds, input.projectId, session),
           loadGrantsForPersonIds(existingPersonIds, input.projectId, session),
@@ -323,12 +322,12 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
       const purchaseConfigurationProductIds = [
         ...new Set(purchaseRows.map((purchase) => purchase.paymentProviderConfigurationProductId)),
       ];
-      const purchaseConfigurationProducts =
-        purchaseConfigurationProductIds.length === 0
-          ? []
-          : yield* db.query.paymentProviderConfigurationProducts.findMany({
-              where: { id: { in: [...purchaseConfigurationProductIds] } },
-            });
+      const purchaseConfigurationProducts = yield* Effect.gen(function* () {
+        if (purchaseConfigurationProductIds.length === 0) return [];
+        return yield* db.query.paymentProviderConfigurationProducts.findMany({
+          where: { id: { in: [...purchaseConfigurationProductIds] } },
+        });
+      });
       const purchaseProductIdLookup = new Map<string, string>();
       for (const product of purchaseConfigurationProducts) {
         purchaseProductIdLookup.set(product.id, product.productId);
@@ -338,7 +337,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         distinctId: input.distinctId,
         grants: unlockedPerkRows,
         identityResult: input.identityResult,
-        now: new Date(),
+        now: yield* DateTime.nowAsDate,
         personId: input.personId,
         purchaseProductIdLookup,
         purchases: purchaseRows,
@@ -497,7 +496,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         const result = yield* personIdentityService.identifyDistinctId({
           previousDistinctId: currentDistinctId,
           email: input.email ?? undefined,
-          eventTimestamp: new Date(),
+          eventTimestamp: yield* DateTime.nowAsDate,
           distinctId: input.distinctId,
           name: input.name ?? undefined,
           projectId,
@@ -622,8 +621,8 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         const identityResult = yield* personIdentityService.resolveDistinctId({
           distinctId,
           email: input.email,
-          ...(input.clientEventId ? { eventId: input.clientEventId } : {}),
-          eventTimestamp: new Date(),
+          ...eventIdPatch(input.clientEventId),
+          eventTimestamp: yield* DateTime.nowAsDate,
           name: input.name,
           origin: originFromPersonMetadata(input.personMetadata),
           projectId,
@@ -770,7 +769,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
             productId: input.productId ?? "",
             projectId,
             purchaseToken: input.purchaseToken,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
           });
           yield* Effect.annotateCurrentSpan("voidhash.person.id", googleResult.personId);
           return yield* buildSnapshot({
@@ -793,7 +792,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
           bundleId: input.bundleId,
           distinctId,
           projectId,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           transactionId: input.transactionId,
         });
 
@@ -834,12 +833,12 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         ),
     );
 
-    return {
+    return constant({
       getPerson,
       identifyPerson,
       submitPurchaseTransaction,
       syncPersonAttributes,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(SdkService)(SdkService.make);

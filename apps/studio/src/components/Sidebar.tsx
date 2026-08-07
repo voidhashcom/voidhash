@@ -1,4 +1,5 @@
 import type { PaywallOutboundEnvelope } from "@voidhash/paywalls";
+import { Schema } from "effect";
 import type { ReactNode } from "react";
 
 import { cn } from "../lib/cn";
@@ -6,6 +7,9 @@ import type { ComponentEntry, InvalidEntry, PaywallEntry } from "../voidhash/pay
 import type { PreviewDeviceProfile } from "../voidhash/preview-devices";
 import type { PreviewEvent } from "../voidhash/preview-runtime";
 import { ComponentPreview } from "./ComponentPreview";
+
+/** Renders an arbitrary event payload as a JSON string for the event log. */
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 const SectionLabel = ({ children }: { children: ReactNode }): ReactNode => (
   <div className="px-4 pt-4 pb-1 font-semibold text-[11px] text-neutral-500 uppercase tracking-wider">
@@ -26,15 +30,72 @@ const envelopeDetail = (envelope: PaywallOutboundEnvelope): string | null => {
       return envelope.payload?.source ?? null;
     case "openExternal":
       return envelope.payload.url;
-    case "event":
-      return envelope.payload.properties
-        ? `${envelope.payload.name} ${JSON.stringify(envelope.payload.properties)}`
-        : envelope.payload.name;
+    case "event": {
+      const { name, properties } = envelope.payload;
+      if (!properties) return name;
+      return `${name} ${encodeJson(properties)}`;
+    }
     case "log":
       return `${envelope.payload.level}: ${envelope.payload.message}`;
     default:
       return null;
   }
+};
+
+/** A component's static preview, or a hint when the file exports no definition. */
+const ComponentBody = ({
+  entry,
+  profile,
+}: {
+  entry: ComponentEntry;
+  profile: PreviewDeviceProfile;
+}): ReactNode => {
+  if (!entry.definition) {
+    return (
+      <p className="px-2.5 pb-2 text-[11px] text-neutral-600">
+        No <code>defineComponent(...)</code> export found.
+      </p>
+    );
+  }
+  return (
+    <div className="px-2 pb-2">
+      <ComponentPreview definition={entry.definition} profile={profile} />
+    </div>
+  );
+};
+
+/** The live log of bridge envelopes, newest first. */
+const EventLog = ({ events }: { events: ReadonlyArray<PreviewEvent> }): ReactNode => {
+  if (events.length === 0) {
+    return (
+      <p className="px-1 py-2 text-[11px] text-neutral-600">
+        Envelopes posted by the paywall (ready, purchase, …) show up here.
+      </p>
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-1">
+      {events
+        .slice()
+        .reverse()
+        .map((event) => {
+          const detail = envelopeDetail(event.envelope);
+          return (
+            <li
+              className="flex items-baseline gap-2 rounded bg-neutral-900 px-2 py-1 font-mono text-[11px]"
+              key={event.key}
+            >
+              <span className="shrink-0 text-emerald-300">{event.envelope.type}</span>
+              {detail && (
+                <span className="truncate text-neutral-400" title={detail}>
+                  {detail}
+                </span>
+              )}
+            </li>
+          );
+        })}
+    </ul>
+  );
 };
 
 export interface SidebarProps {
@@ -83,9 +144,8 @@ export const Sidebar = ({
           <button
             className={cn(
               "flex flex-col items-start gap-0.5 rounded-md px-3 py-2 text-left transition-colors",
-              p.id === selectedId
-                ? "bg-emerald-600/15 text-emerald-300 ring-1 ring-emerald-600/40"
-                : "text-neutral-300 hover:bg-neutral-900",
+              p.id === selectedId && "bg-emerald-600/15 text-emerald-300 ring-1 ring-emerald-600/40",
+              p.id !== selectedId && "text-neutral-300 hover:bg-neutral-900",
             )}
             key={p.id}
             onClick={() => onSelect(p.id)}
@@ -130,15 +190,7 @@ export const Sidebar = ({
                     </span>
                   )}
                 </div>
-                {c.definition ? (
-                  <div className="px-2 pb-2">
-                    <ComponentPreview definition={c.definition} profile={profile} />
-                  </div>
-                ) : (
-                  <p className="px-2.5 pb-2 text-[11px] text-neutral-600">
-                    No <code>defineComponent(...)</code> export found.
-                  </p>
-                )}
+                <ComponentBody entry={c} profile={profile} />
               </div>
             ))}
           </div>
@@ -162,33 +214,7 @@ export const Sidebar = ({
         )}
       </div>
       <div className="max-h-40 overflow-y-auto px-3 pb-3">
-        {events.length === 0 ? (
-          <p className="px-1 py-2 text-[11px] text-neutral-600">
-            Envelopes posted by the paywall (ready, purchase, …) show up here.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {events
-              .slice()
-              .reverse()
-              .map((event) => {
-                const detail = envelopeDetail(event.envelope);
-                return (
-                  <li
-                    className="flex items-baseline gap-2 rounded bg-neutral-900 px-2 py-1 font-mono text-[11px]"
-                    key={event.key}
-                  >
-                    <span className="shrink-0 text-emerald-300">{event.envelope.type}</span>
-                    {detail && (
-                      <span className="truncate text-neutral-400" title={detail}>
-                        {detail}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-          </ul>
-        )}
+        <EventLog events={events} />
       </div>
     </div>
   </aside>

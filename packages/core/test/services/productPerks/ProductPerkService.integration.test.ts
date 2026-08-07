@@ -26,7 +26,7 @@
  *  - Typed failures use `Effect.flip` + `instanceof`, paired with a DB-state
  *    assertion proving the failure path wrote (or retained) nothing unexpected.
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { ProductPerkService, ProjectSchemaCache } from "@voidhash/core/services";
@@ -57,13 +57,17 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so ids stay unique even within the same millisecond. */
 let idSeq = 0;
-const uniqueId = (label: string) => `it-${label}-${Date.now()}-${idSeq++}`;
+const uniqueId = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-${label}-${now}-${idSeq++}`);
+
+/** Fixed epoch instant for the synthetic session rows below. */
+const EPOCH_DATE = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 
 /** Insert a `product` row under the fixture project and return its id. */
 const seedProduct = (overrides?: { readonly projectId?: string }) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = uniqueId("prod");
+    const id = yield* uniqueId("prod");
     yield* db.insert(products).values({
       id,
       name: id,
@@ -77,7 +81,7 @@ const seedProduct = (overrides?: { readonly projectId?: string }) =>
 const seedPerk = (overrides?: { readonly projectId?: string }) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = uniqueId("perk");
+    const id = yield* uniqueId("perk");
     yield* db.insert(perks).values({
       id,
       name: id,
@@ -91,7 +95,7 @@ const seedPerk = (overrides?: { readonly projectId?: string }) =>
 const seedProject = () =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = uniqueId("proj");
+    const id = yield* uniqueId("proj");
     yield* db.insert(projects).values({
       id,
       name: id,
@@ -197,14 +201,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH_DATE,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH_DATE,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -240,14 +244,14 @@ const sessionWithFixtureProjectOnly = (): UserSession => ({
     },
   ],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH_DATE,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH_DATE,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -291,7 +295,9 @@ describe("ProductPerkService.getProductPerksByProductId", () => {
         const idxB = list.findIndex((pp) => pp.id === b.id);
         expect(idxA).toBeGreaterThanOrEqual(0);
         expect(idxB).toBeGreaterThanOrEqual(0);
-        const createdAts = list.map((pp) => new Date(pp.createdAt ?? 0).getTime());
+        const createdAts = list.map((pp) =>
+          DateTime.toEpochMillis(DateTime.makeUnsafe(pp.createdAt ?? 0)),
+        );
         for (let i = 1; i < createdAts.length; i++) {
           expect(createdAts[i]).toBeGreaterThanOrEqual(createdAts[i - 1]!);
         }
@@ -303,8 +309,9 @@ describe("ProductPerkService.getProductPerksByProductId", () => {
     "fails with ProductPerkValidationError when the product is missing",
     Effect.gen(function* () {
       const service = yield* ProductPerkService;
+      const now = yield* Clock.currentTimeMillis;
       const error = yield* Effect.flip(
-        service.getProductPerksByProductId(`it-prod-missing-${Date.now()}`),
+        service.getProductPerksByProductId(`it-prod-missing-${now}`),
       );
       expect(error).toBeInstanceOf(ProductPerkValidationError);
     }).pipe(Effect.provide(ProductPerkService.layer), CoreAuthSession.authenticate()),
@@ -399,8 +406,9 @@ describe("ProductPerkService.createProductPerk", () => {
         const perkId = yield* seedPerk();
         track.perkIds.push(perkId);
 
+        const now = yield* Clock.currentTimeMillis;
         const error = yield* Effect.flip(
-          service.createProductPerk({ productId: `it-prod-missing-${Date.now()}`, perkId }),
+          service.createProductPerk({ productId: `it-prod-missing-${now}`, perkId }),
         );
         expect(error).toBeInstanceOf(ProductPerkValidationError);
       }),
@@ -415,8 +423,9 @@ describe("ProductPerkService.createProductPerk", () => {
         const productId = yield* seedProduct();
         track.productIds.push(productId);
 
+        const now = yield* Clock.currentTimeMillis;
         const error = yield* Effect.flip(
-          service.createProductPerk({ productId, perkId: `it-perk-missing-${Date.now()}` }),
+          service.createProductPerk({ productId, perkId: `it-perk-missing-${now}` }),
         );
         expect(error).toBeInstanceOf(ProductPerkValidationError);
 
@@ -516,8 +525,9 @@ describe("ProductPerkService.deleteProductPerk", () => {
     "fails with ProductPerkValidationError for an unknown id",
     Effect.gen(function* () {
       const service = yield* ProductPerkService;
+      const now = yield* Clock.currentTimeMillis;
       const error = yield* Effect.flip(
-        service.deleteProductPerk({ id: `it-prod-perk-missing-${Date.now()}` }),
+        service.deleteProductPerk({ id: `it-prod-perk-missing-${now}` }),
       );
       expect(error).toBeInstanceOf(ProductPerkValidationError);
     }).pipe(Effect.provide(ProductPerkService.layer), CoreAuthSession.authenticate()),

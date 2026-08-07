@@ -31,11 +31,13 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.80.7",
     "@earendil-works/pi-ai": "0.80.7",
+    "@voidhash/lib": "workspace:*",
     "@voidhash/platform": "workspace:*",
     "effect": "catalog:",
     "typebox": "1.1.38"
   },
   "devDependencies": {
+    "@effect/platform-node": "catalog:",
     "@voidhash/platform-selfhost": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "catalog:",

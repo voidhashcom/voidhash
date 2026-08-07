@@ -21,6 +21,7 @@
  * to the default panel instead of feeding an unbounded string to the sandbox.
  */
 import { SIZE_CAPS } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
+import { Effect } from "effect";
 
 /**
  * Largest panel bundle the host will load, matching the deploy contract's JS
@@ -48,30 +49,27 @@ export function __resetCatalogPanelCodeCache(): void {
   cache.clear();
 }
 
-async function loadPanelCode(
-  url: string,
-  fetchImpl: PanelCodeFetch,
-): Promise<PanelCodeOutcome> {
-  try {
-    const response = await fetchImpl(url);
-    if (!response.ok) {
-      return null;
-    }
-    // Prefer the declared length to reject an oversized body before reading it;
-    // fall back to capping the read text (a missing/lying header still can't
-    // exceed the cap because the text length is re-checked below).
-    const declared = Number(response.headers.get("content-length"));
-    if (Number.isFinite(declared) && declared > PANEL_CODE_SIZE_CAP) {
-      return null;
-    }
-    const text = await response.text();
-    if (text.length > PANEL_CODE_SIZE_CAP) {
-      return null;
-    }
-    return text;
-  } catch {
-    return null;
-  }
+function loadPanelCode(url: string, fetchImpl: PanelCodeFetch): Promise<PanelCodeOutcome> {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise(() => fetchImpl(url));
+      if (!response.ok) {
+        return null;
+      }
+      // Prefer the declared length to reject an oversized body before reading it;
+      // fall back to capping the read text (a missing/lying header still can't
+      // exceed the cap because the text length is re-checked below).
+      const declared = Number(response.headers.get("content-length"));
+      if (Number.isFinite(declared) && declared > PANEL_CODE_SIZE_CAP) {
+        return null;
+      }
+      const text = yield* Effect.tryPromise(() => response.text());
+      if (text.length > PANEL_CODE_SIZE_CAP) {
+        return null;
+      }
+      return text;
+    }).pipe(Effect.catchCause(() => Effect.succeed<PanelCodeOutcome>(null))),
+  );
 }
 
 /**

@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { Effect } from "effect";
 
 import { AuthProvider } from "@/components/auth-context";
 import { MimicSdkProvider } from "@/components/sdk-context";
@@ -8,7 +9,9 @@ export const Route = createFileRoute("/_app")({
   beforeLoad: () => {
     const credentials = getCredentials();
     if (!credentials) {
-      throw redirect({ to: "/login" });
+      // TanStack Router signals navigation by a thrown redirect; `runSync` on a
+      // defect rethrows the redirect object verbatim so the router still sees it.
+      return Effect.runSync(Effect.die(redirect({ to: "/login" })));
     }
     return { credentials };
   },

@@ -9,15 +9,15 @@ import { describe, expect, it } from "vitest";
 import { BackendSnapshotHtmlRendererLive } from "./PaywallSnapshotHtmlRenderer.ts";
 
 describe("BackendSnapshotHtmlRendererLive", () => {
-  it("renders a hydrated Mimic snapshot with release metadata", async () => {
+  it("renders a hydrated Mimic snapshot with release metadata", () => {
     const snapshot = PaywallDesignerDocument.decode(
       PaywallDesignerDocument.encode(createInitialPaywallDocumentInput()),
     )?.[0];
 
-    const html = await Effect.runPromise(
+    return Effect.runPromise(
       Effect.gen(function* () {
         const renderer = yield* SnapshotHtmlRenderer;
-        return yield* renderer.render({
+        const html = yield* renderer.render({
           componentTrees: {},
           metadata: {
             createdAt: "2026-07-11T00:00:00.000Z",
@@ -27,15 +27,15 @@ describe("BackendSnapshotHtmlRendererLive", () => {
           },
           snapshot,
         });
+
+        expect(html).toContain("<!DOCTYPE html>");
+        expect(html).toContain("VOIDHASH_PAYWALL_METADATA");
+        expect(html).toContain('"version":3');
+        expect(html).toContain("__VOIDHASH_PAYWALL__");
       }).pipe(
         Effect.catch((error) => Effect.die(error.cause)),
         Effect.provide(BackendSnapshotHtmlRendererLive),
       ),
     );
-
-    expect(html).toContain("<!DOCTYPE html>");
-    expect(html).toContain("VOIDHASH_PAYWALL_METADATA");
-    expect(html).toContain('"version":3');
-    expect(html).toContain("__VOIDHASH_PAYWALL__");
   });
 });

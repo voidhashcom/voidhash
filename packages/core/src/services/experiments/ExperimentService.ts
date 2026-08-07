@@ -1,6 +1,7 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import {
+  type ExperimentTreatmentConfig,
   type InsertExperiment,
   type PaywallLocationTreatmentConfig,
   AuditLogAction,
@@ -17,6 +18,7 @@ import {
   PaywallLocationShowingType,
   ReleaseStatus,
 } from "@voidhash/db";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import { compileVariantPayload } from "@voidhash/rpc";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -47,6 +49,37 @@ export class ExperimentServiceError extends Schema.TaggedErrorClass<ExperimentSe
  * placements it serves. `id` is present for variants that already exist and
  * absent for newly added ones.
  */
+/** Wraps an optional value into a (possibly empty) single-element list. */
+const optionalList = <A>(value: A | null | undefined): ReadonlyArray<A> => {
+  if (value === null || value === undefined) return [];
+  return [value];
+};
+
+/** A single-key object when the value is set, otherwise nothing to spread. */
+const optionalField = <K extends string, A>(
+  key: K,
+  value: A | null | undefined,
+): Partial<Record<K, A>> => {
+  const field: Partial<Record<K, A>> = {};
+  if (!value) return field;
+  field[key] = value;
+  return field;
+};
+
+/** Copies a readonly list into a mutable one, mapping an absent list to `null`. */
+const toMutableList = <A>(values: ReadonlyArray<A> | null | undefined): A[] | null => {
+  if (!values) return null;
+  return [...values];
+};
+
+/** The `archivedAt` predicate for a list query, unless archived rows are wanted. */
+const archivedFilter = (
+  includeArchived: boolean | undefined,
+): { archivedAt?: { isNull: true } } => {
+  if (includeArchived) return {};
+  return { archivedAt: { isNull: true } };
+};
+
 interface SaveVariantInput {
   readonly id?: string;
   readonly name: string;
@@ -54,9 +87,6 @@ interface SaveVariantInput {
   readonly weightBps: number;
   readonly treatments: ReadonlyArray<PaywallLocationTreatmentConfig>;
 }
-
-const paywallLocationConfig = (config: unknown): PaywallLocationTreatmentConfig =>
-  config as PaywallLocationTreatmentConfig;
 
 /**
  * `ExperimentService` is the authoring + analysis + lifecycle entry point for
@@ -81,7 +111,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
     /** Fold any infra/backing-flag error into the stable service error. */
     const toServiceError = (error: { readonly cause?: unknown; readonly message?: unknown }) =>
       Effect.fail(
-        new ExperimentServiceError({ cause: String(error.cause ?? error.message ?? error) }),
+        new ExperimentServiceError({ cause: causeMessage(error.cause ?? error.message ?? error) }),
       );
 
     /**
@@ -167,12 +197,12 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
 
     /** Distinct paywall-location ids targeted by any of the experiment's treatments. */
     const targetLocationIds = (
-      treatments: ReadonlyArray<{ treatmentType: string; config: unknown }>,
+      treatments: ReadonlyArray<{ treatmentType: string; config: ExperimentTreatmentConfig }>,
     ): string[] => {
       const ids = new Set<string>();
       for (const t of treatments) {
         if (t.treatmentType === "paywall_location") {
-          ids.add(paywallLocationConfig(t.config).paywallLocationId);
+          ids.add(t.config.paywallLocationId);
         }
       }
       return [...ids];
@@ -299,7 +329,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         const rows = yield* db.query.experiments.findMany({
           where: {
             projectId: input.projectId,
-            ...(input.includeArchived ? {} : { archivedAt: { isNull: true } }),
+            ...archivedFilter(input.includeArchived),
           },
           with: {
             treatments: { where: { archivedAt: { isNull: true } } },
@@ -405,9 +435,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         if (input.primaryMetricEventName !== undefined)
           updates.primaryMetricEventName = input.primaryMetricEventName;
         if (input.secondaryMetricEventNames !== undefined)
-          updates.secondaryMetricEventNames = input.secondaryMetricEventNames
-            ? [...input.secondaryMetricEventNames]
-            : null;
+          updates.secondaryMetricEventNames = toMutableList(input.secondaryMetricEventNames);
 
         yield* db.transaction((tx) =>
           Effect.gen(function* () {
@@ -430,7 +458,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             // traffic already bucketed into them); removed variants disappear
             // together with their placements.
             const keptIds = new Set(
-              input.variants.flatMap((v) => (v.id !== undefined ? [v.id] : [])),
+              input.variants.flatMap((v) => optionalList(v.id)),
             );
             for (const ex of existing) {
               if (!keptIds.has(ex.id)) {
@@ -523,7 +551,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         const paywallIds = new Set<string>();
         for (const treatment of experiment.treatments) {
           if (treatment.treatmentType === "paywall_location") {
-            paywallIds.add(paywallLocationConfig(treatment.config).paywallId);
+            paywallIds.add(treatment.config.paywallId);
           }
         }
         for (const paywallId of paywallIds) {
@@ -578,7 +606,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             }),
           );
 
-        const now = new Date();
+        const now = yield* DateTime.nowAsDate;
         yield* db.transaction((tx) =>
           Effect.gen(function* () {
             for (const locationId of locationIds) {
@@ -696,10 +724,11 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
               (t) =>
                 t.variantId === variantId &&
                 t.treatmentType === "paywall_location" &&
-                paywallLocationConfig(t.config).paywallLocationId === locationId,
+                t.config.paywallLocationId === locationId,
             );
           const chosen = pick(winner?.id) ?? pick(control?.id);
-          return chosen ? paywallLocationConfig(chosen.config) : null;
+          if (!chosen) return null;
+          return chosen.config;
         };
 
         // Stop assignment first.
@@ -712,7 +741,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             }),
           );
 
-        const now = new Date();
+        const now = yield* DateTime.nowAsDate;
         yield* db.transaction((tx) =>
           Effect.gen(function* () {
             for (const locationId of locationIds) {
@@ -803,7 +832,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           );
         yield* db
           .update(experiments)
-          .set({ archivedAt: new Date() })
+          .set({ archivedAt: yield* DateTime.nowAsDate })
           .where(eq(experiments.id, input.id));
         yield* auditLog
           .append({
@@ -864,8 +893,8 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           where: {
             projectId: input.projectId,
             archivedAt: { isNull: true },
-            ...(input.experimentId ? { id: input.experimentId } : {}),
-            ...(input.featureFlagId ? { featureFlagId: input.featureFlagId } : {}),
+            ...optionalField("id", input.experimentId),
+            ...optionalField("featureFlagId", input.featureFlagId),
           },
           with: {
             featureFlag: true,
@@ -876,13 +905,15 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         if (!experiment || !experiment.featureFlag) return null;
 
         const control = experiment.variants.find((v) => v.isControl);
-        const controlPayload = control
-          ? compileVariantPayload(
-              experiment.treatments
-                .filter((t) => t.variantId === control.id)
-                .map((t) => ({ treatmentType: t.treatmentType, config: t.config })),
-            )
-          : null;
+        const compileControlPayload = () => {
+          if (!control) return null;
+          return compileVariantPayload(
+            experiment.treatments
+              .filter((t) => t.variantId === control.id)
+              .map((t) => ({ treatmentType: t.treatmentType, config: t.config })),
+          );
+        };
+        const controlPayload = compileControlPayload();
 
         const results = yield* featureFlagService
           .evaluateFlagsBatch({
@@ -905,7 +936,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: toServiceError })),
     );
 
-    return {
+    return constant({
       archiveExperiment,
       assignVariant,
       concludeExperiment,
@@ -916,7 +947,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       restoreExperiment,
       saveSetup,
       startExperiment,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(ExperimentService)(ExperimentService.make);

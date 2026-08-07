@@ -27,7 +27,7 @@
  *  - Typed failures are asserted with `Effect.flip` + `instanceof`, paired with
  *    a DB-state assertion on the failure path.
  */
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import {
@@ -60,6 +60,7 @@ import {
   personIdentityMigrationJobs,
   persons,
 } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
 
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
@@ -69,9 +70,12 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
+/** Wall-clock helper — the `DateTime` equivalent of `nowMillis()`. */
+const nowMillis = (): number => DateTime.toEpochMillis(DateTime.nowUnsafe());
+
 /** Monotonic counter so distinct ids stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueDistinctId = (label: string) => `it-sdk-${label}-${Date.now()}-${seq++}`;
+const uniqueDistinctId = (label: string) => `it-sdk-${label}-${nowMillis()}-${seq++}`;
 /** Anonymous distinct ids carry the SDK's `vh:anon:` prefix. */
 const uniqueAnonId = (label: string) => `vh:anon:${uniqueDistinctId(label)}`;
 
@@ -233,6 +237,14 @@ const findPersonRow = (id: string) =>
     return yield* db.query.persons.findFirst({ where: { id } });
   });
 
+/** Reads a person row's JSON `traits` column as a plain record (empty when absent). */
+const traitsOf = (row: { readonly traits?: unknown } | undefined): Record<string, unknown> => {
+  const traits = row?.traits;
+  if (traits === null || traits === undefined) return {};
+  if (typeof traits !== "object") return {};
+  return Object.fromEntries(Object.entries(traits));
+};
+
 // =============================================================================
 // Cleanup
 // =============================================================================
@@ -253,6 +265,7 @@ const withCleanup = <E, R>(
 ): Effect.Effect<void, E, R | Db> => {
   const personIds = new Set<string>();
   const distinctIds: string[] = [];
+  const noPersonIdRows: ReadonlyArray<{ personId: string }> = [];
   const cleanup = Effect.gen(function* () {
     const db = yield* Db;
     // The identify / sync flows mint persons whose ids the test never sees
@@ -268,7 +281,7 @@ const withCleanup = <E, R>(
             inArray(personIdentities.distinctId, distinctIds),
           ),
         )
-        .pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<{ personId: string }>));
+        .pipe(Effect.orElseSucceed(() => noPersonIdRows));
       for (const row of rows) {
         personIds.add(row.personId);
       }
@@ -531,7 +544,7 @@ describe("SdkService.identifyPerson", () => {
     }).pipe(
       Effect.provide(sdkLayerNoAppStore),
       // Non-anonymous session distinct id with an unmapped target.
-      CoreAuthSession.authenticate(sdkSession(`it-sdk-identify-srcid-${Date.now()}-z`)),
+      CoreAuthSession.authenticate(sdkSession(`it-sdk-identify-srcid-${nowMillis()}-z`)),
     ),
   );
 
@@ -587,18 +600,19 @@ describe("SdkService.identifyPerson", () => {
 // syncPersonAttributes
 // =============================================================================
 
-const personMetadata = (distinctId: string) => ({
-  clientBundleId: "com.voidhash.test",
-  distinctId,
-  isBackgrounded: "false" as const,
-  isDebugBuild: "false" as const,
-  observerMode: "false" as const,
-  platform: "ios",
-  platformFlavor: "native" as const,
-  publishableKey: "pk_test",
-  sdk: "react-native" as const,
-  sdkVersion: "1.0.0",
-});
+const personMetadata = (distinctId: string) =>
+  constant({
+    clientBundleId: "com.voidhash.test",
+    distinctId,
+    isBackgrounded: "false",
+    isDebugBuild: "false",
+    observerMode: "false",
+    platform: "ios",
+    platformFlavor: "native",
+    publishableKey: "pk_test",
+    sdk: "react-native",
+    sdkVersion: "1.0.0",
+  });
 
 describe("SdkService.syncPersonAttributes", () => {
   // `syncPersonAttributes` resolves the *session's* distinct id (the metadata
@@ -632,8 +646,8 @@ describe("SdkService.syncPersonAttributes", () => {
         // Platform metadata merged into the new person's traits.
         const personRow = yield* findPersonRow(result.snapshot.personId);
         expect(personRow).toBeDefined();
-        expect((personRow?.traits as Record<string, unknown> | null)?.platform).toBe("ios");
-        expect((personRow?.traits as Record<string, unknown> | null)?.tier).toBe("gold");
+        expect(traitsOf(personRow).platform).toBe("ios");
+        expect(traitsOf(personRow).tier).toBe("gold");
       }),
     ).pipe(
       Effect.provide(sdkLayerNoAppStore),
@@ -668,7 +682,7 @@ describe("SdkService.syncPersonAttributes", () => {
         expect(result.snapshot.distinctId).toBe(syncIdentifiedDistinctId);
 
         const personRow = yield* findPersonRow(syncIdentifiedPersonId);
-        expect((personRow?.traits as Record<string, unknown> | null)?.device).toBe("phone");
+        expect(traitsOf(personRow).device).toBe("phone");
       }),
     ).pipe(
       Effect.provide(sdkLayerNoAppStore),
@@ -689,7 +703,7 @@ describe("SdkService.syncPersonAttributes", () => {
       expect(error).toBeInstanceOf(SdkPersonNotFoundError);
     }).pipe(
       Effect.provide(sdkLayerNoAppStore),
-      CoreAuthSession.authenticate(sdkSession(`it-sdk-sync-unknown-${Date.now()}-v`)),
+      CoreAuthSession.authenticate(sdkSession(`it-sdk-sync-unknown-${nowMillis()}-v`)),
     ),
   );
 
@@ -768,7 +782,7 @@ describe("SdkService.syncPersonAttributes", () => {
           setOnce: { signupSource: "paid" },
         });
         const personRow = yield* findPersonRow(first.snapshot.personId);
-        expect((personRow?.traits as Record<string, unknown> | null)?.signupSource).toBe("organic");
+        expect(traitsOf(personRow).signupSource).toBe("organic");
       }),
     ).pipe(
       Effect.provide(sdkLayerNoAppStore),

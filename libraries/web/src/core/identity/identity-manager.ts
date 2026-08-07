@@ -3,7 +3,7 @@ import { Effect, Layer, Context } from "effect";
 import type { VoidhashTraits } from "../../types";
 import { CacheManager } from "../caching/cache-manager";
 import { EventBusProvider } from "../event-bus";
-import { ApiClient } from "../networking/api-client";
+import { ApiClient, type WebSdkHeaders } from "../networking/api-client";
 import { PlatformProvider } from "../platform/platform-provider";
 import { SdkConfiguration } from "../sdk-configuration";
 
@@ -17,6 +17,34 @@ const normalizeTraits = (traits?: VoidhashTraits) => {
     return undefined;
   }
   return traits;
+};
+
+const buildIdentifyPayload = (distinctId: string, traits?: VoidhashTraits) => {
+  if (traits) {
+    return { distinctId, traits };
+  }
+
+  return { distinctId };
+};
+
+const buildPersonAttributesPayload = (input: {
+  email?: string | undefined;
+  name?: string | undefined;
+  traits?: VoidhashTraits | undefined;
+}) => {
+  const payload: { email?: string; name?: string; traits?: VoidhashTraits } = {};
+  if (input.email !== undefined) {
+    payload.email = input.email;
+  }
+  if (input.name !== undefined) {
+    payload.name = input.name;
+  }
+  const normalizedTraits = normalizeTraits(input.traits);
+  if (normalizedTraits) {
+    payload.traits = normalizedTraits;
+  }
+
+  return payload;
 };
 
 const make = Effect.gen(function* effect() {
@@ -36,12 +64,10 @@ const make = Effect.gen(function* effect() {
       publishableKey: config.publishableKey,
     });
 
-  // SDK headers match the schema shape at runtime
-  const buildHeaders = (distinctId: string) =>
-    ({
-      ...getSdkHeaders(),
-      "x-distinct-id": distinctId,
-    }) as any;
+  const buildHeaders = (distinctId: string): WebSdkHeaders => ({
+    ...getSdkHeaders(),
+    "x-distinct-id": distinctId,
+  });
 
   const initialize = (initialDistinctId?: string) =>
     Effect.gen(function* initialize() {
@@ -64,7 +90,7 @@ const make = Effect.gen(function* effect() {
   const identify = (distinctId: string, traits?: VoidhashTraits) =>
     Effect.gen(function* identify() {
       if (!currentDistinctId) {
-        throw new Error("Distinct id has not been initialized.");
+        return yield* Effect.die(new Error("Distinct id has not been initialized."));
       }
 
       const previousDistinctId = currentDistinctId;
@@ -72,7 +98,7 @@ const make = Effect.gen(function* effect() {
       const normalizedTraits = normalizeTraits(traits);
       yield* apiClient.sdk.identify({
         headers: buildHeaders(previousDistinctId),
-        payload: normalizedTraits ? { distinctId, traits: normalizedTraits } : { distinctId },
+        payload: buildIdentifyPayload(distinctId, normalizedTraits),
       });
 
       yield* cacheManager.set(DISTINCT_ID_KEY, distinctId);
@@ -87,7 +113,7 @@ const make = Effect.gen(function* effect() {
   const reset = () =>
     Effect.gen(function* reset() {
       if (!currentDistinctId) {
-        throw new Error("Distinct id has not been initialized.");
+        return yield* Effect.die(new Error("Distinct id has not been initialized."));
       }
 
       const previousDistinctId = currentDistinctId;
@@ -113,17 +139,12 @@ const make = Effect.gen(function* effect() {
   }) =>
     Effect.gen(function* setPersonAttributesSync() {
       if (!currentDistinctId) {
-        throw new Error("Distinct id has not been initialized.");
+        return yield* Effect.die(new Error("Distinct id has not been initialized."));
       }
 
-      const normalizedTraits = normalizeTraits(input.traits);
       return yield* apiClient.sdk.syncPersonAttributes({
         headers: buildHeaders(currentDistinctId),
-        payload: {
-          ...(input.email !== undefined ? { email: input.email } : {}),
-          ...(input.name !== undefined ? { name: input.name } : {}),
-          ...(normalizedTraits ? { traits: normalizedTraits } : {}),
-        },
+        payload: buildPersonAttributesPayload(input),
       });
     });
 
@@ -133,7 +154,7 @@ const make = Effect.gen(function* effect() {
     initialize,
     reset,
     setPersonAttributesSync,
-  } as const;
+  };
 });
 
 export class IdentityManager extends Context.Service<

@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -108,7 +109,7 @@ function ProjectPaywallLocationsPage() {
   );
 
   if (!project) {
-    throw new Error("Project not found");
+    return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
   const { range, tab } = Route.useSearch();

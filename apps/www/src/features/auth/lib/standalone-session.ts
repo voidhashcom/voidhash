@@ -47,10 +47,15 @@ export const verifyRootCredentials = async (input: {
   readonly password: string;
 }): Promise<boolean> => {
   const config = resolveStandaloneAuthConfig();
-  const [usernameMatches, passwordMatches] = await Promise.all([
-    Effect.runPromise(secretsMatch(input.username.trim(), config.rootUsername)),
-    Effect.runPromise(secretsMatch(input.password, config.rootPassword)),
-  ]);
+  const [usernameMatches, passwordMatches] = await Effect.runPromise(
+    Effect.all(
+      [
+        secretsMatch(input.username.trim(), config.rootUsername),
+        secretsMatch(input.password, config.rootPassword),
+      ],
+      { concurrency: "unbounded" },
+    ),
+  );
   return usernameMatches && passwordMatches;
 };
 

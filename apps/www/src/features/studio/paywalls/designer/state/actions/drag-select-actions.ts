@@ -6,7 +6,6 @@
 
 import { commander } from "../designer-commander";
 import { selectDocumentRoot } from "../utils/document-root";
-import type { DesignerStoreState } from "../designer-store-state";
 import { buildDepthMap } from "../utils/selection-level";
 import { clearSelection, selectNode } from "./selection-actions";
 

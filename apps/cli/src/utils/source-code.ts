@@ -6,8 +6,10 @@ import type { PackageJsonSchema } from "../domain/schema/package-json";
  * @param depth - The number of directory levels to go up.
  * @returns The relative path prefix (e.g., './' for 0, '../' for 1, etc.).
  */
-export const relativePathPrefixFromDepth = (depth: number) =>
-  depth === 0 ? "./" : `${"../".repeat(depth)}`;
+export const relativePathPrefixFromDepth = (depth: number) => {
+  if (depth === 0) return "./";
+  return "../".repeat(depth);
+};
 
 /**
  * Checks if the project is an Expo project.

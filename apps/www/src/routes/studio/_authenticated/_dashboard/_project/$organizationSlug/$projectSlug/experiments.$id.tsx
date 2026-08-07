@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
@@ -79,7 +80,7 @@ function ExperimentDetailPage() {
   );
 
   if (!project) {
-    throw new Error("Project not found");
+    return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
   const { data: experiment } = useSuspenseQuery(getExperimentOptions({ id: id as string }));

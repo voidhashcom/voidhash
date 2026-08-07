@@ -44,15 +44,11 @@
  * `occurredAt` by 60s so the second-precision `TIMESTAMP` watermark accepts the
  * projection update.
  */
-import { Effect, Option, Schema } from "effect";
+import { DateTime, Effect, Option, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
 import { expect } from "vitest";
 
-import {
-  type PaymentProviderConfiguration as DbPaymentProviderConfiguration,
-  type Project as DbProject,
-  Db,
-  ProviderEnvironment,
-} from "@voidhash/db";
+import { Db, ProviderEnvironment } from "@voidhash/db";
 import { ProductType } from "@voidhash/lib/constants";
 import { StripePaymentProvider } from "@voidhash/core/services/paymentProviders/stripe/payment-provider";
 // `stripe/events` + `stripe/errors` have no public package subpath, so they are
@@ -228,10 +224,16 @@ const setupStripe = (
     });
     track.configProductId = product.configProductId;
     track.productId = product.productId;
-    const configuration = yield* findConfiguration(seededConfig.configId).pipe(
-      Effect.map((row) => row as DbPaymentProviderConfiguration),
-    );
-    const project = (yield* findProjectRow()) as DbProject;
+    const configuration = yield* findConfiguration(seededConfig.configId);
+    if (!configuration) {
+      return yield* Effect.die(
+        new Error(`stripe scenario: configuration ${seededConfig.configId} was not seeded`),
+      );
+    }
+    const project = yield* findProjectRow();
+    if (!project) {
+      return yield* Effect.die(new Error(`stripe scenario: project ${projectId} is missing`));
+    }
     const stripeContext = yield* engine.buildContextFromConfiguration(configuration);
     return { configuration, engine, product, project, stripeContext };
   });
@@ -247,16 +249,17 @@ const withStripe = <E, R>(
   const track = newTrack();
   return body(track).pipe(
     Effect.ensuring(
-      Effect.suspend(() =>
-        track.configId
-          ? cleanupStripeScenario({
-              configId: track.configId,
-              configProductId: track.configProductId,
-              customerIds: track.customerIds,
-              productId: track.productId,
-            })
-          : Effect.void,
-      ),
+      Effect.suspend(() => {
+        if (!track.configId) {
+          return Effect.void;
+        }
+        return cleanupStripeScenario({
+          configId: track.configId,
+          configProductId: track.configProductId,
+          customerIds: track.customerIds,
+          productId: track.productId,
+        });
+      }),
     ),
   );
 };
@@ -322,7 +325,7 @@ const seedActiveSubscription = (
       mode: "test",
       project: ctx.project,
       providerEnvironment: ProviderEnvironment.Sandbox,
-      receivedAt: new Date(),
+      receivedAt: yield* DateTime.nowAsDate,
       source: "webhook",
       stripeContext: ctx.stripeContext,
     });
@@ -365,7 +368,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -429,11 +432,11 @@ test(
       const input = {
         configuration: ctx.configuration,
         event,
-        mode: "test" as const,
+        mode: constant("test"),
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
-        source: "webhook" as const,
+        receivedAt: yield* DateTime.nowAsDate,
+        source: constant("webhook"),
         stripeContext: ctx.stripeContext,
       };
 
@@ -489,7 +492,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -539,7 +542,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -587,7 +590,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -632,7 +635,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -656,7 +659,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -699,7 +702,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -749,7 +752,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -808,7 +811,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -885,7 +888,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -909,7 +912,7 @@ test(
         mode: "test",
         project: ctx.project,
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "webhook",
         stripeContext: ctx.stripeContext,
       });
@@ -977,7 +980,7 @@ test(
           mode: "test",
           project: ctx.project,
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
           stripeContext: ctx.stripeContext,
         }),
@@ -1029,7 +1032,7 @@ test(
           mode: "test",
           project: ctx.project,
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
           stripeContext: ctx.stripeContext,
         }),

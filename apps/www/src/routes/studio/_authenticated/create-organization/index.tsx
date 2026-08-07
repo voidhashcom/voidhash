@@ -7,9 +7,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Form,
   FormControl,
   FormField,
@@ -57,7 +54,7 @@ function CreateOrganizationPage() {
     onSuccess: (data) => {
       toast.success("Organization created successfully");
       addCreatedOrganizationToCurrentUserCache(queryClient, data);
-      navigate({
+      void navigate({
         params: {
           organizationSlug: data.slug,
         },

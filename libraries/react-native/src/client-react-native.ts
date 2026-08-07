@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { Effect } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
@@ -38,7 +39,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
       : Constants.expoConfig?.scheme?.[0]);
 
   if (!scheme) {
-    throw new SchemeNotSetError();
+    return Effect.runSync(Effect.die(new SchemeNotSetError()));
   }
 
   const atomRegistry = AtomRegistry.make();

@@ -1,3 +1,4 @@
+import { Effect, Schema as EffectSchema } from "effect";
 import { materializeDefault } from "@voidhash/mimic-core";
 import type {
   ArraySchema,
@@ -8,12 +9,34 @@ import type {
   TreeSchema,
   TreeVariantSchema,
   UnionSchema,
+  Value,
 } from "@voidhash/mimic-core";
 
 import type { AnalyzeMigrationOptions, SchemaMigrationCompatibilityIssue } from "./types.ts";
 
-const pathToString = (path: readonly string[]): string =>
-  path.length === 0 ? "root" : `root.${path.join(".")}`;
+/** JSON codec used to render literal values inside diagnostic messages. */
+const encodeJson = EffectSchema.encodeSync(EffectSchema.fromJsonString(EffectSchema.Unknown));
+
+const pathToString = (path: readonly string[]): string => {
+  if (path.length === 0) return "root";
+  return `root.${path.join(".")}`;
+};
+
+/**
+ * Materializes a field default, treating a schema that cannot produce one as
+ * "no default" rather than propagating the failure.
+ */
+const materializeDefaultOrUndefined = (schema: Schema): Value | undefined =>
+  Effect.runSync(
+    Effect.try(() => materializeDefault(schema)).pipe(Effect.orElseSucceed(() => undefined)),
+  );
+
+const isLiteralSchema = (schema: Schema): schema is LiteralSchema => schema.kind === "literal";
+const isObjectSchema = (schema: Schema): schema is ObjectSchema => schema.kind === "object";
+const isArraySchema = (schema: Schema): schema is ArraySchema => schema.kind === "array";
+const isUnionSchema = (schema: Schema): schema is UnionSchema => schema.kind === "union";
+const isEitherSchema = (schema: Schema): schema is EitherSchema => schema.kind === "either";
+const isTreeSchema = (schema: Schema): schema is TreeSchema => schema.kind === "tree";
 
 const pushIssue = (
   issues: SchemaMigrationCompatibilityIssue[],
@@ -37,12 +60,7 @@ const analyzeObject = (
   for (const [key, newField] of Object.entries(newSchema.fields)) {
     const oldField = oldSchema.fields[key];
     if (!oldField) {
-      let defaultValue;
-      try {
-        defaultValue = materializeDefault(newField);
-      } catch {
-        defaultValue = undefined;
-      }
+      const defaultValue = materializeDefaultOrUndefined(newField);
       if (newField.required === true && defaultValue === undefined) {
         pushIssue(
           issues,
@@ -195,35 +213,37 @@ const analyzeSchemaCompatibility = (
     case "boolean":
       return;
     case "literal": {
-      const oldLiteral = oldSchema as LiteralSchema;
-      const newLiteral = newSchema as LiteralSchema;
-      if (oldLiteral.value !== newLiteral.value) {
+      if (!isLiteralSchema(newSchema)) return;
+      if (oldSchema.value !== newSchema.value) {
         pushIssue(
           issues,
           "incompatible-type",
           path,
-          `Literal changed from ${JSON.stringify(oldLiteral.value)} to ${JSON.stringify(newLiteral.value)}`,
+          `Literal changed from ${encodeJson(oldSchema.value)} to ${encodeJson(newSchema.value)}`,
         );
       }
       return;
     }
     case "object":
-      analyzeObject(oldSchema as ObjectSchema, newSchema as ObjectSchema, path, issues);
+      if (!isObjectSchema(newSchema)) return;
+      analyzeObject(oldSchema, newSchema, path, issues);
       return;
     case "array": {
-      const oldArray = oldSchema as ArraySchema;
-      const newArray = newSchema as ArraySchema;
-      analyzeSchemaCompatibility(oldArray.element, newArray.element, [...path, "element"], issues);
+      if (!isArraySchema(newSchema)) return;
+      analyzeSchemaCompatibility(oldSchema.element, newSchema.element, [...path, "element"], issues);
       return;
     }
     case "union":
-      analyzeUnion(oldSchema as UnionSchema, newSchema as UnionSchema, path, issues);
+      if (!isUnionSchema(newSchema)) return;
+      analyzeUnion(oldSchema, newSchema, path, issues);
       return;
     case "either":
-      analyzeEither(oldSchema as EitherSchema, newSchema as EitherSchema, path, issues);
+      if (!isEitherSchema(newSchema)) return;
+      analyzeEither(oldSchema, newSchema, path, issues);
       return;
     case "tree":
-      analyzeTree(oldSchema as TreeSchema, newSchema as TreeSchema, path, issues);
+      if (!isTreeSchema(newSchema)) return;
+      analyzeTree(oldSchema, newSchema, path, issues);
       return;
   }
 };

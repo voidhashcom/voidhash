@@ -1,9 +1,8 @@
-import { applyBatch, type TreeValue } from "@voidhash/mimic-core";
+import { applyBatch, treeValue, type TreeValue, type Value } from "@voidhash/mimic-core";
 import { PaywallDesignerDocument } from "@voidhash/mimic-schema";
-import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { describe, expect, test } from "vite-plus/test";
 
-import { readComponentDefinitions } from "./snapshot.ts";
+import { readComponentDefinitions, type DocumentSnapshotNode } from "./snapshot.ts";
 import {
   lowerComponentDelete,
   lowerComponentMove,
@@ -11,10 +10,17 @@ import {
   validateComponentFileName,
 } from "./write.ts";
 
-const enc = (input: unknown): TreeValue =>
-  PaywallDesignerDocument.encode(input as never) as TreeValue;
-const decode = (tree: TreeValue): readonly SnapshotNode[] =>
-  PaywallDesignerDocument.decode(tree)! as readonly SnapshotNode[];
+/** Narrow an encoded/applied mimic value to the tree it always is in these tests. */
+const asTree = (value: Value | undefined): TreeValue => {
+  if (value?.kind === "tree") {
+    return value;
+  }
+  return treeValue([]);
+};
+
+const enc = (input: unknown): TreeValue => asTree(PaywallDesignerDocument.encodeOptional(input));
+const decode = (tree: TreeValue): readonly DocumentSnapshotNode[] =>
+  PaywallDesignerDocument.decode(tree) ?? [];
 
 const docWithComponent = (source: string): TreeValue =>
   enc([
@@ -79,7 +85,10 @@ const instanceComponentPath = (tree: TreeValue): string | undefined => {
     (n) => n.value.fields.type?.kind === "string" && n.value.fields.type.value === "component",
   );
   const field = node?.value.fields.componentPath;
-  return field && field.kind === "string" ? field.value : undefined;
+  if (field?.kind === "string") {
+    return field.value;
+  }
+  return undefined;
 };
 
 describe("lowerComponentMove", () => {
@@ -89,7 +98,7 @@ describe("lowerComponentMove", () => {
     expect(result.kind).toBe("commands");
     if (result.kind !== "commands") return;
 
-    const applied = applyBatch(live, result.commands) as TreeValue;
+    const applied = asTree(applyBatch(live, result.commands));
     // The definition is at the new path; the old path is gone.
     expect(readComponentDefinitions(decode(applied)).map((d) => d.path).sort()).toEqual([
       "components/hero-banner.tsx",
@@ -102,10 +111,11 @@ describe("lowerComponentMove", () => {
   test("re-points instances in one command batch (no orphaned reference)", () => {
     const live = docWithTwoComponentsAndInstance();
     const result = lowerComponentMove(live, "components/hero.tsx", "components/hero-banner.tsx");
-    if (result.kind !== "commands") throw new Error("expected commands");
+    expect(result.kind).toBe("commands");
+    if (result.kind !== "commands") return;
     // The single reconcile batch carries both the definition repath and the
     // instance re-point — applying it leaves no reference to the old path.
-    const applied = applyBatch(live, result.commands) as TreeValue;
+    const applied = asTree(applyBatch(live, result.commands));
     const referencesOldPath = applied.nodes.some(
       (n) =>
         n.value.fields.componentPath?.kind === "string" &&
@@ -156,7 +166,7 @@ describe("lowerComponentDelete", () => {
     expect(result.kind).toBe("commands");
     if (result.kind !== "commands") return;
 
-    const applied = applyBatch(live, result.commands) as TreeValue;
+    const applied = asTree(applyBatch(live, result.commands));
     const definitions = readComponentDefinitions(decode(applied));
     expect(definitions.map((d) => d.path)).toEqual(["components/hero.tsx"]);
   });
@@ -164,9 +174,10 @@ describe("lowerComponentDelete", () => {
   test("does NOT cascade-delete component instance nodes referencing the deleted component", () => {
     const live = docWithTwoComponentsAndInstance();
     const result = lowerComponentDelete(live, "components/hero.tsx");
-    if (result.kind !== "commands") throw new Error("expected commands");
+    expect(result.kind).toBe("commands");
+    if (result.kind !== "commands") return;
 
-    const applied = applyBatch(live, result.commands) as TreeValue;
+    const applied = asTree(applyBatch(live, result.commands));
     // The `component` INSTANCE node under the screen survives (degrades to a
     // placeholder in the designer) — matching the browser's removeCodeComponent.
     const instanceSurvives = applied.nodes.some(

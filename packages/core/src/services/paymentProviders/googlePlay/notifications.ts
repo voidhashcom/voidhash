@@ -8,7 +8,7 @@
  * authoritative state fetch — the webhook handler re-fetches purchase state
  * from the Play Developer API because RTDN bodies are pointers, not state.
  *
- * Base64 decode uses `atob`/`TextDecoder` (Workers-safe — no `Buffer`).
+ * Base64 decode goes through `Encoding` (Workers-safe — no `Buffer`).
  */
 import {
   DeveloperNotification,
@@ -16,7 +16,7 @@ import {
   GooglePlayNotificationVerificationError,
   type SubscriptionNotificationTypeValue,
 } from "@voidhash/google-play-server-sdk";
-import { Effect, Schema } from "effect";
+import { Effect, Encoding, Schema } from "effect";
 
 /** Subscription notification type code → name (RTDN `subscriptionNotification.notificationType`). */
 export const SUBSCRIPTION_NOTIFICATION_TYPES: Record<SubscriptionNotificationTypeValue, string> = {
@@ -99,38 +99,34 @@ export const PubSubMessage = Schema.Struct({
 
 export type PubSubMessage = typeof PubSubMessage.Type;
 
-/** Workers-safe base64 → UTF-8 decode (no `Buffer`). */
-const decodeBase64ToUtf8 = (base64: string): string => {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new TextDecoder().decode(bytes);
-};
-
 /**
  * Decodes a base64-encoded RTDN `message.data` payload into a validated
  * {@link DeveloperNotification}.
  */
 export const decodeNotificationFromBase64 = (messageData: string) =>
   Effect.gen(function* () {
-    const decodedString = yield* Effect.try({
-      try: () => decodeBase64ToUtf8(messageData),
-      catch: (error) =>
-        new GooglePlayNotificationVerificationError({
-          message: `Failed to decode base64 message: ${String(error)}`,
-        }),
-    });
+    const decodedString = yield* Effect.fromResult(
+      Encoding.decodeBase64String(messageData),
+    ).pipe(
+      Effect.mapError(
+        (error) =>
+          new GooglePlayNotificationVerificationError({
+            message: `Failed to decode base64 message: ${String(error)}`,
+          }),
+      ),
+    );
 
-    const parsedJson = yield* Effect.try({
-      try: () => JSON.parse(decodedString) as unknown,
-      catch: (error) =>
-        new GooglePlayInvalidNotificationError({
-          message: `Failed to parse notification JSON: ${String(error)}`,
-          rawNotification: decodedString,
-        }),
-    });
+    const parsedJson = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(
+      decodedString,
+    ).pipe(
+      Effect.mapError(
+        (parseError) =>
+          new GooglePlayInvalidNotificationError({
+            message: `Failed to parse notification JSON: ${parseError.message}`,
+            rawNotification: decodedString,
+          }),
+      ),
+    );
 
     return yield* Schema.decodeUnknownEffect(DeveloperNotification)(parsedJson).pipe(
       Effect.mapError(
@@ -158,6 +154,12 @@ export const parseNotificationFromPubSubMessage = (pubsubMessage: unknown) =>
     return yield* decodeNotificationFromBase64(message.message.data);
   });
 
+/**
+ * RTDN delivers the subscription notification code as a plain number; unknown
+ * codes fall through to the `"UNKNOWN"` name below.
+ */
+const asSubscriptionNotificationType = (code: any): SubscriptionNotificationTypeValue => code;
+
 /** Converts a {@link DeveloperNotification} into a typed {@link DecodedNotification}. */
 export const categorizeNotification = (notification: typeof DeveloperNotification.Type) =>
   Effect.gen(function* () {
@@ -165,7 +167,7 @@ export const categorizeNotification = (notification: typeof DeveloperNotificatio
 
     if (notification.subscriptionNotification) {
       const subNotif = notification.subscriptionNotification;
-      const notificationType = subNotif.notificationType as SubscriptionNotificationTypeValue;
+      const notificationType = asSubscriptionNotificationType(subNotif.notificationType);
       return {
         type: "subscription",
         packageName,

@@ -1,5 +1,11 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
+import { Data, Effect } from "effect";
 import { Type } from "typebox";
+
+/** Raised when the model asks for a skill the source does not expose. */
+export class UnknownSkillError extends Data.TaggedError("UnknownSkillError")<{
+  readonly message: string;
+}> {}
 
 /** Metadata disclosed to an agent before a skill body is loaded. */
 export interface SkillMetadata {
@@ -40,16 +46,20 @@ export const makeReadSkillTool = (
   description:
     "Read the complete instructions for one available skill. Call this before using a relevant skill.",
   parameters: ReadSkillParameters,
-  execute: async (_toolCallId, input) => {
-    const body = source.read(input.name);
-    if (body === undefined) {
-      throw new Error(`Unknown skill: ${input.name}`);
-    }
-    return {
-      content: [{ type: "text", text: body }],
-      details: { name: input.name },
-    };
-  },
+  execute: (_toolCallId, input) =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const body = source.read(input.name);
+        if (body === undefined) {
+          return yield* new UnknownSkillError({ message: `Unknown skill: ${input.name}` });
+        }
+        const result: AgentToolResult<{ readonly name: string }> = {
+          content: [{ type: "text", text: body }],
+          details: { name: input.name },
+        };
+        return result;
+      }),
+    ),
 });
 
 const escapeXml = (value: string): string =>

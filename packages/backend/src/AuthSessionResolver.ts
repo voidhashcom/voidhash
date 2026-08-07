@@ -17,7 +17,7 @@ import {
 } from "@voidhash/rpc";
 import type { Db } from "@voidhash/db";
 import * as HttpHeaders from "effect/unstable/http/Headers";
-import { Effect, Option } from "effect";
+import { Effect, Inspectable, Option } from "effect";
 
 /** Union of the terminal failures session resolution can raise. */
 export type RpcAuthFailure = RpcAuthenticationError | RpcNotAuthenticatedError;
@@ -47,15 +47,13 @@ const formatUnknownCause = (cause: unknown): string => {
     return cause;
   }
 
-  try {
-    return JSON.stringify(cause);
-  } catch {
-    return String(cause);
-  }
+  return Inspectable.toStringUnknown(cause, 0);
 };
 
-const getDbErrorCause = (error: DbError): string =>
-  error.cause === undefined ? error.message : formatUnknownCause(error.cause);
+const getDbErrorCause = (error: DbError): string => {
+  if (error.cause === undefined) return error.message;
+  return formatUnknownCause(error.cause);
+};
 
 /**
  * Logs the underlying DB error and re-fails as a stable
@@ -139,11 +137,11 @@ export const resolveUserSession = (
       Effect.gen(function* () {
         const localUser = yield* localUserSessions.resolveLocalUser(identity);
 
-        yield* !identity.externalId
-          ? identityProvider
-              .linkExternalId(identity.id, localUser.id)
-              .pipe(Effect.catch(() => Effect.void))
-          : Effect.void;
+        if (!identity.externalId) {
+          yield* identityProvider
+            .linkExternalId(identity.id, localUser.id)
+            .pipe(Effect.catch(() => Effect.void));
+        }
 
         const access = yield* localUserSessions.loadUserAccess(localUser.id);
         return localUserSessions.toUserSession(localUser, access, cookie, identity.id);

@@ -3,15 +3,15 @@ import { CurrentUser, DatabasesRpcs, ForbiddenError } from "@voidhash/mimic-serv
 
 import { HostServiceTag } from "../../app/hostService.ts";
 
-const requireSuperuser = (user: { isSuperuser: boolean }, action: string) =>
-  user.isSuperuser
-    ? Effect.void
-    : Effect.fail(
-        new ForbiddenError({
-          code: "forbidden",
-          message: `Superuser permission required for ${action}`,
-        }),
-      );
+const requireSuperuser = (user: { isSuperuser: boolean }, action: string) => {
+  if (user.isSuperuser) return Effect.void;
+  return Effect.fail(
+    new ForbiddenError({
+      code: "forbidden",
+      message: `Superuser permission required for ${action}`,
+    }),
+  );
+};
 
 export const DatabasesHandlersLive = DatabasesRpcs.toLayer(
   Effect.gen(function* () {

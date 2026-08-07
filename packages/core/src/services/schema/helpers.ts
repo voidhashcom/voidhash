@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { subtle } from "uncrypto";
 
 import type { SchemaProviderId } from "../../domain/schema/Schema.ts";
@@ -55,9 +55,9 @@ export const mapDbProviderIdToSchemaProviderId = (dbProviderId: string): SchemaP
  * (the legacy implementation used `node:crypto`).
  */
 export const computeSchemaVersion = (projection: SchemaProjection): Effect.Effect<string> =>
-  Effect.promise(async () => {
-    // Field order matches the CLI emit. Per Node docs, `JSON.stringify`
-    // preserves insertion order for non-integer string keys.
+  Effect.gen(function* () {
+    // Field order matches the CLI emit. The JSON codec below serialises in
+    // insertion order for non-integer string keys, byte-for-byte as the CLI does.
     const products = [...projection.products]
       .map((product) => ({
         name: product.name,
@@ -85,8 +85,14 @@ export const computeSchemaVersion = (projection: SchemaProjection): Effect.Effec
       .map((perk) => ({ name: perk.name, slug: perk.slug }))
       .sort((a, b) => a.slug.localeCompare(b.slug));
 
-    const payload = JSON.stringify({ locations, perks, products });
-    const hashBuffer = await subtle.digest("SHA-256", new TextEncoder().encode(payload));
+    const payload = Schema.encodeSync(Schema.UnknownFromJsonString)({
+      locations,
+      perks,
+      products,
+    });
+    const hashBuffer = yield* Effect.promise(() =>
+      subtle.digest("SHA-256", new TextEncoder().encode(payload)),
+    );
     const hashHex = [...new Uint8Array(hashBuffer)]
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");

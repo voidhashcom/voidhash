@@ -3,6 +3,7 @@ import {
   buildScreenContainerStyles,
   buildViewStyles,
 } from "@voidhash/paywall-renderer-web-core";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -28,7 +29,7 @@ function makeDesignerDoc() {
   let viewId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     viewId = screen.children.insertLast({ type: "view", name: "Card" }).id;
   });
   return { doc, viewId, screenId };
@@ -45,7 +46,7 @@ const apply = (doc: OfflineDesignerDocument, target: StyleTarget, style: Record<
 function effectiveStyle(doc: OfflineDesignerDocument, nodeId: string): Record<string, unknown> {
   const root = documentRootFromSnapshot(doc.getSnapshot());
   const node = findNodeById<SnapshotNode>(root as never, nodeId);
-  if (!node) throw new Error("expected the node in the snapshot");
+  if (!node) return Effect.runSync(Effect.die(new Error("expected the node in the snapshot")));
   return resolveEffectiveStyle(node as never, null);
 }
 

@@ -39,7 +39,7 @@ export const copyAction: ContextMenuAction = {
     return hasCopiableSelection(ctx.selection.selectedNodeTypes);
   },
   execute: (_ctx, dispatch) => {
-    dispatch(copyNodes)({});
+    void dispatch(copyNodes)({});
   },
 };
 
@@ -57,7 +57,7 @@ export const cutAction: ContextMenuAction = {
     return hasCopiableSelection(ctx.selection.selectedNodeTypes);
   },
   execute: (_ctx, dispatch) => {
-    dispatch(cutNodes)({});
+    void dispatch(cutNodes)({});
   },
 };
 
@@ -77,7 +77,7 @@ export const pasteAction: ContextMenuAction = {
     return true;
   },
   execute: (_ctx, dispatch) => {
-    dispatch(pasteNodes)({});
+    void dispatch(pasteNodes)({});
   },
 };
 

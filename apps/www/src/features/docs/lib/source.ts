@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { loader } from "fumadocs-core/source";
 import * as icons from "lucide-static";
 
@@ -14,20 +15,22 @@ let sourcePromise: Promise<DocsSource> | undefined;
  * so `toFumadocsSource()` is synchronous here; the promise memoizes the loader.
  */
 export const getSource = (): Promise<DocsSource> => {
-  sourcePromise ??= Promise.resolve(
-    loader({
-      baseUrl: DOCS_PATH,
-      icon(icon) {
-        if (!icon) {
-          return;
-        }
+  sourcePromise ??= Effect.runPromise(
+    Effect.sync(() =>
+      loader({
+        baseUrl: DOCS_PATH,
+        icon(icon) {
+          if (!icon) {
+            return;
+          }
 
-        if (icon in icons) {
-          return icons[icon as keyof typeof icons] as unknown as React.ReactElement;
-        }
-      },
-      source: docs.toFumadocsSource(),
-    }),
+          if (icon in icons) {
+            return icons[icon as keyof typeof icons] as unknown as React.ReactElement;
+          }
+        },
+        source: docs.toFumadocsSource(),
+      }),
+    ),
   );
 
   return sourcePromise;

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vite-plus/test";
+import { DateTime, Effect, Schema } from "effect";
 
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
+import { constant } from "@voidhash/lib/lang";
 
 import type {
   CapturedEventV1Type,
@@ -20,6 +21,9 @@ import {
   toProcessorPersonEvent,
   toProcessorPersonIdentityEvents,
 } from "../../../src/services/analyticsIngest/EventProcessorService.ts";
+import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
+
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 const PROJECT_ID = "prj_test";
 const ORG_ID = "org_test";
@@ -58,7 +62,7 @@ const transportRecord = (
   capturedEvent: overrides.capturedEvent ?? capturedEvent(),
   headers: {},
   lane: "main",
-  rawValue: JSON.stringify(overrides.capturedEvent ?? capturedEvent()),
+  rawValue: encodeJson(overrides.capturedEvent ?? capturedEvent()),
   sourceOffset: "off_1",
   sourcePartition: 0,
   sourceTopic: SOURCE_TOPIC,
@@ -100,7 +104,7 @@ const processingEvent = (overrides: Partial<ProcessingEvent> = {}): ProcessingEv
   ...overrides,
 });
 
-const NOW = new Date("2026-01-01T00:00:00.000Z");
+const NOW = DateTime.toDateUtc(DateTime.makeUnsafe("2026-01-01T00:00:00.000Z"));
 
 describe("attachProjectPolicy", () => {
   it("returns ok:true with a ProcessingEvent when every validation passes", () => {
@@ -187,7 +191,9 @@ describe("attachProjectPolicy", () => {
   it("rejects the historical lane when processorAllowHistorical is false", () => {
     // A well-formed historical record requires isHistorical=true and an event old
     // enough to clear the min-age gate, so the lane check is what trips first.
-    const oldTimestamp = new Date(NOW.getTime() - 48 * 60 * 60 * 1000).toISOString();
+    const oldTimestamp = DateTime.formatIso(
+      DateTime.makeUnsafe(NOW.getTime() - 48 * 60 * 60 * 1000),
+    );
     const record = transportRecord({
       capturedEvent: capturedEvent({
         eventTimestamp: oldTimestamp,
@@ -235,212 +241,244 @@ describe("attachProjectPolicy", () => {
 });
 
 describe("buildPersonIdentityCall", () => {
-  it("returns kind:'identify' when the event is $identify", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          event: "$identify",
-          distinctId: "identified_user",
-          properties: { $previous_distinct_id: "anon_123" },
-        }),
-      }),
-    );
-
-    expect(call.kind).toBe("identify");
-    if (call.kind === "identify") {
-      expect(call.input.distinctId).toBe("identified_user");
-      expect(call.input.projectId).toBe(PROJECT_ID);
-      expect(call.input.eventTimestamp).toEqual(new Date(EVENT_TS));
-    }
-  });
-
-  it("includes previousDistinctId from $previous_distinct_id for $identify", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          event: "$identify",
-          properties: { $previous_distinct_id: "anon_prev" },
-        }),
-      }),
-    );
-
-    expect(call.kind).toBe("identify");
-    if (call.kind === "identify") {
-      expect(call.input.previousDistinctId).toBe("anon_prev");
-    }
-  });
-
-  it("throws when $identify is missing $previous_distinct_id", () => {
-    expect(() =>
-      buildPersonIdentityCall(
+  it.effect("returns kind:'identify' when the event is $identify", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
         processingEvent({
-          capturedEvent: capturedEvent({ event: "$identify", properties: {} }),
+          capturedEvent: capturedEvent({
+            event: "$identify",
+            distinctId: "identified_user",
+            properties: { $previous_distinct_id: "anon_123" },
+          }),
         }),
-      ),
-    ).toThrow("$previous_distinct_id");
-  });
+      );
 
-  it("returns kind:'resolve' for non-$identify events", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({ capturedEvent: capturedEvent({ event: "page_view" }) }),
-    );
+      expect(call.kind).toBe("identify");
+      if (call.kind === "identify") {
+        expect(call.input.distinctId).toBe("identified_user");
+        expect(call.input.projectId).toBe(PROJECT_ID);
+        expect(call.input.eventTimestamp).toEqual(
+          DateTime.toDateUtc(DateTime.makeUnsafe(EVENT_TS)),
+        );
+      }
+    }),
+  );
 
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.distinctId).toBe("user_1");
-      expect(call.input.projectId).toBe(PROJECT_ID);
-    }
-  });
-
-  it("parses name/email and set/setOnce attributes from $set and $set_once", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          properties: {
-            $set: { name: "Ada", plan: "pro" },
-            $set_once: { email: "ada@example.com", signup_source: "web" },
-          },
-        }),
-      }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.name).toBe("Ada");
-      expect(call.input.email).toBe("ada@example.com");
-      expect(call.input.setAttributes).toEqual({ plan: "pro" });
-      expect(call.input.setOnceAttributes).toEqual({ signup_source: "web" });
-    }
-  });
-
-  it("excludes name and email from setAttributes and setOnceAttributes", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          properties: {
-            $set: { name: "Ada", email: "a@b.co", plan: "pro" },
-            $set_once: { name: "Once", email: "x@y.co", region: "eu" },
-          },
-        }),
-      }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.setAttributes).not.toHaveProperty("name");
-      expect(call.input.setAttributes).not.toHaveProperty("email");
-      expect(call.input.setOnceAttributes).not.toHaveProperty("name");
-      expect(call.input.setOnceAttributes).not.toHaveProperty("email");
-      expect(call.input.setAttributes).toEqual({ plan: "pro" });
-      expect(call.input.setOnceAttributes).toEqual({ region: "eu" });
-    }
-  });
-
-  it("reads traits from a nested `properties.properties` envelope", () => {
-    // extractInnerProperties unwraps one level when properties.properties is a plain object.
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          properties: { properties: { $set: { name: "Inner" } } },
-        }),
-      }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.name).toBe("Inner");
-    }
-  });
-
-  it("defaults shouldCreatePerson to false for an anonymous distinct id", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({ distinctId: `${ANONYMOUS_USER_ID_PREFIX}abc` }),
-      }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.shouldCreatePerson).toBe(false);
-    }
-  });
-
-  it("defaults shouldCreatePerson to true for a non-anonymous distinct id", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({ capturedEvent: capturedEvent({ distinctId: "real_user" }) }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.shouldCreatePerson).toBe(true);
-    }
-  });
-
-  it("honors an explicit $process_person_profile over the distinct-id default", () => {
-    // Anonymous id would default to false, but the explicit flag wins.
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          distinctId: `${ANONYMOUS_USER_ID_PREFIX}abc`,
-          properties: { $process_person_profile: true },
-        }),
-      }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.shouldCreatePerson).toBe(true);
-    }
-  });
-
-  it("empties enrichment attributes when routing.skipEnrichment is true", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          properties: { $set: { plan: "pro" }, $set_once: { region: "eu" } },
-          routing: {
-            routeClass: "main",
-            targetTopic: SOURCE_TOPIC,
-            isHistorical: false,
-            skipEnrichment: true,
-          },
-        }),
-      }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.setAttributes).toEqual({});
-      expect(call.input.setOnceAttributes).toEqual({});
-    }
-  });
-
-  it("empties enrichment attributes when processorPersonProcessingEnabled is false", () => {
-    const call = buildPersonIdentityCall(
-      processingEvent({
-        capturedEvent: capturedEvent({
-          properties: { $set: { plan: "pro" }, $set_once: { region: "eu" } },
-        }),
-        projectPolicy: policy({ processorPersonProcessingEnabled: false }),
-      }),
-    );
-
-    expect(call.kind).toBe("resolve");
-    if (call.kind === "resolve") {
-      expect(call.input.setAttributes).toEqual({});
-      expect(call.input.setOnceAttributes).toEqual({});
-    }
-  });
-
-  it("throws when $set is present but not an object (parsePersonTraits failure)", () => {
-    expect(() =>
-      buildPersonIdentityCall(
+  it.effect("includes previousDistinctId from $previous_distinct_id for $identify", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
         processingEvent({
-          capturedEvent: capturedEvent({ properties: { $set: "not-an-object" } }),
+          capturedEvent: capturedEvent({
+            event: "$identify",
+            properties: { $previous_distinct_id: "anon_prev" },
+          }),
         }),
-      ),
-    ).toThrow("$set must be an object");
-  });
+      );
+
+      expect(call.kind).toBe("identify");
+      if (call.kind === "identify") {
+        expect(call.input.previousDistinctId).toBe("anon_prev");
+      }
+    }),
+  );
+
+  it.effect("fails when $identify is missing $previous_distinct_id", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        buildPersonIdentityCall(
+          processingEvent({
+            capturedEvent: capturedEvent({ event: "$identify", properties: {} }),
+          }),
+        ),
+      );
+
+      expect(error.message).toContain("$previous_distinct_id");
+    }),
+  );
+
+  it.effect("returns kind:'resolve' for non-$identify events", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({ capturedEvent: capturedEvent({ event: "page_view" }) }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.distinctId).toBe("user_1");
+        expect(call.input.projectId).toBe(PROJECT_ID);
+      }
+    }),
+  );
+
+  it.effect("parses name/email and set/setOnce attributes from $set and $set_once", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({
+          capturedEvent: capturedEvent({
+            properties: {
+              $set: { name: "Ada", plan: "pro" },
+              $set_once: { email: "ada@example.com", signup_source: "web" },
+            },
+          }),
+        }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.name).toBe("Ada");
+        expect(call.input.email).toBe("ada@example.com");
+        expect(call.input.setAttributes).toEqual({ plan: "pro" });
+        expect(call.input.setOnceAttributes).toEqual({ signup_source: "web" });
+      }
+    }),
+  );
+
+  it.effect("excludes name and email from setAttributes and setOnceAttributes", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({
+          capturedEvent: capturedEvent({
+            properties: {
+              $set: { name: "Ada", email: "a@b.co", plan: "pro" },
+              $set_once: { name: "Once", email: "x@y.co", region: "eu" },
+            },
+          }),
+        }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.setAttributes).not.toHaveProperty("name");
+        expect(call.input.setAttributes).not.toHaveProperty("email");
+        expect(call.input.setOnceAttributes).not.toHaveProperty("name");
+        expect(call.input.setOnceAttributes).not.toHaveProperty("email");
+        expect(call.input.setAttributes).toEqual({ plan: "pro" });
+        expect(call.input.setOnceAttributes).toEqual({ region: "eu" });
+      }
+    }),
+  );
+
+  it.effect("reads traits from a nested `properties.properties` envelope", () =>
+    Effect.gen(function* () {
+      // extractInnerProperties unwraps one level when properties.properties is a plain object.
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({
+          capturedEvent: capturedEvent({
+            properties: { properties: { $set: { name: "Inner" } } },
+          }),
+        }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.name).toBe("Inner");
+      }
+    }),
+  );
+
+  it.effect("defaults shouldCreatePerson to false for an anonymous distinct id", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({
+          capturedEvent: capturedEvent({ distinctId: `${ANONYMOUS_USER_ID_PREFIX}abc` }),
+        }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.shouldCreatePerson).toBe(false);
+      }
+    }),
+  );
+
+  it.effect("defaults shouldCreatePerson to true for a non-anonymous distinct id", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({ capturedEvent: capturedEvent({ distinctId: "real_user" }) }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.shouldCreatePerson).toBe(true);
+      }
+    }),
+  );
+
+  it.effect("honors an explicit $process_person_profile over the distinct-id default", () =>
+    Effect.gen(function* () {
+      // Anonymous id would default to false, but the explicit flag wins.
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({
+          capturedEvent: capturedEvent({
+            distinctId: `${ANONYMOUS_USER_ID_PREFIX}abc`,
+            properties: { $process_person_profile: true },
+          }),
+        }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.shouldCreatePerson).toBe(true);
+      }
+    }),
+  );
+
+  it.effect("empties enrichment attributes when routing.skipEnrichment is true", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({
+          capturedEvent: capturedEvent({
+            properties: { $set: { plan: "pro" }, $set_once: { region: "eu" } },
+            routing: {
+              routeClass: "main",
+              targetTopic: SOURCE_TOPIC,
+              isHistorical: false,
+              skipEnrichment: true,
+            },
+          }),
+        }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.setAttributes).toEqual({});
+        expect(call.input.setOnceAttributes).toEqual({});
+      }
+    }),
+  );
+
+  it.effect("empties enrichment attributes when processorPersonProcessingEnabled is false", () =>
+    Effect.gen(function* () {
+      const call = yield* buildPersonIdentityCall(
+        processingEvent({
+          capturedEvent: capturedEvent({
+            properties: { $set: { plan: "pro" }, $set_once: { region: "eu" } },
+          }),
+          projectPolicy: policy({ processorPersonProcessingEnabled: false }),
+        }),
+      );
+
+      expect(call.kind).toBe("resolve");
+      if (call.kind === "resolve") {
+        expect(call.input.setAttributes).toEqual({});
+        expect(call.input.setOnceAttributes).toEqual({});
+      }
+    }),
+  );
+
+  it.effect("fails when $set is present but not an object (parsePersonTraits failure)", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        buildPersonIdentityCall(
+          processingEvent({
+            capturedEvent: capturedEvent({ properties: { $set: "not-an-object" } }),
+          }),
+        ),
+      );
+
+      expect(error.message).toContain("$set must be an object");
+    }),
+  );
 });
 
 describe("toProcessorPersonEvent", () => {
@@ -509,7 +547,7 @@ describe("toProcessorPersonIdentityEvents", () => {
 
   const identity = (distinctId: string) => ({
     distinctId,
-    mode: "full" as const,
+    mode: constant("full"),
     personId: "person_1",
   });
 

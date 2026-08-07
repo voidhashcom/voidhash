@@ -4,11 +4,13 @@ import { Db, eq, user } from "@voidhash/db";
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
-import { Effect, Layer } from "effect";
+import { generateId } from "@voidhash/core/utils/generate-id";
+import { DateTime, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 const { test } = CoreIntegrationTestHarness.make();
-const actorId = crypto.randomUUID();
+const actorId = generateId("user");
+const epoch = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 const actorEmail = `avatar-${actorId}@voidhash.test`;
 const objectMutations: string[] = [];
 
@@ -36,14 +38,14 @@ const actorSession = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: epoch,
     email: actorEmail,
     emailVerified: true,
     id: actorId,
     image: null,
     name: "Avatar Actor",
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: epoch,
     workosUserId: null,
   },
 });

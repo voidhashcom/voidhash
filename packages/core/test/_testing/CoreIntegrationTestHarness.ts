@@ -104,7 +104,7 @@ const AuditLogPortTestLive: Layer.Layer<AuditLogPort, never, Db> = Layer.effect(
       append: (input) =>
         Effect.gen(function* () {
           const maybeSession = yield* Effect.serviceOption(AuthSession);
-          const session = Option.isSome(maybeSession) ? maybeSession.value : null;
+          const session = Option.getOrNull(maybeSession);
           yield* db.insert(auditLogs).values({
             action: input.action,
             actorType: input.actorType ?? AuditLogActorType.User,
@@ -152,8 +152,22 @@ const makeHarnessLayer = (tc: CoreTestConnections): Layer.Layer<HarnessServices>
   return Layer.mergeAll(InfraLayer, SupportLayer, WorkflowTestLayer);
 };
 
-const timeoutOf = (options: number | { timeout?: number } | undefined): number =>
-  (typeof options === "number" ? options : options?.timeout) ?? DEFAULT_TEST_TIMEOUT;
+const timeoutOf = (options: number | { timeout?: number } | undefined): number => {
+  if (typeof options === "number") return options;
+  return options?.timeout ?? DEFAULT_TEST_TIMEOUT;
+};
+
+/**
+ * Runs a harness effect against the live infra layer. Taking
+ * `Effect<void, E, HarnessServices>` (rather than the caller's generic
+ * `R extends HarnessServices`) lets `Effect.provide` discharge the requirement
+ * to `never` without an assertion — `R` is covariant, so a narrower effect is
+ * assignable here.
+ */
+const runWithHarness = <E>(
+  eff: Effect.Effect<void, E, HarnessServices>,
+  testConnections: CoreTestConnections,
+): Promise<void> => Effect.runPromise(eff.pipe(Effect.provide(makeHarnessLayer(testConnections))));
 
 export const CoreIntegrationTestHarness = {
   /**
@@ -184,19 +198,18 @@ export const CoreIntegrationTestHarness = {
     ): void =>
       vitestTest(
         name,
-        async () => {
+        () => {
           const testConnections = inject("coreStackOutput")?.testConnections ?? null;
           if (testConnections === null) {
-            throw new Error(
-              "CoreIntegrationTestHarness: coreStackOutput missing or testConnections is null — globalSetup failed, or the composition refused to expose credentials.",
+            return Effect.runPromise(
+              Effect.die(
+                new Error(
+                  "CoreIntegrationTestHarness: coreStackOutput missing or testConnections is null — globalSetup failed, or the composition refused to expose credentials.",
+                ),
+              ),
             );
           }
-          // `R extends HarnessServices` guarantees the layer satisfies every
-          // requirement, but TS won't reduce `Exclude<R, HarnessServices>` to
-          // `never` for a generic `R`, so assert the discharged type.
-          await Effect.runPromise(
-            eff.pipe(Effect.provide(makeHarnessLayer(testConnections))) as Effect.Effect<void, E>,
-          );
+          return runWithHarness(eff, testConnections);
         },
         timeoutOf(options),
       );

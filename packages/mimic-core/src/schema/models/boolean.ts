@@ -3,6 +3,7 @@ import { makeSchemaError, SchemaErrorCodes } from "../errors.ts";
 import type { SchemaModel } from "../model.ts";
 import { cloneSchemaDefault, expectBooleanValue, serializeRequired } from "../shared.ts";
 import type { BooleanSchema } from "../types.ts";
+import type { Mutable } from "../../internal/lang.ts";
 
 export const booleanSchemaModel: SchemaModel<BooleanSchema> = {
   kind: "boolean",
@@ -14,12 +15,17 @@ export const booleanSchemaModel: SchemaModel<BooleanSchema> = {
       },
       input["default"],
       schemaPath,
-    ) as BooleanSchema,
-  serialize: (schema) => ({
-    kind: "boolean",
-    ...serializeRequired(schema.required),
-    ...(schema.default !== undefined ? { default: cloneSchemaDefault(schema.default) } : {}),
-  }),
+    ),
+  serialize: (schema) => {
+    const serialized: Mutable<BooleanSchema> = {
+      kind: "boolean",
+      ...serializeRequired(schema.required),
+    };
+    if (schema.default !== undefined) {
+      serialized.default = cloneSchemaDefault(schema.default);
+    }
+    return serialized;
+  },
   validate: (_schema, value, _context, valuePath, schemaPath) =>
     cloneValue(expectBooleanValue("boolean", value, valuePath, schemaPath)),
   materializeDefault: (schema, _context, valuePath, schemaPath) => {

@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
 import Constants from "expo-constants";
 import * as Localization from "expo-localization";
 import { Platform as RNPlatform } from "react-native";
@@ -57,12 +57,13 @@ function getAppName(): string | undefined {
 }
 
 function isDebugBuild(): boolean {
-  try {
-    // __DEV__ is defined by Expo
-    return typeof __DEV__ !== "undefined" && __DEV__;
-  } catch {
-    return false;
-  }
+  return Effect.runSync(
+    Effect.try({
+      // __DEV__ is defined by Expo
+      try: () => typeof __DEV__ !== "undefined" && __DEV__,
+      catch: () => false,
+    }).pipe(Effect.orElseSucceed(() => false)),
+  );
 }
 
 function getPlatform(): "ios" | "android" | "unknown" {

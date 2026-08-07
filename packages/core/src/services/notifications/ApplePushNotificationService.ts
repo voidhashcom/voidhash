@@ -14,7 +14,10 @@
  * every failure (decrypt, JWT sign, network) is mapped onto the normalized
  * {@link PushDeliveryError} channel.
  */
-import { Effect, Layer, Schema } from "effect";
+import { Clock, Duration, Effect, Layer, Option, Schema } from "effect";
+import { FetchHttpClient, Headers, HttpBody, HttpClient } from "effect/unstable/http";
+
+import { constant, stringOr } from "@voidhash/lib/lang";
 
 import { NotificationConfigValidationError } from "../../domain/notifications/PushNotificationConfiguration.ts";
 import { PaymentConfigSecretCrypto } from "../../utils/crypto/PaymentConfigSecretCrypto.ts";
@@ -37,7 +40,7 @@ import {
 } from "./push-delivery-provider.ts";
 
 const APNS_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/;
-const APNS_SEND_TIMEOUT_MS = 15_000;
+const APNS_SEND_TIMEOUT = Duration.seconds(15);
 /** APNs provider tokens are valid for up to 1h; refresh well inside that window. */
 const APNS_TOKEN_TTL_SECONDS = 50 * 60;
 
@@ -57,18 +60,27 @@ export const apnsConfigurationSchema = Schema.Struct({
 
 export type ApnsConfiguration = typeof apnsConfigurationSchema.Type;
 
-const APNS_DEFAULT_CONFIGURATION = {
+const APNS_DEFAULT_CONFIGURATION = constant({
   teamId: "",
   keyId: "",
   privateKeyContent: "",
   bundleId: "",
   environment: "production",
-} as const satisfies Record<string, unknown>;
+}) satisfies Record<string, unknown>;
 
-const readString = (configuration: Record<string, unknown>, key: string): string => {
-  const value = configuration[key];
-  return typeof value === "string" ? value : "";
-};
+/**
+ * APNs delivery runs on Cloudflare Workers, where the platform `fetch` is the
+ * only transport. Discharging the `HttpClient` requirement locally (rather than
+ * threading it through the provider factory) keeps `deliver` dependency-free, as
+ * the erased {@link PushDeliveryProviderShape} contract requires.
+ */
+const withFetchClient = Effect.provide(FetchHttpClient.layer);
+
+/** The `JSON.stringify` seam — the same Schema codec the FCM sender uses. */
+const encodeJsonValue = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+const readString = (configuration: Record<string, unknown>, key: string): string =>
+  stringOr(configuration[key], "");
 
 /**
  * Build the APNs JSON payload — pure, unit-testable. Data fields are merged at
@@ -84,31 +96,25 @@ export const buildApnsPayload = (message: PushMessage): Record<string, unknown> 
   if (message.badge !== undefined) {
     aps.badge = message.badge;
   }
-  return { aps, ...(message.data ?? {}) };
+  return { aps, ...message.data };
 };
 
+const apnsErrorSchema = Schema.fromJsonString(
+  Schema.Struct({ reason: Schema.optional(Schema.Unknown) }),
+);
+
 /**
- * Classify an APNs response onto the normalized error vocabulary — pure. APNs
- * returns the failure `reason` in the JSON body; 410 (Unregistered) additionally
- * carries a `timestamp` used by the freshness gate upstream.
+ * Decode a JSON response body against `schema`, yielding `Option.none()` when the
+ * body is absent, non-JSON or shaped unexpectedly — the parse must never defect.
  */
-export const classifyApnsResult = (
+const decodeJsonBody = <S extends Schema.Codec<any, string>>(schema: S, bodyText: string) =>
+  Effect.option(Schema.decodeUnknownEffect(schema)(bodyText));
+
+/** Map an APNs failure `reason` (plus the HTTP status as fallback) onto the normalized vocabulary. */
+const classifyApnsReason = (
   statusCode: number,
-  bodyText: string,
-  apnsId?: string,
-): Effect.Effect<PushDeliverySuccess, PushDeliveryError> => {
-  if (statusCode >= 200 && statusCode < 300) {
-    return Effect.succeed({ statusCode, providerMessageId: apnsId });
-  }
-
-  let reason = "";
-  try {
-    const parsed = JSON.parse(bodyText) as { reason?: unknown };
-    reason = typeof parsed.reason === "string" ? parsed.reason : "";
-  } catch {
-    reason = "";
-  }
-
+  reason: string,
+): Effect.Effect<never, PushDeliveryError> => {
   switch (reason) {
     case "Unregistered":
       return Effect.fail(new PushUnregisteredError({ statusCode }));
@@ -144,6 +150,68 @@ export const classifyApnsResult = (
   return Effect.fail(new PushBadTokenError({ statusCode }));
 };
 
+/**
+ * Classify an APNs response onto the normalized error vocabulary — pure. APNs
+ * returns the failure `reason` in the JSON body; 410 (Unregistered) additionally
+ * carries a `timestamp` used by the freshness gate upstream.
+ */
+export const classifyApnsResult = (
+  statusCode: number,
+  bodyText: string,
+  apnsId?: string,
+): Effect.Effect<PushDeliverySuccess, PushDeliveryError> =>
+  Effect.gen(function* () {
+    if (statusCode >= 200 && statusCode < 300) {
+      return { statusCode, providerMessageId: apnsId };
+    }
+    const parsed = Option.getOrUndefined(yield* decodeJsonBody(apnsErrorSchema, bodyText));
+    return yield* classifyApnsReason(statusCode, stringOr(parsed?.reason, ""));
+  });
+
+/** Sandbox and production are separate APNs hosts; the token environment selects one. */
+const apnsHost = (environment: string): string => {
+  if (environment === "sandbox") return "api.sandbox.push.apple.com";
+  return "api.push.apple.com";
+};
+
+/** `apns-priority`: 10 delivers immediately, 5 is the power-considerate default. */
+const apnsPriority = (priority: PushMessage["priority"]): string => {
+  if (priority === "high") return "10";
+  return "5";
+};
+
+/**
+ * POST the payload to APNs. A network error or the send timeout becomes a
+ * RETRYABLE typed error, never a defect that escapes the `deliver` channel; the
+ * response itself is classified by the caller.
+ */
+const sendOnce = (
+  host: string,
+  platformToken: string,
+  apnsHeaders: Record<string, string>,
+  message: PushMessage,
+): Effect.Effect<
+  { readonly status: number; readonly bodyText: string; readonly apnsId?: string },
+  PushDeliveryError
+> =>
+  Effect.gen(function* () {
+    const client = yield* HttpClient.HttpClient;
+    const response = yield* client.post(`https://${host}/3/device/${platformToken}`, {
+      headers: apnsHeaders,
+      body: HttpBody.text(encodeJsonValue(buildApnsPayload(message)), "application/json"),
+    });
+    const bodyText = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
+    return {
+      status: response.status,
+      bodyText,
+      apnsId: Option.getOrUndefined(Headers.get(response.headers, "apns-id")),
+    };
+  }).pipe(
+    Effect.timeout(APNS_SEND_TIMEOUT),
+    Effect.mapError(() => new PushTransientError({})),
+    withFetchClient,
+  );
+
 interface CachedProviderToken {
   readonly token: string;
   readonly issuedAtEpochMs: number;
@@ -169,21 +237,24 @@ export const makeApplePushNotificationProvider = (
     teamId: string,
     keyId: string,
     privateKeyPem: string,
-  ): Effect.Effect<string, PushDeliveryError> => {
-    const cacheKey = `${teamId}:${keyId}`;
-    const cached = tokenCache.get(cacheKey);
-    if (cached && Date.now() - cached.issuedAtEpochMs < APNS_TOKEN_TTL_SECONDS * 1000) {
-      return Effect.succeed(cached.token);
-    }
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    return signJwtEs256(keyId, { iss: teamId, iat: nowSeconds }, privateKeyPem).pipe(
-      Effect.map((token) => {
-        tokenCache.set(cacheKey, { token, issuedAtEpochMs: Date.now() });
-        return token;
-      }),
-      Effect.mapError(() => new PushInvalidCredentialsError({})),
-    );
-  };
+  ): Effect.Effect<string, PushDeliveryError> =>
+    Effect.gen(function* () {
+      const cacheKey = `${teamId}:${keyId}`;
+      const cached = tokenCache.get(cacheKey);
+      const nowMillis = yield* Clock.currentTimeMillis;
+      if (cached && nowMillis - cached.issuedAtEpochMs < APNS_TOKEN_TTL_SECONDS * 1000) {
+        return cached.token;
+      }
+      const nowSeconds = Math.floor(nowMillis / 1000);
+      const token = yield* signJwtEs256(
+        keyId,
+        { iss: teamId, iat: nowSeconds },
+        privateKeyPem,
+      ).pipe(Effect.mapError(() => new PushInvalidCredentialsError({})));
+      const issuedAtEpochMs = yield* Clock.currentTimeMillis;
+      tokenCache.set(cacheKey, { token, issuedAtEpochMs });
+      return token;
+    });
 
   const deliver = (
     configuration: Record<string, unknown>,
@@ -206,46 +277,22 @@ export const makeApplePushNotificationProvider = (
         .pipe(Effect.mapError(() => new PushInvalidCredentialsError({})));
 
       const providerToken = yield* getProviderToken(teamId, keyId, privateKeyPem);
-      const host = environment === "sandbox" ? "api.sandbox.push.apple.com" : "api.push.apple.com";
+      const host = apnsHost(environment);
       const apnsHeaders: Record<string, string> = {
         authorization: `bearer ${providerToken}`,
         "apns-topic": bundleId,
         "apns-push-type": "alert",
-        "apns-priority": message.priority === "high" ? "10" : "5",
+        "apns-priority": apnsPriority(message.priority),
       };
       if (message.collapseId) {
         apnsHeaders["apns-collapse-id"] = message.collapseId;
       }
       if (message.ttl !== undefined) {
-        apnsHeaders["apns-expiration"] = String(Math.floor(Date.now() / 1000) + message.ttl);
+        const nowMillis = yield* Clock.currentTimeMillis;
+        apnsHeaders["apns-expiration"] = String(Math.floor(nowMillis / 1000) + message.ttl);
       }
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), APNS_SEND_TIMEOUT_MS);
-      // `tryPromise` maps a network error / abort timeout to a retryable typed
-      // error; the raw response is classified below (outside the promise) so the
-      // classifier's own error channel composes cleanly.
-      const raw = yield* Effect.tryPromise({
-        try: async () => {
-          try {
-            const response = await fetch(`https://${host}/3/device/${token.platformToken}`, {
-              method: "POST",
-              headers: apnsHeaders,
-              body: JSON.stringify(buildApnsPayload(message)),
-              signal: controller.signal,
-            });
-            const bodyText = await response.text().catch(() => "");
-            return {
-              status: response.status,
-              bodyText,
-              apnsId: response.headers.get("apns-id") ?? undefined,
-            };
-          } finally {
-            clearTimeout(timeout);
-          }
-        },
-        catch: () => new PushTransientError({}),
-      });
+      const raw = yield* sendOnce(host, token.platformToken, apnsHeaders, message);
       return yield* classifyApnsResult(raw.status, raw.bodyText, raw.apnsId);
     });
   };

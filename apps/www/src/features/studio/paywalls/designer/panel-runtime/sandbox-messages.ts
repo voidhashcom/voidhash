@@ -23,7 +23,7 @@
  * cap discipline the preview sandbox host applies to returned trees.
  */
 import { PANEL_CAPS } from "@voidhash/paywalls/schema";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { strictParseOptions } from "./schema";
 
@@ -246,11 +246,20 @@ export const encodeGuestMessage = (message: GuestMessage): GuestMessage =>
 export const decodeHostMessage = (input: unknown): DecodeMessageResult<HostMessage> => {
   const capResult = checkInboundBytes(input);
   if (capResult !== null) return { ok: false, error: capResult };
-  try {
-    return { ok: true, message: decodeHost(input) };
-  } catch (error) {
-    return { ok: false, error: `invalid host message: ${errorMessage(error)}` };
-  }
+  return Effect.runSync(
+    Effect.try({
+      try: () => decodeHost(input),
+      catch: (error: unknown) => error,
+    }).pipe(
+      Effect.match({
+        onFailure: (error): DecodeMessageResult<HostMessage> => ({
+          ok: false,
+          error: `invalid host message: ${errorMessage(error)}`,
+        }),
+        onSuccess: (message): DecodeMessageResult<HostMessage> => ({ ok: true, message }),
+      }),
+    ),
+  );
 };
 
 /**
@@ -262,11 +271,20 @@ export const decodeHostMessage = (input: unknown): DecodeMessageResult<HostMessa
 export const decodeGuestMessage = (input: unknown): DecodeMessageResult<GuestMessage> => {
   const capResult = checkInboundBytes(input);
   if (capResult !== null) return { ok: false, error: capResult };
-  try {
-    return { ok: true, message: decodeGuest(input) };
-  } catch (error) {
-    return { ok: false, error: `invalid guest message: ${errorMessage(error)}` };
-  }
+  return Effect.runSync(
+    Effect.try({
+      try: () => decodeGuest(input),
+      catch: (error: unknown) => error,
+    }).pipe(
+      Effect.match({
+        onFailure: (error): DecodeMessageResult<GuestMessage> => ({
+          ok: false,
+          error: `invalid guest message: ${errorMessage(error)}`,
+        }),
+        onSuccess: (message): DecodeMessageResult<GuestMessage> => ({ ok: true, message }),
+      }),
+    ),
+  );
 };
 
 /**
@@ -278,10 +296,13 @@ export const decodeGuestMessage = (input: unknown): DecodeMessageResult<GuestMes
 const checkInboundBytes = (input: unknown): string | null => {
   const type = (input as { type?: unknown } | null)?.type;
   const cap = inboundByteCap(type);
-  let size: number;
-  try {
-    size = byteLength(JSON.stringify(input));
-  } catch {
+  // A value that cannot be serialized (cycles) reads as `null`.
+  const size = Effect.runSync(
+    Effect.try(() => byteLength(JSON.stringify(input))).pipe(
+      Effect.orElseSucceed((): number | null => null),
+    ),
+  );
+  if (size === null) {
     return "message is not serializable";
   }
   if (size > cap) {

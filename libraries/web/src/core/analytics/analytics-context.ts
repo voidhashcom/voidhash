@@ -1,3 +1,5 @@
+import { DateTime, Effect } from "effect";
+
 import type {
   EventContextField,
   EventPropertiesField,
@@ -30,26 +32,33 @@ const normalizeAnalyticsValue = (
   }
 
   if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).flatMap(([key, entry]) => {
-        const normalized = normalizeAnalyticsValue(entry);
-        return typeof normalized === "undefined" ? [] : [[key, normalized]];
-      }),
-    );
+    return Object.fromEntries(Object.entries(value).flatMap(normalizeAnalyticsEntry));
   }
 
   return undefined;
 };
 
+/**
+ * Normalizes a single `[key, value]` pair, dropping entries whose value has no
+ * analytics-compatible representation.
+ */
+const normalizeAnalyticsEntry = ([key, value]: [string, unknown]): ReadonlyArray<
+  [string, EventContextField | EventPropertiesField]
+> => {
+  const normalized = normalizeAnalyticsValue(value);
+  if (typeof normalized === "undefined") {
+    return [];
+  }
+
+  return [[key, normalized]];
+};
+
 const normalizeAnalyticsRecord = (
   entries: Record<string, unknown>,
 ): Record<string, EventContextField | EventPropertiesField> =>
-  Object.fromEntries(
-    Object.entries(entries).flatMap(([key, value]) => {
-      const normalized = normalizeAnalyticsValue(value);
-      return typeof normalized === "undefined" ? [] : [[key, normalized]];
-    }),
-  );
+  Object.fromEntries(Object.entries(entries).flatMap(normalizeAnalyticsEntry));
+
+const currentTimestamp = () => Effect.runSync(Effect.map(DateTime.now, DateTime.formatIso));
 
 const createEventId = (platform: BrowserPlatformProvider) =>
   `evt_${platform.randomId().split("-").join("")}`;
@@ -65,7 +74,7 @@ export const createAnalyticsEvent = (
   distinct_id: distinctId,
   event: eventName,
   properties: normalizeAnalyticsRecord(properties ?? {}),
-  timestamp: options?.timestamp ?? new Date().toISOString(),
+  timestamp: options?.timestamp ?? currentTimestamp(),
   session_id: options?.sessionId,
   uuid: options?.eventId ?? createEventId(platform),
 });

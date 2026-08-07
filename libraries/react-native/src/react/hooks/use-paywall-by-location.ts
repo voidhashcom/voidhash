@@ -1,3 +1,4 @@
+import { Cause, Effect, Exit } from "effect";
 import React, { useCallback, useEffect } from "react";
 import { AppState, Linking, Platform } from "react-native";
 
@@ -138,33 +139,58 @@ async function sendConfigureMessage(options: {
     return;
   }
 
-  try {
-    const runtimeConfig = await client.internal_buildPaywallRuntimeConfig(runtime);
-    presenter.postMessage(
-      locationKey,
-      createPaywallBridgeConfigureMessage(runtimeConfig, requestId),
-    );
-  } catch (error) {
-    // This warning is intentionally surfaced in all environments.
-    console.warn("[voidhash] failed to send paywall configure message", error);
+  const exit = await Effect.runPromiseExit(
+    Effect.tryPromise({
+      try: () => client.internal_buildPaywallRuntimeConfig(runtime),
+      catch: (error) => error,
+    }).pipe(
+      Effect.flatMap((runtimeConfig) =>
+        Effect.try({
+          try: () =>
+            presenter.postMessage(
+              locationKey,
+              createPaywallBridgeConfigureMessage(runtimeConfig, requestId),
+            ),
+          catch: (error) => error,
+        }),
+      ),
+    ),
+  );
 
-    try {
-      presenter.postMessage(
-        locationKey,
-        createPaywallBridgeConfigureMessage(
-          {
-            products: [],
-            variables: runtime.variables ?? {},
-            platform: getBridgePlatform(),
-          },
-          requestId,
-        ),
-      );
-    } catch (fallbackError) {
-      // This warning is intentionally surfaced in all environments.
-      console.warn("[voidhash] failed to send fallback paywall configure message", fallbackError);
-    }
+  if (Exit.isSuccess(exit)) {
+    return;
   }
+
+  // This warning is intentionally surfaced in all environments.
+  console.warn("[voidhash] failed to send paywall configure message", Cause.squash(exit.cause));
+
+  Effect.runSync(
+    Effect.try({
+      try: () =>
+        presenter.postMessage(
+          locationKey,
+          createPaywallBridgeConfigureMessage(
+            {
+              products: [],
+              variables: runtime.variables ?? {},
+              platform: getBridgePlatform(),
+            },
+            requestId,
+          ),
+        ),
+      catch: (fallbackError) => fallbackError,
+    }).pipe(
+      Effect.catch((fallbackError) =>
+        Effect.sync(() => {
+          // This warning is intentionally surfaced in all environments.
+          console.warn(
+            "[voidhash] failed to send fallback paywall configure message",
+            fallbackError,
+          );
+        }),
+      ),
+    ),
+  );
 }
 
 async function handlePaywallBridgeEvent(options: {
@@ -178,14 +204,23 @@ async function handlePaywallBridgeEvent(options: {
   const { client, locationKey, openExternalUrl, paywallOptions, presenter, rawBridgeEvent } =
     options;
 
-  let bridgeEvent: ReturnType<typeof parsePaywallBridgeEnvelope>;
-  try {
-    bridgeEvent = parsePaywallBridgeEnvelope(rawBridgeEvent);
-  } catch (error) {
+  const bridgeEventExit = Effect.runSyncExit(
+    Effect.try({
+      try: () => parsePaywallBridgeEnvelope(rawBridgeEvent),
+      catch: (error) => error,
+    }),
+  );
+
+  if (!Exit.isSuccess(bridgeEventExit)) {
     // This warning is intentionally surfaced in all environments.
-    console.warn("[voidhash] ignoring unparseable paywall bridge message", error);
+    console.warn(
+      "[voidhash] ignoring unparseable paywall bridge message",
+      Cause.squash(bridgeEventExit.cause),
+    );
     return;
   }
+
+  const bridgeEvent = bridgeEventExit.value;
 
   if (bridgeEvent.type === "ready") {
     await sendConfigureMessage({
@@ -211,7 +246,7 @@ async function handlePaywallBridgeEvent(options: {
     // Fire-and-forget analytics (contract §7.2): route to the SDK's capture
     // queue, stamped with the paywall location. No response envelope.
     client.capture(bridgeEvent.payload.name, {
-      ...(bridgeEvent.payload.properties ?? {}),
+      ...bridgeEvent.payload.properties,
       paywall_location: locationKey,
     });
     return;
@@ -239,8 +274,7 @@ async function handlePaywallBridgeEvent(options: {
     return;
   }
 
-  inFlightActionByLocation.add(locationKey);
-  try {
+  const runBridgeAction = async () => {
     if (bridgeEvent.type === "purchase") {
       const products = await client.getProducts();
       const product = findProductByBridgeProductId(products, bridgeEvent.payload.productId);
@@ -290,24 +324,36 @@ async function handlePaywallBridgeEvent(options: {
       createPaywallBridgeSuccessResponse("restore", bridgeEvent.requestId),
     );
     await presenter.dismiss();
-  } catch (error) {
-    const errorPayload = getErrorPayload(error);
-    paywallOptions?.onError?.(new Error(errorPayload.message), {
-      action: bridgeEvent.type,
-      requestId: bridgeEvent.requestId,
-    });
-    presenter.postMessage(
-      locationKey,
-      createPaywallBridgeErrorResponse(
-        bridgeEvent.type,
-        errorPayload.code,
-        errorPayload.message,
-        bridgeEvent.requestId,
+  };
+
+  inFlightActionByLocation.add(locationKey);
+  await Effect.runPromise(
+    Effect.tryPromise({ try: () => runBridgeAction(), catch: (error) => error }).pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          const errorPayload = getErrorPayload(error);
+          paywallOptions?.onError?.(new Error(errorPayload.message), {
+            action: bridgeEvent.type,
+            requestId: bridgeEvent.requestId,
+          });
+          presenter.postMessage(
+            locationKey,
+            createPaywallBridgeErrorResponse(
+              bridgeEvent.type,
+              errorPayload.code,
+              errorPayload.message,
+              bridgeEvent.requestId,
+            ),
+          );
+        }),
       ),
-    );
-  } finally {
-    inFlightActionByLocation.delete(locationKey);
-  }
+      Effect.ensuring(
+        Effect.sync(() => {
+          inFlightActionByLocation.delete(locationKey);
+        }),
+      ),
+    ),
+  );
 }
 
 export async function __internal_handlePaywallBridgeEventForTests(options: {
@@ -431,7 +477,7 @@ export function paywallByLocationHookFactory(
           client,
           locationKey,
           paywallOptions,
-          openExternalUrl: Linking.openURL,
+          openExternalUrl: (url: string) => Linking.openURL(url),
           presenter: PaywallPresenter,
           rawBridgeEvent,
         });

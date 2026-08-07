@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Layer, Option, Schema } from "effect";
+import { Cause, Clock, Effect, Exit, Layer, Option, Schema } from "effect";
 import { Activity, DurableClock, Workflow, WorkflowEngine } from "effect/unstable/workflow";
 
 import { PlatformRuntime } from "./PlatformRuntime.ts";
@@ -23,6 +23,19 @@ import {
 const runnerError = (workflowName: string, operation: string, cause: unknown) =>
   new WorkflowRunnerError({ workflowName, operation, cause: String(cause) });
 
+/**
+ * Bridges the one boundary where Effect's native workflow types and the
+ * provider-neutral contract cannot meet.
+ *
+ * Activities, durable clocks and native workflow handles advertise the
+ * `WorkflowEngine` and workflow-instance requirements that this runner installs
+ * around every handler, and their generic parameters are wider than the
+ * contract's. The runtime values already satisfy the contract, so the gap is
+ * funnelled through this single helper instead of being restated at every call
+ * site.
+ */
+const asContract: <T>(value: any) => T = (value) => value;
+
 const catchRunnerCause = <A, E, R>(
   effect: Effect.Effect<A, E, R>,
   workflowName: string,
@@ -31,11 +44,8 @@ const catchRunnerCause = <A, E, R>(
   effect.pipe(
     Effect.catchCause((cause) => {
       const squashed = Cause.squash(cause);
-      return Effect.fail(
-        squashed instanceof WorkflowRunnerError
-          ? squashed
-          : runnerError(workflowName, operation, Cause.pretty(cause)),
-      );
+      if (squashed instanceof WorkflowRunnerError) return Effect.fail(squashed);
+      return Effect.fail(runnerError(workflowName, operation, Cause.pretty(cause)));
     }),
   );
 
@@ -53,6 +63,17 @@ const toNativeWorkflow = <
     idempotencyKey: workflow.idempotencyKey,
   });
 
+const failureResult = (cause: Cause.Cause<WorkflowRunnerError>): WorkflowExecutionResult<never> => {
+  if (Cause.hasInterrupts(cause)) {
+    return { status: "interrupted" };
+  }
+  const error = Cause.squash(cause);
+  if (error instanceof WorkflowRunnerError) {
+    return { status: "failed", error };
+  }
+  return { status: "failed", error: runnerError("unknown", "poll", error) };
+};
+
 const executionResult = <A>(
   result: Workflow.Result<A, WorkflowRunnerError>,
 ): Effect.Effect<WorkflowExecutionResult<A>> => {
@@ -61,18 +82,8 @@ const executionResult = <A>(
   }
   return Effect.succeed(
     Exit.match(result.exit, {
-      onFailure: (cause) => {
-        if (Cause.hasInterrupts(cause)) {
-          return { status: "interrupted" as const };
-        }
-        const error = Cause.squash(cause);
-        return {
-          status: "failed" as const,
-          error:
-            error instanceof WorkflowRunnerError ? error : runnerError("unknown", "poll", error),
-        };
-      },
-      onSuccess: (value) => ({ status: "succeeded" as const, value }),
+      onFailure: failureResult,
+      onSuccess: (value): WorkflowExecutionResult<A> => ({ status: "succeeded", value }),
     }),
   );
 };
@@ -83,8 +94,8 @@ const makeStep = <Success extends Schema.Top, R>(
   options: WorkflowContract.StepOptions<Success, R>,
 ): Effect.Effect<Success["Type"], WorkflowRunnerError, WorkflowRunner | PlatformRuntime> =>
   WorkflowContract.durableOperationName(options.name).pipe(
-    Effect.flatMap(
-      (name) =>
+    Effect.flatMap((name) =>
+      asContract<Effect.Effect<Success["Type"], WorkflowRunnerError, WorkflowRunner | PlatformRuntime>>(
         Activity.make({
           name,
           success: options.success,
@@ -96,11 +107,8 @@ const makeStep = <Success extends Schema.Top, R>(
             workflowName,
             `step:${options.name}`,
           ),
-        }) as unknown as Effect.Effect<
-          Success["Type"],
-          WorkflowRunnerError,
-          WorkflowRunner | PlatformRuntime
-        >,
+        }),
+      ),
     ),
   );
 
@@ -109,28 +117,29 @@ const sleepUntil = (
   name: string,
   scheduledTime: Date,
 ): Effect.Effect<void, WorkflowRunnerError, PlatformRuntime> =>
-  WorkflowContract.durableOperationName(name).pipe(
-    Effect.flatMap((durableName) =>
-      catchRunnerCause(
-        PlatformRuntime.pipe(
-          Effect.andThen(
-            Effect.suspend(() => {
-              const delay = scheduledTime.getTime() - Date.now();
-              return delay <= 0
-                ? Effect.void
-                : DurableClock.sleep({
-                    name: durableName,
-                    duration: delay,
-                    inMemoryThreshold: 1,
-                  });
-            }),
+  asContract(
+    WorkflowContract.durableOperationName(name).pipe(
+      Effect.flatMap((durableName) =>
+        catchRunnerCause(
+          PlatformRuntime.pipe(
+            Effect.andThen(
+              Effect.gen(function* () {
+                const delay = scheduledTime.getTime() - (yield* Clock.currentTimeMillis);
+                if (delay <= 0) return;
+                yield* DurableClock.sleep({
+                  name: durableName,
+                  duration: delay,
+                  inMemoryThreshold: 1,
+                });
+              }),
+            ),
           ),
+          workflowName,
+          `sleep:${name}`,
         ),
-        workflowName,
-        `sleep:${name}`,
       ),
     ),
-  ) as unknown as Effect.Effect<void, WorkflowRunnerError, PlatformRuntime>;
+  );
 
 type AnyWorkflowDefinition = WorkflowContract.Workflow<string, Schema.Struct.Fields, Schema.Top>;
 
@@ -141,7 +150,7 @@ type AnyWorkflowHandler<RSteps> = (
 
 /** Builds the provider-neutral runner facade over one Effect workflow engine. */
 export const make = (engine: WorkflowEngine.WorkflowEngine["Service"]): WorkflowRunnerShape =>
-  ({
+  asContract({
     register: <RSteps>(
       workflow: AnyWorkflowDefinition,
       handler: AnyWorkflowHandler<RSteps>,
@@ -235,7 +244,7 @@ export const make = (engine: WorkflowEngine.WorkflowEngine["Service"]): Workflow
         "interrupt",
       );
     },
-  }) as unknown as WorkflowRunnerShape;
+  });
 
 /**
  * Provides `WorkflowRunner` from whichever Effect `WorkflowEngine` is in

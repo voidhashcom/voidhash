@@ -1,4 +1,5 @@
 import { GooglePlayLogo } from "@/features/studio/projects/settings/payment-providers/logos/google-play-logo";
+import { Effect, Schema } from "effect";
 import { z } from "zod/v3";
 
 import { createPaymentProvider } from "./core";
@@ -13,24 +14,27 @@ const isGoogleServiceAccountKey = (value: string): boolean => {
     return true;
   }
 
-  try {
-    const parsed = JSON.parse(value) as Record<string, unknown>;
-    return (
-      parsed.type === "service_account" &&
-      typeof parsed.project_id === "string" &&
-      parsed.project_id.length > 0 &&
-      typeof parsed.private_key_id === "string" &&
-      parsed.private_key_id.length > 0 &&
-      typeof parsed.private_key === "string" &&
-      parsed.private_key.length > 0 &&
-      typeof parsed.client_email === "string" &&
-      parsed.client_email.length > 0 &&
-      typeof parsed.client_id === "string" &&
-      parsed.client_id.length > 0
-    );
-  } catch {
-    return false;
-  }
+  return Effect.runSync(
+    Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(value).pipe(
+      Effect.map((parsed) => {
+        const key = parsed as Record<string, unknown>;
+        return (
+          key.type === "service_account" &&
+          typeof key.project_id === "string" &&
+          key.project_id.length > 0 &&
+          typeof key.private_key_id === "string" &&
+          key.private_key_id.length > 0 &&
+          typeof key.private_key === "string" &&
+          key.private_key.length > 0 &&
+          typeof key.client_email === "string" &&
+          key.client_email.length > 0 &&
+          typeof key.client_id === "string" &&
+          key.client_id.length > 0
+        );
+      }),
+      Effect.orElseSucceed(() => false),
+    ),
+  );
 };
 
 export const googlePlayGlobalConfigurationSchema = z.object({

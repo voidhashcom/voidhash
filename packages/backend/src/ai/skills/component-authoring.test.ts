@@ -1,34 +1,35 @@
-import { readFileSync } from "node:fs";
-
+import { NodeServices } from "@effect/platform-node";
+import { Effect, FileSystem } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import { componentAuthoringSkill } from "./component-authoring.ts";
 
 const skill = componentAuthoringSkill();
 
-const filesystemSkill = readFileSync(
-  new URL(
-    "../../../../../plugins/voidhash/skills/code-component-authoring/SKILL.md",
-    import.meta.url,
-  ),
-  "utf8",
-);
-const claudeSkill = readFileSync(
-  new URL(
-    "../../../../../integrations/claude-code/voidhash/skills/code-component-authoring/SKILL.md",
-    import.meta.url,
-  ),
-  "utf8",
-);
+const localPath = (relative: string) =>
+  decodeURIComponent(new URL(relative, import.meta.url).pathname);
 
-const filesystemBody = filesystemSkill.slice(filesystemSkill.indexOf("\n---\n") + 5).trim();
+const PLUGIN_SKILL_PATH = localPath(
+  "../../../../../plugins/voidhash/skills/code-component-authoring/SKILL.md",
+);
+const CLAUDE_SKILL_PATH = localPath(
+  "../../../../../integrations/claude-code/voidhash/skills/code-component-authoring/SKILL.md",
+);
 
 describe("componentAuthoringSkill — delivery channels", () => {
-  it("keeps the MCP and Codex plugin bodies identical", () => {
-    expect(skill.trim()).toBe(filesystemBody);
-    expect(claudeSkill).toBe(filesystemSkill);
-    expect(skill).not.toContain("TODO");
-  });
+  it("keeps the MCP and Codex plugin bodies identical", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const filesystemSkill = yield* fileSystem.readFileString(PLUGIN_SKILL_PATH);
+        const claudeSkill = yield* fileSystem.readFileString(CLAUDE_SKILL_PATH);
+        const filesystemBody = filesystemSkill.slice(filesystemSkill.indexOf("\n---\n") + 5).trim();
+
+        expect(skill.trim()).toBe(filesystemBody);
+        expect(claudeSkill).toBe(filesystemSkill);
+        expect(skill).not.toContain("TODO");
+      }).pipe(Effect.provide(NodeServices.layer)),
+    ));
 });
 
 describe("componentAuthoringSkill — component contract", () => {

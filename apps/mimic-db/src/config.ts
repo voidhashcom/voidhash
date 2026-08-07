@@ -1,3 +1,5 @@
+import { constant } from "@voidhash/lib/lang";
+
 /**
  * Runtime configuration for mimic-db.
  *
@@ -33,15 +35,16 @@ export interface MimicConfig {
 const positiveInt = (value: string | undefined, fallback: number): number => {
   if (!value || value.trim() === "") return fallback;
   const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
 };
 
-const DEFAULT_CORS_ORIGINS = [
+const DEFAULT_CORS_ORIGINS = constant([
   "http://localhost:5173",
   "http://localhost:4173",
   "http://localhost:4460",
   "http://localhost:3003",
-] as const;
+]);
 
 export const getCorsAllowedOrigins = (): readonly string[] => {
   const env = process.env.CORS_ORIGINS?.trim();

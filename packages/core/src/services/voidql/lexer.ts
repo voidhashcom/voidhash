@@ -11,8 +11,19 @@
  * tokenise as keywords so the parser can raise a teachable error rather than
  * mis-parsing them as identifiers, and so they can never be used as aliases.
  */
+import { pick } from "@voidhash/lib/lang";
+import { Effect } from "effect";
+
 import type { Pos } from "./ast/VoidQlAst.ts";
 import { VoidQlComplexityError, VoidQlSyntaxError } from "./errors.ts";
+
+/**
+ * Raises a lexer error out of this synchronous routine. The tagged error is
+ * surfaced as a defect run synchronously, which rethrows the very instance;
+ * `compileVoidQl` catches it and re-types it into the compile-error channel.
+ */
+const raise = (error: VoidQlComplexityError | VoidQlSyntaxError): never =>
+  Effect.runSync(Effect.die(error));
 
 export type TokenKind = "ident" | "kw" | "string" | "number" | "op" | "eof";
 
@@ -174,17 +185,18 @@ export const lex = (text: string): readonly Token[] => {
 
   const push = (token: Token): void => {
     if (tokens.length >= MAX_TOKENS) {
-      throw new VoidQlComplexityError({ message: "Query is too large." });
+      return raise(new VoidQlComplexityError({ message: "Query is too large." }));
     }
     tokens.push(token);
   };
 
-  const fail = (start: Pos, message: string): never => {
-    throw new VoidQlSyntaxError({
-      message: `line ${start.line}, col ${start.col}: ${message}`,
-      hint: "",
-    });
-  };
+  const fail = (start: Pos, message: string): never =>
+    raise(
+      new VoidQlSyntaxError({
+        message: `line ${start.line}, col ${start.col}: ${message}`,
+        hint: "",
+      }),
+    );
 
   while (offset < text.length) {
     const c = peek();
@@ -270,7 +282,7 @@ export const lex = (text: string): readonly Token[] => {
         kind: "number",
         text: raw,
         value: num,
-        numType: isFloat ? "Float64" : "Int64",
+        numType: pick(isFloat, "Float64", "Int64"),
         start,
         end: pos(),
       });
@@ -297,7 +309,7 @@ export const lex = (text: string): readonly Token[] => {
     if (two === "<=" || two === ">=" || two === "!=" || two === "<>") {
       advance();
       advance();
-      push({ kind: "op", text: two === "<>" ? "!=" : two, start, end: pos() });
+      push({ kind: "op", text: pick(two === "<>", "!=", two), start, end: pos() });
       continue;
     }
     if ("=<>+-*/%(),.;".includes(c)) {

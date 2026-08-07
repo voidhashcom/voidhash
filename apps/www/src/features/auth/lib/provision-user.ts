@@ -1,3 +1,5 @@
+import { Duration, Effect } from "effect";
+
 import { getCurrentUser } from "@/features/studio/lib/tanstack-query/users";
 
 /** Hard cap so a slow/cold backend can never block the post-sign-up redirect. */
@@ -19,12 +21,9 @@ const PROVISION_TIMEOUT_MS = 5000;
  * complete in time.
  */
 export const provisionCurrentUser = (): Promise<void> =>
-  Promise.race([
-    getCurrentUser().then(
-      () => undefined,
-      () => undefined,
+  Effect.runPromise(
+    Effect.tryPromise(() => getCurrentUser()).pipe(
+      Effect.timeout(Duration.millis(PROVISION_TIMEOUT_MS)),
+      Effect.ignore,
     ),
-    new Promise<void>((resolve) => {
-      setTimeout(resolve, PROVISION_TIMEOUT_MS);
-    }),
-  ]);
+  );

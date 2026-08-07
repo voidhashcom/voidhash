@@ -1,10 +1,11 @@
 import { Option, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
 
 /**
  * Error codes that App Store Server API responses return.
  * @see https://developer.apple.com/documentation/appstoreserverapi/error_codes
  */
-export const APIErrorCode = {
+export const APIErrorCode = constant({
   GENERAL_BAD_REQUEST: 4000000,
   INVALID_APP_IDENTIFIER: 4000002,
   INVALID_REQUEST_REVISION: 4000005,
@@ -82,7 +83,7 @@ export const APIErrorCode = {
   RATE_LIMIT_EXCEEDED: 4290000,
   GENERAL_INTERNAL: 5000000,
   GENERAL_INTERNAL_RETRYABLE: 5000001,
-} as const;
+});
 
 export type APIErrorCode = (typeof APIErrorCode)[keyof typeof APIErrorCode];
 

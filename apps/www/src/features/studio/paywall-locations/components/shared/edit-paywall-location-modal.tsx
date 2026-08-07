@@ -79,7 +79,7 @@ export function EditPaywallLocationModal({
     },
     onSuccess: () => {
       toast.success("Paywall location updated");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.paywallLocation.list({ projectId }),
       });
       handleOpenChange(false);

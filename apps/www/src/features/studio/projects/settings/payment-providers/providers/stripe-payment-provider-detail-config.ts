@@ -76,14 +76,14 @@ export function getStripeInitialConfiguration(
 
   return {
     ...defaults,
-    ...(configuration ?? {}),
+    ...configuration,
     live: {
       ...defaults.live,
-      ...(configuration?.live ?? {}),
+      ...configuration?.live,
     },
     test: {
       ...defaults.test,
-      ...(configuration?.test ?? {}),
+      ...configuration?.test,
     },
   };
 }

@@ -11,6 +11,7 @@ import {
   ViewNode,
   type NodeType,
 } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 /**
  * Schema-derived introspection over the live mimic node primitives. This module
@@ -69,9 +70,20 @@ export function nodePrim(type: NodeType): unknown {
   return NODE_PRIMS[type];
 }
 
+/** A serialized schema that carries a `fields` map (an object/struct schema). */
+export interface FieldsSchema {
+  fields: Record<string, SerializedSchema>;
+}
+
+/** Whether a serialized schema carries a `fields` map (i.e. is a struct schema). */
+function hasFields(schema: SerializedSchema | undefined): schema is SerializedSchema & FieldsSchema {
+  return schema !== undefined && "fields" in schema;
+}
+
 /** The serialized `data` struct schema (`{ kind: "object", fields }`) for a node type. */
-export function nodeDataSchema(type: NodeType): { fields: Record<string, SerializedSchema> } {
-  return NODE_PRIMS[type].data.schema as { fields: Record<string, SerializedSchema> };
+export function nodeDataSchema(type: NodeType): FieldsSchema {
+  const schema: FieldsSchema = NODE_PRIMS[type].data.schema;
+  return schema;
 }
 
 /** The serialized schema of one top-level data field (e.g. `name`, `text`, `style`) of a node type. */
@@ -85,13 +97,10 @@ export function nodeDataFields(type: NodeType): readonly string[] {
 }
 
 /** The serialized `style` sub-struct schema for a node type, or `undefined` if it has no style. */
-export function nodeStyleSchema(
-  type: NodeType,
-): { fields: Record<string, SerializedSchema> } | undefined {
+export function nodeStyleSchema(type: NodeType): FieldsSchema | undefined {
   const style = nodeDataSchema(type).fields["style"];
-  return style && "fields" in style
-    ? (style as { fields: Record<string, SerializedSchema> })
-    : undefined;
+  if (hasFields(style)) return style;
+  return undefined;
 }
 
 /** The ordered set of legal style field names for a node type (empty if it has no style). */
@@ -107,24 +116,39 @@ export function nodeStyleFields(type: NodeType): readonly string[] {
  */
 export function unwrapEntries(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map((item) =>
-      item !== null &&
-      typeof item === "object" &&
-      "value" in item &&
-      "id" in item &&
-      "pos" in item
-        ? unwrapEntries((item as { value: unknown }).value)
-        : unwrapEntries(item),
-    );
+    return value.map(unwrapEntry);
   }
-  if (value !== null && typeof value === "object") {
+  if (isObjectLike(value)) {
     const out: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    for (const [key, item] of Object.entries(value)) {
       out[key] = unwrapEntries(item);
     }
     return out;
   }
   return value;
+}
+
+/** A non-null object (arrays included — callers handle those first). */
+function isObjectLike(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
+}
+
+/** Whether an array element is an ordered CRDT entry envelope `{ id, pos, value }`. */
+function isEntryEnvelope(item: unknown): item is { value: unknown } {
+  return isObjectLike(item) && "value" in item && "id" in item && "pos" in item;
+}
+
+/** Unwrap one array element: an entry envelope yields its payload, anything else recurses. */
+function unwrapEntry(item: unknown): unknown {
+  if (isEntryEnvelope(item)) return unwrapEntries(item.value);
+  return unwrapEntries(item);
+}
+
+/** {@link unwrapEntries} over a record, preserving the record shape for callers. */
+function unwrapRecord(record: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(record)) out[key] = unwrapEntries(item);
+  return out;
 }
 
 const defaultsCache = new Map<NodeType, Record<string, unknown>>();
@@ -146,13 +170,14 @@ export function nodeDefaultData(type: NodeType): Record<string, unknown> {
   const cached = defaultsCache.get(type);
   if (cached) return cached;
   const prim = NODE_PRIMS[type];
-  let unwrapped: Record<string, unknown>;
-  try {
-    const decoded = prim.data.decode(prim.data.encode({})) as Record<string, unknown>;
-    unwrapped = unwrapEntries(decoded) as Record<string, unknown>;
-  } catch {
-    unwrapped = {};
-  }
+  // The encode of `{}` throws for node types with a REQUIRED-no-default field; those
+  // degrade to an empty defaults map rather than failing the whole serialization.
+  const unwrapped = Effect.runSync(
+    Effect.try((): Record<string, unknown> => {
+      const decoded: Record<string, unknown> = prim.data.decode(prim.data.encode({}));
+      return unwrapRecord(decoded);
+    }).pipe(Effect.orElseSucceed((): Record<string, unknown> => ({}))),
+  );
   defaultsCache.set(type, unwrapped);
   return unwrapped;
 }
@@ -187,32 +212,50 @@ const EMPTY_ACCEPTANCE: Acceptance = {
   regexes: [],
 };
 
+/** The `validators` of a serialized scalar schema, or `[]` when it declares none. */
+function validatorsOf(schema: SerializedSchema): readonly SerializedValidator[] {
+  if (!("validators" in schema) || !Array.isArray(schema.validators)) return [];
+  return schema.validators;
+}
+
+/** The `variants` of a serialized `either` schema, or `[]` when it declares none. */
+function variantsOf(schema: SerializedSchema): readonly SerializedSchema[] {
+  if (!("variants" in schema) || !Array.isArray(schema.variants)) return [];
+  return schema.variants;
+}
+
+/** The single literal of a serialized `literal` schema, or `[]` when it carries none. */
+function literalsOf(schema: SerializedSchema): readonly (string | number | boolean)[] {
+  if (!("value" in schema)) return [];
+  const value = schema.value;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return [value];
+  }
+  return [];
+}
+
 /** Compute the accepted value family of a serialized schema (recursing into `either`). */
 export function acceptanceOf(schema: SerializedSchema): Acceptance {
   // `SerializedSchema` carries an open fallback member (`{ kind: string; ... }`)
   // so unknown mimic schema kinds don't break the union; that widens the
-  // per-member fields, so we read them off a loosely-typed view after switching.
-  const s = schema as {
-    kind: string;
-    value?: string | number | boolean;
-    variants?: readonly SerializedSchema[];
-    validators?: readonly SerializedValidator[];
-  };
-  switch (s.kind) {
+  // per-member fields, so the optional members are read through the guarded
+  // accessors below rather than off the narrowed union.
+  switch (schema.kind) {
     case "number":
       return { ...EMPTY_ACCEPTANCE, acceptsNumber: true };
     case "boolean":
       return { ...EMPTY_ACCEPTANCE, acceptsBoolean: true };
     case "string": {
-      const regexes = (s.validators ?? [])
-        .filter((v) => v.kind === "regex" && typeof v.pattern === "string")
-        .map((v) => ({ pattern: v.pattern as string, flags: v.flags }));
+      const regexes = validatorsOf(schema).flatMap((validator) => {
+        if (validator.kind !== "regex" || typeof validator.pattern !== "string") return [];
+        return [{ pattern: validator.pattern, flags: validator.flags }];
+      });
       return { ...EMPTY_ACCEPTANCE, acceptsString: true, regexes };
     }
     case "literal":
-      return { ...EMPTY_ACCEPTANCE, literals: s.value !== undefined ? [s.value] : [] };
+      return { ...EMPTY_ACCEPTANCE, literals: literalsOf(schema) };
     case "either": {
-      const merged = (s.variants ?? []).map(acceptanceOf);
+      const merged = variantsOf(schema).map(acceptanceOf);
       return {
         acceptsNumber: merged.some((m) => m.acceptsNumber),
         acceptsBoolean: merged.some((m) => m.acceptsBoolean),

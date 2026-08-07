@@ -15,12 +15,12 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@voidhash/ui";
+import { Effect } from "effect";
 import { Fragment, useCallback, useMemo, useRef } from "react";
 import { useContextMenuContext } from "../hooks/use-context-menu-context";
 import { isMacPlatform } from "../utils/platform";
 import { contextMenuRegistry, initializeContextMenuActions } from "../state/context-menu";
 import type {
-  ActionGroup,
   ContextMenuContext as ContextMenuContextType,
   ResolvedAction,
 } from "../state/context-menu/types";
@@ -155,14 +155,24 @@ export function DesignerContextMenu({
   // Create execute handler using the ref context
   const createExecuteHandler = useCallback(
     (resolved: ResolvedAction) => () => {
-      if (!resolved.isEnabled || !contextRef.current) {
+      const context = contextRef.current;
+      if (!resolved.isEnabled || !context) {
         return;
       }
-      try {
-        resolved.action.execute(contextRef.current, dispatch);
-      } catch (error) {
-        console.error(`[ContextMenu] Action "${resolved.action.id}" failed:`, error);
-      }
+      Effect.runSync(
+        Effect.try({
+          try: () => {
+            resolved.action.execute(context, dispatch);
+          },
+          catch: (error: unknown) => error,
+        }).pipe(
+          Effect.catch((error) =>
+            Effect.sync(() => {
+              console.error(`[ContextMenu] Action "${resolved.action.id}" failed:`, error);
+            }),
+          ),
+        ),
+      );
     },
     [dispatch],
   );
@@ -218,11 +228,20 @@ export function DesignerContextMenuContent({ context }: DesignerContextMenuConte
       if (!resolved.isEnabled) {
         return;
       }
-      try {
-        resolved.action.execute(context, dispatch);
-      } catch (error) {
-        console.error(`[ContextMenu] Action "${resolved.action.id}" failed:`, error);
-      }
+      Effect.runSync(
+        Effect.try({
+          try: () => {
+            resolved.action.execute(context, dispatch);
+          },
+          catch: (error: unknown) => error,
+        }).pipe(
+          Effect.catch((error) =>
+            Effect.sync(() => {
+              console.error(`[ContextMenu] Action "${resolved.action.id}" failed:`, error);
+            }),
+          ),
+        ),
+      );
     },
     [context, dispatch],
   );

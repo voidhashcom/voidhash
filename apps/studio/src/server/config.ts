@@ -1,4 +1,3 @@
-import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import tailwindcss from "@tailwindcss/vite";
@@ -7,8 +6,12 @@ import type { InlineConfig } from "vite";
 
 import { voidhashPaywallsPlugin } from "./virtual-paywalls-plugin";
 
-/** Absolute path to the Studio app root (the folder containing `index.html`). */
-export const STUDIO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+/**
+ * Absolute path to the Studio app root (the folder containing `index.html`).
+ * Resolved through `URL` rather than `node:path`; the trailing separator a
+ * directory URL carries is trimmed so the value stays a plain directory path.
+ */
+export const STUDIO_ROOT = fileURLToPath(new URL("../..", import.meta.url)).replace(/[/\\]$/, "");
 
 export interface StudioViteConfigOptions {
   /** The user's project root (folder containing `.voidhash`). */

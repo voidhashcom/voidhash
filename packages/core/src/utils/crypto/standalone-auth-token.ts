@@ -13,7 +13,10 @@
  *
  * See `docs/standalone-auth-design.md` for the trust model.
  */
-import { Effect, Schema } from "effect";
+import { Clock, Effect, Encoding, Schema } from "effect";
+import { numberOr } from "@voidhash/lib/lang";
+
+import { createHash } from "../../services/apiKeys/create-hash.ts";
 
 /** Raised when a standalone token cannot be signed, parsed, or verified. */
 export class StandaloneAuthTokenError extends Schema.TaggedErrorClass<StandaloneAuthTokenError>(
@@ -47,23 +50,7 @@ export const STANDALONE_AUTH_DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-const bytesToBase64Url = (bytes: Uint8Array): string => {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i] as number);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-};
-
-const base64UrlToBytes = (value: string): Uint8Array => {
-  const padded = value.replace(/-/g, "+").replace(/_/g, "/");
-  const binary = atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, "="));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-};
+const bytesToBase64Url = (bytes: Uint8Array): string => Encoding.encodeBase64Url(bytes);
 
 const stringToBase64Url = (value: string): string => bytesToBase64Url(encoder.encode(value));
 
@@ -72,7 +59,7 @@ const importKey = (secret: string) =>
     try: () =>
       crypto.subtle.importKey(
         "raw",
-        encoder.encode(secret) as BufferSource,
+        encoder.encode(secret),
         { name: "HMAC", hash: "SHA-256" },
         false,
         ["sign"],
@@ -87,7 +74,7 @@ const signingSignature = (signingInput: string, secret: string) =>
   Effect.gen(function* () {
     const key = yield* importKey(secret);
     const signature = yield* Effect.tryPromise({
-      try: () => crypto.subtle.sign("HMAC", key, encoder.encode(signingInput) as BufferSource),
+      try: () => crypto.subtle.sign("HMAC", key, encoder.encode(signingInput)),
       catch: (cause) =>
         new StandaloneAuthTokenError({
           message: `standalone auth signing failed: ${String(cause)}`,
@@ -106,14 +93,9 @@ export const constantTimeEquals = (left: string, right: string): boolean => {
   return mismatch === 0;
 };
 
-const sha256Hex = async (value: string): Promise<string> => {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
-  let hex = "";
-  for (const byte of digest) {
-    hex += byte.toString(16).padStart(2, "0");
-  }
-  return hex;
-};
+/** Lowercase hex sha256 over a UTF-8 string (WebCrypto via `uncrypto`, workerd-safe). */
+const sha256Hex = (value: string): Effect.Effect<string> =>
+  Effect.promise(() => createHash("SHA-256", "hex").digest(value));
 
 /**
  * Compares two secrets without leaking their length or contents through timing.
@@ -123,12 +105,42 @@ const sha256Hex = async (value: string): Promise<string> => {
  * mismatch and leak the expected password's length.
  */
 export const secretsMatch = (candidate: string, expected: string): Effect.Effect<boolean> =>
-  Effect.promise(async () =>
-    constantTimeEquals(await sha256Hex(candidate), await sha256Hex(expected)),
-  );
+  Effect.gen(function* () {
+    const candidateHash = yield* sha256Hex(candidate);
+    const expectedHash = yield* sha256Hex(expected);
+    return constantTimeEquals(candidateHash, expectedHash);
+  });
 
 /** Normalizes an email for storage: trimmed, lowercased. */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+/**
+ * Wire shape of the JWT payload. `Schema.fromJsonString` gives us JSON
+ * serialization on the signing side without reaching for `JSON.stringify`.
+ */
+const StandaloneAuthTokenClaimsJson = Schema.fromJsonString(
+  Schema.Struct({
+    sub: Schema.String,
+    email: Schema.String,
+    name: Schema.optional(Schema.String),
+    image: Schema.optional(Schema.String),
+    iat: Schema.Number,
+    exp: Schema.Number,
+  }),
+);
+
+/** Any JSON object: the payload is validated claim by claim after parsing. */
+const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
+
+/** Fixed HS256 header, written as JSON text so no encoder is needed for it. */
+const JWT_HEADER_JSON = '{"alg":"HS256","typ":"JWT"}';
+
+/** Spreadable fragment: the claim when it carries a value, nothing otherwise. */
+const optionalClaim = (key: "image" | "name", value: unknown): Record<string, string> => {
+  if (typeof value !== "string") return {};
+  if (value.length === 0) return {};
+  return { [key]: value };
+};
 
 export interface StandaloneAuthTokenClaims {
   readonly sub: string;
@@ -155,18 +167,25 @@ export const signStandaloneAuthToken = (
   input: SignStandaloneAuthTokenInput,
 ): Effect.Effect<string, StandaloneAuthTokenError> =>
   Effect.gen(function* () {
-    const issuedAt = input.issuedAt ?? Math.floor(Date.now() / 1000);
+    const nowMillis = yield* Clock.currentTimeMillis;
+    const issuedAt = input.issuedAt ?? Math.floor(nowMillis / 1000);
     const claims: StandaloneAuthTokenClaims = {
       email: normalizeEmail(input.email),
       exp: issuedAt + (input.expiresInSeconds ?? STANDALONE_AUTH_DEFAULT_TTL_SECONDS),
       iat: issuedAt,
       sub: STANDALONE_ROOT_SUBJECT,
-      ...(input.image ? { image: input.image } : {}),
-      ...(input.name ? { name: input.name } : {}),
+      ...optionalClaim("image", input.image),
+      ...optionalClaim("name", input.name),
     };
-    const signingInput = `${stringToBase64Url(
-      JSON.stringify({ alg: "HS256", typ: "JWT" }),
-    )}.${stringToBase64Url(JSON.stringify(claims))}`;
+    const claimsJson = yield* Schema.encodeEffect(StandaloneAuthTokenClaimsJson)(claims).pipe(
+      Effect.mapError(
+        (cause) =>
+          new StandaloneAuthTokenError({
+            message: `standalone auth token claims are not serializable: ${String(cause)}`,
+          }),
+      ),
+    );
+    const signingInput = `${stringToBase64Url(JWT_HEADER_JSON)}.${stringToBase64Url(claimsJson)}`;
     const signature = yield* signingSignature(signingInput, input.secret);
     return `${signingInput}.${signature}`;
   });
@@ -181,13 +200,17 @@ export const verifyStandaloneAuthToken = (
   secret: string,
 ): Effect.Effect<StandaloneAuthTokenClaims, StandaloneAuthTokenError> =>
   Effect.gen(function* () {
-    const segments = token.split(".");
-    if (segments.length !== 3) {
+    const [header, payload, signature, ...rest] = token.split(".");
+    if (
+      header === undefined ||
+      payload === undefined ||
+      signature === undefined ||
+      rest.length > 0
+    ) {
       return yield* Effect.fail(
         new StandaloneAuthTokenError({ message: "standalone auth token is malformed" }),
       );
     }
-    const [header, payload, signature] = segments as [string, string, string];
     const expected = yield* signingSignature(`${header}.${payload}`, secret);
     if (!constantTimeEquals(expected, signature)) {
       return yield* Effect.fail(
@@ -195,36 +218,44 @@ export const verifyStandaloneAuthToken = (
       );
     }
 
-    const claims = yield* Effect.try({
-      try: () =>
-        JSON.parse(decoder.decode(base64UrlToBytes(payload))) as StandaloneAuthTokenClaims,
-      catch: (cause) =>
-        new StandaloneAuthTokenError({
-          message: `standalone auth token payload is invalid: ${String(cause)}`,
-        }),
-    });
+    const invalidPayload = (cause: unknown) =>
+      new StandaloneAuthTokenError({
+        message: `standalone auth token payload is invalid: ${String(cause)}`,
+      });
 
-    if (
-      typeof claims.sub !== "string" ||
-      typeof claims.email !== "string" ||
-      typeof claims.exp !== "number"
-    ) {
+    const payloadBytes = yield* Effect.fromResult(Encoding.decodeBase64Url(payload)).pipe(
+      Effect.mapError(invalidPayload),
+    );
+    const parsed = yield* Schema.decodeUnknownEffect(JsonObject)(decoder.decode(payloadBytes)).pipe(
+      Effect.mapError(invalidPayload),
+    );
+
+    const { email, exp, iat, sub } = parsed;
+    if (typeof sub !== "string" || typeof email !== "string" || typeof exp !== "number") {
       return yield* Effect.fail(
         new StandaloneAuthTokenError({ message: "standalone auth token claims are incomplete" }),
       );
     }
-    if (claims.sub !== STANDALONE_ROOT_SUBJECT) {
+    if (sub !== STANDALONE_ROOT_SUBJECT) {
       return yield* Effect.fail(
         new StandaloneAuthTokenError({ message: "standalone auth token subject is not the root identity" }),
       );
     }
-    if (claims.exp * 1000 <= Date.now()) {
+    const nowMillis = yield* Clock.currentTimeMillis;
+    if (exp * 1000 <= nowMillis) {
       return yield* Effect.fail(
         new StandaloneAuthTokenError({ message: "standalone auth token has expired" }),
       );
     }
 
-    return claims;
+    return {
+      email,
+      exp,
+      iat: numberOr(iat, 0),
+      sub,
+      ...optionalClaim("image", parsed.image),
+      ...optionalClaim("name", parsed.name),
+    };
   });
 
 /** Reads a named cookie out of a raw `Cookie` header. */

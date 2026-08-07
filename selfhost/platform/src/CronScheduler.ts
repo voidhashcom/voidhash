@@ -6,7 +6,7 @@ import {
   type CronSchedulerShape,
 } from "@voidhash/platform/CronScheduler";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
-import { Cause, Cron, Effect, Layer, Result, Semaphore } from "effect";
+import { Cause, Clock, Cron, DateTime, Effect, Layer, Result, Schema, SchemaParser, Semaphore } from "effect";
 import { ClusterCron, Sharding } from "effect/unstable/cluster";
 import { KeyValueStore } from "effect/unstable/persistence";
 
@@ -18,29 +18,53 @@ interface SlotState {
 const schedulerError = (jobName: string, operation: string, cause: unknown) =>
   new CronSchedulerError({ jobName, operation, cause: String(cause) });
 
-const parseCron = (job: CronJob<never>) => {
+/**
+ * The schedule fields of a job, without its `run` effect.
+ *
+ * Parsing needs nothing from the job's environment, and quantifying over only
+ * the schedule keeps a `CronJob<R>` usable here without an assertion.
+ */
+interface CronSchedule {
+  readonly name: string;
+  readonly expression: string;
+  readonly timeZone?: string | undefined;
+}
+
+const parseCron = (job: CronSchedule) => {
   const parsed = Cron.parse(job.expression, job.timeZone);
-  return Result.isSuccess(parsed)
-    ? Effect.succeed(parsed.success)
-    : Effect.fail(schedulerError(job.name, "parse", parsed.failure.message));
+  if (Result.isSuccess(parsed)) return Effect.succeed(parsed.success);
+  return Effect.fail(schedulerError(job.name, "parse", parsed.failure.message));
 };
 
 const stateKey = (jobName: string): string => `voidhash/platform-selfhost/cron/${jobName}`;
 
-const decodeState = (raw: string | undefined): SlotState | undefined => {
-  if (raw === undefined) return undefined;
-  try {
-    const parsed = JSON.parse(raw) as Partial<SlotState>;
-    return typeof parsed.nextScheduledAtMs === "number"
-      ? {
-          lastScheduledAtMs:
-            typeof parsed.lastScheduledAtMs === "number" ? parsed.lastScheduledAtMs : undefined,
-          nextScheduledAtMs: parsed.nextScheduledAtMs,
-        }
-      : undefined;
-  } catch {
-    return undefined;
-  }
+const SlotStateJson = Schema.fromJsonString(
+  Schema.Struct({
+    lastScheduledAtMs: Schema.optional(Schema.Number),
+    nextScheduledAtMs: Schema.Number,
+  }),
+);
+
+const decodeSlotState = SchemaParser.decodeUnknownEffect(SlotStateJson);
+const encodeSlotState = SchemaParser.encodeUnknownEffect(SlotStateJson);
+
+/** Reads persisted slot state, treating unreadable state as never-seen. */
+const decodeState = (raw: string | undefined): Effect.Effect<SlotState | undefined> => {
+  if (raw === undefined) return Effect.succeed(undefined);
+  return decodeSlotState(raw).pipe(
+    Effect.map((parsed): SlotState => ({
+      lastScheduledAtMs: parsed.lastScheduledAtMs,
+      nextScheduledAtMs: parsed.nextScheduledAtMs,
+    })),
+    Effect.catchCause(() => Effect.succeed(undefined)),
+  );
+};
+
+const dateFromMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
+const nowMillis = (inputNow: Date | undefined): Effect.Effect<number> => {
+  if (inputNow) return Effect.succeed(inputNow.getTime());
+  return Clock.currentTimeMillis;
 };
 
 /**
@@ -68,16 +92,16 @@ const makeTick =
     };
 
     return PlatformRuntime.pipe(
-      Effect.andThen(parseCron(job as unknown as CronJob<never>)),
+      Effect.andThen(parseCron(job)),
       Effect.flatMap((cron) =>
         lockFor(job.name).withPermit(
           Effect.gen(function* () {
-            const now = inputNow?.getTime() ?? Date.now();
+            const now = yield* nowMillis(inputNow);
             const key = stateKey(job.name);
             const stored = yield* store
               .get(key)
               .pipe(Effect.mapError((cause) => schedulerError(job.name, "claim", cause)));
-            const state = decodeState(stored);
+            const state = yield* decodeState(stored);
 
             // First sight of a job arms it for its next occurrence: a fresh
             // deployment must not immediately fire every schedule it has never
@@ -85,10 +109,13 @@ const makeTick =
             if (state === undefined) {
               const armed: SlotState = {
                 lastScheduledAtMs: undefined,
-                nextScheduledAtMs: Cron.next(cron, new Date(now)).getTime(),
+                nextScheduledAtMs: Cron.next(cron, dateFromMillis(now)).getTime(),
               };
+              const armedJson = yield* encodeSlotState(armed).pipe(
+                Effect.mapError((cause) => schedulerError(job.name, "claim", cause)),
+              );
               yield* store
-                .set(key, JSON.stringify(armed))
+                .set(key, armedJson)
                 .pipe(Effect.mapError((cause) => schedulerError(job.name, "claim", cause)));
               return false;
             }
@@ -96,31 +123,31 @@ const makeTick =
             if (state.nextScheduledAtMs > now) return false;
 
             const scheduledTime = state.nextScheduledAtMs;
-            const nextScheduledAtMs = Cron.next(cron, new Date(scheduledTime)).getTime();
+            const nextScheduledAtMs = Cron.next(cron, dateFromMillis(scheduledTime)).getTime();
 
             yield* job
-              .run({ scheduledTime: new Date(scheduledTime), catchUp: scheduledTime < now })
+              .run({ scheduledTime: dateFromMillis(scheduledTime), catchUp: scheduledTime < now })
               .pipe(
                 Effect.catchCause((cause) =>
                   Effect.fail(schedulerError(job.name, "run", Cause.pretty(cause))),
                 ),
               );
 
+            const completedJson = yield* encodeSlotState({
+              lastScheduledAtMs: scheduledTime,
+              nextScheduledAtMs,
+            } satisfies SlotState).pipe(
+              Effect.mapError((cause) => schedulerError(job.name, "complete", cause)),
+            );
             yield* store
-              .set(
-                key,
-                JSON.stringify({
-                  lastScheduledAtMs: scheduledTime,
-                  nextScheduledAtMs,
-                } satisfies SlotState),
-              )
+              .set(key, completedJson)
               .pipe(Effect.mapError((cause) => schedulerError(job.name, "complete", cause)));
 
             return true;
           }),
         ),
       ),
-    ) as Effect.Effect<boolean, CronSchedulerError, PlatformRuntime | R>;
+    );
   };
 
 /**
@@ -142,15 +169,16 @@ const makeRun =
     _options?: CronRunOptions,
   ): Effect.Effect<never, CronSchedulerError, PlatformRuntime | R> =>
     PlatformRuntime.pipe(
-      Effect.andThen(parseCron(job as unknown as CronJob<never>)),
+      Effect.andThen(parseCron(job)),
       Effect.flatMap((cron) =>
         Layer.launch(
           ClusterCron.make({
             name: job.name,
             cron,
-            execute: Effect.suspend(() =>
-              job.run({ scheduledTime: new Date(), catchUp: false }),
-            ).pipe(
+            execute: Effect.gen(function* () {
+              const scheduledTime = yield* DateTime.nowAsDate;
+              return yield* job.run({ scheduledTime, catchUp: false });
+            }).pipe(
               Effect.catchCause((cause) =>
                 Effect.logError("scheduled job failed", {
                   jobName: job.name,
@@ -161,16 +189,15 @@ const makeRun =
           }),
         ).pipe(Effect.provideService(Sharding.Sharding, sharding)),
       ),
-    ) as Effect.Effect<never, CronSchedulerError, PlatformRuntime | R>;
+    );
 
 const makeScheduler = (
   store: KeyValueStore.KeyValueStore,
   sharding: Sharding.Sharding["Service"],
-): CronSchedulerShape =>
-  ({
-    tick: makeTick(store, new Map<string, Semaphore.Semaphore>()),
-    run: makeRun(sharding),
-  }) as CronSchedulerShape;
+): CronSchedulerShape => ({
+  tick: makeTick(store, new Map<string, Semaphore.Semaphore>()),
+  run: makeRun(sharding),
+});
 
 /** Cluster-backed cron scheduler with durable slot state. */
 export const ClusterCronSchedulerLive: Layer.Layer<

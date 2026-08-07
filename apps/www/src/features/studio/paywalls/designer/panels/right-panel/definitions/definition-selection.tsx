@@ -19,6 +19,7 @@
  * code-component panel learns its selection through the wire `selection` input,
  * not this context.
  */
+import { Effect } from "effect";
 import { createContext, useContext, useSyncExternalStore } from "react";
 
 /** The current selection a definition edits: the selected node ids. */
@@ -87,10 +88,24 @@ export const DefinitionSelectionProvider = DefinitionSelectionContext.Provider;
  */
 export function useDefinitionSelection(): DefinitionSelection {
   const store = useContext(DefinitionSelectionContext);
-  if (!store) {
-    throw new Error(
-      "useDefinitionSelection must be used inside a DefinitionSelectionProvider (built-in panel host)",
-    );
-  }
-  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const read = () => {
+    if (!store) {
+      return Effect.runSync(
+        Effect.die(
+          new Error(
+            "useDefinitionSelection must be used inside a DefinitionSelectionProvider (built-in panel host)",
+          ),
+        ),
+      );
+    }
+    return store.getSnapshot();
+  };
+  return useSyncExternalStore(
+    (listener) => {
+      if (!store) return () => {};
+      return store.subscribe(listener);
+    },
+    read,
+    read,
+  );
 }

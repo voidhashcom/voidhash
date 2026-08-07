@@ -25,6 +25,21 @@ export type MigrationSet = {
   readonly migrations: ReadonlyArray<Migration>;
 };
 
+/**
+ * Reads the highest applied migration id from the ledger query result, or `-1`
+ * when the ledger is empty (or the row does not carry a numeric id).
+ */
+const latestMigrationId = (rows: ReadonlyArray<unknown>): number => {
+  const row = rows[0];
+  if (typeof row === "object" && row !== null && "migration_id" in row) {
+    const id = row.migration_id;
+    if (typeof id === "number") {
+      return id;
+    }
+  }
+  return -1;
+};
+
 const runMigrationSet = (migrationSet: MigrationSet) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
@@ -45,8 +60,7 @@ const runMigrationSet = (migrationSet: MigrationSet) =>
       const applied = yield* sql`
         SELECT migration_id FROM ${sql(migrationSet.tableName)} ORDER BY migration_id DESC LIMIT 1
       `.withoutTransform;
-      const latestId =
-        applied.length > 0 ? (applied[0] as { migration_id: number }).migration_id : -1;
+      const latestId = latestMigrationId(applied);
 
       for (const [id, name, migration] of migrationSet.migrations) {
         if (id <= latestId) continue;

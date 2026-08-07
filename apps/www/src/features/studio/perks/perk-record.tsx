@@ -26,7 +26,7 @@ export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
     ...deletePerkOptions(),
     onSuccess: () => {
       toast.success("Perk successfully deleted");
-      queryClient.invalidateQueries({ queryKey: queryKeys.perk.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.perk.all });
     },
     onError: () => {
       toast.error("Failed to delete perk");
@@ -71,7 +71,7 @@ export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
                   className="z-20"
                   onClick={(e) => {
                     e.preventDefault();
-                    navigator.clipboard.writeText(perk.slug);
+                    void navigator.clipboard.writeText(perk.slug);
                     toast.success("Slug (ID) copied to clipboard");
                   }}
                   size="icon"

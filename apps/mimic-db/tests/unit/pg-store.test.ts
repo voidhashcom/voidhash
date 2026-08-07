@@ -14,11 +14,17 @@ const sqlErrorWithCause = (cause: unknown): SqlError.SqlError =>
     }),
   });
 
-const pgError = (code: string, message: string): Error => {
-  const error = new Error(message);
-  (error as Error & { code: string }).code = code;
-  return error;
-};
+/** A stand-in for the driver error node-postgres raises: an `Error` with a SQLSTATE `code`. */
+class PgDriverError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+const pgError = (code: string, message: string): Error => new PgDriverError(code, message);
 
 describe("pg-store error classification", () => {
   it("detects undefined_table (42P01) as a missing table", () => {

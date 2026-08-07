@@ -1,133 +1,165 @@
 import { Mailer, MailerError } from "@voidhash/platform/Mailer";
-import { Effect, Layer } from "effect";
+import { Config, Effect, Layer, Random, Schema } from "effect";
+import { FetchHttpClient, HttpClient } from "effect/unstable/http";
 import { describe, expect, it } from "vitest";
 
 import { SmtpMailerLive, type SmtpMailerConfig } from "../src/Mailer.ts";
 import { SelfhostPlatformRuntimeLive } from "../src/PlatformRuntime.ts";
 
-const config: SmtpMailerConfig = {
-  host: process.env.PLATFORM_SELFHOST_SMTP_HOST ?? "127.0.0.1",
-  port: Number(process.env.PLATFORM_SELFHOST_SMTP_PORT ?? "1025"),
-  defaultFrom: { address: "noreply@voidhash.local", name: "Voidhash" },
-  verifyOnStart: true,
-};
+const readConfig = Effect.gen(function* () {
+  const config: SmtpMailerConfig = {
+    host: yield* Config.string("PLATFORM_SELFHOST_SMTP_HOST").pipe(
+      Config.withDefault("127.0.0.1"),
+    ),
+    port: yield* Config.int("PLATFORM_SELFHOST_SMTP_PORT").pipe(Config.withDefault(1025)),
+    defaultFrom: { address: "noreply@voidhash.local", name: "Voidhash" },
+    verifyOnStart: true,
+  };
+  return config;
+}).pipe(Effect.orDie);
 
-const mailerLayer = (input: SmtpMailerConfig = config) =>
-  Layer.merge(SmtpMailerLive(input), SelfhostPlatformRuntimeLive);
-const mailpitApi = process.env.PLATFORM_SELFHOST_MAILPIT_API ?? "http://127.0.0.1:8025";
+const mailerLayer = (adjust: (config: SmtpMailerConfig) => SmtpMailerConfig = (input) => input) =>
+  Layer.unwrap(
+    readConfig.pipe(
+      Effect.map((config) =>
+        Layer.merge(SmtpMailerLive(adjust(config)), SelfhostPlatformRuntimeLive),
+      ),
+    ),
+  );
 
-interface MailpitMessageSummary {
-  readonly ID: string;
-  readonly Subject: string;
-}
+const mailpitApi = Config.string("PLATFORM_SELFHOST_MAILPIT_API").pipe(
+  Config.withDefault("http://127.0.0.1:8025"),
+  Effect.orDie,
+);
 
-interface MailpitMessages {
-  readonly messages: ReadonlyArray<MailpitMessageSummary>;
-}
+const uniqueSuffix = Effect.gen(function* () {
+  const high = yield* Random.nextInt;
+  const low = yield* Random.nextInt;
+  return `${high.toString(36)}${low.toString(36)}`;
+});
 
-interface MailpitMessage {
-  readonly From: { readonly Address: string };
-  readonly To: ReadonlyArray<{ readonly Address: string }>;
-  readonly ReplyTo: ReadonlyArray<{ readonly Address: string }>;
-  readonly Text: string;
-  readonly HTML: string;
-}
+const isOk = (status: number): boolean => status >= 200 && status < 300;
+
+const Address = Schema.Struct({ Address: Schema.String });
+
+const decodeMessages = Schema.decodeUnknownEffect(
+  Schema.Struct({
+    messages: Schema.Array(Schema.Struct({ ID: Schema.String, Subject: Schema.String })),
+  }),
+);
+
+const decodeMessage = Schema.decodeUnknownEffect(
+  Schema.Struct({
+    From: Address,
+    To: Schema.Array(Address),
+    ReplyTo: Schema.Array(Address),
+    Text: Schema.String,
+    HTML: Schema.String,
+  }),
+);
+
+const decodeHeaders = Schema.decodeUnknownEffect(
+  Schema.Record(Schema.String, Schema.Array(Schema.String)),
+);
 
 describe("SMTP mailer", () => {
-  it("delivers structured text and HTML through SMTP", async () => {
-    const subject = `SMTP integration ${crypto.randomUUID()}`;
-    const delivery = await Effect.runPromise(
+  it("delivers structured text and HTML through SMTP", () =>
+    Effect.runPromise(
       Effect.gen(function* () {
-        const mailer = yield* Mailer;
-        return yield* mailer.send({
-          to: [{ address: "person@example.com", name: "Example Person" }],
-          replyTo: { address: "support@voidhash.local", name: "Support" },
-          subject,
-          text: "Plain body",
-          html: "<strong>HTML body</strong>",
-          headers: { "X-Voidhash-Test": "smtp" },
-        });
-      }).pipe(Effect.provide(mailerLayer())),
-    );
+        const api = yield* mailpitApi;
+        const subject = `SMTP integration ${yield* uniqueSuffix}`;
+        const delivery = yield* Effect.gen(function* () {
+          const mailer = yield* Mailer;
+          return yield* mailer.send({
+            to: [{ address: "person@example.com", name: "Example Person" }],
+            replyTo: { address: "support@voidhash.local", name: "Support" },
+            subject,
+            text: "Plain body",
+            html: "<strong>HTML body</strong>",
+            headers: { "X-Voidhash-Test": "smtp" },
+          });
+        }).pipe(Effect.provide(mailerLayer()));
 
-    expect(delivery.messageId).toBeTypeOf("string");
-    expect(delivery.accepted).toContain("person@example.com");
-    expect(delivery.rejected).toEqual([]);
+        expect(delivery.messageId).toBeTypeOf("string");
+        expect(delivery.accepted).toContain("person@example.com");
+        expect(delivery.rejected).toEqual([]);
 
-    const messagesResponse = await fetch(`${mailpitApi}/api/v1/messages`);
-    expect(messagesResponse.ok).toBe(true);
-    const messages = (await messagesResponse.json()) as MailpitMessages;
-    const messageId = messages.messages.find((message) => message.Subject === subject)?.ID;
-    expect(messageId).toBeTypeOf("string");
+        const client = yield* HttpClient.HttpClient;
+        const messagesResponse = yield* client.get(`${api}/api/v1/messages`);
+        expect(isOk(messagesResponse.status)).toBe(true);
+        const messages = yield* decodeMessages(yield* messagesResponse.json);
+        const messageId = messages.messages.find((message) => message.Subject === subject)?.ID;
+        expect(messageId).toBeTypeOf("string");
 
-    const [messageResponse, headersResponse] = await Promise.all([
-      fetch(`${mailpitApi}/api/v1/message/${messageId}`),
-      fetch(`${mailpitApi}/api/v1/message/${messageId}/headers`),
-    ]);
-    expect(messageResponse.ok).toBe(true);
-    expect(headersResponse.ok).toBe(true);
+        const [messageResponse, headersResponse] = yield* Effect.all(
+          [
+            client.get(`${api}/api/v1/message/${messageId}`),
+            client.get(`${api}/api/v1/message/${messageId}/headers`),
+          ],
+          { concurrency: "unbounded" },
+        );
+        expect(isOk(messageResponse.status)).toBe(true);
+        expect(isOk(headersResponse.status)).toBe(true);
 
-    const message = (await messageResponse.json()) as MailpitMessage;
-    const headers = (await headersResponse.json()) as Record<string, ReadonlyArray<string>>;
-    expect(message.From.Address).toBe("noreply@voidhash.local");
-    expect(message.To.map(({ Address }) => Address)).toEqual(["person@example.com"]);
-    expect(message.ReplyTo.map(({ Address }) => Address)).toEqual(["support@voidhash.local"]);
-    expect(message.Text).toBe("Plain body");
-    expect(message.HTML).toBe("<strong>HTML body</strong>");
-    expect(headers["X-Voidhash-Test"]).toEqual(["smtp"]);
-  });
+        const message = yield* decodeMessage(yield* messageResponse.json);
+        const headers = yield* decodeHeaders(yield* headersResponse.json);
+        expect(message.From.Address).toBe("noreply@voidhash.local");
+        expect(message.To.map(({ Address: address }) => address)).toEqual(["person@example.com"]);
+        expect(message.ReplyTo.map(({ Address: address }) => address)).toEqual([
+          "support@voidhash.local",
+        ]);
+        expect(message.Text).toBe("Plain body");
+        expect(message.HTML).toBe("<strong>HTML body</strong>");
+        expect(headers["X-Voidhash-Test"]).toEqual(["smtp"]);
+      }).pipe(Effect.provide(FetchHttpClient.layer)),
+    ));
 
-  it("validates message content through the stable error channel", async () => {
-    const error = await Effect.runPromise(
+  it("validates message content through the stable error channel", () =>
+    Effect.runPromise(
       Effect.gen(function* () {
-        const mailer = yield* Mailer;
-        return yield* mailer
-          .send({ to: [], subject: "invalid" })
-          .pipe(Effect.flip);
-      }).pipe(Effect.provide(mailerLayer({ ...config, verifyOnStart: false }))),
-    );
+        const error = yield* Effect.gen(function* () {
+          const mailer = yield* Mailer;
+          return yield* mailer.send({ to: [], subject: "invalid" }).pipe(Effect.flip);
+        }).pipe(
+          Effect.provide(mailerLayer((config) => ({ ...config, verifyOnStart: false }))),
+        );
 
-    expect(error).toBeInstanceOf(MailerError);
-    expect(error.operation).toBe("validate");
-  });
+        expect(error).toBeInstanceOf(MailerError);
+        expect(error.operation).toBe("validate");
+      }),
+    ));
 
-  it("maps SMTP connection failures during startup verification", async () => {
-    const error = await Effect.runPromise(
+  it("maps SMTP connection failures during startup verification", () =>
+    Effect.runPromise(
       Effect.gen(function* () {
-        return yield* Mailer;
-      }).pipe(
-        Effect.provide(
-          mailerLayer({
-            ...config,
-            port: 1,
-            connectionTimeoutMillis: 200,
-          }),
-        ),
-        Effect.flip,
-      ),
-    );
+        const error = yield* Effect.gen(function* () {
+          return yield* Mailer;
+        }).pipe(
+          Effect.provide(
+            mailerLayer((config) => ({ ...config, port: 1, connectionTimeoutMillis: 200 })),
+          ),
+          Effect.flip,
+        );
 
-    expect(error).toBeInstanceOf(MailerError);
-    expect(error.operation).toBe("verify");
-  });
+        expect(error).toBeInstanceOf(MailerError);
+        expect(error.operation).toBe("verify");
+      }),
+    ));
 
-  it("rejects incomplete SMTP authentication configuration", async () => {
-    const error = await Effect.runPromise(
+  it("rejects incomplete SMTP authentication configuration", () =>
+    Effect.runPromise(
       Effect.gen(function* () {
-        return yield* Mailer;
-      }).pipe(
-        Effect.provide(
-          mailerLayer({
-            ...config,
-            username: "user",
-            password: undefined,
-          }),
-        ),
-        Effect.flip,
-      ),
-    );
+        const error = yield* Effect.gen(function* () {
+          return yield* Mailer;
+        }).pipe(
+          Effect.provide(
+            mailerLayer((config) => ({ ...config, username: "user", password: undefined })),
+          ),
+          Effect.flip,
+        );
 
-    expect(error).toBeInstanceOf(MailerError);
-    expect(error.operation).toBe("configure");
-  });
+        expect(error).toBeInstanceOf(MailerError);
+        expect(error.operation).toBe("configure");
+      }),
+    ));
 });

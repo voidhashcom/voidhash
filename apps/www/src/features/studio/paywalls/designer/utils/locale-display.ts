@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 /**
  * A small curated set of common BCP 47 language tags offered as one-click adds
  * (the action-bar switcher and Translation mode's locale rail share it); typing
@@ -26,9 +28,9 @@ export const COMMON_LOCALES: readonly string[] = [
 
 /** Human-readable label for a locale tag, falling back to the raw tag. */
 export function localeLabel(tag: string): string {
-  try {
-    return new Intl.DisplayNames([tag], { type: "language" }).of(tag) ?? tag;
-  } catch {
-    return tag;
-  }
+  return Effect.runSync(
+    Effect.try(() => new Intl.DisplayNames([tag], { type: "language" }).of(tag) ?? tag).pipe(
+      Effect.orElseSucceed(() => tag),
+    ),
+  );
 }

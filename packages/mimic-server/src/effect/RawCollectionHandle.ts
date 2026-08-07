@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Clock, Effect, Random } from "effect";
 
 import type { MimicSDK } from "./MimicSDK.ts";
 import type {
@@ -40,6 +40,27 @@ export interface RawConnectedTransactionInput extends RawTransactionInput {
 }
 
 /**
+ * Mints an ephemeral transaction id. Prefers `crypto.randomUUID` where the
+ * runtime provides it and otherwise falls back to a clock + randomness pair,
+ * which keeps the SDK usable on runtimes without WebCrypto.
+ */
+const makeTransactionId = Effect.gen(function* () {
+  const cryptoApi = globalThis.crypto;
+  if (typeof cryptoApi?.randomUUID === "function") {
+    return cryptoApi.randomUUID();
+  }
+  const now = yield* Clock.currentTimeMillis;
+  const random = yield* Random.next;
+  return `${now}-${random.toString(36).slice(2)}`;
+});
+
+/** Uses the caller-supplied transaction id when present, otherwise mints one. */
+const resolveTransactionId = (id: string | undefined): Effect.Effect<string> => {
+  if (id !== undefined) return Effect.succeed(id);
+  return makeTransactionId;
+};
+
+/**
  * "Raw" collection handle for callers that work with dynamic schemas at
  * runtime (admin UI, tooling). Does not encode/decode through a `Primitive`;
  * values are passed straight through as JSON.
@@ -63,34 +84,26 @@ export class RawCollectionHandle {
     value: unknown,
     options?: { readonly id?: string },
   ): Effect.Effect<RawDocumentSnapshot, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.CreateDocument({
-          collectionId: this.id,
-          id: options?.id,
-          value,
-        }) as Effect.Effect<RawDocumentSnapshot, unknown>,
+    return this.sdk.runEffect((client) =>
+      client.CreateDocument({
+        collectionId: this.id,
+        id: options?.id,
+        value,
+      }),
     );
   }
 
   getDocumentRaw(documentId: string): Effect.Effect<RawDocumentSnapshot, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.GetDocument({
-          collectionId: this.id,
-          documentId,
-        }) as Effect.Effect<RawDocumentSnapshot, unknown>,
+    return this.sdk.runEffect((client) =>
+      client.GetDocument({
+        collectionId: this.id,
+        documentId,
+      }),
     );
   }
 
   listDocumentsRaw(): Effect.Effect<ReadonlyArray<RawDocumentSnapshot>, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.ListDocuments({ collectionId: this.id }) as Effect.Effect<
-          ReadonlyArray<RawDocumentSnapshot>,
-          unknown
-        >,
-    );
+    return this.sdk.runEffect((client) => client.ListDocuments({ collectionId: this.id }));
   }
 
   deleteDocument(documentId: string) {
@@ -112,15 +125,12 @@ export class RawCollectionHandle {
     const collectionId = this.id;
     return this.sdk.runEffect((client) =>
       Effect.gen(function* () {
-        const current = (yield* client.GetDocument({
+        const current = yield* client.GetDocument({
           collectionId,
           documentId,
-        })) as RawDocumentSnapshot;
+        });
 
-        const transactionId =
-          typeof globalThis.crypto?.randomUUID === "function"
-            ? globalThis.crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const transactionId = yield* makeTransactionId;
 
         const result = yield* client.SubmitTransaction({
           collectionId,
@@ -165,22 +175,20 @@ export class RawCollectionHandle {
     input: RawTransactionInput,
   ): Effect.Effect<RawTransactionResult, unknown> {
     const collectionId = this.id;
-    return this.sdk.runEffect((client) => {
-      const transactionId =
-        input.id ??
-        (typeof globalThis.crypto?.randomUUID === "function"
-          ? globalThis.crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-      return client.SubmitTransaction({
-        collectionId,
-        documentId,
-        transaction: {
-          id: transactionId,
-          baseVersion: input.baseVersion,
-          commands: input.commands as never,
-        },
-      }) as Effect.Effect<RawTransactionResult, unknown>;
-    });
+    return this.sdk.runEffect((client) =>
+      Effect.gen(function* () {
+        const transactionId = yield* resolveTransactionId(input.id);
+        return yield* client.SubmitTransaction({
+          collectionId,
+          documentId,
+          transaction: {
+            id: transactionId,
+            baseVersion: input.baseVersion,
+            commands: input.commands,
+          },
+        });
+      }),
+    );
   }
 
   /** Opens a leased headless participant connection to a document. */
@@ -188,15 +196,14 @@ export class RawCollectionHandle {
     documentId: string,
     input: RawDocumentConnectionInput,
   ): Effect.Effect<RawDocumentSnapshot, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.OpenDocumentConnection({
-          collectionId: this.id,
-          documentId,
-          connectionId: input.connectionId,
-          presence: input.presence,
-          leaseMs: input.leaseMs,
-        }) as Effect.Effect<RawDocumentSnapshot, unknown>,
+    return this.sdk.runEffect((client) =>
+      client.OpenDocumentConnection({
+        collectionId: this.id,
+        documentId,
+        connectionId: input.connectionId,
+        presence: input.presence,
+        leaseMs: input.leaseMs,
+      }),
     );
   }
 
@@ -206,14 +213,13 @@ export class RawCollectionHandle {
     connectionId: string,
     leaseMs?: number,
   ): Effect.Effect<RawDocumentSnapshot, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.GetConnectedDocument({
-          collectionId: this.id,
-          documentId,
-          connectionId,
-          leaseMs,
-        }) as Effect.Effect<RawDocumentSnapshot, unknown>,
+    return this.sdk.runEffect((client) =>
+      client.GetConnectedDocument({
+        collectionId: this.id,
+        documentId,
+        connectionId,
+        leaseMs,
+      }),
     );
   }
 
@@ -223,26 +229,24 @@ export class RawCollectionHandle {
     connectionId: string,
     leaseMs?: number,
   ): Effect.Effect<void, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.HeartbeatDocumentConnection({
-          collectionId: this.id,
-          documentId,
-          connectionId,
-          leaseMs,
-        }) as Effect.Effect<void, unknown>,
+    return this.sdk.runEffect((client) =>
+      client.HeartbeatDocumentConnection({
+        collectionId: this.id,
+        documentId,
+        connectionId,
+        leaseMs,
+      }),
     );
   }
 
   /** Closes a headless document connection and removes its presence. */
   closeDocumentConnection(documentId: string, connectionId: string): Effect.Effect<void, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.CloseDocumentConnection({
-          collectionId: this.id,
-          documentId,
-          connectionId,
-        }) as Effect.Effect<void, unknown>,
+    return this.sdk.runEffect((client) =>
+      client.CloseDocumentConnection({
+        collectionId: this.id,
+        documentId,
+        connectionId,
+      }),
     );
   }
 
@@ -251,39 +255,36 @@ export class RawCollectionHandle {
     documentId: string,
     input: RawConnectedTransactionInput,
   ): Effect.Effect<RawTransactionResult, unknown> {
-    const transactionId =
-      input.id ??
-      (typeof globalThis.crypto?.randomUUID === "function"
-        ? globalThis.crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    return this.sdk.runEffect(
-      (client) =>
-        client.SubmitConnectedTransaction({
-          collectionId: this.id,
+    const collectionId = this.id;
+    return this.sdk.runEffect((client) =>
+      Effect.gen(function* () {
+        const transactionId = yield* resolveTransactionId(input.id);
+        return yield* client.SubmitConnectedTransaction({
+          collectionId,
           documentId,
           connectionId: input.connectionId,
           leaseMs: input.leaseMs,
           transaction: {
             id: transactionId,
             baseVersion: input.baseVersion,
-            commands: input.commands as never,
+            commands: input.commands,
           },
-        }) as Effect.Effect<RawTransactionResult, unknown>,
+        });
+      }),
     );
   }
 
   setupDocumentAuthentication(
     options: SetupDocumentAuthenticationOptions,
   ): Effect.Effect<DocumentAuthenticationSetup, unknown> {
-    return this.sdk.runEffect(
-      (client) =>
-        client.SetupDocumentAuthentication({
-          collectionId: this.id,
-          documentId: options.documentId,
-          permission: options.permission,
-          origins: options.origins,
-          expiresInSeconds: options.expiresInSeconds,
-        }) as Effect.Effect<DocumentAuthenticationSetup, unknown>,
+    return this.sdk.runEffect((client) =>
+      client.SetupDocumentAuthentication({
+        collectionId: this.id,
+        documentId: options.documentId,
+        permission: options.permission,
+        origins: options.origins,
+        expiresInSeconds: options.expiresInSeconds,
+      }),
     );
   }
 }

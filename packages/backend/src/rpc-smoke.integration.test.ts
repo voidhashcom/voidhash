@@ -21,7 +21,8 @@
  * The smoke fixture is seeded in-process via `seedSmokeData` (formerly the
  * `/__test/seed` route).
  */
-import { Effect, Layer } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Config, Effect, Formatter, Layer, Random, Schema } from "effect";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { RpcClient, RpcTest } from "effect/unstable/rpc";
@@ -79,8 +80,12 @@ const SMOKE_AUTH_SECRET = "rpc-smoke-standalone-auth-secret";
 const requireTestConnections = (): BackendTestConnections => {
   const tc = inject("coreStackOutput")?.testConnections ?? null;
   if (tc === null) {
-    throw new Error(
-      "rpc-smoke: shared deploy output missing or testConnections is null — globalSetup failed, or it ran on a production/preview stage.",
+    return Effect.runSync(
+      Effect.die(
+        new Error(
+          "rpc-smoke: shared deploy output missing or testConnections is null — globalSetup failed, or it ran on a production/preview stage.",
+        ),
+      ),
     );
   }
   return tc;
@@ -100,8 +105,13 @@ const SmokePaywallArtifactStoreLive = Layer.sync(PaywallArtifactStore, () => {
   return PaywallArtifactStore.of({
     bucketName: "rpc-smoke-paywall-artifacts",
     getObject: (key) => Effect.succeed(objects.get(key) ?? null),
-    head: (key) =>
-      Effect.succeed(objects.has(key) ? { size: objects.get(key)?.body.length ?? 0 } : null),
+    head: (key) => {
+      const object = objects.get(key);
+      if (object === undefined) {
+        return Effect.succeed(null);
+      }
+      return Effect.succeed({ size: object.body.length });
+    },
     putObject: ({ body, contentType, key }) =>
       Effect.sync(() => {
         objects.set(key, { body, contentType: contentType ?? null });
@@ -158,18 +168,44 @@ const smokeHeaders = (context: RpcSmokeContext, role: RpcSmokeRole) => ({
   [SMOKE_RUN_ID_HEADER]: context.runId,
 });
 
+/** `JSON.stringify` of a value, falling back to `String(value)` when it cannot be serialized. */
+const formatJsonOrString = (value: unknown): string =>
+  Effect.runSync(
+    Effect.try(() => Formatter.formatJson(value)).pipe(
+      Effect.orElseSucceed(() => String(value)),
+    ),
+  );
+
+const errorDetails = (entries: ReadonlyArray<[string, unknown]>): string => {
+  if (entries.length === 0) {
+    return "";
+  }
+  return ` ${formatJsonOrString(Object.fromEntries(entries))}`;
+};
+
 const formatFailure = (failure: unknown): string => {
   if (failure instanceof Error) {
-    const entries = Object.entries(failure as unknown as Record<string, unknown>);
-    const details = entries.length > 0 ? ` ${JSON.stringify(Object.fromEntries(entries))}` : "";
-    return `${failure.name}: ${failure.message}${details}`;
+    const entries = Object.entries(failure);
+    return `${failure.name}: ${failure.message}${errorDetails(entries)}`;
   }
-  try {
-    return JSON.stringify(failure);
-  } catch {
-    return String(failure);
-  }
+  return formatJsonOrString(failure);
 };
+
+/** The `_tag` of a tagged RPC failure, when the failure carries one. */
+const failureTag = (failure: unknown): string | undefined => {
+  if (failure === null || typeof failure !== "object" || !("_tag" in failure)) {
+    return undefined;
+  }
+  if (typeof failure._tag !== "string") {
+    return undefined;
+  }
+  return failure._tag;
+};
+
+// The generated `RpcTest` client is a per-tag record of typed handlers; the
+// smoke runner dispatches by tag string, which no generated type expresses.
+// The single loosening between the two views lives here.
+const dispatchTable = (client: unknown): any => client;
 
 const runRpcSmokeCase = (
   client: Record<string, (payload?: unknown) => Effect.Effect<unknown, unknown>>,
@@ -180,14 +216,14 @@ const runRpcSmokeCase = (
     const payload = smokeCase.payload?.(context);
     const request = client[smokeCase.tag];
     if (!request) {
-      throw new Error(`RPC client is missing ${smokeCase.tag}`);
+      return yield* Effect.die(new Error(`RPC client is missing ${smokeCase.tag}`));
     }
 
     const result = yield* request(payload).pipe(
       RpcClient.withHeaders(smokeHeaders(context, smokeCase.role)),
       Effect.match({
-        onFailure: (failure) => ({ _tag: "Failure" as const, failure }),
-        onSuccess: (value) => ({ _tag: "Success" as const, value }),
+        onFailure: (failure) => ({ _tag: constant("Failure"), failure }),
+        onSuccess: (value) => ({ _tag: constant("Success"), value }),
       }),
     );
     const expected = smokeCase.expected ?? { success: true };
@@ -195,14 +231,15 @@ const runRpcSmokeCase = (
     if ("errorTag" in expected) {
       expect(result._tag, `${smokeCase.tag} should fail`).toBe("Failure");
       if (result._tag === "Failure") {
-        const actual = result.failure as { readonly _tag?: string };
-        expect(actual._tag, `${smokeCase.tag} error tag`).toBe(expected.errorTag);
+        expect(failureTag(result.failure), `${smokeCase.tag} error tag`).toBe(expected.errorTag);
       }
       return;
     }
 
     if (result._tag === "Failure") {
-      throw new Error(`${smokeCase.tag} failed unexpectedly: ${formatFailure(result.failure)}`);
+      return yield* Effect.die(
+        new Error(`${smokeCase.tag} failed unexpectedly: ${formatFailure(result.failure)}`),
+      );
     }
     expect(result._tag, `${smokeCase.tag} should succeed`).toBe("Success");
     if (result._tag === "Success") {
@@ -215,56 +252,76 @@ const runRpcSmokeCase = (
  * shared database don't collide; set `VOIDHASH_RPC_SMOKE_RUN_ID` to reproduce a
  * specific run.
  */
+const rawRunId = Effect.runSync(
+  Config.string("VOIDHASH_RPC_SMOKE_RUN_ID").pipe(
+    Config.withDefault(""),
+    Effect.orDie,
+    Effect.flatMap((configured) => {
+      if (configured !== "") {
+        return Effect.succeed(configured);
+      }
+      return Effect.map(Random.nextIntBetween(0, Number.MAX_SAFE_INTEGER), (value) =>
+        value.toString(36),
+      );
+    }),
+  ),
+);
+
 const runId =
-  (process.env.VOIDHASH_RPC_SMOKE_RUN_ID ?? crypto.randomUUID())
+  rawRunId
     .toLowerCase()
     .replaceAll(/[^a-z0-9]/g, "")
     .slice(0, 10) || "default";
 
 describe("Backend RPC smoke", () => {
-  test("dispatches every RPC against the in-process handler graph", async () => {
-    const tc = requireTestConnections();
-    assertRpcSmokeManifestCoverage();
+  test(
+    "dispatches every RPC against the in-process handler graph",
+    () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const tc = requireTestConnections();
+          assertRpcSmokeManifestCoverage();
 
-    // Seed the fixture in-process (formerly the `/__test/seed` HTTP route).
-    await Effect.runPromise(seedSmokeData(runId).pipe(Effect.provide(Db.layer(tc.db))));
+          // Seed the fixture in-process (formerly the `/__test/seed` HTTP route).
+          yield* seedSmokeData(runId).pipe(Effect.provide(Db.layer(tc.db)));
 
-    const ids = makeSmokeIds(runId);
-    const context = makeRpcSmokeContext(runId, ids, "https://example.test/webhook-target");
+          const ids = makeSmokeIds(runId);
+          const context = makeRpcSmokeContext(runId, ids, "https://example.test/webhook-target");
 
-    const infra = makeRpcInfra(tc);
-    const rpcServices = buildBackendRpcServices({
-      auth: TestRpcAuthLive,
-      features: NoBackendFeatures,
-      rpcExtension: NoBackendRpcExtension,
-      infrastructure: infra,
-      webhookManager: TestWebhookManagerServiceLive.pipe(Layer.provide(infra)),
-    });
+          const infra = makeRpcInfra(tc);
+          const rpcServices = buildBackendRpcServices({
+            auth: TestRpcAuthLive,
+            features: NoBackendFeatures,
+            rpcExtension: NoBackendRpcExtension,
+            infrastructure: infra,
+            webhookManager: TestWebhookManagerServiceLive.pipe(Layer.provide(infra)),
+          });
 
-    // The infra layer (incl. `Db`) is scoped: its `Db.make` finalizer closes
-    // the mysql2 connection when the scope it was built into closes. It must
-    // therefore be provided to the WHOLE block — `makeClient` *and* the
-    // dispatch loop — not just to `makeClient`. Providing it to `makeClient`
-    // alone ties the layer's scope to `makeClient`'s completion, so the Db
-    // connection is closed the instant the client resolves; the first
-    // dispatch then dies with "Can't add new command when connection is in
-    // closed state". The in-memory server captures the handler context at
-    // build time, so the loop only needs the backing resources to stay live.
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const client = yield* RpcTest.makeClient(RpcGroups);
+          // The infra layer (incl. `Db`) is scoped: its `Db.make` finalizer closes
+          // the mysql2 connection when the scope it was built into closes. It must
+          // therefore be provided to the WHOLE block — `makeClient` *and* the
+          // dispatch loop — not just to `makeClient`. Providing it to `makeClient`
+          // alone ties the layer's scope to `makeClient`'s completion, so the Db
+          // connection is closed the instant the client resolves; the first
+          // dispatch then dies with "Can't add new command when connection is in
+          // closed state". The in-memory server captures the handler context at
+          // build time, so the loop only needs the backing resources to stay live.
+          yield* Effect.gen(function* () {
+            const client = yield* RpcTest.makeClient(RpcGroups);
 
-        for (const smokeCase of rpcSmokeCases) {
-          yield* runRpcSmokeCase(client as never, smokeCase, context);
-        }
-      }).pipe(
-        Effect.provide(rpcServices),
-        Effect.provide(TestWorkflowRunnerLive),
-        Effect.provide(SmokePlatformRuntimeStub),
-        Effect.scoped,
+            for (const smokeCase of rpcSmokeCases) {
+              yield* runRpcSmokeCase(dispatchTable(client), smokeCase, context);
+            }
+          }).pipe(
+            Effect.provide(rpcServices),
+            Effect.provide(TestWorkflowRunnerLive),
+            Effect.provide(SmokePlatformRuntimeStub),
+            Effect.scoped,
+          );
+        }),
       ),
-    );
-  }, 600_000);
+    600_000,
+  );
 });
 
 /**
@@ -304,13 +361,17 @@ const requestBackend = (tc: BackendTestConnections, path: string, init: RequestI
   );
 
 describe("Backend runtime capabilities", () => {
-  test("keeps Enterprise UI capabilities dormant in the core-only composition", async () => {
-    const tc = requireTestConnections();
-    const { status, text } = await Effect.runPromise(
-      requestBackend(tc, "/api/runtime-capabilities", { method: "GET" }),
-    );
+  test("keeps Enterprise UI capabilities dormant in the core-only composition", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const tc = requireTestConnections();
+        const { status, text } = yield* requestBackend(tc, "/api/runtime-capabilities", {
+          method: "GET",
+        });
 
-    expect(status).toBe(200);
-    expect(JSON.parse(text)).toEqual({ enterprise: {} });
-  });
+        expect(status).toBe(200);
+        const body = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(text);
+        expect(body).toEqual({ enterprise: {} });
+      }),
+    ));
 });

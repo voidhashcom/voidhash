@@ -1,11 +1,35 @@
 import type { UsePaywallByLocationOptions } from "@voidhash/react-native";
 import { Button } from "components/button";
+import { Data, Effect, Inspectable } from "effect";
 import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { voidhash } from "utils/voidhash/client";
 
 const PAYWALL_LOCATION_SLUG = "example-paywall";
+
+class PaywallActionError extends Data.TaggedError("PaywallActionError")<{
+  readonly text: string;
+}> {}
+
+/** Runs a promise-returning SDK call, keeping the rejection value as display text. */
+const attempt = <A,>(run: () => Promise<A>) =>
+  Effect.tryPromise({ try: run, catch: (cause) => new PaywallActionError({ text: String(cause) }) });
+
+const personStateLabel = (isLoading: boolean, person: unknown) => {
+  if (isLoading) return "Loading person...";
+  return `Person: ${Inspectable.toStringUnknown(person, undefined)}`;
+};
+
+const openPaywallTitle = (isOpening: boolean) => {
+  if (isOpening) return "Opening...";
+  return "Open paywall";
+};
+
+const restoreTitle = (isReconciling: boolean) => {
+  if (isReconciling) return "Working...";
+  return "Restore and verify backend";
+};
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
@@ -15,10 +39,15 @@ export default function PaywallScreen() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const refreshBackendEvidence = useCallback(
-    async (operation: string) => {
-      const snapshot = await client.getCurrentPerson(true);
-      setStatusMessage(`${operation}\nBackend snapshot: ${JSON.stringify(snapshot, null, 2)}`);
-    },
+    (operation: string) =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const snapshot = yield* Effect.promise(() => client.getCurrentPerson(true));
+          setStatusMessage(
+            `${operation}\nBackend snapshot: ${Inspectable.toStringUnknown(snapshot)}`,
+          );
+        }),
+      ),
     [client],
   );
 
@@ -44,37 +73,59 @@ export default function PaywallScreen() {
   const { show } = voidhash.usePaywallByLocation(PAYWALL_LOCATION_SLUG, paywallOptions);
   const { data: person, isLoading: isPersonLoading } = voidhash.useCurrentPerson();
 
-  const handleShowPaywall = async () => {
+  const handleShowPaywall = () => {
     setIsOpening(true);
-    try {
-      await show();
-    } finally {
-      setIsOpening(false);
-    }
+    return Effect.runPromise(
+      Effect.promise(() => show()).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            setIsOpening(false);
+          }),
+        ),
+      ),
+    );
   };
 
-  const handleRestore = async () => {
+  const handleRestore = () => {
     setIsReconciling(true);
-    try {
-      await client.restorePurchases();
-      await refreshBackendEvidence("Direct restore completed");
-    } catch (error) {
-      setStatusMessage(`Direct restore failed: ${String(error)}`);
-    } finally {
-      setIsReconciling(false);
-    }
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        yield* attempt(() => client.restorePurchases());
+        yield* attempt(() => refreshBackendEvidence("Direct restore completed"));
+      }).pipe(
+        Effect.catchTag("PaywallActionError", (error) =>
+          Effect.sync(() => {
+            setStatusMessage(`Direct restore failed: ${error.text}`);
+          }),
+        ),
+        Effect.ensuring(
+          Effect.sync(() => {
+            setIsReconciling(false);
+          }),
+        ),
+      ),
+    );
   };
 
-  const handleInspectProducts = async () => {
+  const handleInspectProducts = () => {
     setIsReconciling(true);
-    try {
-      const products = await client.getProducts();
-      setStatusMessage(`Native products: ${JSON.stringify(products, null, 2)}`);
-    } catch (error) {
-      setStatusMessage(`Product query failed: ${String(error)}`);
-    } finally {
-      setIsReconciling(false);
-    }
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const products = yield* attempt(() => client.getProducts());
+        setStatusMessage(`Native products: ${Inspectable.toStringUnknown(products)}`);
+      }).pipe(
+        Effect.catchTag("PaywallActionError", (error) =>
+          Effect.sync(() => {
+            setStatusMessage(`Product query failed: ${error.text}`);
+          }),
+        ),
+        Effect.ensuring(
+          Effect.sync(() => {
+            setIsReconciling(false);
+          }),
+        ),
+      ),
+    );
   };
 
   const containerStyle = [
@@ -95,7 +146,7 @@ export default function PaywallScreen() {
         <Text style={styles.location}>Location: {PAYWALL_LOCATION_SLUG}</Text>
         {statusMessage && <Text style={styles.statusMessage}>{statusMessage}</Text>}
         <Text style={styles.personState}>
-          {isPersonLoading ? "Loading person..." : `Person: ${JSON.stringify(person)}`}
+          {personStateLabel(isPersonLoading, person)}
         </Text>
 
         <Button
@@ -104,7 +155,7 @@ export default function PaywallScreen() {
             void handleShowPaywall();
           }}
           style={styles.actionButton}
-          title={isOpening ? "Opening..." : "Open paywall"}
+          title={openPaywallTitle(isOpening)}
         />
         <Button
           disabled={isOpening || isReconciling}
@@ -112,7 +163,7 @@ export default function PaywallScreen() {
             void handleRestore();
           }}
           style={styles.outlineButton}
-          title={isReconciling ? "Working..." : "Restore and verify backend"}
+          title={restoreTitle(isReconciling)}
         />
         <Button
           disabled={isOpening || isReconciling}

@@ -1,8 +1,9 @@
-import { readdir, readFile } from "node:fs/promises";
+import { NodeServices } from "@effect/platform-node";
 import { fileURLToPath } from "node:url";
 
-import { Effect, Schema } from "effect";
+import { Effect, FileSystem, Path, Schema } from "effect";
 import { Client } from "pg";
+import type { QueryResult, QueryResultRow } from "pg";
 
 import type { DbConfig } from "./db.ts";
 
@@ -35,118 +36,172 @@ interface MigrationFile {
   readonly sql: string;
 }
 
-const collectMigrations = async (directory: URL): Promise<ReadonlyArray<MigrationFile>> => {
-  const entries = await readdir(fileURLToPath(directory), { withFileTypes: true });
-  const migrations: MigrationFile[] = [];
-
-  for (const entry of entries.filter((candidate) => candidate.isDirectory()).sort((a, b) =>
-    a.name.localeCompare(b.name),
-  )) {
-    const migrationUrl = new URL(`${entry.name}/migration.sql`, directory);
-    try {
-      migrations.push({
-        name: entry.name,
-        sql: await readFile(migrationUrl, "utf8"),
-      });
-    } catch (cause) {
-      const code =
-        typeof cause === "object" && cause !== null && "code" in cause
-          ? cause.code
-          : undefined;
-      if (code !== "ENOENT") throw cause;
-    }
-  }
-
-  return migrations;
-};
-
-const runMigrations = async (
-  config: DbConfig,
-  options: AppDatabaseMigrationOptions,
-): Promise<AppDatabaseMigrationResult> => {
-  const client = new Client({
-    database: config.databaseName,
-    host: config.host,
-    password: config.password,
-    port: config.port,
-    ssl: config.ssl,
-    user: config.username,
+const query = <Row extends QueryResultRow = QueryResultRow>(
+  client: Client,
+  sql: string,
+  values?: ReadonlyArray<unknown>,
+): Effect.Effect<QueryResult<Row>, unknown> =>
+  Effect.tryPromise({
+    try: () => client.query<Row>(sql, values?.slice()),
+    catch: (cause) => cause,
   });
-  const migrations = await collectMigrations(options.directory ?? defaultMigrationsDirectory);
-  const lockName = options.lockName ?? `${config.databaseName}:voidhash-app-migrations`;
-  let currentMigration: string | undefined;
 
-  await client.connect();
-  try {
-    await client.query("SELECT pg_advisory_lock(hashtext($1))", [lockName]);
-    try {
-      await client.query(
-        `CREATE TABLE IF NOT EXISTS ${migrationsTable} (
+const collectMigrations = (
+  directory: URL,
+): Effect.Effect<
+  ReadonlyArray<MigrationFile>,
+  unknown,
+  FileSystem.FileSystem | Path.Path
+> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const root = fileURLToPath(directory);
+    const entries = yield* fs.readDirectory(root);
+    const migrations: MigrationFile[] = [];
+
+    for (const entry of [...entries].sort((a, b) => a.localeCompare(b))) {
+      const entryPath = path.join(root, entry);
+      const info = yield* fs.stat(entryPath);
+      if (info.type !== "Directory") continue;
+
+      // A directory without a `migration.sql` is simply not a migration.
+      const migrationPath = path.join(entryPath, "migration.sql");
+      const exists = yield* fs.exists(migrationPath);
+      if (!exists) continue;
+
+      migrations.push({ name: entry, sql: yield* fs.readFileString(migrationPath) });
+    }
+
+    return migrations;
+  });
+
+const nextSequenceFrom = (rows: ReadonlyArray<{ readonly id: string }>): number =>
+  rows.reduce((maximum, { id }) => {
+    const value = Number.parseInt(id, 10);
+    if (Number.isNaN(value)) return maximum;
+    return Math.max(maximum, value);
+  }, 0) + 1;
+
+const applyMigration = (
+  client: Client,
+  migration: MigrationFile,
+  sequence: number,
+): Effect.Effect<void, unknown> =>
+  Effect.gen(function* () {
+    yield* query(client, "BEGIN");
+    yield* Effect.gen(function* () {
+      yield* query(client, migration.sql);
+      yield* query(client, `INSERT INTO ${migrationsTable} (id, name) VALUES ($1, $2)`, [
+        String(sequence).padStart(5, "0"),
+        migration.name,
+      ]);
+      yield* query(client, "COMMIT");
+    }).pipe(Effect.tapError(() => Effect.ignore(query(client, "ROLLBACK"))));
+  });
+
+const applyPending = (
+  client: Client,
+  migrations: ReadonlyArray<MigrationFile>,
+): Effect.Effect<AppDatabaseMigrationResult, AppDatabaseMigrationError> =>
+  Effect.gen(function* () {
+    yield* query(
+      client,
+      `CREATE TABLE IF NOT EXISTS ${migrationsTable} (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL UNIQUE,
           applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )`,
-      );
-      const appliedRows = await client.query<{ readonly id: string; readonly name: string }>(
-        `SELECT id, name FROM ${migrationsTable}`,
-      );
-      const appliedNames = new Set(appliedRows.rows.map(({ name }) => name));
-      let nextSequence =
-        appliedRows.rows.reduce((maximum, { id }) => {
-          const value = Number.parseInt(id, 10);
-          return Number.isNaN(value) ? maximum : Math.max(maximum, value);
-        }, 0) + 1;
-      const applied: string[] = [];
+    );
+    const appliedRows = yield* query<{ readonly id: string; readonly name: string }>(
+      client,
+      `SELECT id, name FROM ${migrationsTable}`,
+    );
+    const appliedNames = new Set(appliedRows.rows.map(({ name }) => name));
+    let nextSequence = nextSequenceFrom(appliedRows.rows);
+    const applied: string[] = [];
 
-      for (const migration of migrations) {
-        if (appliedNames.has(migration.name)) continue;
-        currentMigration = migration.name;
-        await client.query("BEGIN");
-        try {
-          await client.query(migration.sql);
-          await client.query(
-            `INSERT INTO ${migrationsTable} (id, name) VALUES ($1, $2)`,
-            [String(nextSequence).padStart(5, "0"), migration.name],
-          );
-          await client.query("COMMIT");
-        } catch (cause) {
-          await client.query("ROLLBACK").catch(() => undefined);
-          throw cause;
-        }
-        nextSequence += 1;
-        applied.push(migration.name);
-        currentMigration = undefined;
-      }
-
-      return { applied, skipped: migrations.length - applied.length };
-    } finally {
-      await client
-        .query("SELECT pg_advisory_unlock(hashtext($1))", [lockName])
-        .catch(() => undefined);
+    for (const migration of migrations) {
+      if (appliedNames.has(migration.name)) continue;
+      yield* applyMigration(client, migration, nextSequence).pipe(
+        Effect.mapError(
+          (cause) =>
+            new AppDatabaseMigrationError({
+              cause: String(cause),
+              migrationName: migration.name,
+              operation: "apply",
+            }),
+        ),
+      );
+      nextSequence += 1;
+      applied.push(migration.name);
     }
-  } catch (cause) {
-    throw new AppDatabaseMigrationError({
-      cause: String(cause),
-      migrationName: currentMigration,
-      operation: currentMigration ? "apply" : "initialize",
-    });
-  } finally {
-    await client.end().catch(() => undefined);
-  }
-};
 
-/** Applies pending application migrations from the package's canonical migration directory. */
+    return { applied, skipped: migrations.length - applied.length };
+  }).pipe(
+    Effect.catch((cause: unknown) => {
+      if (cause instanceof AppDatabaseMigrationError) return Effect.fail(cause);
+      return Effect.fail(
+        new AppDatabaseMigrationError({ cause: String(cause), operation: "initialize" }),
+      );
+    }),
+  );
+
+const runMigrations = (
+  config: DbConfig,
+  options: AppDatabaseMigrationOptions,
+): Effect.Effect<
+  AppDatabaseMigrationResult,
+  AppDatabaseMigrationError,
+  FileSystem.FileSystem | Path.Path
+> =>
+  Effect.gen(function* () {
+    const client = new Client({
+      database: config.databaseName,
+      host: config.host,
+      password: config.password,
+      port: config.port,
+      ssl: config.ssl,
+      user: config.username,
+    });
+    const migrations = yield* collectMigrations(
+      options.directory ?? defaultMigrationsDirectory,
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
+          new AppDatabaseMigrationError({ cause: String(cause), operation: "discover" }),
+      ),
+    );
+    const lockName = options.lockName ?? `${config.databaseName}:voidhash-app-migrations`;
+
+    yield* Effect.tryPromise({
+      try: () => client.connect(),
+      catch: (cause) =>
+        new AppDatabaseMigrationError({ cause: String(cause), operation: "discover" }),
+    });
+
+    return yield* Effect.acquireUseRelease(
+      query(client, "SELECT pg_advisory_lock(hashtext($1))", [lockName]).pipe(
+        Effect.mapError(
+          (cause) =>
+            new AppDatabaseMigrationError({ cause: String(cause), operation: "initialize" }),
+        ),
+      ),
+      () => applyPending(client, migrations),
+      () =>
+        Effect.ignore(query(client, "SELECT pg_advisory_unlock(hashtext($1))", [lockName])),
+    ).pipe(Effect.ensuring(Effect.ignore(Effect.tryPromise(() => client.end()))));
+  });
+
+/**
+ * Applies pending application migrations from the package's canonical migration
+ * directory.
+ *
+ * The migration runner is Node-only (it opens its own `pg` connection), so the
+ * Node filesystem services are provided here and callers stay dependency-free.
+ */
 export const runAppDatabaseMigrations = (
   config: DbConfig,
   options: AppDatabaseMigrationOptions = {},
 ): Effect.Effect<AppDatabaseMigrationResult, AppDatabaseMigrationError> =>
-  Effect.tryPromise({
-    try: () => runMigrations(config, options),
-    catch: (cause) =>
-      cause instanceof AppDatabaseMigrationError
-        ? cause
-        : new AppDatabaseMigrationError({
-            cause: String(cause),
-            operation: "discover",
-          }),
-  });
+  runMigrations(config, options).pipe(Effect.provide(NodeServices.layer));

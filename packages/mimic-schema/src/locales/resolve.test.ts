@@ -1,4 +1,5 @@
 import { validate } from "@voidhash/mimic-core";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -33,6 +34,25 @@ function buildConfig(input: {
 }
 
 /** A screen holding one text, one view, and one component node for resolver tests. */
+// Decoded `children` is a merged snapshot type (not a discriminated union), so
+// concrete variants are narrowed structurally by their `type` tag.
+function isNodeOfType<T extends { readonly type: string }>(
+  node: { readonly type: string },
+  type: T["type"],
+): node is T {
+  return node.type === type;
+}
+
+function narrowNode<T extends { readonly type: string }>(
+  node: { readonly type: string } | undefined,
+  type: T["type"],
+): T {
+  if (node === undefined || !isNodeOfType<T>(node, type)) {
+    return Effect.runSync(Effect.die(new Error(`expected a ${type} node, got ${node?.type}`)));
+  }
+  return node;
+}
+
 function buildScreen(): ScreenNodeData {
   const roots = decodeDocument([
     {
@@ -84,13 +104,13 @@ function buildScreen(): ScreenNodeData {
       ],
     },
   ]);
-  return roots[0]!.children[0]! as ScreenNodeData;
+  return narrowNode<ScreenNodeData>(roots[0]!.children[0], "screen");
 }
 
 const screen = buildScreen();
-const textNode = screen.children[0]! as TextNodeData;
-const viewNode = screen.children[1]! as ViewNodeData;
-const componentNode = screen.children[2]! as ComponentNodeData;
+const textNode = narrowNode<TextNodeData>(screen.children[0], "text");
+const viewNode = narrowNode<ViewNodeData>(screen.children[1], "view");
+const componentNode = narrowNode<ComponentNodeData>(screen.children[2], "component");
 
 const titleProp = componentNode.data.props.find((entry) => entry.value?.name === "title")!.value!;
 const countProp = componentNode.data.props.find((entry) => entry.value?.name === "count")!.value!;
@@ -223,7 +243,8 @@ describe("duplicate locale entries", () => {
         ],
       },
     ]);
-    const node = (roots[0]!.children[0]! as ScreenNodeData).children[0]! as TextNodeData;
+    const screenNode = narrowNode<ScreenNodeData>(roots[0]!.children[0], "screen");
+    const node = narrowNode<TextNodeData>(screenNode.children[0], "text");
     expect(resolveText(node.data, "de", "en")).toBe("First");
   });
 });

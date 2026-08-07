@@ -1,7 +1,13 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
-import { basename, join } from "node:path";
-
+import { NodeServices } from "@effect/platform-node";
+import { Effect, FileSystem, Path, type PlatformError, Schema } from "effect";
 import type { Plugin, ViteDevServer } from "vite";
+
+// The POSIX `Path` service, resolved once so Vite's synchronous plugin hooks
+// (`config`, watcher callbacks) can join paths without running an Effect.
+const path = Effect.runSync(Effect.provide(Path.Path, Path.layer));
+
+/** Serializes a value as a JSON literal for the generated virtual module. */
+const jsonLiteral = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
  * The id Studio imports to discover the user's paywalls and components. Resolved
@@ -29,29 +35,43 @@ interface SourceEntry {
 const isSourceFile = (name: string): boolean =>
   SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) && !name.endsWith(".d.ts");
 
-const idFromFile = (file: string): string => basename(file).replace(/\.(tsx|jsx|ts|js)$/, "");
+const idFromFile = (file: string): string => path.basename(file).replace(/\.(tsx|jsx|ts|js)$/, "");
 
 /** Recursively lists files under a directory (absolute paths). */
-const listFilesRecursive = (dir: string): string[] => {
-  if (!existsSync(dir)) return [];
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      out.push(...listFilesRecursive(full));
-    } else {
-      out.push(full);
+const listFilesRecursive = (
+  dir: string,
+): Effect.Effect<Array<string>, PlatformError.PlatformError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const exists = yield* fs.exists(dir);
+    if (!exists) return [];
+
+    const out: Array<string> = [];
+    for (const entry of yield* fs.readDirectory(dir)) {
+      const full = path.join(dir, entry);
+      const info = yield* fs.stat(full);
+      if (info.type === "Directory") {
+        out.push(...(yield* listFilesRecursive(full)));
+      } else {
+        out.push(full);
+      }
     }
-  }
-  return out;
-};
+    return out;
+  });
 
 /** Lists the source files under a `.voidhash/<dir>` tree, sorted by id. */
-const scanDir = (voidhashDir: string, dir: string): SourceEntry[] =>
-  listFilesRecursive(join(voidhashDir, dir))
-    .filter((file) => isSourceFile(basename(file)))
-    .map((file) => ({ file, id: idFromFile(file) }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+const scanDir = (
+  voidhashDir: string,
+  dir: string,
+): Effect.Effect<Array<SourceEntry>, PlatformError.PlatformError, FileSystem.FileSystem> =>
+  listFilesRecursive(path.join(voidhashDir, dir)).pipe(
+    Effect.map((files) =>
+      files
+        .filter((file) => isSourceFile(path.basename(file)))
+        .map((file) => ({ file, id: idFromFile(file) }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
+    ),
+  );
 
 /**
  * Vite reference to a filesystem-absolute path. Files live in the *user's*
@@ -63,28 +83,28 @@ const fsImportSpecifier = (absPath: string): string => `/@fs${absPath}`;
 /** Generates the source of the virtual module from the discovered files. */
 const generateModule = (
   projectRoot: string,
-  paywalls: SourceEntry[],
-  components: SourceEntry[],
+  paywalls: ReadonlyArray<SourceEntry>,
+  components: ReadonlyArray<SourceEntry>,
 ): string => {
   const lines: string[] = [];
   const paywallRefs: string[] = [];
   const componentRefs: string[] = [];
 
   paywalls.forEach((entry, i) => {
-    lines.push(`import * as __pw${i} from ${JSON.stringify(fsImportSpecifier(entry.file))};`);
+    lines.push(`import * as __pw${i} from ${jsonLiteral(fsImportSpecifier(entry.file))};`);
     paywallRefs.push(
-      `{ id: ${JSON.stringify(entry.id)}, file: ${JSON.stringify(entry.file)}, module: __pw${i} }`,
+      `{ id: ${jsonLiteral(entry.id)}, file: ${jsonLiteral(entry.file)}, module: __pw${i} }`,
     );
   });
 
   components.forEach((entry, i) => {
-    lines.push(`import * as __cmp${i} from ${JSON.stringify(fsImportSpecifier(entry.file))};`);
+    lines.push(`import * as __cmp${i} from ${jsonLiteral(fsImportSpecifier(entry.file))};`);
     componentRefs.push(
-      `{ id: ${JSON.stringify(entry.id)}, file: ${JSON.stringify(entry.file)}, module: __cmp${i} }`,
+      `{ id: ${jsonLiteral(entry.id)}, file: ${jsonLiteral(entry.file)}, module: __cmp${i} }`,
     );
   });
 
-  lines.push(`export const projectRoot = ${JSON.stringify(projectRoot)};`);
+  lines.push(`export const projectRoot = ${jsonLiteral(projectRoot)};`);
   lines.push(`export const paywalls = [${paywallRefs.join(", ")}];`);
   lines.push(`export const components = [${componentRefs.join(", ")}];`);
   return lines.join("\n");
@@ -102,7 +122,7 @@ export interface VoidhashPaywallsPluginOptions {
  * file invalidates the virtual module and reloads so the sidebar stays in sync.
  */
 export const voidhashPaywallsPlugin = ({ projectRoot }: VoidhashPaywallsPluginOptions): Plugin => {
-  const voidhashDir = join(projectRoot, ".voidhash");
+  const voidhashDir = path.join(projectRoot, ".voidhash");
   let server: ViteDevServer | undefined;
 
   const invalidate = () => {
@@ -113,8 +133,8 @@ export const voidhashPaywallsPlugin = ({ projectRoot }: VoidhashPaywallsPluginOp
   };
 
   const isPaywallSource = (file: string): boolean =>
-    file.startsWith(join(voidhashDir, PAYWALLS_DIR)) ||
-    file.startsWith(join(voidhashDir, COMPONENTS_DIR));
+    file.startsWith(path.join(voidhashDir, PAYWALLS_DIR)) ||
+    file.startsWith(path.join(voidhashDir, COMPONENTS_DIR));
 
   return {
     name: "voidhash:paywalls",
@@ -143,9 +163,13 @@ export const voidhashPaywallsPlugin = ({ projectRoot }: VoidhashPaywallsPluginOp
 
     load(id) {
       if (id !== RESOLVED_VIRTUAL_ID) return null;
-      const paywalls = scanDir(voidhashDir, PAYWALLS_DIR);
-      const components = scanDir(voidhashDir, COMPONENTS_DIR);
-      return generateModule(projectRoot, paywalls, components);
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const paywalls = yield* scanDir(voidhashDir, PAYWALLS_DIR);
+          const components = yield* scanDir(voidhashDir, COMPONENTS_DIR);
+          return generateModule(projectRoot, paywalls, components);
+        }).pipe(Effect.provide(NodeServices.layer), Effect.orDie),
+      );
     },
   };
 };

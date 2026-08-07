@@ -1,6 +1,7 @@
 import { resolveText, RootNode, TextNode } from "@voidhash/mimic-schema";
 import type { RootSnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import type { DesignerStoreState } from "../designer-store-state";
 import {
@@ -30,7 +31,7 @@ function seedComponentWithProps(
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (value: unknown) => { id: string } }
     ).insertLast({
@@ -59,7 +60,7 @@ function seedComponentWithProps(
 
 function rootSnapshot(doc: OfflineDesignerDocument): RootSnapshotNode {
   const node = doc.root.children.first();
-  if (!node) throw new Error("expected the seeded root node");
+  if (!node) return Effect.runSync(Effect.die(new Error("expected the seeded root node")));
   return node.get() as unknown as RootSnapshotNode;
 }
 
@@ -83,7 +84,7 @@ function seedTextNode(doc: OfflineDesignerDocument, text: string): string {
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (value: unknown) => { id: string } }
     ).insertLast({ type: "text", text });
@@ -130,7 +131,7 @@ describe("resolveText over the document snapshot", () => {
     const nodeId = seedTextNode(doc, "Hello");
     setTranslation(doc, nodeId, "de", "Hallo");
     const data = findTypedNode(doc.root, nodeId, TextNode)?.get()?.data;
-    if (!data) throw new Error("expected text node data");
+    if (!data) return Effect.runSync(Effect.die(new Error("expected text node data")));
 
     expect(resolveText(data, null, "en")).toBe("Hello");
     expect(resolveText(data, "en", "en")).toBe("Hello");

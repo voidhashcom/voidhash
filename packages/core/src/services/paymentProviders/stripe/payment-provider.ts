@@ -38,8 +38,10 @@ import {
   PersonOrigin,
 } from "@voidhash/db";
 import { ProductType } from "@voidhash/lib/constants";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 import { HttpClient } from "effect/unstable/http/HttpClient";
+
+import { constant } from "@voidhash/lib/lang";
 
 import { PurchaseProcessingResult } from "../../../domain/purchaseProcessing/PurchaseProcessing.ts";
 import {
@@ -105,8 +107,28 @@ export interface StripeRecordInput {
   readonly source: "webhook" | "reconciliation";
 }
 
-const fromUnixSeconds = (seconds: number | null | undefined, fallback: Date): Date =>
-  typeof seconds === "number" ? new Date(seconds * 1000) : fallback;
+const fromUnixSeconds = (seconds: number | null | undefined, fallback: Date): Date => {
+  if (typeof seconds === "number") return dateFromUnixSeconds(seconds);
+  return fallback;
+};
+
+const invoiceEventType = (isCreate: boolean): StripePurchaseProcessingEventType => {
+  if (isCreate) return "purchase";
+  return "renewal";
+};
+
+const purchaseTypeForProduct = (productType: number | undefined): "consumable" | "one-time" => {
+  if (productType === ProductType.OneTimeConsumable) return "consumable";
+  return "one-time";
+};
+
+const dateFromUnixSeconds = (seconds: number): Date =>
+  DateTime.toDateUtc(DateTime.makeUnsafe(seconds * 1000));
+
+const optionalDateFromUnixSeconds = (seconds: number | null | undefined): Date | undefined => {
+  if (typeof seconds === "number") return dateFromUnixSeconds(seconds);
+  return undefined;
+};
 
 const makeIgnored = (): PurchaseProcessingResult =>
   new PurchaseProcessingResult({
@@ -303,7 +325,7 @@ const make = Effect.gen(function* () {
     projectId: input.project.id,
     providerEnvironment: input.providerEnvironment,
     providerEventType: input.providerEventType,
-    providerId: "stripe" as const,
+    providerId: constant("stripe"),
     providerSubscriptionId: input.providerSubscriptionId,
     providerTransactionId: input.providerTransactionId,
     providerWebhookNotificationId: Option.some(input.event.id),
@@ -330,15 +352,17 @@ const make = Effect.gen(function* () {
     Effect.gen(function* () {
       const chargeId =
         input.chargeId ??
-        (input.paymentIntentId
-          ? yield* input.stripeContext.fetchPaymentIntentLatestChargeId({
-              mode: input.mode,
-              paymentIntentId: input.paymentIntentId,
-            })
-          : undefined);
-      const feeMinor = chargeId
-        ? yield* input.stripeContext.fetchChargeFeeMinor({ chargeId, mode: input.mode })
-        : undefined;
+        (yield* Effect.gen(function* () {
+          if (!input.paymentIntentId) return undefined;
+          return yield* input.stripeContext.fetchPaymentIntentLatestChargeId({
+            mode: input.mode,
+            paymentIntentId: input.paymentIntentId,
+          });
+        }));
+      const feeMinor = yield* Effect.gen(function* () {
+        if (!chargeId) return undefined;
+        return yield* input.stripeContext.fetchChargeFeeMinor({ chargeId, mode: input.mode });
+      });
       return yield* buildStripeMoney({
         currency: input.currency,
         feeMinor,
@@ -371,7 +395,7 @@ const make = Effect.gen(function* () {
       providerEnvironment: input.providerEnvironment,
     });
     const isCreate = invoice.billing_reason === "subscription_create";
-    const eventType: StripePurchaseProcessingEventType = isCreate ? "purchase" : "renewal";
+    const eventType: StripePurchaseProcessingEventType = invoiceEventType(isCreate);
     const idempotencyKey = yield* getStripeIdempotencyKey({
       anchorField: "invoice.id",
       anchorId: invoice.id,
@@ -390,11 +414,7 @@ const make = Effect.gen(function* () {
     });
     const periodLine = invoice.lines?.data?.find((line) => line.period);
     const startsAt = fromUnixSeconds(periodLine?.period?.start, occurredAt);
-    const expiresAt = Option.fromNullishOr(
-      typeof periodLine?.period?.end === "number"
-        ? new Date(periodLine.period.end * 1000)
-        : undefined,
-    );
+    const expiresAt = Option.fromNullishOr(optionalDateFromUnixSeconds(periodLine?.period?.end));
     const isTrial = grossMinor === 0;
     const base = _buildBase({
       configuration: input.configuration,
@@ -492,11 +512,13 @@ const make = Effect.gen(function* () {
     const subscription = yield* decodeStripeObject(StripeSubscriptionSchema)(
       input.event.data.object,
     );
-    const previous: StripeSubscriptionPreviousAttributes = input.event.data.previous_attributes
-      ? yield* decodeStripeObject(StripeSubscriptionPreviousAttributesSchema)(
-          input.event.data.previous_attributes,
-        ).pipe(Effect.catch(() => Effect.succeed<StripeSubscriptionPreviousAttributes>({})))
-      : {};
+    const previousAttributes = input.event.data.previous_attributes;
+    const previous: StripeSubscriptionPreviousAttributes = yield* Effect.gen(function* () {
+      if (!previousAttributes) return {};
+      return yield* decodeStripeObject(StripeSubscriptionPreviousAttributesSchema)(
+        previousAttributes,
+      ).pipe(Effect.catch(() => Effect.succeed<StripeSubscriptionPreviousAttributes>({})));
+    });
     const cancelChanged = typeof previous.cancel_at_period_end === "boolean";
     const itemsChanged = previous.items !== undefined || previous.plan !== undefined;
     if (!cancelChanged && !itemsChanged) {
@@ -696,8 +718,7 @@ const make = Effect.gen(function* () {
     return yield* purchaseProcessingService.completeOneTimePurchase({
       ...base,
       money,
-      purchaseType:
-        mapping.productType === ProductType.OneTimeConsumable ? "consumable" : "one-time",
+      purchaseType: purchaseTypeForProduct(mapping.productType),
       purchasedAt: occurredAt,
     });
   });
@@ -872,7 +893,7 @@ const make = Effect.gen(function* () {
     });
   });
 
-  return {
+  return constant({
     buildContextFromConfiguration,
     recordChargeRefunded,
     recordCheckoutSessionCompleted,
@@ -882,7 +903,7 @@ const make = Effect.gen(function* () {
     recordRefundUpdated,
     recordSubscriptionDeleted,
     recordSubscriptionUpdated,
-  } as const;
+  });
 });
 
 export type { StripeContext };

@@ -1,4 +1,5 @@
 import { ViewNode } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -67,14 +68,16 @@ describe("endResize undo round trip", () => {
     let flexId = "";
     doc.transaction((root) => {
       const screen = root.findByIdAcrossTree(screenId);
-      if (!screen) throw new Error("expected the seeded screen node");
+      if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
       flexId = screen.children.insertLast({ type: "view" }).id;
     });
 
     const { ctx, getResizeState } = makeResizeCtx(doc, flexId);
     const styleOf = () => {
       const data = findTypedNode(doc.root, flexId, ViewNode)?.get()?.data;
-      if (data === undefined) throw new Error("expected the flex node");
+      if (data === undefined) {
+        return Effect.runSync(Effect.die(new Error("expected the flex node")));
+      }
       return data.style;
     };
 

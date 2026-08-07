@@ -33,13 +33,14 @@
  * Typed failures are asserted with `Effect.flip` (project convention),
  * narrowing the swapped error with `instanceof` before reading its fields.
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import {
   AnalyticsService,
   AnalyticsServiceError,
 } from "@voidhash/core/services/analytics/AnalyticsService";
+import { constant } from "@voidhash/lib/lang";
 import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
 import {
   InvalidAnalyticsQueryError,
@@ -62,6 +63,10 @@ const organizationId = CoreTestFixture.organizationId;
  * A `user`-method session for the fixture principal carrying neither project
  * nor organization access — used to assert both permission gates reject.
  */
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
+const untyped = (value: unknown): any => value;
+
 const sessionWithoutProjectAccess = (): UserSession => ({
   cookie: null,
   method: "user",
@@ -70,14 +75,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -174,10 +179,10 @@ describe("AnalyticsService.queryAnalyticsInsights", () => {
           queries: [
             {
               context: { organizationId },
-              // Cast: the service validates the id against the registry at
-              // runtime; we deliberately pass one outside the BuiltInInsightId
-              // union to exercise that guard.
-              insightId: "builtin/does_not_exist" as never,
+              // Untyped on purpose: the service validates the id against the
+              // registry at runtime; we deliberately pass one outside the
+              // BuiltInInsightId union to exercise that guard.
+              insightId: untyped("builtin/does_not_exist"),
               key: "k",
               timeRange: { preset: "last_7d" },
             },
@@ -227,9 +232,9 @@ describe("AnalyticsService.queryAnalyticsInsights", () => {
               insightId: "builtin/revenue",
               key: "k",
               timeRange: {
-                end: new Date("2024-01-01T00:00:00Z"),
+                end: DateTime.toDateUtc(DateTime.makeUnsafe("2024-01-01T00:00:00Z")),
                 preset: "custom",
-                start: new Date("2024-06-01T00:00:00Z"),
+                start: DateTime.toDateUtc(DateTime.makeUnsafe("2024-06-01T00:00:00Z")),
               },
             },
           ],
@@ -295,6 +300,7 @@ describe("AnalyticsService.queryAnalyticsInsights", () => {
 
       // Filtering project.id to an id outside the org empties the compiled
       // projectIds, so the service short-circuits before any ClickHouse read.
+      const nowMillis = yield* Clock.currentTimeMillis;
       const { results } = yield* analytics.queryAnalyticsInsights({
         queries: [
           {
@@ -303,7 +309,7 @@ describe("AnalyticsService.queryAnalyticsInsights", () => {
               field: "project.id",
               op: "eq",
               type: "predicate",
-              value: `it-nonexistent-project-${Date.now()}`,
+              value: `it-nonexistent-project-${nowMillis}`,
             },
             insightId: "builtin/revenue",
             key: "empty",
@@ -332,12 +338,13 @@ describe("AnalyticsService.queryAnalyticsInsights", () => {
       // Both queries match no projects (empty series) so the summary value is a
       // deterministic 0; what differs is the currency stamp, which the service
       // derives purely from the insight id (CURRENCY_INSIGHTS vs RATE_INSIGHTS).
-      const emptyFilter = {
-        field: "project.id" as const,
-        op: "eq" as const,
-        type: "predicate" as const,
-        value: `it-nonexistent-project-${Date.now()}`,
-      };
+      const nowMillis = yield* Clock.currentTimeMillis;
+      const emptyFilter = constant({
+        field: "project.id",
+        op: "eq",
+        type: "predicate",
+        value: `it-nonexistent-project-${nowMillis}`,
+      });
 
       const { results } = yield* analytics.queryAnalyticsInsights({
         queries: [

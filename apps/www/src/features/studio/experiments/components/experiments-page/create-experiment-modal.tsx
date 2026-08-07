@@ -62,7 +62,7 @@ export function CreateExperimentModal({
       toast.error("Failed to create A/B test");
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.experiment.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.experiment.all });
       handleOpenChange(false);
       void navigate({
         params: { id: data.id, organizationSlug, projectSlug },

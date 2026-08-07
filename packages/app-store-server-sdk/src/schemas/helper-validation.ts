@@ -1,14 +1,16 @@
+import { constant } from "@voidhash/lib/lang";
+
 /**
  * Field-length and shape constraints used by the Advanced Commerce API schemas.
  * Mirrors the validators in Apple's reference Node library so the same inputs
  * accepted upstream pass our schema validation.
  */
-export const HelperValidationUtils = {
-  MAXIMUM_DESCRIPTION_LENGTH: 45 as const,
-  MAXIMUM_DISPLAY_NAME_LENGTH: 30 as const,
-  MAXIMUM_SKU_LENGTH: 128 as const,
-  MIN_PERIOD: 1 as const,
-  MAX_PERIOD: 12 as const,
+export const HelperValidationUtils = constant({
+  MAXIMUM_DESCRIPTION_LENGTH: 45,
+  MAXIMUM_DISPLAY_NAME_LENGTH: 30,
+  MAXIMUM_SKU_LENGTH: 128,
+  MIN_PERIOD: 1,
+  MAX_PERIOD: 12,
 
   validateDescription(description: unknown): boolean {
     return (
@@ -39,4 +41,4 @@ export const HelperValidationUtils = {
   validateItems(list: unknown): boolean {
     return Array.isArray(list) && list.length > 0 && list.every((item) => item != null);
   },
-} as const;
+});

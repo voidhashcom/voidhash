@@ -31,7 +31,7 @@ export function PaymentProvidersNewStoreDropdown({
     ...createPaymentProviderConfigurationOptions(),
     onSuccess: (data) => {
       toast.success("Payment provider configuration created successfully");
-      navigate({
+      void navigate({
         params: {
           organizationSlug,
           paymentProviderConfigurationId: data.id,

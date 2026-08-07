@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Result, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -109,7 +110,7 @@ export class AgentAttachmentService extends Context.Service<AgentAttachmentServi
           ),
       );
 
-      return { upload } as const;
+      return constant({ upload });
     }),
   },
 ) {

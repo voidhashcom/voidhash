@@ -18,13 +18,15 @@ import {
  */
 const flipLastChar = (segment: string): string => {
   const last = segment[segment.length - 1];
-  const replacement = last === "A" ? "B" : "A";
-  return segment.slice(0, -1) + replacement;
+  if (last === "A") return `${segment.slice(0, -1)}B`;
+  return `${segment.slice(0, -1)}A`;
 };
 
 const tamperSegment = (jws: string, index: 1 | 2): string => {
   const parts = jws.split(".");
-  parts[index] = flipLastChar(parts[index] as string);
+  const segment = parts[index];
+  if (segment === undefined) return jws;
+  parts[index] = flipLastChar(segment);
   return parts.join(".");
 };
 
@@ -35,27 +37,39 @@ describe("JWS signature verification fails loud (WebCrypto path)", () => {
   );
   const validTransaction = readFile("tests/resources/mock_signed_data/transactionInfo");
 
-  it("accepts a genuinely Apple-signed transaction (sanity)", async () => {
-    const result = unwrapOptionsDeep(
-      await Effect.runPromise(verifier.verifyAndDecodeTransaction(validTransaction)),
-    );
-    expect(result.environment).toBe(Environment.SANDBOX);
-  });
+  it("accepts a genuinely Apple-signed transaction (sanity)", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const result = unwrapOptionsDeep(
+          yield* verifier.verifyAndDecodeTransaction(validTransaction),
+        );
+        expect(result.environment).toBe(Environment.SANDBOX);
+      }),
+    ));
 
-  it("rejects a transaction whose signature byte was flipped", async () => {
-    const tampered = tamperSegment(validTransaction, 2);
-    const exit = await Effect.runPromiseExit(verifier.verifyAndDecodeTransaction(tampered));
-    expect(exit._tag).toBe("Failure");
-    if (exit._tag === "Failure" && exit.cause._tag === "Fail") {
-      const error = exit.cause.error as VerificationError;
-      expect(error._tag).toBe("VerificationError");
-      expect(error.status).toBe(VerificationStatus.VERIFICATION_FAILURE);
-    }
-  });
+  it("rejects a transaction whose signature byte was flipped", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const tampered = tamperSegment(validTransaction, 2);
+        const exit = yield* Effect.exit(verifier.verifyAndDecodeTransaction(tampered));
+        expect(exit._tag).toBe("Failure");
+        if (exit._tag === "Failure" && exit.cause._tag === "Fail") {
+          const error = exit.cause.error;
+          expect(error).toBeInstanceOf(VerificationError);
+          expect(error._tag).toBe("VerificationError");
+          if (error instanceof VerificationError) {
+            expect(error.status).toBe(VerificationStatus.VERIFICATION_FAILURE);
+          }
+        }
+      }),
+    ));
 
-  it("rejects a transaction whose payload was tampered", async () => {
-    const tampered = tamperSegment(validTransaction, 1);
-    const exit = await Effect.runPromiseExit(verifier.verifyAndDecodeTransaction(tampered));
-    expect(exit._tag).toBe("Failure");
-  });
+  it("rejects a transaction whose payload was tampered", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const tampered = tamperSegment(validTransaction, 1);
+        const exit = yield* Effect.exit(verifier.verifyAndDecodeTransaction(tampered));
+        expect(exit._tag).toBe("Failure");
+      }),
+    ));
 });

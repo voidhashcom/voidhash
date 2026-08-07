@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { buildDocumentConnectionUrl } from "../../src/api/handlers/document-auth.ts";
 import { getConfig } from "../../src/config.ts";
@@ -84,25 +84,19 @@ describe("buildDocumentConnectionUrl", () => {
 });
 
 describe("publicBaseUrl config", () => {
-  const original = process.env.MIMIC_PUBLIC_BASE_URL;
-
-  afterEach(() => {
-    if (original === undefined) {
-      delete process.env.MIMIC_PUBLIC_BASE_URL;
-    } else {
-      process.env.MIMIC_PUBLIC_BASE_URL = original;
-    }
-  });
-
+  // `vi.stubEnv` + `vi.unstubAllEnvs` replaces the save/restore `afterEach`:
+  // each test restores the environment it stubbed before it returns.
   it("reads MIMIC_PUBLIC_BASE_URL when set", () => {
-    process.env.MIMIC_PUBLIC_BASE_URL = "https://mimic-db.example.workers.dev";
+    vi.stubEnv("MIMIC_PUBLIC_BASE_URL", "https://mimic-db.example.workers.dev");
     expect(getConfig().publicBaseUrl).toBe("https://mimic-db.example.workers.dev");
+    vi.unstubAllEnvs();
   });
 
   it("treats unset and blank values as undefined", () => {
-    delete process.env.MIMIC_PUBLIC_BASE_URL;
+    vi.stubEnv("MIMIC_PUBLIC_BASE_URL", undefined);
     expect(getConfig().publicBaseUrl).toBeUndefined();
-    process.env.MIMIC_PUBLIC_BASE_URL = "  ";
+    vi.stubEnv("MIMIC_PUBLIC_BASE_URL", "  ");
     expect(getConfig().publicBaseUrl).toBeUndefined();
+    vi.unstubAllEnvs();
   });
 });

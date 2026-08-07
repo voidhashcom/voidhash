@@ -34,12 +34,14 @@
   "dependencies": {
     "@effect-aws/client-s3": "catalog:",
     "@effect/sql-pg": "catalog:",
+    "@voidhash/lib": "workspace:*",
     "@voidhash/platform": "workspace:*",
     "effect": "catalog:",
     "nodemailer": "catalog:",
     "playwright-core": "catalog:"
   },
   "devDependencies": {
+    "@effect/platform-node": "catalog:",
     "@types/node": "^24.0.12",
     "@types/nodemailer": "catalog:",
     "@voidhash/tsconfig": "workspace:*",

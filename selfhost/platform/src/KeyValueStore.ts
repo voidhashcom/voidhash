@@ -5,7 +5,7 @@ import {
   type KeyValueStoreShape,
 } from "@voidhash/platform/KeyValueStore";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
-import { Effect, Layer, Option, SchemaParser } from "effect";
+import { Clock, Data, Effect, Layer, Option, Schema, SchemaParser } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
 import { PgPlatformClientLive, type PgPlatformConfig } from "./Postgres.ts";
@@ -42,22 +42,35 @@ const ensureTable = (sql: SqlClient.SqlClient) =>
 
 const expiry = (now: number, options: KeyValuePutOptions | undefined): number | null => {
   const ttl = options?.ttlMillis;
-  return typeof ttl === "number" && Number.isFinite(ttl) && ttl > 0
-    ? now + Math.floor(ttl)
-    : null;
+  if (typeof ttl === "number" && Number.isFinite(ttl) && ttl > 0) return now + Math.floor(ttl);
+  return null;
 };
 
+const boundedLimit = (limit: number): number => {
+  if (Number.isFinite(limit) && limit > 0) return Math.floor(limit);
+  return 0;
+};
+
+/** Raised when a value has no JSON representation, such as `undefined`. */
+class NonSerializableValueError extends Data.TaggedError("NonSerializableValueError")<{
+  readonly message: string;
+}> {}
+
+const encodeJsonText = SchemaParser.encodeUnknownEffect(Schema.UnknownFromJsonString);
+
 const encodeJson = (value: unknown): Effect.Effect<string, unknown> =>
-  Effect.try({
-    try: () => {
-      const encoded = JSON.stringify(value);
+  encodeJsonText(value).pipe(
+    Effect.flatMap((encoded) => {
+      // `JSON.stringify` yields `undefined` rather than text for values with no
+      // JSON representation, and the schema encoder passes that through.
       if (encoded === undefined) {
-        throw new TypeError("Key-value entries must be JSON-serializable");
+        return new NonSerializableValueError({
+          message: "Key-value entries must be JSON-serializable",
+        });
       }
-      return encoded;
-    },
-    catch: (cause) => cause,
-  });
+      return Effect.succeed(encoded);
+    }),
+  );
 
 const storeError = (namespace: string, operation: string, cause: unknown) =>
   new KeyValueStoreError({ namespace, operation, cause: String(cause) });
@@ -66,9 +79,9 @@ const makeStore = (sql: SqlClient.SqlClient): KeyValueStoreShape => ({
   get: (namespace, key, schema) =>
     PlatformRuntime.pipe(
       Effect.andThen(
-        Effect.suspend(() => {
-          const now = Date.now();
-          return sql<ValueRow>`
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          return yield* sql<ValueRow>`
             SELECT value_json AS "value"
             FROM platform_key_value
             WHERE namespace = ${namespace}
@@ -77,32 +90,34 @@ const makeStore = (sql: SqlClient.SqlClient): KeyValueStoreShape => ({
           `;
         }),
       ),
-      Effect.flatMap((rows) =>
-        rows[0]
-          ? SchemaParser.decodeUnknownEffect(schema)(rows[0].value).pipe(Effect.map(Option.some))
-          : Effect.succeedNone,
-      ),
+      Effect.flatMap((rows) => {
+        const row = rows[0];
+        if (!row) return Effect.succeedNone;
+        return SchemaParser.decodeUnknownEffect(schema)(row.value).pipe(Effect.map(Option.some));
+      }),
       Effect.mapError((cause) => storeError(namespace, "get", cause)),
     ),
   put: (namespace, key, value, schema, options) =>
     PlatformRuntime.pipe(
       Effect.andThen(SchemaParser.encodeUnknownEffect(schema)(value)),
       Effect.flatMap(encodeJson),
-      Effect.flatMap((encoded) => {
-        const now = Date.now();
-        const expiresAt = expiry(now, options);
-        return sql`
-          INSERT INTO platform_key_value (
-            namespace, key, value_json, expires_at_ms, updated_at_ms
-          ) VALUES (
-            ${namespace}, ${key}, ${encoded}::jsonb, ${expiresAt}, ${now}
-          )
-          ON CONFLICT (namespace, key)
-          DO UPDATE SET value_json = EXCLUDED.value_json,
-                        expires_at_ms = EXCLUDED.expires_at_ms,
-                        updated_at_ms = EXCLUDED.updated_at_ms
-        `;
-      }),
+      Effect.flatMap((encoded) =>
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          const expiresAt = expiry(now, options);
+          return yield* sql`
+            INSERT INTO platform_key_value (
+              namespace, key, value_json, expires_at_ms, updated_at_ms
+            ) VALUES (
+              ${namespace}, ${key}, ${encoded}::jsonb, ${expiresAt}, ${now}
+            )
+            ON CONFLICT (namespace, key)
+            DO UPDATE SET value_json = EXCLUDED.value_json,
+                          expires_at_ms = EXCLUDED.expires_at_ms,
+                          updated_at_ms = EXCLUDED.updated_at_ms
+          `;
+        }),
+      ),
       Effect.asVoid,
       Effect.mapError((cause) => storeError(namespace, "put", cause)),
     ),
@@ -116,37 +131,39 @@ const makeStore = (sql: SqlClient.SqlClient): KeyValueStoreShape => ({
           ),
         ),
       ),
-      Effect.flatMap((encodedEntries) => {
-        const now = Date.now();
-        const expiresAt = expiry(now, options);
-        return sql.withTransaction(
-          Effect.forEach(
-            encodedEntries,
-            ({ key, encoded }) =>
-              sql`
-                INSERT INTO platform_key_value (
-                  namespace, key, value_json, expires_at_ms, updated_at_ms
-                ) VALUES (
-                  ${namespace}, ${key}, ${encoded}::jsonb, ${expiresAt}, ${now}
-                )
-                ON CONFLICT (namespace, key)
-                DO UPDATE SET value_json = EXCLUDED.value_json,
-                              expires_at_ms = EXCLUDED.expires_at_ms,
-                              updated_at_ms = EXCLUDED.updated_at_ms
-              `,
-            { discard: true },
-          ),
-        );
-      }),
+      Effect.flatMap((encodedEntries) =>
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          const expiresAt = expiry(now, options);
+          return yield* sql.withTransaction(
+            Effect.forEach(
+              encodedEntries,
+              ({ key, encoded }) =>
+                sql`
+                  INSERT INTO platform_key_value (
+                    namespace, key, value_json, expires_at_ms, updated_at_ms
+                  ) VALUES (
+                    ${namespace}, ${key}, ${encoded}::jsonb, ${expiresAt}, ${now}
+                  )
+                  ON CONFLICT (namespace, key)
+                  DO UPDATE SET value_json = EXCLUDED.value_json,
+                                expires_at_ms = EXCLUDED.expires_at_ms,
+                                updated_at_ms = EXCLUDED.updated_at_ms
+                `,
+              { discard: true },
+            ),
+          );
+        }),
+      ),
       Effect.mapError((cause) => storeError(namespace, "putMany", cause)),
     ),
   existingKeys: (namespace, keys) => {
     if (keys.length === 0) return Effect.succeed(new Set<string>());
     return PlatformRuntime.pipe(
       Effect.andThen(
-        Effect.suspend(() => {
-          const now = Date.now();
-          return sql<KeyRow>`
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          return yield* sql<KeyRow>`
             SELECT key
             FROM platform_key_value
             WHERE namespace = ${namespace}
@@ -181,10 +198,10 @@ const makeStore = (sql: SqlClient.SqlClient): KeyValueStoreShape => ({
   increment: (namespace, key, options) =>
     PlatformRuntime.pipe(
       Effect.andThen(
-        Effect.suspend(() => {
-          const now = Date.now();
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
           const expiresAt = expiry(now, options);
-          return sql<ValueRow>`
+          return yield* sql<ValueRow>`
             INSERT INTO platform_key_value (
               namespace, key, value_json, expires_at_ms, updated_at_ms
             ) VALUES (
@@ -214,10 +231,10 @@ const makeStore = (sql: SqlClient.SqlClient): KeyValueStoreShape => ({
   pruneExpired: (limit) =>
     PlatformRuntime.pipe(
       Effect.andThen(
-        Effect.suspend(() => {
-          const now = Date.now();
-          const rowLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0;
-          return sql<KeyRow>`
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          const rowLimit = boundedLimit(limit);
+          return yield* sql<KeyRow>`
             WITH expired AS (
               SELECT namespace, key
               FROM platform_key_value

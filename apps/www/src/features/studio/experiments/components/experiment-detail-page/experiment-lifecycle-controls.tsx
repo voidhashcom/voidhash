@@ -119,10 +119,10 @@ export function ExperimentLifecycleControls({
   const queryClient = useQueryClient();
 
   const invalidate = () => {
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: queryKeys.experiment.getExperiment(experimentId),
     });
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: queryKeys.experiment.all,
     });
   };

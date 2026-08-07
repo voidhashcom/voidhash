@@ -1,9 +1,5 @@
-import {
-  validate,
-  type ArrayValue,
-  type ObjectValue,
-  type TreeValue,
-} from "@voidhash/mimic-core";
+import { validate, type TreeValue } from "@voidhash/mimic-core";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -41,6 +37,34 @@ const unlocalizedInput: PaywallDesignerDocumentInput = [
   },
 ];
 
+// Decoded `children` is a merged snapshot type (not a discriminated union), so
+// concrete variants are narrowed structurally by their `type` tag.
+function isNodeOfType<T extends { readonly type: string }>(
+  node: { readonly type: string },
+  type: T["type"],
+): node is T {
+  return node.type === type;
+}
+
+function narrowNode<T extends { readonly type: string }>(
+  node: { readonly type: string } | undefined,
+  type: T["type"],
+): T {
+  if (node === undefined || !isNodeOfType<T>(node, type)) {
+    return Effect.runSync(Effect.die(new Error(`expected a ${type} node, got ${node?.type}`)));
+  }
+  return node;
+}
+
+/** Encodes the document input, keeping the tree value type the fixtures mutate. */
+function encodeTree(input: PaywallDesignerDocumentInput): TreeValue {
+  const value = PaywallDesignerDocument.encode(input);
+  if (value.kind !== "tree") {
+    return Effect.runSync(Effect.die(new Error(`expected a tree value, got ${value.kind}`)));
+  }
+  return value;
+}
+
 function decodeRoot(value: TreeValue): RootNodeData {
   return PaywallDesignerDocument.decode(validate(PaywallDesignerDocument.schema, value))![0]!;
 }
@@ -48,14 +72,17 @@ function decodeRoot(value: TreeValue): RootNodeData {
 /** Removes every field this feature added, simulating a pre-change stored value. */
 function stripLocalizationFields(tree: TreeValue): void {
   for (const node of tree.nodes) {
-    const fields = (node.value as ObjectValue).fields as Record<string, unknown>;
-    delete fields["localization"];
-    delete fields["localized"];
-    const props = fields["props"] as ArrayValue | undefined;
+    if (node.value.kind !== "object") {
+      continue;
+    }
+    const fields = node.value.fields;
+    Reflect.deleteProperty(fields, "localization");
+    Reflect.deleteProperty(fields, "localized");
+    const props = fields["props"];
     if (props?.kind === "array") {
       for (const item of props.items) {
         if (item.value.kind === "object") {
-          delete (item.value.fields as Record<string, unknown>)["localizedValues"];
+          Reflect.deleteProperty(item.value.fields, "localizedValues");
         }
       }
     }
@@ -64,15 +91,15 @@ function stripLocalizationFields(tree: TreeValue): void {
 
 describe("localization defaults", () => {
   test("root materializes an empty localization config", () => {
-    const root = decodeRoot(PaywallDesignerDocument.encode(unlocalizedInput) as TreeValue);
+    const root = decodeRoot(encodeTree(unlocalizedInput));
     expect(root.data.localization).toEqual({ defaultLocale: "en", locales: [] });
   });
 
   test("nodes materialize empty localized arrays and resolvers return base values", () => {
-    const root = decodeRoot(PaywallDesignerDocument.encode(unlocalizedInput) as TreeValue);
-    const screen = root.children[0]! as ScreenNodeData;
-    const textNode = screen.children[0]! as TextNodeData;
-    const component = screen.children[1]! as ComponentNodeData;
+    const root = decodeRoot(encodeTree(unlocalizedInput));
+    const screen = narrowNode<ScreenNodeData>(root.children[0], "screen");
+    const textNode = narrowNode<TextNodeData>(screen.children[0], "text");
+    const component = narrowNode<ComponentNodeData>(screen.children[1], "component");
 
     expect(textNode.data.localized).toEqual([]);
     expect(resolveText(textNode.data, "de", "en")).toBe("Hello");
@@ -87,7 +114,7 @@ describe("localization defaults", () => {
 
 describe("back-compat with pre-change documents", () => {
   test("a value missing the new fields validates and re-materializes defaults", () => {
-    const stored = PaywallDesignerDocument.encode(unlocalizedInput) as TreeValue;
+    const stored = encodeTree(unlocalizedInput);
     stripLocalizationFields(stored);
 
     // Decoding through validate (the app's load path) must succeed and fill the
@@ -95,12 +122,12 @@ describe("back-compat with pre-change documents", () => {
     const root = decodeRoot(stored);
     expect(root.data.localization).toEqual({ defaultLocale: "en", locales: [] });
 
-    const screen = root.children[0]! as ScreenNodeData;
-    const textNode = screen.children[0]! as TextNodeData;
+    const screen = narrowNode<ScreenNodeData>(root.children[0], "screen");
+    const textNode = narrowNode<TextNodeData>(screen.children[0], "text");
     expect(textNode.data.localized).toEqual([]);
     expect(textNode.data.text).toBe("Hello");
 
-    const component = screen.children[1]! as ComponentNodeData;
+    const component = narrowNode<ComponentNodeData>(screen.children[1], "component");
     const titleProp = component.data.props.find((entry) => entry.value?.name === "title")!.value!;
     expect(titleProp.value.type).toBe("literal");
     expect(resolveComponentPropValue(titleProp, "de", "en").value).toEqual({

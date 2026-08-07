@@ -1,4 +1,5 @@
 import { redirect } from "@tanstack/react-router";
+import { Effect } from "effect";
 
 import { STUDIO_PATH } from "@/lib/paths";
 
@@ -12,7 +13,9 @@ import { STUDIO_PATH } from "@/lib/paths";
  * landing page.
  */
 export const marketingHomeLoader = async (): Promise<void> => {
-  throw redirect({ to: STUDIO_PATH });
+  // Raised as a defect so the router sees it on the rejected loader; mirrors the
+  // hosted slot that replaces this module.
+  Effect.runSync(Effect.die(redirect({ to: STUDIO_PATH })));
 };
 
 export function MarketingHome() {

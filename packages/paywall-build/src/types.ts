@@ -73,9 +73,9 @@ export interface TypecheckOptions {
  */
 export interface BuildCapabilities {
   /** Compile a single component's `.tsx` source to CJS. */
-  compile?(source: string): Promise<CompileOutcome>;
+  compile?: (source: string) => Promise<CompileOutcome>;
   /** Evaluate compiled CJS in isolation and extract its raw manifest value. */
-  extractManifest?(compiledCode: string): Promise<ExtractOutcome>;
+  extractManifest?: (compiledCode: string) => Promise<ExtractOutcome>;
   /** Optional manifest cache, consulted before `extractManifest`. */
   manifestCache?: ManifestCache;
   /**

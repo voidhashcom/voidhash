@@ -40,7 +40,7 @@
  *    and is exercised through `PersonIdentityService`'s own tests (see the
  *    per-target plan notes).
  */
-import { Effect, Layer } from "effect";
+import { Clock, DateTime, Effect, Layer, Schema } from "effect";
 import { describe, expect } from "vitest";
 
 import { IdentityProjectionPublisher } from "@voidhash/core/services/personIdentity/IdentityProjectionPublisher";
@@ -82,7 +82,46 @@ const PublisherLayer = IdentityProjectionPublisher.analyticsWriterLayer.pipe(
 
 /** Monotonic counter so ids stay unique even within the same millisecond. */
 let idSeq = 0;
-const uniqueId = (label: string) => `it-ipp-${label}-${Date.now()}-${idSeq++}`;
+const uniqueId = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-ipp-${label}-${now}-${idSeq++}`);
+
+const decodeJson = Schema.decodeSync(Schema.UnknownFromJsonString);
+
+/**
+ * Carries only the optional person fields the caller actually supplied, so the
+ * omission branch of `toProcessorPersonEvent` stays reachable.
+ */
+const optionalPersonFields = (overrides: {
+  readonly email?: string;
+  readonly name?: string;
+  readonly mergedIntoPersonId?: string;
+  readonly primaryDistinctId?: string;
+}): {
+  readonly email?: string;
+  readonly name?: string;
+  readonly mergedIntoPersonId?: string;
+  readonly primaryDistinctId?: string;
+} => {
+  const fields: {
+    email?: string;
+    name?: string;
+    mergedIntoPersonId?: string;
+    primaryDistinctId?: string;
+  } = {};
+  if (overrides.email) {
+    fields.email = overrides.email;
+  }
+  if (overrides.mergedIntoPersonId) {
+    fields.mergedIntoPersonId = overrides.mergedIntoPersonId;
+  }
+  if (overrides.name) {
+    fields.name = overrides.name;
+  }
+  if (overrides.primaryDistinctId) {
+    fields.primaryDistinctId = overrides.primaryDistinctId;
+  }
+  return fields;
+};
 
 /**
  * Build a {@link PersonSnapshotEventV1}. Optional fields (`email` / `name` /
@@ -98,19 +137,17 @@ const personEvent = (overrides: {
   readonly traits?: Record<string, unknown>;
   readonly version?: number;
   readonly isArchived?: boolean;
-}): PersonSnapshotEventV1 => ({
-  changedAt: new Date().toISOString(),
-  personId: overrides.personId,
-  ...(overrides.email ? { email: overrides.email } : {}),
-  isArchived: overrides.isArchived ?? false,
-  ...(overrides.mergedIntoPersonId ? { mergedIntoPersonId: overrides.mergedIntoPersonId } : {}),
-  ...(overrides.name ? { name: overrides.name } : {}),
-  ...(overrides.primaryDistinctId ? { primaryDistinctId: overrides.primaryDistinctId } : {}),
-  projectId,
-  schemaVersion: 1,
-  traits: overrides.traits ?? {},
-  version: overrides.version ?? 1,
-});
+}): Effect.Effect<PersonSnapshotEventV1> =>
+  Effect.map(DateTime.nowAsDate, (now) => ({
+    changedAt: now.toISOString(),
+    personId: overrides.personId,
+    isArchived: overrides.isArchived ?? false,
+    ...optionalPersonFields(overrides),
+    projectId,
+    schemaVersion: 1,
+    traits: overrides.traits ?? {},
+    version: overrides.version ?? 1,
+  }));
 
 /** Build a {@link PersonIdentityEventV1} mapping `distinctId` → `personId`. */
 const mappingEvent = (overrides: {
@@ -118,19 +155,20 @@ const mappingEvent = (overrides: {
   readonly distinctId: string;
   readonly version?: number;
   readonly isDeleted?: boolean;
-}): PersonIdentityEventV1 => ({
-  changedAt: new Date().toISOString(),
-  distinctId: overrides.distinctId,
-  isDeleted: overrides.isDeleted ?? false,
-  // `kind` is part of the wire event but the publisher's identity transform
-  // ignores it (it never reaches ClickHouse); `2` is `PersonIdentityKind.Identified`,
-  // kept here only so the fixture stays realistic.
-  kind: 2,
-  personId: overrides.personId,
-  projectId,
-  schemaVersion: 1,
-  version: overrides.version ?? 1,
-});
+}): Effect.Effect<PersonIdentityEventV1> =>
+  Effect.map(DateTime.nowAsDate, (now) => ({
+    changedAt: now.toISOString(),
+    distinctId: overrides.distinctId,
+    isDeleted: overrides.isDeleted ?? false,
+    // `kind` is part of the wire event but the publisher's identity transform
+    // ignores it (it never reaches ClickHouse); `2` is `PersonIdentityKind.Identified`,
+    // kept here only so the fixture stays realistic.
+    kind: 2,
+    personId: overrides.personId,
+    projectId,
+    schemaVersion: 1,
+    version: overrides.version ?? 1,
+  }));
 
 /** Read back the person rows for the given person ids straight from ClickHouse. */
 const findPersonRows = (personIds: ReadonlyArray<string>) =>
@@ -251,16 +289,16 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
       Effect.gen(function* () {
         const publisher = yield* IdentityProjectionPublisher;
 
-        const personId = uniqueId("happy-person");
-        const distinctId = uniqueId("happy-distinct");
+        const personId = yield* uniqueId("happy-person");
+        const distinctId = yield* uniqueId("happy-distinct");
         trackPerson(personId);
         trackDistinct(distinctId);
 
         yield* publisher.publishIdentityResult({
           identity: { distinctId },
-          mappingEvents: [mappingEvent({ distinctId, personId, version: 2 })],
+          mappingEvents: [yield* mappingEvent({ distinctId, personId, version: 2 })],
           personEvents: [
-            personEvent({
+            yield* personEvent({
               email: "happy@voidhash.test",
               name: "Happy Person",
               personId,
@@ -282,7 +320,7 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
         expect(personRow?.primary_distinct_id).toBe(distinctId);
         expect(personRow?.is_archived).toBe(0);
         expect(personRow?.version).toBe("5");
-        expect(JSON.parse(personRow?.traits ?? "{}")).toEqual({ tier: "gold" });
+        expect(decodeJson(personRow?.traits ?? "{}")).toEqual({ tier: "gold" });
 
         const identityRows = yield* findIdentityRows([distinctId]);
         const identityRow = identityRows.find((row) => row.distinct_id === distinctId);
@@ -304,15 +342,15 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
       Effect.gen(function* () {
         const publisher = yield* IdentityProjectionPublisher;
 
-        const personId = uniqueId("minimal-person");
+        const personId = yield* uniqueId("minimal-person");
         trackPerson(personId);
 
         // Only the required fields — every optional field is absent, so the
         // transform must omit it (and the writer writes NULL).
         yield* publisher.publishIdentityResult({
-          identity: { distinctId: uniqueId("minimal-distinct") },
+          identity: { distinctId: yield* uniqueId("minimal-distinct") },
           mappingEvents: [],
-          personEvents: [personEvent({ personId })],
+          personEvents: [yield* personEvent({ personId })],
         });
 
         const personRows = yield* findPersonRows([personId]);
@@ -332,16 +370,16 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
       Effect.gen(function* () {
         const publisher = yield* IdentityProjectionPublisher;
 
-        const personId = uniqueId("full-person");
-        const mergedInto = uniqueId("full-merged");
-        const primaryDistinct = uniqueId("full-primary");
+        const personId = yield* uniqueId("full-person");
+        const mergedInto = yield* uniqueId("full-merged");
+        const primaryDistinct = yield* uniqueId("full-primary");
         trackPerson(personId);
 
         yield* publisher.publishIdentityResult({
           identity: { distinctId: primaryDistinct },
           mappingEvents: [],
           personEvents: [
-            personEvent({
+            yield* personEvent({
               email: "full@voidhash.test",
               isArchived: true,
               mergedIntoPersonId: mergedInto,
@@ -370,9 +408,9 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
       Effect.gen(function* () {
         const publisher = yield* IdentityProjectionPublisher;
 
-        const personId = uniqueId("prev-person");
-        const identityDistinct = uniqueId("prev-identity");
-        const mappingDistinct = uniqueId("prev-mapping");
+        const personId = yield* uniqueId("prev-person");
+        const identityDistinct = yield* uniqueId("prev-identity");
+        const mappingDistinct = yield* uniqueId("prev-mapping");
         // The persisted identity row is keyed by the identity distinct id (the
         // transform rewrites `distinctId` to it and stores the mapping distinct
         // id as `previous_distinct_id`), so reclaim by that id. Because a
@@ -383,7 +421,7 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
 
         yield* publisher.publishIdentityResult({
           identity: { distinctId: identityDistinct },
-          mappingEvents: [mappingEvent({ distinctId: mappingDistinct, personId, version: 3 })],
+          mappingEvents: [yield* mappingEvent({ distinctId: mappingDistinct, personId, version: 3 })],
           personEvents: [],
         });
 
@@ -410,13 +448,13 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
       Effect.gen(function* () {
         const publisher = yield* IdentityProjectionPublisher;
 
-        const personId = uniqueId("same-person");
-        const distinctId = uniqueId("same-distinct");
+        const personId = yield* uniqueId("same-person");
+        const distinctId = yield* uniqueId("same-distinct");
         trackDistinct(distinctId);
 
         yield* publisher.publishIdentityResult({
           identity: { distinctId },
-          mappingEvents: [mappingEvent({ distinctId, personId })],
+          mappingEvents: [yield* mappingEvent({ distinctId, personId })],
           personEvents: [],
         });
 
@@ -435,10 +473,10 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
       Effect.gen(function* () {
         const publisher = yield* IdentityProjectionPublisher;
 
-        const personA = uniqueId("batch-person-a");
-        const personB = uniqueId("batch-person-b");
-        const distinctA = uniqueId("batch-distinct-a");
-        const distinctB = uniqueId("batch-distinct-b");
+        const personA = yield* uniqueId("batch-person-a");
+        const personB = yield* uniqueId("batch-person-b");
+        const distinctA = yield* uniqueId("batch-distinct-a");
+        const distinctB = yield* uniqueId("batch-distinct-b");
         trackPerson(personA);
         trackPerson(personB);
         // A single `publishIdentityResult` call carries ONE identity distinct id;
@@ -455,15 +493,15 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
           mappingEvents: [
             // distinctId === identity.distinctId → kept, no previous distinct id,
             // version defaults to 1.
-            mappingEvent({ distinctId: distinctA, personId: personA }),
+            yield* mappingEvent({ distinctId: distinctA, personId: personA }),
             // distinctId !== identity.distinctId → rewritten to distinctA with
             // previous_distinct_id = distinctB (and version > 0 also lands
             // override + pending-override rows). version = 2.
-            mappingEvent({ distinctId: distinctB, personId: personB, version: 2 }),
+            yield* mappingEvent({ distinctId: distinctB, personId: personB, version: 2 }),
           ],
           personEvents: [
-            personEvent({ name: "Batch A", personId: personA }),
-            personEvent({ name: "Batch B", personId: personB }),
+            yield* personEvent({ name: "Batch A", personId: personA }),
+            yield* personEvent({ name: "Batch B", personId: personB }),
           ],
         });
 
@@ -513,12 +551,12 @@ describe("IdentityProjectionPublisher.publishIdentityResult (analyticsWriterLaye
       // turn wraps as its stable QueueProducerError. `changedAt` stays a valid
       // ISO string so `toClickhouseTimestamp` does not throw first (that would
       // be an uncaught defect, not the typed failure under test).
-      const personId = uniqueId("bad-person");
+      const personId = yield* uniqueId("bad-person");
       const error = yield* Effect.flip(
         publisher.publishIdentityResult({
-          identity: { distinctId: uniqueId("bad-distinct") },
+          identity: { distinctId: yield* uniqueId("bad-distinct") },
           mappingEvents: [],
-          personEvents: [personEvent({ personId, version: -1 })],
+          personEvents: [yield* personEvent({ personId, version: -1 })],
         }),
       );
 

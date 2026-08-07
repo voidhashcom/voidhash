@@ -1,4 +1,3 @@
-import type { Primitive } from "@voidhash/mimic-core";
 import {
   PathNode,
   ScreenNode,

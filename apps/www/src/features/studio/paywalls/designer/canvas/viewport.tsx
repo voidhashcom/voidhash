@@ -1,5 +1,6 @@
 "use client";
 
+import { Effect } from "effect";
 import {
   createContext,
   type PropsWithChildren,
@@ -524,7 +525,7 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
 export function useViewport() {
   const context = useContext(ViewportContext);
   if (!context) {
-    throw new Error("useViewport must be used within a Viewport");
+    return Effect.runSync(Effect.die(new Error("useViewport must be used within a Viewport")));
   }
   return context;
 }

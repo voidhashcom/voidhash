@@ -62,12 +62,15 @@ export const durableOperationName = (name: string): Effect.Effect<string> => {
   const encoded = new TextEncoder().encode(name);
   if (encoded.byteLength <= MAX_DURABLE_OPERATION_NAME_BYTES) return Effect.succeed(name);
 
-  return Effect.promise(async () => {
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoded));
-    const hash = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
-    const prefix = name.slice(0, 24).replaceAll(/[^a-zA-Z0-9._-]/g, "_");
-    return `${prefix}:${hash}`;
-  });
+  return Effect.promise(() => crypto.subtle.digest("SHA-256", encoded)).pipe(
+    Effect.map((buffer) => {
+      const hash = Array.from(new Uint8Array(buffer), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
+      const prefix = name.slice(0, 24).replaceAll(/[^a-zA-Z0-9._-]/g, "_");
+      return `${prefix}:${hash}`;
+    }),
+  );
 };
 
 /** Defines a provider-neutral workflow while preserving schema inference. */

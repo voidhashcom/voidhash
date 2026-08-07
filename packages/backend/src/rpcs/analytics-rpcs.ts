@@ -11,6 +11,12 @@ import {
 } from "@voidhash/rpc";
 import { Effect } from "effect";
 
+/** Copies a readonly breakdown list into the mutable array the service expects. */
+const toMutableBreakdowns = <T>(breakdowns: readonly T[] | undefined): T[] | undefined => {
+  if (!breakdowns) return undefined;
+  return [...breakdowns];
+};
+
 export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
   Effect.gen(function* AnalyticsRpcsLive() {
     const analyticsService = yield* AnalyticsService;
@@ -53,7 +59,7 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
           .queryAnalyticsInsights({
             queries: queries.map((query) => ({
               ...query,
-              breakdowns: query.breakdowns ? [...query.breakdowns] : undefined,
+              breakdowns: toMutableBreakdowns(query.breakdowns),
             })),
           })
           .pipe(

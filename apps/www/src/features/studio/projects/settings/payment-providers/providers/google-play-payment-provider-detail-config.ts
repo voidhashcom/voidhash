@@ -61,6 +61,6 @@ export function getGooglePlayInitialConfiguration(
 ): GooglePlayGlobalConfiguration {
   return {
     ...googlePlay.defaultGlobalConfiguration,
-    ...(configuration ?? {}),
+    ...configuration,
   };
 }

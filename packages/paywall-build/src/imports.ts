@@ -1,8 +1,16 @@
+import { Effect } from "effect";
 import ts from "typescript";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error } from "./diagnostics.ts";
 import type { BuildReadFs } from "./fs.ts";
-import { basename, canonicalPathFor, dirname, joinPath } from "./paths.ts";
+import {
+  basename,
+  canonicalPathFor,
+  comparePaths,
+  dirname,
+  joinPath,
+  tryJoinPath,
+} from "./paths.ts";
 
 /** The root SDK specifier the surface is imported from. */
 const ROOT_SPECIFIER = "@voidhash/paywalls";
@@ -43,19 +51,19 @@ function positionOf(source: ts.SourceFile, node: ts.Node): { line: number; colum
  * the bare path. Returns the absolute path of the first hit, or `null`.
  */
 function resolveRelative(fs: BuildReadFs, fromDir: string, specifier: string): string | null {
-  let base: string;
-  try {
-    base = joinPath(fromDir, specifier);
-  } catch {
-    return null;
-  }
-  const candidates = base.endsWith(".tsx") || base.endsWith(".ts")
-    ? [base]
-    : [`${base}.tsx`, `${base}.ts`, base];
-  for (const candidate of candidates) {
+  // A specifier that escapes the root simply does not resolve.
+  const base = tryJoinPath(fromDir, specifier);
+  if (base === null) return null;
+  for (const candidate of candidatesFor(base)) {
     if (fs.exists(candidate)) return candidate;
   }
   return null;
+}
+
+/** The probe order for a joined specifier: an explicit extension wins outright. */
+function candidatesFor(base: string): readonly string[] {
+  if (base.endsWith(".tsx") || base.endsWith(".ts")) return [base];
+  return [`${base}.tsx`, `${base}.ts`, base];
 }
 
 /**
@@ -150,7 +158,7 @@ export function resolveImports(fs: BuildReadFs, entryPath: string): ResolveImpor
   }
 
   // Component-file imports: only @voidhash/paywalls is legal in v1.
-  for (const component of [...components.values()]) {
+  for (const component of components.values()) {
     validateComponentImports(component, diagnostics);
   }
 
@@ -171,9 +179,7 @@ export function resolveImports(fs: BuildReadFs, entryPath: string): ResolveImpor
     }
   }
 
-  const ordered = [...components.values()].sort((a, b) =>
-    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
-  );
+  const ordered = [...components.values()].sort((a, b) => comparePaths(a.path, b.path));
 
   return { entrySource, entryDir, components: ordered, diagnostics };
 }
@@ -226,9 +232,11 @@ function validateComponentImports(
 
 /** Whether a directory has any listed files (the flat FS has no real dir nodes). */
 function dirExists(fs: BuildReadFs, dir: string): boolean {
-  try {
-    return fs.list(dir).length > 0;
-  } catch {
-    return false;
-  }
+  // A host FS may reject an unknown directory outright; that reads as "absent".
+  return Effect.runSync(
+    Effect.try({
+      try: () => fs.list(dir).length > 0,
+      catch: (cause) => cause,
+    }).pipe(Effect.orElseSucceed(() => false)),
+  );
 }

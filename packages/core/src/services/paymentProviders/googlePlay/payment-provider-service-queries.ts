@@ -23,6 +23,7 @@ import {
   type DbError,
   Db,
 } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Layer, Option, Context } from "effect";
 
 /** Bound on `mergedIntoPersonId` chain-following — cycle/runaway backstop. */
@@ -381,7 +382,7 @@ const make = Effect.gen(function* () {
       }),
   );
 
-  return {
+  return constant({
     createExternalIdentifier,
     findDistinctIdForPerson,
     findExternalIdentifier,
@@ -399,7 +400,7 @@ const make = Effect.gen(function* () {
     rebindExternalIdentifier,
     resolveCanonicalPersonId,
     upsertExternalIdentifier,
-  } as const;
+  });
 });
 
 export type GooglePlayPaymentProviderServiceQueriesShape = Effect.Success<typeof make>;

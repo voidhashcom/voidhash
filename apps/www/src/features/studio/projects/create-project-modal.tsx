@@ -72,8 +72,8 @@ export function CreateProjectModal({
         ...data,
         organizationId: variables.organizationId,
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
-      navigate({
+      void queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+      void navigate({
         params: {
           organizationSlug,
           projectSlug: data.slug,

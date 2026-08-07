@@ -9,16 +9,18 @@ import {
   experimentVariants,
   experiments,
 } from "@voidhash/db";
+import { generateId } from "@voidhash/core/utils";
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 const { test } = CoreIntegrationTestHarness.make();
 
 const ServiceUnderTest = ExperimentService.layer.pipe(Layer.provide(FeatureFlagService.layer));
-const suffix = `${Date.now()}-${crypto.randomUUID()}`;
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+const suffix = generateId("test");
 const experimentId = `it_experiment_auth_${suffix}`;
 const controlId = `it_experiment_variant_control_${suffix}`;
 const treatmentId = `it_experiment_treatment_${suffix}`;
@@ -32,14 +34,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });

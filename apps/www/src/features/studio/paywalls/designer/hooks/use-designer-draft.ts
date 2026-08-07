@@ -1,6 +1,7 @@
 import type { DraftHandle } from "@voidhash/mimic/client";
 import { clearActiveDraft, setActiveDraft } from "@voidhash/mimic/zustand-commander";
 import type { PaywallDesignerDocument } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 
 import type { PaywallDesignerStoreType } from "../state/designer-store";
@@ -39,7 +40,9 @@ export function useDesignerDraft(store: PaywallDesignerStoreType): UseDesignerDr
 
   const begin = useCallback(() => {
     if (draftRef.current !== null) {
-      throw new Error("A draft is already active. Commit or discard it first.");
+      return Effect.runSync(
+        Effect.die(new Error("A draft is already active. Commit or discard it first.")),
+      );
     }
     const draft = store.getState().mimic.document.createDraft();
     draftRef.current = draft;
@@ -70,12 +73,14 @@ export function useDesignerDraft(store: PaywallDesignerStoreType): UseDesignerDr
   useEffect(
     () => () => {
       if (draftRef.current !== null) {
-        try {
-          clearActiveDraft(store);
-          draftRef.current.discard();
-        } catch {
-          // Ignore stale draft cleanup errors.
-        }
+        const draft = draftRef.current;
+        // Stale draft cleanup errors are ignored.
+        Effect.runSync(
+          Effect.try(() => {
+            clearActiveDraft(store);
+            draft.discard();
+          }).pipe(Effect.ignore),
+        );
         draftRef.current = null;
       }
     },

@@ -109,7 +109,7 @@ export function TopPanel() {
       setPublishedUrl(data.htmlUrl);
       // Invalidate draft release query so UI reflects the published state
       if (paywallId) {
-        queryClient.invalidateQueries({
+        void queryClient.invalidateQueries({
           queryKey: queryKeys.paywall.draft({ paywallId }),
         });
       }
@@ -123,7 +123,7 @@ export function TopPanel() {
   });
 
   const handleGoToDashboard = () => {
-    navigate({
+    void navigate({
       params: {
         organizationSlug: organizationSlug ?? "",
         projectSlug: projectSlug ?? "",

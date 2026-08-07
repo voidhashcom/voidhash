@@ -1,3 +1,6 @@
+import { NodeRuntime } from "@effect/platform-node";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Data, Effect } from "effect";
 import * as esbuild from "esbuild";
 import * as tsup from "tsup";
 
@@ -21,31 +24,34 @@ esbuild.buildSync({
   target: "node16",
 });
 
-const main = async () => {
-  await tsup.build({
-    dts: true,
-    entryPoints: ["./src/index.ts"],
-    external: ["esbuild"],
-    format: ["cjs", "esm"],
-    outDir: "./dist",
-    outExtension: (ctx) => {
-      if (ctx.format === "cjs") {
-        return {
-          dts: ".d.ts",
-          js: ".cjs",
-        };
-      }
-      return {
-        dts: ".d.mts",
-        js: ".mjs",
-      };
-    },
-    splitting: false,
-  });
-};
+class BuildFailedError extends Data.TaggedError("BuildFailedError")<{
+  readonly message: string;
+}> {}
 
-main().catch((error) => {
-  // User facing console error.
-  console.error(error);
-  process.exit(1);
+const main = Effect.tryPromise({
+  catch: (cause) => new BuildFailedError({ message: causeMessage(cause) }),
+  try: () =>
+    tsup.build({
+      dts: true,
+      entryPoints: ["./src/index.ts"],
+      external: ["esbuild"],
+      format: ["cjs", "esm"],
+      outDir: "./dist",
+      outExtension: (ctx) => {
+        if (ctx.format === "cjs") {
+          return {
+            dts: ".d.ts",
+            js: ".cjs",
+          };
+        }
+        return {
+          dts: ".d.mts",
+          js: ".mjs",
+        };
+      },
+      splitting: false,
+    }),
 });
+
+// runMain reports the failure and exits with a non-zero code.
+NodeRuntime.runMain(main);

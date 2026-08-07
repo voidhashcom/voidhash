@@ -42,18 +42,8 @@ export const make = <
     ) => Effect.Effect<Success["Type"], unknown, WorkflowRunner | PlatformRuntime>;
     readonly cron?: Cron<Schema.Struct.Type<Payload>>;
   },
-): WorkflowRegistration<RIn> => ({
-  workflow,
-  ...(options.cron === undefined
-    ? {}
-    : {
-        cron: {
-          schedule: options.cron.schedule,
-          dispatch: (scheduledTime: Date) =>
-            Workflow.dispatchAndForget(workflow, options.cron!.payload(scheduledTime)),
-        },
-      }),
-  register: (infrastructure) =>
+): WorkflowRegistration<RIn> => {
+  const register: WorkflowRegistration<RIn>["register"] = (infrastructure) =>
     WorkflowRunner.pipe(
       Effect.flatMap((runner) =>
         runner.register(
@@ -62,5 +52,18 @@ export const make = <
           options.dependencies.pipe(Layer.provideMerge(infrastructure)),
         ),
       ),
-    ),
-});
+    );
+
+  const cron = options.cron;
+  if (cron === undefined) return { workflow, register };
+
+  return {
+    workflow,
+    cron: {
+      schedule: cron.schedule,
+      dispatch: (scheduledTime: Date) =>
+        Workflow.dispatchAndForget(workflow, cron.payload(scheduledTime)),
+    },
+    register,
+  };
+};

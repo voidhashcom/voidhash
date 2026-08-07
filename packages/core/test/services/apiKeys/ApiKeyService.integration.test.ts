@@ -30,7 +30,7 @@
  *  - Typed failures are asserted with `Effect.flip` then narrowed with
  *    `instanceof`, always paired with a DB-state assertion on the failure path.
  */
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import { ApiKeyService } from "@voidhash/core/services";
@@ -58,9 +58,13 @@ const { test } = CoreIntegrationTestHarness.make();
 const projectId = CoreTestFixture.projectId;
 const userId = CoreTestFixture.userId;
 
+/** Wall-clock helpers — `DateTime` equivalents of `nowMillis()` / `new Date(...)`. */
+const nowMillis = (): number => DateTime.toEpochMillis(DateTime.nowUnsafe());
+const instant = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
 /** Monotonic counter so names stay unique even within the same millisecond. */
 let nameSeq = 0;
-const uniqueName = (label: string) => `it-apikey-${label}-${Date.now()}-${nameSeq++}`;
+const uniqueName = (label: string) => `it-apikey-${label}-${nowMillis()}-${nameSeq++}`;
 
 /** Read a project-scoped api-key row (`apiKeys` table) straight from the DB. */
 const findApiKeyRow = (id: string) =>
@@ -153,14 +157,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: instant(0),
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: instant(0),
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -271,7 +275,7 @@ describe("ApiKeyService.rotateSecretKey", () => {
     "fails with ApiKeyNotFoundError for an unknown id and writes no row",
     Effect.gen(function* () {
       const apiKeyService = yield* ApiKeyService;
-      const missingId = `apiSecretKey_missing_${Date.now()}`;
+      const missingId = `apiSecretKey_missing_${nowMillis()}`;
 
       const error = yield* Effect.flip(apiKeyService.rotateSecretKey({ secretKeyId: missingId }));
       expect(error).toBeInstanceOf(ApiKeyNotFoundError);
@@ -339,7 +343,7 @@ describe("ApiKeyService.deleteSecretKey", () => {
     "fails with ApiKeyNotFoundError for an unknown id",
     Effect.gen(function* () {
       const apiKeyService = yield* ApiKeyService;
-      const missingId = `apiSecretKey_missing_${Date.now()}`;
+      const missingId = `apiSecretKey_missing_${nowMillis()}`;
 
       const error = yield* Effect.flip(apiKeyService.deleteSecretKey({ secretKeyId: missingId }));
       expect(error).toBeInstanceOf(ApiKeyNotFoundError);
@@ -424,7 +428,7 @@ describe("ApiKeyService.getApiKeyById", () => {
     "fails with ApiKeyNotFoundError for an unknown id",
     Effect.gen(function* () {
       const apiKeyService = yield* ApiKeyService;
-      const missingId = `apiSecretKey_missing_${Date.now()}`;
+      const missingId = `apiSecretKey_missing_${nowMillis()}`;
       const error = yield* Effect.flip(apiKeyService.getApiKeyById(missingId));
       expect(error).toBeInstanceOf(ApiKeyNotFoundError);
       if (error instanceof ApiKeyNotFoundError) {
@@ -637,7 +641,7 @@ describe("ApiKeyService.validateUserApiKey", () => {
         // Set an expiry in the past so `isExpired` rejects the record.
         yield* db
           .update(apikey)
-          .set({ expiresAt: new Date(Date.now() - 60_000) })
+          .set({ expiresAt: instant(nowMillis() - 60_000) })
           .where(eq(apikey.id, created.id));
 
         const error = yield* Effect.flip(apiKeyService.validateUserApiKey(created.rawKey));
@@ -657,7 +661,7 @@ describe("ApiKeyService.validateUserApiKey", () => {
     // default session, but the method never touches it.
     Effect.gen(function* () {
       const apiKeyService = yield* ApiKeyService;
-      const rawKey = `vh_cli_unknown_${Date.now()}`;
+      const rawKey = `vh_cli_unknown_${nowMillis()}`;
       const error = yield* Effect.flip(apiKeyService.validateUserApiKey(rawKey));
       expect(error).toBeInstanceOf(ApiKeyNotFoundError);
       // The raw (secret-equivalent) key must never be echoed back in the error.
@@ -693,7 +697,7 @@ describe("ApiKeyService.validateSecretKey", () => {
     "fails with ApiKeyNotFoundError for an unknown raw key (no auth session required)",
     Effect.gen(function* () {
       const apiKeyService = yield* ApiKeyService;
-      const rawKey = `vh_sk_unknown_${Date.now()}`;
+      const rawKey = `vh_sk_unknown_${nowMillis()}`;
       const error = yield* Effect.flip(apiKeyService.validateSecretKey(rawKey));
       expect(error).toBeInstanceOf(ApiKeyNotFoundError);
       // The raw (secret-equivalent) key must never be echoed back in the error.
@@ -716,7 +720,7 @@ describe("ApiKeyService.validatePublishableKey", () => {
         // There is no public mint method for publishable keys, so seed one
         // directly. Publishable keys are stored plain-text (not hashed), so the
         // raw value IS the stored `key`.
-        const id = `apiPublishableKey_${Date.now()}_${nameSeq++}`;
+        const id = `apiPublishableKey_${nowMillis()}_${nameSeq++}`;
         const rawKey = `vh_pk_${id}`;
         yield* db.insert(apiKeys).values({
           id,
@@ -742,7 +746,7 @@ describe("ApiKeyService.validatePublishableKey", () => {
     "fails with ApiKeyNotFoundError for an unknown raw key",
     Effect.gen(function* () {
       const apiKeyService = yield* ApiKeyService;
-      const rawKey = `vh_pk_unknown_${Date.now()}`;
+      const rawKey = `vh_pk_unknown_${nowMillis()}`;
       const error = yield* Effect.flip(apiKeyService.validatePublishableKey(rawKey));
       expect(error).toBeInstanceOf(ApiKeyNotFoundError);
       // The raw (secret-equivalent) key must never be echoed back in the error.

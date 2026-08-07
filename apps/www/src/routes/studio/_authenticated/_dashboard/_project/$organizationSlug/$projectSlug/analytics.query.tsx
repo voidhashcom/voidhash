@@ -42,8 +42,12 @@ const EXAMPLE_QUERY =
 /** Render an arbitrary VoidQL result cell value as display text. */
 function formatCell(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (typeof value === "symbol" || typeof value === "function") return value.toString();
+  return JSON.stringify(value);
 }
 
 /** Best-effort extraction of a human-readable message from a typed RPC error. */

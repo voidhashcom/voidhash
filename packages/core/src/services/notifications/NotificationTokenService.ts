@@ -1,4 +1,6 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
+
+import { constant } from "@voidhash/lib/lang";
 
 import {
   InvalidPushMessageError,
@@ -27,6 +29,48 @@ import type {
 export class NotificationTokenServiceError extends Schema.TaggedErrorClass<NotificationTokenServiceError>(
   "NotificationTokenServiceError",
 )("NotificationTokenServiceError", { cause: Schema.String }) {}
+
+const DevicePlatformSchema = Schema.Literals(["ios", "android"]);
+const PushDeliveryProviderKindSchema = Schema.Literals(["fcm", "apns"]);
+const PushEnvironmentSchema = Schema.Literals(["sandbox", "production"]);
+
+/**
+ * Decodes a free-form `varchar` column into the union type the rest of the
+ * system speaks. The columns are plain strings in Postgres, so a corrupt row
+ * surfaces as a service error rather than an invalid value flowing to an
+ * adapter.
+ */
+const decodeColumn = <A>(
+  schema: Schema.Codec<A, string>,
+  column: string,
+  value: string,
+): Effect.Effect<A, NotificationTokenServiceError> =>
+  Schema.decodeUnknownEffect(schema)(value).pipe(
+    Effect.mapError(
+      () =>
+        new NotificationTokenServiceError({
+          cause: `unexpected ${column} value on push device token: ${value}`,
+        }),
+    ),
+  );
+
+/** Nullable `environment` column -> the optional APNs environment. */
+const decodeEnvironment = (
+  environment: string | null,
+): Effect.Effect<"sandbox" | "production" | undefined, NotificationTokenServiceError> => {
+  if (environment === null) return Effect.succeed(undefined);
+  return decodeColumn(PushEnvironmentSchema, "environment", environment);
+};
+
+/**
+ * Builds the relational filter for the `environment` half of the dedup key.
+ * `environment` is either null (fcm) or a value (apns), never `''`, so an exact
+ * match mirrors the unique index.
+ */
+const environmentFilter = (environment: string | null) => {
+  if (environment === null) return constant({ environment: { isNull: true } });
+  return { environment };
+};
 
 /**
  * The UUID seam: the ONLY component that mints, stores, and dereferences
@@ -85,15 +129,15 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
 
           const pushDeviceTokenId = yield* db.transaction((tx) =>
             Effect.gen(function* () {
+              const now = yield* DateTime.nowAsDate;
               // Match the dedup key (projectId, provider, platformToken,
-              // coalesce(environment,'')). environment is null (fcm) or a value
-              // (apns), never '', so an exact match mirrors the unique index.
+              // coalesce(environment,'')).
               const existing = yield* tx.query.pushDeviceTokens.findFirst({
                 where: {
                   projectId: input.projectId,
                   provider: input.provider,
                   platformToken: input.platformToken,
-                  ...(environment === null ? { environment: { isNull: true } } : { environment }),
+                  ...environmentFilter(environment),
                 },
               });
 
@@ -108,7 +152,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                     invalidatedAt: null,
                     invalidationReason: null,
                     deletedAt: null,
-                    updatedAt: new Date(),
+                    updatedAt: now,
                   })
                   .where(eq(pushDeviceTokens.id, existing.id));
               } else {
@@ -142,10 +186,10 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                 yield* tx
                   .update(pushDeviceTokens)
                   .set({
-                    invalidatedAt: new Date(),
+                    invalidatedAt: now,
                     invalidationReason: "orphan-reaped",
-                    deletedAt: new Date(),
-                    updatedAt: new Date(),
+                    deletedAt: now,
+                    updatedAt: now,
                   })
                   .where(
                     and(
@@ -214,9 +258,10 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                   new PushDeviceTokenNotFoundError({ message: "device token not found" }),
                 );
               }
+              const now = yield* DateTime.nowAsDate;
               yield* tx
                 .update(pushDeviceTokens)
-                .set({ platformToken: input.newPlatformToken, updatedAt: new Date() })
+                .set({ platformToken: input.newPlatformToken, updatedAt: now })
                 .where(
                   and(
                     eq(pushDeviceTokens.id, input.pushDeviceTokenId),
@@ -280,9 +325,10 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                 pushDeviceTokenId: input.pushDeviceTokenId,
               });
               if (remaining === 0) {
+                const now = yield* DateTime.nowAsDate;
                 yield* tx
                   .update(pushDeviceTokens)
-                  .set({ deletedAt: new Date(), updatedAt: new Date() })
+                  .set({ deletedAt: now, updatedAt: now })
                   .where(
                     and(
                       eq(pushDeviceTokens.id, input.pushDeviceTokenId),
@@ -334,12 +380,25 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                   new PushDeviceTokenNotFoundError({ message: "device token not found" }),
                 );
               }
+              const platform: DevicePlatform = yield* decodeColumn(
+                DevicePlatformSchema,
+                "platform",
+                device.platform,
+              );
+              const provider: PushDeliveryProviderKind = yield* decodeColumn(
+                PushDeliveryProviderKindSchema,
+                "provider",
+                device.provider,
+              );
+              const environment: PushEnvironment | undefined = yield* decodeEnvironment(
+                device.environment,
+              );
               return {
-                platform: device.platform as DevicePlatform,
-                provider: device.provider as PushDeliveryProviderKind,
+                platform,
+                provider,
                 platformToken: device.platformToken,
                 bundleId: device.bundleId ?? undefined,
-                environment: (device.environment ?? undefined) as PushEnvironment | undefined,
+                environment,
               };
             }),
           );
@@ -381,15 +440,16 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
               if (!device) {
                 return;
               }
-              const updatedAt = device.updatedAt ?? device.createdAt ?? new Date(0);
-              if (updatedAt.getTime() > input.observedAt.getTime()) {
+              const updatedAtMillis = (device.updatedAt ?? device.createdAt)?.getTime() ?? 0;
+              if (updatedAtMillis > input.observedAt.getTime()) {
                 // Re-registered after this attempt -> it is a live device; skip.
                 yield* Effect.annotateCurrentSpan("voidhash.push.invalidate_skipped", true);
                 return;
               }
+              const now = yield* DateTime.nowAsDate;
               yield* tx
                 .update(pushDeviceTokens)
-                .set({ invalidatedAt: new Date(), invalidationReason: input.reason })
+                .set({ invalidatedAt: now, invalidationReason: input.reason })
                 .where(
                   and(
                     eq(pushDeviceTokens.id, input.pushDeviceTokenId),
@@ -418,6 +478,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
 
           yield* db.transaction((tx) =>
             Effect.gen(function* () {
+              const now = yield* DateTime.nowAsDate;
               const personLinks = yield* tx.query.pushPersonDeviceTokens.findMany({
                 where: { projectId: input.projectId, personId: input.personId },
               });
@@ -425,10 +486,10 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                 yield* tx
                   .update(pushDeviceTokens)
                   .set({
-                    invalidatedAt: new Date(),
+                    invalidatedAt: now,
                     invalidationReason: "person-deleted",
-                    deletedAt: new Date(),
-                    updatedAt: new Date(),
+                    deletedAt: now,
+                    updatedAt: now,
                   })
                   .where(
                     and(
@@ -439,7 +500,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
               }
               yield* tx
                 .update(pushPersonDeviceTokens)
-                .set({ deletedAt: new Date(), updatedAt: new Date() })
+                .set({ deletedAt: now, updatedAt: now })
                 .where(
                   and(
                     eq(pushPersonDeviceTokens.projectId, input.projectId),
@@ -461,14 +522,14 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
           ),
       );
 
-      return {
+      return constant({
         invalidate,
         invalidateAllForPerson,
         refresh,
         register,
         resolveForDelivery,
         unregister,
-      } as const;
+      });
     }),
   },
 ) {

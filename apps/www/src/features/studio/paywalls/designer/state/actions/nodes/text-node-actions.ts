@@ -1,5 +1,6 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import type { TextNode } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 import { commander } from "../../designer-commander";
 import {
@@ -30,11 +31,11 @@ export const createTextNode = commander.undoableAction<
       if (parent === undefined) {
         return null;
       }
-      try {
-        return parent.children.insertLast({ ...(params.initialValues ?? {}), type: "text" }).id;
-      } catch {
-        return null;
-      }
+      return Effect.runSync(
+        Effect.try(() => parent.children.insertLast({ ...params.initialValues, type: "text" }).id).pipe(
+          Effect.orElseSucceed((): string | null => null),
+        ),
+      );
     });
 
     if (newNodeId) {

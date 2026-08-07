@@ -9,6 +9,14 @@ import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const toConfiguration = (value: unknown): Record<string, unknown> => {
+  if (isRecord(value)) return value;
+  return {};
+};
+
 import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
 
 export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
@@ -28,7 +36,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
             return products.map(
               (p) =>
                 new PaymentProviderProduct({
-                  configuration: (p.configuration ?? {}) as Record<string, unknown>,
+                  configuration: toConfiguration(p.configuration),
                   id: p.id,
                   paymentProviderConfigurationId: p.paymentProviderConfigurationId,
                   productId: p.productId,

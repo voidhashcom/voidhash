@@ -7,13 +7,22 @@ export class FailedToLoadJsFileError extends Data.TaggedError("FailedToLoadJsFil
   readonly cause?: unknown;
 }> {}
 
+/**
+ * Lazily loads the tiny TypeScript probe used to detect an esbuild-register
+ * setup that cannot compile to es5.
+ */
+const loadEs5Probe = () => import("./_es5");
+
+/** Lazily loads esbuild-register, which patches require() to compile TS. */
+const loadEsbuildRegister = () => import("esbuild-register/dist/node");
+
 const assertES5 = ({ unregister }: { unregister: () => void }) =>
-  Effect.try({
-    try: () => require("./_es5.ts"),
+  Effect.tryPromise({
+    try: loadEs5Probe,
     catch: (e: any) => {
       unregister();
       if ("errors" in e && Array.isArray(e.errors) && e.errors.length > 0) {
-        const es5Error = (e.errors as any[]).some((it) =>
+        const es5Error = e.errors.some((it: any) =>
           it.text?.includes(`("es5") is not supported yet`),
         );
         if (es5Error) {
@@ -39,7 +48,7 @@ export const safeRegister = () =>
           cause: e,
           message: "An error occurred while trying to load .js/ts file.",
         }),
-      try: () => import("esbuild-register/dist/node"),
+      try: loadEsbuildRegister,
     });
     const res: { unregister: () => void } = yield* Effect.try({
       catch: (e) =>

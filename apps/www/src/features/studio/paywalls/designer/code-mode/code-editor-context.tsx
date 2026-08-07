@@ -1,5 +1,6 @@
 "use client";
 
+import { Effect } from "effect";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 /**
@@ -70,7 +71,7 @@ export function CodeEditorProvider({ children }: { children: React.ReactNode }) 
 export function useCodeEditor(): CodeEditorContextValue {
   const value = useContext(CodeEditorContext);
   if (!value) {
-    throw new Error("Missing CodeEditorProvider");
+    return Effect.runSync(Effect.die(new Error("Missing CodeEditorProvider")));
   }
   return value;
 }

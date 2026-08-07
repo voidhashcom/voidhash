@@ -5,7 +5,6 @@
  * keyboard shortcut system used in the paywall designer.
  */
 
-import type { LucideIcon } from "lucide-react";
 import type { CommandDispatch, CommanderSlice } from "@voidhash/mimic/zustand-commander";
 import type { EditableNodeType, PaywallDesignerDocument } from "@voidhash/mimic-schema";
 

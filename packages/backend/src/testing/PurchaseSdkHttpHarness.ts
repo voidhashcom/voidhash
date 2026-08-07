@@ -32,12 +32,26 @@ const unusedApiGroups: Layer.Layer<any> = Layer.effectContext(
   ),
 );
 
-const unusedSdkRouteServices = Layer.mergeAll(
-  Layer.succeed(FeatureFlagService, {} as never),
-  Layer.succeed(InternalFeatureFlagService, {} as never),
-  Layer.succeed(NotificationTokenService, {} as never),
-  Layer.succeed(PaywallLocationService, {} as never),
-  Layer.succeed(SchemaService, {} as never),
+// The SDK group never reaches for these services, so the harness supplies empty
+// placeholders the same way `unusedApiGroups` does above.
+const unusedSdkRouteServices = Layer.effectContext(
+  Effect.sync(() =>
+    Context.makeUnsafe<
+      | FeatureFlagService
+      | InternalFeatureFlagService
+      | NotificationTokenService
+      | PaywallLocationService
+      | SchemaService
+    >(
+      new Map([
+        [FeatureFlagService.key, {}],
+        [InternalFeatureFlagService.key, {}],
+        [NotificationTokenService.key, {}],
+        [PaywallLocationService.key, {}],
+        [SchemaService.key, {}],
+      ]),
+    ),
+  ),
 );
 
 /** Builds an in-process Web handler for the real SDK `HttpApi` group. */

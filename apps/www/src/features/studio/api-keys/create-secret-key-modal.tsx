@@ -63,7 +63,7 @@ export function CreateSecretKeyModal({
     onSuccess: (data) => {
       onSuccess?.(data);
       toast.success("Key successfully created");
-      queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
     },
     onError: () => {
       toast.error("Failed to create key");

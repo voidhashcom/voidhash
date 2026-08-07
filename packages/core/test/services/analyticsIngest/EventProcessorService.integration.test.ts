@@ -38,7 +38,7 @@
  *  - Typed failures are asserted with `Effect.flip` (project convention),
  *    narrowing the swapped error with `instanceof` before reading its fields.
  */
-import { Effect, Layer } from "effect";
+import { Clock, Effect, Layer, Schema } from "effect";
 import { describe, expect } from "vitest";
 
 import type {
@@ -92,7 +92,25 @@ const TestLayer = EventProcessorService.layer.pipe(
 
 /** Monotonic counter so ids stay unique even within the same millisecond. */
 let seq = 0;
-const unique = (label: string) => `it-ep-${label}-${Date.now()}-${seq++}`;
+const unique = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-ep-${label}-${now}-${seq++}`);
+
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+/** The route class each lane maps onto. */
+const routeClassOf = (
+  lane: "main" | "overflow" | "historical",
+): CapturedEventV1Type["routing"]["routeClass"] => {
+  if (lane === "historical") {
+    return "historical";
+  }
+  if (lane === "overflow") {
+    return "overflow";
+  }
+  return "main";
+};
+
+const NO_PERSON_ROWS: ReadonlyArray<{ personId: string }> = [];
 
 interface RecordOverrides {
   readonly token: string;
@@ -101,7 +119,7 @@ interface RecordOverrides {
   readonly event?: string;
   readonly lane?: "main" | "overflow" | "historical";
   readonly sourceTopic?: string;
-  readonly properties?: Record<string, unknown>;
+  readonly properties?: CapturedEventV1Type["properties"];
 }
 
 /**
@@ -110,51 +128,52 @@ interface RecordOverrides {
  * topic, not historical) for the given capture token. Callers override the
  * pieces a specific case exercises (event name, lane, source topic).
  */
-const buildRecord = (overrides: RecordOverrides): CapturedTransportRecord => {
-  const lane = overrides.lane ?? "main";
-  const sourceTopic = overrides.sourceTopic ?? `analytics.events.${lane}.v1`;
-  const captureId = overrides.captureId ?? unique("capture");
-  const distinctId = overrides.distinctId ?? unique("distinct");
-  const isHistorical = lane === "historical";
+const buildRecord = (overrides: RecordOverrides): Effect.Effect<CapturedTransportRecord> =>
+  Effect.gen(function* () {
+    const lane = overrides.lane ?? "main";
+    const sourceTopic = overrides.sourceTopic ?? `analytics.events.${lane}.v1`;
+    const captureId = overrides.captureId ?? (yield* unique("capture"));
+    const distinctId = overrides.distinctId ?? (yield* unique("distinct"));
+    const isHistorical = lane === "historical";
 
-  const capturedEvent: CapturedEventV1Type = {
-    schemaVersion: 1,
-    captureId,
-    token: overrides.token,
-    organizationId,
-    projectId,
-    event: overrides.event ?? "page_view",
-    distinctId,
-    eventTimestamp: new Date("2020-01-01T00:00:00.000Z").toISOString(),
-    receivedAt: new Date("2020-01-01T00:00:01.000Z").toISOString(),
-    properties: (overrides.properties ?? {}) as CapturedEventV1Type["properties"],
-    context: {},
-    rawPayload: {},
-    request: { requestId: unique("req") },
-    routing: {
-      routeClass: isHistorical ? "historical" : lane === "overflow" ? "overflow" : "main",
-      targetTopic: sourceTopic,
-      isHistorical,
-      skipEnrichment: false,
-    },
-  };
+    const capturedEvent: CapturedEventV1Type = {
+      schemaVersion: 1,
+      captureId,
+      token: overrides.token,
+      organizationId,
+      projectId,
+      event: overrides.event ?? "page_view",
+      distinctId,
+      eventTimestamp: "2020-01-01T00:00:00.000Z",
+      receivedAt: "2020-01-01T00:00:01.000Z",
+      properties: overrides.properties ?? {},
+      context: {},
+      rawPayload: {},
+      request: { requestId: yield* unique("req") },
+      routing: {
+        routeClass: routeClassOf(lane),
+        targetTopic: sourceTopic,
+        isHistorical,
+        skipEnrichment: false,
+      },
+    };
 
-  return {
-    capturedEvent,
-    headers: {},
-    lane,
-    rawValue: JSON.stringify(capturedEvent),
-    sourceOffset: `${sourceTopic}:0:1`,
-    sourcePartition: 0,
-    sourceTopic,
-  };
-};
+    return {
+      capturedEvent,
+      headers: {},
+      lane,
+      rawValue: encodeJson(capturedEvent),
+      sourceOffset: `${sourceTopic}:0:1`,
+      sourcePartition: 0,
+      sourceTopic,
+    };
+  });
 
 /** Insert a public API key (the capture token) under the fixture project. */
 const insertPublicApiKey = (token: string) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = unique("apikey");
+    const id = yield* unique("apikey");
     yield* db.insert(apiKeys).values({
       end: token.slice(-4),
       id,
@@ -247,7 +266,7 @@ const cleanup = (tracked: Tracked) =>
             inArray(personIdentities.distinctId, tracked.distinctIds),
           ),
         )
-        .pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<{ personId: string }>));
+        .pipe(Effect.orElseSucceed(() => NO_PERSON_ROWS));
       const personIds = [...new Set(personRows.map((row) => row.personId))];
 
       yield* db
@@ -323,9 +342,9 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const captureId = unique("capture-unknown");
+        const captureId = yield* unique("capture-unknown");
         track.capture(captureId);
-        const record = buildRecord({ captureId, token: unique("missing-token") });
+        const record = yield* buildRecord({ captureId, token: yield* unique("missing-token") });
 
         const outputs = yield* service.processRecordToOutputs(record);
 
@@ -351,14 +370,14 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-default");
+        const token = yield* unique("token-default");
         track.apiKey(yield* insertPublicApiKey(token));
 
-        const captureId = unique("capture-default");
-        const distinctId = unique("distinct-default");
+        const captureId = yield* unique("capture-default");
+        const distinctId = yield* unique("distinct-default");
         track.capture(captureId);
         track.distinct(distinctId);
-        const record = buildRecord({ captureId, distinctId, token });
+        const record = yield* buildRecord({ captureId, distinctId, token });
 
         const outputs = yield* service.processRecordToOutputs(record);
 
@@ -390,16 +409,16 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-disabled");
+        const token = yield* unique("token-disabled");
         track.apiKey(yield* insertPublicApiKey(token));
         track.policy();
         yield* insertPolicy({ processorEnabled: false });
 
-        const captureId = unique("capture-disabled");
-        const distinctId = unique("distinct-disabled");
+        const captureId = yield* unique("capture-disabled");
+        const distinctId = yield* unique("distinct-disabled");
         track.capture(captureId);
         track.distinct(distinctId);
-        const record = buildRecord({ captureId, distinctId, token });
+        const record = yield* buildRecord({ captureId, distinctId, token });
 
         const outputs = yield* service.processRecordToOutputs(record);
 
@@ -424,15 +443,15 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-schema");
+        const token = yield* unique("token-schema");
         track.apiKey(yield* insertPublicApiKey(token));
 
-        const captureId = unique("capture-schema");
-        const distinctId = unique("distinct-schema");
+        const captureId = yield* unique("capture-schema");
+        const distinctId = yield* unique("distinct-schema");
         track.capture(captureId);
         track.distinct(distinctId);
         // targetTopic deliberately mismatches sourceTopic → validation rejects.
-        const record = buildRecord({ captureId, distinctId, token });
+        const record = yield* buildRecord({ captureId, distinctId, token });
         const mismatched: CapturedTransportRecord = {
           ...record,
           capturedEvent: {
@@ -461,15 +480,15 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-reserved");
+        const token = yield* unique("token-reserved");
         track.apiKey(yield* insertPublicApiKey(token));
 
-        const captureId = unique("capture-reserved");
-        const distinctId = unique("distinct-reserved");
+        const captureId = yield* unique("capture-reserved");
+        const distinctId = yield* unique("distinct-reserved");
         track.capture(captureId);
         track.distinct(distinctId);
         // A reserved $purchase.* event riding the normal (untrusted) main topic.
-        const record = buildRecord({
+        const record = yield* buildRecord({
           captureId,
           distinctId,
           token,
@@ -497,14 +516,14 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-trusted");
+        const token = yield* unique("token-trusted");
         track.apiKey(yield* insertPublicApiKey(token));
 
-        const captureId = unique("capture-trusted");
-        const distinctId = unique("distinct-trusted");
+        const captureId = yield* unique("capture-trusted");
+        const distinctId = yield* unique("distinct-trusted");
         track.capture(captureId);
         track.distinct(distinctId);
-        const record = buildRecord({
+        const record = yield* buildRecord({
           captureId,
           distinctId,
           token,
@@ -528,13 +547,13 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-resolved");
+        const token = yield* unique("token-resolved");
         track.apiKey(yield* insertPublicApiKey(token));
 
-        const captureId = unique("capture-resolved");
-        const distinctId = unique("distinct-resolved");
-        const personId = unique("person-resolved");
-        const clientEventId = unique("evt-resolved");
+        const captureId = yield* unique("capture-resolved");
+        const distinctId = yield* unique("distinct-resolved");
+        const personId = yield* unique("person-resolved");
+        const clientEventId = yield* unique("evt-resolved");
         track.capture(captureId);
         track.distinct(distinctId);
 
@@ -543,7 +562,7 @@ describe("EventProcessorService.processRecordToOutputs", () => {
         // the NORMAL path would create a person + identity row; the Resolved
         // branch must skip all of that (the "revenue writes no person rows"
         // characterization).
-        const base = buildRecord({
+        const base = yield* buildRecord({
           captureId,
           distinctId,
           token,
@@ -592,13 +611,13 @@ describe("EventProcessorService.processRecordToOutputs", () => {
         // Resolved branch must resolve the project by its (server-stamped)
         // projectId rather than DLQ on the missing token.
         const syntheticToken = `vh_server_revenue_${projectId}`;
-        const captureId = unique("capture-synthetic");
-        const distinctId = unique("distinct-synthetic");
-        const personId = unique("person-synthetic");
+        const captureId = yield* unique("capture-synthetic");
+        const distinctId = yield* unique("distinct-synthetic");
+        const personId = yield* unique("person-synthetic");
         track.capture(captureId);
         track.distinct(distinctId);
 
-        const base = buildRecord({
+        const base = yield* buildRecord({
           captureId,
           distinctId,
           token: syntheticToken,
@@ -609,7 +628,7 @@ describe("EventProcessorService.processRecordToOutputs", () => {
           ...base,
           capturedEvent: {
             ...base.capturedEvent,
-            clientEventId: unique("evt-synthetic"),
+            clientEventId: yield* unique("evt-synthetic"),
             identityClaim: { _tag: "Resolved", distinctId, personId },
             trustClass: "trusted-revenue",
             routing: { ...base.capturedEvent.routing, skipEnrichment: true },
@@ -633,19 +652,19 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-forged");
+        const token = yield* unique("token-forged");
         track.apiKey(yield* insertPublicApiKey(token));
 
-        const captureId = unique("capture-forged");
-        const distinctId = unique("distinct-forged");
-        const forgedPersonId = unique("person-forged");
+        const captureId = yield* unique("capture-forged");
+        const distinctId = yield* unique("distinct-forged");
+        const forgedPersonId = yield* unique("person-forged");
         track.capture(captureId);
         track.distinct(distinctId);
 
         // A non-reserved event on the NORMAL (untrusted) topic carrying a forged
         // Resolved claim. The processor must NOT honour the claim — it falls
         // through to real identity resolution, creating its own person.
-        const base = buildRecord({ captureId, distinctId, token, event: "page_view" });
+        const base = yield* buildRecord({ captureId, distinctId, token, event: "page_view" });
         const record: CapturedTransportRecord = {
           ...base,
           capturedEvent: {
@@ -673,17 +692,17 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-identify");
+        const token = yield* unique("token-identify");
         track.apiKey(yield* insertPublicApiKey(token));
 
-        const previousDistinctId = `vh:anon:${unique("anon")}`;
-        const distinctId = unique("identified");
-        const captureId = unique("capture-identify");
+        const previousDistinctId = `vh:anon:${yield* unique("anon")}`;
+        const distinctId = yield* unique("identified");
+        const captureId = yield* unique("capture-identify");
         track.capture(captureId);
         track.distinct(distinctId);
         track.distinct(previousDistinctId);
 
-        const record = buildRecord({
+        const record = yield* buildRecord({
           captureId,
           distinctId,
           token,
@@ -722,7 +741,7 @@ describe("EventProcessorService.processRecordToOutputs", () => {
       Effect.gen(function* () {
         const service = yield* EventProcessorService;
 
-        const token = unique("token-serial");
+        const token = yield* unique("token-serial");
         track.apiKey(yield* insertPublicApiKey(token));
 
         // Same distinct id (and token) for both records → same identity key, so
@@ -730,15 +749,15 @@ describe("EventProcessorService.processRecordToOutputs", () => {
         // time. A non-anonymous distinct id with shouldCreatePerson=true would
         // race on the unique (project_id, distinct_id) identity index if the
         // two effects overlapped; serialisation means both observe one person.
-        const distinctId = unique("distinct-serial");
+        const distinctId = yield* unique("distinct-serial");
         track.distinct(distinctId);
-        const captureA = unique("capture-serial-a");
-        const captureB = unique("capture-serial-b");
+        const captureA = yield* unique("capture-serial-a");
+        const captureB = yield* unique("capture-serial-b");
         track.capture(captureA);
         track.capture(captureB);
 
-        const recordA = buildRecord({ captureId: captureA, distinctId, token });
-        const recordB = buildRecord({ captureId: captureB, distinctId, token });
+        const recordA = yield* buildRecord({ captureId: captureA, distinctId, token });
+        const recordB = yield* buildRecord({ captureId: captureB, distinctId, token });
 
         const [outputsA, outputsB] = yield* Effect.all(
           [service.processRecordToOutputs(recordA), service.processRecordToOutputs(recordB)],

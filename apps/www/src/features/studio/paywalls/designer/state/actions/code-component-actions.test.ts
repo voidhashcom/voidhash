@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -117,7 +118,7 @@ describe("renameComponentFile", () => {
     let definitionId = "";
     doc.transaction((root) => {
       const id = insertCodeComponent(root, { path, source: "// src" });
-      if (id === null) throw new Error("failed to insert definition");
+      if (id === null) return Effect.runSync(Effect.die(new Error("failed to insert definition")));
       definitionId = id;
     });
     const { screenId } = seededIds(doc);
@@ -126,7 +127,7 @@ describe("renameComponentFile", () => {
       parentId: screenId,
       componentPath: path,
     });
-    if (nodeId === null) throw new Error("failed to insert instance");
+    if (nodeId === null) return Effect.runSync(Effect.die(new Error("failed to insert instance")));
     return { definitionId, instanceId: nodeId };
   }
 
@@ -190,7 +191,7 @@ describe("repairLocalComponentReference", () => {
       parentId: screenId,
       componentPath: "components/missing.tsx",
     });
-    if (nodeId === null) throw new Error("failed to insert instance");
+    if (nodeId === null) return Effect.runSync(Effect.die(new Error("failed to insert instance")));
 
     const result = repairLocalComponentReference.fn(ctx as never, {
       nodeId,

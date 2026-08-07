@@ -33,6 +33,7 @@
     "@voidhash/mimic-core": "workspace:*",
     "@voidhash/mimic-schema": "workspace:*",
     "@voidhash/paywall-builtins": "workspace:*",
+    "effect": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

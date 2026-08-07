@@ -104,7 +104,7 @@ function makeHarness(opts: HarnessOptions = {}) {
     hasPendingFrame: () => pendingFrame !== null,
     advanceClock: (ms: number) => {
       clock += ms;
-      for (const timer of [...fakeTimers]) {
+      for (const timer of fakeTimers.slice()) {
         if (timer.at <= clock) {
           const idx = fakeTimers.indexOf(timer);
           if (idx >= 0) fakeTimers.splice(idx, 1);

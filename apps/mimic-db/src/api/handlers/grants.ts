@@ -3,15 +3,15 @@ import { CurrentUser, ForbiddenError, GrantsRpcs } from "@voidhash/mimic-server/
 
 import { HostServiceTag } from "../../app/hostService.ts";
 
-const requireSuperuser = (user: { isSuperuser: boolean }, action: string) =>
-  user.isSuperuser
-    ? Effect.void
-    : Effect.fail(
-        new ForbiddenError({
-          code: "forbidden",
-          message: `Superuser permission required for ${action}`,
-        }),
-      );
+const requireSuperuser = (user: { isSuperuser: boolean }, action: string) => {
+  if (user.isSuperuser) return Effect.void;
+  return Effect.fail(
+    new ForbiddenError({
+      code: "forbidden",
+      message: `Superuser permission required for ${action}`,
+    }),
+  );
+};
 
 export const GrantsHandlersLive = GrantsRpcs.toLayer(
   Effect.gen(function* () {

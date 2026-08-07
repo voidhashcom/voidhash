@@ -5,10 +5,11 @@
  * `docs/specs/paywall-deploy-contract.md` (§1); these schemas mirror it
  * exactly and MUST stay in sync. Breaking changes bump the schema version.
  */
+import { constant } from "@voidhash/lib/lang";
 import { Schema } from "effect";
 
 /** Current deploy manifest schema version (contract §1). */
-export const DEPLOY_MANIFEST_VERSION = 2 as const;
+export const DEPLOY_MANIFEST_VERSION = constant(2);
 
 /** Paywall/component slug shape (contract §1.1). */
 export const DEPLOY_SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -146,10 +147,10 @@ export const DeployManifestSchema = Schema.Struct({
     (manifest: {
       readonly paywalls: ReadonlyArray<unknown>;
       readonly components: ReadonlyArray<unknown>;
-    }) =>
-      manifest.paywalls.length > 0 || manifest.components.length > 0
-        ? undefined
-        : "manifest must contain at least one paywall or one component",
+    }) => {
+      if (manifest.paywalls.length > 0 || manifest.components.length > 0) return undefined;
+      return "manifest must contain at least one paywall or one component";
+    },
   ),
 );
 export type DeployManifest = typeof DeployManifestSchema.Type;

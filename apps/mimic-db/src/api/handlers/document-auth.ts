@@ -21,8 +21,15 @@ const parseAbsoluteUrl = (value: string) => {
   };
 };
 
+const websocketProtocol = (protocol: string): string => {
+  if (protocol === "https") return "wss";
+  return "ws";
+};
+
 /**
- * Builds the absolute `ws(s)://` URL a client connects to for a document.
+ * Builds the absolute `ws(s)://` URL a client connects to for a document, or
+ * `undefined` when neither the configured base URL nor the request identifies
+ * a host (a defect the caller reports).
  *
  * `publicBaseUrl` (the `MIMIC_PUBLIC_BASE_URL` config) is the primary
  * authority: requests arriving through a service-binding fetch carry no
@@ -37,14 +44,15 @@ export const buildDocumentConnectionUrl = (
   databaseId: string,
   collectionId: string,
   documentId: string,
-) => {
+): string | undefined => {
   const path = `/ws/v1/databases/${encodeURIComponent(
     databaseId,
   )}/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}`;
-  const base = publicBaseUrl ? parseAbsoluteUrl(publicBaseUrl) : null;
-  if (base) {
-    const wsProtocol = base.protocol === "https" ? "wss" : "ws";
-    return `${wsProtocol}://${base.host}${path}`;
+  if (publicBaseUrl) {
+    const base = parseAbsoluteUrl(publicBaseUrl);
+    if (base) {
+      return `${websocketProtocol(base.protocol)}://${base.host}${path}`;
+    }
   }
   const forwardedProto = getHeader(request.headers, "x-forwarded-proto");
   const forwardedHost = getHeader(request.headers, "x-forwarded-host");
@@ -53,10 +61,9 @@ export const buildDocumentConnectionUrl = (
   const protocol = absoluteUrl?.protocol ?? forwardedProto ?? "http";
   const authority = absoluteUrl?.host ?? host;
   if (!authority) {
-    throw new Error("Failed to determine request host for document connection URL");
+    return undefined;
   }
-  const wsProtocol = protocol === "https" ? "wss" : "ws";
-  return `${wsProtocol}://${authority}${path}`;
+  return `${websocketProtocol(protocol)}://${authority}${path}`;
 };
 
 export const DocumentAuthHandlersLive = DocumentAuthRpcs.toLayer(
@@ -82,16 +89,19 @@ export const DocumentAuthHandlersLive = DocumentAuthRpcs.toLayer(
             origins,
             expiresInSeconds,
           );
-          return {
-            token: result.token,
-            url: buildDocumentConnectionUrl(
-              getConfig().publicBaseUrl,
-              request,
-              databaseId,
-              collectionId,
-              documentId,
-            ),
-          };
+          const url = buildDocumentConnectionUrl(
+            getConfig().publicBaseUrl,
+            request,
+            databaseId,
+            collectionId,
+            documentId,
+          );
+          if (url === undefined) {
+            return yield* Effect.die(
+              new Error("Failed to determine request host for document connection URL"),
+            );
+          }
+          return { token: result.token, url };
         }),
     };
   }),

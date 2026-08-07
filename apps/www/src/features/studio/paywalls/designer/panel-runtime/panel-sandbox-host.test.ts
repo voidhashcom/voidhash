@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { PanelSessionInputs } from "@voidhash/paywalls/panel";
+import { Effect } from "effect";
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 import {
@@ -93,117 +94,117 @@ afterEach(() => {
 describe("panel-sandbox-host — handshake + snapshots", () => {
   test("starts loading and mounts a hidden iframe", () => {
     const { transport } = makeTransport();
-    try {
-      expect(transport.kind).toBe("sandbox");
-      expect(transport.getSnapshot().status).toBe("loading");
-      const iframe = document.querySelector("iframe");
-      expect(iframe).not.toBeNull();
-      expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts");
-      expect(iframe?.style.display).toBe("none");
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        expect(transport.kind).toBe("sandbox");
+        expect(transport.getSnapshot().status).toBe("loading");
+        const iframe = document.querySelector("iframe");
+        expect(iframe).not.toBeNull();
+        expect(iframe?.getAttribute("sandbox")).toBe("allow-scripts");
+        expect(iframe?.style.display).toBe("none");
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("a valid panel/tree transitions to ready with the decoded tree", () => {
     const { transport } = makeTransport();
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      emit({
-        protocol: PANEL_SANDBOX_PROTOCOL,
-        sessionId,
-        type: "panel/tree",
-        revision: 1,
-        tree: VALID_TREE,
-      });
-      const snap = transport.getSnapshot();
-      expect(snap.status).toBe("ready");
-      if (snap.status === "ready") {
-        expect(snap.revision).toBe(1);
-        expect(snap.tree.root.type).toBe("panel");
-      }
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        emit({
+          protocol: PANEL_SANDBOX_PROTOCOL,
+          sessionId,
+          type: "panel/tree",
+          revision: 1,
+          tree: VALID_TREE,
+        });
+        const snap = transport.getSnapshot();
+        expect(snap.status).toBe("ready");
+        if (snap.status === "ready") {
+          expect(snap.revision).toBe(1);
+          expect(snap.tree.root.type).toBe("panel");
+        }
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("a stale (lower/equal) revision is dropped", () => {
     const { transport } = makeTransport();
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      const tree = (revision: number): GuestMessage => ({
-        protocol: PANEL_SANDBOX_PROTOCOL,
-        sessionId,
-        type: "panel/tree",
-        revision,
-        tree: VALID_TREE,
-      });
-      emit(tree(3));
-      emit(tree(2)); // stale
-      const snap = transport.getSnapshot();
-      expect(snap.status === "ready" && snap.revision).toBe(3);
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        const tree = (revision: number): GuestMessage => ({
+          protocol: PANEL_SANDBOX_PROTOCOL,
+          sessionId,
+          type: "panel/tree",
+          revision,
+          tree: VALID_TREE,
+        });
+        emit(tree(3));
+        emit(tree(2)); // stale
+        const snap = transport.getSnapshot();
+        expect(snap.status === "ready" && snap.revision).toBe(3);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("an invalid tree is a protocol violation, not a ready snapshot", () => {
     const { transport } = makeTransport();
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      emit({
-        protocol: PANEL_SANDBOX_PROTOCOL,
-        sessionId,
-        type: "panel/tree",
-        revision: 1,
-        tree: { version: 1, root: { type: "not-a-real-node", id: 0, props: {}, events: [] } },
-      });
-      // Still loading (no valid tree accepted).
-      expect(transport.getSnapshot().status).toBe("loading");
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        emit({
+          protocol: PANEL_SANDBOX_PROTOCOL,
+          sessionId,
+          type: "panel/tree",
+          revision: 1,
+          tree: { version: 1, root: { type: "not-a-real-node", id: 0, props: {}, events: [] } },
+        });
+        // Still loading (no valid tree accepted).
+        expect(transport.getSnapshot().status).toBe("loading");
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("intents are forwarded RAW to onIntents", () => {
     const received: unknown[] = [];
     const { transport } = makeTransport((raw) => received.push(raw));
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      const raw = [{ type: "set-prop", name: "label", value: "hi", gesture: "commit" }];
-      emit({ protocol: PANEL_SANDBOX_PROTOCOL, sessionId, type: "panel/intent", intents: raw });
-      expect(received).toHaveLength(1);
-      expect(received[0]).toEqual(raw);
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        const raw = [{ type: "set-prop", name: "label", value: "hi", gesture: "commit" }];
+        emit({ protocol: PANEL_SANDBOX_PROTOCOL, sessionId, type: "panel/intent", intents: raw });
+        expect(received).toHaveLength(1);
+        expect(received[0]).toEqual(raw);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("a guest panel/error surfaces a restartable error snapshot", () => {
     const { transport } = makeTransport();
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      emit({
-        protocol: PANEL_SANDBOX_PROTOCOL,
-        sessionId,
-        type: "panel/error",
-        phase: "render",
-        message: "kaboom",
-      });
-      const snap = transport.getSnapshot();
-      expect(snap.status).toBe("error");
-      if (snap.status === "error") {
-        expect(snap.restartable).toBe(true);
-        expect(snap.message).toContain("kaboom");
-      }
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        emit({
+          protocol: PANEL_SANDBOX_PROTOCOL,
+          sessionId,
+          type: "panel/error",
+          phase: "render",
+          message: "kaboom",
+        });
+        const snap = transport.getSnapshot();
+        expect(snap.status).toBe("error");
+        if (snap.status === "error") {
+          expect(snap.restartable).toBe(true);
+          expect(snap.message).toContain("kaboom");
+        }
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 });
 
@@ -211,128 +212,128 @@ describe("panel-sandbox-host — watchdogs", () => {
   test("init timeout with no panel/ready → error", () => {
     vi.useFakeTimers();
     const { transport } = makeTransport();
-    try {
-      expect(transport.getSnapshot().status).toBe("loading");
-      vi.advanceTimersByTime(PANEL_SANDBOX_WATCHDOGS.initTimeoutMs + 10);
-      // Auto-restart re-mounts (still loading) — but the FIRST attempt errored.
-      // After the budget is spent it stays in error; here it restarts to loading.
-      const snap = transport.getSnapshot();
-      expect(["loading", "error"]).toContain(snap.status);
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        expect(transport.getSnapshot().status).toBe("loading");
+        vi.advanceTimersByTime(PANEL_SANDBOX_WATCHDOGS.initTimeoutMs + 10);
+        // Auto-restart re-mounts (still loading) — but the FIRST attempt errored.
+        // After the budget is spent it stays in error; here it restarts to loading.
+        const snap = transport.getSnapshot();
+        expect(["loading", "error"]).toContain(snap.status);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("missed pongs kill the guest with a restartable error", () => {
     vi.useFakeTimers();
     const { transport } = makeTransport();
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      // Never pong; advance past (maxMissedPongs + 1) ping intervals.
-      const intervals = PANEL_SANDBOX_WATCHDOGS.maxMissedPongs + 2;
-      vi.advanceTimersByTime(PANEL_SANDBOX_WATCHDOGS.pingIntervalMs * intervals + 10);
-      const snap = transport.getSnapshot();
-      // A kill either shows the error, or auto-restarted back to loading.
-      expect(["error", "loading"]).toContain(snap.status);
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        // Never pong; advance past (maxMissedPongs + 1) ping intervals.
+        const intervals = PANEL_SANDBOX_WATCHDOGS.maxMissedPongs + 2;
+        vi.advanceTimersByTime(PANEL_SANDBOX_WATCHDOGS.pingIntervalMs * intervals + 10);
+        const snap = transport.getSnapshot();
+        // A kill either shows the error, or auto-restarted back to loading.
+        expect(["error", "loading"]).toContain(snap.status);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("a tree flood kills the guest", () => {
     const onFatal = vi.fn();
     const { transport } = makeTransport(() => {}, onFatal);
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      // Emit far more than maxTreesPerSecond within the window.
-      const flood = PANEL_SANDBOX_WATCHDOGS.maxTreesPerSecond * 4;
-      let rev = 1;
-      let errored = false;
-      for (let i = 0; i < flood; i++) {
-        emit({
-          protocol: PANEL_SANDBOX_PROTOCOL,
-          sessionId,
-          type: "panel/tree",
-          revision: rev++,
-          tree: VALID_TREE,
-        });
-        if (transport.getSnapshot().status === "error") {
-          errored = true;
-          break;
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        // Emit far more than maxTreesPerSecond within the window.
+        const flood = PANEL_SANDBOX_WATCHDOGS.maxTreesPerSecond * 4;
+        let rev = 1;
+        let errored = false;
+        for (let i = 0; i < flood; i++) {
+          emit({
+            protocol: PANEL_SANDBOX_PROTOCOL,
+            sessionId,
+            type: "panel/tree",
+            revision: rev++,
+            tree: VALID_TREE,
+          });
+          if (transport.getSnapshot().status === "error") {
+            errored = true;
+            break;
+          }
         }
-      }
-      expect(errored).toBe(true);
-    } finally {
-      transport.dispose();
-    }
+        expect(errored).toBe(true);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("repeated protocol violations exhaust the budget → error", () => {
     const { transport } = makeTransport();
-    try {
-      const sessionId = sessionIdFromPostedInit();
-      completeHandshake(sessionId);
-      // Send many malformed (wrong-schema) messages that pass the source check.
-      let errored = false;
-      for (let i = 0; i < PANEL_SANDBOX_WATCHDOGS.maxProtocolViolations + 5; i++) {
-        emit({ protocol: PANEL_SANDBOX_PROTOCOL, sessionId, type: "panel/garbage" });
-        if (transport.getSnapshot().status === "error") {
-          errored = true;
-          break;
+    Effect.runSync(
+      Effect.sync(() => {
+        const sessionId = sessionIdFromPostedInit();
+        completeHandshake(sessionId);
+        // Send many malformed (wrong-schema) messages that pass the source check.
+        let errored = false;
+        for (let i = 0; i < PANEL_SANDBOX_WATCHDOGS.maxProtocolViolations + 5; i++) {
+          emit({ protocol: PANEL_SANDBOX_PROTOCOL, sessionId, type: "panel/garbage" });
+          if (transport.getSnapshot().status === "error") {
+            errored = true;
+            break;
+          }
         }
-      }
-      expect(errored).toBe(true);
-    } finally {
-      transport.dispose();
-    }
+        expect(errored).toBe(true);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 });
 
 describe("panel-sandbox-host — lifecycle", () => {
   test("restart regenerates the sessionId; old-session messages are ignored", () => {
     const { transport } = makeTransport();
-    try {
-      const first = sessionIdFromPostedInit();
-      completeHandshake(first);
-      emit({
-        protocol: PANEL_SANDBOX_PROTOCOL,
-        sessionId: first,
-        type: "panel/tree",
-        revision: 1,
-        tree: VALID_TREE,
-      });
-      expect(transport.getSnapshot().status).toBe("ready");
+    Effect.runSync(
+      Effect.sync(() => {
+        const first = sessionIdFromPostedInit();
+        completeHandshake(first);
+        emit({
+          protocol: PANEL_SANDBOX_PROTOCOL,
+          sessionId: first,
+          type: "panel/tree",
+          revision: 1,
+          tree: VALID_TREE,
+        });
+        expect(transport.getSnapshot().status).toBe("ready");
 
-      transport.restart();
-      const second = sessionIdFromPostedInit();
-      expect(second).not.toBe(first);
-      expect(transport.getSnapshot().status).toBe("loading");
+        transport.restart();
+        const second = sessionIdFromPostedInit();
+        expect(second).not.toBe(first);
+        expect(transport.getSnapshot().status).toBe("loading");
 
-      // An old-session tree must NOT be accepted.
-      emit({
-        protocol: PANEL_SANDBOX_PROTOCOL,
-        sessionId: first,
-        type: "panel/tree",
-        revision: 9,
-        tree: VALID_TREE,
-      });
-      expect(transport.getSnapshot().status).toBe("loading");
+        // An old-session tree must NOT be accepted.
+        emit({
+          protocol: PANEL_SANDBOX_PROTOCOL,
+          sessionId: first,
+          type: "panel/tree",
+          revision: 9,
+          tree: VALID_TREE,
+        });
+        expect(transport.getSnapshot().status).toBe("loading");
 
-      // The new session works.
-      completeHandshake(second);
-      emit({
-        protocol: PANEL_SANDBOX_PROTOCOL,
-        sessionId: second,
-        type: "panel/tree",
-        revision: 1,
-        tree: VALID_TREE,
-      });
-      expect(transport.getSnapshot().status).toBe("ready");
-    } finally {
-      transport.dispose();
-    }
+        // The new session works.
+        completeHandshake(second);
+        emit({
+          protocol: PANEL_SANDBOX_PROTOCOL,
+          sessionId: second,
+          type: "panel/tree",
+          revision: 1,
+          tree: VALID_TREE,
+        });
+        expect(transport.getSnapshot().status).toBe("ready");
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("dispose removes the iframe and detaches the listener", () => {

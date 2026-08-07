@@ -1,5 +1,7 @@
 import { Effect, Option, Schema } from "effect";
-import { HttpBody, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { constant } from "@voidhash/lib/lang";
+import { HttpBody, HttpClientRequest } from "effect/unstable/http";
+import type { HttpClientResponse } from "effect/unstable/http";
 import type { HttpClientError } from "effect/unstable/http";
 import { createAppStoreApiError, type AppStoreApiError } from "../errors/api-errors.ts";
 import {
@@ -269,7 +271,11 @@ const getBaseUrl = (environment: (typeof Environment)[keyof typeof Environment])
     case Environment.LOCAL_TESTING:
       return LOCAL_TESTING_URL;
     case Environment.XCODE:
-      throw new Error("Xcode is not a supported environment for an AppStoreServerSdkClient");
+      // An unsupported environment is a caller mistake, not a recoverable
+      // failure: `runSync` rethrows the defect at construction time.
+      return Effect.runSync(
+        Effect.die(new Error("Xcode is not a supported environment for an AppStoreServerSdkClient")),
+      );
     default:
       return PRODUCTION_URL;
   }
@@ -288,11 +294,15 @@ const appendQueryParamOption = <T>(
 
 const optionFromRecord = (
   queryParams: Record<string, string[]>,
-): Option.Option<Record<string, string[]>> =>
-  Object.keys(queryParams).length > 0 ? Option.some(queryParams) : Option.none();
+): Option.Option<Record<string, string[]>> => {
+  if (Object.keys(queryParams).length > 0) return Option.some(queryParams);
+  return Option.none();
+};
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> =>
-  Option.isOption(value) ? value : Option.fromNullishOr(value);
+const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+  if (Option.isOption(value)) return value;
+  return Option.fromNullishOr(value);
+};
 
 const toJsonValue = (value: unknown): unknown => {
   if (Option.isOption(value)) {
@@ -307,11 +317,30 @@ const toJsonValue = (value: unknown): unknown => {
   if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
       Object.entries(value)
-        .map(([key, item]) => [key, toJsonValue(item)] as const)
+        .map(([key, item]) => constant([key, toJsonValue(item)]))
         .filter(([, item]) => item !== undefined),
     );
   }
   return value;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/** Reads a numeric field out of an untyped App Store error body. */
+const readNumberField = (body: unknown, key: string): Option.Option<number> => {
+  if (!isRecord(body)) return Option.none();
+  const value = body[key];
+  if (typeof value !== "number") return Option.none();
+  return Option.some(value);
+};
+
+/** Reads a string field out of an untyped App Store error body. */
+const readStringField = (body: unknown, key: string): Option.Option<string> => {
+  if (!isRecord(body)) return Option.none();
+  const value = body[key];
+  if (typeof value !== "string") return Option.none();
+  return Option.some(value);
 };
 
 const encodeRequestBody = <T>(request: T, schema: EncodableSchema<T>): Effect.Effect<unknown> =>
@@ -333,14 +362,17 @@ export const AppStoreServerSdkClient = {
     const baseUrl = getBaseUrl(config.environment);
     const httpClient = sdk.httpClient;
 
-    const makeRequest = <T>(
+    /**
+     * Sends an authenticated request and returns the raw successful response.
+     * Non-2xx statuses fail with the decoded App Store API error.
+     */
+    const sendRequest = (
       path: string,
       method: "GET" | "POST" | "PUT" | "DELETE",
       queryParams: Option.Option<Record<string, string[]>>,
       body: Option.Option<unknown>,
-      responseSchema: Option.Option<DecodableSchema<T>>,
       contentType: Option.Option<string>,
-    ): Effect.Effect<T, AppStoreError> =>
+    ): Effect.Effect<HttpClientResponse.HttpClientResponse, AppStoreError> =>
       Effect.gen(function* () {
         const bearerToken = yield* createBearerToken(config).pipe(
           Effect.mapError(
@@ -395,48 +427,59 @@ export const AppStoreServerSdkClient = {
         );
 
         if (response.status >= 200 && response.status < 300) {
-          if (Option.isNone(responseSchema)) {
-            return undefined as T;
-          }
-
-          const json = yield* response.json.pipe(
-            Effect.mapError(
-              () =>
-                new AppStoreParseError({
-                  httpStatusCode: response.status,
-                  message: "Failed to parse response JSON",
-                }),
-            ),
-          );
-
-          const parsed = yield* Schema.decodeUnknownEffect(responseSchema.value)(json).pipe(
-            Effect.mapError(
-              (_e: Schema.SchemaError) =>
-                new AppStoreSchemaError({
-                  httpStatusCode: response.status,
-                  message: "Unexpected response body format",
-                }),
-            ),
-          );
-
-          return parsed;
+          return response;
         }
 
         const errorBody = yield* response.json.pipe(Effect.catch(() => Effect.succeed({})));
 
-        const errorCode = Option.fromNullishOr(
-          typeof errorBody === "object" && errorBody !== null && "errorCode" in errorBody
-            ? (errorBody.errorCode as number)
-            : undefined,
-        );
-        const errorMessage = Option.fromNullishOr(
-          typeof errorBody === "object" && errorBody !== null && "errorMessage" in errorBody
-            ? (errorBody.errorMessage as string)
-            : undefined,
-        );
+        const errorCode = readNumberField(errorBody, "errorCode");
+        const errorMessage = readStringField(errorBody, "errorMessage");
 
         return yield* Effect.fail(createAppStoreApiError(response.status, errorCode, errorMessage));
       });
+
+    /** Sends a request and decodes its JSON body with `responseSchema`. */
+    const makeRequest = <T>(
+      path: string,
+      method: "GET" | "POST" | "PUT" | "DELETE",
+      queryParams: Option.Option<Record<string, string[]>>,
+      body: Option.Option<unknown>,
+      responseSchema: DecodableSchema<T>,
+      contentType: Option.Option<string>,
+    ): Effect.Effect<T, AppStoreError> =>
+      Effect.gen(function* () {
+        const response = yield* sendRequest(path, method, queryParams, body, contentType);
+
+        const json = yield* response.json.pipe(
+          Effect.mapError(
+            () =>
+              new AppStoreParseError({
+                httpStatusCode: response.status,
+                message: "Failed to parse response JSON",
+              }),
+          ),
+        );
+
+        return yield* Schema.decodeUnknownEffect(responseSchema)(json).pipe(
+          Effect.mapError(
+            (_e: Schema.SchemaError) =>
+              new AppStoreSchemaError({
+                httpStatusCode: response.status,
+                message: "Unexpected response body format",
+              }),
+          ),
+        );
+      });
+
+    /** Sends a request for an endpoint that returns no response body. */
+    const makeVoidRequest = (
+      path: string,
+      method: "GET" | "POST" | "PUT" | "DELETE",
+      queryParams: Option.Option<Record<string, string[]>>,
+      body: Option.Option<unknown>,
+      contentType: Option.Option<string>,
+    ): Effect.Effect<void, AppStoreError> =>
+      Effect.asVoid(sendRequest(path, method, queryParams, body, contentType));
 
     return {
       // Transaction endpoints
@@ -446,7 +489,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(TransactionInfoResponseSchema),
+          TransactionInfoResponseSchema,
           Option.none(),
         ),
 
@@ -489,7 +532,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           optionFromRecord(queryParams),
           Option.none(),
-          Option.some(HistoryResponseSchema),
+          HistoryResponseSchema,
           Option.none(),
         );
       },
@@ -503,7 +546,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           optionFromRecord(queryParams),
           Option.none(),
-          Option.some(RefundHistoryResponseSchema),
+          RefundHistoryResponseSchema,
           Option.none(),
         );
       },
@@ -514,19 +557,18 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(OrderLookupResponseSchema),
+          OrderLookupResponseSchema,
           Option.none(),
         ),
 
       setAppAccountToken: (originalTransactionId, request) =>
         encodeRequestBody(request, UpdateAppAccountTokenRequestSchema).pipe(
           Effect.flatMap((body) =>
-            makeRequest(
+            makeVoidRequest(
               `/inApps/v1/transactions/${originalTransactionId}/appAccountToken`,
               "PUT",
               Option.none(),
               Option.some(body),
-              Option.none(),
               Option.some("application/json"),
             ),
           ),
@@ -538,7 +580,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(AppTransactionInfoResponseSchema),
+          AppTransactionInfoResponseSchema,
           Option.none(),
         ),
 
@@ -554,7 +596,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           optionFromRecord(queryParams),
           Option.none(),
-          Option.some(StatusResponseSchema),
+          StatusResponseSchema,
           Option.none(),
         );
       },
@@ -567,7 +609,7 @@ export const AppStoreServerSdkClient = {
               "PUT",
               Option.none(),
               Option.some(body),
-              Option.some(ExtendRenewalDateResponseSchema),
+              ExtendRenewalDateResponseSchema,
               Option.some("application/json"),
             ),
           ),
@@ -581,7 +623,7 @@ export const AppStoreServerSdkClient = {
               "POST",
               Option.none(),
               Option.some(body),
-              Option.some(MassExtendRenewalDateResponseSchema),
+              MassExtendRenewalDateResponseSchema,
               Option.some("application/json"),
             ),
           ),
@@ -593,7 +635,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(MassExtendRenewalDateStatusResponseSchema),
+          MassExtendRenewalDateStatusResponseSchema,
           Option.none(),
         ),
 
@@ -601,12 +643,11 @@ export const AppStoreServerSdkClient = {
       sendConsumptionInformation: (transactionId, request) =>
         encodeRequestBody(request, ConsumptionRequestSchema).pipe(
           Effect.flatMap((body) =>
-            makeRequest(
+            makeVoidRequest(
               `/inApps/v2/transactions/consumption/${transactionId}`,
               "PUT",
               Option.none(),
               Option.some(body),
-              Option.none(),
               Option.some("application/json"),
             ),
           ),
@@ -615,22 +656,20 @@ export const AppStoreServerSdkClient = {
       sendConsumptionData: (transactionId, request) =>
         encodeRequestBody(request, ConsumptionRequestV1Schema).pipe(
           Effect.flatMap((body) =>
-            makeRequest(
+            makeVoidRequest(
               `/inApps/v1/transactions/consumption/${transactionId}`,
               "PUT",
               Option.none(),
               Option.some(body),
-              Option.none(),
               Option.some("application/json"),
             ),
           ),
         ),
 
       finishTransaction: (transactionId) =>
-        makeRequest(
+        makeVoidRequest(
           `/inApps/v1/transactions/${transactionId}/finish`,
           "POST",
-          Option.none(),
           Option.none(),
           Option.none(),
           Option.none(),
@@ -643,7 +682,7 @@ export const AppStoreServerSdkClient = {
           "POST",
           Option.none(),
           Option.none(),
-          Option.some(SendTestNotificationResponseSchema),
+          SendTestNotificationResponseSchema,
           Option.none(),
         ),
 
@@ -653,7 +692,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(CheckTestNotificationResponseSchema),
+          CheckTestNotificationResponseSchema,
           Option.none(),
         ),
 
@@ -668,7 +707,7 @@ export const AppStoreServerSdkClient = {
               "POST",
               optionFromRecord(queryParams),
               Option.some(body),
-              Option.some(NotificationHistoryResponseSchema),
+              NotificationHistoryResponseSchema,
               Option.some("application/json"),
             ),
           ),
@@ -679,21 +718,19 @@ export const AppStoreServerSdkClient = {
       uploadImage: (imageIdentifier, image, imageSize) => {
         const queryParams: Record<string, string[]> = {};
         appendQueryParamOption(queryParams, "imageSize", asOption(imageSize));
-        return makeRequest(
+        return makeVoidRequest(
           `/inApps/v1/messaging/image/${imageIdentifier}`,
           "PUT",
           optionFromRecord(queryParams),
           Option.some(image),
-          Option.none(),
           Option.some("image/png"),
         );
       },
 
       deleteImage: (imageIdentifier) =>
-        makeRequest(
+        makeVoidRequest(
           `/inApps/v1/messaging/image/${imageIdentifier}`,
           "DELETE",
-          Option.none(),
           Option.none(),
           Option.none(),
           Option.none(),
@@ -705,29 +742,27 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(GetImageListResponseSchema),
+          GetImageListResponseSchema,
           Option.none(),
         ),
 
       uploadMessage: (messageIdentifier, request) =>
         encodeRequestBody(request, UploadMessageRequestBodySchema).pipe(
           Effect.flatMap((body) =>
-            makeRequest(
+            makeVoidRequest(
               `/inApps/v1/messaging/message/${messageIdentifier}`,
               "PUT",
               Option.none(),
               Option.some(body),
-              Option.none(),
               Option.some("application/json"),
             ),
           ),
         ),
 
       deleteMessage: (messageIdentifier) =>
-        makeRequest(
+        makeVoidRequest(
           `/inApps/v1/messaging/message/${messageIdentifier}`,
           "DELETE",
-          Option.none(),
           Option.none(),
           Option.none(),
           Option.none(),
@@ -739,29 +774,27 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(GetMessageListResponseSchema),
+          GetMessageListResponseSchema,
           Option.none(),
         ),
 
       configureDefaultMessage: (productId, locale, request) =>
         encodeRequestBody(request, DefaultConfigurationRequestSchema).pipe(
           Effect.flatMap((body) =>
-            makeRequest(
+            makeVoidRequest(
               `/inApps/v1/messaging/default/${productId}/${locale}`,
               "PUT",
               Option.none(),
               Option.some(body),
-              Option.none(),
               Option.some("application/json"),
             ),
           ),
         ),
 
       deleteDefaultMessage: (productId, locale) =>
-        makeRequest(
+        makeVoidRequest(
           `/inApps/v1/messaging/default/${productId}/${locale}`,
           "DELETE",
-          Option.none(),
           Option.none(),
           Option.none(),
           Option.none(),
@@ -773,7 +806,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(DefaultConfigurationResponseSchema),
+          DefaultConfigurationResponseSchema,
           Option.none(),
         ),
 
@@ -781,22 +814,20 @@ export const AppStoreServerSdkClient = {
       configureRealtimeURL: (request) =>
         encodeRequestBody(request, RealtimeUrlRequestSchema).pipe(
           Effect.flatMap((body) =>
-            makeRequest(
+            makeVoidRequest(
               "/inApps/v1/messaging/realtime/url",
               "PUT",
               Option.none(),
               Option.some(body),
-              Option.none(),
               Option.some("application/json"),
             ),
           ),
         ),
 
       deleteRealtimeURL: () =>
-        makeRequest(
+        makeVoidRequest(
           "/inApps/v1/messaging/realtime/url",
           "DELETE",
-          Option.none(),
           Option.none(),
           Option.none(),
           Option.none(),
@@ -808,7 +839,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(RealtimeUrlResponseSchema),
+          RealtimeUrlResponseSchema,
           Option.none(),
         ),
 
@@ -821,7 +852,7 @@ export const AppStoreServerSdkClient = {
               "POST",
               Option.none(),
               Option.some(body),
-              Option.some(PerformanceTestResponseSchema),
+              PerformanceTestResponseSchema,
               Option.some("application/json"),
             ),
           ),
@@ -833,7 +864,7 @@ export const AppStoreServerSdkClient = {
           "GET",
           Option.none(),
           Option.none(),
-          Option.some(PerformanceTestResultResponseSchema),
+          PerformanceTestResultResponseSchema,
           Option.none(),
         ),
     };

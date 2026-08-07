@@ -3,4 +3,4 @@ import { Effect } from "effect";
 
 import { runSelfhostMigrations } from "./migrations.ts";
 
-NodeRuntime.runMain(Effect.scoped(runSelfhostMigrations()) as never);
+NodeRuntime.runMain(Effect.scoped(runSelfhostMigrations()));

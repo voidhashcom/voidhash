@@ -56,7 +56,7 @@ export function DataTable<TData, TValue>({
                 data-state={row.getIsSelected() && "selected"}
                 key={row.id}
                 onClick={() => {
-                  navigate({
+                  void navigate({
                     params: {
                       id: row.original.distinctId,
                       organizationSlug,

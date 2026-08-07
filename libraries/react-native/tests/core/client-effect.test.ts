@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Deferred, Effect, Exit } from "effect";
 import { vi } from "vitest";
 
 import { type AnalyticsIngestEvent, VoidhashEffectClient } from "../../src/client-effect";
@@ -22,6 +22,14 @@ import {
 import { describe, expect, it } from "../helpers/effect-vitest";
 import { createTestSchema } from "../helpers/test-schema";
 
+/** Runs a test body and always performs its cleanup, mirroring try/finally. */
+const withCleanup = <T>(body: () => Promise<T>, cleanup: () => Promise<void>): Promise<T> =>
+  Effect.runPromise(
+    Effect.tryPromise({ try: body, catch: (error) => error }).pipe(
+      Effect.ensuring(Effect.promise(cleanup)),
+    ),
+  );
+
 describe("VoidhashEffectClient", () => {
   it("init with a provided distinct id identifies the user without syncing attributes", async () => {
     const apiDouble = createApiClientDouble();
@@ -34,29 +42,32 @@ describe("VoidhashEffectClient", () => {
     });
     const schema = createTestSchema();
 
-    try {
-      await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-before-init")),
-      );
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-before-init")),
+        );
 
-      const initializedClient = await harness.runtime.runPromise(
-        VoidhashEffectClient.makeUnitializedClient().init({
+        const initializedClient = await harness.runtime.runPromise(
+          VoidhashEffectClient.makeUnitializedClient().init({
+            distinctId: "user-after-init",
+            internalSchema: schema,
+          }),
+        );
+
+        expect(initializedClient).toHaveProperty("getProducts");
+        // Init no longer auto-syncs attributes; identify is the only POST.
+        expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
+        expect(apiDouble.state.identifyCalls).toHaveLength(1);
+        expect(apiDouble.state.identifyCalls[0]?.headers["x-distinct-id"]).toBe("cached-before-init");
+        expect(apiDouble.state.identifyCalls[0]?.payload).toMatchObject({
           distinctId: "user-after-init",
-          internalSchema: schema,
-        }),
-      );
-
-      expect(initializedClient).toHaveProperty("getProducts");
-      // Init no longer auto-syncs attributes; identify is the only POST.
-      expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
-      expect(apiDouble.state.identifyCalls).toHaveLength(1);
-      expect(apiDouble.state.identifyCalls[0]?.headers["x-distinct-id"]).toBe("cached-before-init");
-      expect(apiDouble.state.identifyCalls[0]?.payload).toMatchObject({
-        distinctId: "user-after-init",
-      });
-    } finally {
-      await harness.runtime.dispose();
-    }
+        });
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("init without a provided distinct id prefetches the person without syncing attributes", async () => {
@@ -70,22 +81,25 @@ describe("VoidhashEffectClient", () => {
     });
     const schema = createTestSchema();
 
-    try {
-      await harness.runtime.runPromise(
-        VoidhashEffectClient.makeUnitializedClient().init({
-          internalSchema: schema,
-        }),
-      );
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          VoidhashEffectClient.makeUnitializedClient().init({
+            internalSchema: schema,
+          }),
+        );
 
-      expect(apiDouble.state.identifyCalls).toHaveLength(0);
-      // No implicit attribute sync at init.
-      expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
-      expect(apiDouble.state.getPersonCalls).toHaveLength(1);
-      const distinctId = String(apiDouble.state.getPersonCalls[0]?.headers["x-distinct-id"]);
-      expect(distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.identifyCalls).toHaveLength(0);
+        // No implicit attribute sync at init.
+        expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
+        expect(apiDouble.state.getPersonCalls).toHaveLength(1);
+        const distinctId = String(apiDouble.state.getPersonCalls[0]?.headers["x-distinct-id"]);
+        expect(distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("init succeeds (does not crash) when the person is not yet persisted", async () => {
@@ -102,20 +116,23 @@ describe("VoidhashEffectClient", () => {
     });
     const schema = createTestSchema();
 
-    try {
-      const exit = await harness.runtime.runPromiseExit(
-        VoidhashEffectClient.makeUnitializedClient().init({
-          internalSchema: schema,
-        }),
-      );
+    await withCleanup(
+      async () => {
+        const exit = await harness.runtime.runPromiseExit(
+          VoidhashEffectClient.makeUnitializedClient().init({
+            internalSchema: schema,
+          }),
+        );
 
-      expect(Exit.isSuccess(exit)).toBe(true);
-      expect(apiDouble.state.getPersonCalls).toHaveLength(1);
-      // A not-yet-persisted person publishes a null person, not a crash.
-      expect(harness.atomRegistry.get(currentPersonAtom)).toBeNull();
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(Exit.isSuccess(exit)).toBe(true);
+        expect(apiDouble.state.getPersonCalls).toHaveLength(1);
+        // A not-yet-persisted person publishes a null person, not a crash.
+        expect(harness.atomRegistry.get(currentPersonAtom)).toBeNull();
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("init without internalSchema fetches the schema once and publishes it to schemaAtom", async () => {
@@ -131,17 +148,20 @@ describe("VoidhashEffectClient", () => {
     // Module-level singleton: reset before asserting on it.
     harness.atomRegistry.set(schemaAtom, null);
 
-    try {
-      const initializedClient = await harness.runtime.runPromise(
-        VoidhashEffectClient.makeUnitializedClient().init({}),
-      );
+    await withCleanup(
+      async () => {
+        const initializedClient = await harness.runtime.runPromise(
+          VoidhashEffectClient.makeUnitializedClient().init({}),
+        );
 
-      expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
-      expect(initializedClient.getSchema()).toEqual(remoteSchema);
-      expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
+        expect(initializedClient.getSchema()).toEqual(remoteSchema);
+        expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("init fails fatally with FailedToFetchSchemaError when schema fetch fails and no cache exists", async () => {
@@ -155,20 +175,23 @@ describe("VoidhashEffectClient", () => {
     });
     harness.atomRegistry.set(schemaAtom, null);
 
-    try {
-      const exit = await harness.runtime.runPromiseExit(
-        VoidhashEffectClient.makeUnitializedClient().init({}),
-      );
+    await withCleanup(
+      async () => {
+        const exit = await harness.runtime.runPromiseExit(
+          VoidhashEffectClient.makeUnitializedClient().init({}),
+        );
 
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const error = Cause.squash(exit.cause);
-        expect(error).toBeInstanceOf(FailedToFetchSchemaError);
-      }
-      expect(harness.atomRegistry.get(schemaAtom)).toBeNull();
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit)) {
+          const error = Cause.squash(exit.cause);
+          expect(error).toBeInstanceOf(FailedToFetchSchemaError);
+        }
+        expect(harness.atomRegistry.get(schemaAtom)).toBeNull();
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("getProducts caches native result and maps missing schema keys to null", async () => {
@@ -199,17 +222,20 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      const first = await harness.runtime.runPromise(initializedClient.getProducts());
-      const second = await harness.runtime.runPromise(initializedClient.getProducts());
+    await withCleanup(
+      async () => {
+        const first = await harness.runtime.runPromise(initializedClient.getProducts());
+        const second = await harness.runtime.runPromise(initializedClient.getProducts());
 
-      expect(paymentDouble.state.getProductsCalls).toBe(1);
-      expect(first.monthly_sub?.slug).toBe("monthly_sub");
-      expect(first.yearly_sub).toBeNull();
-      expect(second).toEqual(first);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(paymentDouble.state.getProductsCalls).toBe(1);
+        expect(first.monthly_sub?.slug).toBe("monthly_sub");
+        expect(first.yearly_sub).toBeNull();
+        expect(second).toEqual(first);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("getFeatureFlags caches by sorted keys and publishes to the reactive atom", async () => {
@@ -237,35 +263,38 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "feature-user")),
-      );
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "feature-user")),
+        );
 
-      const inputKeys = ["b", "a"];
-      const inputSnapshot = [...inputKeys];
+        const inputKeys = ["b", "a"];
+        const inputSnapshot = [...inputKeys];
 
-      const first = await harness.runtime.runPromise(initializedClient.getFeatureFlags(inputKeys));
-      const second = await harness.runtime.runPromise(
-        initializedClient.getFeatureFlags(["a", "b"]),
-      );
+        const first = await harness.runtime.runPromise(initializedClient.getFeatureFlags(inputKeys));
+        const second = await harness.runtime.runPromise(
+          initializedClient.getFeatureFlags(["a", "b"]),
+        );
 
-      expect(first.flags).toHaveLength(1);
-      expect(second).toEqual(first);
-      expect(apiDouble.state.evaluateFeatureFlagsCalls).toHaveLength(1);
+        expect(first.flags).toHaveLength(1);
+        expect(second).toEqual(first);
+        expect(apiDouble.state.evaluateFeatureFlagsCalls).toHaveLength(1);
 
-      // The caller's input array must remain in its original order — the
-      // service must sort a copy, not mutate the input.
-      expect(inputKeys).toEqual(inputSnapshot);
+        // The caller's input array must remain in its original order — the
+        // service must sort a copy, not mutate the input.
+        expect(inputKeys).toEqual(inputSnapshot);
 
-      // Both reversed and original orders observe the same atom slot.
-      const publishedForBA = harness.atomRegistry.get(featureFlagsForKeysAtom(["b", "a"]));
-      const publishedForAB = harness.atomRegistry.get(featureFlagsForKeysAtom(["a", "b"]));
-      expect(publishedForBA).toEqual(first);
-      expect(publishedForAB).toEqual(first);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        // Both reversed and original orders observe the same atom slot.
+        const publishedForBA = harness.atomRegistry.get(featureFlagsForKeysAtom(["b", "a"]));
+        const publishedForAB = harness.atomRegistry.get(featureFlagsForKeysAtom(["a", "b"]));
+        expect(publishedForBA).toEqual(first);
+        expect(publishedForAB).toEqual(first);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("maintains separate atom entries for distinct flag-key requests", async () => {
@@ -311,17 +340,20 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.getFeatureFlags(["a"]));
-      await harness.runtime.runPromise(initializedClient.getFeatureFlags(["b"]));
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.getFeatureFlags(["a"]));
+        await harness.runtime.runPromise(initializedClient.getFeatureFlags(["b"]));
 
-      const forA = harness.atomRegistry.get(featureFlagsForKeysAtom(["a"]));
-      const forB = harness.atomRegistry.get(featureFlagsForKeysAtom(["b"]));
-      expect(forA?.flags[0]?.key).toBe("a");
-      expect(forB?.flags[0]?.key).toBe("b");
-    } finally {
-      await harness.runtime.dispose();
-    }
+        const forA = harness.atomRegistry.get(featureFlagsForKeysAtom(["a"]));
+        const forB = harness.atomRegistry.get(featureFlagsForKeysAtom(["b"]));
+        expect(forA?.flags[0]?.key).toBe("a");
+        expect(forB?.flags[0]?.key).toBe("b");
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("getCurrentPerson publishes both cached and freshly fetched results to the reactive atom", async () => {
@@ -339,22 +371,25 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "fetched-person")),
-      );
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "fetched-person")),
+        );
 
-      // First call fetches and publishes the network result.
-      await harness.runtime.runPromise(initializedClient.getCurrentPerson(true));
-      expect(harness.atomRegistry.get(currentPersonAtom)).toEqual(fetched);
+        // First call fetches and publishes the network result.
+        await harness.runtime.runPromise(initializedClient.getCurrentPerson(true));
+        expect(harness.atomRegistry.get(currentPersonAtom)).toEqual(fetched);
 
-      // Reset atom then verify a cached read still publishes back.
-      harness.atomRegistry.set(currentPersonAtom, null);
-      await harness.runtime.runPromise(initializedClient.getCurrentPerson());
-      expect(harness.atomRegistry.get(currentPersonAtom)).toEqual(fetched);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        // Reset atom then verify a cached read still publishes back.
+        harness.atomRegistry.set(currentPersonAtom, null);
+        await harness.runtime.runPromise(initializedClient.getCurrentPerson());
+        expect(harness.atomRegistry.get(currentPersonAtom)).toEqual(fetched);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("init without distinct id publishes the prefetched person to the reactive atom", async () => {
@@ -368,19 +403,22 @@ describe("VoidhashEffectClient", () => {
       paymentAdapter: paymentDouble.paymentAdapter,
     });
 
-    try {
-      await harness.runtime.runPromise(
-        VoidhashEffectClient.makeUnitializedClient().init({
-          internalSchema: schema,
-        }),
-      );
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          VoidhashEffectClient.makeUnitializedClient().init({
+            internalSchema: schema,
+          }),
+        );
 
-      const published = harness.atomRegistry.get(currentPersonAtom);
-      expect(published).not.toBeNull();
-      expect(published?.distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        const published = harness.atomRegistry.get(currentPersonAtom);
+        expect(published).not.toBeNull();
+        expect(published?.distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   describe("person attributes", () => {
@@ -398,21 +436,24 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(
-          initializedClient.setPersonAttributes({
-            email: "person@voidhash.test",
-            name: "A Person",
-            plan: "pro",
-          }),
-        );
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(
+            initializedClient.setPersonAttributes({
+              email: "person@voidhash.test",
+              name: "A Person",
+              plan: "pro",
+            }),
+          );
 
-        // Rides the analytics queue; no network sync.
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
-        expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
-      } finally {
-        await harness.runtime.dispose();
-      }
+          // Rides the analytics queue; no network sync.
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
+          expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
+        },
+        async () => {
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("setPersonAttributesSync syncs, returns the snapshot and publishes the atom", async () => {
@@ -432,32 +473,35 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "sync-user")),
-        );
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(
+            Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "sync-user")),
+          );
 
-        const result = await harness.runtime.runPromise(
-          initializedClient.setPersonAttributesSync({
+          const result = await harness.runtime.runPromise(
+            initializedClient.setPersonAttributesSync({
+              email: "sync@voidhash.test",
+              plan: "pro",
+            }),
+          );
+
+          expect(result).toEqual(synced);
+          expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(1);
+          expect(apiDouble.state.syncPersonAttributesCalls[0]?.headers["x-distinct-id"]).toBe(
+            "sync-user",
+          );
+          // Reserved keys map to dedicated fields; custom keys go to traits.
+          expect(apiDouble.state.syncPersonAttributesCalls[0]?.payload).toMatchObject({
             email: "sync@voidhash.test",
-            plan: "pro",
-          }),
-        );
-
-        expect(result).toEqual(synced);
-        expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(1);
-        expect(apiDouble.state.syncPersonAttributesCalls[0]?.headers["x-distinct-id"]).toBe(
-          "sync-user",
-        );
-        // Reserved keys map to dedicated fields; custom keys go to traits.
-        expect(apiDouble.state.syncPersonAttributesCalls[0]?.payload).toMatchObject({
-          email: "sync@voidhash.test",
-          traits: { plan: "pro" },
-        });
-        expect(harness.atomRegistry.get(currentPersonAtom)).toEqual(synced);
-      } finally {
-        await harness.runtime.dispose();
-      }
+            traits: { plan: "pro" },
+          });
+          expect(harness.atomRegistry.get(currentPersonAtom)).toEqual(synced);
+        },
+        async () => {
+          await harness.runtime.dispose();
+        },
+      );
     });
   });
 
@@ -483,26 +527,29 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "pre-switch-user")),
-        );
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(
+            Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "pre-switch-user")),
+          );
 
-        harness.runtime.runSync(initializedClient.capture("pre-identify-event"));
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
+          harness.runtime.runSync(initializedClient.capture("pre-identify-event"));
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
 
-        await harness.runtime.runPromise(initializedClient.identify("new-user", {}));
+          await harness.runtime.runPromise(initializedClient.identify("new-user", {}));
 
-        // The queued event was flushed before the identity switch.
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-        const payload = JSON.parse(decodeRequestBody(request?.body));
-        expect(payload.events[0]?.distinct_id).toBe("pre-switch-user");
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          // The queued event was flushed before the identity switch.
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+          const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+          const payload = JSON.parse(decodeRequestBody(request?.body));
+          expect(payload.events[0]?.distinct_id).toBe("pre-switch-user");
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("reset flushes queued events under the pre-reset distinct id", async () => {
@@ -524,25 +571,28 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "pre-reset-user")),
-        );
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(
+            Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "pre-reset-user")),
+          );
 
-        harness.runtime.runSync(initializedClient.capture("pre-reset-event"));
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
+          harness.runtime.runSync(initializedClient.capture("pre-reset-event"));
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
 
-        await harness.runtime.runPromise(initializedClient.reset());
+          await harness.runtime.runPromise(initializedClient.reset());
 
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-        const payload = JSON.parse(decodeRequestBody(request?.body));
-        expect(payload.events[0]?.distinct_id).toBe("pre-reset-user");
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+          const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+          const payload = JSON.parse(decodeRequestBody(request?.body));
+          expect(payload.events[0]?.distinct_id).toBe("pre-reset-user");
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
   });
 
@@ -560,17 +610,20 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await expect(
-        harness.runtime.runPromise(initializedClient.iosPresentCodeRedemptionSheet()),
-      ).rejects.toThrow("Present code redemption sheet is not supported on this platform");
+    await withCleanup(
+      async () => {
+        await expect(
+          harness.runtime.runPromise(initializedClient.iosPresentCodeRedemptionSheet()),
+        ).rejects.toThrow("Present code redemption sheet is not supported on this platform");
 
-      await expect(
-        harness.runtime.runPromise(initializedClient.iosShowManageSubscriptions()),
-      ).rejects.toThrow("Show manage subscriptions is not supported on this platform");
-    } finally {
-      await harness.runtime.dispose();
-    }
+        await expect(
+          harness.runtime.runPromise(initializedClient.iosShowManageSubscriptions()),
+        ).rejects.toThrow("Show manage subscriptions is not supported on this platform");
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("purchase delegates to payment adapter buyProduct", async () => {
@@ -600,21 +653,24 @@ describe("VoidhashEffectClient", () => {
       "month",
     );
 
-    try {
-      await harness.runtime.runPromise(
-        initializedClient.purchase(monthlyProduct, {
-          method: "native",
-        }),
-      );
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          initializedClient.purchase(monthlyProduct, {
+            method: "native",
+          }),
+        );
 
-      expect(paymentDouble.state.buyProductCalls).toHaveLength(1);
-      expect(paymentDouble.state.buyProductCalls[0]?.product.slug).toBe("monthly_sub");
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
-      expect(apiDouble.state.getPersonCalls).toHaveLength(1);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(paymentDouble.state.buyProductCalls).toHaveLength(1);
+        expect(paymentDouble.state.buyProductCalls[0]?.product.slug).toBe("monthly_sub");
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
+        expect(apiDouble.state.getPersonCalls).toHaveLength(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("purchases a non-consumable one-time product through the same lifecycle", async () => {
@@ -640,18 +696,21 @@ describe("VoidhashEffectClient", () => {
       "ios",
     );
 
-    try {
-      const initializedClient = await harness.runtime.runPromise(
-        VoidhashEffectClient.makeInitializedClient({ schema }),
-      );
-      await harness.runtime.runPromise(initializedClient.purchase(product, { method: "native" }));
+    await withCleanup(
+      async () => {
+        const initializedClient = await harness.runtime.runPromise(
+          VoidhashEffectClient.makeInitializedClient({ schema }),
+        );
+        await harness.runtime.runPromise(initializedClient.purchase(product, { method: "native" }));
 
-      expect(paymentDouble.state.buyProductCalls[0]?.product).toBe(product);
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(paymentDouble.state.buyProductCalls[0]?.product).toBe(product);
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("purchase passes the deterministic account token to the native store", async () => {
@@ -678,27 +737,30 @@ describe("VoidhashEffectClient", () => {
       "month",
     );
 
-    try {
-      await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "user-123")),
-      );
-      const initializedClient = await harness.runtime.runPromise(
-        VoidhashEffectClient.makeInitializedClient({ schema }),
-      );
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "user-123")),
+        );
+        const initializedClient = await harness.runtime.runPromise(
+          VoidhashEffectClient.makeInitializedClient({ schema }),
+        );
 
-      await harness.runtime.runPromise(
-        initializedClient.purchase(monthlyProduct, { method: "native" }),
-      );
+        await harness.runtime.runPromise(
+          initializedClient.purchase(monthlyProduct, { method: "native" }),
+        );
 
-      expect(paymentDouble.state.buyProductCalls[0]?.appAccountToken).toBe(
-        "3501e751-7582-58f9-9c1d-533c7466049f",
-      );
-      expect(apiDouble.state.syncTransactionCalls[0]?.payload?.appAccountToken).toBe(
-        "3501e751-7582-58f9-9c1d-533c7466049f",
-      );
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(paymentDouble.state.buyProductCalls[0]?.appAccountToken).toBe(
+          "3501e751-7582-58f9-9c1d-533c7466049f",
+        );
+        expect(apiDouble.state.syncTransactionCalls[0]?.payload?.appAccountToken).toBe(
+          "3501e751-7582-58f9-9c1d-533c7466049f",
+        );
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("startTransactionObserver delegates to payment adapter initConnection", async () => {
@@ -715,13 +777,16 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.startTransactionObserver());
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.startTransactionObserver());
 
-      expect(paymentDouble.state.initConnectionCalls).toBe(1);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(paymentDouble.state.initConnectionCalls).toBe(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("processObservedTransaction sets observer header and skips acknowledge in read-only mode", async () => {
@@ -748,15 +813,18 @@ describe("VoidhashEffectClient", () => {
       "ios",
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
 
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-      expect(apiDouble.state.syncTransactionCalls[0]?.headers["x-observer-mode"]).toBe("true");
-      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+        expect(apiDouble.state.syncTransactionCalls[0]?.headers["x-observer-mode"]).toBe("true");
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("processObservedTransaction dedupes repeated transaction processing", async () => {
@@ -782,14 +850,17 @@ describe("VoidhashEffectClient", () => {
       "ios",
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
-      await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
+        await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
 
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("retries native acknowledgement without resubmitting an accepted transaction", async () => {
@@ -817,17 +888,20 @@ describe("VoidhashEffectClient", () => {
       "ios",
     );
 
-    try {
-      await expect(
-        harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction)),
-      ).rejects.toThrow("acknowledgePurchase failed");
-      await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
+    await withCleanup(
+      async () => {
+        await expect(
+          harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction)),
+        ).rejects.toThrow("acknowledgePurchase failed");
+        await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
 
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(2);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(2);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("resumes native finalization from persistent state after a runtime restart", async () => {
@@ -868,18 +942,21 @@ describe("VoidhashEffectClient", () => {
       paymentAdapter: secondPayment.paymentAdapter,
     });
 
-    try {
-      const secondClient = await secondHarness.runtime.runPromise(
-        VoidhashEffectClient.makeInitializedClient({ schema }),
-      );
-      await secondHarness.runtime.runPromise(secondClient.processObservedTransaction(transaction));
+    await withCleanup(
+      async () => {
+        const secondClient = await secondHarness.runtime.runPromise(
+          VoidhashEffectClient.makeInitializedClient({ schema }),
+        );
+        await secondHarness.runtime.runPromise(secondClient.processObservedTransaction(transaction));
 
-      expect(firstApi.state.syncTransactionCalls).toHaveLength(1);
-      expect(secondApi.state.syncTransactionCalls).toHaveLength(0);
-      expect(secondPayment.state.acknowledgePurchaseCalls).toHaveLength(1);
-    } finally {
-      await secondHarness.runtime.dispose();
-    }
+        expect(firstApi.state.syncTransactionCalls).toHaveLength(1);
+        expect(secondApi.state.syncTransactionCalls).toHaveLength(0);
+        expect(secondPayment.state.acknowledgePurchaseCalls).toHaveLength(1);
+      },
+      async () => {
+        await secondHarness.runtime.dispose();
+      },
+    );
   });
 
   it("finalizes a consumable transaction with its schema product type", async () => {
@@ -906,28 +983,28 @@ describe("VoidhashEffectClient", () => {
       { purchaseToken: "consumable-token" },
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
 
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-      expect(paymentDouble.state.acknowledgePurchaseProductTypes).toEqual(["one-time-consumable"]);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+        expect(paymentDouble.state.acknowledgePurchaseProductTypes).toEqual(["one-time-consumable"]);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("joins concurrent duplicate processing and shares the failure", async () => {
-    let rejectSync!: (reason: Error) => void;
-    const syncGate = new Promise<{ accepted: boolean }>((_resolve, reject) => {
-      rejectSync = reject;
-    });
+    const syncGate = Deferred.makeUnsafe<{ accepted: boolean }, Error>();
+    const rejectSync = (reason: Error) => Deferred.doneUnsafe(syncGate, Effect.fail(reason));
     const schema = createTestSchema();
     const apiDouble = createApiClientDouble({
       syncTransactionEffect: () =>
-        Effect.tryPromise({
-          catch: () => new Error("gated sync failed"),
-          try: () => syncGate,
-        }),
+        Deferred.await(syncGate).pipe(
+          Effect.catch(() => Effect.fail(new Error("gated sync failed"))),
+        ),
     });
     const paymentDouble = createPaymentAdapterDouble();
     const cache = createInMemoryCacheAdapter();
@@ -949,24 +1026,34 @@ describe("VoidhashEffectClient", () => {
       "ios",
     );
 
-    try {
-      const first = harness.runtime.runPromise(
-        initializedClient.processObservedTransaction(transaction),
-      );
-      while (apiDouble.state.syncTransactionCalls.length === 0) {
-        await Promise.resolve();
-      }
-      const second = harness.runtime.runPromise(
-        initializedClient.processObservedTransaction(transaction),
-      );
-      rejectSync(new Error("release"));
+    await withCleanup(
+      async () => {
+        const first = harness.runtime.runPromise(
+          initializedClient.processObservedTransaction(transaction),
+        );
+        while (apiDouble.state.syncTransactionCalls.length === 0) {
+          await Effect.runPromise(Effect.yieldNow);
+        }
+        const second = harness.runtime.runPromise(
+          initializedClient.processObservedTransaction(transaction),
+        );
+        rejectSync(new Error("release"));
 
-      const results = await Promise.allSettled([first, second]);
-      expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        const results = await Effect.runPromise(
+          Effect.all(
+            [first, second].map((pending) =>
+              Effect.exit(Effect.tryPromise({ try: () => pending, catch: (error) => error })),
+            ),
+            { concurrency: "unbounded" },
+          ),
+        );
+        expect(results.map((result) => result._tag)).toEqual(["Failure", "Failure"]);
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("skips pending store transactions until the store reports them purchased", async () => {
@@ -993,14 +1080,17 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.reconcileObservedTransactions());
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.reconcileObservedTransactions());
 
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(0);
-      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(0);
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("attempts every restore transaction and reports an aggregate failure", async () => {
@@ -1029,14 +1119,17 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await expect(
-        harness.runtime.runPromise(initializedClient.restorePurchases()),
-      ).rejects.toThrow("Failed to restore 2 transactions");
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(2);
-    } finally {
-      await harness.runtime.dispose();
-    }
+    await withCleanup(
+      async () => {
+        await expect(
+          harness.runtime.runPromise(initializedClient.restorePurchases()),
+        ).rejects.toThrow("Failed to restore 2 transactions");
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(2);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("does not restore consumable one-time purchases", async () => {
@@ -1074,17 +1167,20 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.restorePurchases());
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.restorePurchases());
 
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-      expect(apiDouble.state.syncTransactionCalls[0]?.payload?.productSlug).toBe("monthly_sub");
-      expect(apiDouble.state.syncTransactionCalls[0]?.payload?.providerProductId).toBe(
-        "com.voidhash.monthly.ios",
-      );
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+        expect(apiDouble.state.syncTransactionCalls[0]?.payload?.productSlug).toBe("monthly_sub");
+        expect(apiDouble.state.syncTransactionCalls[0]?.payload?.providerProductId).toBe(
+          "com.voidhash.monthly.ios",
+        );
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("reconcileObservedTransactions merges pending and history with dedupe", async () => {
@@ -1113,13 +1209,16 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
 
-    try {
-      await harness.runtime.runPromise(initializedClient.reconcileObservedTransactions());
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.reconcileObservedTransactions());
 
-      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("sync failure does not acknowledge transaction", async () => {
@@ -1147,15 +1246,18 @@ describe("VoidhashEffectClient", () => {
       "ios",
     );
 
-    try {
-      await expect(
-        harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction)),
-      ).rejects.toThrow("syncTransaction failed");
+    await withCleanup(
+      async () => {
+        await expect(
+          harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction)),
+        ).rejects.toThrow("syncTransaction failed");
 
-      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   const analyticsEvents: ReadonlyArray<AnalyticsIngestEvent> = [
@@ -1180,7 +1282,9 @@ describe("VoidhashEffectClient", () => {
   const decodeRequestBody = (body: RequestInit["body"]) => {
     if (typeof body === "string") return body;
     if (body instanceof Uint8Array) return new TextDecoder().decode(body);
-    return String(body);
+    if (body instanceof ArrayBuffer) return new TextDecoder().decode(body);
+    if (body instanceof URLSearchParams) return body.toString();
+    return "";
   };
 
   describe("sendAnalyticsEvents", () => {
@@ -1205,41 +1309,44 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "analytics-user")),
-        );
-        await harness.runtime.runPromise(initializedClient.sendAnalyticsEvents(analyticsEvents));
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(
+            Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "analytics-user")),
+          );
+          await harness.runtime.runPromise(initializedClient.sendAnalyticsEvents(analyticsEvents));
 
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.voidhash.test/i/v1/batch");
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+          expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.voidhash.test/i/v1/batch");
 
-        const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-        expect(request?.method).toBe("POST");
-        expect(request?.headers).toEqual(
-          expect.objectContaining({
-            "content-type": "application/json",
-          }),
-        );
-        expect(JSON.parse(decodeRequestBody(request?.body))).toMatchObject({
-          events: [
-            {
-              distinct_id: "analytics-user",
-              event: "cta-button-clicked",
-              properties: {
-                button_name: "Get Started",
+          const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+          expect(request?.method).toBe("POST");
+          expect(request?.headers).toEqual(
+            expect.objectContaining({
+              "content-type": "application/json",
+            }),
+          );
+          expect(JSON.parse(decodeRequestBody(request?.body))).toMatchObject({
+            events: [
+              {
+                distinct_id: "analytics-user",
+                event: "cta-button-clicked",
+                properties: {
+                  button_name: "Get Started",
+                },
+                session_id: "sess_1",
+                timestamp: "2026-01-01T00:00:00.000Z",
+                uuid: "evt_1",
               },
-              session_id: "sess_1",
-              timestamp: "2026-01-01T00:00:00.000Z",
-              uuid: "evt_1",
-            },
-          ],
-          token: "pk_analytics",
-        });
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+            ],
+            token: "pk_analytics",
+          });
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("uses ingestUrl override when provided", async () => {
@@ -1262,15 +1369,18 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(initializedClient.sendAnalyticsEvents(analyticsEvents));
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(initializedClient.sendAnalyticsEvents(analyticsEvents));
 
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(String(fetchMock.mock.calls[0]?.[0])).toBe("http://localhost:8083/i/v1/batch");
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+          expect(String(fetchMock.mock.calls[0]?.[0])).toBe("http://localhost:8083/i/v1/batch");
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("does not inline retry failed analytics delivery", async () => {
@@ -1299,15 +1409,18 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await expect(
-          harness.runtime.runPromise(initializedClient.sendAnalyticsEvents(analyticsEvents)),
-        ).rejects.toThrow("Analytics ingest request failed: 503");
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+      await withCleanup(
+        async () => {
+          await expect(
+            harness.runtime.runPromise(initializedClient.sendAnalyticsEvents(analyticsEvents)),
+          ).rejects.toThrow("Analytics ingest request failed: 503");
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
   });
 
@@ -1326,15 +1439,18 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        harness.runtime.runSync(
-          initializedClient.capture("cta-button-clicked", { button_name: "Get Started" }),
-        );
+      await withCleanup(
+        async () => {
+          harness.runtime.runSync(
+            initializedClient.capture("cta-button-clicked", { button_name: "Get Started" }),
+          );
 
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
-      } finally {
-        await harness.runtime.dispose();
-      }
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
+        },
+        async () => {
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("flushes immediately when queue reaches 20 events", async () => {
@@ -1361,21 +1477,24 @@ describe("VoidhashEffectClient", () => {
         flushTriggered = true;
       });
 
-      try {
-        for (let i = 0; i < 20; i++) {
-          harness.runtime.runSync(initializedClient.capture(`event-${i}`));
-        }
+      await withCleanup(
+        async () => {
+          for (let i = 0; i < 20; i++) {
+            harness.runtime.runSync(initializedClient.capture(`event-${i}`));
+          }
 
-        expect(flushTriggered).toBe(true);
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(20);
+          expect(flushTriggered).toBe(true);
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(20);
 
-        await harness.runtime.runPromise(initializedClient.flush());
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          await harness.runtime.runPromise(initializedClient.flush());
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("flushes queued events when timer fires after 5 seconds", async () => {
@@ -1404,17 +1523,20 @@ describe("VoidhashEffectClient", () => {
         flushTriggered = true;
       });
 
-      try {
-        harness.runtime.runSync(initializedClient.capture("screen-view"));
-        expect(flushTriggered).toBe(false);
+      await withCleanup(
+        async () => {
+          harness.runtime.runSync(initializedClient.capture("screen-view"));
+          expect(flushTriggered).toBe(false);
 
-        vi.advanceTimersByTime(5000);
-        expect(flushTriggered).toBe(true);
-      } finally {
-        vi.useRealTimers();
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          vi.advanceTimersByTime(5000);
+          expect(flushTriggered).toBe(true);
+        },
+        async () => {
+          vi.useRealTimers();
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("keeps batch in queue when flush is retryably rate limited", async () => {
@@ -1453,17 +1575,20 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        harness.runtime.runSync(initializedClient.capture("event-1"));
-        harness.runtime.runSync(initializedClient.capture("event-2"));
+      await withCleanup(
+        async () => {
+          harness.runtime.runSync(initializedClient.capture("event-1"));
+          harness.runtime.runSync(initializedClient.capture("event-2"));
 
-        await harness.runtime.runPromise(initializedClient.flush());
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(2);
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          await harness.runtime.runPromise(initializedClient.flush());
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(2);
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("retries a rate-limited batch after Retry-After elapses", async () => {
@@ -1520,25 +1645,28 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        harness.runtime.runSync(initializedClient.capture("event-1"));
+      await withCleanup(
+        async () => {
+          harness.runtime.runSync(initializedClient.capture("event-1"));
 
-        await harness.runtime.runPromise(initializedClient.flush());
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
+          await harness.runtime.runPromise(initializedClient.flush());
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(1);
 
-        await harness.runtime.runPromise(initializedClient.flush());
-        expect(fetchMock).toHaveBeenCalledTimes(1);
+          await harness.runtime.runPromise(initializedClient.flush());
+          expect(fetchMock).toHaveBeenCalledTimes(1);
 
-        vi.advanceTimersByTime(2000);
-        await harness.runtime.runPromise(initializedClient.flush());
+          vi.advanceTimersByTime(2000);
+          await harness.runtime.runPromise(initializedClient.flush());
 
-        expect(fetchMock).toHaveBeenCalledTimes(2);
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
-      } finally {
-        vi.useRealTimers();
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          expect(fetchMock).toHaveBeenCalledTimes(2);
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
+        },
+        async () => {
+          vi.useRealTimers();
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
   });
 
@@ -1562,22 +1690,25 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(initializedClient.captureAutomaticStartupEvents());
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(2);
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(initializedClient.captureAutomaticStartupEvents());
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(2);
 
-        await harness.runtime.runPromise(initializedClient.flush());
+          await harness.runtime.runPromise(initializedClient.flush());
 
-        const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-        const payload = JSON.parse(decodeRequestBody(request?.body));
-        expect(payload.events.map((event: { event: string }) => event.event)).toEqual([
-          "$app_installed",
-          "$app_opened",
-        ]);
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+          const payload = JSON.parse(decodeRequestBody(request?.body));
+          expect(payload.events.map((event: { event: string }) => event.event)).toEqual([
+            "$app_installed",
+            "$app_opened",
+          ]);
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
 
     it("captures $app_updated and $app_opened when app release changes", async () => {
@@ -1599,32 +1730,35 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        // Store a different app release in cache
-        await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) =>
-            manager.set("voidhash:analytics:last-seen-app-release", {
-              appBuild: "0",
-              appVersion: "0.0.1",
-            }),
-          ),
-        );
+      await withCleanup(
+        async () => {
+          // Store a different app release in cache
+          await harness.runtime.runPromise(
+            Effect.flatMap(CacheManager, (manager) =>
+              manager.set("voidhash:analytics:last-seen-app-release", {
+                appBuild: "0",
+                appVersion: "0.0.1",
+              }),
+            ),
+          );
 
-        await harness.runtime.runPromise(initializedClient.captureAutomaticStartupEvents());
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(2);
+          await harness.runtime.runPromise(initializedClient.captureAutomaticStartupEvents());
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(2);
 
-        await harness.runtime.runPromise(initializedClient.flush());
+          await harness.runtime.runPromise(initializedClient.flush());
 
-        const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-        const payload = JSON.parse(decodeRequestBody(request?.body));
-        expect(payload.events.map((event: { event: string }) => event.event)).toEqual([
-          "$app_updated",
-          "$app_opened",
-        ]);
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+          const payload = JSON.parse(decodeRequestBody(request?.body));
+          expect(payload.events.map((event: { event: string }) => event.event)).toEqual([
+            "$app_updated",
+            "$app_opened",
+          ]);
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
   });
 
@@ -1644,21 +1778,24 @@ describe("VoidhashEffectClient", () => {
       );
       const capturedEvents: string[] = [];
 
-      try {
-        const subscription = harness.runtime.runSync(
-          initializedClient.setupAutomaticLifecycleEvents((eventName) => {
-            capturedEvents.push(eventName);
-          }),
-        );
+      await withCleanup(
+        async () => {
+          const subscription = harness.runtime.runSync(
+            initializedClient.setupAutomaticLifecycleEvents((eventName) => {
+              capturedEvents.push(eventName);
+            }),
+          );
 
-        // The test might return null if react-native AppState is not available in test env
-        // This is expected behavior — the lifecycle events are a platform feature
-        if (subscription) {
-          subscription.remove();
-        }
-      } finally {
-        await harness.runtime.dispose();
-      }
+          // The test might return null if react-native AppState is not available in test env
+          // This is expected behavior — the lifecycle events are a platform feature
+          if (subscription) {
+            subscription.remove();
+          }
+        },
+        async () => {
+          await harness.runtime.dispose();
+        },
+      );
     });
   });
 
@@ -1682,31 +1819,34 @@ describe("VoidhashEffectClient", () => {
         VoidhashEffectClient.makeInitializedClient({ schema }),
       );
 
-      try {
-        await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "user-signing-out")),
-        );
+      await withCleanup(
+        async () => {
+          await harness.runtime.runPromise(
+            Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "user-signing-out")),
+          );
 
-        await harness.runtime.runPromise(initializedClient.signOut());
+          await harness.runtime.runPromise(initializedClient.signOut());
 
-        // The sign-out event is flushed before reset clears the cache, so it
-        // is attributed to the signing-out distinct id, not a fresh anon one.
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-        const payload = JSON.parse(decodeRequestBody(request?.body));
-        expect(payload.events).toEqual([
-          expect.objectContaining({
-            distinct_id: "user-signing-out",
-            event: "$sign_out",
-          }),
-        ]);
+          // The sign-out event is flushed before reset clears the cache, so it
+          // is attributed to the signing-out distinct id, not a fresh anon one.
+          expect(fetchMock).toHaveBeenCalledTimes(1);
+          const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+          const payload = JSON.parse(decodeRequestBody(request?.body));
+          expect(payload.events).toEqual([
+            expect.objectContaining({
+              distinct_id: "user-signing-out",
+              event: "$sign_out",
+            }),
+          ]);
 
-        // Reset emptied the queue and cleared the cached identity.
-        expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
-      } finally {
-        global.fetch = originalFetch;
-        await harness.runtime.dispose();
-      }
+          // Reset emptied the queue and cleared the cached identity.
+          expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
+        },
+        async () => {
+          global.fetch = originalFetch;
+          await harness.runtime.dispose();
+        },
+      );
     });
   });
 });

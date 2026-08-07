@@ -27,7 +27,7 @@ export function TeamAvatarForm({
     ...setOrganizationAvatarOptions(),
     onSuccess: () => {
       toast.success("Team avatar updated");
-      invalidate();
+      void invalidate();
     },
     onError: (error) => toast.error(errorMessage(error, "Failed to update team avatar")),
   });
@@ -36,7 +36,7 @@ export function TeamAvatarForm({
     ...removeOrganizationAvatarOptions(),
     onSuccess: () => {
       toast.success("Team avatar removed");
-      invalidate();
+      void invalidate();
     },
     onError: () => toast.error("Failed to remove team avatar"),
   });

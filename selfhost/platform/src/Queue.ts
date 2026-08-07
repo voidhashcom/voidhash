@@ -7,7 +7,8 @@ import {
   QueueProducerError,
   type QueueProducer,
 } from "@voidhash/platform/Queue";
-import { Cause, Duration, Effect, Layer, Schema, SchemaParser } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Cause, Data, Duration, Effect, Layer, Schema, SchemaParser } from "effect";
 import { PersistedQueue } from "effect/unstable/persistence";
 
 /**
@@ -22,18 +23,22 @@ const transportSchema = Schema.String;
 
 type TransportQueue = PersistedQueue.PersistedQueue<string, never>;
 
-const defaultOptions = {
+const defaultOptions = constant({
   batchSize: 10,
   maxRetries: 3,
   retryDelayMillis: 1_000,
   pollIntervalMillis: 250,
-} as const;
+});
 
-const positiveInteger = (value: number | undefined, fallback: number): number =>
-  value === undefined || !Number.isFinite(value) || value <= 0 ? fallback : Math.floor(value);
+const positiveInteger = (value: number | undefined, fallback: number): number => {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) return fallback;
+  return Math.floor(value);
+};
 
-const nonNegativeInteger = (value: number | undefined, fallback: number): number =>
-  value === undefined || !Number.isFinite(value) || value < 0 ? fallback : Math.floor(value);
+const nonNegativeInteger = (value: number | undefined, fallback: number): number => {
+  if (value === undefined || !Number.isFinite(value) || value < 0) return fallback;
+  return Math.floor(value);
+};
 
 const resolvedOptions = (options: QueueConsumerOptions | undefined) => ({
   batchSize: positiveInteger(options?.batchSize, defaultOptions.batchSize),
@@ -60,15 +65,33 @@ class HandlerRetry {
   readonly _tag = "HandlerRetry";
 }
 
+const isHandlerRetry = (error: unknown): error is HandlerRetry => {
+  if (typeof error !== "object" || error === null) return false;
+  if (!("_tag" in error)) return false;
+  return error._tag === "HandlerRetry";
+};
+
+/** Raised when a message has no JSON representation, such as `undefined`. */
+class NonSerializableMessageError extends Data.TaggedError("NonSerializableMessageError")<{
+  readonly message: string;
+}> {}
+
+const encodeJsonText = SchemaParser.encodeUnknownEffect(Schema.UnknownFromJsonString);
+const decodeJsonText = SchemaParser.decodeUnknownEffect(Schema.UnknownFromJsonString);
+
 const encodeJson = (value: unknown): Effect.Effect<string, unknown> =>
-  Effect.try({
-    try: () => {
-      const encoded = JSON.stringify(value);
-      if (encoded === undefined) throw new TypeError("Queue messages must be JSON-serializable");
-      return encoded;
-    },
-    catch: (cause) => cause,
-  });
+  encodeJsonText(value).pipe(
+    Effect.flatMap((encoded) => {
+      // `JSON.stringify` yields `undefined` rather than text for values with no
+      // JSON representation, and the schema encoder passes that through.
+      if (encoded === undefined) {
+        return new NonSerializableMessageError({
+          message: "Queue messages must be JSON-serializable",
+        });
+      }
+      return Effect.succeed(encoded);
+    }),
+  );
 
 const makeQueueDriver = (
   factory: PersistedQueue.PersistedQueueFactory["Service"],
@@ -87,9 +110,9 @@ const makeQueueDriver = (
       const existing = queues.get(queueName);
       if (existing) return Effect.succeed(existing);
       return factory.make({ name: queueName, schema: transportSchema }).pipe(
-        Effect.tap((queue) => Effect.sync(() => void queues.set(queueName, queue as TransportQueue))),
+        Effect.tap((queue) => Effect.sync(() => void queues.set(queueName, queue))),
         Effect.orDie,
-      ) as unknown as Effect.Effect<TransportQueue>;
+      );
     });
 
   const producer = <A, I>(
@@ -146,10 +169,7 @@ const makeQueueDriver = (
         (body, metadata) =>
           Effect.gen(function* () {
             claim.claimed = true;
-            const parsed = yield* Effect.try({
-              try: () => JSON.parse(body) as unknown,
-              catch: (cause) => cause,
-            }).pipe(
+            const parsed = yield* decodeJsonText(body).pipe(
               Effect.matchEffect({
                 onFailure: () => Effect.succeedNone,
                 onSuccess: (value: unknown) => Effect.succeedSome(value),
@@ -234,13 +254,11 @@ const makeQueueDriver = (
           // scope closes, so the claim is reported rather than raised. Catching
           // outside the scope is what lets the store see the failure at all.
           // Store and SQL failures are deliberately left to propagate.
-          Effect.catchIf(
-            (error): error is HandlerRetry =>
-              typeof error === "object" && error !== null && "_tag" in error &&
-              (error as { _tag?: unknown })._tag === "HandlerRetry",
-            () => Effect.void,
-          ),
-          Effect.map(() => (claim.claimed ? 1 : 0)),
+          Effect.catchIf(isHandlerRetry, () => Effect.void),
+          Effect.map(() => {
+            if (claim.claimed) return 1;
+            return 0;
+          }),
         ),
       ),
       Effect.mapError((cause) => consumerError(queueName, cause)),
@@ -267,7 +285,7 @@ const makeQueueDriver = (
         ),
       );
     },
-  } as QueueDriverShape;
+  };
 };
 
 /**

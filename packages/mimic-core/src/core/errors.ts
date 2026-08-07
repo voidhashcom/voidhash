@@ -1,4 +1,6 @@
-export const ErrorCodes = {
+import { constant } from "../internal/lang.ts";
+
+export const ErrorCodes = constant({
   InvalidCommand: "invalid_command",
   InvalidPath: "invalid_path",
   TypeMismatch: "type_mismatch",
@@ -13,15 +15,20 @@ export const ErrorCodes = {
   TreeCycle: "tree_cycle",
   TreeNodeValueMustBeObject: "tree_node_value_must_be_object",
   ReservedIdentifier: "reserved_identifier",
-} as const;
+});
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+const formatMessage = (code: ErrorCode, message: string): string => {
+  if (message) return `${code}: ${message}`;
+  return code;
+};
 
 export class CoreError extends Error {
   readonly code: ErrorCode;
 
   constructor(code: ErrorCode, message = "") {
-    super(message ? `${code}: ${message}` : code);
+    super(formatMessage(code, message));
     this.name = "CoreError";
     this.code = code;
   }

@@ -8,7 +8,7 @@ import {
   type PreviewTree,
 } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
 import { sandboxRuntimeBundle } from "@voidhash/paywalls/sandbox-bundle";
-import { Schema } from "effect";
+import { Duration, Effect, Result, Schema } from "effect";
 
 import { SANDBOX_DOCUMENT } from "./sandbox-document";
 
@@ -88,12 +88,19 @@ export class SandboxHost {
 
   render(compiledCode: string): Promise<SandboxOutcome> {
     if (this.destroyed || typeof document === "undefined") {
-      return Promise.resolve({ error: "sandbox unavailable", ok: false });
+      return Effect.runPromise(
+        Effect.succeed<SandboxOutcome>({ error: "sandbox unavailable", ok: false }),
+      );
     }
-    return new Promise<SandboxOutcome>((resolve) => {
-      this.queue.push({ compiledCode, resolve });
-      void this.pump();
-    });
+    return Effect.runPromise(
+      Effect.callback<SandboxOutcome>((resume) => {
+        this.queue.push({
+          compiledCode,
+          resolve: (result) => resume(Effect.succeed(result)),
+        });
+        void this.pump();
+      }),
+    );
   }
 
   /**
@@ -131,10 +138,16 @@ export class SandboxHost {
     // Bound the ready wait: a sandbox that never signals ready (blocked load /
     // CSP) must surface an error, not hang the whole compile forever. Restart so
     // the NEXT queued render gets a fresh attempt.
-    const ready = await Promise.race([
-      this.readyPromise.then(() => true),
-      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), READY_TIMEOUT_MS)),
-    ]);
+    const readyPromise = this.readyPromise;
+    const ready = await Effect.runPromise(
+      Effect.promise(() => readyPromise).pipe(
+        Effect.as(true),
+        Effect.timeoutOrElse({
+          duration: Duration.millis(READY_TIMEOUT_MS),
+          orElse: () => Effect.succeed(false),
+        }),
+      ),
+    );
     if (this.destroyed) {
       // Destroyed mid-await: this job was already shifted off the queue, so
       // `destroy` never saw it — resolve it here so its caller isn't stranded.
@@ -196,9 +209,18 @@ export class SandboxHost {
     iframe.title = "Paywall component sandbox";
     iframe.style.display = "none";
     iframe.srcdoc = SANDBOX_DOCUMENT;
-    this.readyPromise = new Promise((resolve) => {
-      this.readyResolve = resolve;
-    });
+    // `Effect.callback`'s register runs synchronously when the fiber is forked,
+    // so `readyResolve` is set before `mount` returns.
+    this.readyPromise = Effect.runPromise(
+      Effect.callback<void>((resume) => {
+        // Cleared before resuming so a repeated `ready` message is a no-op,
+        // matching `Promise` resolve idempotency.
+        this.readyResolve = () => {
+          this.readyResolve = null;
+          resume(Effect.void);
+        };
+      }),
+    );
     window.addEventListener("message", this.handleMessage);
     document.body.appendChild(iframe);
     this.iframe = iframe;
@@ -240,11 +262,14 @@ export class SandboxHost {
     if (!raw.ok) {
       return { error: raw.error ?? "unknown render error", ok: false };
     }
-    let manifest: ComponentManifest;
-    try {
-      manifest = decodeManifest(raw.manifest);
-    } catch (error) {
-      return { error: `invalid manifest: ${errorMessage(error)}`, ok: false };
+    const manifest = Effect.runSync(
+      Effect.try({
+        try: (): ComponentManifest => decodeManifest(raw.manifest),
+        catch: errorMessage,
+      }).pipe(Effect.result),
+    );
+    if (Result.isFailure(manifest)) {
+      return { error: `invalid manifest: ${manifest.failure}`, ok: false };
     }
     const previewTrees: Record<string, PreviewTree> = {};
     for (const [state, tree] of Object.entries(raw.previewTrees ?? {})) {
@@ -252,7 +277,7 @@ export class SandboxHost {
     }
     // `hasPanel` is host-only preview metadata (not part of the strict manifest
     // schema): coerce to a plain boolean, defaulting false for older guests.
-    return { hasPanel: raw.hasPanel === true, manifest, ok: true, previewTrees };
+    return { hasPanel: raw.hasPanel === true, manifest: manifest.success, ok: true, previewTrees };
   }
 
   /**
@@ -280,23 +305,37 @@ export class SandboxHost {
 }
 
 function validateTree(tree: unknown, state: string): PreviewTree {
-  try {
-    const size = new TextEncoder().encode(JSON.stringify(tree)).byteLength;
-    if (size > SIZE_CAPS.previewTree) {
-      throw new Error("preview tree exceeds size cap");
-    }
-    const decoded = decodeTree(tree);
-    if (countSlotNodes(decoded.root) > 1) {
-      throw new Error("a component may declare at most one <Slot />");
-    }
-    return decoded;
-  } catch (error) {
+  const outcome = Effect.runSync(
+    Effect.gen(function* () {
+      const size = yield* Effect.try({
+        try: () => new TextEncoder().encode(JSON.stringify(tree)).byteLength,
+        catch: errorMessage,
+      });
+      if (size > SIZE_CAPS.previewTree) {
+        return yield* Effect.fail("preview tree exceeds size cap");
+      }
+      const decoded = yield* Effect.try({
+        try: (): PreviewTree => decodeTree(tree),
+        catch: errorMessage,
+      });
+      const slots = yield* Effect.try({
+        try: () => countSlotNodes(decoded.root),
+        catch: errorMessage,
+      });
+      if (slots > 1) {
+        return yield* Effect.fail("a component may declare at most one <Slot />");
+      }
+      return decoded;
+    }).pipe(Effect.result),
+  );
+  if (Result.isFailure(outcome)) {
     return {
-      root: { reason: `invalid preview: ${errorMessage(error)}`, type: "placeholder" },
+      root: { reason: `invalid preview: ${outcome.failure}`, type: "placeholder" },
       state,
       treeVersion: 1,
     };
   }
+  return outcome.success;
 }
 
 function errorMessage(error: unknown): string {

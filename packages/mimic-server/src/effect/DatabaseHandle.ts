@@ -50,14 +50,8 @@ export class DatabaseHandle {
    * Lists collections with their stored schema JSON. Same response as
    * `listCollectionsRaw`, included on the typed handle for convenience.
    */
-  listCollections() {
-    return this.sdk.runEffect(
-      (client) =>
-        client.ListCollections({ databaseId: this.id }) as Effect.Effect<
-          readonly CollectionInfo[],
-          unknown
-        >,
-    );
+  listCollections(): Effect.Effect<readonly CollectionInfo[], unknown> {
+    return this.sdk.runEffect((client) => client.ListCollections({ databaseId: this.id }));
   }
 
   deleteCollection(collectionId: string) {

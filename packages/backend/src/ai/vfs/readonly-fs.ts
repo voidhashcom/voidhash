@@ -5,8 +5,15 @@
  * mount point, so every path this filesystem sees is already mount-relative
  * (`/` = the mount root). Listings and contents are resolved on demand from the
  * provider — nothing is materialized up front — which keeps `ls /paywalls`
- * cheap while `grep -r` still reaches every file. All mutations throw `EROFS`.
+ * cheap while `grep -r` still reaches every file. All mutations fail with
+ * `EROFS`.
+ *
+ * `IFileSystem` is a Promise-shaped contract, so every operation is modelled as
+ * an Effect internally and run at the class boundary: `Effect.runPromise`
+ * rejects with the squashed cause, i.e. the exact {@link ReadOnlyFsError}
+ * instance just-bash reads `message` off.
  */
+import { Data, DateTime, Effect } from "effect";
 import type { FsStat, IFileSystem } from "just-bash/browser";
 
 type DirentEntry = Awaited<ReturnType<NonNullable<IFileSystem["readdirWithFileTypes"]>>>[number];
@@ -32,21 +39,32 @@ export interface ReadOnlyDirProvider {
   readFile(relPath: string): Promise<string | null>;
 }
 
+/**
+ * A filesystem failure surfaced to just-bash. It stays an `Error` subclass
+ * because just-bash renders failures by reading `message` off `instanceof Error`
+ * values.
+ */
+class ReadOnlyFsError extends Data.TaggedError("ReadOnlyFsError")<{
+  readonly message: string;
+}> {}
+
 // Error messages mirror just-bash's own InMemoryFs formats exactly — its
 // coreutils branch on the `ENOENT:`/`EISDIR:`/... message prefixes when
 // rendering `cat`/`ls` failures.
-const enoent = (syscall: string, path: string): Error =>
-  new Error(`ENOENT: no such file or directory, ${syscall} '${path}'`);
-const eisdir = (syscall: string, path: string): Error =>
-  new Error(`EISDIR: illegal operation on a directory, ${syscall} '${path}'`);
-const enotdir = (syscall: string, path: string): Error =>
-  new Error(`ENOTDIR: not a directory, scandir '${path}'`);
-const einval = (syscall: string, path: string): Error =>
-  new Error(`EINVAL: invalid argument, ${syscall} '${path}'`);
-const erofs = (syscall: string, path: string): Error =>
-  new Error(
-    `EROFS: read-only file system, ${syscall} '${path}' — this folder is a read-only projection; use /tmp for scratch files`,
-  );
+const enoent = (syscall: string, path: string): ReadOnlyFsError =>
+  new ReadOnlyFsError({ message: `ENOENT: no such file or directory, ${syscall} '${path}'` });
+const eisdir = (syscall: string, path: string): ReadOnlyFsError =>
+  new ReadOnlyFsError({
+    message: `EISDIR: illegal operation on a directory, ${syscall} '${path}'`,
+  });
+const enotdir = (syscall: string, path: string): ReadOnlyFsError =>
+  new ReadOnlyFsError({ message: `ENOTDIR: not a directory, scandir '${path}'` });
+const einval = (syscall: string, path: string): ReadOnlyFsError =>
+  new ReadOnlyFsError({ message: `EINVAL: invalid argument, ${syscall} '${path}'` });
+const erofs = (syscall: string, path: string): ReadOnlyFsError =>
+  new ReadOnlyFsError({
+    message: `EROFS: read-only file system, ${syscall} '${path}' — this folder is a read-only projection; use /tmp for scratch files`,
+  });
 
 /** Resolve `.`/`..` segments of an absolute POSIX path (no symlinks to follow). */
 const normalizePath = (path: string): string => {
@@ -70,7 +88,7 @@ const FILE_MODE = 0o644;
 const DIR_MODE = 0o755;
 
 export class LazyReadOnlyFs implements IFileSystem {
-  private readonly mtime = new Date();
+  private readonly mtime = DateTime.toDateUtc(DateTime.nowUnsafe());
   private readonly pathPrefix: string;
   private readonly provider: ReadOnlyDirProvider;
 
@@ -84,105 +102,158 @@ export class LazyReadOnlyFs implements IFileSystem {
   // re-prefix with the mount point to keep messages in the user's vocabulary.
   private display(path: string): string {
     const normalized = normalizePath(path);
-    return normalized === "/" ? this.pathPrefix || "/" : `${this.pathPrefix}${normalized}`;
-  }
-
-  async readFile(path: string): Promise<string> {
-    const content = await this.provider.readFile(relative(path));
-    if (content !== null) {
-      return content;
+    if (normalized === "/") {
+      return this.pathPrefix || "/";
     }
-    const stat = await this.provider.stat(relative(path));
-    throw stat?.kind === "dir"
-      ? eisdir("read", this.display(path))
-      : enoent("open", this.display(path));
+    return `${this.pathPrefix}${normalized}`;
   }
 
-  async readFileBuffer(path: string): Promise<Uint8Array> {
-    return new TextEncoder().encode(await this.readFile(path));
-  }
-
-  async writeFile(path: string): Promise<void> {
-    throw erofs("open", this.display(path));
-  }
-
-  async appendFile(path: string): Promise<void> {
-    throw erofs("open", this.display(path));
-  }
-
-  async exists(path: string): Promise<boolean> {
-    return (await this.provider.stat(relative(path))) !== null;
-  }
-
-  async stat(path: string): Promise<FsStat> {
-    const stat = await this.provider.stat(relative(path));
-    if (stat === null) {
-      throw enoent("stat", this.display(path));
+  private fsStat(kind: "file" | "dir", size: number): FsStat {
+    if (kind === "file") {
+      return {
+        isFile: true,
+        isDirectory: false,
+        isSymbolicLink: false,
+        mode: FILE_MODE,
+        size,
+        mtime: this.mtime,
+      };
     }
-    const size =
-      stat.kind === "file"
-        ? (stat.size ??
-          new TextEncoder().encode((await this.provider.readFile(relative(path))) ?? "").length)
-        : 0;
     return {
-      isFile: stat.kind === "file",
-      isDirectory: stat.kind === "dir",
+      isFile: false,
+      isDirectory: true,
       isSymbolicLink: false,
-      mode: stat.kind === "file" ? FILE_MODE : DIR_MODE,
+      mode: DIR_MODE,
       size,
       mtime: this.mtime,
     };
   }
 
-  async lstat(path: string): Promise<FsStat> {
+  private readFileEffect(path: string): Effect.Effect<string, ReadOnlyFsError> {
+    return Effect.gen({ self: this }, function* () {
+      const content = yield* Effect.promise(() => this.provider.readFile(relative(path)));
+      if (content !== null) {
+        return content;
+      }
+      const stat = yield* Effect.promise(() => this.provider.stat(relative(path)));
+      if (stat?.kind === "dir") {
+        return yield* eisdir("read", this.display(path));
+      }
+      return yield* enoent("open", this.display(path));
+    });
+  }
+
+  private statEffect(path: string): Effect.Effect<FsStat, ReadOnlyFsError> {
+    return Effect.gen({ self: this }, function* () {
+      const stat = yield* Effect.promise(() => this.provider.stat(relative(path)));
+      if (stat === null) {
+        return yield* enoent("stat", this.display(path));
+      }
+      if (stat.kind !== "file") {
+        return this.fsStat(stat.kind, 0);
+      }
+      if (stat.size !== undefined) {
+        return this.fsStat("file", stat.size);
+      }
+      const content = yield* Effect.promise(() => this.provider.readFile(relative(path)));
+      return this.fsStat("file", new TextEncoder().encode(content ?? "").length);
+    });
+  }
+
+  private existsEffect(path: string): Effect.Effect<boolean> {
+    return Effect.map(
+      Effect.promise(() => this.provider.stat(relative(path))),
+      (stat) => stat !== null,
+    );
+  }
+
+  /** Provider listing of a directory, failing the way `scandir` does. */
+  private listEffect(
+    path: string,
+  ): Effect.Effect<ReadonlyArray<ReadOnlyDirEntry>, ReadOnlyFsError> {
+    return Effect.gen({ self: this }, function* () {
+      const entries = yield* Effect.promise(() => this.provider.readdir(relative(path)));
+      if (entries !== null) {
+        return entries;
+      }
+      const stat = yield* Effect.promise(() => this.provider.stat(relative(path)));
+      if (stat === null) {
+        return yield* enoent("scandir", this.display(path));
+      }
+      return yield* enotdir("scandir", this.display(path));
+    });
+  }
+
+  readFile(path: string): Promise<string> {
+    return Effect.runPromise(this.readFileEffect(path));
+  }
+
+  readFileBuffer(path: string): Promise<Uint8Array> {
+    return Effect.runPromise(
+      Effect.map(this.readFileEffect(path), (content) => new TextEncoder().encode(content)),
+    );
+  }
+
+  writeFile(path: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("open", this.display(path))));
+  }
+
+  appendFile(path: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("open", this.display(path))));
+  }
+
+  exists(path: string): Promise<boolean> {
+    return Effect.runPromise(this.existsEffect(path));
+  }
+
+  stat(path: string): Promise<FsStat> {
+    return Effect.runPromise(this.statEffect(path));
+  }
+
+  lstat(path: string): Promise<FsStat> {
     return this.stat(path);
   }
 
-  async mkdir(path: string): Promise<void> {
-    throw erofs("mkdir", this.display(path));
+  mkdir(path: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("mkdir", this.display(path))));
   }
 
-  async readdir(path: string): Promise<string[]> {
-    const entries = await this.provider.readdir(relative(path));
-    if (entries === null) {
-      const stat = await this.provider.stat(relative(path));
-      throw stat === null
-        ? enoent("scandir", this.display(path))
-        : enotdir("scandir", this.display(path));
-    }
-    return entries.map((entry) => entry.name);
+  readdir(path: string): Promise<string[]> {
+    return Effect.runPromise(
+      Effect.map(this.listEffect(path), (entries) => entries.map((entry) => entry.name)),
+    );
   }
 
-  async readdirWithFileTypes(path: string): Promise<DirentEntry[]> {
-    const entries = await this.provider.readdir(relative(path));
-    if (entries === null) {
-      const stat = await this.provider.stat(relative(path));
-      throw stat === null
-        ? enoent("scandir", this.display(path))
-        : enotdir("scandir", this.display(path));
-    }
-    return entries.map((entry) => ({
-      name: entry.name,
-      isFile: entry.kind === "file",
-      isDirectory: entry.kind === "dir",
-      isSymbolicLink: false,
-    }));
+  readdirWithFileTypes(path: string): Promise<DirentEntry[]> {
+    return Effect.runPromise(
+      Effect.map(this.listEffect(path), (entries) =>
+        entries.map((entry) => ({
+          name: entry.name,
+          isFile: entry.kind === "file",
+          isDirectory: entry.kind === "dir",
+          isSymbolicLink: false,
+        })),
+      ),
+    );
   }
 
-  async rm(path: string): Promise<void> {
-    throw erofs("rm", this.display(path));
+  rm(path: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("rm", this.display(path))));
   }
 
-  async cp(src: string, dest: string): Promise<void> {
-    throw erofs("cp", this.display(dest));
+  cp(src: string, dest: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("cp", this.display(dest))));
   }
 
-  async mv(src: string): Promise<void> {
-    throw erofs("rename", this.display(src));
+  mv(src: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("rename", this.display(src))));
   }
 
   resolvePath(base: string, path: string): string {
-    return path.startsWith("/") ? normalizePath(path) : normalizePath(`${base}/${path}`);
+    if (path.startsWith("/")) {
+      return normalizePath(path);
+    }
+    return normalizePath(`${base}/${path}`);
   }
 
   // Sync by contract, so a lazy backend cannot enumerate here. Nothing in
@@ -192,30 +263,35 @@ export class LazyReadOnlyFs implements IFileSystem {
     return ["/"];
   }
 
-  async chmod(path: string): Promise<void> {
-    throw erofs("chmod", this.display(path));
+  chmod(path: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("chmod", this.display(path))));
   }
 
-  async symlink(_target: string, linkPath: string): Promise<void> {
-    throw erofs("symlink", this.display(linkPath));
+  symlink(_target: string, linkPath: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("symlink", this.display(linkPath))));
   }
 
-  async link(_existingPath: string, newPath: string): Promise<void> {
-    throw erofs("link", this.display(newPath));
+  link(_existingPath: string, newPath: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("link", this.display(newPath))));
   }
 
-  async readlink(path: string): Promise<string> {
-    throw einval("readlink", this.display(path));
+  readlink(path: string): Promise<string> {
+    return Effect.runPromise(Effect.fail(einval("readlink", this.display(path))));
   }
 
-  async realpath(path: string): Promise<string> {
-    if (!(await this.exists(path))) {
-      throw enoent("realpath", this.display(path));
-    }
-    return normalizePath(path);
+  realpath(path: string): Promise<string> {
+    return Effect.runPromise(
+      Effect.gen({ self: this }, function* () {
+        const found = yield* this.existsEffect(path);
+        if (!found) {
+          return yield* enoent("realpath", this.display(path));
+        }
+        return normalizePath(path);
+      }),
+    );
   }
 
-  async utimes(path: string): Promise<void> {
-    throw erofs("utimes", this.display(path));
+  utimes(path: string): Promise<void> {
+    return Effect.runPromise(Effect.fail(erofs("utimes", this.display(path))));
   }
 }

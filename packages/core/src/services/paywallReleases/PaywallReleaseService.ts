@@ -11,7 +11,8 @@ import {
   eq,
   paywallReleases,
 } from "@voidhash/db";
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 
 import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
 import {
@@ -24,6 +25,8 @@ import { PaywallAssetConfig } from "../paywallLocations/PaywallAssetConfig.ts";
 import { collectDeployedComponentContentHashes } from "../paywallThumbnails/PaywallThumbnailService.ts";
 import { MimicHost } from "../paywalls/MimicHost.ts";
 import { SnapshotHtmlRenderer } from "./SnapshotHtmlRenderer.ts";
+
+const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
 
 const CURRENT_SCHEMA_VERSION = 1;
 const PREVIEW_STATE = "default";
@@ -64,17 +67,19 @@ type DomainReleaseError =
   | PaywallReleaseError
   | ReleaseNotFoundError;
 
+/** Narrows a caught error to the domain errors the service re-raises unchanged. */
+const isDomainReleaseError = <E>(error: E): error is Extract<E, DomainReleaseError> =>
+  error instanceof ActionForbiddenError ||
+  error instanceof PaywallNotFoundError ||
+  error instanceof PaywallReleaseError ||
+  error instanceof ReleaseNotFoundError;
+
 const preserveDomainErrors = <E>(
   operation: string,
   error: E,
 ): Extract<E, DomainReleaseError> | PaywallReleaseError => {
-  if (
-    error instanceof ActionForbiddenError ||
-    error instanceof PaywallNotFoundError ||
-    error instanceof PaywallReleaseError ||
-    error instanceof ReleaseNotFoundError
-  ) {
-    return error as Extract<E, DomainReleaseError>;
+  if (isDomainReleaseError(error)) {
+    return error;
   }
   return new PaywallReleaseError({
     cause: error,
@@ -124,10 +129,7 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
               componentServingPreviewKey(contentHash, PREVIEW_STATE),
             );
             if (object === null) continue;
-            const decoded = yield* Effect.try({
-              try: (): unknown => JSON.parse(new TextDecoder().decode(object.body)),
-              catch: () => null,
-            }).pipe(Effect.orElseSucceed(() => null));
+            const decoded = Option.getOrNull(decodeJson(new TextDecoder().decode(object.body)));
             if (decoded !== null) {
               trees[contentHash] = { [PREVIEW_STATE]: decoded };
             }
@@ -158,7 +160,7 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
             where: { paywallId, status: ReleaseStatus.released },
           });
           const version = (latestReleased?.version ?? 0) + 1;
-          const createdAt = new Date();
+          const createdAt = yield* DateTime.nowAsDate;
           const html = yield* renderer.render({
             componentTrees,
             metadata: {
@@ -261,7 +263,7 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
             return yield* Effect.fail(new ReleaseNotFoundError({ releaseId: draftId }));
           }
           const { paywall } = yield* loadPaywallForWrite(draft.paywallId, "publish");
-          const publishedAt = new Date();
+          const publishedAt = yield* DateTime.nowAsDate;
           const existing = yield* db.query.paywallReleases.findFirst({
             where: {
               paywallId: draft.paywallId,
@@ -325,7 +327,7 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
         (effect) => effect.pipe(Effect.mapError((error) => preserveDomainErrors("publish", error))),
       );
 
-      return { createRelease, getDraftRelease, publishRelease } as const;
+      return constant({ createRelease, getDraftRelease, publishRelease });
     }),
   },
 ) {

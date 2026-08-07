@@ -1,4 +1,5 @@
 import type { Db } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { AnalyticsWriterService } from "../analyticsIngest/AnalyticsWriterService.ts";
@@ -45,18 +46,35 @@ export interface IdentityProjectionInput {
   readonly personEvents: ReadonlyArray<PersonSnapshotEventV1>;
 }
 
+/** Only the optional snapshot fields that actually carry a value. */
+const personOptionalFields = (
+  event: PersonSnapshotEventV1,
+): Pick<
+  Partial<ProcessorPersonEventV1>,
+  "email" | "mergedIntoPersonId" | "name" | "primaryDistinctId"
+> => {
+  const fields: {
+    email?: string;
+    mergedIntoPersonId?: string;
+    name?: string;
+    primaryDistinctId?: string;
+  } = {};
+  if (event.email) fields.email = event.email;
+  if (event.mergedIntoPersonId) fields.mergedIntoPersonId = event.mergedIntoPersonId;
+  if (event.name) fields.name = event.name;
+  if (event.primaryDistinctId) fields.primaryDistinctId = event.primaryDistinctId;
+  return fields;
+};
+
 const toProcessorPersonEvent = (event: PersonSnapshotEventV1): ProcessorPersonEventV1 => ({
   changedAt: event.changedAt,
   personId: event.personId,
-  ...(event.email ? { email: event.email } : {}),
   isArchived: event.isArchived,
-  ...(event.mergedIntoPersonId ? { mergedIntoPersonId: event.mergedIntoPersonId } : {}),
-  ...(event.name ? { name: event.name } : {}),
-  ...(event.primaryDistinctId ? { primaryDistinctId: event.primaryDistinctId } : {}),
   projectId: event.projectId,
   schemaVersion: event.schemaVersion,
   traits: event.traits,
   version: event.version,
+  ...personOptionalFields(event),
 });
 
 const toProcessorPersonIdentityEvent = ({
@@ -66,18 +84,25 @@ const toProcessorPersonIdentityEvent = ({
   readonly identityDistinctId: string;
   readonly mappingEvent: PersonIdentityEventV1;
 }): ProcessorPersonIdentityEventV1 => {
-  const previousDistinctId =
-    mappingEvent.distinctId === identityDistinctId ? undefined : mappingEvent.distinctId;
-
-  return {
+  const base = {
     changedAt: mappingEvent.changedAt,
     personId: mappingEvent.personId,
-    distinctId: previousDistinctId ? identityDistinctId : mappingEvent.distinctId,
     isDeleted: mappingEvent.isDeleted,
-    ...(previousDistinctId ? { previousDistinctId } : {}),
     projectId: mappingEvent.projectId,
     schemaVersion: mappingEvent.schemaVersion,
     version: mappingEvent.version,
+  };
+
+  // A mapping event on the identity's own distinct id is not an alias, so it
+  // carries no previous distinct id.
+  if (!mappingEvent.distinctId || mappingEvent.distinctId === identityDistinctId) {
+    return { ...base, distinctId: mappingEvent.distinctId };
+  }
+
+  return {
+    ...base,
+    distinctId: identityDistinctId,
+    previousDistinctId: mappingEvent.distinctId,
   };
 };
 
@@ -121,12 +146,12 @@ export class IdentityProjectionPublisher extends Context.Service<
           return writer
             .writeMessages([
               ...personMessages.map((person) => ({
-                kind: "person" as const,
+                kind: constant("person"),
                 messageId: `${person.projectId}:${person.personId}:${person.version}`,
                 value: person,
               })),
               ...identityMessages.map((identity) => ({
-                kind: "person-distinct-id" as const,
+                kind: constant("person-distinct-id"),
                 messageId: `${identity.projectId}:${identity.distinctId}:${identity.version}`,
                 value: identity,
               })),

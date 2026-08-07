@@ -7,6 +7,13 @@ import {
   STYLE_GROUP_FLAG_BY_FIELD,
   type SerializedSchema,
 } from "@voidhash/ai-shared";
+import { Schema } from "effect";
+
+/** Renders a schema literal or default as JSON text for the generated prompt. */
+const jsonText = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 
 /**
  * Authoring guide appended to the designer-surface system prompt. The document
@@ -31,7 +38,7 @@ import {
 function styleValueLabel(field: string, schema: SerializedSchema): string {
   const acc = acceptanceOf(schema);
   if (acc.literals.length > 0 && !acc.acceptsNumber && !acc.acceptsString && !acc.acceptsBoolean) {
-    return acc.literals.map((literal) => JSON.stringify(literal)).join(" | ");
+    return acc.literals.map((literal) => jsonText(literal)).join(" | ");
   }
   if (acc.isStructured) return "object";
   // Colors are `rgba(r, g, b, a)` strings — the schema can't distinguish them
@@ -66,7 +73,20 @@ function autoManagedAnnotation(flagField: string): string {
 /** The schema default for one style field of a node type, or `undefined` if it has none. */
 function styleFieldDefault(type: NodeType, field: string): unknown {
   const style = nodeDefaultData(type)["style"];
-  return style && typeof style === "object" ? (style as Record<string, unknown>)[field] : undefined;
+  if (!isRecord(style)) return undefined;
+  return style[field];
+}
+
+/** `default <json>` for a field that declares one, `no default` otherwise. */
+function styleFieldDefaultText(defaultValue: unknown): string {
+  if (defaultValue === undefined) return "no default";
+  return `default ${jsonText(defaultValue)}`;
+}
+
+/** The AUTO-MANAGED note for a style-group flag field, or an empty suffix. */
+function autoManagedSuffix(field: string): string {
+  if (AUTO_MANAGED_FLAG_FIELDS.has(field)) return autoManagedAnnotation(field);
+  return "";
 }
 
 /**
@@ -85,9 +105,8 @@ function renderStyleReference(type: NodeType): string {
   const lines = fields.map((field) => {
     const label = styleValueLabel(field, styleSchema.fields[field]!);
     const defaultValue = styleFieldDefault(type, field);
-    const defaultText =
-      defaultValue === undefined ? "no default" : `default ${JSON.stringify(defaultValue)}`;
-    const annotation = AUTO_MANAGED_FLAG_FIELDS.has(field) ? autoManagedAnnotation(field) : "";
+    const defaultText = styleFieldDefaultText(defaultValue);
+    const annotation = autoManagedSuffix(field);
     return `- \`${field}\`: ${label} (${defaultText})${annotation}`;
   });
   return lines.join("\n");
@@ -114,9 +133,8 @@ const AUTHORABLE_PARENT_TYPES: readonly NodeType[] = NODE_TYPES.filter(
 
 const CONTAINMENT_REFERENCE = AUTHORABLE_PARENT_TYPES.map((type) => {
   const children = ALLOWED_CHILDREN_BY_NODE_TYPE[type];
-  return children.length > 0
-    ? `- \`${type}\` may contain: ${children.map((child) => `\`${child}\``).join(", ")}`
-    : `- \`${type}\` is a leaf (no child nodes).`;
+  if (children.length === 0) return `- \`${type}\` is a leaf (no child nodes).`;
+  return `- \`${type}\` may contain: ${children.map((child) => `\`${child}\``).join(", ")}`;
 }).join("\n");
 
 let cachedSkill: string | undefined;

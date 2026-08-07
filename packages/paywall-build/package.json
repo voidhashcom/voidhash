@@ -32,10 +32,13 @@
     "generate:libs": "tsx scripts/generate-libs.ts"
   },
   "dependencies": {
+    "@voidhash/lib": "workspace:*",
     "@voidhash/paywalls": "workspace:*",
+    "effect": "catalog:",
     "typescript": "6.0.3"
   },
   "devDependencies": {
+    "@effect/platform-node": "catalog:",
     "@types/node": "^20",
     "@voidhash/tsconfig": "workspace:*",
     "esbuild": "^0.25.10",

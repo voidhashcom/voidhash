@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { CronScheduler, type CronJobContext } from "../CronScheduler.ts";
@@ -13,6 +13,9 @@ export interface CronConformanceOptions {
 
 const MINUTELY = "* * * * *";
 
+/** Builds a fixed instant from its ISO representation. */
+const instant = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
 /**
  * Behaviour every cron scheduler must exhibit.
  *
@@ -22,12 +25,8 @@ const MINUTELY = "* * * * *";
  * new job does not immediately execute it.
  */
 export const cronSchedulerConformance = (options: CronConformanceOptions): void => {
-  const run = <A, E>(
-    effect: Effect.Effect<A, E, CronScheduler | PlatformRuntime>,
-  ): Promise<A> =>
-    Effect.runPromise(
-      Effect.scoped(effect.pipe(Effect.provide(options.layer()))) as Effect.Effect<A, E>,
-    );
+  const run = <A, E>(effect: Effect.Effect<A, E, CronScheduler | PlatformRuntime>): Promise<A> =>
+    Effect.runPromise(Effect.scoped(effect.pipe(Effect.provide(options.layer()))));
 
   const job = (name: string, contexts: Array<CronJobContext>) => ({
     name,
@@ -36,70 +35,66 @@ export const cronSchedulerConformance = (options: CronConformanceOptions): void 
   });
 
   describe(`${options.name}: cron scheduler conformance`, () => {
-    it("arms a newly seen schedule without running it", async () => {
-      const contexts: Array<CronJobContext> = [];
-
-      const ran = await run(
+    it("arms a newly seen schedule without running it", () =>
+      run(
         Effect.gen(function* () {
+          const contexts: Array<CronJobContext> = [];
           const scheduler = yield* CronScheduler;
-          return yield* scheduler.tick(job("conformance-arm", contexts), new Date());
+          const now = yield* DateTime.nowAsDate;
+          const ran = yield* scheduler.tick(job("conformance-arm", contexts), now);
+
+          expect(ran).toBe(false);
+          expect(contexts).toEqual([]);
         }),
-      );
+      ));
 
-      expect(ran).toBe(false);
-      expect(contexts).toEqual([]);
-    });
-
-    it("runs a due slot exactly once", async () => {
-      const contexts: Array<CronJobContext> = [];
-      const start = new Date("2026-01-01T00:00:30.000Z");
-      // One minute later the armed slot is due; the slot after it is not.
-      const later = new Date("2026-01-01T00:01:30.000Z");
-
-      const [armed, due, repeated] = await run(
+    it("runs a due slot exactly once", () =>
+      run(
         Effect.gen(function* () {
+          const contexts: Array<CronJobContext> = [];
+          const start = instant("2026-01-01T00:00:30.000Z");
+          // One minute later the armed slot is due; the slot after it is not.
+          const later = instant("2026-01-01T00:01:30.000Z");
+
           const scheduler = yield* CronScheduler;
           const definition = job("conformance-slot", contexts);
           const armed = yield* scheduler.tick(definition, start);
           const due = yield* scheduler.tick(definition, later);
           const repeated = yield* scheduler.tick(definition, later);
-          return [armed, due, repeated] as const;
+
+          expect(armed).toBe(false);
+          expect(due).toBe(true);
+          // The slot already ran, and the following slot is not yet due.
+          expect(repeated).toBe(false);
+          expect(contexts).toHaveLength(1);
         }),
-      );
+      ));
 
-      expect(armed).toBe(false);
-      expect(due).toBe(true);
-      // The slot already ran, and the following slot is not yet due.
-      expect(repeated).toBe(false);
-      expect(contexts).toHaveLength(1);
-    });
-
-    it("marks a late slot as a catch-up run", async () => {
-      const contexts: Array<CronJobContext> = [];
-      const start = new Date("2026-01-01T00:00:30.000Z");
-      const late = new Date("2026-01-01T01:00:30.000Z");
-
-      await run(
+    it("marks a late slot as a catch-up run", () =>
+      run(
         Effect.gen(function* () {
+          const contexts: Array<CronJobContext> = [];
+          const start = instant("2026-01-01T00:00:30.000Z");
+          const late = instant("2026-01-01T01:00:30.000Z");
+
           const scheduler = yield* CronScheduler;
           const definition = job("conformance-catchup", contexts);
           yield* scheduler.tick(definition, start);
           yield* scheduler.tick(definition, late);
+
+          expect(contexts).toHaveLength(1);
+          expect(contexts[0]?.catchUp).toBe(true);
+          // The slot reported is the one that was due, not the current time.
+          expect(contexts[0]?.scheduledTime.getTime()).toBeLessThan(late.getTime());
         }),
-      );
+      ));
 
-      expect(contexts).toHaveLength(1);
-      expect(contexts[0]?.catchUp).toBe(true);
-      // The slot reported is the one that was due, not the current time.
-      expect(contexts[0]?.scheduledTime.getTime()).toBeLessThan(late.getTime());
-    });
-
-    it("surfaces a failing job as a scheduler error", async () => {
-      const start = new Date("2026-01-01T00:00:30.000Z");
-      const later = new Date("2026-01-01T00:01:30.000Z");
-
-      const exit = await run(
+    it("surfaces a failing job as a scheduler error", () =>
+      run(
         Effect.gen(function* () {
+          const start = instant("2026-01-01T00:00:30.000Z");
+          const later = instant("2026-01-01T00:01:30.000Z");
+
           const scheduler = yield* CronScheduler;
           const definition = {
             name: "conformance-failure",
@@ -107,11 +102,10 @@ export const cronSchedulerConformance = (options: CronConformanceOptions): void 
             run: () => Effect.fail("boom"),
           };
           yield* scheduler.tick(definition, start);
-          return yield* Effect.exit(scheduler.tick(definition, later));
-        }),
-      );
+          const exit = yield* Effect.exit(scheduler.tick(definition, later));
 
-      expect(exit._tag).toBe("Failure");
-    });
+          expect(exit._tag).toBe("Failure");
+        }),
+      ));
   });
 };

@@ -162,23 +162,48 @@ const getPublicUrl = (
     readonly contentHash: string | null;
   },
   urlConfig: { cdnUrl: string; publicBaseUrl: string },
-): string =>
-  release.contentHash !== null
-    ? `${urlConfig.publicBaseUrl}/${release.s3Key}`
-    : `${urlConfig.cdnUrl}/${release.s3Bucket}/${release.s3Key}`;
+): string => {
+  if (release.contentHash !== null) return `${urlConfig.publicBaseUrl}/${release.s3Key}`;
+  return `${urlConfig.cdnUrl}/${release.s3Bucket}/${release.s3Key}`;
+};
 
 /** Maps the stored `runtimeConfig` column onto the §6 resolve runtime block. */
 const toRuntimeView = (release: {
   readonly contentHash: string | null;
   readonly runtimeConfig: PaywallReleaseRuntimeConfig | null;
-}): PaywallReleaseRuntimeView | null =>
-  release.contentHash !== null && release.runtimeConfig !== null
-    ? {
-        contentHash: release.contentHash,
-        productSlugs: release.runtimeConfig.productSlugs,
-        variables: release.runtimeConfig.variables,
-      }
-    : null;
+}): PaywallReleaseRuntimeView | null => {
+  if (release.contentHash !== null && release.runtimeConfig !== null) {
+    return {
+      contentHash: release.contentHash,
+      productSlugs: release.runtimeConfig.productSlugs,
+      variables: release.runtimeConfig.variables,
+    };
+  }
+  return null;
+};
+
+/** Projects the joined paywall row, which is absent for release-only showings. */
+const toShowingPaywallView = (
+  paywall: ShowingWithRelations["paywall"],
+): PaywallLocationShowingView["paywall"] => {
+  if (paywall === null || paywall === undefined) return null;
+  return { id: paywall.id, name: paywall.name, slug: paywall.slug };
+};
+
+/** Projects the joined release row, which is absent until a showing is published. */
+const toShowingReleaseView = (
+  paywallRelease: ShowingWithRelations["paywallRelease"],
+  urlConfig: { cdnUrl: string; publicBaseUrl: string },
+): PaywallLocationShowingView["paywallRelease"] => {
+  if (paywallRelease === null || paywallRelease === undefined) return null;
+  return {
+    htmlUrl: getPublicUrl(paywallRelease, urlConfig),
+    publishedAt: paywallRelease.publishedAt,
+    releaseId: paywallRelease.id,
+    runtime: toRuntimeView(paywallRelease),
+    version: paywallRelease.version,
+  };
+};
 
 export const toShowingView = (
   showing: ShowingWithRelations,
@@ -189,26 +214,10 @@ export const toShowingView = (
   endedAt: showing.endedAt,
   featureFlagId: showing.featureFlagId,
   id: showing.id,
-  paywall:
-    showing.paywall === null || showing.paywall === undefined
-      ? null
-      : {
-          id: showing.paywall.id,
-          name: showing.paywall.name,
-          slug: showing.paywall.slug,
-        },
+  paywall: toShowingPaywallView(showing.paywall),
   paywallId: showing.paywallId,
   paywallLocationId: showing.paywallLocationId,
-  paywallRelease:
-    showing.paywallRelease === null || showing.paywallRelease === undefined
-      ? null
-      : {
-          htmlUrl: getPublicUrl(showing.paywallRelease, urlConfig),
-          publishedAt: showing.paywallRelease.publishedAt,
-          releaseId: showing.paywallRelease.id,
-          runtime: toRuntimeView(showing.paywallRelease),
-          version: showing.paywallRelease.version,
-        },
+  paywallRelease: toShowingReleaseView(showing.paywallRelease, urlConfig),
   paywallReleaseId: showing.paywallReleaseId,
   projectId: showing.projectId,
   startedAt: showing.startedAt,

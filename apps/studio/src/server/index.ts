@@ -1,3 +1,5 @@
+import { causeMessage } from "@voidhash/lib/lang";
+import { Data, Effect } from "effect";
 import { createServer, type ViteDevServer } from "vite";
 
 import { createStudioViteConfig } from "./config";
@@ -24,25 +26,37 @@ export interface StudioHandle {
 
 const DEFAULT_PORT = 4830;
 
+/** Raised when the Studio Vite dev server cannot be created or bound. */
+export class StudioStartError extends Data.TaggedError("StudioStartError")<{
+  readonly message: string;
+}> {}
+
 /**
  * Boots the Studio Vite dev server for a given project and returns a handle.
  * This is the programmatic entry point the CLI's `studio` command calls.
  */
-export const startStudio = async ({
+export const startStudio = ({
   projectRoot,
   port = DEFAULT_PORT,
-}: StartStudioOptions): Promise<StudioHandle> => {
-  const server = await createServer(createStudioViteConfig({ projectRoot, port }));
+}: StartStudioOptions): Effect.Effect<StudioHandle, StudioStartError> =>
+  Effect.gen(function* () {
+    const server = yield* Effect.tryPromise({
+      try: () => createServer(createStudioViteConfig({ projectRoot, port })),
+      catch: (cause) => new StudioStartError({ message: causeMessage(cause) }),
+    });
 
-  await server.listen();
+    yield* Effect.tryPromise({
+      try: () => server.listen(),
+      catch: (cause) => new StudioStartError({ message: causeMessage(cause) }),
+    });
 
-  const resolvedPort = server.config.server.port ?? port;
-  const url = `http://localhost:${resolvedPort}`;
+    const resolvedPort = server.config.server.port ?? port;
+    const url = `http://localhost:${resolvedPort}`;
 
-  return {
-    close: () => server.close(),
-    port: resolvedPort,
-    server,
-    url,
-  };
-};
+    return {
+      close: () => server.close(),
+      port: resolvedPort,
+      server,
+      url,
+    };
+  });

@@ -1,9 +1,31 @@
 import { and, Db, eq, PaywallEditSessionStatus, paywallEditSessions, sql } from "@voidhash/db";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
+import { constant } from "@voidhash/lib/lang";
 import { ActionForbiddenError } from "../../domain/auth/Auth.ts";
 import { generateId } from "../../utils/generate-id.ts";
 import { PaywallWorkspaceService } from "./PaywallWorkspaceService.ts";
+
+type PaywallEditSessionSource = "mcp" | "built_in";
+
+/** MCP agents connect without an agent session; the built-in designer always has one. */
+const sourceForAgentSession = (
+  agentSessionId: string | null | undefined,
+): PaywallEditSessionSource => {
+  if (agentSessionId === undefined || agentSessionId === null) return "mcp";
+  return "built_in";
+};
+
+/** Human-readable presence label shown on the collaborative document connection. */
+const connectionNameForSource = (source: PaywallEditSessionSource): string => {
+  if (source === "mcp") return "MCP Agent";
+  return "Voidhash AI";
+};
+
+const agentSessionPatch = (agentSessionId: string | undefined): { agentSessionId?: string } => {
+  if (agentSessionId === undefined) return {};
+  return { agentSessionId };
+};
 
 /** A requested paywall edit session does not exist in the authenticated project. */
 export class PaywallEditSessionNotFoundError extends Schema.TaggedErrorClass<PaywallEditSessionNotFoundError>(
@@ -97,7 +119,7 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
       }) =>
         Effect.gen(function* () {
           const session = yield* requireActive(input);
-          const source = input.agentSessionId === undefined ? "mcp" : "built_in";
+          const source = sourceForAgentSession(input.agentSessionId);
           yield* workspace
             .heartbeatDocumentConnection(session.projectId, {
               paywallId: session.paywallId,
@@ -113,7 +135,7 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
                     {
                       editSessionId: session.editSessionId,
                       source,
-                      name: source === "mcp" ? "MCP Agent" : "Voidhash AI",
+                      name: connectionNameForSource(source),
                     },
                   )
                   .pipe(Effect.asVoid),
@@ -160,16 +182,14 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
             {
               editSessionId,
               source: input.source,
-              name: input.source === "mcp" ? "MCP Agent" : "Voidhash AI",
+              name: connectionNameForSource(input.source),
             },
           );
           yield* db
             .insert(paywallEditSessions)
             .values({
               id: editSessionId,
-              ...(input.agentSessionId === undefined
-                ? {}
-                : { agentSessionId: input.agentSessionId }),
+              ...agentSessionPatch(input.agentSessionId),
               projectId: input.projectId,
               paywallId: document.paywallId,
               paywallSlug: document.slug,
@@ -282,7 +302,7 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
               }),
             );
           }
-          const now = new Date();
+          const now = yield* DateTime.nowAsDate;
           yield* db
             .update(paywallEditSessions)
             .set({
@@ -303,7 +323,7 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
               connectionId: row.id,
             })
             .pipe(Effect.ignore);
-          return { editSessionId: row.id, status: PaywallEditSessionStatus.finished } as const;
+          return constant({ editSessionId: row.id, status: PaywallEditSessionStatus.finished });
         });
 
       const revert = (projectId: string, editSessionId: string) =>
@@ -320,7 +340,10 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
           if (row.lastAgentVersion === row.baselineVersion) {
             yield* db
               .update(paywallEditSessions)
-              .set({ status: PaywallEditSessionStatus.reverted, finishedAt: new Date() })
+              .set({
+                status: PaywallEditSessionStatus.reverted,
+                finishedAt: yield* DateTime.nowAsDate,
+              })
               .where(
                 and(
                   eq(paywallEditSessions.id, editSessionId),
@@ -354,11 +377,11 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
               );
             }
           }
-          const source = row.agentSessionId === null ? "mcp" : "built_in";
+          const source = sourceForAgentSession(row.agentSessionId);
           yield* workspace.openDocumentConnection(projectId, row.paywallId, row.id, {
             editSessionId: row.id,
             source,
-            name: source === "mcp" ? "MCP Agent" : "Voidhash AI",
+            name: connectionNameForSource(source),
           });
           return yield* Effect.gen(function* () {
             const result = yield* workspace.revertConnectedDocument(
@@ -368,7 +391,10 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
             );
             yield* db
               .update(paywallEditSessions)
-              .set({ status: PaywallEditSessionStatus.reverted, finishedAt: new Date() })
+              .set({
+                status: PaywallEditSessionStatus.reverted,
+                finishedAt: yield* DateTime.nowAsDate,
+              })
               .where(
                 and(
                   eq(paywallEditSessions.id, editSessionId),
@@ -406,7 +432,7 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
           return yield* revert(projectId, editSessionId);
         });
 
-      return {
+      return constant({
         begin,
         connectActive,
         recordMutation,
@@ -415,7 +441,7 @@ export class PaywallEditSessionService extends Context.Service<PaywallEditSessio
         finish,
         revert,
         revertForAgentSession,
-      } as const;
+      });
     }),
   },
 ) {

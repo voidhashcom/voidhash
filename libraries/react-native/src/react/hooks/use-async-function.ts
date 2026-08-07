@@ -1,3 +1,4 @@
+import { Cause, Effect, Exit } from "effect";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import { UnknownVoidhashError, VoidhashError } from "../../errors";
@@ -59,30 +60,31 @@ function useAsyncFunction<T = unknown>(
     cancelRequest.current = false;
     dispatch({ type: "loading" });
 
-    try {
-      const data = await asyncFn();
+    const exit = await Effect.runPromise(
+      Effect.exit(Effect.tryPromise({ try: () => asyncFn(), catch: (error) => error })),
+    );
 
-      if (cancelRequest.current) {
-        return;
-      }
-
-      dispatch({ payload: data, type: "executed" });
-    } catch (error) {
-      if (cancelRequest.current) {
-        return;
-      }
-
-      if (error instanceof VoidhashError) {
-        dispatch({ payload: error, type: "error" });
-      }
-
-      dispatch({
-        payload: new UnknownVoidhashError(
-          error instanceof Error ? error : new Error(error as string),
-        ),
-        type: "error",
-      });
+    if (cancelRequest.current) {
+      return;
     }
+
+    if (Exit.isSuccess(exit)) {
+      dispatch({ payload: exit.value, type: "executed" });
+      return;
+    }
+
+    const error = Cause.squash(exit.cause);
+
+    if (error instanceof VoidhashError) {
+      dispatch({ payload: error, type: "error" });
+    }
+
+    dispatch({
+      payload: new UnknownVoidhashError(
+        error instanceof Error ? error : new Error(error as string),
+      ),
+      type: "error",
+    });
   }, [asyncFn]);
 
   const refetch = useCallback(async () => {
@@ -94,7 +96,7 @@ function useAsyncFunction<T = unknown>(
       return;
     }
 
-    executeAsyncFunction();
+    void executeAsyncFunction();
 
     // Use the cleanup function for avoiding a possibly...
     // ...state update after the component was unmounted

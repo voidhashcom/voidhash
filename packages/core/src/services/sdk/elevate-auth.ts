@@ -2,6 +2,12 @@ import type { AnyAuthSession } from "../../domain/auth/Auth.ts";
 
 const ELEVATED_PERMISSION = "project:all";
 
+/** Adds the elevated permission when absent, leaving an already-elevated list as-is. */
+const elevatedPermissions = (permissions: ReadonlyArray<string>): ReadonlyArray<string> => {
+  if (permissions.includes(ELEVATED_PERMISSION)) return permissions;
+  return [...permissions, ELEVATED_PERMISSION];
+};
+
 /**
  * Returns a copy of `session` with `project:all` added to the permissions of
  * the project whose id matches `projectId`. The input is not mutated.
@@ -18,14 +24,8 @@ export const elevateProjectAccess = (
   projectId: string,
 ): AnyAuthSession => ({
   ...session,
-  projects: session.projects.map((project) =>
-    project.id === projectId
-      ? {
-          ...project,
-          permissions: project.permissions.includes(ELEVATED_PERMISSION)
-            ? project.permissions
-            : [...project.permissions, ELEVATED_PERMISSION],
-        }
-      : project,
-  ),
+  projects: session.projects.map((project) => {
+    if (project.id !== projectId) return project;
+    return { ...project, permissions: elevatedPermissions(project.permissions) };
+  }),
 });

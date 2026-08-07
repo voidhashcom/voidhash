@@ -8,7 +8,7 @@
  * the asserted values are the raw inputs: commission = `feeMinor ?? 0`,
  * proceeds = gross − commission, proceedsAfterTax = proceeds − tax.
  */
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 
 import { describe, expect, it } from "vite-plus/test";
 
@@ -21,21 +21,23 @@ import { buildStripeMoney, type FxRateLookupShape } from "./money.ts";
  * currencies exercise the FX-less branch). `currency` arrives already
  * upper-cased from `buildStripeMoney`'s `parseISO4217CurrencyCode` step.
  */
+const instant = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
 const fxRateService: FxRateLookupShape = {
-  getUsdRate: ({ currency }: { readonly currency: string; readonly asOf: Date }) =>
-    Effect.succeed(
-      currency === "USD"
-        ? Option.some<FxRateLookup>({
-            asOfDate: new Date("2026-01-01T00:00:00.000Z"),
-            currency: "USD",
-            rate: FX_RATE_PRECISION,
-            source: "identity",
-          })
-        : Option.none<FxRateLookup>(),
-    ),
+  getUsdRate: ({ currency }: { readonly currency: string; readonly asOf: Date }) => {
+    if (currency !== "USD") return Effect.succeed(Option.none<FxRateLookup>());
+    return Effect.succeed(
+      Option.some<FxRateLookup>({
+        asOfDate: instant("2026-01-01T00:00:00.000Z"),
+        currency: "USD",
+        rate: FX_RATE_PRECISION,
+        source: "identity",
+      }),
+    );
+  },
 };
 
-const occurredAt = new Date("2026-01-01T12:00:00.000Z");
+const occurredAt = instant("2026-01-01T12:00:00.000Z");
 
 const run = <A, E>(effect: Effect.Effect<A, E>): A => Effect.runSync(effect);
 

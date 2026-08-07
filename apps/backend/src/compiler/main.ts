@@ -6,7 +6,8 @@ import {
 } from "node:http";
 
 import { NodeRuntime } from "@effect/platform-node";
-import { Effect, Schema, Semaphore } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Cause, Config, Data, Effect, Schema, Semaphore } from "effect";
 
 import { makeNodeComponentCompiler } from "./CompilerCore.ts";
 import { CompilerRequest } from "./CompilerProtocol.ts";
@@ -15,87 +16,107 @@ const maximumBodyBytes = 1_048_576;
 const compiler = makeNodeComponentCompiler();
 const compilerPermits = Semaphore.makeUnsafe(2);
 const decodeRequest = Schema.decodeUnknownEffect(CompilerRequest);
+const decodeJson = Schema.decodeUnknownEffect(Schema.UnknownFromJsonString);
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+class CompilerBodyError extends Data.TaggedError("CompilerBodyError")<{
+  readonly message: string;
+}> {}
 
 const sendJson = (response: ServerResponse, status: number, body: unknown): void => {
   response.writeHead(status, { "content-type": "application/json" });
-  response.end(JSON.stringify(body));
+  response.end(encodeJson(body));
 };
 
-const readBody = (request: IncomingMessage): Promise<unknown> =>
-  new Promise((resolve, reject) => {
+const readBody = (request: IncomingMessage): Effect.Effect<unknown, CompilerBodyError> =>
+  Effect.callback<unknown, CompilerBodyError>((resume) => {
     const chunks: Buffer[] = [];
     let bytes = 0;
     request.on("data", (chunk: Buffer) => {
       bytes += chunk.byteLength;
       if (bytes > maximumBodyBytes) {
-        reject(new Error("compiler request exceeds 1 MiB"));
+        resume(
+          Effect.fail(new CompilerBodyError({ message: "compiler request exceeds 1 MiB" })),
+        );
         request.destroy();
         return;
       }
       chunks.push(chunk);
     });
     request.on("end", () => {
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
-      } catch (error) {
-        reject(error);
-      }
+      resume(
+        decodeJson(Buffer.concat(chunks).toString("utf8")).pipe(
+          Effect.mapError((cause) => new CompilerBodyError({ message: causeMessage(cause) })),
+        ),
+      );
     });
-    request.on("error", reject);
+    request.on("error", (error) => {
+      resume(Effect.fail(new CompilerBodyError({ message: causeMessage(error) })));
+    });
   });
 
-const handleRequest = async (
-  request: IncomingMessage,
-  response: ServerResponse,
-): Promise<void> => {
-  if (request.method === "GET" && request.url === "/health") {
-    response.writeHead(200, { "content-type": "text/plain" }).end("OK");
-    return;
-  }
-  if (request.method !== "POST" || request.url !== "/compile") {
-    sendJson(response, 404, { error: "Not found" });
-    return;
-  }
-
-  try {
-    const input = await readBody(request).then((body) =>
-      Effect.runPromise(decodeRequest(body)),
-    );
-    const result = await Effect.runPromise(
-      compilerPermits.withPermit(
-        input.mode === "check"
-          ? compiler.compileCheck(input.source)
-          : compiler.compileAndExtract(input.source),
-      ),
-    );
-    sendJson(response, 200, result);
-  } catch (error) {
-    sendJson(response, 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
+const compileRequest = (input: typeof CompilerRequest.Type) => {
+  if (input.mode === "check") return compiler.compileCheck(input.source);
+  return compiler.compileAndExtract(input.source);
 };
 
-const port = Number(process.env.COMPILER_PORT ?? "5002");
-const host = process.env.COMPILER_HOST?.trim() || "0.0.0.0";
+const handleRequest = (
+  request: IncomingMessage,
+  response: ServerResponse,
+): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    if (request.method === "GET" && request.url === "/health") {
+      response.writeHead(200, { "content-type": "text/plain" }).end("OK");
+      return;
+    }
+    if (request.method !== "POST" || request.url !== "/compile") {
+      sendJson(response, 404, { error: "Not found" });
+      return;
+    }
+
+    const body = yield* readBody(request);
+    const input = yield* decodeRequest(body);
+    const result = yield* compilerPermits.withPermit(compileRequest(input));
+    sendJson(response, 200, result);
+  }).pipe(
+    Effect.catchCause((cause) =>
+      Effect.sync(() => {
+        sendJson(response, 500, { error: causeMessage(Cause.squash(cause)) });
+      }),
+    ),
+  );
 
 NodeRuntime.runMain(
   Effect.scoped(
-    Effect.acquireRelease(
-      Effect.callback<Server, Error>((resume) => {
-        const server = createServer((request, response) => {
-          void handleRequest(request, response);
-        });
-        server.once("error", (error) => resume(Effect.fail(error)));
-        server.listen(port, host, () => resume(Effect.succeed(server)));
-      }),
-      (server) =>
-        Effect.callback<void>((resume) => {
-          server.close(() => resume(Effect.void));
+    Effect.gen(function* () {
+      const port = yield* Config.port("COMPILER_PORT").pipe(
+        Config.withDefault(5002),
+        Effect.orDie,
+      );
+      const configuredHost = yield* Config.string("COMPILER_HOST").pipe(
+        Config.withDefault("0.0.0.0"),
+        Effect.orDie,
+      );
+      const host = configuredHost.trim() || "0.0.0.0";
+
+      return yield* Effect.acquireRelease(
+        Effect.callback<Server, Error>((resume) => {
+          const server = createServer((request, response) => {
+            Effect.runFork(handleRequest(request, response));
+          });
+          server.once("error", (error) => resume(Effect.fail(error)));
+          server.listen(port, host, () => resume(Effect.succeed(server)));
         }),
-    ).pipe(
-      Effect.tap(() => Effect.logInfo(`Component compiler listening on ${host}:${port}`)),
-      Effect.andThen(Effect.never),
-    ),
-  ) as never,
+        (server) =>
+          Effect.callback<void>((resume) => {
+            server.close(() => resume(Effect.void));
+          }),
+      ).pipe(
+        Effect.tap(() =>
+          Effect.logInfo(`Component compiler listening on ${host}:${port}`),
+        ),
+        Effect.andThen(Effect.never),
+      );
+    }),
+  ),
 );

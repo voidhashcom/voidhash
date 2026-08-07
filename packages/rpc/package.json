@@ -12,6 +12,9 @@
     "typecheck": "tsc --noEmit",
     "typecheck-go": "tsgo --noEmit"
   },
+  "dependencies": {
+    "@voidhash/lib": "workspace:*"
+  },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "catalog:"

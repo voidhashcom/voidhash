@@ -3,7 +3,7 @@
 import { cn } from "@voidhash/ui";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@voidhash/ui/input-group";
 import type { Schema } from "effect";
-import { Schema as S } from "effect";
+import { Effect, Result, Schema as S } from "effect";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface TextInputProps {
@@ -171,8 +171,13 @@ export function TextInput({
       onCommit?.();
       return;
     }
-    try {
-      let result = S.decodeUnknownSync(validator)(internalValue);
+    const decoded = Effect.runSync(
+      Effect.try(() => S.decodeUnknownSync(validator)(internalValue)).pipe(Effect.result),
+    );
+    if (Result.isFailure(decoded)) {
+      setInternalValue(value);
+    } else {
+      let result = decoded.success;
       // Apply min/max constraints for number type
       if (type === "number") {
         const numValue = Number(result);
@@ -181,8 +186,6 @@ export function TextInput({
         }
       }
       onChange(result);
-    } catch {
-      setInternalValue(value);
     }
     onCommit?.();
   };
@@ -246,7 +249,7 @@ export function TextInput({
     dragStartValue.current = Number(internalValue) || 0;
     accumulatedMovement.current = 0;
     // Lock the pointer to keep cursor in place
-    dragButtonRef.current?.requestPointerLock();
+    void dragButtonRef.current?.requestPointerLock();
   };
 
   const handleIconKeyDown = (e: React.KeyboardEvent) => {

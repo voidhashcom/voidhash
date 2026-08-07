@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import { queryKeys } from "@/features/studio/lib/tanstack-query";
 
 import { VoidhashRpc, eq } from "../effect-query";

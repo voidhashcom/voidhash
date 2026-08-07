@@ -1,6 +1,7 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import { ScrollViewNode } from "@voidhash/mimic-schema";
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import { Effect } from "effect";
 
 import { commander } from "../../designer-commander";
 import { selectDocumentRoot } from "../../utils/document-root";
@@ -53,9 +54,9 @@ export const createScrollViewNode = commander.undoableAction<
       const parentDirection = getFlexDirection(parentNode, "column");
       const affordance = designerInsertViewStyle(parentDirection);
       initialValues = {
-        ...(initialValues ?? {}),
+        ...initialValues,
         // Caller-supplied style (e.g. flexDirection) wins over the affordance base.
-        style: { ...affordance, ...(initialValues?.style ?? {}) },
+        style: { ...affordance, ...initialValues?.style },
       };
     }
 
@@ -64,11 +65,11 @@ export const createScrollViewNode = commander.undoableAction<
       if (parent === undefined) {
         return null;
       }
-      try {
-        return parent.children.insertLast({ ...(initialValues ?? {}), type: "scrollView" }).id;
-      } catch {
-        return null;
-      }
+      return Effect.runSync(
+        Effect.try(() => parent.children.insertLast({ ...initialValues, type: "scrollView" }).id).pipe(
+          Effect.orElseSucceed((): string | null => null),
+        ),
+      );
     });
 
     if (newNodeId) {

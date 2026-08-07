@@ -1,5 +1,5 @@
 import { and, desc, Db, eq, isNull, voidhashAgentSession } from "@voidhash/db";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { isSessionProjectMember } from "../../utils/permissions.ts";
@@ -90,6 +90,44 @@ const toSummary = (row: typeof voidhashAgentSession.$inferSelect): AgentSessionS
   updatedAt: row.updatedAt,
 });
 
+/**
+ * Builds the partial column update for `touch`, carrying only the fields the
+ * caller actually supplied so absent fields keep their stored value.
+ */
+const touchUpdate = (
+  input: AgentSessionTouchInput,
+): {
+  readonly title?: string;
+  readonly surface?: string;
+  readonly paywallId?: string | null;
+} => {
+  const update: { title?: string; surface?: string; paywallId?: string | null } = {};
+  if (input.title !== undefined) {
+    update.title = input.title.slice(0, 255);
+  }
+  if (input.surface !== undefined) {
+    update.surface = input.surface;
+  }
+  if (input.paywallId !== undefined) {
+    update.paywallId = input.paywallId;
+  }
+  return update;
+};
+
+/**
+ * Narrows a listing to a specific paywall (or to sessions with no paywall);
+ * `undefined` means "do not filter on paywall at all".
+ */
+const paywallIdFilter = (paywallId: string | null | undefined) => {
+  if (paywallId === undefined) {
+    return undefined;
+  }
+  if (paywallId === null) {
+    return isNull(voidhashAgentSession.paywallId);
+  }
+  return eq(voidhashAgentSession.paywallId, paywallId);
+};
+
 /** Searchable metadata for durable agent sessions. */
 export class AgentSessionIndexService extends Context.Service<AgentSessionIndexService>()(
   "AgentSessionIndexService",
@@ -168,10 +206,8 @@ export class AgentSessionIndexService extends Context.Service<AgentSessionIndexS
           const rows = yield* db
             .update(voidhashAgentSession)
             .set({
-              ...(input.title === undefined ? {} : { title: input.title.slice(0, 255) }),
-              ...(input.surface === undefined ? {} : { surface: input.surface }),
-              ...(input.paywallId === undefined ? {} : { paywallId: input.paywallId }),
-              updatedAt: new Date(),
+              ...touchUpdate(input),
+              updatedAt: yield* DateTime.nowAsDate,
             })
             .where(eq(voidhashAgentSession.id, input.id))
             .returning();
@@ -203,11 +239,7 @@ export class AgentSessionIndexService extends Context.Service<AgentSessionIndexS
                 eq(voidhashAgentSession.surface, input.surface),
                 eq(voidhashAgentSession.userId, userId),
                 isNull(voidhashAgentSession.deletedAt),
-                input.paywallId === undefined
-                  ? undefined
-                  : input.paywallId === null
-                    ? isNull(voidhashAgentSession.paywallId)
-                    : eq(voidhashAgentSession.paywallId, input.paywallId),
+                paywallIdFilter(input.paywallId),
               ),
             )
             .orderBy(desc(voidhashAgentSession.updatedAt), desc(voidhashAgentSession.id));
@@ -245,10 +277,13 @@ export class AgentSessionIndexService extends Context.Service<AgentSessionIndexS
       const remove: AgentSessionIndexServiceShape["delete"] = (input) =>
         get(input).pipe(
           Effect.andThen(
-            db
-              .update(voidhashAgentSession)
-              .set({ deletedAt: new Date(), updatedAt: new Date() })
-              .where(eq(voidhashAgentSession.id, input.sessionId)),
+            Effect.gen(function* () {
+              const deletedAt = yield* DateTime.nowAsDate;
+              return yield* db
+                .update(voidhashAgentSession)
+                .set({ deletedAt, updatedAt: deletedAt })
+                .where(eq(voidhashAgentSession.id, input.sessionId));
+            }),
           ),
           Effect.catchTag("EffectDrizzleQueryError", (error) =>
             Effect.fail(new AgentSessionIndexServiceError({ message: String(error.cause) })),

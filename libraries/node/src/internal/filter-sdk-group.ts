@@ -3,11 +3,9 @@ export type FilterSdkGroup<TClient> = TClient extends { readonly sdk: unknown }
   : TClient;
 
 export const filterSdkGroup = <TClient extends object>(
-  client: TClient,
-): FilterSdkGroup<TClient> => {
-  const { sdk: _sdk, ...filteredClient } = client as TClient & {
-    readonly sdk?: unknown;
-  };
+  client: TClient & { readonly sdk?: unknown },
+): Omit<TClient & { readonly sdk?: unknown }, "sdk"> => {
+  const { sdk: _sdk, ...filteredClient } = client;
 
-  return filteredClient as FilterSdkGroup<TClient>;
+  return filteredClient;
 };

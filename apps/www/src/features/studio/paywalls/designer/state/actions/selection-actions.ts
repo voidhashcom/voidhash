@@ -8,7 +8,6 @@
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
 import { commander } from "../designer-commander";
-import type { DesignerStoreState } from "../designer-store-state";
 import { selectDocumentRoot } from "../utils/document-root";
 import { presenceInputFromSnapshot } from "../utils/presence";
 import { findNodeById, flattenTree } from "../utils/tree";

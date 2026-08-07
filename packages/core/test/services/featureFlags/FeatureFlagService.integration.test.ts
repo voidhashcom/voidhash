@@ -28,7 +28,8 @@
  * `FeatureFlagService` does not invalidate the project schema cache, so there is
  * no cache assertion here (unlike the PerkService reference).
  */
-import { Effect } from "effect";
+import { createId } from "@paralleldrive/cuid2";
+import { DateTime, Effect, Schema } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import { FeatureFlagService, FeatureFlagServiceError } from "@voidhash/core/services";
@@ -39,6 +40,7 @@ import {
   FeatureFlagTargetNotFoundError,
 } from "@voidhash/core/domain/featureFlag/FeatureFlag";
 import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
+import { stringOr } from "@voidhash/lib/lang";
 import {
   AuditLogAction,
   AuditLogActorType,
@@ -55,7 +57,6 @@ import {
   featureFlagVariants,
   featureFlags,
   inArray,
-  isNull,
   personExternalIdentifiers,
   personIdentities,
   persons,
@@ -74,12 +75,26 @@ const otherProjectId = "it_project_ff_other";
 
 /** Monotonic counter so keys/values stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueKey = (label: string) => `it-ff-${label}-${Date.now()}-${seq++}`;
-const uniqueValue = (label: string) => `it-ff-id-${label}-${Date.now()}-${seq++}`;
+const uniqueKey = (label: string) => `it-ff-${label}-${createId()}-${seq++}`;
+const uniqueValue = (label: string) => `it-ff-id-${label}-${createId()}-${seq++}`;
 
 // ---------------------------------------------------------------------------
 // Raw DB read-back helpers (bypass the service to verify persisted state).
 // ---------------------------------------------------------------------------
+
+/** The zero instant, for inert fixture timestamps nothing asserts on. */
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
+/** Reads the audit-log `changes` JSON without an `as` cast. */
+const decodeAuditSnapshot = Schema.decodeUnknownSync(
+  Schema.Struct({ snapshot: Schema.Record(Schema.String, Schema.Unknown) }),
+);
+const decodeAuditDiff = Schema.decodeUnknownSync(
+  Schema.Struct({
+    before: Schema.Record(Schema.String, Schema.Unknown),
+    after: Schema.Record(Schema.String, Schema.Unknown),
+  }),
+);
 
 const findFlagRow = (id: string) =>
   Effect.gen(function* () {
@@ -234,12 +249,12 @@ const cleanupCreatedFlags = (ids: ReadonlyArray<string>) =>
       .select({ id: featureFlagTargets.id })
       .from(featureFlagTargets)
       .where(inArray(featureFlagTargets.featureFlagId, targets))
-      .pipe(Effect.catch(() => Effect.succeed([] as Array<{ id: string }>)));
+      .pipe(Effect.catch(() => Effect.succeed<Array<{ id: string }>>([])));
     const overrideRows = yield* db
       .select({ id: featureFlagOverrides.id })
       .from(featureFlagOverrides)
       .where(inArray(featureFlagOverrides.featureFlagId, targets))
-      .pipe(Effect.catch(() => Effect.succeed([] as Array<{ id: string }>)));
+      .pipe(Effect.catch(() => Effect.succeed<Array<{ id: string }>>([])));
 
     const childIds = [...targetRows.map((r) => r.id), ...overrideRows.map((r) => r.id)];
     const auditEntityIds = [...targets, ...childIds];
@@ -287,14 +302,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -339,14 +354,14 @@ const sessionForOtherProject = (): UserSession => ({
     },
   ],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -400,11 +415,10 @@ describe("FeatureFlagService.createFlag", () => {
         expect(createdEntry?.actorUserId).toBe(CoreTestFixture.userId);
         expect(createdEntry?.actorType).toBe(AuditLogActorType.User);
         // The audit snapshot embeds the inserted row; assert load-bearing fields.
-        const snapshot = (createdEntry?.changes as { snapshot?: Record<string, unknown> })
-          ?.snapshot;
-        expect(snapshot?.id).toBe(created.id);
-        expect(snapshot?.key).toBe(key);
-        expect(snapshot?.enabled).toBe(false);
+        const { snapshot } = decodeAuditSnapshot(createdEntry?.changes);
+        expect(snapshot.id).toBe(created.id);
+        expect(snapshot.key).toBe(key);
+        expect(snapshot.enabled).toBe(false);
       }),
     ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
@@ -448,7 +462,10 @@ describe("FeatureFlagService.createFlag", () => {
 
         const variants = yield* findVariantRows(created.id);
         expect(variants).toHaveLength(2);
-        expect(variants.map((variant) => variant.payload).sort()).toEqual(["control", "treatment"]);
+        const payloads = variants
+          .map((variant) => stringOr(variant.payload, ""))
+          .sort((a, b) => a.localeCompare(b));
+        expect(payloads).toEqual(["control", "treatment"]);
         expect(variants.reduce((sum, variant) => sum + variant.weightBps, 0)).toBe(10000);
         expect(variants.some((variant) => variant.name === "Control")).toBe(true);
       }),
@@ -558,12 +575,9 @@ describe("FeatureFlagService.updateFlag", () => {
             entry.entityType === AuditLogEntityType.FeatureFlag,
         );
         expect(updatedEntry).toBeDefined();
-        const changes = updatedEntry?.changes as {
-          before?: { id?: string };
-          after?: { name?: string };
-        };
-        expect(changes?.before?.id).toBe(created.id);
-        expect(changes?.after?.name).toBe("After");
+        const changes = decodeAuditDiff(updatedEntry?.changes);
+        expect(changes.before.id).toBe(created.id);
+        expect(changes.after.name).toBe("After");
       }),
     ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
@@ -573,7 +587,7 @@ describe("FeatureFlagService.updateFlag", () => {
     Effect.gen(function* () {
       const svc = yield* FeatureFlagService;
       const error = yield* Effect.flip(
-        svc.updateFlag({ id: `ff_missing_${Date.now()}`, name: "x" }),
+        svc.updateFlag({ id: `ff_missing_${createId()}`, name: "x" }),
       );
       expect(error).toBeInstanceOf(FeatureFlagNotFoundError);
     }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
@@ -708,7 +722,7 @@ describe("FeatureFlagService.archiveFlag", () => {
     "fails with FeatureFlagNotFoundError for an unknown id",
     Effect.gen(function* () {
       const svc = yield* FeatureFlagService;
-      const error = yield* Effect.flip(svc.archiveFlag({ id: `ff_missing_${Date.now()}` }));
+      const error = yield* Effect.flip(svc.archiveFlag({ id: `ff_missing_${createId()}` }));
       expect(error).toBeInstanceOf(FeatureFlagNotFoundError);
     }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
@@ -792,7 +806,7 @@ describe("FeatureFlagService.restoreFlag", () => {
     "fails with FeatureFlagNotFoundError for an unknown id",
     Effect.gen(function* () {
       const svc = yield* FeatureFlagService;
-      const error = yield* Effect.flip(svc.restoreFlag({ id: `ff_missing_${Date.now()}` }));
+      const error = yield* Effect.flip(svc.restoreFlag({ id: `ff_missing_${createId()}` }));
       expect(error).toBeInstanceOf(FeatureFlagNotFoundError);
     }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
@@ -873,7 +887,7 @@ describe("FeatureFlagService.getFlagById", () => {
     "fails with FeatureFlagNotFoundError for an unknown id",
     Effect.gen(function* () {
       const svc = yield* FeatureFlagService;
-      const error = yield* Effect.flip(svc.getFlagById({ id: `ff_missing_${Date.now()}` }));
+      const error = yield* Effect.flip(svc.getFlagById({ id: `ff_missing_${createId()}` }));
       expect(error).toBeInstanceOf(FeatureFlagNotFoundError);
     }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
@@ -1122,7 +1136,7 @@ describe("FeatureFlagService.updateFlagVariants", () => {
       const svc = yield* FeatureFlagService;
       const error = yield* Effect.flip(
         svc.updateFlagVariants({
-          featureFlagId: `ff_missing_${Date.now()}`,
+          featureFlagId: `ff_missing_${createId()}`,
           variants: [{ key: "x", name: "X", weightBps: 10000 }],
         }),
       );
@@ -1270,7 +1284,7 @@ describe("FeatureFlagService.upsertTarget", () => {
       const svc = yield* FeatureFlagService;
       const error = yield* Effect.flip(
         svc.upsertTarget({
-          featureFlagId: `ff_missing_${Date.now()}`,
+          featureFlagId: `ff_missing_${createId()}`,
           listType: FeatureFlagTargetListType.Allow,
           identityType: FeatureFlagIdentityType.DistinctId,
           identityValue: "anyone",
@@ -1349,7 +1363,7 @@ describe("FeatureFlagService.archiveTarget", () => {
     "fails with FeatureFlagTargetNotFoundError for an unknown target id",
     Effect.gen(function* () {
       const svc = yield* FeatureFlagService;
-      const error = yield* Effect.flip(svc.archiveTarget({ id: `ff_tgt_missing_${Date.now()}` }));
+      const error = yield* Effect.flip(svc.archiveTarget({ id: `ff_tgt_missing_${createId()}` }));
       expect(error).toBeInstanceOf(FeatureFlagTargetNotFoundError);
     }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
@@ -1474,7 +1488,7 @@ describe("FeatureFlagService.upsertOverride", () => {
       const svc = yield* FeatureFlagService;
       const error = yield* Effect.flip(
         svc.upsertOverride({
-          featureFlagId: `ff_missing_${Date.now()}`,
+          featureFlagId: `ff_missing_${createId()}`,
           identityType: FeatureFlagIdentityType.DistinctId,
           identityValue: "anyone",
           forcedEnabled: true,
@@ -1552,7 +1566,7 @@ describe("FeatureFlagService.archiveOverride", () => {
     "fails with FeatureFlagOverrideNotFoundError for an unknown override id",
     Effect.gen(function* () {
       const svc = yield* FeatureFlagService;
-      const error = yield* Effect.flip(svc.archiveOverride({ id: `ff_ovr_missing_${Date.now()}` }));
+      const error = yield* Effect.flip(svc.archiveOverride({ id: `ff_ovr_missing_${createId()}` }));
       expect(error).toBeInstanceOf(FeatureFlagOverrideNotFoundError);
     }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
@@ -1561,8 +1575,8 @@ describe("FeatureFlagService.archiveOverride", () => {
     "fails with FeatureFlagOverrideNotFoundError when the parent flag is gone",
     Effect.gen(function* () {
       const svc = yield* FeatureFlagService;
-      const overrideId = `ff_ovr_${Date.now()}_${seq++}`;
-      const orphanFlagId = `ff_${Date.now()}_orphan_${seq++}`;
+      const overrideId = `ff_ovr_${createId()}_${seq++}`;
+      const orphanFlagId = `ff_${createId()}_orphan_${seq++}`;
       yield* insertRawOverride({
         id: overrideId,
         featureFlagId: orphanFlagId,
@@ -1648,7 +1662,7 @@ describe("FeatureFlagService.listOverridesByFlag", () => {
         expect(overrides.some((o) => o.id === archived.id)).toBe(false);
 
         const notFound = yield* Effect.flip(
-          svc.listOverridesByFlag({ featureFlagId: `ff_missing_${Date.now()}` }),
+          svc.listOverridesByFlag({ featureFlagId: `ff_missing_${createId()}` }),
         );
         expect(notFound).toBeInstanceOf(FeatureFlagNotFoundError);
       }),
@@ -2281,7 +2295,7 @@ describe("FeatureFlagService.evaluateFlagsBatch", () => {
         // A keys filter that matches nothing yields an empty result set.
         const none = yield* svc.evaluateFlagsBatch({
           projectId,
-          keys: [`it-ff-absent-${Date.now()}-${seq++}`],
+          keys: [`it-ff-absent-${createId()}-${seq++}`],
           distinctId: uniqueValue("eval-filter-none"),
         });
         expect(none.length).toBe(0);

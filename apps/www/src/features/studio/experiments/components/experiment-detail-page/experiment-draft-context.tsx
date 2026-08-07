@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { PaywallLocationTreatmentConfig, RpcExperiment } from "@voidhash/rpc";
+import { Effect } from "effect";
 import { createContext, type ReactNode, useContext, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -169,7 +170,9 @@ const ExperimentDraftContext = createContext<ExperimentDraftContextValue | null>
 export function useExperimentDraft(): ExperimentDraftContextValue {
   const value = useContext(ExperimentDraftContext);
   if (!value) {
-    throw new Error("useExperimentDraft must be used within ExperimentDraftProvider");
+    return Effect.runSync(
+      Effect.die(new Error("useExperimentDraft must be used within ExperimentDraftProvider")),
+    );
   }
   return value;
 }
@@ -210,7 +213,7 @@ export function ExperimentDraftProvider({
       setSyncedExperiment(saved);
       setDraft(toDraft(saved, nextLocalId));
       queryClient.setQueryData(queryKeys.experiment.getExperiment(saved.id), saved);
-      queryClient.invalidateQueries({ queryKey: queryKeys.experiment.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.experiment.all });
     },
   });
 

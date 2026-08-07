@@ -11,7 +11,7 @@ import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
 import { commander } from "../designer-commander";
 import { selectDocumentRoot } from "../utils/document-root";
-import type { DesignerStoreState, ResizeHandle, ResizeState } from "../designer-store-state";
+import type { ResizeHandle, ResizeState } from "../designer-store-state";
 import type { BoundingBox, Point } from "../utils/bounding-box";
 import { calculateCombinedBoundingBox } from "../utils/bounding-box";
 import { findTypedNode, type DesignerDocumentRoot } from "../utils/node-proxies";

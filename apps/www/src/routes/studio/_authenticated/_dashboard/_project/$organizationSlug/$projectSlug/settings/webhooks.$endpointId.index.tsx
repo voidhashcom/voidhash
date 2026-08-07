@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from "@voidhash/ui";
+import { Effect } from "effect";
 import { useAuth } from "@/features/studio/components/auth-context";
 
 import { Page } from "@/features/studio/shell";
@@ -89,7 +90,7 @@ function WebhookEndpointDetailPage() {
   );
 
   if (!project) {
-    throw new Error("Project not found");
+    return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
   const { data: endpoint } = useSuspenseQuery(getWebhookEndpointOptions({ endpointId }));
@@ -99,7 +100,7 @@ function WebhookEndpointDetailPage() {
   );
 
   const handleDeleted = () => {
-    navigate({
+    void navigate({
       params: { organizationSlug, projectSlug },
       to: "/studio/$organizationSlug/$projectSlug/settings/webhooks",
     });

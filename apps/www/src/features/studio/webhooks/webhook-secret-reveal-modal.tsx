@@ -21,7 +21,7 @@ interface WebhookSecretRevealModalProps {
 export function WebhookSecretRevealModal({ open, onClose, secret }: WebhookSecretRevealModalProps) {
   const copyToClipboard = () => {
     if (secret) {
-      navigator.clipboard.writeText(secret);
+      void navigator.clipboard.writeText(secret);
       toast.success("Secret copied to clipboard");
     }
   };

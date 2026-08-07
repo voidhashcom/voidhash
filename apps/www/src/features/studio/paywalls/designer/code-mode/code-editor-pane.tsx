@@ -3,10 +3,11 @@
 import Editor, { type BeforeMount, loader, type OnMount } from "@monaco-editor/react";
 import { sandboxDts } from "@voidhash/paywalls/sandbox-dts";
 import { parseWorkspacePath } from "@voidhash/paywall-workspace";
+import { Effect } from "effect";
 import type { editor } from "monaco-editor";
 import * as monaco from "monaco-editor";
 import { useTheme } from "next-themes";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { saveCodeComponentSource } from "../state/actions/code-component-actions";
 import { setCodeComponentDirty } from "../state/actions/code-component-editor-actions";
@@ -114,6 +115,25 @@ function modelUri(m: typeof monaco, key: string): monaco.Uri {
 }
 
 /**
+ * Writes `source` into a model with dirty tracking suppressed, restoring the
+ * flag even if Monaco throws (the flag must never latch on).
+ */
+function setModelValue(entry: ModelEntry, source: string): void {
+  entry.suppressDirty = true;
+  Effect.runSync(
+    Effect.sync(() => {
+      entry.model.setValue(source);
+    }).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
+          entry.suppressDirty = false;
+        }),
+      ),
+    ),
+  );
+}
+
+/**
  * A single persistent Monaco editor that manages one model per open buffer.
  *
  * The editor is mounted once and never torn down while code mode is open;
@@ -126,7 +146,15 @@ function modelUri(m: typeof monaco, key: string): monaco.Uri {
  */
 export function CodeEditorPane({ buffers, activeKey }: CodeEditorPaneProps) {
   const dispatch = usePaywallDesignerActions();
-  const { registerHandle } = useCodeEditor();
+  const codeEditor = useCodeEditor();
+  // The context value changes identity whenever the registered handle changes;
+  // reading it through a ref keeps `registerHandle` stable so the registration
+  // effect below does not re-run (and re-register) on every handle update.
+  const codeEditorRef = useRef(codeEditor);
+  codeEditorRef.current = codeEditor;
+  const registerHandle = useCallback((next: CodeEditorHandle | null) => {
+    codeEditorRef.current.registerHandle(next);
+  }, []);
   const { resolvedTheme } = useTheme();
   const themeName = voidhashThemeFor(resolvedTheme);
 
@@ -204,12 +232,7 @@ export function CodeEditorPane({ buffers, activeKey }: CodeEditorPaneProps) {
       return;
     }
     entry.baseline = source;
-    entry.suppressDirty = true;
-    try {
-      entry.model.setValue(source);
-    } finally {
-      entry.suppressDirty = false;
-    }
+    setModelValue(entry, source);
   };
 
   const handleBeforeMount: BeforeMount = (mountingMonaco) => {
@@ -316,12 +339,7 @@ export function CodeEditorPane({ buffers, activeKey }: CodeEditorPaneProps) {
           dispatch(setCodeComponentDirty)({ path: key, dirty: false });
           return;
         }
-        entry.suppressDirty = true;
-        try {
-          entry.model.setValue(source);
-        } finally {
-          entry.suppressDirty = false;
-        }
+        setModelValue(entry, source);
         dispatch(setCodeComponentDirty)({ path: key, dirty: false });
       },
       saveBuffer(key) {

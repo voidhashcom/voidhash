@@ -1,4 +1,6 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, DateTime, Effect, Layer } from "effect";
+
+import { constant } from "@voidhash/lib/lang";
 
 import {
   type DbError,
@@ -56,11 +58,40 @@ export interface CanonicalPersonResolution {
   readonly wasCreated: boolean;
 }
 
-const toPersonVersion = (person: DbPerson): number =>
-  person.updatedAt?.getTime() ?? person.createdAt?.getTime() ?? Date.now();
+/** Row version = last write time, falling back to `nowMillis` for a row with neither stamp. */
+const toPersonVersion = (person: DbPerson, nowMillis: number): number =>
+  person.updatedAt?.getTime() ?? person.createdAt?.getTime() ?? nowMillis;
 
-const deriveIdentityKind = (distinctId: string): PersonIdentityKindValue =>
-  isAnonymousDistinctId(distinctId) ? PersonIdentityKind.Anonymous : PersonIdentityKind.Identified;
+const deriveIdentityKind = (distinctId: string): PersonIdentityKindValue => {
+  if (isAnonymousDistinctId(distinctId)) return PersonIdentityKind.Anonymous;
+  return PersonIdentityKind.Identified;
+};
+
+/** Keeps the earliest/latest of two timestamps for the first/last-seen stamps. */
+const earliestOf = (current: Date | null, candidate: Date): Date => {
+  if (current && current.getTime() <= candidate.getTime()) return current;
+  return candidate;
+};
+
+const latestOf = (current: Date | null, candidate: Date): Date => {
+  if (current && current.getTime() >= candidate.getTime()) return current;
+  return candidate;
+};
+
+/**
+ * Patch semantics for a nullable column: `undefined` leaves the stored value
+ * untouched, `null` falls back to it, anything else overwrites.
+ */
+const patchNullable = <T>(next: T | null | undefined, current: T | null): T | null => {
+  if (typeof next === "undefined") return current;
+  return next ?? current;
+};
+
+/** Lexicographically ordered pair — the canonical `(distinctIdA, distinctIdB)` assertion key. */
+const orderedPair = (first: string, second: string): readonly [string, string] => {
+  if (first <= second) return [first, second];
+  return [second, first];
+};
 
 const toMappingEvent = ({
   changedAt,
@@ -82,7 +113,7 @@ const toMappingEvent = ({
   changedAt,
   personId,
   distinctId,
-  ...(previousDistinctId ? { previousDistinctId } : {}),
+  ...(previousDistinctId && { previousDistinctId }),
   isDeleted: false,
   kind,
   projectId,
@@ -291,9 +322,11 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
                 setOnce: setOnceAttributes,
               },
             );
-            const person = {
+            const person: DbPerson = {
               archivedAt: null,
               createdAt: context.eventTimestamp,
+              deletedAt: null,
+              deletionReason: null,
               email: email ?? null,
               firstSeenAt: context.eventTimestamp,
               id: generateId("person"),
@@ -301,11 +334,12 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
               mergedIntoPersonId: null,
               name: name ?? null,
               origin: context.origin,
+              primaryDistinctId: null,
               projectId: context.projectId,
               traits: folded.traits,
               traitsMeta: folded.meta,
               updatedAt: context.eventTimestamp,
-            } as DbPerson;
+            };
 
             yield* Effect.annotateCurrentSpan("voidhash.project.id", context.projectId);
             yield* Effect.annotateCurrentSpan("voidhash.person.id", person.id);
@@ -361,25 +395,20 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
             yield* Effect.annotateCurrentSpan("voidhash.project.id", person.projectId);
             yield* Effect.annotateCurrentSpan("voidhash.person.id", person.id);
 
-            const nextFirstSeen =
-              person.firstSeenAt && person.firstSeenAt.getTime() <= eventTimestamp.getTime()
-                ? person.firstSeenAt
-                : eventTimestamp;
-            const nextLastSeen =
-              person.lastSeenAt && person.lastSeenAt.getTime() >= eventTimestamp.getTime()
-                ? person.lastSeenAt
-                : eventTimestamp;
+            const nextFirstSeen = earliestOf(person.firstSeenAt, eventTimestamp);
+            const nextLastSeen = latestOf(person.lastSeenAt, eventTimestamp);
 
             // Per-key LWW: combine the other person's state (on merge), then
             // fold this event's writes. Order-independent, so out-of-order
             // events can't regress a newer trait value.
             const targetState = materializeTraitState(person.traits, person.traitsMeta);
-            const baseState: TraitFoldState = mergeTraitsFrom
-              ? combineTraitStates(
-                  targetState,
-                  materializeTraitState(mergeTraitsFrom.traits, mergeTraitsFrom.traitsMeta),
-                )
-              : targetState;
+            let baseState: TraitFoldState = targetState;
+            if (mergeTraitsFrom) {
+              baseState = combineTraitStates(
+                targetState,
+                materializeTraitState(mergeTraitsFrom.traits, mergeTraitsFrom.traitsMeta),
+              );
+            }
             const folded = applyTraitWrite(baseState, {
               eventId,
               eventTs: eventTimestamp.getTime(),
@@ -387,8 +416,8 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
               setOnce: setOnceAttributes,
             });
 
-            const nextEmail = typeof email === "undefined" ? person.email : (email ?? person.email);
-            const nextName = typeof name === "undefined" ? person.name : (name ?? person.name);
+            const nextEmail = patchNullable(email, person.email);
+            const nextName = patchNullable(name, person.name);
 
             yield* db
               .update(persons)
@@ -641,23 +670,24 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
               yield* Effect.annotateCurrentSpan("voidhash.person.distinct_id", primaryDistinctId);
             }
 
+            const now = yield* DateTime.nowAsDate;
             return {
               changedAt:
                 person.updatedAt?.toISOString() ??
                 person.createdAt?.toISOString() ??
-                new Date().toISOString(),
+                now.toISOString(),
               personId: person.id,
-              ...(person.email ? { email: person.email } : {}),
+              ...(person.email && { email: person.email }),
               isArchived: person.archivedAt !== null,
-              ...(person.mergedIntoPersonId
-                ? { mergedIntoPersonId: person.mergedIntoPersonId }
-                : {}),
-              ...(person.name ? { name: person.name } : {}),
-              ...(primaryDistinctId ? { primaryDistinctId } : {}),
+              ...(person.mergedIntoPersonId && {
+                mergedIntoPersonId: person.mergedIntoPersonId,
+              }),
+              ...(person.name && { name: person.name }),
+              ...(primaryDistinctId && { primaryDistinctId }),
               projectId: person.projectId,
               schemaVersion: 1,
-              traits: (person.traits ?? {}) as Record<string, unknown>,
-              version: toPersonVersion(person),
+              traits: person.traits ?? {},
+              version: toPersonVersion(person, now.getTime()),
             };
           }),
       );
@@ -876,10 +906,7 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
           },
         ): Effect.Effect<void, DbError> =>
           Effect.gen(function* () {
-            const [distinctIdA, distinctIdB] =
-              previousDistinctId <= distinctId
-                ? [previousDistinctId, distinctId]
-                : [distinctId, previousDistinctId];
+            const [distinctIdA, distinctIdB] = orderedPair(previousDistinctId, distinctId);
 
             yield* Effect.annotateCurrentSpan("voidhash.project.id", projectId);
             yield* Effect.annotateCurrentSpan("voidhash.identity_assertion.dedup_key", dedupKey);
@@ -901,7 +928,7 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
           }),
       );
 
-      return {
+      return constant({
         appendAssertion,
         archivePerson,
         ensureCanonicalPersonForDistinctId,
@@ -916,7 +943,7 @@ export class IdentityMutationService extends Context.Service<IdentityMutationSer
         updatePersonProfile,
         upsertAccountTokenBinding,
         upsertPersonIdentity,
-      } as const;
+      });
     }),
   },
 ) {

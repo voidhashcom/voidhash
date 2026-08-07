@@ -2,7 +2,6 @@ import { commander } from "../designer-commander";
 import type {
   ComponentCatalogEntry,
   ComponentCatalogVersion,
-  DesignerStoreState,
 } from "../designer-store-state";
 
 export interface SetComponentCatalogComponentsParams {

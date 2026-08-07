@@ -55,8 +55,11 @@ export interface IdentityResolution {
 }
 
 /** Lexicographic, locale-independent string order for deterministic results. */
-const compareString = (left: string, right: string): number =>
-  left < right ? -1 : left > right ? 1 : 0;
+const compareString = (left: string, right: string): number => {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+};
 
 /**
  * Computes connected components of distinct ids under the assertion graph and
@@ -193,7 +196,7 @@ export const comparePersonForMerge = (left: PersonSeniority, right: PersonSenior
   if (leftTs !== rightTs) {
     return leftTs - rightTs;
   }
-  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+  return compareString(left.id, right.id);
 };
 
 /** One `(distinctId → person)` row, used to rebuild the projection from the log. */
@@ -283,10 +286,10 @@ export interface TraitWrite {
   readonly setOnce?: Readonly<Record<string, unknown>>;
 }
 
-interface LwwCell {
+interface LwwCell<A = unknown> {
   readonly ts: number;
   readonly id: string;
-  readonly value: unknown;
+  readonly value: A;
 }
 
 /** True when `(aTs, aId)` is strictly later than `(bTs, bId)`. */
@@ -404,8 +407,8 @@ export const materializeTraitState = (
   traits: Readonly<Record<string, unknown>> | null | undefined,
   meta: Readonly<TraitsMeta> | null | undefined,
 ): TraitFoldState => {
-  const nextTraits: Record<string, unknown> = { ...(traits ?? {}) };
-  const nextMeta: TraitsMeta = { ...(meta ?? {}) };
+  const nextTraits: Record<string, unknown> = { ...traits };
+  const nextMeta: TraitsMeta = { ...meta };
   for (const key of Object.keys(nextTraits)) {
     if (!nextMeta[key]) {
       nextMeta[key] = { id: "", mode: "set", ts: 0 };
@@ -440,9 +443,13 @@ export const combineTraitStates = (left: TraitFoldState, right: TraitFoldState):
     const leftCell = left.meta[key];
     const rightCell = right.meta[key];
     if (leftCell && rightCell) {
-      const leftWins = traitCellWins(leftCell, rightCell);
-      meta[key] = leftWins ? leftCell : rightCell;
-      traits[key] = leftWins ? left.traits[key] : right.traits[key];
+      if (traitCellWins(leftCell, rightCell)) {
+        meta[key] = leftCell;
+        traits[key] = left.traits[key];
+      } else {
+        meta[key] = rightCell;
+        traits[key] = right.traits[key];
+      }
     } else if (leftCell) {
       meta[key] = leftCell;
       traits[key] = left.traits[key];
@@ -471,6 +478,20 @@ export interface IdentityEventInput {
   readonly email?: string;
   readonly name?: string;
 }
+
+/** Only the LWW-resolved profile fields that an event actually wrote. */
+const identityLwwFields = ({
+  emailCell,
+  nameCell,
+}: {
+  readonly emailCell: LwwCell<string> | undefined;
+  readonly nameCell: LwwCell<string> | undefined;
+}): { email?: string; name?: string } => {
+  const fields: { email?: string; name?: string } = {};
+  if (emailCell) fields.email = emailCell.value;
+  if (nameCell) fields.name = nameCell.value;
+  return fields;
+};
 
 /** The fully-resolved view of a single person (one canonical component). */
 export interface ResolvedPerson {
@@ -526,8 +547,8 @@ export const project = (events: Iterable<IdentityEventInput>): IdentityProjectio
   const writesByCanonical = new Map<string, Array<TraitWrite>>();
   const firstSeenByCanonical = new Map<string, number>();
   const lastSeenByCanonical = new Map<string, number>();
-  const bestEmail = new Map<string, LwwCell>();
-  const bestName = new Map<string, LwwCell>();
+  const bestEmail = new Map<string, LwwCell<string>>();
+  const bestName = new Map<string, LwwCell<string>>();
 
   const canonicalFor = (distinctId: string): string =>
     resolution.canonicalOf.get(distinctId) ?? distinctId;
@@ -582,8 +603,7 @@ export const project = (events: Iterable<IdentityEventInput>): IdentityProjectio
         firstSeenByCanonical.get(canonical) ?? resolution.firstSeenTs.get(canonical) ?? 0,
       lastSeenTs: lastSeenByCanonical.get(canonical) ?? resolution.firstSeenTs.get(canonical) ?? 0,
       traits: foldTraits(writesByCanonical.get(canonical) ?? []),
-      ...(emailCell ? { email: emailCell.value as string } : {}),
-      ...(nameCell ? { name: nameCell.value as string } : {}),
+      ...identityLwwFields({ emailCell, nameCell }),
     });
   }
 

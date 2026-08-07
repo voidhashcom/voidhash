@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import browserCollections from "@generated/browser";
+import { Effect } from "effect";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { Suspense, useMemo } from "react";
 
@@ -13,6 +14,15 @@ import {
 } from "@/features/docs/components/layout/page";
 import { docsMdxComponents } from "@/features/docs/lib/mdx-components";
 import { getSource } from "@/features/docs/lib/source";
+
+/**
+ * Raises a TanStack Router control-flow signal (`notFound()`/`redirect()`).
+ * The router detects these by catching the thrown descriptor; `runSync`
+ * squashes the cause, so it still sees that exact object. The explicit `never`
+ * return type is what lets TypeScript treat call sites as terminating.
+ */
+const raiseRouterSignal: (signal: unknown) => never = (signal) =>
+  Effect.runSync(Effect.die(signal));
 
 interface RedirectPayload {
   redirectTo: string;
@@ -47,17 +57,19 @@ export const Route = createFileRoute("/docs/$")({
   loader: async ({ params }) => {
     const slugs = params._splat?.split("/").filter(Boolean) ?? [];
     if (slugs.length === 0) {
-      throw notFound();
+      raiseRouterSignal(notFound());
     }
 
     const result = (await serverLoader({ data: slugs })) as ServerPayload;
     if ("redirectTo" in result) {
-      throw redirect({
-        params: {
-          _splat: result.redirectTo,
-        },
-        to: "/docs/$",
-      });
+      raiseRouterSignal(
+        redirect({
+          params: {
+            _splat: result.redirectTo,
+          },
+          to: "/docs/$",
+        }),
+      );
     }
 
     return result;
@@ -85,7 +97,7 @@ const serverLoader = createServerFn({ method: "GET" })
         };
       }
 
-      throw notFound();
+      raiseRouterSignal(notFound());
     }
 
     return {

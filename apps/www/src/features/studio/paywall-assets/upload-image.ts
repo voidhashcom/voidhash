@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 /** Accepted upload MIME types — kept in sync with the server-side allow-list. */
 export const ACCEPTED_ASSET_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
 
@@ -35,24 +37,29 @@ export function formatBytes(bytes: number): string {
 }
 
 const readAsDataUrl = (file: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
+  Effect.runPromise(
+    Effect.callback<string, Error>((resume) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resume(Effect.succeed(reader.result as string));
+      reader.onerror = () =>
+        resume(Effect.fail(reader.error ?? new Error("Failed to read file")));
+      reader.readAsDataURL(file);
+    }),
+  );
 
 const readImageDimensions = (dataUrl: string): Promise<{ width: number; height: number } | null> =>
-  new Promise((resolve) => {
-    const image = new Image();
-    image.addEventListener("load", () =>
-      resolve({ height: image.naturalHeight, width: image.naturalWidth }),
-    );
-    // Dimensions are best-effort metadata; a decode failure here shouldn't block
-    // an otherwise valid upload (e.g. some GIFs), so resolve null instead.
-    image.addEventListener("error", () => resolve(null));
-    image.src = dataUrl;
-  });
+  Effect.runPromise(
+    Effect.callback<{ width: number; height: number } | null>((resume) => {
+      const image = new Image();
+      image.addEventListener("load", () =>
+        resume(Effect.succeed({ height: image.naturalHeight, width: image.naturalWidth })),
+      );
+      // Dimensions are best-effort metadata; a decode failure here shouldn't block
+      // an otherwise valid upload (e.g. some GIFs), so resolve null instead.
+      image.addEventListener("error", () => resume(Effect.succeed(null)));
+      image.src = dataUrl;
+    }),
+  );
 
 /**
  * Validates a selected file against the type allow-list and 8 MiB cap, reads its
@@ -64,13 +71,23 @@ const readImageDimensions = (dataUrl: string): Promise<{ width: number; height: 
  */
 export async function prepareAssetUpload(file: File): Promise<PreparedAssetUpload> {
   if (!(ACCEPTED_ASSET_TYPES as readonly string[]).includes(file.type)) {
-    throw new AssetUploadValidationError(
-      `"${file.name}" is not a supported image type. Use PNG, JPEG, WebP, or GIF.`,
+    // `runPromise` squashes the cause, so the rejection is the validation error
+    // itself — callers keep matching it with `instanceof`.
+    return Effect.runPromise(
+      Effect.fail(
+        new AssetUploadValidationError(
+          `"${file.name}" is not a supported image type. Use PNG, JPEG, WebP, or GIF.`,
+        ),
+      ),
     );
   }
   if (file.size > MAX_ASSET_BYTES) {
-    throw new AssetUploadValidationError(
-      `"${file.name}" is ${formatBytes(file.size)}. Images must be 8 MB or smaller.`,
+    return Effect.runPromise(
+      Effect.fail(
+        new AssetUploadValidationError(
+          `"${file.name}" is ${formatBytes(file.size)}. Images must be 8 MB or smaller.`,
+        ),
+      ),
     );
   }
 

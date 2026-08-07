@@ -7,6 +7,7 @@ import {
   type DNF,
   type VariableType,
 } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 /** Write input for a state condition (plain arrays, unlike the snapshot). */
 export type DnfInput = NonNullable<Primitive.InferInput<typeof dnfSchema>>;
@@ -55,11 +56,11 @@ export function replayableElementInput<TElement extends Primitive.AnyPrimitive>(
   element: TElement,
   raw: unknown,
 ): raw is NonNullable<Primitive.InferInput<TElement>> {
-  try {
-    return element.encodeOptional(raw) !== undefined;
-  } catch {
-    return false;
-  }
+  return Effect.runSync(
+    Effect.try(() => element.encodeOptional(raw) !== undefined).pipe(
+      Effect.orElseSucceed(() => false),
+    ),
+  );
 }
 
 /**
@@ -70,12 +71,12 @@ export function replayableElementInput<TElement extends Primitive.AnyPrimitive>(
  * them at set and validate).
  */
 export function replayableAction(raw: unknown): Action | undefined {
-  try {
-    const encoded = actionSchema.encodeOptional(raw);
-    return encoded === undefined ? undefined : actionSchema.decode(encoded);
-  } catch {
-    return undefined;
-  }
+  return Effect.runSync(
+    Effect.try(() => {
+      const encoded = actionSchema.encodeOptional(raw);
+      return encoded === undefined ? undefined : actionSchema.decode(encoded);
+    }).pipe(Effect.orElseSucceed(() => undefined)),
+  );
 }
 
 /**
@@ -83,12 +84,12 @@ export function replayableAction(raw: unknown): Action | undefined {
  * typed value or `undefined` for payloads the schema rejects.
  */
 export function replayableVariableValue(raw: unknown): VariableType | undefined {
-  try {
-    const encoded = variableTypeSchema.encodeOptional(raw);
-    return encoded === undefined ? undefined : variableTypeSchema.decode(encoded);
-  } catch {
-    return undefined;
-  }
+  return Effect.runSync(
+    Effect.try(() => {
+      const encoded = variableTypeSchema.encodeOptional(raw);
+      return encoded === undefined ? undefined : variableTypeSchema.decode(encoded);
+    }).pipe(Effect.orElseSucceed(() => undefined)),
+  );
 }
 
 /**
@@ -118,14 +119,14 @@ export function dnfInputFromSnapshot(condition: DNF): DnfInput {
  * (UI-built conditions, undo payloads produced by {@link dnfInputFromSnapshot}).
  */
 export function replayableDnfInput(raw: unknown): DnfInput | undefined {
-  try {
-    const encoded = dnfSchema.encodeOptional(raw);
-    if (encoded === undefined) {
-      return undefined;
-    }
-    const snapshot = dnfSchema.decode(encoded);
-    return snapshot === undefined ? undefined : dnfInputFromSnapshot(snapshot);
-  } catch {
-    return undefined;
-  }
+  return Effect.runSync(
+    Effect.try(() => {
+      const encoded = dnfSchema.encodeOptional(raw);
+      if (encoded === undefined) {
+        return undefined;
+      }
+      const snapshot = dnfSchema.decode(encoded);
+      return snapshot === undefined ? undefined : dnfInputFromSnapshot(snapshot);
+    }).pipe(Effect.orElseSucceed(() => undefined)),
+  );
 }

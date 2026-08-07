@@ -23,7 +23,8 @@ import { getConfig as getMimicConfig } from "@voidhash/mimic-db/config";
 import { makeRoutesLive } from "@voidhash/mimic-db/http/rpc-app";
 import { DurableEntityAlarmControl, DurableEntityHost } from "@voidhash/platform/DurableEntity";
 import { SmtpMailerLive } from "@voidhash/platform-selfhost/Mailer";
-import { Context, Effect, Layer } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Config, Context, Data, Effect, Layer, Option } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import type * as Rpc from "effect/unstable/rpc/Rpc";
@@ -63,6 +64,52 @@ const isCaptureRequest = (url: string | undefined): boolean => {
   const pathname = new URL(url ?? "/", "http://selfhost.local").pathname;
   return pathname === "/i" || pathname.startsWith("/i/");
 };
+
+/** Boot-time misconfiguration of the self-host process; never crosses a wire. */
+class SelfhostServerBootError extends Data.TaggedError("SelfhostServerBootError")<{
+  readonly message: string;
+}> {}
+
+/** Reads an optional environment variable, mirroring `process.env.X`. */
+const optionalEnv = (name: string): Effect.Effect<string | undefined> =>
+  Config.string(name).pipe(Config.option, Effect.map(Option.getOrUndefined), Effect.orDie);
+
+/** Reads an optional environment variable, trimmed, mirroring `process.env.X?.trim()`. */
+const optionalTrimmedEnv = (name: string): Effect.Effect<string | undefined> =>
+  optionalEnv(name).pipe(Effect.map((value) => value?.trim()));
+
+const makeClickhouseLayers = (config: SelfhostRuntimeConfig) => {
+  if (!config.clickhouse) return undefined;
+  return makeSelfhostClickhouseLayers(config.clickhouse);
+};
+
+const makeChromiumConfig = (
+  executablePath: string | undefined,
+  disableSandbox: boolean,
+): { readonly disableSandbox: boolean; readonly executablePath: string } | undefined => {
+  if (!executablePath) return undefined;
+  return { disableSandbox, executablePath };
+};
+
+const makeSnapshotImageRenderer = (
+  chromiumConfig: { readonly disableSandbox: boolean; readonly executablePath: string } | undefined,
+) => {
+  if (chromiumConfig === undefined) return undefined;
+  return makeSelfhostSnapshotImageRendererLive(chromiumConfig);
+};
+
+/** Loads the WWW handler when both of its environment variables are configured. */
+const loadWwwHandler = (serverEntry: string | undefined, clientDirectory: string | undefined) =>
+  Effect.gen(function* () {
+    if (!serverEntry || !clientDirectory) return undefined;
+    return yield* Effect.tryPromise({
+      try: () => loadWwwRequestHandler(serverEntry, clientDirectory),
+      catch: (cause) =>
+        new SelfhostServerBootError({
+          message: `Failed to load the WWW server bundle: ${causeMessage(cause)}`,
+        }),
+    });
+  });
 
 /**
  * The runtime values a composition root can only obtain from inside the server
@@ -142,24 +189,19 @@ export const runSelfhostServer = <
       yield* Effect.logInfo(
         `Identity provider: standalone (root user ${config.auth.rootUsername})`,
       );
-      const clickhouse = config.clickhouse
-        ? makeSelfhostClickhouseLayers(config.clickhouse)
-        : undefined;
-      const chromiumExecutablePath = process.env.CHROMIUM_EXECUTABLE_PATH?.trim();
-      const chromiumConfig = chromiumExecutablePath
-        ? {
-            disableSandbox: process.env.CHROMIUM_DISABLE_SANDBOX === "true",
-            executablePath: chromiumExecutablePath,
-          }
-        : undefined;
+      const clickhouse = makeClickhouseLayers(config);
+      const chromiumExecutablePath = yield* optionalTrimmedEnv("CHROMIUM_EXECUTABLE_PATH");
+      const chromiumDisableSandbox = yield* optionalEnv("CHROMIUM_DISABLE_SANDBOX");
+      const chromiumConfig = makeChromiumConfig(
+        chromiumExecutablePath,
+        chromiumDisableSandbox === "true",
+      );
       const infrastructure = Layer.mergeAll(
         makeBackendInfrastructureLive(
           config,
           authLayers.identity,
           clickhouse?.readOnly,
-          chromiumConfig === undefined
-            ? undefined
-            : makeSelfhostSnapshotImageRendererLive(chromiumConfig),
+          makeSnapshotImageRenderer(chromiumConfig),
         ),
         options.identityDirectory ?? Layer.empty,
       ).pipe(Layer.provide(hostLayer));
@@ -192,7 +234,7 @@ export const runSelfhostServer = <
             features: options.features,
             infrastructure,
             pushDeliveryDispatch,
-            ...(options.mcpOAuth === undefined ? {} : { mcpOAuth: options.mcpOAuth }),
+            mcpOAuth: options.mcpOAuth,
           }),
           infrastructure,
         ),
@@ -242,10 +284,10 @@ export const runSelfhostServer = <
         features: options.features,
         rpcExtension,
         infrastructure,
-        ...(clickhouse === undefined ? {} : { analyticsQueryClient: clickhouse.analyticsQuery }),
+        analyticsQueryClient: clickhouse?.analyticsQuery,
         pushDeliveryDispatch,
-        ...(options.routeExtension === undefined ? {} : { routeExtension: options.routeExtension }),
-        ...(options.mcpOAuth === undefined ? {} : { mcpOAuth: options.mcpOAuth }),
+        routeExtension: options.routeExtension,
+        mcpOAuth: options.mcpOAuth,
       }).pipe(Effect.provide(runtimeContext));
       const mimicEffect = yield* makeRoutesLive(hostLayer).pipe(
         Layer.provide(NodeHttpServer.layerHttpServices),
@@ -271,20 +313,14 @@ export const runSelfhostServer = <
         captureEffect.pipe(Effect.provide(runtimeContext)),
         { scope },
       );
-      const wwwServerEntry = process.env.WWW_SERVER_ENTRY?.trim();
-      const wwwClientDirectory = process.env.WWW_CLIENT_DIRECTORY?.trim();
+      const wwwServerEntry = yield* optionalTrimmedEnv("WWW_SERVER_ENTRY");
+      const wwwClientDirectory = yield* optionalTrimmedEnv("WWW_CLIENT_DIRECTORY");
       if ((wwwServerEntry === undefined) !== (wwwClientDirectory === undefined)) {
-        return yield* Effect.fail(
-          new Error("WWW_SERVER_ENTRY and WWW_CLIENT_DIRECTORY must be configured together"),
-        );
+        return yield* new SelfhostServerBootError({
+          message: "WWW_SERVER_ENTRY and WWW_CLIENT_DIRECTORY must be configured together",
+        });
       }
-      const wwwHandler =
-        wwwServerEntry && wwwClientDirectory
-          ? yield* Effect.tryPromise({
-              try: () => loadWwwRequestHandler(wwwServerEntry, wwwClientDirectory),
-              catch: (cause) => new Error("Failed to load the WWW server bundle", { cause }),
-            })
-          : undefined;
+      const wwwHandler = yield* loadWwwHandler(wwwServerEntry, wwwClientDirectory);
       const server = createServer((request, response) => {
         if (isMimicRequest(request.url)) {
           mimicHandler(request, response);
@@ -295,8 +331,8 @@ export const runSelfhostServer = <
           return;
         }
         if (wwwHandler !== undefined && isWwwRequest(request.url)) {
-          wwwHandler(request, response).catch((error) => {
-            console.error("WWW request failed", error);
+          wwwHandler(request, response).catch((error: unknown) => {
+            Effect.runFork(Effect.logError(`WWW request failed: ${causeMessage(error)}`));
             if (!response.headersSent) {
               response.statusCode = 500;
             }

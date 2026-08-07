@@ -6,13 +6,15 @@
  * while avoiding Node-only APIs so it can run in Cloudflare Workers.
  */
 import * as Clickhouse from "@clickhouse/client-web";
+import * as Clock from "effect/Clock";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
+import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber";
 import { dual } from "effect/Function";
 import * as Layer from "effect/Layer";
+import * as Random from "effect/Random";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
@@ -42,23 +44,32 @@ const clickhouseCodeFromCause = (cause: unknown): number | undefined => {
   }
   if (typeof code === "string") {
     const parsed = Number(code);
-    return Number.isNaN(parsed) ? undefined : parsed;
+    if (Number.isNaN(parsed)) {
+      return undefined;
+    }
+    return parsed;
   }
   return undefined;
 };
 
 const clickhouseSyntaxErrorCodes = new Set([36, 60, 62, 242]);
 
+const trimmedOrUndefined = (value: string): string | undefined => {
+  const trimmed = value.trim();
+  if (trimmed.length > 0) {
+    return trimmed;
+  }
+  return undefined;
+};
+
 const messageFromCause = (cause: unknown): string | undefined => {
   if (typeof cause === "string") {
-    const trimmed = cause.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
+    return trimmedOrUndefined(cause);
   }
   if (typeof cause === "object" && cause !== null && "message" in cause) {
     const message = cause.message;
     if (typeof message === "string") {
-      const trimmed = message.trim();
-      return trimmed.length > 0 ? trimmed : undefined;
+      return trimmedOrUndefined(message);
     }
   }
   return undefined;
@@ -66,7 +77,10 @@ const messageFromCause = (cause: unknown): string | undefined => {
 
 const withCauseMessage = (message: string, cause: unknown): string => {
   const causeMessage = messageFromCause(cause);
-  return causeMessage && causeMessage !== message ? `${message}: ${causeMessage}` : message;
+  if (causeMessage !== undefined && causeMessage !== message) {
+    return `${message}: ${causeMessage}`;
+  }
+  return message;
 };
 
 const classifyError = (
@@ -91,12 +105,36 @@ const classifyError = (
       return new StatementTimeoutError(props);
     }
   }
-  return fallback === "connection" ? new ConnectionError(props) : new UnknownError(props);
+  if (fallback === "connection") {
+    return new ConnectionError(props);
+  }
+  return new UnknownError(props);
 };
 
-const makeQueryId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  `clickhouse-web-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+/**
+ * Defect carried as the `cause` of a connection timeout, replacing a bare
+ * `Error` so the failure is a tagged value.
+ */
+class ConnectionTimeout extends Data.TaggedError("ClickhouseWebConnectionTimeout")<{
+  readonly message: string;
+}> {}
+
+const makeQueryId = Effect.gen(function* () {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid !== undefined) {
+    return uuid;
+  }
+  const millis = yield* Clock.currentTimeMillis;
+  const random = yield* Random.next;
+  return `clickhouse-web-${millis}-${random.toString(36).slice(2)}`;
+});
+
+const resolveQueryId = (queryId: string | undefined): Effect.Effect<string> => {
+  if (queryId !== undefined) {
+    return Effect.succeed(queryId);
+  }
+  return makeQueryId;
+};
 
 /**
  * Build the per-request HTTP headers that carry a ClickHouse quota key. ClickHouse
@@ -104,8 +142,50 @@ const makeQueryId = () =>
  * client_key` quota only isolates principals when this is set per request;
  * `undefined` (the default) sends no override and falls back to the empty key.
  */
-const quotaHeaders = (quotaKey: string | undefined): Record<string, string> | undefined =>
-  quotaKey ? { "X-ClickHouse-Quota": quotaKey } : undefined;
+const quotaHeaders = (quotaKey: string | undefined): Record<string, string> | undefined => {
+  if (quotaKey) {
+    return { "X-ClickHouse-Quota": quotaKey };
+  }
+  return undefined;
+};
+
+/**
+ * Unwraps the `data` envelope that JSON-shaped ClickHouse formats wrap rows in,
+ * while passing row arrays (`JSONEachRow` and friends) straight through. The
+ * parameter is `any` because the shape depends on the runtime format, which the
+ * `@clickhouse/client-web` types express as a single opaque union.
+ */
+const rowsFromJson = (value: any): ReadonlyArray<any> => {
+  if (value !== null && typeof value === "object" && "data" in value) {
+    return value.data;
+  }
+  return value;
+};
+
+/**
+ * Adapts a `ResultSet` stream to the async-iterable shape `Stream.fromAsyncIterable`
+ * expects. `@clickhouse/client-web` types the stream as a `ReadableStream` even
+ * though it is async-iterable at runtime, so this is a typed boundary helper.
+ */
+const asyncRows = (
+  stream: any,
+): AsyncIterable<ReadonlyArray<Clickhouse.Row<any, "JSONEachRow">>> => stream;
+
+const makeRowTransform = (transformResultNames: ((str: string) => string) | undefined) => {
+  if (transformResultNames === undefined) {
+    return undefined;
+  }
+  return Statement.defaultTransforms(transformResultNames).array;
+};
+
+const spanAttributeEntries = (
+  attributes: Record<string, unknown> | undefined,
+): Array<[string, unknown]> => {
+  if (attributes === undefined) {
+    return [];
+  }
+  return Object.entries(attributes);
+};
 
 type WebInsertValues<T> =
   | ReadonlyArray<T>
@@ -183,30 +263,32 @@ export const make = (
 ): Effect.Effect<ClickhouseWebClient, SqlError, Scope.Scope | Reactivity.Reactivity> =>
   Effect.gen(function* () {
     const compiler = makeCompiler(options.transformQueryNames);
-    const transformRows = options.transformResultNames
-      ? Statement.defaultTransforms(options.transformResultNames).array
-      : undefined;
+    const transformRows = makeRowTransform(options.transformResultNames);
 
     const client = Clickhouse.createClient(options);
 
+    const connectError = (cause: unknown) =>
+      new SqlError({
+        reason: classifyError(
+          cause,
+          "ClickhouseWebClient: Failed to connect",
+          "connect",
+          "connection",
+        ),
+      });
+
     yield* Effect.acquireRelease(
       Effect.tryPromise({
-        try: async () => {
-          const result = await client.ping();
-          if (!result.success) {
-            throw result.error;
+        try: () => client.ping(),
+        catch: connectError,
+      }).pipe(
+        Effect.flatMap((result) => {
+          if (result.success) {
+            return Effect.void;
           }
-        },
-        catch: (cause) =>
-          new SqlError({
-            reason: classifyError(
-              cause,
-              "ClickhouseWebClient: Failed to connect",
-              "connect",
-              "connection",
-            ),
-          }),
-      }),
+          return Effect.fail(connectError(result.error));
+        }),
+      ),
       () => Effect.promise(() => client.close()),
     ).pipe(
       Effect.timeoutOrElse({
@@ -216,7 +298,7 @@ export const make = (
             new SqlError({
               reason: new ConnectionError({
                 message: "ClickhouseWebClient: Connection timeout",
-                cause: new Error("connection timeout"),
+                cause: new ConnectionTimeout({ message: "connection timeout" }),
                 operation: "connect",
               }),
             }),
@@ -245,11 +327,11 @@ export const make = (
           SqlError
         >((fiber) => {
           const method = fiber.getRef(ClientMethod);
-          return Effect.callback<
-            Clickhouse.ResultSet<Clickhouse.DataFormat> | Clickhouse.CommandResult,
-            SqlError
-          >((resume) => {
-            const queryId = fiber.getRef(QueryId) ?? makeQueryId();
+          return Effect.flatMap(resolveQueryId(fiber.getRef(QueryId)), (queryId) =>
+            Effect.callback<
+              Clickhouse.ResultSet<Clickhouse.DataFormat> | Clickhouse.CommandResult,
+              SqlError
+            >((resume) => {
             const settings = fiber.getRef(ClickhouseSettings);
             const controller = new AbortController();
             if (method === "command") {
@@ -302,7 +384,8 @@ export const make = (
                 this.conn.command({ query: `KILL QUERY WHERE query_id = '${queryId}'` }),
               );
             });
-          });
+            }),
+          );
         });
       }
 
@@ -310,12 +393,7 @@ export const make = (
         return this.runRaw(sql, params, format).pipe(
           Effect.flatMap((result) => {
             if ("json" in result) {
-              return Effect.promise(() =>
-                result.json().then(
-                  (result) => ("data" in result ? result.data : result) as ReadonlyArray<any>,
-                  () => [],
-                ),
-              );
+              return Effect.promise(() => result.json().then(rowsFromJson, () => []));
             }
             return Effect.succeed([]);
           }),
@@ -327,9 +405,10 @@ export const make = (
         params: ReadonlyArray<unknown>,
         transformRows: (<A extends object>(row: ReadonlyArray<A>) => ReadonlyArray<A>) | undefined,
       ) {
-        return transformRows
-          ? Effect.map(this.run(sql, params), transformRows)
-          : this.run(sql, params);
+        if (transformRows) {
+          return Effect.map(this.run(sql, params), transformRows);
+        }
+        return this.run(sql, params);
       }
 
       executeRaw(sql: string, params: ReadonlyArray<unknown>) {
@@ -359,7 +438,7 @@ export const make = (
               return Stream.empty;
             }
             return Stream.fromAsyncIterable(
-              result.stream() as AsyncIterable<ReadonlyArray<Clickhouse.Row<any, "JSONEachRow">>>,
+              asyncRows(result.stream()),
               (cause) =>
                 new SqlError({
                   reason: classifyError(cause, "Failed to execute stream", "stream"),
@@ -371,7 +450,10 @@ export const make = (
             Effect.try({
               try: () => {
                 const parsed = rows.map((row) => row.json());
-                return transformRows ? transformRows(parsed) : parsed;
+                if (transformRows) {
+                  return transformRows(parsed);
+                }
+                return parsed;
               },
               catch: (cause) =>
                 new SqlError({
@@ -391,7 +473,7 @@ export const make = (
         acquirer: Effect.succeed(connection),
         compiler,
         spanAttributes: [
-          ...(options.spanAttributes ? Object.entries(options.spanAttributes) : []),
+          ...spanAttributeEntries(options.spanAttributes),
           [ATTR_DB_SYSTEM_NAME, "clickhouse"],
           [ATTR_DB_NAMESPACE, options.database ?? "default"],
         ],
@@ -399,7 +481,7 @@ export const make = (
         transformRows,
       }),
       {
-        [TypeId]: TypeId as TypeId,
+        [TypeId]: TypeId,
         config: options,
         param(dataType: string, value: unknown) {
           return Statement.fragment([clickhouseParam(dataType, value)]);
@@ -412,9 +494,9 @@ export const make = (
           readonly values: WebInsertValues<T>;
           readonly format?: Clickhouse.DataFormat;
         }) {
-          return Effect.callback<Clickhouse.InsertResult, SqlError>((resume) => {
-            const fiber = Fiber.getCurrent()!;
-            const queryId = fiber.getRef(QueryId) ?? makeQueryId();
+          return Effect.withFiber<Clickhouse.InsertResult, SqlError>((fiber) =>
+            Effect.flatMap(resolveQueryId(fiber.getRef(QueryId)), (queryId) =>
+              Effect.callback<Clickhouse.InsertResult, SqlError>((resume) => {
             const settings = fiber.getRef(ClickhouseSettings);
             const controller = new AbortController();
             client
@@ -442,7 +524,9 @@ export const make = (
                 client.command({ query: `KILL QUERY WHERE query_id = '${queryId}'` }),
               );
             });
-          });
+              }),
+            ),
+          );
         },
         withQueryId: dual(2, <A, E, R>(effect: Effect.Effect<A, E, R>, queryId: string) =>
           Effect.provideService(effect, QueryId, queryId),
@@ -504,12 +588,12 @@ export const makeUnchecked = (
           SqlError
         >((fiber) => {
           const method = fiber.getRef(ClientMethod);
-          return Effect.callback<
-            Clickhouse.ResultSet<Clickhouse.DataFormat> | Clickhouse.CommandResult,
-            SqlError
-          >((resume) => {
+          return Effect.flatMap(resolveQueryId(fiber.getRef(QueryId)), (queryId) =>
+            Effect.callback<
+              Clickhouse.ResultSet<Clickhouse.DataFormat> | Clickhouse.CommandResult,
+              SqlError
+            >((resume) => {
             const conn = clientOnce();
-            const queryId = fiber.getRef(QueryId) ?? makeQueryId();
             const settings = fiber.getRef(ClickhouseSettings);
             const controller = new AbortController();
             if (method === "command") {
@@ -562,7 +646,8 @@ export const makeUnchecked = (
                 clientOnce().command({ query: `KILL QUERY WHERE query_id = '${queryId}'` }),
               );
             });
-          });
+            }),
+          );
         });
       }
 
@@ -570,12 +655,7 @@ export const makeUnchecked = (
         return this.runRaw(sql, params, format).pipe(
           Effect.flatMap((result) => {
             if ("json" in result) {
-              return Effect.promise(() =>
-                result.json().then(
-                  (result) => ("data" in result ? result.data : result) as ReadonlyArray<any>,
-                  () => [],
-                ),
-              );
+              return Effect.promise(() => result.json().then(rowsFromJson, () => []));
             }
             return Effect.succeed([]);
           }),
@@ -587,9 +667,10 @@ export const makeUnchecked = (
         params: ReadonlyArray<unknown>,
         transformRows: (<A extends object>(row: ReadonlyArray<A>) => ReadonlyArray<A>) | undefined,
       ) {
-        return transformRows
-          ? Effect.map(this.run(sql, params), transformRows)
-          : this.run(sql, params);
+        if (transformRows) {
+          return Effect.map(this.run(sql, params), transformRows);
+        }
+        return this.run(sql, params);
       }
 
       executeRaw(sql: string, params: ReadonlyArray<unknown>) {
@@ -619,7 +700,7 @@ export const makeUnchecked = (
               return Stream.empty;
             }
             return Stream.fromAsyncIterable(
-              result.stream() as AsyncIterable<ReadonlyArray<Clickhouse.Row<any, "JSONEachRow">>>,
+              asyncRows(result.stream()),
               (cause) =>
                 new SqlError({
                   reason: classifyError(cause, "Failed to execute stream", "stream"),
@@ -631,7 +712,10 @@ export const makeUnchecked = (
             Effect.try({
               try: () => {
                 const parsed = rows.map((row) => row.json());
-                return transformRows ? transformRows(parsed) : parsed;
+                if (transformRows) {
+                  return transformRows(parsed);
+                }
+                return parsed;
               },
               catch: (cause) =>
                 new SqlError({
@@ -657,7 +741,7 @@ export const makeUnchecked = (
         beginTransaction: "BEGIN TRANSACTION",
       }),
       {
-        [TypeId]: TypeId as TypeId,
+        [TypeId]: TypeId,
         param(dataType: string, value: unknown) {
           return Statement.fragment([clickhouseParam(dataType, value)]);
         },
@@ -669,10 +753,10 @@ export const makeUnchecked = (
           readonly values: WebInsertValues<T>;
           readonly format?: Clickhouse.DataFormat;
         }) {
-          return Effect.callback<Clickhouse.InsertResult, SqlError>((resume) => {
-            const fiber = Fiber.getCurrent()!;
+          return Effect.withFiber<Clickhouse.InsertResult, SqlError>((fiber) =>
+            Effect.flatMap(resolveQueryId(fiber.getRef(QueryId)), (queryId) =>
+              Effect.callback<Clickhouse.InsertResult, SqlError>((resume) => {
             const conn = clientOnce();
-            const queryId = fiber.getRef(QueryId) ?? makeQueryId();
             const settings = fiber.getRef(ClickhouseSettings);
             const controller = new AbortController();
             conn
@@ -700,7 +784,9 @@ export const makeUnchecked = (
                 clientOnce().command({ query: `KILL QUERY WHERE query_id = '${queryId}'` }),
               );
             });
-          });
+              }),
+            ),
+          );
         },
         withQueryId: dual(2, <A, E, R>(effect: Effect.Effect<A, E, R>, queryId: string) =>
           Effect.provideService(effect, QueryId, queryId),
@@ -720,10 +806,23 @@ export const makeUnchecked = (
 
     // `config` is exposed lazily so reading it never forces the `getConfig`
     // thunk (and thus the Worker env read) before the first real use.
-    Object.defineProperty(client, "config", { get: configOnce, enumerable: true });
-
-    return client as ClickhouseWebClient;
+    return withLazyConfig(client, configOnce);
   });
+
+/**
+ * Installs the lazy `config` getter that completes a `ClickhouseWebClient`.
+ *
+ * The client argument is `any` because `Object.defineProperty` cannot express
+ * the added property in the type system; this helper is the single place where
+ * that gap is bridged.
+ */
+const withLazyConfig = (
+  client: any,
+  getConfig: () => ClickhouseWebClientConfig,
+): ClickhouseWebClient => {
+  Object.defineProperty(client, "config", { get: getConfig, enumerable: true });
+  return client;
+};
 
 /**
  * Fiber reference read by the low-level ClickHouse connection to choose query
@@ -829,11 +928,7 @@ export const makeCompiler = (transform?: (_: string) => string) =>
     placeholder(i, u) {
       return `{p${i}: ${typeFromUnknown(u)}}`;
     },
-    onIdentifier: transform
-      ? function (value, withoutTransform) {
-          return withoutTransform ? escape(value) : escape(transform(value));
-        }
-      : escape,
+    onIdentifier: makeOnIdentifier(transform),
     onRecordUpdate() {
       return ["", []];
     },
@@ -843,6 +938,20 @@ export const makeCompiler = (transform?: (_: string) => string) =>
   });
 
 const escape = Statement.defaultEscape('"');
+
+const makeOnIdentifier = (
+  transform: ((_: string) => string) | undefined,
+): ((value: string, withoutTransform: boolean) => string) => {
+  if (transform === undefined) {
+    return escape;
+  }
+  return (value, withoutTransform) => {
+    if (withoutTransform) {
+      return escape(value);
+    }
+    return escape(transform(value));
+  };
+};
 
 /**
  * Custom SQL fragment type used for ClickHouse typed parameters created by

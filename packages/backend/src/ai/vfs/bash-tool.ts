@@ -5,6 +5,7 @@
  * the `voidhash` custom command. Custom commands register in
  * {@link workspaceCustomCommands}.
  */
+import { Effect } from "effect";
 import { Bash, defineCommand, type CustomCommand, type ExecResult } from "just-bash/browser";
 
 import {
@@ -18,16 +19,27 @@ export const MAX_BASH_STDOUT = 40_000;
 /** stderr cap for one bash result. */
 export const MAX_BASH_STDERR = 8_000;
 
-const voidhashCommand = (sources: WorkspaceVfsSources): CustomCommand =>
-  defineCommand("voidhash", async (args) => {
+const paywallListing = (lines: ReadonlyArray<string>): string => {
+  if (lines.length === 0) return "";
+  return `${lines.join("\n")}\n`;
+};
+
+const voidhashResult = (
+  sources: WorkspaceVfsSources,
+  args: ReadonlyArray<string>,
+): Effect.Effect<ExecResult, unknown> =>
+  Effect.gen(function* () {
     const subcommand = args[0];
     if (subcommand === undefined || subcommand === "help") {
       return { stdout: WORKSPACE_VFS_README, stderr: "", exitCode: 0 };
     }
     if (subcommand === "paywalls") {
-      const paywalls = await sources.listPaywalls();
+      const paywalls = yield* Effect.tryPromise({
+        try: () => sources.listPaywalls(),
+        catch: (cause) => cause,
+      });
       const lines = paywalls.map((paywall) => `${paywall.paywallId}\t${paywall.slug}`);
-      return { stdout: lines.length === 0 ? "" : `${lines.join("\n")}\n`, stderr: "", exitCode: 0 };
+      return { stdout: paywallListing(lines), stderr: "", exitCode: 0 };
     }
     return {
       stdout: "",
@@ -35,6 +47,9 @@ const voidhashCommand = (sources: WorkspaceVfsSources): CustomCommand =>
       exitCode: 1,
     };
   });
+
+const voidhashCommand = (sources: WorkspaceVfsSources): CustomCommand =>
+  defineCommand("voidhash", (args) => Effect.runPromise(voidhashResult(sources, args)));
 
 const workspaceCustomCommands = (sources: WorkspaceVfsSources): CustomCommand[] => [
   voidhashCommand(sources),
@@ -46,39 +61,56 @@ const workspaceCustomCommands = (sources: WorkspaceVfsSources): CustomCommand[] 
 const isFsError = (error: unknown): error is Error =>
   error instanceof Error && /^E[A-Z]+: /.test(error.message);
 
+const execOptions = (signal: AbortSignal | undefined): { signal?: AbortSignal } => {
+  if (signal === undefined) return {};
+  return { signal };
+};
+
+const workspaceBashResult = (
+  sources: WorkspaceVfsSources,
+  command: string,
+  signal: AbortSignal | undefined,
+): Effect.Effect<ExecResult, unknown> =>
+  Effect.gen(function* () {
+    const fs = yield* Effect.tryPromise({
+      try: () => makeWorkspaceVfs(sources),
+      catch: (cause) => cause,
+    });
+    const bash = new Bash({
+      fs,
+      cwd: "/",
+      env: { HOME: "/home/user" },
+      executionLimits: {
+        maxCommandCount: 512,
+        maxOutputSize: 2 * 1024 * 1024,
+      },
+      customCommands: workspaceCustomCommands(sources),
+    });
+    return yield* Effect.tryPromise({
+      try: () => bash.exec(command, execOptions(signal)),
+      catch: (cause) => cause,
+    }).pipe(
+      Effect.catchIf(isFsError, (error) =>
+        Effect.succeed({ stdout: "", stderr: `bash: ${error.message}\n`, exitCode: 1 }),
+      ),
+    );
+  });
+
 /**
  * Execute one command line in a fresh workspace shell. Filesystem and shell
  * state live only for this call; `signal` cooperatively aborts execution.
  */
-export const runWorkspaceBash = async (
+export const runWorkspaceBash = (
   sources: WorkspaceVfsSources,
   command: string,
   options: { readonly signal?: AbortSignal } = {},
-): Promise<ExecResult> => {
-  const bash = new Bash({
-    fs: await makeWorkspaceVfs(sources),
-    cwd: "/",
-    env: { HOME: "/home/user" },
-    executionLimits: {
-      maxCommandCount: 512,
-      maxOutputSize: 2 * 1024 * 1024,
-    },
-    customCommands: workspaceCustomCommands(sources),
-  });
-  try {
-    return await bash.exec(command, options.signal === undefined ? {} : { signal: options.signal });
-  } catch (error) {
-    if (isFsError(error)) {
-      return { stdout: "", stderr: `bash: ${error.message}\n`, exitCode: 1 };
-    }
-    throw error;
-  }
-};
+): Promise<ExecResult> =>
+  Effect.runPromise(workspaceBashResult(sources, command, options.signal));
 
-const truncate = (text: string, max: number, label: string): string =>
-  text.length <= max
-    ? text
-    : `${text.slice(0, max)}\n[${label} truncated at ${Math.round(max / 1000)}kB — narrow with grep/head/wc and rerun]\n`;
+const truncate = (text: string, max: number, label: string): string => {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n[${label} truncated at ${Math.round(max / 1000)}kB — narrow with grep/head/wc and rerun]\n`;
+};
 
 /** Cap a bash result's streams to token-friendly sizes, appending a notice. */
 export const truncateBashOutput = (

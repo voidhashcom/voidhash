@@ -3,6 +3,7 @@ import {
   PaywallArtifactStoreError,
   type PaywallArtifactStoreShape,
 } from "@voidhash/core/services";
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Layer } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { describe, expect, it } from "vite-plus/test";
@@ -18,9 +19,8 @@ const storeLayer = (objects: Record<string, { body: string; contentType: string 
     getObject: (key) =>
       Effect.sync(() => {
         const object = objects[key];
-        return object
-          ? { body: new TextEncoder().encode(object.body), contentType: object.contentType }
-          : null;
+        if (object === undefined) return null;
+        return { body: new TextEncoder().encode(object.body), contentType: object.contentType };
       }),
     head: () => Effect.succeed(null),
     putObject: () => Effect.void,
@@ -48,7 +48,7 @@ const serve = (path: string, store: Layer.Layer<PaywallArtifactStore>) =>
       ),
     );
     return HttpServerResponse.toWeb(response);
-  }).pipe(Effect.scoped, Effect.runPromise);
+  }).pipe(Effect.scoped);
 
 /** §5 security headers expected on EVERY /p/* response. */
 const expectSecurityHeaders = (response: Response) => {
@@ -58,94 +58,121 @@ const expectSecurityHeaders = (response: Response) => {
 };
 
 describe("GET /p/:contentHash/* (deploy contract §5)", () => {
-  it("serves a stored artifact with stored Content-Type, immutable caching, and permissive CORS", async () => {
-    const store = storeLayer({
-      [`p/${CONTENT_HASH}/index.html`]: {
-        body: "<html></html>",
-        contentType: "text/html; charset=utf-8",
-      },
-    });
+  it("serves a stored artifact with stored Content-Type, immutable caching, and permissive CORS", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const store = storeLayer({
+          [`p/${CONTENT_HASH}/index.html`]: {
+            body: "<html></html>",
+            contentType: "text/html; charset=utf-8",
+          },
+        });
 
-    const response = await serve(`/p/${CONTENT_HASH}/index.html`, store);
+        const response = yield* serve(`/p/${CONTENT_HASH}/index.html`, store);
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
-    expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await response.text()).toBe("<html></html>");
-  });
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+        expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        const text = yield* Effect.promise(() => response.text());
+        expect(text).toBe("<html></html>");
+      }),
+    ));
 
-  it("stamps the CSP sandbox, nosniff, and no-referrer security headers on served artifacts", async () => {
-    const store = storeLayer({
-      [`p/${CONTENT_HASH}/index.html`]: {
-        body: "<html></html>",
-        contentType: "text/html; charset=utf-8",
-      },
-    });
+  it("stamps the CSP sandbox, nosniff, and no-referrer security headers on served artifacts", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const store = storeLayer({
+          [`p/${CONTENT_HASH}/index.html`]: {
+            body: "<html></html>",
+            contentType: "text/html; charset=utf-8",
+          },
+        });
 
-    const response = await serve(`/p/${CONTENT_HASH}/index.html`, store);
+        const response = yield* serve(`/p/${CONTENT_HASH}/index.html`, store);
 
-    expect(response.status).toBe(200);
-    expectSecurityHeaders(response);
-    // The hardening headers must not displace the §5 CORS + caching headers.
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
-  });
+        expect(response.status).toBe(200);
+        expectSecurityHeaders(response);
+        // The hardening headers must not displace the §5 CORS + caching headers.
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+      }),
+    ));
 
-  it("serves nested asset paths under the contentHash prefix", async () => {
-    const store = storeLayer({
-      [`p/${CONTENT_HASH}/assets/hero-AB12CD.png`]: {
-        body: "png-bytes",
-        contentType: "image/png",
-      },
-    });
+  it("serves nested asset paths under the contentHash prefix", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const store = storeLayer({
+          [`p/${CONTENT_HASH}/assets/hero-AB12CD.png`]: {
+            body: "png-bytes",
+            contentType: "image/png",
+          },
+        });
 
-    const response = await serve(`/p/${CONTENT_HASH}/assets/hero-AB12CD.png`, store);
+        const response = yield* serve(`/p/${CONTENT_HASH}/assets/hero-AB12CD.png`, store);
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/png");
-  });
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toBe("image/png");
+      }),
+    ));
 
-  it("falls back to application/octet-stream when no Content-Type is stored", async () => {
-    const store = storeLayer({
-      [`p/${CONTENT_HASH}/bundle.js`]: { body: "js", contentType: null },
-    });
+  it("falls back to application/octet-stream when no Content-Type is stored", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const store = storeLayer({
+          [`p/${CONTENT_HASH}/bundle.js`]: { body: "js", contentType: null },
+        });
 
-    const response = await serve(`/p/${CONTENT_HASH}/bundle.js`, store);
+        const response = yield* serve(`/p/${CONTENT_HASH}/bundle.js`, store);
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("application/octet-stream");
-  });
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toBe("application/octet-stream");
+      }),
+    ));
 
-  it("returns 404 JSON for a missing object, with security headers and readable CORS", async () => {
-    const response = await serve(`/p/${CONTENT_HASH}/missing.js`, storeLayer({}));
+  it("returns 404 JSON for a missing object, with security headers and readable CORS", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve(`/p/${CONTENT_HASH}/missing.js`, storeLayer({}));
 
-    expect(response.status).toBe(404);
-    expectSecurityHeaders(response);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await response.json()).toEqual({ error: "Not found" });
-  });
+        expect(response.status).toBe(404);
+        expectSecurityHeaders(response);
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        const payload = yield* Effect.promise(() => response.json());
+        expect(payload).toEqual({ error: "Not found" });
+      }),
+    ));
 
-  it("returns 404 for a non-hex contentHash without touching the store", async () => {
-    const response = await serve("/p/not-a-hash/index.html", failingStoreLayer);
+  it("returns 404 for a non-hex contentHash without touching the store", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve("/p/not-a-hash/index.html", failingStoreLayer);
 
-    expect(response.status).toBe(404);
-  });
+        expect(response.status).toBe(404);
+      }),
+    ));
 
-  it("returns 404 for dot-dot path segments without touching the store", async () => {
-    const response = await serve(`/p/${CONTENT_HASH}/../escape.html`, failingStoreLayer);
+  it("returns 404 for dot-dot path segments without touching the store", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve(`/p/${CONTENT_HASH}/../escape.html`, failingStoreLayer);
 
-    expect(response.status).toBe(404);
-  });
+        expect(response.status).toBe(404);
+      }),
+    ));
 
-  it("returns 502 when the artifact store fails, with security headers and readable CORS", async () => {
-    const response = await serve(`/p/${CONTENT_HASH}/index.html`, failingStoreLayer);
+  it("returns 502 when the artifact store fails, with security headers and readable CORS", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve(`/p/${CONTENT_HASH}/index.html`, failingStoreLayer);
 
-    expect(response.status).toBe(502);
-    expectSecurityHeaders(response);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await response.json()).toEqual({ error: "Failed to load paywall artifact" });
-  });
+        expect(response.status).toBe(502);
+        expectSecurityHeaders(response);
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        const payload = yield* Effect.promise(() => response.json());
+        expect(payload).toEqual({ error: "Failed to load paywall artifact" });
+      }),
+    ));
 });
 
 describe("GET /c/:contentHash/* (deploy contract §5.1)", () => {
@@ -165,55 +192,71 @@ describe("GET /c/:contentHash/* (deploy contract §5.1)", () => {
       },
     });
 
-  it("serves component artifacts with the same §5 success headers", async () => {
-    for (const [path, contentType] of [
-      [`/c/${CONTENT_HASH}/manifest.json`, "application/json"],
-      [`/c/${CONTENT_HASH}/previews/default.json`, "application/json"],
-      [`/c/${CONTENT_HASH}/runtime.js`, "text/javascript; charset=utf-8"],
-    ] as const) {
-      const response = await serve(path, componentStore());
+  it("serves component artifacts with the same §5 success headers", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        for (const [path, contentType] of constant([
+          [`/c/${CONTENT_HASH}/manifest.json`, "application/json"],
+          [`/c/${CONTENT_HASH}/previews/default.json`, "application/json"],
+          [`/c/${CONTENT_HASH}/runtime.js`, "text/javascript; charset=utf-8"],
+        ])) {
+          const response = yield* serve(path, componentStore());
 
-      expect(response.status, path).toBe(200);
-      expect(response.headers.get("content-type")).toBe(contentType);
-      expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
-      expect(response.headers.get("access-control-allow-origin")).toBe("*");
-      expectSecurityHeaders(response);
-    }
-  });
+          expect(response.status, path).toBe(200);
+          expect(response.headers.get("content-type")).toBe(contentType);
+          expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+          expect(response.headers.get("access-control-allow-origin")).toBe("*");
+          expectSecurityHeaders(response);
+        }
+      }),
+    ));
 
-  it("does not serve /p/ objects from the /c/ prefix", async () => {
-    const store = storeLayer({
-      [`p/${CONTENT_HASH}/index.html`]: {
-        body: "<html></html>",
-        contentType: "text/html; charset=utf-8",
-      },
-    });
+  it("does not serve /p/ objects from the /c/ prefix", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const store = storeLayer({
+          [`p/${CONTENT_HASH}/index.html`]: {
+            body: "<html></html>",
+            contentType: "text/html; charset=utf-8",
+          },
+        });
 
-    const response = await serve(`/c/${CONTENT_HASH}/index.html`, store);
+        const response = yield* serve(`/c/${CONTENT_HASH}/index.html`, store);
 
-    expect(response.status).toBe(404);
-  });
+        expect(response.status).toBe(404);
+      }),
+    ));
 
-  it("returns a CORS-readable 404 for a missing preview state", async () => {
-    const response = await serve(`/c/${CONTENT_HASH}/previews/trial.json`, componentStore());
+  it("returns a CORS-readable 404 for a missing preview state", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve(`/c/${CONTENT_HASH}/previews/trial.json`, componentStore());
 
-    expect(response.status).toBe(404);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expectSecurityHeaders(response);
-    expect(await response.json()).toEqual({ error: "Not found" });
-  });
+        expect(response.status).toBe(404);
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        expectSecurityHeaders(response);
+        const payload = yield* Effect.promise(() => response.json());
+        expect(payload).toEqual({ error: "Not found" });
+      }),
+    ));
 
-  it("returns 404 for a non-hex contentHash without touching the store", async () => {
-    const response = await serve("/c/not-a-hash/manifest.json", failingStoreLayer);
+  it("returns 404 for a non-hex contentHash without touching the store", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve("/c/not-a-hash/manifest.json", failingStoreLayer);
 
-    expect(response.status).toBe(404);
-  });
+        expect(response.status).toBe(404);
+      }),
+    ));
 
-  it("returns a CORS-readable 502 when the artifact store fails", async () => {
-    const response = await serve(`/c/${CONTENT_HASH}/manifest.json`, failingStoreLayer);
+  it("returns a CORS-readable 502 when the artifact store fails", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve(`/c/${CONTENT_HASH}/manifest.json`, failingStoreLayer);
 
-    expect(response.status).toBe(502);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expectSecurityHeaders(response);
-  });
+        expect(response.status).toBe(502);
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        expectSecurityHeaders(response);
+      }),
+    ));
 });

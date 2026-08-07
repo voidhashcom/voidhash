@@ -11,6 +11,7 @@ import {
   GradientAvatar,
   Slider,
 } from "@voidhash/ui";
+import { Effect } from "effect";
 import { useCallback, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { toast } from "sonner";
@@ -24,24 +25,24 @@ const ACCEPTED_TYPES = "image/png,image/jpeg,image/webp";
 /** Edge length the cropped square is resized to before upload (keeps payloads tiny). */
 const OUTPUT_SIZE = 512;
 
-const createImage = (url: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
+const createImage = (url: string): Effect.Effect<HTMLImageElement, unknown> =>
+  Effect.callback<HTMLImageElement, unknown>((resume) => {
     const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", (error) => reject(error));
+    image.addEventListener("load", () => resume(Effect.succeed(image)));
+    image.addEventListener("error", (error) => resume(Effect.fail(error)));
     image.src = url;
   });
 
-const blobToBase64 = (blob: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
+const blobToBase64 = (blob: Blob): Effect.Effect<string, unknown> =>
+  Effect.callback<string, unknown>((resume) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
       // Strip the `data:<type>;base64,` prefix — the server accepts raw base64.
       const comma = result.indexOf(",");
-      resolve(comma === -1 ? result : result.slice(comma + 1));
+      resume(Effect.succeed(comma === -1 ? result : result.slice(comma + 1)));
     };
-    reader.onerror = reject;
+    reader.onerror = (error) => resume(Effect.fail(error));
     reader.readAsDataURL(blob);
   });
 
@@ -49,38 +50,39 @@ const blobToBase64 = (blob: Blob): Promise<string> =>
  * Draws the selected crop area to an offscreen canvas, resizing to a fixed
  * square, and returns the result as a base64 WebP (no data-URL prefix).
  */
-const getCroppedImage = async (
+const getCroppedImage = (
   imageSrc: string,
   pixelCrop: Area,
-): Promise<{ imageBase64: string; contentType: string }> => {
-  const image = await createImage(imageSrc);
-  const canvas = document.createElement("canvas");
-  canvas.width = OUTPUT_SIZE;
-  canvas.height = OUTPUT_SIZE;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Could not get canvas context");
-  }
-  ctx.drawImage(
-    image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
-    0,
-    0,
-    OUTPUT_SIZE,
-    OUTPUT_SIZE,
-  );
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/webp", 0.85),
-  );
-  if (!blob) {
-    throw new Error("Could not produce cropped image");
-  }
-  const imageBase64 = await blobToBase64(blob);
-  return { imageBase64, contentType: "image/webp" };
-};
+): Effect.Effect<{ imageBase64: string; contentType: string }, unknown> =>
+  Effect.gen(function* () {
+    const image = yield* createImage(imageSrc);
+    const canvas = document.createElement("canvas");
+    canvas.width = OUTPUT_SIZE;
+    canvas.height = OUTPUT_SIZE;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return yield* Effect.fail(new Error("Could not get canvas context"));
+    }
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      OUTPUT_SIZE,
+      OUTPUT_SIZE,
+    );
+    const blob = yield* Effect.callback<Blob | null>((resume) => {
+      canvas.toBlob((value) => resume(Effect.succeed(value)), "image/webp", 0.85);
+    });
+    if (!blob) {
+      return yield* Effect.fail(new Error("Could not produce cropped image"));
+    }
+    const imageBase64 = yield* blobToBase64(blob);
+    return { imageBase64, contentType: "image/webp" };
+  });
 
 export interface AvatarUploaderProps {
   /** Display name (used for alt text). */
@@ -145,15 +147,20 @@ export function AvatarUploader({
       return;
     }
     setIsSaving(true);
-    try {
-      const result = await getCroppedImage(imageSrc, croppedAreaPixels);
-      onUpload(result);
-      closeDialog();
-    } catch {
-      toast.error("Failed to process the image. Please try another file.");
-    } finally {
-      setIsSaving(false);
-    }
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* getCroppedImage(imageSrc, croppedAreaPixels);
+        onUpload(result);
+        closeDialog();
+      }).pipe(
+        Effect.catchCause(() =>
+          Effect.sync(() => {
+            toast.error("Failed to process the image. Please try another file.");
+          }),
+        ),
+        Effect.ensuring(Effect.sync(() => setIsSaving(false))),
+      ),
+    );
   };
 
   return (

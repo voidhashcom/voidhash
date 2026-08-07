@@ -2,7 +2,7 @@ import {
   GooglePlayPaymentProviderService,
   type GooglePlayPaymentProviderServiceShape,
 } from "@voidhash/core/services";
-import { Effect, Layer } from "effect";
+import { Effect, Encoding, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -14,9 +14,23 @@ import {
 import { GooglePlayRtdnNotificationRouteLayer } from "./google-play-rtdn.ts";
 
 const path = "/api/v1/webhook-endpoints/google-play-rtdn/config-1";
+
+const encodeRtdnPayload = Schema.encodeSync(
+  Schema.fromJsonString(
+    Schema.Struct({ packageName: Schema.String, testNotification: Schema.Struct({}) }),
+  ),
+);
+
+const PubSubPushBody = Schema.Struct({
+  message: Schema.Struct({ data: Schema.String, messageId: Schema.String }),
+});
+const encodePubSubPushBody = Schema.encodeSync(Schema.fromJsonString(PubSubPushBody));
+
 const body = {
   message: {
-    data: btoa(JSON.stringify({ packageName: "com.example", testNotification: {} })),
+    data: Encoding.encodeBase64(
+      encodeRtdnPayload({ packageName: "com.example", testNotification: {} }),
+    ),
     messageId: "message-1",
   },
 };
@@ -59,7 +73,7 @@ const serve = (
         HttpServerRequest.HttpServerRequest,
         HttpServerRequest.fromWeb(
           new Request(`http://localhost${path}`, {
-            body: JSON.stringify(body),
+            body: encodePubSubPushBody(body),
             headers,
             method: "POST",
           }),
@@ -70,9 +84,9 @@ const serve = (
   }).pipe(Effect.scoped, Effect.runPromise);
 
 describe("Google Play RTDN route authentication", () => {
-  it("rejects an unauthenticated request before processing its body", async () => {
+  it("rejects an unauthenticated request before processing its body", () => {
     let acceptCalls = 0;
-    const response = await serve(
+    return serve(
       undefined,
       {
         verify: () =>
@@ -86,15 +100,15 @@ describe("Google Play RTDN route authentication", () => {
       () => {
         acceptCalls += 1;
       },
-    );
-
-    expect(response.status).toBe(401);
-    expect(acceptCalls).toBe(0);
+    ).then((response) => {
+      expect(response.status).toBe(401);
+      expect(acceptCalls).toBe(0);
+    });
   });
 
-  it("returns a retryable error when authenticated push is not configured", async () => {
+  it("returns a retryable error when authenticated push is not configured", () => {
     let acceptCalls = 0;
-    const response = await serve(
+    return serve(
       "Bearer token",
       {
         verify: () =>
@@ -108,19 +122,19 @@ describe("Google Play RTDN route authentication", () => {
       () => {
         acceptCalls += 1;
       },
-    );
-
-    expect(response.status).toBe(503);
-    expect(acceptCalls).toBe(0);
+    ).then((response) => {
+      expect(response.status).toBe(503);
+      expect(acceptCalls).toBe(0);
+    });
   });
 
-  it("processes a request only after caller authentication succeeds", async () => {
+  it("processes a request only after caller authentication succeeds", () => {
     let acceptCalls = 0;
-    const response = await serve("Bearer signed-token", { verify: () => Effect.void }, () => {
+    return serve("Bearer signed-token", { verify: () => Effect.void }, () => {
       acceptCalls += 1;
+    }).then((response) => {
+      expect(response.status).toBe(200);
+      expect(acceptCalls).toBe(1);
     });
-
-    expect(response.status).toBe(200);
-    expect(acceptCalls).toBe(1);
   });
 });

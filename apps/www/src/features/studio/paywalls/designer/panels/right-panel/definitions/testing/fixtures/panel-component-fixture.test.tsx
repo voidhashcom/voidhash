@@ -9,6 +9,7 @@
  * tree the host renderer can expand.
  */
 import { createPanelSession, type PanelSessionInputs } from "@voidhash/paywalls/panel";
+import { Effect } from "effect";
 import { extractComponentManifest } from "@voidhash/paywalls";
 import { definitionHasPanel } from "@voidhash/paywalls/sandbox";
 import { describe, expect, test } from "vite-plus/test";
@@ -61,34 +62,34 @@ describe("panel-component-fixture", () => {
           latest = tree;
         },
         onError: (error) => {
-          throw error;
+          Effect.runSync(Effect.die(error));
         },
       },
     });
 
-    try {
-      // Serialize → decode through the host gate, mirroring the sandbox boundary.
-      const decoded = decodePanelTree(JSON.stringify(latest));
-      expect(decoded.ok).toBe(true);
-      if (!decoded.ok) return;
+    Effect.runSync(
+      Effect.sync(() => {
+        // Serialize → decode through the host gate, mirroring the sandbox boundary.
+        const decoded = decodePanelTree(JSON.stringify(latest));
+        expect(decoded.ok).toBe(true);
+        if (!decoded.ok) return;
 
-      const root = decoded.tree.root;
-      // Two sections: "Content" and "Style".
-      const sections = [...walk(root)].filter((n) => n.type === "section");
-      expect(sections.map((s) => s.props.title)).toEqual(["Content", "Style"]);
+        const root = decoded.tree.root;
+        // Two sections: "Content" and "Style".
+        const sections = [...walk(root)].filter((n) => n.type === "section");
+        expect(sections.map((s) => s.props.title)).toEqual(["Content", "Style"]);
 
-      // The author-rendered TextField (title) + a PropField (subtitle) live under
-      // the first section; a DefaultProps lives under the second.
-      const propField = findByType(root, "propField");
-      expect(propField?.props.name).toBe("subtitle");
+        // The author-rendered TextField (title) + a PropField (subtitle) live under
+        // the first section; a DefaultProps lives under the second.
+        const propField = findByType(root, "propField");
+        expect(propField?.props.name).toBe("subtitle");
 
-      const defaultProps = findByType(root, "defaultProps");
-      expect(defaultProps?.props.exclude).toEqual(["title", "subtitle"]);
+        const defaultProps = findByType(root, "defaultProps");
+        expect(defaultProps?.props.exclude).toEqual(["title", "subtitle"]);
 
-      const textField = findByType(root, "textField");
-      expect(textField?.props.value).toBe("Hello");
-    } finally {
-      session.dispose();
-    }
+        const textField = findByType(root, "textField");
+        expect(textField?.props.value).toBe("Hello");
+      }).pipe(Effect.ensuring(Effect.sync(() => session.dispose()))),
+    );
   });
 });

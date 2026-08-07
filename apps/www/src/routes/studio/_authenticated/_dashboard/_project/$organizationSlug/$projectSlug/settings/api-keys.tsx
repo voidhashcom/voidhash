@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/features/studio/components/auth-context";
@@ -51,7 +52,7 @@ function ProjectApiKeysPage() {
   );
 
   if (!project) {
-    throw new Error("Project not found");
+    return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
   const { data: apiKeys } = useSuspenseQuery(listApiKeysOptions({ projectId: project.id }));

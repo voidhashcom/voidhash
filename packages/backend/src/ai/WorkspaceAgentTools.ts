@@ -5,7 +5,8 @@ import {
   type AgentMessage,
   type TSchema,
 } from "@voidhash/agent";
-import { Effect } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Data, Effect, Option, Schema } from "effect";
 
 import { MCP_TOOLS } from "../mcp/tool-manifest.ts";
 import type {
@@ -28,23 +29,46 @@ const EDIT_SESSION_TOOLS = new Set([
   "revert_paywall_edit",
 ]);
 
-const inputRecord = (input: unknown): Record<string, unknown> | undefined =>
-  input !== null && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : undefined;
+/** Raised when an agent uses an edit-session handle it does not own. */
+class AgentEditSessionError extends Data.TaggedError("AgentEditSessionError")<{
+  readonly message: string;
+}> {}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || Array.isArray(value)) return false;
+  return typeof value === "object";
+};
+
+const inputRecord = (input: unknown): Record<string, unknown> | undefined => {
+  if (isRecord(input)) return input;
+  return undefined;
+};
+
+const stringOrUndefined = (value: unknown): string | undefined => {
+  if (typeof value === "string") return value;
+  return undefined;
+};
+
+/** The edit-session handle a `begin_paywall_edit` result reports as JSON text. */
+const decodeEditSessionOutput = Schema.decodeUnknownOption(
+  Schema.fromJsonString(
+    Schema.Struct({ editSessionId: Schema.String, paywallId: Schema.String }),
+  ),
+);
 
 const decodedEditSession = (
   result: WorkspaceToolResult,
 ): { readonly editSessionId: string; readonly paywallId: string } | undefined => {
   if (result.isError) return undefined;
-  try {
-    const value = JSON.parse(result.output) as { editSessionId?: unknown; paywallId?: unknown };
-    return typeof value.editSessionId === "string" && typeof value.paywallId === "string"
-      ? { editSessionId: value.editSessionId, paywallId: value.paywallId }
-      : undefined;
-  } catch {
-    return undefined;
-  }
+  return Option.getOrUndefined(decodeEditSessionOutput(result.output));
+};
+
+const decodedEditSessionFromOutput = (
+  output: unknown,
+): { readonly editSessionId: string; readonly paywallId: string } | undefined => {
+  const text = stringOrUndefined(output);
+  if (text === undefined) return undefined;
+  return decodedEditSession({ output: text, isError: false });
 };
 
 /** Tracks the server-managed edit capability used by an internal agent session. */
@@ -64,15 +88,10 @@ export class AgentEditSessionTracker {
     for (const message of messages) {
       if (message.role !== "toolResult") continue;
       const details = inputRecord(message.details);
-      const toolName = typeof details?.toolName === "string" ? details.toolName : message.toolName;
-      const decoded =
-        typeof details?.output === "string"
-          ? decodedEditSession({ output: details.output, isError: false })
-          : undefined;
-      const editSessionId =
-        typeof details?.editSessionId === "string" ? details.editSessionId : decoded?.editSessionId;
-      const paywallId =
-        typeof details?.paywallId === "string" ? details.paywallId : decoded?.paywallId;
+      const toolName = stringOrUndefined(details?.toolName) ?? message.toolName;
+      const decoded = decodedEditSessionFromOutput(details?.output);
+      const editSessionId = stringOrUndefined(details?.editSessionId) ?? decoded?.editSessionId;
+      const paywallId = stringOrUndefined(details?.paywallId) ?? decoded?.paywallId;
       if (editSessionId !== undefined && paywallId !== undefined) {
         this.#activeByPaywallId.set(paywallId, editSessionId);
       }
@@ -99,11 +118,15 @@ export class AgentEditSessionTracker {
     }
     const editSessionId = record.editSessionId;
     if (typeof editSessionId !== "string" || editSessionId.length === 0) {
-      return Effect.fail(new Error(`Call begin_paywall_edit before ${toolName}.`));
+      return Effect.fail(
+        new AgentEditSessionError({ message: `Call begin_paywall_edit before ${toolName}.` }),
+      );
     }
     if (![...this.#activeByPaywallId.values()].includes(editSessionId)) {
       return Effect.fail(
-        new Error(`Edit session "${editSessionId}" is not owned by this agent session.`),
+        new AgentEditSessionError({
+          message: `Edit session "${editSessionId}" is not owned by this agent session.`,
+        }),
       );
     }
     return Effect.succeed(input);
@@ -142,12 +165,30 @@ export interface WorkspaceAgentToolDetails {
   readonly paywallId?: string;
 }
 
-const internalParameters = (schema: Record<string, unknown>): TSchema => schema as TSchema;
+/** Mutable shape used to assemble {@link WorkspaceAgentToolDetails} field by field. */
+interface AssembledToolDetails {
+  toolName: string;
+  output: string;
+  editSessionId?: string;
+  paywallId?: string;
+}
 
-const contentOf = (result: WorkspaceToolResult) =>
-  result.content === undefined
-    ? [{ type: "text" as const, text: result.output }]
-    : result.content.map((content) => ({ ...content }));
+const internalParameters = (schema: Record<string, unknown>): TSchema => schema;
+
+const contentOf = (result: WorkspaceToolResult) => {
+  if (result.content === undefined) {
+    return [{ type: constant("text"), text: result.output }];
+  }
+  return result.content.map((content) => ({ ...content }));
+};
+
+const trackedPaywallId = (
+  tracker: AgentEditSessionTracker,
+  editSessionId: string | undefined,
+): string | undefined => {
+  if (editSessionId === undefined) return undefined;
+  return tracker.paywallIdFor(editSessionId);
+};
 
 /**
  * Adapts every shared MCP workspace tool into a Pi tool that executes through
@@ -173,24 +214,21 @@ export const makeWorkspaceAgentTools = (
             ),
             Effect.map(({ prepared, result }) => {
               const record = inputRecord(prepared);
-              const suppliedEditSessionId = record?.editSessionId;
               const editSessionId =
-                typeof suppliedEditSessionId === "string"
-                  ? suppliedEditSessionId
-                  : decodedEditSession(result)?.editSessionId;
-              const trackedPaywallId =
-                editSessionId === undefined ? undefined : tracker.paywallIdFor(editSessionId);
+                stringOrUndefined(record?.editSessionId) ??
+                decodedEditSession(result)?.editSessionId;
               const paywallId =
-                typeof record?.paywallId === "string" ? record.paywallId : trackedPaywallId;
+                stringOrUndefined(record?.paywallId) ?? trackedPaywallId(tracker, editSessionId);
               tracker.observe(tool.descriptor.name, prepared, result);
+              const details: AssembledToolDetails = {
+                toolName: tool.descriptor.name,
+                output: result.output,
+              };
+              if (editSessionId !== undefined) details.editSessionId = editSessionId;
+              if (paywallId !== undefined) details.paywallId = paywallId;
               return {
                 content: contentOf(result),
-                details: {
-                  toolName: tool.descriptor.name,
-                  output: result.output,
-                  ...(editSessionId === undefined ? {} : { editSessionId }),
-                  ...(paywallId === undefined ? {} : { paywallId }),
-                },
+                details,
                 isError: result.isError,
               };
             }),

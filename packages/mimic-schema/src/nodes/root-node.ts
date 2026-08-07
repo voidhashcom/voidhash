@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import { LibraryNode } from "./library-node.ts";
@@ -22,7 +23,7 @@ export const localizationConfigSchema = Primitive.Struct({
  * definitions (source only, never rendered on canvas).
  */
 export const RootNode = Primitive.TreeNode("root", {
-  children: () => [ScreenNode, LibraryNode] as const,
+  children: () => constant([ScreenNode, LibraryNode]),
   data: Primitive.Struct({
     localization: localizationConfigSchema,
     name: Primitive.String(),

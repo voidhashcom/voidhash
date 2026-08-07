@@ -28,26 +28,25 @@
  *    no `person_identity_pending_override_*` temp tables survive the run.
  *  - The service takes no `AuthSession`; there is no permission path to cover.
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
-import {
-  AnalyticsJanitorService,
-  AnalyticsJanitorServiceError,
-} from "@voidhash/core/services/analyticsIngest/AnalyticsJanitorService";
+import { AnalyticsJanitorService } from "@voidhash/core/services/analyticsIngest/AnalyticsJanitorService";
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 
+import { constant } from "@voidhash/lib/lang";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 
 const { test } = CoreIntegrationTestHarness.make();
 
-const EVENTS_TABLE = "events_v2" as const;
-const PENDING_OVERRIDES_TABLE = "person_identity_pending_overrides_v2" as const;
+const EVENTS_TABLE = constant("events_v2");
+const PENDING_OVERRIDES_TABLE = constant("person_identity_pending_overrides_v2");
 
 /** Monotonic counter so ids stay unique even within the same millisecond. */
 let idSeq = 0;
 /** A namespace token unique to this run so seeded rows never collide. */
-const uniqueToken = (label: string) => `it-janitor-${label}-${Date.now()}-${idSeq++}`;
+const uniqueToken = (label: string) =>
+  `it-janitor-${label}-${DateTime.toEpochMillis(DateTime.nowUnsafe())}-${idSeq++}`;
 
 /**
  * Format a `Date` as a ClickHouse `DateTime64(3)` literal (`YYYY-MM-DD
@@ -268,7 +267,9 @@ describe("AnalyticsJanitorService.squash", () => {
 
         // changed_at is an hour in the past so a zero safety window (cutoff = now)
         // includes it in the backlog.
-        const changedAt = new Date(Date.now() - 60 * 60 * 1000);
+        const changedAt = DateTime.toDateUtc(
+          DateTime.makeUnsafe((yield* Clock.currentTimeMillis) - 60 * 60 * 1000),
+        );
         yield* seedProject(seed, { changedAt, eventPersonId: seed.oldPersonId });
 
         const result = yield* janitor.squash({ batchSize: 10_000, safetyWindowSeconds: 0 });
@@ -304,7 +305,9 @@ describe("AnalyticsJanitorService.squash", () => {
         };
         track(projectId);
 
-        const changedAt = new Date(Date.now() - 60 * 60 * 1000);
+        const changedAt = DateTime.toDateUtc(
+          DateTime.makeUnsafe((yield* Clock.currentTimeMillis) - 60 * 60 * 1000),
+        );
         // The event starts personless (person_id null); the squash's
         // `person_id IS NULL` predicate still matches it for reassignment.
         yield* seedProject(seed, { changedAt, eventPersonId: null });
@@ -337,7 +340,10 @@ describe("AnalyticsJanitorService.squash", () => {
         // The backlog row is recent (just now). A large safety window pushes the
         // cutoff far into the past, so this row is NEWER than the cutoff and the
         // backlog selection (`changed_at < cutoff`) must exclude it.
-        yield* seedProject(seed, { changedAt: new Date(), eventPersonId: seed.oldPersonId });
+        yield* seedProject(seed, {
+          changedAt: yield* DateTime.nowAsDate,
+          eventPersonId: seed.oldPersonId,
+        });
 
         yield* janitor.squash({ batchSize: 10_000, safetyWindowSeconds: 86_400 });
 
@@ -368,7 +374,9 @@ describe("AnalyticsJanitorService.squash", () => {
         };
         track(projectId);
 
-        const changedAt = new Date(Date.now() - 60 * 60 * 1000);
+        const changedAt = DateTime.toDateUtc(
+          DateTime.makeUnsafe((yield* Clock.currentTimeMillis) - 60 * 60 * 1000),
+        );
         yield* seedProject(seed, { changedAt, eventPersonId: seed.oldPersonId });
 
         // batchSize=0 floors the `LIMIT {row_limit}` to 0 → no rows selected,

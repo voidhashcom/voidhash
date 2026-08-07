@@ -9,7 +9,7 @@ import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
 import { commander } from "../designer-commander";
 import { selectDocumentRoot } from "../utils/document-root";
-import type { ComponentCatalogByContentHash, DesignerStoreState } from "../designer-store-state";
+import type { ComponentCatalogByContentHash } from "../designer-store-state";
 import { nodePassesSlotGate } from "../utils/component-children";
 import { selectedNodeIdsFromPresence } from "../utils/presence";
 import { canHighlightNode, canSelectNode, getChildAtPosition, hasChildren } from "../utils/selection-level";

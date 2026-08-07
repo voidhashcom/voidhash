@@ -10,7 +10,7 @@
  * which is passed through to the readonly ClickHouse user's tenant row
  * policies and keyed into the cache.
  */
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import type {
   AnalyticsDataPoint,
@@ -23,12 +23,25 @@ import type { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-cli
 import type { SqlError } from "effect/unstable/sql/SqlError";
 import type { AnalyticsDataAccessor } from "./clickhouse-accessor.ts";
 
-const calculateRate = (numerator: number, denominator: number): number =>
-  denominator > 0 ? (numerator / denominator) * 100 : 0;
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+const calculateRate = (numerator: number, denominator: number): number => {
+  if (denominator > 0) return (numerator / denominator) * 100;
+  return 0;
+};
 
 const calculateGrowthRate = (current: number, previous: number): number => {
-  if (previous === 0) return current > 0 ? 100 : 0;
+  if (previous === 0) {
+    if (current > 0) return 100;
+    return 0;
+  }
   return ((current - previous) / previous) * 100;
+};
+
+/** Divides two series values, treating a zero/missing denominator as `0`. */
+const safeDivide = (numerator: number, denominator: number | undefined): number => {
+  if (!denominator) return 0;
+  return numerator / denominator;
 };
 
 const executePrimitiveMetric = ({
@@ -84,7 +97,7 @@ export const buildSeriesResolver = (accessor: AnalyticsDataAccessor) => {
     organizationId: string,
   ): Effect.Effect<AnalyticsDataPoint[], SqlError, ClickhouseWebClient.ClickhouseWebClient> =>
     Effect.gen(function* () {
-      const cacheKey = JSON.stringify({
+      const cacheKey = encodeJson({
         compiledFilter,
         granularity,
         insightId,
@@ -182,7 +195,7 @@ export const buildSeriesResolver = (accessor: AnalyticsDataAccessor) => {
             ]);
             return revenue.map((point, index) => ({
               timestamp: point.timestamp,
-              value: persons[index]?.value ? point.value / persons[index].value : 0,
+              value: safeDivide(point.value, persons[index]?.value),
             }));
           }
           case "builtin/arppu": {
@@ -192,7 +205,7 @@ export const buildSeriesResolver = (accessor: AnalyticsDataAccessor) => {
             ]);
             return revenue.map((point, index) => ({
               timestamp: point.timestamp,
-              value: payingPersons[index]?.value ? point.value / payingPersons[index].value : 0,
+              value: safeDivide(point.value, payingPersons[index]?.value),
             }));
           }
           case "builtin/active_subscribers_growth": {
@@ -221,9 +234,10 @@ export const buildSeriesResolver = (accessor: AnalyticsDataAccessor) => {
             ]);
             return arpu.map((point, index) => {
               const churnPercentage = churnRate[index]?.value ?? 0;
+              if (churnPercentage <= 0) return { timestamp: point.timestamp, value: 0 };
               return {
                 timestamp: point.timestamp,
-                value: churnPercentage > 0 ? point.value / (churnPercentage / 100) : 0,
+                value: point.value / (churnPercentage / 100),
               };
             });
           }

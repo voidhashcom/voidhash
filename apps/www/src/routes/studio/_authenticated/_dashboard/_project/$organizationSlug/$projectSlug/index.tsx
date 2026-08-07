@@ -4,7 +4,7 @@ export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/",
 )({
   beforeLoad: ({ params }) => {
-    throw redirect({
+    return redirect({
       params: {
         organizationSlug: params.organizationSlug,
         projectSlug: params.projectSlug,

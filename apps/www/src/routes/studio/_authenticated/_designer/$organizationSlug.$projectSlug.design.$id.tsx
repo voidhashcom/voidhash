@@ -2,10 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense, type ComponentType } from "react";
 import { Spinner } from "@voidhash/ui";
 
+const loadPaywallDesigner = () => import("@/features/studio/paywalls/designer/paywall-designer");
+
 const DesignerDetailPage = import.meta.env.SSR
   ? null
   : lazy(() =>
-      import("@/features/studio/paywalls/designer/paywall-designer").then((module) => ({
+      loadPaywallDesigner().then((module) => ({
         default: module.DesignerDetailPage,
       })),
     );

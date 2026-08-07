@@ -4,6 +4,7 @@ import {
   type AgentServerMessage,
 } from "@voidhash/agent/Protocol";
 import { useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import { queryKeys } from "@/features/studio/lib/tanstack-query";
@@ -61,14 +62,12 @@ const requestId = (): string => crypto.randomUUID();
 
 const parseServerMessage = (data: unknown): AgentServerMessage | undefined => {
   if (typeof data !== "string") return undefined;
-  try {
-    const parsed: unknown = JSON.parse(data);
-    return typeof parsed === "object" && parsed !== null && "type" in parsed && "v" in parsed
-      ? (parsed as AgentServerMessage)
-      : undefined;
-  } catch {
-    return undefined;
-  }
+  const parsed = Effect.runSync(
+    Effect.try((): unknown => JSON.parse(data)).pipe(Effect.orElseSucceed(() => undefined)),
+  );
+  return typeof parsed === "object" && parsed !== null && "type" in parsed && "v" in parsed
+    ? (parsed as AgentServerMessage)
+    : undefined;
 };
 
 const dynamicContext = (agent: SurfaceAgent) => {

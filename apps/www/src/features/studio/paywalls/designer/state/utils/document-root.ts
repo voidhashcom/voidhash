@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import type { CommanderSlice } from "@voidhash/mimic/zustand-commander";
 import type { RootSnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
@@ -24,19 +26,27 @@ function isRootSnapshotNode(value: unknown): value is RootSnapshotNode {
 
 /**
  * Unwraps the engine's roots-array snapshot to the designer's single document
- * root. Throws when the document is not ready or malformed — call sites must
+ * root. Dies when the document is not ready or malformed — call sites must
  * sit behind the `mimic.isReady` gate, which discharges both conditions.
+ *
+ * The selector chain built on this is synchronous (zustand selectors, React
+ * render), so the defect is raised through `Effect.runSync` rather than being
+ * returned as an effect.
  */
 export function documentRootFromSnapshot(snapshot: DocumentRoots): RootSnapshotNode {
   if (snapshot === undefined) {
-    throw new Error("Designer document snapshot is not ready");
+    return Effect.runSync(Effect.die(new Error("Designer document snapshot is not ready")));
   }
   const root: unknown = snapshot[0];
   if (root === undefined || snapshot.length !== 1) {
-    throw new Error(`Designer document must have exactly one root, got ${snapshot.length}`);
+    return Effect.runSync(
+      Effect.die(
+        new Error(`Designer document must have exactly one root, got ${snapshot.length}`),
+      ),
+    );
   }
   if (!isRootSnapshotNode(root)) {
-    throw new Error("Designer document root is not a root node");
+    return Effect.runSync(Effect.die(new Error("Designer document root is not a root node")));
   }
   return root;
 }

@@ -1,7 +1,7 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { NodeServices } from "@effect/platform-node";
+import { Effect, FileSystem, Path } from "effect";
 import { generateFiles } from "fumadocs-openapi";
 import { createOpenAPI } from "fumadocs-openapi/server";
 
@@ -11,6 +11,10 @@ import { createOpenAPI } from "fumadocs-openapi/server";
  * (defaults to production); e.g. `VOIDHASH_API_URL=http://localhost:1337`.
  */
 const API_URL = process.env.VOIDHASH_API_URL ?? "https://api.voidhash.com";
+
+// The path service is needed while building module-level constants, so it is
+// materialized once synchronously rather than threaded through every effect.
+const path = Effect.runSync(Effect.provide(Path.Path, Path.layer));
 
 const appRoot = fileURLToPath(new URL("..", import.meta.url));
 // Relative (to the app root) so the `document`/preload ids baked into generated
@@ -45,42 +49,52 @@ const surfaces: Surface[] = [
   },
 ];
 
-async function fetchSpec(surface: Surface): Promise<void> {
-  const url = `${API_URL}${surface.remotePath}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-  }
-  const document = await response.json();
-  await writeFile(path.join(specDir, surface.specFile), `${JSON.stringify(document, null, 2)}\n`);
-  console.log(`✓ fetched ${surface.label} (${url})`);
-}
+const fetchSpec = (surface: Surface) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const url = `${API_URL}${surface.remotePath}`;
+    const response = yield* Effect.promise(() => fetch(url));
+    if (!response.ok) {
+      return yield* Effect.die(
+        new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`),
+      );
+    }
+    const document = yield* Effect.promise(() => response.json());
+    yield* fs.writeFileString(
+      path.join(specDir, surface.specFile),
+      `${JSON.stringify(document, null, 2)}\n`,
+    );
+    console.log(`✓ fetched ${surface.label} (${url})`);
+  });
 
-async function main(): Promise<void> {
-  await mkdir(specDir, { recursive: true });
+const main = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  yield* fs.makeDirectory(specDir, { recursive: true });
   for (const surface of surfaces) {
-    await fetchSpec(surface);
+    yield* fetchSpec(surface);
   }
 
   for (const surface of surfaces) {
-    await rm(surface.output, { force: true, recursive: true });
+    yield* fs.remove(surface.output, { force: true, recursive: true });
     // Keyed record input so generated pages reference the spec by a stable
     // `document` id (the key) rather than an absolute machine path.
     const server = createOpenAPI({
       input: { [surface.key]: `${specDirRel}/${surface.specFile}` },
     });
-    await generateFiles({
-      input: server,
-      output: surface.output,
-      per: "operation",
-      groupBy: "tag",
-      meta: true,
-    });
+    yield* Effect.promise(() =>
+      generateFiles({
+        input: server,
+        output: surface.output,
+        per: "operation",
+        groupBy: "tag",
+        meta: true,
+      }),
+    );
     console.log(`✓ generated ${surface.label} -> ${path.relative(appRoot, surface.output)}`);
   }
-}
+});
 
-main().catch((error) => {
+Effect.runPromise(main.pipe(Effect.provide(NodeServices.layer))).catch((error) => {
   console.error(error);
   process.exit(1);
 });

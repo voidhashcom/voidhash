@@ -5,6 +5,13 @@ import { type FormEvent, useState } from "react";
 
 import { signInWithRootCredentials } from "@/features/auth/lib/auth-api";
 
+/** Reads a form field as text, ignoring file entries the form never produces. */
+const formFieldValue = (formData: FormData, name: string): string => {
+  const value = formData.get(name);
+  if (typeof value === "string") return value;
+  return "";
+};
+
 /**
  * Sign-in for the standalone identity provider: the single root account, whose
  * username and password come from the deployment's environment. There is no
@@ -31,9 +38,9 @@ export function StandaloneSignInForm({ next }: { next?: string | undefined }) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     signInMutation.mutate({
-      password: String(formData.get("password") ?? ""),
+      password: formFieldValue(formData, "password"),
       returnPathname: next,
-      username: String(formData.get("username") ?? ""),
+      username: formFieldValue(formData, "username"),
     });
   };
 

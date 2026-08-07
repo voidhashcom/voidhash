@@ -59,7 +59,7 @@ export function CreateOrganizationModal({ open, onClose, trigger }: CreateOrgani
     onSuccess: (data) => {
       toast.success("Organization created successfully");
       addCreatedOrganizationToCurrentUserCache(queryClient, data);
-      navigate({
+      void navigate({
         params: {
           organizationSlug: data.slug,
         },

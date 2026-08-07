@@ -4,7 +4,6 @@ import {
   Avatar,
   AvatarFallback,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -12,7 +11,7 @@ import {
   ThemeToggle,
 } from "@voidhash/ui";
 import type { User } from "@voidhash/rpc";
-import { BadgeCheck, LogOut, Settings, Settings2 } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { redirectToSignOut } from "@/features/auth/lib/sign-out";

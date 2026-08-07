@@ -6,9 +6,11 @@ import {
   eq,
   sql,
 } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import type { RouteClass } from "../../domain/analyticsIngest/AnalyticsIngest.ts";
+import { CapturedEventV1 } from "../../domain/analyticsIngest/AnalyticsIngest.ts";
 import { generateId } from "../../utils/generate-id.ts";
 import { CaptureIngress } from "./CaptureIngress.ts";
 
@@ -28,6 +30,11 @@ export interface AnalyticsIngestDlqRecordFailureInput {
   readonly sourceSequence: number;
   readonly sourceShard: string;
 }
+
+const decodeCapturedEvent = Schema.decodeUnknownEffect(CapturedEventV1);
+const decodeRouteClass = Schema.decodeUnknownEffect(
+  Schema.Literals(["main", "dlq", "overflow", "historical", "custom"]),
+);
 
 export interface AnalyticsIngestDlqListInput {
   readonly failureClass?: string;
@@ -90,18 +97,17 @@ export class AnalyticsIngestDlqService extends Context.Service<AnalyticsIngestDl
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
         if (input.failureClass)
           yield* Effect.annotateCurrentSpan("voidhash.dlq.failure_class", input.failureClass);
+        const filter = () => {
+          if (input.projectId && input.failureClass)
+            return sql`${analyticsIngestDlq.projectId} = ${input.projectId} AND ${analyticsIngestDlq.failureClass} = ${input.failureClass}`;
+          if (input.projectId) return eq(analyticsIngestDlq.projectId, input.projectId);
+          if (input.failureClass) return eq(analyticsIngestDlq.failureClass, input.failureClass);
+          return undefined;
+        };
         return yield* db
           .select()
           .from(analyticsIngestDlq)
-          .where(
-            input.projectId && input.failureClass
-              ? sql`${analyticsIngestDlq.projectId} = ${input.projectId} AND ${analyticsIngestDlq.failureClass} = ${input.failureClass}`
-              : input.projectId
-                ? eq(analyticsIngestDlq.projectId, input.projectId)
-                : input.failureClass
-                  ? eq(analyticsIngestDlq.failureClass, input.failureClass)
-                  : undefined,
-          )
+          .where(filter())
           .orderBy(desc(analyticsIngestDlq.createdAt))
           .limit(limit);
       });
@@ -131,16 +137,27 @@ export class AnalyticsIngestDlqService extends Context.Service<AnalyticsIngestDl
         if (row.projectId) yield* Effect.annotateCurrentSpan("voidhash.project.id", row.projectId);
         if (row.routeClass)
           yield* Effect.annotateCurrentSpan("voidhash.capture.route_class", row.routeClass);
-        yield* ingress.enqueueBatch([
-          {
-            envelope: row.payloadJson as never,
-            routeClass: row.routeClass as RouteClass,
-          },
-        ]);
+        const envelope = yield* decodeCapturedEvent(row.payloadJson).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AnalyticsIngestDlqServiceError({
+                cause: `DLQ row ${id} payload is not a captured event: ${cause.message}`,
+              }),
+          ),
+        );
+        const routeClass = yield* decodeRouteClass(row.routeClass).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AnalyticsIngestDlqServiceError({
+                cause: `DLQ row ${id} has an unknown route class: ${cause.message}`,
+              }),
+          ),
+        );
+        yield* ingress.enqueueBatch([{ envelope, routeClass }]);
         yield* markReplayed(id);
       });
 
-      return { listFailures, markReplayed, recordFailure, requeueFailure } as const;
+      return constant({ listFailures, markReplayed, recordFailure, requeueFailure });
     }),
   },
 ) {

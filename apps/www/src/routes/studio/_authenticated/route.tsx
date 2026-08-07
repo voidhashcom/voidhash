@@ -3,6 +3,7 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import type { User as RpcUser } from "@voidhash/rpc";
 import { Spinner } from "@voidhash/ui";
+import { Effect, Result } from "effect";
 import {
   getSessionUser,
   type SessionUser,
@@ -40,8 +41,12 @@ const isAuthenticationError = (error: unknown): error is AuthenticationError => 
 const getErrorMessage = (error: AuthenticationError) =>
   error.failure?.message ?? error.message ?? "";
 
-const getErrorCause = (error: AuthenticationError) =>
-  String(error.failure?.cause ?? error.cause ?? "");
+const getErrorCause = (error: AuthenticationError) => {
+  const cause = error.failure?.cause ?? error.cause;
+  if (typeof cause === "string") return cause;
+  if (cause === undefined || cause === null) return "";
+  return JSON.stringify(cause);
+};
 
 const isDatabaseAuthenticationError = (error: unknown): error is AuthenticationError => {
   if (!isAuthenticationError(error)) {
@@ -103,35 +108,46 @@ export const Route = createFileRoute("/studio/_authenticated")({
     const redirectToLogin = (): never => {
       const nextPath = `${location.pathname}${location.searchStr}${location.hash}`;
       const searchParams = new URLSearchParams({ next: nextPath });
-      throw redirect({ href: `/auth/login?${searchParams.toString()}` });
+      // TanStack Router signals a redirect by throwing its descriptor; `runSync`
+      // squashes the cause, so the router still sees that exact object.
+      return Effect.runSync(
+        Effect.die(redirect({ href: `/auth/login?${searchParams.toString()}` })),
+      );
     };
 
     const authenticatedUser = sessionUser ?? redirectToLogin();
 
-    try {
-      // Read through the query cache so an optimistic write (e.g. right after
-      // creating an organization) is honored without a network round-trip, and
-      // so intra-app navigations within `staleTime` don't re-block on a
-      // CurrentUser fetch + full-screen skeleton. `getCurrentUser` stays the
-      // fetcher, so the error shapes handled below are unchanged.
-      const user = await context.queryClient.ensureQueryData({
-        queryFn: () => getCurrentUser(),
-        queryKey: queryKeys.user.getUser(),
-        staleTime: 30_000,
-      });
-      return user;
-    } catch (error) {
-      if (isDatabaseAuthenticationError(error)) {
-        const user = getSessionFallbackUser(authenticatedUser);
-        context.queryClient.setQueryData(queryKeys.user.getUser(), user);
-        return user;
-      }
-
-      if (isAuthenticationError(error)) {
-        redirectToLogin();
-      }
-      throw error;
+    // Read through the query cache so an optimistic write (e.g. right after
+    // creating an organization) is honored without a network round-trip, and
+    // so intra-app navigations within `staleTime` don't re-block on a
+    // CurrentUser fetch + full-screen skeleton. `getCurrentUser` stays the
+    // fetcher, so the error shapes handled below are unchanged.
+    const cached = await Effect.runPromise(
+      Effect.tryPromise({
+        try: () =>
+          context.queryClient.ensureQueryData({
+            queryFn: () => getCurrentUser(),
+            queryKey: queryKeys.user.getUser(),
+            staleTime: 30_000,
+          }),
+        catch: (error) => error,
+      }).pipe(Effect.result),
+    );
+    if (Result.isSuccess(cached)) {
+      return cached.success;
     }
+
+    const error = cached.failure;
+    if (isDatabaseAuthenticationError(error)) {
+      const user = getSessionFallbackUser(authenticatedUser);
+      context.queryClient.setQueryData(queryKeys.user.getUser(), user);
+      return user;
+    }
+
+    if (isAuthenticationError(error)) {
+      redirectToLogin();
+    }
+    return Effect.runSync(Effect.die(error));
   },
   component: RouteComponent,
   errorComponent: AuthErrorComponent,

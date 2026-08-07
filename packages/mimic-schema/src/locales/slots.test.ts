@@ -1,4 +1,5 @@
 import { validate } from "@voidhash/mimic-core";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -8,6 +9,25 @@ import {
 import type { RootNodeData } from "../nodes/root-node.ts";
 import type { ScreenNodeData } from "../nodes/screen-node.ts";
 import { collectLocalizableSlots } from "./slots.ts";
+
+// Decoded `children` is a merged snapshot type (not a discriminated union), so
+// concrete variants are narrowed structurally by their `type` tag.
+function isNodeOfType<T extends { readonly type: string }>(
+  node: { readonly type: string },
+  type: T["type"],
+): node is T {
+  return node.type === type;
+}
+
+function narrowNode<T extends { readonly type: string }>(
+  node: { readonly type: string } | undefined,
+  type: T["type"],
+): T {
+  if (node === undefined || !isNodeOfType<T>(node, type)) {
+    return Effect.runSync(Effect.die(new Error(`expected a ${type} node, got ${node?.type}`)));
+  }
+  return node;
+}
 
 function decodeRoot(input: PaywallDesignerDocumentInput): RootNodeData {
   const value = PaywallDesignerDocument.encode(input);
@@ -51,8 +71,8 @@ const root = decodeRoot([
   },
 ]);
 
-const screenA = root.children[0]! as ScreenNodeData;
-const screenB = root.children[1]! as ScreenNodeData;
+const screenA = narrowNode<ScreenNodeData>(root.children[0], "screen");
+const screenB = narrowNode<ScreenNodeData>(root.children[1], "screen");
 const textNode = screenA.children[0]!;
 const imgView = screenA.children[1]!;
 const component = screenA.children[3]!;
@@ -134,7 +154,7 @@ describe("collectLocalizableSlots", () => {
         ],
       },
     ]);
-    const screen = scrollRoot.children[0]! as ScreenNodeData;
+    const screen = narrowNode<ScreenNodeData>(scrollRoot.children[0], "screen");
     const imgScroll = screen.children[0]!;
     const slots = collectLocalizableSlots(scrollRoot);
     expect(slots.map((slot) => slot.kind)).toEqual(["image"]);

@@ -1,7 +1,4 @@
 import {
-  Card,
-  CardContent,
-  CardHeader,
   type ChartConfig,
   ChartContainer,
   ChartTooltip,

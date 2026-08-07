@@ -8,15 +8,16 @@
  * (`internal_feature_flag_override`) and layered on top of these defaults by
  * `InternalFeatureFlagService` in `@voidhash/core`.
  *
- * This module is intentionally dependency-free so it can be imported from the
- * frontend (`apps/www`), the backend, and `@voidhash/core` without
- * pulling in any runtime.
+ * This module is dependency-light (only the `@voidhash/lib` language helpers) so
+ * it can be imported from the frontend (`apps/www`), the backend, and
+ * `@voidhash/core` without pulling in any runtime.
  *
  * ⚠️ Not to be confused with the customer-facing feature-flag *product*
  * (`FeatureFlagRpcsDef` / `featureFlags` table / SDK `evaluate-flags`), which
  * voidhash sells to its customers. That system is project-scoped and evaluated
  * per end-user; this one is org-scoped and gates our own product surface.
  */
+import { constant } from "@voidhash/lib/lang";
 
 /** A single internal feature flag definition. */
 export interface InternalFeatureFlagDefinition {
@@ -38,7 +39,7 @@ export interface InternalFeatureFlagDefinition {
  * The registry of available internal feature flags. Add an entry here to make
  * a new flag toggleable in overwatch and checkable on the server/frontend.
  */
-export const INTERNAL_FEATURE_FLAGS = {
+export const INTERNAL_FEATURE_FLAGS = constant({
   notifications: {
     key: "notifications",
     name: "Notifications",
@@ -84,7 +85,7 @@ export const INTERNAL_FEATURE_FLAGS = {
       "Hold this organization on the waitlist: members can sign up and create the org but land on the waitlist screen instead of Studio. Turn OFF to grant access.",
     defaultEnabled: true,
   },
-} as const satisfies Record<string, InternalFeatureFlagDefinition>;
+}) satisfies Record<string, InternalFeatureFlagDefinition>;
 
 /** All internal feature flag definitions as a list (e.g. for admin listings). */
 export const INTERNAL_FEATURE_FLAG_LIST: readonly InternalFeatureFlagDefinition[] =

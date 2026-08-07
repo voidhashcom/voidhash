@@ -4,11 +4,13 @@ import { Db, eq, paywalls } from "@voidhash/db";
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
-import { Effect, Layer } from "effect";
+import { generateId } from "@voidhash/core/utils/generate-id";
+import { DateTime, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 const { test } = CoreIntegrationTestHarness.make();
-const suffix = crypto.randomUUID();
+const suffix = generateId("test");
+const epoch = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 const paywallId = `it_workspace_auth_${suffix}`;
 const paywallSlug = `workspace-auth-${suffix}`;
 const mimicCalls: string[] = [];
@@ -20,7 +22,7 @@ const MimicHostTest = Layer.succeed(MimicHost, {
       mimicCalls.push(`ensure:${id}`);
     }),
   createPaywallEditToken: () =>
-    Effect.succeed({ expiresAt: new Date(0), token: "unused", url: "ws://unused" }),
+    Effect.succeed({ expiresAt: epoch, token: "unused", url: "ws://unused" }),
   getPaywallSnapshot: (id: string) =>
     Effect.sync(() => {
       mimicCalls.push(`snapshot:${id}`);
@@ -66,14 +68,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: epoch,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: epoch,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });

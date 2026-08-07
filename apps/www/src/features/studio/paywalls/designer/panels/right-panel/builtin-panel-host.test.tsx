@@ -3,6 +3,7 @@
 import { Panel, type PanelContext, type PanelSessionInputs } from "@voidhash/paywalls/panel";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { Effect } from "effect";
 import { create } from "zustand";
 import { useStore } from "zustand/react";
 import { afterEach, describe, expect, test } from "vite-plus/test";
@@ -81,29 +82,29 @@ describe("built-in host — store context through wrap", () => {
       wrap,
     });
 
-    try {
-      render(<PanelTreeView transport={transport} />);
-      // The initial store value flows through the store hook into the emitted
-      // tree AND into the rendered input — proving the store hooks resolve inside
-      // the reconciler root via the re-provided context.
-      const initial = transport.getSnapshot();
-      expect(initial.status === "ready" && findTextFieldValue(initial.tree.root as never)).toBe(
-        10,
-      );
-      expect((screen.getByLabelText("store-count") as HTMLInputElement).value).toBe("10");
+    await Effect.runPromise(
+      Effect.promise(async () => {
+        render(<PanelTreeView transport={transport} />);
+        // The initial store value flows through the store hook into the emitted
+        // tree AND into the rendered input — proving the store hooks resolve inside
+        // the reconciler root via the re-provided context.
+        const initial = transport.getSnapshot();
+        expect(initial.status === "ready" && findTextFieldValue(initial.tree.root as never)).toBe(
+          10,
+        );
+        expect((screen.getByLabelText("store-count") as HTMLInputElement).value).toBe("10");
 
-      // Mutating the store re-renders the definition inside the reconciler
-      // (useSyncExternalStore is renderer-agnostic) and re-emits the tree with the
-      // new value (emitted via the session's coalesced microtask).
-      act(() => {
-        store.getState().increment();
-      });
-      await flushMicrotasks();
+        // Mutating the store re-renders the definition inside the reconciler
+        // (useSyncExternalStore is renderer-agnostic) and re-emits the tree with the
+        // new value (emitted via the session's coalesced microtask).
+        act(() => {
+          store.getState().increment();
+        });
+        await flushMicrotasks();
 
-      const after = transport.getSnapshot();
-      expect(after.status === "ready" && findTextFieldValue(after.tree.root as never)).toBe(11);
-    } finally {
-      transport.dispose();
-    }
+        const after = transport.getSnapshot();
+        expect(after.status === "ready" && findTextFieldValue(after.tree.root as never)).toBe(11);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 });

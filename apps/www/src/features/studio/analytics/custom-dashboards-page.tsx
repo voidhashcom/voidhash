@@ -5,6 +5,7 @@ import type {
   SavedAnalyticsInsightType,
 } from "@voidhash/rpc";
 import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
+import { Effect } from "effect";
 import {
   Button,
   Card,
@@ -276,10 +277,19 @@ function DashboardEditor({
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.analytics.dashboards({ projectId }) });
   const refreshCards = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
-      queryClient.invalidateQueries({ queryKey: ["runSavedVoidQlInsight"] }),
-    ]);
+    await Effect.runPromise(
+      Effect.all(
+        [
+          Effect.promise(() =>
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all }),
+          ),
+          Effect.promise(() =>
+            queryClient.invalidateQueries({ queryKey: ["runSavedVoidQlInsight"] }),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      ),
+    );
   };
 
   const addInsight = () => {
@@ -653,7 +663,11 @@ function DashboardVoidQlCard({
 
 function formatVoidQlCell(value: unknown): string {
   if (value === null || value === undefined) return "";
-  return typeof value === "object" ? JSON.stringify(value) : String(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return value.toString();
+  }
+  return JSON.stringify(value);
 }
 
 function DashboardInsightCard({
@@ -980,7 +994,7 @@ function DashboardInsightCard({
                 ? query.isLoading
                   ? "Loading insight…"
                   : "No values in this range"
-                : `${insight.kind} execution is coming next`}
+                : `${String(insight.kind)} execution is coming next`}
             </div>
           </div>
         )}

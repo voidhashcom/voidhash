@@ -21,8 +21,8 @@ export function ProjectDelete({ projectId }: { projectId: string }) {
     ...deleteProjectOptions(),
     onSuccess: () => {
       toast.success("Project deleted successfully");
-      queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
-      navigate({
+      void queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+      void navigate({
         to: "/studio",
       });
     },

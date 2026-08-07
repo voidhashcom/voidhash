@@ -105,10 +105,10 @@ function WebhookDeliveryDetailPage() {
     },
     onSuccess: () => {
       toast.success("Delivery queued for retry");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.getDelivery(deliveryId),
       });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.deliveries({
           projectId: endpoint.projectId,
           endpointId,

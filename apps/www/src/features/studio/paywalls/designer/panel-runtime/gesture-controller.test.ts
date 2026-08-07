@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { describe, expect, test, vi } from "vite-plus/test";
 
 import { createPanelGestureController, type DraftPairing } from "./gesture-controller";
@@ -108,48 +109,48 @@ describe("gesture-controller — draft pairing state machine", () => {
 
   test("10s inactivity discards the open draft (fake timers)", () => {
     vi.useFakeTimers();
-    try {
-      const { pairing, calls } = makePairing();
-      const controller = createPanelGestureController({ inactivityMs: 10_000 });
-      controller.attachDraftPairing(pairing);
+    Effect.runSync(
+      Effect.sync(() => {
+        const { pairing, calls } = makePairing();
+        const controller = createPanelGestureController({ inactivityMs: 10_000 });
+        controller.attachDraftPairing(pairing);
 
-      controller.onLiveIntent();
-      expect(controller.isDraftOpen()).toBe(true);
+        controller.onLiveIntent();
+        expect(controller.isDraftOpen()).toBe(true);
 
-      // 9s: not yet discarded.
-      vi.advanceTimersByTime(9_000);
-      expect(controller.isDraftOpen()).toBe(true);
-      expect(calls).toEqual(["begin"]);
+        // 9s: not yet discarded.
+        vi.advanceTimersByTime(9_000);
+        expect(controller.isDraftOpen()).toBe(true);
+        expect(calls).toEqual(["begin"]);
 
-      // Another live intent resets the idle timer.
-      controller.onLiveIntent();
-      vi.advanceTimersByTime(9_000);
-      expect(controller.isDraftOpen()).toBe(true);
+        // Another live intent resets the idle timer.
+        controller.onLiveIntent();
+        vi.advanceTimersByTime(9_000);
+        expect(controller.isDraftOpen()).toBe(true);
 
-      // Cross the 10s idle window with no further intents → discard.
-      vi.advanceTimersByTime(1_500);
-      expect(controller.isDraftOpen()).toBe(false);
-      expect(calls).toEqual(["begin", "discard"]);
-      expect(controller.lastDiscardReason()).toBe("inactivity");
-    } finally {
-      vi.useRealTimers();
-    }
+        // Cross the 10s idle window with no further intents → discard.
+        vi.advanceTimersByTime(1_500);
+        expect(controller.isDraftOpen()).toBe(false);
+        expect(calls).toEqual(["begin", "discard"]);
+        expect(controller.lastDiscardReason()).toBe("inactivity");
+      }).pipe(Effect.ensuring(Effect.sync(() => vi.useRealTimers()))),
+    );
   });
 
   test("commit clears the idle timer (no late inactivity discard)", () => {
     vi.useFakeTimers();
-    try {
-      const { pairing, calls } = makePairing();
-      const controller = createPanelGestureController({ inactivityMs: 10_000 });
-      controller.attachDraftPairing(pairing);
-      controller.onLiveIntent();
-      controller.onGestureCommit();
-      // Even after the idle window elapses, no extra discard fires.
-      vi.advanceTimersByTime(30_000);
-      expect(calls).toEqual(["begin", "commit"]);
-    } finally {
-      vi.useRealTimers();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        const { pairing, calls } = makePairing();
+        const controller = createPanelGestureController({ inactivityMs: 10_000 });
+        controller.attachDraftPairing(pairing);
+        controller.onLiveIntent();
+        controller.onGestureCommit();
+        // Even after the idle window elapses, no extra discard fires.
+        vi.advanceTimersByTime(30_000);
+        expect(calls).toEqual(["begin", "commit"]);
+      }).pipe(Effect.ensuring(Effect.sync(() => vi.useRealTimers()))),
+    );
   });
 
   test("live/commit are no-ops when no pairing is attached", () => {

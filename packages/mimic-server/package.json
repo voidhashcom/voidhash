@@ -43,6 +43,7 @@
     "test:watch": "vp test -c vitest.mts"
   },
   "dependencies": {
+    "@voidhash/lib": "workspace:*",
     "@voidhash/mimic-core": "workspace:*",
     "effect": "4.0.0-beta.100"
   },

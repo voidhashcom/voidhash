@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import {
@@ -74,7 +75,7 @@ const componentNodeData = Primitive.Struct({
  */
 export const ComponentNode: Primitive.TreeNodePrimitive<"component", typeof componentNodeData> =
   Primitive.TreeNode("component", {
-    children: () => [ViewNode, ScrollViewNode, TextNode, ShapeNode, Primitive.TreeNodeSelf] as const,
+    children: () => constant([ViewNode, ScrollViewNode, TextNode, ShapeNode, Primitive.TreeNodeSelf]),
     data: componentNodeData,
   });
 

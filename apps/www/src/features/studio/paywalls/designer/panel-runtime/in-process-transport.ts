@@ -19,6 +19,7 @@ import {
   type PanelSessionInputs,
   type CreatePanelSessionOptions,
 } from "@voidhash/paywalls/panel";
+import { Effect } from "effect";
 
 import { decodePanelTreeDev, type PanelTree } from "./schema";
 import type { PanelDispatchEvent, PanelSnapshot, PanelTransport } from "./transport";
@@ -105,28 +106,40 @@ export const createInProcessTransport = (
   };
 
   const start = (): void => {
-    try {
-      session = createPanelSession({
-        render: options.render,
-        initialInputs: inputs,
-        intentSink: options.intentSink,
-        wrap: options.wrap,
-        callbacks: {
-          onTree: acceptTree,
-          onError: (error) => {
+    const created = Effect.runSync(
+      Effect.try({
+        try: () =>
+          createPanelSession({
+            render: options.render,
+            initialInputs: inputs,
+            intentSink: options.intentSink,
+            wrap: options.wrap,
+            callbacks: {
+              onTree: acceptTree,
+              onError: (error) => {
+                options.onError?.(error);
+              },
+            },
+          }),
+        catch: (error) => error,
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.sync((): PanelSession | null => {
             options.onError?.(error);
-          },
-        },
-      });
-    } catch (error) {
-      options.onError?.(error);
-      setSnapshot({
-        status: "error",
-        message: `Panel failed to start: ${errorText(error)}`,
-        restartable: true,
-      });
+            setSnapshot({
+              status: "error",
+              message: `Panel failed to start: ${errorText(error)}`,
+              restartable: true,
+            });
+            return null;
+          }),
+        ),
+      ),
+    );
+    if (created === null) {
       return;
     }
+    session = created;
     // The session emits the first tree synchronously during construction, so
     // `getTree()` is already valid; publish it (dev-asserted) as the ready snapshot.
     acceptTree(session.getTree(), 0);

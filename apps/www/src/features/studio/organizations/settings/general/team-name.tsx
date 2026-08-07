@@ -47,7 +47,7 @@ export function TeamNameForm({
     ...updateOrganizationOptions(),
     onSuccess: () => {
       toast.success("Team name updated successfully");
-      queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
     },
     onError: () => {
       toast.error("Failed to update team name");

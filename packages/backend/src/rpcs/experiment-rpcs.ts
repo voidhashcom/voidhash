@@ -1,9 +1,4 @@
 import { AnalyticsService, ExperimentService } from "@voidhash/core/services";
-// Imported so the inferred `ExperimentRpcsLive` layer type (whose requirements
-// include AnalyticsService's `ClickhouseWebClient`) is nameable in the emitted
-// declarations — the client is re-exported as a namespace, which TS cannot
-// otherwise reference portably (TS2883).
-import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import {
   ExperimentRpcsDef,
   RpcActionForbiddenError,
@@ -13,6 +8,23 @@ import {
   RpcExperimentVariantNotFoundError,
 } from "@voidhash/rpc";
 import { Effect } from "effect";
+
+interface BackingFeatureFlag {
+  readonly id: string;
+  readonly key: string;
+  readonly enabled: boolean;
+  readonly rolloutBps: number;
+}
+
+const toBackingFlag = (featureFlag: BackingFeatureFlag | null) => {
+  if (featureFlag === null) return null;
+  return {
+    enabled: featureFlag.enabled,
+    id: featureFlag.id,
+    key: featureFlag.key,
+    rolloutBps: featureFlag.rolloutBps,
+  };
+};
 
 /** Map the service's experiment-with-relations to the RPC wire shape. */
 const toRpcExperiment = (e: {
@@ -62,14 +74,7 @@ const toRpcExperiment = (e: {
   } | null;
 }) => ({
   archivedAt: e.archivedAt,
-  backingFlag: e.featureFlag
-    ? {
-        enabled: e.featureFlag.enabled,
-        id: e.featureFlag.id,
-        key: e.featureFlag.key,
-        rolloutBps: e.featureFlag.rolloutBps,
-      }
-    : null,
+  backingFlag: toBackingFlag(e.featureFlag),
   createdAt: e.createdAt,
   createdByUserId: e.createdByUserId,
   description: e.description,

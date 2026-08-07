@@ -311,11 +311,13 @@ const serializeChild = (child: TreeChild): PaywallNode => {
     }
     case TREE_ELEMENT_TYPES.slot:
       return { type: "slot" };
-    case TREE_ELEMENT_TYPES.placeholder:
+    case TREE_ELEMENT_TYPES.placeholder: {
+      const reason: unknown = child.props.reason;
       return {
         type: "placeholder",
-        reason: String(child.props.reason ?? "unknown"),
+        reason: typeof reason === "string" ? reason : "unknown",
       };
+    }
     default:
       // A non-paywall element reached the renderer (e.g. a raw DOM tag).
       return {

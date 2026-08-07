@@ -858,7 +858,7 @@ function InsightBuilder({ onClose, projectId }: { onClose: () => void; projectId
 
   const addSeries = () =>
     setSeries((current) => {
-      const key = [..."ABCDEFGH"].find(
+      const key = Array.from("ABCDEFGH").find(
         (candidate) => !current.some((item) => item.key === candidate),
       );
       return key ? [...current, { aggregation: "unique_users", eventName: "", key }] : current;
@@ -871,7 +871,7 @@ function InsightBuilder({ onClose, projectId }: { onClose: () => void; projectId
 
   const addFunnelStep = () =>
     setFunnelSteps((current) => {
-      const key = [..."ABCDEFGH"].find(
+      const key = Array.from("ABCDEFGH").find(
         (candidate) => !current.some((step) => step.key === candidate),
       );
       return key ? [...current, { eventName: "", key }] : current;

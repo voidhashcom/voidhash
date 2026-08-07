@@ -1,4 +1,5 @@
 import { numberValue, type Path, type Value } from "../core/types.ts";
+import type { Mutable } from "../internal/lang.ts";
 import type { NumberSchema, NumberValidator } from "../schema/types.ts";
 import { getValueAtPath } from "./path.ts";
 import {
@@ -49,14 +50,17 @@ export class NumberPrimitive<
   }
 
   get schema(): NumberSchema {
-    return {
-      kind: "number" as const,
-      ...(this.state.required ? { required: true } : {}),
-      ...(this.state.defaultValue !== undefined
-        ? { default: numberValue(this.state.defaultValue) }
-        : {}),
-      ...(this.state.validators.length > 0 ? { validators: this.state.validators } : {}),
-    };
+    const schema: Mutable<NumberSchema> = { kind: "number" };
+    if (this.state.required) {
+      schema.required = true;
+    }
+    if (this.state.defaultValue !== undefined) {
+      schema.default = numberValue(this.state.defaultValue);
+    }
+    if (this.state.validators.length > 0) {
+      schema.validators = this.state.validators;
+    }
+    return schema;
   }
 
   required(): NumberPrimitive<true, THasDefault> {
@@ -74,10 +78,16 @@ export class NumberPrimitive<
   }
 
   optional(stripDefaults: boolean): NumberPrimitive<false, false> {
+    if (stripDefaults) {
+      return new NumberPrimitive({
+        ...this.state,
+        required: false,
+        defaultValue: undefined,
+      });
+    }
     return new NumberPrimitive({
       ...this.state,
       required: false,
-      defaultValue: stripDefaults ? undefined : this.state.defaultValue,
     });
   }
 

@@ -32,7 +32,7 @@
  *    narrowing the swapped error with `instanceof` before reading its fields,
  *    paired with a DB-state assertion that nothing leaked.
  */
-import { Effect, Layer } from "effect";
+import { Clock, DateTime, Effect, Layer } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import {
@@ -100,10 +100,33 @@ const PaywallAssetConfigTest = Layer.succeed(PaywallAssetConfig, {
   publicBaseUrl: PUBLIC_BASE_URL,
 });
 
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
 /** Monotonic counter so slugs/ids stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueSlug = (label: string) => `it-pwloc-${label}-${Date.now()}-${seq++}`;
-const uniqueId = (prefix: string) => `${prefix}_it_${Date.now()}_${seq++}`;
+const uniqueSlug = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-pwloc-${label}-${now}-${seq++}`);
+const uniqueId = (prefix: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `${prefix}_it_${now}_${seq++}`);
+
+/** Reads one field out of an audit entry's untyped `changes` blob. */
+const changeField = (changes: unknown, key: string): unknown => {
+  if (typeof changes !== "object" || changes === null) {
+    return undefined;
+  }
+  if (!(key in changes)) {
+    return undefined;
+  }
+  return Reflect.get(changes, key);
+};
+
+/** Seeded releases are `released` unless a test explicitly asks for a draft. */
+const releaseStatusOf = (released: boolean | undefined): number => {
+  if (released === false) {
+    return ReleaseStatus.draft;
+  }
+  return ReleaseStatus.released;
+};
 
 /** Read a paywall-location row straight from the database, bypassing the service. */
 const findLocationRow = (id: string) =>
@@ -174,9 +197,9 @@ const seedPaywallWithActiveRelease = (input: {
 }) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const paywallId = uniqueId("pw");
-    const releaseId = uniqueId("pw_pub");
-    const slug = uniqueSlug("paywall");
+    const paywallId = yield* uniqueId("pw");
+    const releaseId = yield* uniqueId("pw_pub");
+    const slug = yield* uniqueSlug("paywall");
     yield* db.insert(paywalls).values({
       id: paywallId,
       name: "Integration Paywall",
@@ -193,7 +216,7 @@ const seedPaywallWithActiveRelease = (input: {
       version: 1,
       // The validation path requires both isActive AND status=released.
       isActive: true,
-      status: input.released === false ? ReleaseStatus.draft : ReleaseStatus.released,
+      status: releaseStatusOf(input.released),
     });
     return { paywallId, releaseId };
   });
@@ -277,14 +300,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -314,7 +337,7 @@ describe("PaywallLocationService.createLocation", () => {
         const cache = yield* ProjectSchemaCache;
 
         const name = "Checkout Page";
-        const slug = uniqueSlug("create");
+        const slug = yield* uniqueSlug("create");
         yield* cache.getByName(projectId).set({ marker: "present" }, 60_000);
 
         const created = yield* svc.createLocation({ name, projectId, slug });
@@ -347,7 +370,7 @@ describe("PaywallLocationService.createLocation", () => {
     withCleanup((track) =>
       Effect.gen(function* () {
         const svc = yield* PaywallLocationService;
-        const slug = uniqueSlug("duplicate");
+        const slug = yield* uniqueSlug("duplicate");
 
         const first = yield* svc.createLocation({ name: "First", projectId, slug });
         track(first.id);
@@ -368,7 +391,7 @@ describe("PaywallLocationService.createLocation", () => {
     // No cleanup wrapper: a forbidden create writes no row.
     Effect.gen(function* () {
       const svc = yield* PaywallLocationService;
-      const slug = uniqueSlug("forbidden");
+      const slug = yield* uniqueSlug("forbidden");
 
       const error = yield* Effect.flip(
         asUnauthorized(svc.createLocation({ name: "Nope", projectId, slug })),
@@ -393,13 +416,13 @@ describe("PaywallLocationService.createLocation", () => {
           description: "Shown at checkout",
           name: "With Desc",
           projectId,
-          slug: uniqueSlug("with-desc"),
+          slug: yield* uniqueSlug("with-desc"),
         });
         track(withDesc.id);
         const withoutDesc = yield* svc.createLocation({
           name: "No Desc",
           projectId,
-          slug: uniqueSlug("no-desc"),
+          slug: yield* uniqueSlug("no-desc"),
         });
         track(withoutDesc.id);
 
@@ -424,7 +447,7 @@ describe("PaywallLocationService.updateLocation", () => {
           description: "before",
           name: "Before",
           projectId,
-          slug: uniqueSlug("update-before"),
+          slug: yield* uniqueSlug("update-before"),
         });
         track(created.id);
 
@@ -462,7 +485,7 @@ describe("PaywallLocationService.updateLocation", () => {
         const created = yield* svc.createLocation({
           name: "Untouched",
           projectId,
-          slug: uniqueSlug("update-noop"),
+          slug: yield* uniqueSlug("update-noop"),
         });
         track(created.id);
 
@@ -484,7 +507,7 @@ describe("PaywallLocationService.updateLocation", () => {
     Effect.gen(function* () {
       const svc = yield* PaywallLocationService;
       const error = yield* Effect.flip(
-        svc.updateLocation({ locationId: uniqueId("pw_loc_missing"), name: "x" }),
+        svc.updateLocation({ locationId: yield* uniqueId("pw_loc_missing"), name: "x" }),
       );
       expect(error).toBeInstanceOf(PaywallLocationNotFoundError);
     }).pipe(
@@ -502,7 +525,7 @@ describe("PaywallLocationService.updateLocation", () => {
         const created = yield* svc.createLocation({
           name: "Guarded",
           projectId,
-          slug: uniqueSlug("update-forbidden"),
+          slug: yield* uniqueSlug("update-forbidden"),
         });
         track(created.id);
 
@@ -532,7 +555,7 @@ describe("PaywallLocationService.archiveLocation", () => {
         const created = yield* svc.createLocation({
           name: "To Archive",
           projectId,
-          slug: uniqueSlug("archive"),
+          slug: yield* uniqueSlug("archive"),
         });
         track(created.id);
 
@@ -567,7 +590,7 @@ describe("PaywallLocationService.archiveLocation", () => {
     Effect.gen(function* () {
       const svc = yield* PaywallLocationService;
       const error = yield* Effect.flip(
-        svc.archiveLocation({ locationId: uniqueId("pw_loc_missing") }),
+        svc.archiveLocation({ locationId: yield* uniqueId("pw_loc_missing") }),
       );
       expect(error).toBeInstanceOf(PaywallLocationNotFoundError);
     }).pipe(
@@ -585,7 +608,7 @@ describe("PaywallLocationService.archiveLocation", () => {
         const created = yield* svc.createLocation({
           name: "Protected",
           projectId,
-          slug: uniqueSlug("archive-forbidden"),
+          slug: yield* uniqueSlug("archive-forbidden"),
         });
         track(created.id);
 
@@ -618,9 +641,9 @@ describe("PaywallLocationService.listLocations", () => {
     withCleanup((track) =>
       Effect.gen(function* () {
         const svc = yield* PaywallLocationService;
-        const slugA = uniqueSlug("list-a");
-        const slugB = uniqueSlug("list-b");
-        const absentSlug = uniqueSlug("list-absent");
+        const slugA = yield* uniqueSlug("list-a");
+        const slugB = yield* uniqueSlug("list-b");
+        const absentSlug = yield* uniqueSlug("list-absent");
 
         const a = yield* svc.createLocation({ name: "A", projectId, slug: slugA });
         track(a.id);
@@ -642,7 +665,7 @@ describe("PaywallLocationService.listLocations", () => {
     withCleanup((track) =>
       Effect.gen(function* () {
         const svc = yield* PaywallLocationService;
-        const slug = uniqueSlug("list-archived");
+        const slug = yield* uniqueSlug("list-archived");
         const created = yield* svc.createLocation({ name: "Archived", projectId, slug });
         track(created.id);
         yield* svc.archiveLocation({ locationId: created.id });
@@ -671,7 +694,7 @@ describe("PaywallLocationService.listLocations", () => {
         const created = yield* svc.createLocation({
           name: "With Showing",
           projectId,
-          slug: uniqueSlug("list-showing"),
+          slug: yield* uniqueSlug("list-showing"),
         });
         track(created.id);
         const assigned = yield* svc.assignLocationShowing({
@@ -697,7 +720,7 @@ describe("PaywallLocationService.listLocations", () => {
         const bare = yield* svc.createLocation({
           name: "No Showing",
           projectId,
-          slug: uniqueSlug("list-bare"),
+          slug: yield* uniqueSlug("list-bare"),
         });
         track(bare.id);
         const list2 = yield* svc.listLocations({ projectId });
@@ -732,7 +755,7 @@ describe("PaywallLocationService.listLocationShowings", () => {
         const created = yield* svc.createLocation({
           name: "Showings",
           projectId,
-          slug: uniqueSlug("showings"),
+          slug: yield* uniqueSlug("showings"),
         });
         track(created.id);
 
@@ -772,7 +795,7 @@ describe("PaywallLocationService.listLocationShowings", () => {
     Effect.gen(function* () {
       const svc = yield* PaywallLocationService;
       const error = yield* Effect.flip(
-        svc.listLocationShowings({ locationId: uniqueId("pw_loc_missing") }),
+        svc.listLocationShowings({ locationId: yield* uniqueId("pw_loc_missing") }),
       );
       expect(error).toBeInstanceOf(PaywallLocationNotFoundError);
     }).pipe(
@@ -790,7 +813,7 @@ describe("PaywallLocationService.listLocationShowings", () => {
         const created = yield* svc.createLocation({
           name: "Guarded Showings",
           projectId,
-          slug: uniqueSlug("showings-forbidden"),
+          slug: yield* uniqueSlug("showings-forbidden"),
         });
         track(created.id);
 
@@ -817,7 +840,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Assign",
           projectId,
-          slug: uniqueSlug("assign"),
+          slug: yield* uniqueSlug("assign"),
         });
         track(created.id);
 
@@ -860,7 +883,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
             entry.action === AuditLogAction.Updated &&
             typeof entry.changes === "object" &&
             entry.changes !== null &&
-            (entry.changes as { showingId?: string }).showingId === second.id,
+            changeField(entry.changes, "showingId") === second.id,
         );
         expect(updatedEntry).toBeDefined();
         expect(updatedEntry?.changes).toMatchObject({ paywallId, showingId: second.id });
@@ -876,7 +899,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Archived Target",
           projectId,
-          slug: uniqueSlug("assign-archived"),
+          slug: yield* uniqueSlug("assign-archived"),
         });
         track(created.id);
         yield* svc.archiveLocation({ locationId: created.id });
@@ -884,7 +907,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const error = yield* Effect.flip(
           svc.assignLocationShowing({
             locationId: created.id,
-            paywallId: uniqueId("pw"),
+            paywallId: yield* uniqueId("pw"),
             type: "paywall_release",
           }),
         );
@@ -904,13 +927,13 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "FF Target",
           projectId,
-          slug: uniqueSlug("assign-ff"),
+          slug: yield* uniqueSlug("assign-ff"),
         });
         track(created.id);
 
         const error = yield* Effect.flip(
           svc.assignLocationShowing({
-            featureFlagId: uniqueId("ff"),
+            featureFlagId: yield* uniqueId("ff"),
             locationId: created.id,
             type: "feature_flag",
           }),
@@ -929,7 +952,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Missing Paywall",
           projectId,
-          slug: uniqueSlug("assign-nopaywall"),
+          slug: yield* uniqueSlug("assign-nopaywall"),
         });
         track(created.id);
 
@@ -950,14 +973,14 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Ghost Paywall",
           projectId,
-          slug: uniqueSlug("assign-ghost"),
+          slug: yield* uniqueSlug("assign-ghost"),
         });
         track(created.id);
 
         const error = yield* Effect.flip(
           svc.assignLocationShowing({
             locationId: created.id,
-            paywallId: uniqueId("pw_missing"),
+            paywallId: yield* uniqueId("pw_missing"),
             type: "paywall_release",
           }),
         );
@@ -975,7 +998,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         // Paywall lives under a different (non-existent FK-wise but distinct)
         // project id; the service guards on projectId mismatch before any read
         // of releases, so a bare paywall row with a foreign projectId suffices.
-        const otherProjectId = uniqueId("proj_other");
+        const otherProjectId = yield* uniqueId("proj_other");
         const { paywallId } = yield* seedPaywallWithActiveRelease({
           paywallProjectId: otherProjectId,
         });
@@ -984,7 +1007,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Cross Project",
           projectId,
-          slug: uniqueSlug("assign-crossproj"),
+          slug: yield* uniqueSlug("assign-crossproj"),
         });
         track(created.id);
 
@@ -1017,7 +1040,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Unreleased",
           projectId,
-          slug: uniqueSlug("assign-unreleased"),
+          slug: yield* uniqueSlug("assign-unreleased"),
         });
         track(created.id);
 
@@ -1040,8 +1063,8 @@ describe("PaywallLocationService.assignLocationShowing", () => {
       const svc = yield* PaywallLocationService;
       const error = yield* Effect.flip(
         svc.assignLocationShowing({
-          locationId: uniqueId("pw_loc_missing"),
-          paywallId: uniqueId("pw"),
+          locationId: yield* uniqueId("pw_loc_missing"),
+          paywallId: yield* uniqueId("pw"),
           type: "paywall_release",
         }),
       );
@@ -1061,7 +1084,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Guard Assign",
           projectId,
-          slug: uniqueSlug("assign-forbidden"),
+          slug: yield* uniqueSlug("assign-forbidden"),
         });
         track(created.id);
 
@@ -1069,7 +1092,7 @@ describe("PaywallLocationService.assignLocationShowing", () => {
           asUnauthorized(
             svc.assignLocationShowing({
               locationId: created.id,
-              paywallId: uniqueId("pw"),
+              paywallId: yield* uniqueId("pw"),
               type: "paywall_release",
             }),
           ),
@@ -1103,7 +1126,7 @@ describe("PaywallLocationService.clearLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Clear",
           projectId,
-          slug: uniqueSlug("clear"),
+          slug: yield* uniqueSlug("clear"),
         });
         track(created.id);
         yield* svc.assignLocationShowing({
@@ -1123,7 +1146,7 @@ describe("PaywallLocationService.clearLocationShowing", () => {
             entry.action === AuditLogAction.Updated &&
             typeof entry.changes === "object" &&
             entry.changes !== null &&
-            (entry.changes as { cleared?: boolean }).cleared === true,
+            changeField(entry.changes, "cleared") === true,
         );
         expect(cleared).toBeDefined();
       }),
@@ -1138,7 +1161,7 @@ describe("PaywallLocationService.clearLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Already Clear",
           projectId,
-          slug: uniqueSlug("clear-idempotent"),
+          slug: yield* uniqueSlug("clear-idempotent"),
         });
         track(created.id);
 
@@ -1154,7 +1177,7 @@ describe("PaywallLocationService.clearLocationShowing", () => {
     Effect.gen(function* () {
       const svc = yield* PaywallLocationService;
       const error = yield* Effect.flip(
-        svc.clearLocationShowing({ locationId: uniqueId("pw_loc_missing") }),
+        svc.clearLocationShowing({ locationId: yield* uniqueId("pw_loc_missing") }),
       );
       expect(error).toBeInstanceOf(PaywallLocationNotFoundError);
     }).pipe(
@@ -1172,7 +1195,7 @@ describe("PaywallLocationService.clearLocationShowing", () => {
         const created = yield* svc.createLocation({
           name: "Guard Clear",
           projectId,
-          slug: uniqueSlug("clear-forbidden"),
+          slug: yield* uniqueSlug("clear-forbidden"),
         });
         track(created.id);
 
@@ -1196,7 +1219,7 @@ describe("PaywallLocationService.resolveLocationShowingForSdk", () => {
         });
         trackPaywall(paywallId);
 
-        const slug = uniqueSlug("sdk-ok");
+        const slug = yield* uniqueSlug("sdk-ok");
         const created = yield* svc.createLocation({ name: "SDK", projectId, slug });
         track(created.id);
         yield* svc.assignLocationShowing({
@@ -1231,7 +1254,7 @@ describe("PaywallLocationService.resolveLocationShowingForSdk", () => {
         const { paywallId } = yield* seedPaywallWithActiveRelease({ paywallProjectId: projectId });
         trackPaywall(paywallId);
 
-        const slug = uniqueSlug("sdk-public");
+        const slug = yield* uniqueSlug("sdk-public");
         const created = yield* svc.createLocation({ name: "Public", projectId, slug });
         track(created.id);
         yield* svc.assignLocationShowing({
@@ -1256,7 +1279,7 @@ describe("PaywallLocationService.resolveLocationShowingForSdk", () => {
     Effect.gen(function* () {
       const svc = yield* PaywallLocationService;
       const resolved = yield* svc.resolveLocationShowingForSdk({
-        locationSlug: uniqueSlug("sdk-missing"),
+        locationSlug: yield* uniqueSlug("sdk-missing"),
         projectId,
       });
       expect(resolved).toBeNull();
@@ -1275,7 +1298,7 @@ describe("PaywallLocationService.resolveLocationShowingForSdk", () => {
         const { paywallId } = yield* seedPaywallWithActiveRelease({ paywallProjectId: projectId });
         trackPaywall(paywallId);
 
-        const slug = uniqueSlug("sdk-archived");
+        const slug = yield* uniqueSlug("sdk-archived");
         const created = yield* svc.createLocation({ name: "Archived SDK", projectId, slug });
         track(created.id);
         yield* svc.assignLocationShowing({
@@ -1299,7 +1322,7 @@ describe("PaywallLocationService.resolveLocationShowingForSdk", () => {
     withCleanup((track) =>
       Effect.gen(function* () {
         const svc = yield* PaywallLocationService;
-        const slug = uniqueSlug("sdk-noshowing");
+        const slug = yield* uniqueSlug("sdk-noshowing");
         const created = yield* svc.createLocation({ name: "No Showing SDK", projectId, slug });
         track(created.id);
 

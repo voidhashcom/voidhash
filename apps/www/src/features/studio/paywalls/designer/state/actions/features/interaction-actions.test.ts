@@ -1,5 +1,6 @@
 import { ViewNode, type Action } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -38,7 +39,7 @@ function makeDesignerDoc() {
   let flexId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     flexId = screen.children.insertLast({ type: "view" }).id;
   });
   return { doc, flexId };
@@ -62,7 +63,7 @@ function makeCtx(doc: OfflineDesignerDocument) {
 function rawViewData(doc: OfflineDesignerDocument, nodeId: string) {
   const data = findTypedNode(doc.root, nodeId, ViewNode)?.get()?.data;
   if (data === undefined) {
-    throw new Error("expected a flex node");
+    return Effect.runSync(Effect.die(new Error("expected a flex node")));
   }
   return data;
 }
@@ -71,7 +72,7 @@ function pushViewState(doc: OfflineDesignerDocument, nodeId: string, name: strin
   let entryId = "";
   doc.transaction((root) => {
     const node = findTypedNode(root, nodeId, ViewNode);
-    if (!node) throw new Error("expected a flex node");
+    if (!node) return Effect.runSync(Effect.die(new Error("expected a flex node")));
     entryId = node.data.states.push({
       condition: sampleCondition,
       id: `state-el-${name}`,
@@ -86,7 +87,7 @@ function rawActionOverrides(doc: OfflineDesignerDocument, nodeId: string, stateE
     (candidate) => candidate.id === stateEntryId,
   );
   if (stateEntry?.value === undefined) {
-    throw new Error("expected the state entry");
+    return Effect.runSync(Effect.die(new Error("expected the state entry")));
   }
   return stateEntry.value.overrides.actions;
 }
@@ -116,7 +117,7 @@ describe("updateInteraction", () => {
     const ctx = makeCtx(doc);
     const added = addInteraction.fn(ctx as never, { nodeId: flexId });
     const interactionId = added.interactionId;
-    if (interactionId === null) throw new Error("expected an interaction entry id");
+    if (interactionId === null) return Effect.runSync(Effect.die(new Error("expected an interaction entry id")));
 
     const params = {
       interactionId,
@@ -155,7 +156,7 @@ describe("updateInteractionActionOverride", () => {
     const ctx = makeCtx(doc);
     const added = addInteraction.fn(ctx as never, { nodeId: flexId });
     const interactionId = added.interactionId;
-    if (interactionId === null) throw new Error("expected an interaction entry id");
+    if (interactionId === null) return Effect.runSync(Effect.die(new Error("expected an interaction entry id")));
     const stateEntryId = pushViewState(doc, flexId, "Selected");
 
     const firstParams = {
@@ -208,7 +209,7 @@ describe("updateInteractionActionOverride", () => {
     const ctx = makeCtx(doc);
     const added = addInteraction.fn(ctx as never, { nodeId: flexId });
     const interactionId = added.interactionId;
-    if (interactionId === null) throw new Error("expected an interaction entry id");
+    if (interactionId === null) return Effect.runSync(Effect.die(new Error("expected an interaction entry id")));
     const stateEntryId = pushViewState(doc, flexId, "Selected");
 
     updateInteractionActionOverride.fn(ctx as never, {
@@ -235,7 +236,7 @@ describe("updateInteractionActionOverride", () => {
     const ctx = makeCtx(doc);
     const added = addInteraction.fn(ctx as never, { nodeId: flexId });
     const interactionId = added.interactionId;
-    if (interactionId === null) throw new Error("expected an interaction entry id");
+    if (interactionId === null) return Effect.runSync(Effect.die(new Error("expected an interaction entry id")));
     const stateEntryId = pushViewState(doc, flexId, "Selected");
 
     const params = {
@@ -262,7 +263,7 @@ describe("removeInteraction", () => {
     const ctx = makeCtx(doc);
     const added = addInteraction.fn(ctx as never, { nodeId: flexId });
     const interactionId = added.interactionId;
-    if (interactionId === null) throw new Error("expected an interaction entry id");
+    if (interactionId === null) return Effect.runSync(Effect.die(new Error("expected an interaction entry id")));
     const stateEntryId = pushViewState(doc, flexId, "Selected");
     updateInteractionActionOverride.fn(ctx as never, {
       interactionId,

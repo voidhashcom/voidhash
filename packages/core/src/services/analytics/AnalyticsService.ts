@@ -8,7 +8,8 @@
  * runtime without a ClickHouse service keeps authorization and Postgres scope
  * checks but returns empty analytics results.
  */
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { constant, pick } from "@voidhash/lib/lang";
+import { Context, DateTime, Duration, Effect, Layer, Option, Schema } from "effect";
 
 import {
   type AnalyticsDataPoint,
@@ -90,24 +91,30 @@ interface RecentAnalyticsEventRow {
   request_id: string;
 }
 
+/** Conversion rate, guarding the zero-exposure division. */
+const conversionRateOf = (conversions: number, exposures: number): number => {
+  if (exposures > 0) return conversions / exposures;
+  return 0;
+};
+
 const parseDate = (value: string | Date): Date => {
   if (value instanceof Date) return value;
   const trimmed = value.trim();
-  const normalized = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T");
-  const withZone = /(?:Z|[+-]\d{2}:\d{2})$/.test(normalized) ? normalized : `${normalized}Z`;
-  return new Date(withZone);
+  let normalized = trimmed;
+  if (!normalized.includes("T")) normalized = normalized.replace(" ", "T");
+  // ClickHouse renders naive timestamps; anchor them to UTC before parsing.
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(normalized)) normalized = `${normalized}Z`;
+  return DateTime.toDateUtc(DateTime.makeUnsafe(normalized));
 };
+
+/** JSON object payloads only: arrays and scalars decode to `None`, as before. */
+const decodeJsonRecord = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+);
 
 const parseJsonRecord = (value: string): Record<string, unknown> => {
   if (!value || value.trim().length === 0) return {};
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
+  return Option.getOrElse(decodeJsonRecord(value), () => ({}));
 };
 
 export class AnalyticsService extends Context.Service<AnalyticsService>()("AnalyticsService", {
@@ -294,26 +301,27 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
             );
           }
 
-          const series: AnalyticsDataPoint[] =
-            compiledFilter.projectIds.length && ch !== undefined
-              ? yield* getSeries(
-                  query.insightId,
-                  compiledFilter,
-                  granularity,
-                  resolvedTimeRange,
-                  query.context.organizationId,
-                ).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch))
-              : [];
+          let series: AnalyticsDataPoint[] = [];
+          if (compiledFilter.projectIds.length && ch !== undefined) {
+            series = yield* getSeries(
+              query.insightId,
+              compiledFilter,
+              granularity,
+              resolvedTimeRange,
+              query.context.organizationId,
+            ).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
+          }
 
-          const summaryValue = RATE_INSIGHTS.has(query.insightId)
-            ? avgDataPoints(series)
-            : sumDataPoints(series);
+          let summaryValue = sumDataPoints(series);
+          if (RATE_INSIGHTS.has(query.insightId)) {
+            summaryValue = avgDataPoints(series);
+          }
 
           const result: AnalyticsInsightResult = {
             kind: "metric",
             sparkline: series,
             summary: {
-              currency: CURRENCY_INSIGHTS.has(query.insightId) ? "USD" : undefined,
+              currency: pick(CURRENCY_INSIGHTS.has(query.insightId), "USD", undefined),
               value: summaryValue,
             },
           };
@@ -391,10 +399,13 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
         if (ch === undefined) {
           return { variants: [] };
         }
-        const now = new Date();
+        const nowInstant = yield* DateTime.now;
+        const now = DateTime.toDateUtc(nowInstant);
         const startDate =
           experiment.startedAt ??
-          new Date(now.getTime() - (input.days ?? 90) * 24 * 60 * 60 * 1000);
+          DateTime.toDateUtc(
+            DateTime.subtractDuration(nowInstant, Duration.days(input.days ?? 90)),
+          );
         const endDate = experiment.endedAt ?? now;
 
         const rows = yield* getExperimentResultsQuery({
@@ -417,7 +428,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
               variantKey: r.variant,
               exposures,
               conversions,
-              conversionRate: exposures > 0 ? conversions / exposures : 0,
+              conversionRate: conversionRateOf(conversions, exposures),
               revenueUsd: Number(r.revenue_cents) / 100,
             };
           }),
@@ -444,7 +455,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
         ),
     );
 
-    return { getExperimentResults, listRecentEvents, queryAnalyticsInsights } as const;
+    return constant({ getExperimentResults, listRecentEvents, queryAnalyticsInsights });
   }),
 }) {
   static layer: Layer.Layer<AnalyticsService, never, Db> = Layer.effect(

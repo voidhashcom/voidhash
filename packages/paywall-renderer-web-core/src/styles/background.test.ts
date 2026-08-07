@@ -6,10 +6,8 @@ const stop = (color: string, position: number) => ({ value: { color, position } 
 
 function decodeGradientSvg(backgroundImage: string): string {
   const match = /^url\("data:image\/svg\+xml,(.*)"\)$/.exec(backgroundImage);
-  if (!match) {
-    throw new Error(`unexpected backgroundImage: ${backgroundImage}`);
-  }
-  return decodeURIComponent(match[1]!);
+  expect(match, `unexpected backgroundImage: ${backgroundImage}`).not.toBeNull();
+  return decodeURIComponent(match![1]!);
 }
 
 describe("buildBackgroundStyles", () => {

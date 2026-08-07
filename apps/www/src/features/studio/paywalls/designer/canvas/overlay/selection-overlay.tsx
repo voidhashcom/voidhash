@@ -13,7 +13,6 @@ import {
 } from "../../state/actions/resize-actions";
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../../state/designer-store";
 import type { DesignerStoreState, ResizeHandle } from "../../state/designer-store-state";
-import type { BoundingBox } from "../../state/utils/bounding-box";
 import { calculateCombinedBoundingBox } from "../../state/utils/bounding-box";
 import { documentRootFromSnapshot } from "../../state/utils/document-root";
 import { selectedNodeIdsFromPresence } from "../../state/utils/presence";
@@ -515,7 +514,7 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
       draw();
     };
 
-    initApp();
+    void initApp();
 
     return () => {
       mounted = false;

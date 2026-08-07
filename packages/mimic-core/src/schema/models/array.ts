@@ -8,6 +8,7 @@ import {
   validatorFailed,
 } from "../shared.ts";
 import type { ArraySchema } from "../types.ts";
+import type { Mutable } from "../../internal/lang.ts";
 
 export const arraySchemaModel: SchemaModel<ArraySchema> = {
   kind: "array",
@@ -21,16 +22,21 @@ export const arraySchemaModel: SchemaModel<ArraySchema> = {
       },
       input["default"],
       schemaPath,
-    ) as ArraySchema,
-  serialize: (schema, serializeSchema) => ({
-    kind: "array",
-    element: serializeSchema(schema.element),
-    ...serializeRequired(schema.required),
-    ...(schema.default !== undefined ? { default: cloneSchemaDefault(schema.default) } : {}),
-    ...(schema.validators && schema.validators.length > 0
-      ? { validators: schema.validators.map((validator) => ({ ...validator })) }
-      : {}),
-  }),
+    ),
+  serialize: (schema, serializeSchema) => {
+    const serialized: Mutable<ArraySchema> = {
+      kind: "array",
+      element: serializeSchema(schema.element),
+      ...serializeRequired(schema.required),
+    };
+    if (schema.default !== undefined) {
+      serialized.default = cloneSchemaDefault(schema.default);
+    }
+    if (schema.validators && schema.validators.length > 0) {
+      serialized.validators = schema.validators.map((validator) => ({ ...validator }));
+    }
+    return serialized;
+  },
   validate: (schema, value, context, valuePath, schemaPath) => {
     const array = expectArrayValue(schema.kind, value, valuePath, schemaPath);
     const items = array.items.map((item) => {

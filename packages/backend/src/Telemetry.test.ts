@@ -121,21 +121,22 @@ const makeRecordingTracer = () => {
 };
 
 describe("withIdentity", () => {
-  it("annotates identity attributes onto the current span", async () => {
+  it("annotates identity attributes onto the current span", () => {
     const { tracer, spans } = makeRecordingTracer();
 
-    await Effect.runPromise(
+    return Effect.runPromise(
       withIdentity(userSession, Effect.void).pipe(
         Effect.withSpan("rpc.test"),
         Effect.withTracer(tracer),
+        Effect.map(() => {
+          const attrs = spans.get("rpc.test");
+          expect(attrs).toBeDefined();
+          expect(attrs?.get("voidhash.user.id")).toBe("user_1");
+          expect(attrs?.get("voidhash.organization.id")).toBe("org_1");
+          expect(attrs?.get("voidhash.project.id")).toBe("proj_1");
+          expect(attrs?.get("voidhash.auth.method")).toBe("user");
+        }),
       ),
     );
-
-    const attrs = spans.get("rpc.test");
-    expect(attrs).toBeDefined();
-    expect(attrs?.get("voidhash.user.id")).toBe("user_1");
-    expect(attrs?.get("voidhash.organization.id")).toBe("org_1");
-    expect(attrs?.get("voidhash.project.id")).toBe("proj_1");
-    expect(attrs?.get("voidhash.auth.method")).toBe("user");
   });
 });

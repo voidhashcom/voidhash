@@ -1,5 +1,6 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import type { ScreenNode } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 import { commander } from "../../designer-commander";
 import {
@@ -30,11 +31,11 @@ export const createScreenNode = commander.undoableAction<
       if (parent === undefined) {
         return null;
       }
-      try {
-        return parent.children.insertLast({ ...(params.initialValues ?? {}), type: "screen" }).id;
-      } catch {
-        return null;
-      }
+      return Effect.runSync(
+        Effect.try(() => parent.children.insertLast({ ...params.initialValues, type: "screen" }).id).pipe(
+          Effect.orElseSucceed((): string | null => null),
+        ),
+      );
     });
 
     if (newNodeId) {

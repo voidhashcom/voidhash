@@ -1,5 +1,6 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import { parseSvg, type ShapeNode } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 import { commander } from "../../designer-commander";
 import {
@@ -44,46 +45,46 @@ export const createShapeFromSvg = commander.undoableAction<
         return null;
       }
 
-      try {
-        // Create the shape node
-        const shape = parent.children.insertLast({
-          type: "shape",
-          name: "Shape",
-          svgSource: params.svgSource,
-          viewBox: parsed.viewBox,
-          style: {
-            width: parsed.width ?? parsed.viewBox.width,
-            height: parsed.height ?? parsed.viewBox.height,
-          },
-        });
-
-        // Create path nodes as children
-        for (const path of parsed.paths) {
-          const pathNode = shape.children.insertLast({
-            type: "path",
-            name: path.name,
-            d: path.d,
-            transform: path.transform ?? undefined,
+      return Effect.runSync(
+        Effect.try(() => {
+          // Create the shape node
+          const shape = parent.children.insertLast({
+            type: "shape",
+            name: "Shape",
+            svgSource: params.svgSource,
+            viewBox: parsed.viewBox,
             style: {
-              fillColor: path.fillColor,
-              fillEnabled: path.fillEnabled,
-              fillRule: path.fillRule,
-              fillOpacity: path.fillOpacity,
-              strokeColor: path.strokeColor,
-              strokeEnabled: path.strokeEnabled,
-              strokeWidth: path.strokeWidth,
-              strokeOpacity: path.strokeOpacity,
-              strokeLinecap: path.strokeLinecap,
-              strokeLinejoin: path.strokeLinejoin,
+              width: parsed.width ?? parsed.viewBox.width,
+              height: parsed.height ?? parsed.viewBox.height,
             },
           });
-          pathIds.push(pathNode.id);
-        }
 
-        return shape.id;
-      } catch {
-        return null;
-      }
+          // Create path nodes as children
+          for (const path of parsed.paths) {
+            const pathNode = shape.children.insertLast({
+              type: "path",
+              name: path.name,
+              d: path.d,
+              transform: path.transform ?? undefined,
+              style: {
+                fillColor: path.fillColor,
+                fillEnabled: path.fillEnabled,
+                fillRule: path.fillRule,
+                fillOpacity: path.fillOpacity,
+                strokeColor: path.strokeColor,
+                strokeEnabled: path.strokeEnabled,
+                strokeWidth: path.strokeWidth,
+                strokeOpacity: path.strokeOpacity,
+                strokeLinecap: path.strokeLinecap,
+                strokeLinejoin: path.strokeLinejoin,
+              },
+            });
+            pathIds.push(pathNode.id);
+          }
+
+          return shape.id;
+        }).pipe(Effect.orElseSucceed((): string | null => null)),
+      );
     });
 
     if (shapeNodeId) {
@@ -124,11 +125,11 @@ export const createShapeNode = commander.undoableAction<
       if (parent === undefined) {
         return null;
       }
-      try {
-        return parent.children.insertLast({ ...(params.initialValues ?? {}), type: "shape" }).id;
-      } catch {
-        return null;
-      }
+      return Effect.runSync(
+        Effect.try(
+          () => parent.children.insertLast({ ...params.initialValues, type: "shape" }).id,
+        ).pipe(Effect.orElseSucceed((): string | null => null)),
+      );
     });
 
     if (newNodeId) {

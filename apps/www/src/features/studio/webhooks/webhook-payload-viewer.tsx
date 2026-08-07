@@ -13,7 +13,7 @@ export function WebhookPayloadViewer({ payload, className }: WebhookPayloadViewe
   const formattedJson = JSON.stringify(payload, null, 2);
 
   const copyPayload = () => {
-    navigator.clipboard.writeText(formattedJson);
+    void navigator.clipboard.writeText(formattedJson);
     toast.success("Payload copied to clipboard");
   };
 

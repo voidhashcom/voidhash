@@ -7,6 +7,7 @@ import {
   ViewNode,
 } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import { createDesignerStore, type PaywallDesignerStoreType } from "../../designer-store";
 import {
@@ -73,7 +74,7 @@ function seedTextNode(doc: OfflineDesignerDocument, text: string): string {
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (value: unknown) => { id: string } }
     ).insertLast({ type: "text", text });
@@ -233,7 +234,7 @@ function seedViewNode(doc: OfflineDesignerDocument): string {
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (value: unknown) => { id: string } }
     ).insertLast({ type: "view" });
@@ -358,7 +359,7 @@ describe("updateNodeLocalizedImage", () => {
     let nodeId = "";
     doc.transaction((root) => {
       const screen = root.findByIdAcrossTree(screenId);
-      if (!screen) throw new Error("expected the seeded screen node");
+      if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
       nodeId = (
         screen.children as unknown as { insertLast: (value: unknown) => { id: string } }
       ).insertLast({ type: "scrollView" }).id;
@@ -389,7 +390,7 @@ function seedComponentNode(doc: OfflineDesignerDocument, propName: string, base:
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (value: unknown) => { id: string } }
     ).insertLast({

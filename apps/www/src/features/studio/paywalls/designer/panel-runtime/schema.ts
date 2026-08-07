@@ -26,7 +26,7 @@ import {
   PANEL_NODE_SPECS,
   PANEL_TREE_VERSION,
 } from "@voidhash/paywalls/schema";
-import { Schema } from "effect";
+import { Effect, Option, Result, Schema } from "effect";
 
 /**
  * Strictest decode the host applies to sandbox-originated payloads: every issue
@@ -551,19 +551,25 @@ export const decodePanelTree = (
     if (!opts.trusted && byteLength(input) > PANEL_CAPS.treeBytes) {
       return { ok: false, error: `tree exceeds ${PANEL_CAPS.treeBytes} bytes` };
     }
-    try {
-      value = JSON.parse(input);
-    } catch {
+    const parsed = Effect.runSync(
+      Effect.try(() => JSON.parse(input) as unknown).pipe(Effect.option),
+    );
+    if (Option.isNone(parsed)) {
       return { ok: false, error: "tree is not valid JSON" };
     }
+    value = parsed.value;
   }
 
-  let tree: PanelTree;
-  try {
-    tree = decodePanelTreeStrict(value);
-  } catch (error) {
-    return { ok: false, error: `invalid panel tree: ${errorMessage(error)}` };
+  const decoded = Effect.runSync(
+    Effect.try({
+      try: () => decodePanelTreeStrict(value),
+      catch: (error) => errorMessage(error),
+    }).pipe(Effect.result),
+  );
+  if (Result.isFailure(decoded)) {
+    return { ok: false, error: `invalid panel tree: ${decoded.failure}` };
   }
+  const tree: PanelTree = decoded.success;
 
   const capError = checkNodeCaps(tree.root as PanelNode, "tree.root", 1, {
     count: 0,
@@ -658,20 +664,25 @@ export const decodePanelIntent = (input: unknown): DecodePanelIntentResult => {
     (input as { type?: unknown }).type === "set-prop"
   ) {
     const value = (input as { value?: unknown }).value;
-    let size: number;
-    try {
-      size = byteLength(JSON.stringify(value ?? null));
-    } catch {
+    const size = Effect.runSync(
+      Effect.try(() => byteLength(JSON.stringify(value ?? null))).pipe(Effect.option),
+    );
+    if (Option.isNone(size)) {
       return { ok: false, error: "intent value is not serializable" };
     }
-    if (size > PANEL_CAPS.intentBytes) {
+    if (size.value > PANEL_CAPS.intentBytes) {
       return { ok: false, error: `intent value exceeds ${PANEL_CAPS.intentBytes} bytes` };
     }
   }
 
-  try {
-    return { ok: true, intent: decodePanelIntentStrict(input) };
-  } catch (error) {
-    return { ok: false, error: `invalid panel intent: ${errorMessage(error)}` };
+  const decoded = Effect.runSync(
+    Effect.try({
+      try: () => decodePanelIntentStrict(input),
+      catch: (error) => errorMessage(error),
+    }).pipe(Effect.result),
+  );
+  if (Result.isFailure(decoded)) {
+    return { ok: false, error: `invalid panel intent: ${decoded.failure}` };
   }
+  return { ok: true, intent: decoded.success };
 };

@@ -7,7 +7,7 @@ import {
   stringValue,
   validate,
 } from "../../src/index.js";
-import { expectSchemaErrorCode } from "./helpers.js";
+import { constant, expectSchemaErrorCode } from "./helpers.js";
 
 describe("schema string model", () => {
   it("parses and serializes validators and defaults", () => {
@@ -36,14 +36,14 @@ describe("schema string model", () => {
     });
   });
 
-  it.each([
+  it.each(constant([
     [{ kind: "minLength", value: 3 }, stringValue("ab"), "validator_failed"],
     [{ kind: "maxLength", value: 2 }, stringValue("abc"), "validator_failed"],
     [{ kind: "length", value: 2 }, stringValue("abc"), "validator_failed"],
     [{ kind: "regex", pattern: "^a+$" }, stringValue("bbb"), "validator_failed"],
     [{ kind: "email" }, stringValue("not-an-email"), "validator_failed"],
     [{ kind: "url" }, stringValue("notaurl"), "validator_failed"],
-  ] as const)("rejects invalid string value for validator %o", (validator, value, code) => {
+  ]))("rejects invalid string value for validator %o", (validator, value, code) => {
     const schema = parseSchema({
       kind: "string",
       validators: [validator],

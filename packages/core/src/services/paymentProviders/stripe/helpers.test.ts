@@ -81,11 +81,18 @@ describe("stripeProviderProductKey", () => {
   });
 });
 
+/**
+ * Builds a minimal fixture typed as a full Stripe object. The helpers under test
+ * read only a handful of fields, so the fixtures stay deliberately partial.
+ */
+const untyped = (value: object): any => value;
+const stripeFixture = <T>(fields: object): T => untyped(fields);
+
 describe("invoicePrimaryPriceProduct", () => {
   it("returns the first line's price + product", () => {
-    const invoice = {
+    const invoice = stripeFixture<StripeInvoice>({
       lines: { data: [{ price: { id: "price_b", product: "prod_a" } }] },
-    } as StripeInvoice;
+    });
     expect(invoicePrimaryPriceProduct(invoice)).toEqual({
       priceId: "price_b",
       productId: "prod_a",
@@ -93,16 +100,16 @@ describe("invoicePrimaryPriceProduct", () => {
   });
 
   it("returns undefined when no line carries a price", () => {
-    expect(invoicePrimaryPriceProduct({ lines: { data: [] } } as StripeInvoice)).toBeUndefined();
-    expect(invoicePrimaryPriceProduct({} as StripeInvoice)).toBeUndefined();
+    expect(invoicePrimaryPriceProduct(stripeFixture<StripeInvoice>({ lines: { data: [] } }))).toBeUndefined();
+    expect(invoicePrimaryPriceProduct(stripeFixture<StripeInvoice>({}))).toBeUndefined();
   });
 });
 
 describe("subscriptionPrimaryPriceProduct", () => {
   it("returns the first item's price + product", () => {
-    const subscription = {
+    const subscription = stripeFixture<StripeSubscription>({
       items: { data: [{ price: { id: "price_b", product: "prod_a" } }] },
-    } as StripeSubscription;
+    });
     expect(subscriptionPrimaryPriceProduct(subscription)).toEqual({
       priceId: "price_b",
       productId: "prod_a",
@@ -111,25 +118,25 @@ describe("subscriptionPrimaryPriceProduct", () => {
 
   it("returns undefined when no item carries a price", () => {
     expect(
-      subscriptionPrimaryPriceProduct({ items: { data: [] } } as StripeSubscription),
+      subscriptionPrimaryPriceProduct(stripeFixture<StripeSubscription>({ items: { data: [] } })),
     ).toBeUndefined();
   });
 });
 
 describe("invoiceTaxMinor", () => {
   it("reads the legacy `tax` field", () => {
-    expect(invoiceTaxMinor({ tax: 42 } as StripeInvoice)).toBe(42);
+    expect(invoiceTaxMinor(stripeFixture<StripeInvoice>({ tax: 42 }))).toBe(42);
   });
 
   it("sums the `total_taxes` array when `tax` is absent", () => {
-    const invoice = {
+    const invoice = stripeFixture<StripeInvoice>({
       total_taxes: [{ amount: 10 }, { amount: 32 }],
-    } as StripeInvoice;
+    });
     expect(invoiceTaxMinor(invoice)).toBe(42);
   });
 
   it("returns 0 when neither is present", () => {
-    expect(invoiceTaxMinor({} as StripeInvoice)).toBe(0);
+    expect(invoiceTaxMinor(stripeFixture<StripeInvoice>({}))).toBe(0);
   });
 });
 
@@ -201,28 +208,25 @@ describe("buildStripeWebhookAnonymousDistinctId", () => {
 describe("isPaidOneTimeCheckout", () => {
   it("is true for a paid payment-mode session", () => {
     expect(
-      isPaidOneTimeCheckout({
-        mode: "payment",
-        payment_status: "paid",
-      } as StripeCheckoutSession),
+      isPaidOneTimeCheckout(
+        stripeFixture<StripeCheckoutSession>({ mode: "payment", payment_status: "paid" }),
+      ),
     ).toBe(true);
   });
 
   it("is false for a subscription-mode session", () => {
     expect(
-      isPaidOneTimeCheckout({
-        mode: "subscription",
-        payment_status: "paid",
-      } as StripeCheckoutSession),
+      isPaidOneTimeCheckout(
+        stripeFixture<StripeCheckoutSession>({ mode: "subscription", payment_status: "paid" }),
+      ),
     ).toBe(false);
   });
 
   it("is false when the payment is not yet paid", () => {
     expect(
-      isPaidOneTimeCheckout({
-        mode: "payment",
-        payment_status: "unpaid",
-      } as StripeCheckoutSession),
+      isPaidOneTimeCheckout(
+        stripeFixture<StripeCheckoutSession>({ mode: "payment", payment_status: "unpaid" }),
+      ),
     ).toBe(false);
   });
 });

@@ -19,6 +19,7 @@
  * store, draft, undo, and action helpers.
  */
 import type { ComponentManifest } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
+import { Effect } from "effect";
 import type { ComponentBoundAction } from "@voidhash/mimic-schema";
 import type { PanelSessionInputs } from "@voidhash/paywalls/panel";
 import type { Command as CommandObject } from "@voidhash/mimic/zustand-commander";
@@ -96,7 +97,7 @@ export function seedNodes(
   const byKey: Record<string, string> = {};
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     for (const seed of seeds) {
       // A `path` is only valid inside a `shape` container (never directly under
       // a screen), so a path seed inserts a wrapping shape first and nests the
@@ -155,7 +156,7 @@ export function seedStateOverride(
   let entryId = "";
   doc.transaction((root) => {
     const node = root.findByIdAcrossTree(nodeId);
-    if (!node) throw new Error(`seedStateOverride: node ${nodeId} not found`);
+    if (!node) return Effect.runSync(Effect.die(new Error(`seedStateOverride: node ${nodeId} not found`)));
     const created = (
       node as unknown as {
         data: {
@@ -259,7 +260,7 @@ function seedCodeComponentDefinition(
   let defId = "";
   doc.transaction((root) => {
     const node = insertCodeComponent(root as never, { path, source: "// seed" });
-    if (node === null) throw new Error("failed to insert code-component definition");
+    if (node === null) return Effect.runSync(Effect.die(new Error("failed to insert code-component definition")));
     defId = node;
   });
   return defId;
@@ -285,7 +286,7 @@ export function seedComponentNode(
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const local = seed.localComponentId !== undefined;
     const builtin = seed.builtin === true;
     const data: Record<string, unknown> = {
@@ -588,23 +589,23 @@ export function mountPanelDefinition(
   const readTree = (): PanelTree => {
     const snapshot = transport.getSnapshot();
     if (snapshot.status === "error") {
-      throw new Error(`panel session errored: ${snapshot.message}`);
+      return Effect.runSync(Effect.die(new Error(`panel session errored: ${snapshot.message}`)));
     }
     if (snapshot.status !== "ready") {
-      throw new Error(`panel session not ready (status: ${snapshot.status})`);
+      return Effect.runSync(Effect.die(new Error(`panel session not ready (status: ${snapshot.status})`)));
     }
     // Serialize → decode so the assertion mirrors the real sandbox trust
     // boundary (a string input pays the byte cap too).
     const decoded = decodePanelTree(JSON.stringify(snapshot.tree));
     if (!decoded.ok) {
-      throw new Error(`emitted panel tree is invalid: ${decoded.error}`);
+      return Effect.runSync(Effect.die(new Error(`emitted panel tree is invalid: ${decoded.error}`)));
     }
     return decoded.tree;
   };
 
   const nodeStyle = (nodeId: string): Record<string, unknown> => {
     const snapshot = store.getState().mimic.snapshot;
-    if (!snapshot) throw new Error("document snapshot not ready");
+    if (!snapshot) return Effect.runSync(Effect.die(new Error("document snapshot not ready")));
     const root = snapshot[0] as { children?: unknown } | undefined;
     const find = (node: unknown): Record<string, unknown> | undefined => {
       const n = node as {
@@ -620,7 +621,7 @@ export function mountPanelDefinition(
       return undefined;
     };
     const style = find(root);
-    if (!style) throw new Error(`node ${nodeId} not found in snapshot`);
+    if (!style) return Effect.runSync(Effect.die(new Error(`node ${nodeId} not found in snapshot`)));
     return style;
   };
 

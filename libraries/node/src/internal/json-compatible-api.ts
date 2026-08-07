@@ -2,20 +2,30 @@ import { Schema } from "effect";
 import type { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi";
 
 const cloneWithPrototype = <T extends object>(value: T, properties: Record<string, unknown>): T =>
-  Object.assign(Object.create(Object.getPrototypeOf(value)), value, properties) as T;
+  Object.assign(Object.create(Object.getPrototypeOf(value)), value, properties);
+
+const mapOptionalSchema = (schema: Schema.Top | undefined) => {
+  if (schema === undefined) {
+    return undefined;
+  }
+
+  return Schema.toCodecJson(schema);
+};
 
 const mapPayloadSchemas = (payload: HttpApiEndpoint.PayloadMap): HttpApiEndpoint.PayloadMap =>
   new Map(
     Array.from(payload.entries(), ([contentType, value]) => {
       const [first, ...rest] = value.schemas;
+      const schemas: [Schema.Top, ...Array<Schema.Top>] = [
+        Schema.toCodecJson(first),
+        ...rest.map((schema) => Schema.toCodecJson(schema)),
+      ];
+
       return [
         contentType,
         {
           ...value,
-          schemas: [
-            Schema.toCodecJson(first),
-            ...rest.map((schema) => Schema.toCodecJson(schema)),
-          ] as const,
+          schemas,
         },
       ];
     }),
@@ -24,10 +34,10 @@ const mapPayloadSchemas = (payload: HttpApiEndpoint.PayloadMap): HttpApiEndpoint
 const mapEndpoint = <TEndpoint extends HttpApiEndpoint.Top>(endpoint: TEndpoint): TEndpoint =>
   cloneWithPrototype(endpoint, {
     error: new Set(Array.from(endpoint.error, (schema) => Schema.toCodecJson(schema))),
-    headers: endpoint.headers ? Schema.toCodecJson(endpoint.headers) : undefined,
-    params: endpoint.params ? Schema.toCodecJson(endpoint.params) : undefined,
+    headers: mapOptionalSchema(endpoint.headers),
+    params: mapOptionalSchema(endpoint.params),
     payload: mapPayloadSchemas(endpoint.payload),
-    query: endpoint.query ? Schema.toCodecJson(endpoint.query) : undefined,
+    query: mapOptionalSchema(endpoint.query),
     success: new Set(Array.from(endpoint.success, (schema) => Schema.toCodecJson(schema))),
   });
 

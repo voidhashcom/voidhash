@@ -23,10 +23,8 @@
  */
 import { Cause, Context, Effect, Layer, Schedule, Schema } from "effect";
 
-import {
-  InternalAnalyticsEventSchema,
-  type InternalAnalyticsEvent,
-} from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
+import { constant } from "@voidhash/lib/lang";
+import { InternalAnalyticsEventSchema } from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
 import {
   Db,
   PurchaseLedgerStatus,
@@ -133,15 +131,15 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
                 status: PurchaseLedgerStatus.DeadLetter,
               })
               .where(eq(purchaseLedger.id, input.id))
-              .pipe(Effect.as("decode_failed" as const)),
+              .pipe(Effect.as(constant("decode_failed"))),
           ),
         );
         if (decoded === "decode_failed") {
           yield* Effect.annotateCurrentSpan({ "purchase_ledger.outcome": "dead_lettered" });
           yield* Effect.annotateCurrentSpan("voidhash.purchase_ledger.outcome", "dead_lettered");
-          return { outcome: "dead_lettered" as const };
+          return constant({ outcome: "dead_lettered" });
         }
-        const events = decoded as ReadonlyArray<InternalAnalyticsEvent>;
+        const events = decoded;
         // `matchCause` (not `match`): the queue producer can fail as a DEFECT
         // (e.g. the binding send `orDie`s) and a plain `match` would let that
         // crash the poll task instead of feeding the retry/dead-letter ladder.
@@ -149,8 +147,8 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
         // enqueued onto the shared analytics-ingest queue.
         const dispatchOutcome = yield* dispatch.dispatchTrusted(events).pipe(
           Effect.matchCause({
-            onFailure: (cause) => ({ kind: "failure" as const, error: Cause.pretty(cause) }),
-            onSuccess: () => ({ kind: "success" as const }),
+            onFailure: (cause) => constant({ kind: "failure", error: Cause.pretty(cause) }),
+            onSuccess: () => constant({ kind: "success" }),
           }),
         );
         if (dispatchOutcome.kind === "success") {
@@ -166,7 +164,7 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
             .where(eq(purchaseLedger.id, input.id));
           yield* Effect.annotateCurrentSpan({ "purchase_ledger.outcome": "published" });
           yield* Effect.annotateCurrentSpan("voidhash.purchase_ledger.outcome", "published");
-          return { outcome: "published" as const };
+          return constant({ outcome: "published" });
         }
         const nextAttempt = input.attemptCount + 1;
         if (nextAttempt >= input.maxAttempts) {
@@ -182,7 +180,7 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
             .where(eq(purchaseLedger.id, input.id));
           yield* Effect.annotateCurrentSpan({ "purchase_ledger.outcome": "dead_lettered" });
           yield* Effect.annotateCurrentSpan("voidhash.purchase_ledger.outcome", "dead_lettered");
-          return { outcome: "dead_lettered" as const };
+          return constant({ outcome: "dead_lettered" });
         }
         // Bump `attemptCount`, push `nextAttemptAt` out by the backoff window,
         // record the error, and release the claim so the row is eligible to be
@@ -200,7 +198,7 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
           .where(eq(purchaseLedger.id, input.id));
         yield* Effect.annotateCurrentSpan({ "purchase_ledger.outcome": "retried" });
         yield* Effect.annotateCurrentSpan("voidhash.purchase_ledger.outcome", "retried");
-        return { outcome: "retried" as const };
+        return constant({ outcome: "retried" });
       });
 
       /**
@@ -273,7 +271,7 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
         for (const row of claimed) {
           const { outcome } = yield* _processRow({
             attemptCount: row.attemptCount,
-            eventsPayload: row.eventsPayload as ReadonlyArray<object>,
+            eventsPayload: row.eventsPayload,
             id: row.id,
             maxAttempts: options.maxAttempts,
           });
@@ -334,10 +332,10 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
         );
       });
 
-      return {
+      return constant({
         poll,
         run,
-      } as const;
+      });
     }),
   },
 ) {

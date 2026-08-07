@@ -21,18 +21,27 @@ export const EmptyMigrationRegistryLive = Layer.succeed(
   EmptyMigrationRegistry,
 );
 
-const canonicalize = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (typeof value !== "object" || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => [key, canonicalize(entry)]),
-  );
+/**
+ * Structural, key-order-independent equality for the JSON shapes serialized
+ * schemas are made of. Replaces a canonicalize-then-`JSON.stringify` compare.
+ */
+const schemasEqual = (left: unknown, right: unknown): boolean => {
+  if (left === right) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right)) return false;
+    if (left.length !== right.length) return false;
+    return left.every((entry, index) => schemasEqual(entry, right[index]));
+  }
+  if (typeof left !== "object" || typeof right !== "object") return false;
+  if (left === null || right === null) return false;
+  const leftEntries = Object.entries(left);
+  const rightEntries = new Map(Object.entries(right));
+  if (leftEntries.length !== rightEntries.size) return false;
+  return leftEntries.every(([key, entry]) => {
+    if (!rightEntries.has(key)) return false;
+    return schemasEqual(entry, rightEntries.get(key));
+  });
 };
-
-const schemasEqual = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
 
 /** Ensures every registry-owned database and collection is present and current. */
 export const ensureMigrationRegistry = (

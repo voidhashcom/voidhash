@@ -1,4 +1,5 @@
 import { SLUG_BLACKLIST } from "@voidhash/lib";
+import { constant } from "@voidhash/lib/lang";
 import { Cause, Context, Effect, Layer, Schema } from "effect";
 
 import { AuthenticationError, AuthSession } from "../../domain/auth/Auth.ts";
@@ -16,7 +17,6 @@ import {
   Db,
   apiKeys,
   eq,
-  organization,
   projects,
 } from "@voidhash/db";
 import { createShortId } from "../../utils/create-short-id.ts";
@@ -494,7 +494,7 @@ export class ProjectService extends Context.Service<ProjectService>()("ProjectSe
         ),
     );
 
-    return {
+    return constant({
       createProject,
       deleteProject,
       getProjectById,
@@ -505,7 +505,7 @@ export class ProjectService extends Context.Service<ProjectService>()("ProjectSe
       removeAvatar,
       setAvatar,
       updateProject,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(ProjectService)(ProjectService.make);

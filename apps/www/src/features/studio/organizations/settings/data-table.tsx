@@ -20,7 +20,7 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   emptyMessage?: string;
-  actions: {
+  actions?: {
     onClick: (data: TData) => void;
     label: string;
     icon: React.ReactNode;

@@ -1,10 +1,10 @@
-import { Context, Effect, Layer } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer } from "effect";
 
 import {
   Db,
   and,
   eq,
-  identityAssertions,
   personIdentities,
   persons,
   pushPersonDeviceTokens,
@@ -105,7 +105,7 @@ export class IdentityProjectionRebuildService extends Context.Service<IdentityPr
                 }
               }
 
-              const now = new Date();
+              const now = yield* DateTime.nowAsDate;
               let personsMerged = 0;
               for (const [personId, canonicalPersonId] of plan.mergedInto) {
                 const person = personById.get(personId);
@@ -165,7 +165,7 @@ export class IdentityProjectionRebuildService extends Context.Service<IdentityPr
           ),
       );
 
-      return { rebuildProject } as const;
+      return constant({ rebuildProject });
     }),
   },
 ) {

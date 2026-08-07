@@ -1,21 +1,12 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import {
-  PathNode,
-  ScreenNode,
-  ShapeNode,
-  TextNode,
-  ViewNode,
   type Variable,
   type VariableType,
   type variableTypeSchema,
 } from "@voidhash/mimic-schema";
 
 import { commander } from "../../designer-commander";
-import {
-  findStatefulNode,
-  findTypedNode,
-  type DesignerDocumentRoot,
-} from "../../utils/node-proxies";
+import { findStatefulNode } from "../../utils/node-proxies";
 import { replayableVariableValue } from "../../utils/replay";
 import type { VariableTypeKey } from "../core";
 import type { StatefulEditableNodeType } from "../node-resolver";

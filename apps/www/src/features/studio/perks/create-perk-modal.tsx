@@ -72,7 +72,7 @@ export function CreatePerkModal({
     onSuccess: (data) => {
       onSuccess?.(data);
       toast.success("Perk created successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.perk.list({ projectId }),
       });
       handleOpenChange(false);

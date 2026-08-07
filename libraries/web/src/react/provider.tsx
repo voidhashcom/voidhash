@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import React, { createContext, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -28,18 +29,30 @@ export interface VoidhashReactContextValue {
 
 export const VoidhashReactContext = createContext<VoidhashReactContextValue | null>(null);
 
+const resolveClient = (props: ProviderWithClient | ProviderWithConfig): VoidhashWebClient | null => {
+  if ("client" in props && props.client) {
+    return props.client;
+  }
+
+  const { config } = props;
+  if (!config) {
+    return null;
+  }
+
+  return createVoidhashClient(config);
+};
+
 export function VoidhashProvider(props: ProviderWithClient | ProviderWithConfig) {
   const clientRef = useRef<VoidhashWebClient | null>(null);
   if (!clientRef.current) {
-    clientRef.current =
-      "client" in props && props.client
-        ? props.client
-        : createVoidhashClient((props as ProviderWithConfig).config);
+    clientRef.current = resolveClient(props);
   }
 
   const client = clientRef.current;
   if (!client) {
-    throw new Error("VoidhashProvider failed to create a client instance.");
+    return Effect.runSync(
+      Effect.die(new Error("VoidhashProvider failed to create a client instance.")),
+    );
   }
   const [isInitialized, setIsInitialized] = useState(false);
   const [distinctId, setDistinctId] = useState<string | null>(null);

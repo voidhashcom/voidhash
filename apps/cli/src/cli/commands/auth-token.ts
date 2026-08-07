@@ -1,4 +1,4 @@
-import { Console, Effect } from "effect";
+import { Config, Console, Effect, Schema } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 
 import { CliConfig } from "../../domain/services/cli-config";
@@ -9,14 +9,23 @@ const projectFlag = Flag.string("project").pipe(
   Flag.withDefault(""),
 );
 
+/** The optional project header, omitted when no project is selected. */
+const projectHeader = (project: string | undefined): Record<string, string> => {
+  if (project === undefined || project.length === 0) return {};
+  return { "X-Voidhash-Project": project };
+};
+
 /** Builds the JSON object expected from a Claude Code MCP headers helper. */
 export const buildMcpHeaders = (
   apiKey: string,
   project: string | undefined,
 ): Record<string, string> => ({
   Authorization: `Bearer ${apiKey}`,
-  ...(project === undefined || project.length === 0 ? {} : { "X-Voidhash-Project": project }),
+  ...projectHeader(project),
 });
+
+/** Serializes the MCP headers object to the JSON printed on stdout. */
+const McpHeadersJson = Schema.fromJsonString(Schema.Record(Schema.String, Schema.String));
 
 /** Prints authenticated MCP request headers without exposing them as arguments. */
 export const authTokenCommand = Command.make("token", { project: projectFlag }, ({ project }) =>
@@ -28,10 +37,18 @@ export const authTokenCommand = Command.make("token", { project: projectFlag }, 
         userError("You must be logged in. Run 'voidhash-cli auth login' first."),
       );
     }
-    const selectedProject =
-      project.trim() ||
-      process.env.CLAUDE_PLUGIN_OPTION_PROJECT?.trim() ||
-      process.env.VOIDHASH_PROJECT?.trim();
-    yield* Console.log(JSON.stringify(buildMcpHeaders(config.api_key, selectedProject)));
+    const pluginProject = yield* Config.string("CLAUDE_PLUGIN_OPTION_PROJECT").pipe(
+      Config.withDefault(""),
+      Effect.orDie,
+    );
+    const envProject = yield* Config.string("VOIDHASH_PROJECT").pipe(
+      Config.withDefault(""),
+      Effect.orDie,
+    );
+    const selectedProject = project.trim() || pluginProject.trim() || envProject.trim();
+    const headersJson = yield* Schema.encodeEffect(McpHeadersJson)(
+      buildMcpHeaders(config.api_key, selectedProject),
+    ).pipe(Effect.orDie);
+    yield* Console.log(headersJson);
   }),
 ).pipe(Command.withDescription("Print MCP connection headers from the current CLI login."));

@@ -30,7 +30,7 @@ export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
   };
 
@@ -39,7 +39,7 @@ export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
     ...rotateSecretKeyOptions(),
     onSuccess: () => {
       toast.success("Key successfully rotated");
-      queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
     },
     onError: () => {
       toast.error("Failed to rotate key");
@@ -65,7 +65,7 @@ export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
     ...deleteApiKeyOptions(),
     onSuccess: () => {
       toast.success("Key successfully deleted");
-      queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
     },
     onError: () => {
       toast.error("Failed to delete key");

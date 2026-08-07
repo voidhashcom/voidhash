@@ -1,3 +1,4 @@
+import { DateTime, Schema } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -30,6 +31,17 @@ import { REVENUE_TRUSTED_SOURCE_TOPIC } from "../../../src/domain/internalAnalyt
 // =============================================================================
 // Fixtures — const-returning builders, one fresh object per test.
 // =============================================================================
+
+/** Fixed instants: a `Date` built from an ISO string without touching globals. */
+const dateAt = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
+/** JSON codecs standing in for `JSON.stringify` / `JSON.parse`. */
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+const decodeEnvelopeProperties = Schema.decodeSync(
+  Schema.fromJsonString(
+    Schema.Struct({ properties: Schema.Record(Schema.String, Schema.Unknown) }),
+  ),
+);
 
 /**
  * A minimal valid {@link CapturedEventV1Type}. The two structural blocks that
@@ -140,23 +152,28 @@ describe("parsePersonTraits", () => {
   it("returns empty set and setOnce for empty properties", () => {
     const result = parsePersonTraits({});
     expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("expected ok");
-    expect(result.value.set).toEqual({});
-    expect(result.value.setOnce).toEqual({});
+    if (result.ok) {
+      expect(result.value.set).toEqual({});
+      expect(result.value.setOnce).toEqual({});
+    }
   });
 
   it("parses a $set object", () => {
     const result = parsePersonTraits({ $set: { plan: "pro" } });
-    if (!result.ok) throw new Error("expected ok");
-    expect(result.value.set).toEqual({ plan: "pro" });
-    expect(result.value.setOnce).toEqual({});
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.set).toEqual({ plan: "pro" });
+      expect(result.value.setOnce).toEqual({});
+    }
   });
 
   it("parses a $set_once object", () => {
     const result = parsePersonTraits({ $set_once: { firstSeen: "today" } });
-    if (!result.ok) throw new Error("expected ok");
-    expect(result.value.setOnce).toEqual({ firstSeen: "today" });
-    expect(result.value.set).toEqual({});
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.setOnce).toEqual({ firstSeen: "today" });
+      expect(result.value.set).toEqual({});
+    }
   });
 
   it("parses both $set and $set_once", () => {
@@ -164,23 +181,27 @@ describe("parsePersonTraits", () => {
       $set: { plan: "pro" },
       $set_once: { firstSeen: "today" },
     });
-    if (!result.ok) throw new Error("expected ok");
-    expect(result.value.set).toEqual({ plan: "pro" });
-    expect(result.value.setOnce).toEqual({ firstSeen: "today" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.set).toEqual({ plan: "pro" });
+      expect(result.value.setOnce).toEqual({ firstSeen: "today" });
+    }
   });
 
   it("rejects a non-object $set", () => {
     const result = parsePersonTraits({ $set: "nope" });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected failure");
-    expect(result.message).toBe("$set must be an object");
+    if (!result.ok) {
+      expect(result.message).toBe("$set must be an object");
+    }
   });
 
   it("rejects a non-object $set_once", () => {
     const result = parsePersonTraits({ $set_once: ["nope"] });
     expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected failure");
-    expect(result.message).toBe("$set_once must be an object");
+    if (!result.ok) {
+      expect(result.message).toBe("$set_once must be an object");
+    }
   });
 });
 
@@ -215,7 +236,7 @@ describe("extractInnerProperties", () => {
 // =============================================================================
 
 describe("validateBuiltInProcessorRules", () => {
-  const now = new Date("2026-01-10T00:00:00.000Z");
+  const now = dateAt("2026-01-10T00:00:00.000Z");
 
   it("accepts a valid main-lane event", () => {
     const result = validateBuiltInProcessorRules({
@@ -393,7 +414,7 @@ describe("buildDlqEvent", () => {
     const event = buildDlqEvent(dlqInput());
     expect(event.schemaVersion).toBe(1);
     // failedAt round-trips through Date without losing precision.
-    expect(new Date(event.failedAt).toISOString()).toBe(event.failedAt);
+    expect(dateAt(event.failedAt).toISOString()).toBe(event.failedAt);
   });
 
   it("generates a unique UUID failureId per call", () => {
@@ -530,8 +551,8 @@ describe("toProcessedEventRow", () => {
     const row = toProcessedEventRow(
       processedEvent({ context: { ua: "x" }, properties: { foo: "bar" } }),
     );
-    expect(row.context).toBe(JSON.stringify({ ua: "x" }));
-    expect(row.event_properties).toBe(JSON.stringify({ foo: "bar" }));
+    expect(row.context).toBe(encodeJson({ ua: "x" }));
+    expect(row.event_properties).toBe(encodeJson({ foo: "bar" }));
   });
 
   it("maps a missing person_id to null", () => {
@@ -582,7 +603,7 @@ describe("toPersonRow", () => {
 
   it("encodes traits as a JSON string", () => {
     const row = toPersonRow(personEvent({ traits: { plan: "pro" } }), "org_1");
-    expect(row.traits).toBe(JSON.stringify({ plan: "pro" }));
+    expect(row.traits).toBe(encodeJson({ plan: "pro" }));
   });
 
   it("flags archival and surfaces optional string fields", () => {
@@ -739,7 +760,7 @@ describe("buildAnalyticsWriterPlan", () => {
 
 describe("makeCapturedEventFromInternalAnalyticsEvent", () => {
   it("maps a trusted revenue event onto a CapturedEventV1 with a Resolved claim", () => {
-    const occurredAt = new Date("2026-03-04T05:06:07.008Z");
+    const occurredAt = dateAt("2026-03-04T05:06:07.008Z");
     const captured = makeCapturedEventFromInternalAnalyticsEvent({
       eventName: "$purchase.completed",
       eventId: "an_evt_k1:_purchase.completed:person_1",
@@ -789,7 +810,7 @@ describe("makeCapturedEventFromInternalAnalyticsEvent", () => {
   });
 
   it("coerces Date-valued properties to ISO strings so the envelope is JSON-clean", () => {
-    const transferredAt = new Date("2026-03-04T05:06:07.008Z");
+    const transferredAt = dateAt("2026-03-04T05:06:07.008Z");
     const captured = makeCapturedEventFromInternalAnalyticsEvent({
       eventName: "$subscription.transferred_in",
       eventId: "an_evt_kx:_subscription.transferred_in:person_to",
@@ -820,7 +841,7 @@ describe("makeCapturedEventFromInternalAnalyticsEvent", () => {
     // The Date becomes its ISO string — no live Date object survives onto the
     // wire `properties` (which permits only JSON primitives).
     expect(captured.properties.transferredAt).toBe(transferredAt.toISOString());
-    expect(JSON.parse(JSON.stringify(captured)).properties.transferredAt).toBe(
+    expect(decodeEnvelopeProperties(encodeJson(captured)).properties.transferredAt).toBe(
       transferredAt.toISOString(),
     );
   });
@@ -862,12 +883,12 @@ describe("makeSnapshotResources", () => {
 
 describe("computeCutoffIso", () => {
   it("subtracts the safety window from now", () => {
-    const now = new Date("2026-01-01T00:00:10.000Z");
+    const now = dateAt("2026-01-01T00:00:10.000Z");
     expect(computeCutoffIso({ now, safetyWindowSeconds: 10 })).toBe("2026-01-01T00:00:00.000Z");
   });
 
   it("treats a zero window as 'now'", () => {
-    const now = new Date("2026-01-01T00:00:00.000Z");
+    const now = dateAt("2026-01-01T00:00:00.000Z");
     expect(computeCutoffIso({ now, safetyWindowSeconds: 0 })).toBe(now.toISOString());
   });
 });

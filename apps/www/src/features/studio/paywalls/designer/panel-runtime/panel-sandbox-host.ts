@@ -96,9 +96,6 @@ export interface PanelSandboxTransportOptions {
   ) => boolean;
 }
 
-const errorText = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
 /** Real source check: the message came from the iframe we own. */
 const defaultIsTrustedSource = (
   event: MessageEvent,

@@ -38,16 +38,16 @@ export const setBrowserAccessTokenProvider = (provider: AccessTokenProvider | un
   browserAccessTokenProvider = provider;
 };
 
-const getClientAccessToken = async (): Promise<string | undefined> => {
+/** Reads the browser access token; a provider failure reads as "no token". */
+const getClientAccessToken = (): Effect.Effect<string | undefined> => {
   if (import.meta.env.SSR) {
-    return undefined;
+    return Effect.succeed(undefined);
   }
 
-  try {
-    return (await browserAccessTokenProvider?.()) ?? undefined;
-  } catch {
-    return undefined;
-  }
+  return Effect.tryPromise({
+    try: async () => (await browserAccessTokenProvider?.()) ?? undefined,
+    catch: (error: unknown) => error,
+  }).pipe(Effect.orElseSucceed((): string | undefined => undefined));
 };
 
 const RequestInitLayer = Layer.succeed(
@@ -73,11 +73,9 @@ const RequestInitLayer = Layer.succeed(
  */
 const withAuthCookie = <E, R>(client: HttpClient.HttpClient.With<E, R>) =>
   HttpClient.mapRequestEffect(client, (request) =>
-    Effect.promise(async () => {
-      const [cookie, accessToken] = await Promise.all([
-        getServerCookieHeader(),
-        getClientAccessToken(),
-      ]);
+    Effect.gen(function* () {
+      const cookie = getServerCookieHeader();
+      const accessToken = yield* getClientAccessToken();
 
       let authenticatedRequest = HttpClientRequest.setHeader(
         request,

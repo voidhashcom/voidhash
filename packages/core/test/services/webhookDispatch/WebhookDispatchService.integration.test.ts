@@ -28,7 +28,8 @@
  *  - Typed failures are asserted with `Effect.flip` (project convention),
  *    narrowing the swapped error with `instanceof` before reading its fields.
  */
-import { Effect, Layer, Ref } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { DateTime, Effect, Layer, Ref } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import { WebhookDispatchService } from "@voidhash/core/services/webhookDispatch/WebhookDispatchService";
@@ -48,14 +49,23 @@ import {
 
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
+import { generateId } from "@voidhash/core/utils/generate-id";
 
 const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
-/** Monotonic counter so ids stay unique even within the same millisecond. */
+/** Per-run token plus a monotonic counter so ids stay unique across and within runs. */
+const runToken = generateId("test");
 let idSeq = 0;
-const uniqueId = (label: string) => `it-wh-${label}-${Date.now()}-${idSeq++}`;
+const uniqueId = (label: string) => `it-wh-${label}-${runToken}-${idSeq++}`;
+
+/**
+ * `dispatch` is generic over the workflow, so its payload is only known to be
+ * the dispatched workflow's own type. This suite dispatches `DeliverWebhook`
+ * exclusively, so recording narrows through this single bridge.
+ */
+const asDeliverWebhookInput = (input: any): DeliverWebhookInput => input;
 
 /**
  * Recording workflow runner. Dispatches are captured into a `Ref`; the service
@@ -69,13 +79,13 @@ const makeRecordingWorkflow = Effect.gen(function* () {
     Layer.succeed(WorkflowRunner, {
       ...runner,
       dispatch: (workflow, input) =>
-        Ref.update(calls, (prev) => [...prev, input as DeliverWebhookInput]).pipe(
+        Ref.update(calls, (prev) => [...prev, asDeliverWebhookInput(input)]).pipe(
           Effect.andThen(runner.dispatch(workflow, input)),
         ),
     }),
     Layer.succeed(PlatformRuntime, PlatformRuntime.of({})),
   );
-  return { calls, layer } as const;
+  return constant({ calls, layer });
 });
 
 /** All delivery rows recorded for a given endpoint. */
@@ -103,9 +113,10 @@ const insertEndpoint = (input: {
     const db = yield* Db;
     const url = input.url ?? `https://example.test/${input.id}`;
     const secret = input.secret ?? `whsec_${input.id}`;
+    const createdAt = yield* DateTime.nowAsDate;
     yield* db.insert(webhookEndpoints).values({
       consecutiveFailures: 0,
-      createdAt: new Date(),
+      createdAt,
       events: [...input.events],
       id: input.id,
       name: `Endpoint ${input.id}`,

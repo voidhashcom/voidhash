@@ -18,6 +18,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@voidhash/ui";
+import { Effect } from "effect";
 import { RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
@@ -57,6 +58,14 @@ interface ChatShellProps {
 }
 
 /** Whether a message has any visible text content (used to gate the "thinking" marker). */
+/** Error text for an attachment failure, falling back to a per-site wording. */
+function failureMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+}
+
 function hasRenderedText(message: AgentUiMessage): boolean {
   return message.parts.some((part) => part.type === "text" && part.text.trim().length > 0);
 }
@@ -264,25 +273,30 @@ export function ChatShell({ agent, chatId, emptyState, onBusyChange, className }
               previewUrl,
             },
           ]);
-          void (async () => {
-            try {
-              const dataBase64 = await readAsDataUrl(file);
+          void Effect.runPromise(
+            Effect.gen(function* () {
+              const dataBase64 = yield* readAsDataUrl(file);
               const data = dataBase64.slice(dataBase64.indexOf(",") + 1);
-              const result = await uploadAttachment.mutateAsync({
-                sessionId: chatId,
-                organizationId: agent.context.organizationId,
-                name: file.name,
-                contentType: file.type,
-                dataBase64,
+              const result = yield* Effect.tryPromise({
+                catch: (error) => error,
+                try: () =>
+                  uploadAttachment.mutateAsync({
+                    sessionId: chatId,
+                    organizationId: agent.context.organizationId,
+                    name: file.name,
+                    contentType: file.type,
+                    dataBase64,
+                  }),
               });
               patch(id, { status: "ready", url: result.url, data });
-            } catch (error) {
-              patch(id, {
-                status: "error",
-                error: error instanceof Error ? error.message : "Upload failed",
-              });
-            }
-          })();
+            }).pipe(
+              Effect.catch((error) =>
+                Effect.sync(() => {
+                  patch(id, { status: "error", error: failureMessage(error, "Upload failed") });
+                }),
+              ),
+            ),
+          );
         } else if (isTextFile(file)) {
           if (file.size > MAX_TEXT_ATTACHMENT_BYTES) {
             toast.error(`"${file.name}" is too large to inline (max 256 KB).`);
@@ -299,17 +313,21 @@ export function ChatShell({ agent, chatId, emptyState, onBusyChange, className }
               status: "uploading",
             },
           ]);
-          void (async () => {
-            try {
-              const content = await readAsText(file);
-              patch(id, { status: "ready", text: content });
-            } catch (error) {
-              patch(id, {
-                status: "error",
-                error: error instanceof Error ? error.message : "Could not read file",
-              });
-            }
-          })();
+          void Effect.runPromise(
+            readAsText(file).pipe(
+              Effect.map((content) => {
+                patch(id, { status: "ready", text: content });
+              }),
+              Effect.catch((error) =>
+                Effect.sync(() => {
+                  patch(id, {
+                    status: "error",
+                    error: failureMessage(error, "Could not read file"),
+                  });
+                }),
+              ),
+            ),
+          );
         } else {
           toast.error(`"${file.name}" is not a supported attachment type.`);
         }
@@ -442,7 +460,7 @@ export function ChatShell({ agent, chatId, emptyState, onBusyChange, className }
           isStreaming={isBusy}
           onAddFiles={addFiles}
           onRemoveAttachment={removeAttachment}
-          onStop={() => void stop()}
+          onStop={() => stop()}
           onSubmit={submit}
         />
       </div>

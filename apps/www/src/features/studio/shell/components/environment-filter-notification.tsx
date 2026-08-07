@@ -5,7 +5,7 @@ export const EnvironmentFilterNotification = ({
   className,
   type,
 }: {
-  message: string;
+  message?: string;
   className?: string;
   type: "testing" | "shared";
 }) => (

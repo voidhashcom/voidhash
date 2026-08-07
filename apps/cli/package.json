@@ -36,6 +36,7 @@
     "@better-auth/api-key": "catalog:",
     "@effect/platform-node": "4.0.0-beta.100",
     "@voidhash/generated-clients": "workspace:*",
+    "@voidhash/lib": "workspace:*",
     "@voidhash/shared": "workspace:*",
     "@voidhash/studio": "workspace:*",
     "better-auth": "catalog:",

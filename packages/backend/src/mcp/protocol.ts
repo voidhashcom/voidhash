@@ -17,6 +17,7 @@
  * `prompts/get`, and `ping`. Unknown methods → JSON-RPC method-not-found. Tool
  * errors are `isError: true` content, never JSON-RPC errors (per MCP).
  */
+import { constant } from "@voidhash/lib/lang";
 import { Effect } from "effect";
 
 import { mcpToolDescriptors } from "./tool-manifest.ts";
@@ -29,24 +30,25 @@ import {
 } from "../ai/skills/registry.ts";
 
 /** Protocol versions we speak, newest first (used to pick the negotiated version). */
-export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26"] as const;
+export const SUPPORTED_PROTOCOL_VERSIONS = constant(["2025-06-18", "2025-03-26"]);
 const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
+const SUPPORTED_PROTOCOL_VERSION_LIST: ReadonlyArray<string> = SUPPORTED_PROTOCOL_VERSIONS;
 
 /** Server identity advertised in the `initialize` result. */
-const SERVER_INFO = { name: "voidhash-paywall-workspace", version: "1.0.0" } as const;
+const SERVER_INFO = constant({ name: "voidhash-paywall-workspace", version: "1.0.0" });
 const AUTHORING_RESOURCE_URI = "voidhash://paywall-authoring/reference";
 const DESIGN_PROMPT_NAME = "design_paywall";
 
 const mcpAuthoringGuide = (): string => findSkill("paywall-authoring")?.body() ?? "";
 
 /** Standard JSON-RPC 2.0 error codes we emit. */
-export const JsonRpcErrorCode = {
+export const JsonRpcErrorCode = constant({
   ParseError: -32700,
   InvalidRequest: -32600,
   MethodNotFound: -32601,
   InvalidParams: -32602,
   InternalError: -32603,
-} as const;
+});
 
 /** A JSON-RPC id (string or number, or null on a pre-id parse error). */
 export type JsonRpcId = string | number | null;
@@ -81,11 +83,36 @@ const failure = (
   code: number,
   message: string,
   data?: unknown,
-): JsonRpcResponse => ({
-  jsonrpc: "2.0",
-  id,
-  error: data === undefined ? { code, message } : { code, message, data },
-});
+): JsonRpcResponse => {
+  if (data === undefined) {
+    return { jsonrpc: "2.0", id, error: { code, message } };
+  }
+  return { jsonrpc: "2.0", id, error: { code, message, data } };
+};
+
+/**
+ * Narrows an unknown value to an index-signature record. Mirrors the legacy
+ * `typeof value === "object" && value !== null` check, so arrays pass too.
+ */
+const isObjectValue = (value: unknown): value is Record<string, unknown> => {
+  if (value === null) return false;
+  return typeof value === "object";
+};
+
+/** Validates the optional JSON-RPC `id` field, preserving "absent" as `undefined`. */
+const parseJsonRpcId = (
+  value: unknown,
+): { ok: true; id: JsonRpcId | undefined } | { ok: false } => {
+  if (value === undefined) return { ok: true, id: undefined };
+  if (value === null) return { ok: true, id: null };
+  if (typeof value === "string" || typeof value === "number") return { ok: true, id: value };
+  return { ok: false };
+};
+
+const messageParams = (value: unknown): Record<string, unknown> | undefined => {
+  if (isObjectValue(value)) return value;
+  return undefined;
+};
 
 /**
  * Validate an already-JSON-parsed value as a JSON-RPC 2.0 message. Returns the
@@ -95,37 +122,39 @@ const failure = (
 export const parseJsonRpcMessage = (
   value: unknown,
 ): { ok: true; message: JsonRpcMessage } | { ok: false; reason: string } => {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (!isObjectValue(value) || Array.isArray(value)) {
     // Batches (arrays) are not supported by this stateless single-response server.
     return { ok: false, reason: "Expected a single JSON-RPC 2.0 request object" };
   }
-  const record = value as Record<string, unknown>;
+  const record = value;
   if (record.jsonrpc !== "2.0") {
     return { ok: false, reason: 'Missing or invalid "jsonrpc": expected "2.0"' };
   }
   if (typeof record.method !== "string") {
     return { ok: false, reason: 'Missing or invalid "method"' };
   }
-  const id = record.id;
-  if (id !== undefined && id !== null && typeof id !== "string" && typeof id !== "number") {
+  const parsedId = parseJsonRpcId(record.id);
+  if (!parsedId.ok) {
     return { ok: false, reason: 'Invalid "id": expected string, number, or null' };
   }
-  const params =
-    record.params !== undefined && typeof record.params === "object" && record.params !== null
-      ? (record.params as Record<string, unknown>)
-      : undefined;
   return {
     ok: true,
-    message: { jsonrpc: "2.0", method: record.method, id: id as JsonRpcId, params },
+    message: {
+      jsonrpc: "2.0",
+      method: record.method,
+      id: parsedId.id,
+      params: messageParams(record.params),
+    },
   };
 };
 
 /** Negotiate a protocol version: echo a supported one, else offer our latest. */
-const negotiateProtocolVersion = (requested: unknown): string =>
-  typeof requested === "string" &&
-  (SUPPORTED_PROTOCOL_VERSIONS as ReadonlyArray<string>).includes(requested)
-    ? requested
-    : LATEST_PROTOCOL_VERSION;
+const negotiateProtocolVersion = (requested: unknown): string => {
+  if (typeof requested === "string" && SUPPORTED_PROTOCOL_VERSION_LIST.includes(requested)) {
+    return requested;
+  }
+  return LATEST_PROTOCOL_VERSION;
+};
 
 /** The `initialize` result: negotiated version, tool capability, server identity. */
 const initializeResult = (params: Record<string, unknown> | undefined) => ({
@@ -139,11 +168,16 @@ const initializeResult = (params: Record<string, unknown> | undefined) => ({
 /** The `tools/list` result: the advertised tool descriptors. */
 const toolsListResult = () => ({ tools: mcpToolDescriptors() });
 
+const skillTitle = (name: string): string => {
+  if (name === "paywall-authoring") return "Voidhash paywall authoring reference";
+  return name;
+};
+
 const resourcesListResult = () => ({
   resources: listSkills().map((skill) => ({
     uri: skillResourceUri(skill.name),
     name: skill.name,
-    title: skill.name === "paywall-authoring" ? "Voidhash paywall authoring reference" : skill.name,
+    title: skillTitle(skill.name),
     description: skill.description,
     mimeType: "text/markdown",
   })),
@@ -163,6 +197,23 @@ const promptsListResult = () => ({
     },
   ],
 });
+
+/** Resolves the skill behind a `resources/read` URI (legacy alias included). */
+const resolveSkillResource = (requestedUri: unknown) => {
+  if (requestedUri === AUTHORING_RESOURCE_URI) return findSkill("paywall-authoring");
+  if (typeof requestedUri === "string") return skillFromResourceUri(requestedUri);
+  return undefined;
+};
+
+const promptArguments = (value: unknown): Record<string, unknown> => {
+  if (isObjectValue(value)) return value;
+  return {};
+};
+
+const requestedOutcome = (value: unknown): string => {
+  if (typeof value === "string" && value.length > 0) return `\nRequested outcome: ${value}`;
+  return "";
+};
 
 /**
  * Handle a `tools/call`: read `name` + `arguments`, run the executor, and shape
@@ -230,12 +281,7 @@ export const handleMcpMessage = (
 
     case "resources/read": {
       const requestedUri = message.params?.uri;
-      const skill =
-        requestedUri === AUTHORING_RESOURCE_URI
-          ? findSkill("paywall-authoring")
-          : typeof requestedUri === "string"
-            ? skillFromResourceUri(requestedUri)
-            : undefined;
+      const skill = resolveSkillResource(requestedUri);
       if (skill === undefined || typeof requestedUri !== "string") {
         return Effect.succeed(
           failure(id, JsonRpcErrorCode.InvalidParams, "Unknown skill resource URI"),
@@ -263,10 +309,7 @@ export const handleMcpMessage = (
           failure(id, JsonRpcErrorCode.InvalidParams, "Unknown paywall authoring prompt"),
         );
       }
-      const args =
-        message.params.arguments !== null && typeof message.params.arguments === "object"
-          ? (message.params.arguments as Record<string, unknown>)
-          : {};
+      const args = promptArguments(message.params.arguments);
       const paywallId = args.paywallId;
       if (typeof paywallId !== "string" || paywallId.length === 0) {
         return Effect.succeed(
@@ -277,10 +320,7 @@ export const handleMcpMessage = (
           ),
         );
       }
-      const request =
-        typeof args.request === "string" && args.request.length > 0
-          ? `\nRequested outcome: ${args.request}`
-          : "";
+      const request = requestedOutcome(args.request);
       return Effect.succeed(
         success(id, {
           description: `Design paywall ${paywallId} with a visually verified edit session.`,

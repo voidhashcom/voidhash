@@ -14,7 +14,6 @@ import {
   FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
   Input,
   Select,
@@ -26,7 +25,6 @@ import {
   Textarea,
 } from "@voidhash/ui";
 import { EllipsisVerticalIcon } from "lucide-react";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 import { SettingsCard, SettingsPage, SettingsRow, SettingsSection } from "@/features/studio/settings";

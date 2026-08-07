@@ -1,6 +1,5 @@
 import type { TreeValue } from "@voidhash/mimic-core";
 import { PaywallDesignerDocument, reconcile } from "@voidhash/mimic-schema";
-import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import {
   applyDocumentEdits,
   unwrapEntries,
@@ -12,7 +11,7 @@ import {
 export type { DocumentEdit, MintedIds } from "@voidhash/ai-shared";
 
 import { fileNameFromDocRelative } from "./paths.ts";
-import { readComponentDefinitions } from "./snapshot.ts";
+import { readComponentDefinitions, type DocumentSnapshotNode } from "./snapshot.ts";
 import {
   lowerComponentDelete,
   lowerComponentMove,
@@ -21,18 +20,29 @@ import {
 } from "./write.ts";
 
 /**
- * Narrow a raw mimic document value (the encoded `TreeValue` returned by the
- * mimic host as `unknown`) into a `TreeValue`, or `undefined` when it is not a
- * well-formed tree. Structural — the pure package owns the narrowing (core stays
- * free of the mimic-core value kinds).
+ * Whether a raw mimic document value (returned by the mimic host as `unknown`)
+ * is a well-formed `TreeValue`. Structural — the pure package owns the narrowing
+ * (core stays free of the mimic-core value kinds).
+ */
+function isTreeValue(tree: unknown): tree is TreeValue {
+  if (tree === null || typeof tree !== "object") {
+    return false;
+  }
+  if (!("kind" in tree) || tree.kind !== "tree") {
+    return false;
+  }
+  return "nodes" in tree && Array.isArray(tree.nodes);
+}
+
+/**
+ * Narrow a raw mimic document value into a `TreeValue`, or `undefined` when it
+ * is not a well-formed tree.
  */
 function asTreeValue(tree: unknown): TreeValue | undefined {
-  return tree !== null &&
-    typeof tree === "object" &&
-    (tree as { kind?: unknown }).kind === "tree" &&
-    Array.isArray((tree as { nodes?: unknown }).nodes)
-    ? (tree as TreeValue)
-    : undefined;
+  if (isTreeValue(tree)) {
+    return tree;
+  }
+  return undefined;
 }
 
 /**
@@ -44,7 +54,7 @@ function asTreeValue(tree: unknown): TreeValue | undefined {
  * decode.
  */
 export function encodePaywallDocument(roots: unknown): unknown {
-  return PaywallDesignerDocument.encode(roots as never);
+  return PaywallDesignerDocument.encodeOptional(roots);
 }
 
 /**
@@ -117,7 +127,7 @@ export function componentPathsFromTree(tree: unknown): string[] {
   if (value === undefined) {
     return [];
   }
-  const snapshot = (PaywallDesignerDocument.decode(value) ?? []) as readonly SnapshotNode[];
+  const snapshot = PaywallDesignerDocument.decode(value) ?? [];
   return readComponentDefinitions(snapshot).map((definition) => definition.path);
 }
 
@@ -160,18 +170,32 @@ export interface ApplyDocumentEditsToTreeResult {
  * (which re-mints array-item envelopes) accepts it — a proven no-op round-trip
  * through `reconcile`, which ignores array-item envelopes.
  */
-function snapshotToEditable(node: SnapshotNode): EditableDocumentNode {
+function snapshotToEditable(node: DocumentSnapshotNode): EditableDocumentNode {
+  const data: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node.data)) {
+    data[key] = unwrapEntries(value);
+  }
   return {
     id: node.id,
     type: node.type,
-    data: unwrapEntries(node.data) as Record<string, unknown>,
+    data,
     children: node.children.map(snapshotToEditable),
   };
 }
 
+/**
+ * A node in the `PaywallDesignerDocument.encode` input shape: the node's payload
+ * fields flattened alongside `id`/`type`, with `children` always an array (the
+ * encoder treats an absent `children` as empty).
+ */
+interface EncodeInputNode {
+  [key: string]: unknown;
+  children: EncodeInputNode[];
+}
+
 /** Flatten an {@link EditableDocumentNode} into the `PaywallDesignerDocument.encode` input shape. */
-function editableToEncodeInput(node: EditableDocumentNode): Record<string, unknown> {
-  const input: Record<string, unknown> = { id: node.id, type: node.type };
+function editableToEncodeInput(node: EditableDocumentNode): EncodeInputNode {
+  const input: EncodeInputNode = { id: node.id, type: node.type, children: [] };
   for (const [key, value] of Object.entries(node.data ?? {})) {
     input[key] = value;
   }
@@ -211,7 +235,7 @@ export function applyDocumentEditsToTree(input: {
       mintedIds: {},
     };
   }
-  const snapshot = (PaywallDesignerDocument.decode(current) ?? []) as readonly SnapshotNode[];
+  const snapshot = PaywallDesignerDocument.decode(current) ?? [];
   const root = snapshot[0];
   if (root === undefined) {
     return {
@@ -223,7 +247,7 @@ export function applyDocumentEditsToTree(input: {
     };
   }
   const { root: target, mintedIds } = applyDocumentEdits(snapshotToEditable(root), input.edits);
-  const encoded = PaywallDesignerDocument.encode([editableToEncodeInput(target)] as never);
+  const encoded = PaywallDesignerDocument.encodeOptional([editableToEncodeInput(target)]);
   const targetTree = asTreeValue(encoded);
   if (targetTree === undefined) {
     return {
@@ -271,7 +295,7 @@ export function writeComponentSourceToTree(input: {
       diagnostics: [{ message: "The paywall document is not a well-formed tree." }],
     };
   }
-  const snapshot = (PaywallDesignerDocument.decode(current) ?? []) as readonly SnapshotNode[];
+  const snapshot = PaywallDesignerDocument.decode(current) ?? [];
   const root = snapshot[0];
   if (root === undefined) {
     return {
@@ -281,14 +305,14 @@ export function writeComponentSourceToTree(input: {
   }
 
   const rootInput = editableToEncodeInput(snapshotToEditable(root));
-  const children = rootInput["children"] as Record<string, unknown>[];
+  const children = rootInput.children;
 
   let library = children.find((child) => child["type"] === "library");
   if (library === undefined) {
-    library = { type: "library", children: [] as Record<string, unknown>[] };
+    library = { type: "library", children: [] };
     children.push(library);
   }
-  const libraryChildren = (library["children"] ??= []) as Record<string, unknown>[];
+  const libraryChildren = library.children;
 
   const existing = libraryChildren.find(
     (child) => child["type"] === "codeComponent" && child["path"] === input.path,
@@ -296,10 +320,15 @@ export function writeComponentSourceToTree(input: {
   if (existing !== undefined) {
     existing["source"] = input.source;
   } else {
-    libraryChildren.push({ type: "codeComponent", path: input.path, source: input.source });
+    libraryChildren.push({
+      type: "codeComponent",
+      path: input.path,
+      source: input.source,
+      children: [],
+    });
   }
 
-  const encoded = PaywallDesignerDocument.encode([rootInput] as never);
+  const encoded = PaywallDesignerDocument.encodeOptional([rootInput]);
   const targetTree = asTreeValue(encoded);
   if (targetTree === undefined) {
     return {

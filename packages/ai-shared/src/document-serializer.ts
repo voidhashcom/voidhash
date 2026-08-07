@@ -1,4 +1,4 @@
-import { isNodeType, type NodeType } from "@voidhash/mimic-schema";
+import { isNodeType } from "@voidhash/mimic-schema";
 
 import { nodeDefaultData, unwrapEntries } from "./mimic-introspection.ts";
 
@@ -73,9 +73,32 @@ export function serializeDocument(
   nodes: readonly SnapshotDocumentNode[],
   options: SerializeOptions = {},
 ): CleanedDocumentNode | CleanedDocumentStub | null {
-  const root = options.nodeId ? findNode(nodes, options.nodeId) : (nodes[0] ?? null);
+  const root = locateRoot(nodes, options.nodeId);
   if (!root) return null;
   return cleanNode(root, 0, options.depth);
+}
+
+/** The serialization root: the named subtree when `nodeId` is given, else the first node. */
+function locateRoot(
+  nodes: readonly SnapshotDocumentNode[],
+  nodeId: string | undefined,
+): SnapshotDocumentNode | null {
+  if (!nodeId) return nodes[0] ?? null;
+  return findNode(nodes, nodeId);
+}
+
+/** The mutable builder shape a {@link CleanedDocumentNode} is assembled into, key by key. */
+interface CleanedNodeDraft {
+  id: string;
+  type: string;
+  name?: string;
+  children?: readonly (CleanedDocumentNode | CleanedDocumentStub)[];
+  [dataField: string]: unknown;
+}
+
+/** A non-null, non-array object. */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** Depth-first search for a node by id across a decoded forest. */
@@ -90,7 +113,17 @@ function findNode(nodes: readonly SnapshotDocumentNode[], id: string): SnapshotD
 
 /** Structural equality on two already-unwrapped values (order-sensitive for arrays). */
 function deepEqual(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((item, index) => deepEqual(item, b[index]));
+  }
+  if (isPlainRecord(a) && isPlainRecord(b)) {
+    const keys = Object.keys(a);
+    if (keys.length !== Object.keys(b).length) return false;
+    return keys.every((key) => key in b && deepEqual(a[key], b[key]));
+  }
+  return false;
 }
 
 /**
@@ -102,25 +135,25 @@ function deepEqual(a: unknown, b: unknown): boolean {
  * needs the full list to reason about it).
  */
 function stripDefaults(value: unknown, defaultValue: unknown): unknown {
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    defaultValue !== null &&
-    typeof defaultValue === "object" &&
-    !Array.isArray(defaultValue)
-  ) {
-    const defObj = defaultValue as Record<string, unknown>;
-    const out: Record<string, unknown> = {};
-    for (const [key, sub] of Object.entries(value as Record<string, unknown>)) {
-      if (key in defObj && deepEqual(sub, defObj[key])) continue;
-      const stripped = key in defObj ? stripDefaults(sub, defObj[key]) : sub;
-      if (isEmptyStructural(stripped)) continue;
-      out[key] = stripped;
-    }
-    return out;
+  if (!isPlainRecord(value) || !isPlainRecord(defaultValue)) return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, sub] of Object.entries(value)) {
+    if (key in defaultValue && deepEqual(sub, defaultValue[key])) continue;
+    const stripped = strippedAgainstDefault(sub, defaultValue, key);
+    if (isEmptyStructural(stripped)) continue;
+    out[key] = stripped;
   }
-  return value;
+  return out;
+}
+
+/** {@link stripDefaults} against `defaults[key]`, or the value verbatim when it has no default. */
+function strippedAgainstDefault(
+  value: unknown,
+  defaults: Record<string, unknown>,
+  key: string,
+): unknown {
+  if (!(key in defaults)) return value;
+  return stripDefaults(value, defaults[key]);
 }
 
 function cleanNode(
@@ -134,9 +167,9 @@ function cleanNode(
     return stubNode(node, children.length);
   }
 
-  const cleaned: Record<string, unknown> = { id: node.id, type: node.type };
+  const cleaned: CleanedNodeDraft = { id: node.id, type: node.type };
   const data = node.data ?? {};
-  const defaults = isNodeType(node.type) ? nodeDefaultData(node.type as NodeType) : {};
+  const defaults = defaultDataOf(node.type);
 
   const name = data["name"];
   if (typeof name === "string") cleaned["name"] = name;
@@ -149,11 +182,11 @@ function cleanNode(
     const path = unwrapEntries(data["path"]);
     if (typeof path === "string") cleaned["path"] = path;
     const source = unwrapEntries(data["source"]);
-    cleaned["sourceLength"] = typeof source === "string" ? source.length : 0;
+    cleaned["sourceLength"] = stringLength(source);
     if (children.length > 0) {
       cleaned["children"] = children.map((child) => cleanNode(child, currentDepth + 1, maxDepth));
     }
-    return cleaned as unknown as CleanedDocumentNode;
+    return cleaned;
   }
 
   for (const [key, rawValue] of Object.entries(data)) {
@@ -163,7 +196,7 @@ function cleanNode(
     // (e.g. `style`) so a single deviation doesn't drag every default sibling
     // along. The model then sees only what was actually authored.
     if (key in defaults && deepEqual(value, defaults[key])) continue;
-    const stripped = key in defaults ? stripDefaults(value, defaults[key]) : value;
+    const stripped = strippedAgainstDefault(value, defaults, key);
     if (isEmptyStructural(stripped)) continue;
     cleaned[key] = stripped;
   }
@@ -172,14 +205,27 @@ function cleanNode(
     cleaned["children"] = children.map((child) => cleanNode(child, currentDepth + 1, maxDepth));
   }
 
-  return cleaned as unknown as CleanedDocumentNode;
+  return cleaned;
+}
+
+/** The defaults-filled data snapshot for a node type, or `{}` for a non-mimic type. */
+function defaultDataOf(type: string): Record<string, unknown> {
+  if (!isNodeType(type)) return {};
+  return nodeDefaultData(type);
+}
+
+/** The length of a value that is a string, else `0`. */
+function stringLength(value: unknown): number {
+  if (typeof value === "string") return value.length;
+  return 0;
 }
 
 /** A depth-truncated stub: identity + name + child count only. */
 function stubNode(node: SnapshotDocumentNode, childCount: number): CleanedDocumentStub {
   const name = node.data?.["name"];
   const stub: CleanedDocumentStub = { id: node.id, type: node.type, childCount };
-  return typeof name === "string" ? { ...stub, name } : stub;
+  if (typeof name === "string") return { ...stub, name };
+  return stub;
 }
 
 /** Whether a value is an empty array or empty object (nothing authored to show). */

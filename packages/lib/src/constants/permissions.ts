@@ -1,12 +1,14 @@
-export const OrganizationPermissions = {
+import { constant } from "../lang/index.ts";
+
+export const OrganizationPermissions = constant({
   all: "organization:all",
-} as const;
+});
 
 export type OrganizationPermission =
   (typeof OrganizationPermissions)[keyof typeof OrganizationPermissions];
 
-export const ProjectPermissions = {
+export const ProjectPermissions = constant({
   all: "project:all",
-} as const;
+});
 
 export type ProjectPermission = (typeof ProjectPermissions)[keyof typeof ProjectPermissions];

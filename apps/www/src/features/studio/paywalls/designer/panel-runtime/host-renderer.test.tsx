@@ -3,6 +3,7 @@
 import { PANEL_NODE_SPECS, PANEL_TREE_VERSION } from "@voidhash/paywalls/schema";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { Effect } from "effect";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
@@ -473,7 +474,7 @@ describe("host-renderer — conformance", () => {
 
 const decodeOrThrow = (tree: unknown): PanelTree => {
   const decoded = decodePanelTree(tree);
-  if (!decoded.ok) throw new Error(decoded.error);
+  if (!decoded.ok) return Effect.runSync(Effect.die(new Error(decoded.error)));
   return decoded.tree;
 };
 

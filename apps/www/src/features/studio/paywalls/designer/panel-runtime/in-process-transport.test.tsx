@@ -3,6 +3,7 @@
 import { Panel, type PanelContext, type PanelSessionInputs } from "@voidhash/paywalls/panel";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
+import { Effect } from "effect";
 import { afterEach, describe, expect, test } from "vite-plus/test";
 
 import { PanelTreeView } from "./host-renderer";
@@ -54,32 +55,32 @@ describe("in-process transport — round trip", () => {
       initialInputs: EMPTY_INPUTS,
     });
 
-    try {
-      // The first tree is emitted synchronously during construction.
-      const initial = transport.getSnapshot();
-      expect(initial.status).toBe("ready");
+    Effect.runSync(
+      Effect.sync(() => {
+        // The first tree is emitted synchronously during construction.
+        const initial = transport.getSnapshot();
+        expect(initial.status).toBe("ready");
 
-      render(<PanelTreeView transport={transport} />);
-      // The count textField shows 0 initially.
-      expect((screen.getByLabelText("count") as HTMLInputElement).value).toBe("0");
+        render(<PanelTreeView transport={transport} />);
+        // The count textField shows 0 initially.
+        expect((screen.getByLabelText("count") as HTMLInputElement).value).toBe("0");
 
-      // Click the button: the OSS session flushes setState + re-emits the tree
-      // synchronously before dispatchEvent returns, so the new value is present.
-      fireEvent.click(screen.getByText("Increment"));
-      expect((screen.getByLabelText("count") as HTMLInputElement).value).toBe("1");
+        // Click the button: the OSS session flushes setState + re-emits the tree
+        // synchronously before dispatchEvent returns, so the new value is present.
+        fireEvent.click(screen.getByText("Increment"));
+        expect((screen.getByLabelText("count") as HTMLInputElement).value).toBe("1");
 
-      fireEvent.click(screen.getByText("Increment"));
-      expect((screen.getByLabelText("count") as HTMLInputElement).value).toBe("2");
+        fireEvent.click(screen.getByText("Increment"));
+        expect((screen.getByLabelText("count") as HTMLInputElement).value).toBe("2");
 
-      // The snapshot revision advanced (each dispatch emitted a new tree).
-      const after = transport.getSnapshot();
-      expect(after.status).toBe("ready");
-      if (after.status === "ready") {
-        expect(after.revision).toBeGreaterThan(0);
-      }
-    } finally {
-      transport.dispose();
-    }
+        // The snapshot revision advanced (each dispatch emitted a new tree).
+        const after = transport.getSnapshot();
+        expect(after.status).toBe("ready");
+        if (after.status === "ready") {
+          expect(after.revision).toBeGreaterThan(0);
+        }
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("the dev-assert path accepts a valid built-in emission", () => {
@@ -89,11 +90,11 @@ describe("in-process transport — round trip", () => {
       render: CounterDefinition,
       initialInputs: EMPTY_INPUTS,
     });
-    try {
-      expect(transport.getSnapshot().status).toBe("ready");
-    } finally {
-      transport.dispose();
-    }
+    Effect.runSync(
+      Effect.sync(() => {
+        expect(transport.getSnapshot().status).toBe("ready");
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 
   test("restart tears down and remounts a fresh session with a reset tree", () => {
@@ -101,29 +102,29 @@ describe("in-process transport — round trip", () => {
       render: CounterDefinition,
       initialInputs: EMPTY_INPUTS,
     });
-    try {
-      render(<PanelTreeView transport={transport} />);
-      fireEvent.click(screen.getByText("Increment"));
-      fireEvent.click(screen.getByText("Increment"));
+    Effect.runSync(
+      Effect.sync(() => {
+        render(<PanelTreeView transport={transport} />);
+        fireEvent.click(screen.getByText("Increment"));
+        fireEvent.click(screen.getByText("Increment"));
 
-      // The live tree carries the incremented count.
-      const before = transport.getSnapshot();
-      expect(before.status).toBe("ready");
-      const beforeValue =
-        before.status === "ready"
-          ? findTextFieldValue(before.tree.root as never)
-          : undefined;
-      expect(beforeValue).toBe(2);
+        // The live tree carries the incremented count.
+        const before = transport.getSnapshot();
+        expect(before.status).toBe("ready");
+        const beforeValue =
+          before.status === "ready"
+            ? findTextFieldValue(before.tree.root as never)
+            : undefined;
+        expect(beforeValue).toBe(2);
 
-      // Restart mounts a fresh session: the emitted tree's count resets to 0.
-      transport.restart();
-      const after = transport.getSnapshot();
-      expect(after.status).toBe("ready");
-      const afterValue =
-        after.status === "ready" ? findTextFieldValue(after.tree.root as never) : undefined;
-      expect(afterValue).toBe(0);
-    } finally {
-      transport.dispose();
-    }
+        // Restart mounts a fresh session: the emitted tree's count resets to 0.
+        transport.restart();
+        const after = transport.getSnapshot();
+        expect(after.status).toBe("ready");
+        const afterValue =
+          after.status === "ready" ? findTextFieldValue(after.tree.root as never) : undefined;
+        expect(afterValue).toBe(0);
+      }).pipe(Effect.ensuring(Effect.sync(() => transport.dispose()))),
+    );
   });
 });

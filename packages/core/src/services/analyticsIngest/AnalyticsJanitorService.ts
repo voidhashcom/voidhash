@@ -25,7 +25,8 @@
  * needs `allow_nondeterministic_mutations`, passed as a session
  * `clickhouse_setting` (Cloud ignores it in a SQL `SETTINGS` clause).
  */
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Clock, Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import {
   type BacklogRow,
@@ -37,9 +38,10 @@ import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-w
 
 // Unqualified table names — the runtime Clickhouse client connects with the
 // per-stage database (provisioned by `Clickhouse.Database`) as its default.
-const CLICKHOUSE_EVENTS_FULL_TABLE = "events_v2" as const;
-const CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_FULL_TABLE =
-  "person_identity_pending_overrides_v2" as const;
+const CLICKHOUSE_EVENTS_FULL_TABLE = constant("events_v2");
+const CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_FULL_TABLE = constant(
+  "person_identity_pending_overrides_v2",
+);
 
 export class AnalyticsJanitorServiceError extends Schema.TaggedErrorClass<AnalyticsJanitorServiceError>(
   "AnalyticsJanitorServiceError",
@@ -132,15 +134,17 @@ export class AnalyticsJanitorService extends Context.Service<AnalyticsJanitorSer
       }: {
         readonly resources: SnapshotResources;
         readonly rows: ReadonlyArray<BacklogRow>;
-      }) =>
-        rows.length === 0
-          ? Effect.void
-          : ch
-              .insertQuery({
-                table: resources.pendingOverrideSnapshotName,
-                values: rows,
-              })
-              .pipe(Effect.asVoid);
+      }) => {
+        if (rows.length === 0) {
+          return Effect.void;
+        }
+        return ch
+          .insertQuery({
+            table: resources.pendingOverrideSnapshotName,
+            values: rows,
+          })
+          .pipe(Effect.asVoid);
+      };
 
       // Escape a value for a single-quoted ClickHouse SQL string literal — the
       // dictionary-source credentials live inside the `SOURCE(...)` clause and
@@ -193,10 +197,10 @@ export class AnalyticsJanitorService extends Context.Service<AnalyticsJanitorSer
       // Passed as session `clickhouse_settings`, not a SQL `SETTINGS` clause:
       // `dictGet`/`dictHas` are non-deterministic (so the mutation needs
       // `allow_nondeterministic_mutations`), and Cloud only honours it there.
-      const mutationSettings = {
+      const mutationSettings = constant({
         mutations_sync: "1",
         allow_nondeterministic_mutations: 1,
-      } as const;
+      });
 
       // Resolve merged person ids purely through the Dictionary (`dictHas` gates
       // rows, `dictGet` supplies the id) so the async mutation never depends on
@@ -280,9 +284,9 @@ export class AnalyticsJanitorService extends Context.Service<AnalyticsJanitorSer
 
       const squash = Effect.fn("squash")(
         function* (input: SquashInput) {
-          const startedAt = Date.now();
+          const startedAt = yield* Clock.currentTimeMillis;
           const cutoffIso = computeCutoffIso({
-            now: new Date(),
+            now: yield* DateTime.nowAsDate,
             safetyWindowSeconds: input.safetyWindowSeconds,
           });
 
@@ -300,15 +304,16 @@ export class AnalyticsJanitorService extends Context.Service<AnalyticsJanitorSer
           );
 
           if (backlogRows.length === 0) {
+            const emptyDurationMs = (yield* Clock.currentTimeMillis) - startedAt;
             yield* Effect.logInfo("analytics janitor found no eligible backlog rows", {
               batchSize: input.batchSize,
               cutoffIso,
-              durationMs: Date.now() - startedAt,
+              durationMs: emptyDurationMs,
             });
             return {
               backlogRowsProcessed: 0,
               cutoffIso,
-              durationMs: Date.now() - startedAt,
+              durationMs: emptyDurationMs,
             } satisfies SquashResult;
           }
 
@@ -348,7 +353,7 @@ export class AnalyticsJanitorService extends Context.Service<AnalyticsJanitorSer
             ),
           );
 
-          const durationMs = Date.now() - startedAt;
+          const durationMs = (yield* Clock.currentTimeMillis) - startedAt;
           yield* Effect.logInfo("analytics janitor completed squash run", {
             count: backlogRows.length,
             durationMs,
@@ -374,7 +379,7 @@ export class AnalyticsJanitorService extends Context.Service<AnalyticsJanitorSer
           ),
       );
 
-      return { squash } as const;
+      return constant({ squash });
     }),
   },
 ) {

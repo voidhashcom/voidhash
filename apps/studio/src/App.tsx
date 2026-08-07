@@ -33,6 +33,26 @@ export const App = (): ReactNode => {
     setEvents([]);
   };
 
+  const renderPreview = (): ReactNode => {
+    if (!selected) {
+      return (
+        <div className="flex h-full items-center justify-center p-8 text-center text-neutral-500 text-sm">
+          Create a paywall in{" "}
+          <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5">.voidhash/paywalls</code> to
+          preview it here.
+        </div>
+      );
+    }
+    return (
+      <PaywallPreview
+        bridge={bridge}
+        config={previewConfig}
+        entry={selected}
+        profile={previewProfile}
+      />
+    );
+  };
+
   return (
     <div className="flex h-full flex-col bg-neutral-900 text-neutral-100">
       <header className="flex items-center justify-between border-neutral-800 border-b px-5 py-3">
@@ -51,22 +71,7 @@ export const App = (): ReactNode => {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <main className="min-w-0 flex-1">
-          {selected ? (
-            <PaywallPreview
-              bridge={bridge}
-              config={previewConfig}
-              entry={selected}
-              profile={previewProfile}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center p-8 text-center text-neutral-500 text-sm">
-              Create a paywall in{" "}
-              <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5">.voidhash/paywalls</code>{" "}
-              to preview it here.
-            </div>
-          )}
-        </main>
+        <main className="min-w-0 flex-1">{renderPreview()}</main>
 
         <Sidebar
           components={content.components}

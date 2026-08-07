@@ -86,7 +86,7 @@ export function CreatePaywallLocationModal({
     onSuccess: (data) => {
       onSuccess?.(data);
       toast.success("Paywall location created");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.paywallLocation.all,
       });
       handleOpenChange(false);

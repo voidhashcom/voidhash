@@ -44,5 +44,6 @@ export const skillResourceUri = (name: string): string => `voidhash://skills/${n
 /** Resolves a registered skill from its MCP resource URI. */
 export const skillFromResourceUri = (uri: string): SkillDefinition | undefined => {
   const prefix = "voidhash://skills/";
-  return uri.startsWith(prefix) ? findSkill(uri.slice(prefix.length)) : undefined;
+  if (!uri.startsWith(prefix)) return undefined;
+  return findSkill(uri.slice(prefix.length));
 };

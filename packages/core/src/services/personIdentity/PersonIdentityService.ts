@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, DateTime, Effect, Layer } from "effect";
 
 import {
   and,
@@ -10,6 +10,8 @@ import {
   pushPersonDeviceTokens,
   sql,
 } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
+
 import { comparePersonForMerge } from "../../domain/person/IdentityGraph.ts";
 import {
   type PersonIdentityEventV1,
@@ -24,6 +26,21 @@ import { IdentityProjectionPublisher } from "./IdentityProjectionPublisher.ts";
 import { DEFAULT_ORIGIN, IdentityMutationService } from "./IdentityMutationService.ts";
 
 export type { PersonIdentityEventV1, PersonSnapshotEventV1 } from "../../domain/person/Person.ts";
+
+/** Wraps an optional value into a (possibly empty) single-element list. */
+const optionalList = <A>(value: A | null | undefined): ReadonlyArray<A> => {
+  if (value === null || value === undefined) return [];
+  return [value];
+};
+
+/**
+ * Dedup key for an appended identity assertion: the originating event id when
+ * present, otherwise a freshly minted id (so the write still lands exactly once).
+ */
+const assertionDedupKey = (eventId: string | undefined): string => {
+  if (eventId && eventId.length > 0) return eventId;
+  return generateId("identityAssertion");
+};
 
 export interface ResolvedAnalyticsIdentity {
   readonly personId?: string;
@@ -127,7 +144,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                     identity: {
                       personId: existingMapping.canonicalPerson.id,
                       distinctId: input.distinctId,
-                      mode: "full" as const,
+                      mode: constant("full"),
                     },
                     mappingEvents: [],
                     warnings: [],
@@ -145,7 +162,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                   personEvents: [],
                   identity: {
                     distinctId: input.distinctId,
-                    mode: "personless" as const,
+                    mode: constant("personless"),
                   },
                   mappingEvents: [],
                   warnings: [],
@@ -194,9 +211,9 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 identity: {
                   personId: person.id,
                   distinctId: input.distinctId,
-                  mode: "full" as const,
+                  mode: constant("full"),
                 },
-                mappingEvents: resolved.mappingEvent ? [resolved.mappingEvent] : [],
+                mappingEvents: optionalList(resolved.mappingEvent),
                 warnings: [],
               } satisfies PersonIdentityResult;
             }),
@@ -290,7 +307,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
               yield* identityMutations.lockPersonRows(tx, {
                 personIds: [
                   targetResolved.person.id,
-                  ...(sourceMapping ? [sourceMapping.rawPerson.id] : []),
+                  ...optionalList(sourceMapping?.rawPerson.id),
                 ],
               });
 
@@ -334,12 +351,23 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
 
               if (isRealMerge && sourcePerson) {
                 const sourceWins = comparePersonForMerge(sourcePerson, targetResolved.person) <= 0;
-                const winner = sourceWins ? sourcePerson : targetResolved.person;
-                const loser = sourceWins ? targetResolved.person : sourcePerson;
-                const loserDistinctId = sourceWins ? input.distinctId : input.previousDistinctId;
-                const loserMapping = sourceWins
-                  ? targetResolved.rawMapping
-                  : sourceMapping?.mapping;
+                const mergeRoles = () => {
+                  if (sourceWins) {
+                    return {
+                      loser: targetResolved.person,
+                      loserDistinctId: input.distinctId,
+                      loserMapping: targetResolved.rawMapping,
+                      winner: sourcePerson,
+                    };
+                  }
+                  return {
+                    loser: sourcePerson,
+                    loserDistinctId: input.previousDistinctId,
+                    loserMapping: sourceMapping?.mapping,
+                    winner: targetResolved.person,
+                  };
+                };
+                const { loser, loserDistinctId, loserMapping, winner } = mergeRoles();
 
                 yield* Effect.annotateCurrentSpan("voidhash.person.merge_winner_id", winner.id);
                 yield* Effect.annotateCurrentSpan("voidhash.person.merge_loser_id", loser.id);
@@ -412,7 +440,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 // PersonNotificationTokenService.repointLinksToSurvivor.
                 yield* tx
                   .update(pushPersonDeviceTokens)
-                  .set({ personId: updatedWinner.id, updatedAt: new Date() })
+                  .set({ personId: updatedWinner.id, updatedAt: yield* DateTime.nowAsDate })
                   .where(
                     and(
                       eq(pushPersonDeviceTokens.projectId, input.projectId),
@@ -513,10 +541,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 // any genuine stitch. Idempotent on (project, dedupKey); the
                 // ingest path's capture id makes a retried identify log once.
                 yield* identityMutations.appendAssertion(tx, {
-                  dedupKey:
-                    input.eventId && input.eventId.length > 0
-                      ? input.eventId
-                      : generateId("identityAssertion"),
+                  dedupKey: assertionDedupKey(input.eventId),
                   distinctId: input.distinctId,
                   eventTimestamp: input.eventTimestamp,
                   previousDistinctId: input.previousDistinctId,
@@ -530,7 +555,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 identity: {
                   personId: canonicalPerson.id,
                   distinctId: input.distinctId,
-                  mode: "full" as const,
+                  mode: constant("full"),
                 },
                 mappingEvents,
                 warnings,
@@ -573,7 +598,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
           ),
       );
 
-      return { identifyDistinctId, resolveDistinctId } as const;
+      return constant({ identifyDistinctId, resolveDistinctId });
     }),
   },
 ) {

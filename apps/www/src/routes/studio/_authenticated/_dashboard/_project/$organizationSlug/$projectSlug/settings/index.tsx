@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/features/studio/components/auth-context";
 
@@ -32,7 +33,7 @@ function ProjectSettingsGeneralPage() {
   );
 
   if (!project) {
-    throw new Error("Project not found");
+    return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
   return (

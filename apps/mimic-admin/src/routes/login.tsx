@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { MimicSDK } from "@voidhash/mimic-server";
+import { Data, Effect } from "effect";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,22 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+class ConnectionFailedError extends Data.TaggedError("ConnectionFailedError")<{
+  readonly message: string;
+}> {}
+
+/** Extracts the operator-facing reason from an unknown connection failure. */
+function connectionFailureReason(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  return "Unknown error";
+}
+
+/** Label for the connect submit button. */
+function connectLabel(isLoading: boolean): string {
+  if (isLoading) return "Connecting...";
+  return "Connect";
+}
+
 function LoginPage() {
   const navigate = useNavigate();
   const [serverUrl, setServerUrl] = useState("http://localhost:5001");
@@ -20,7 +37,7 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
@@ -34,16 +51,33 @@ function LoginPage() {
       password: creds.password,
     });
 
-    try {
-      await sdk.listDatabases();
-      setCredentials(creds);
-      navigate({ to: "/" });
-    } catch (err) {
-      toast.error(`Connection failed: ${err instanceof Error ? err.message : "Unknown error"}`);
-    } finally {
-      void sdk.dispose();
-      setLoading(false);
-    }
+    const connect = Effect.gen(function* () {
+      yield* Effect.tryPromise({
+        try: () => sdk.listDatabases(),
+        catch: (cause) => new ConnectionFailedError({ message: connectionFailureReason(cause) }),
+      });
+      yield* Effect.try({
+        try: () => {
+          setCredentials(creds);
+          void navigate({ to: "/" });
+        },
+        catch: (cause) => new ConnectionFailedError({ message: connectionFailureReason(cause) }),
+      });
+    }).pipe(
+      Effect.catchTag("ConnectionFailedError", (error) =>
+        Effect.sync(() => {
+          toast.error(`Connection failed: ${error.message}`);
+        }),
+      ),
+      Effect.ensuring(
+        Effect.sync(() => {
+          void sdk.dispose();
+          setLoading(false);
+        }),
+      ),
+    );
+
+    void Effect.runPromise(connect);
   }
 
   return (
@@ -86,7 +120,7 @@ function LoginPage() {
               />
             </div>
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Connecting..." : "Connect"}
+              {connectLabel(loading)}
             </Button>
           </form>
         </CardContent>

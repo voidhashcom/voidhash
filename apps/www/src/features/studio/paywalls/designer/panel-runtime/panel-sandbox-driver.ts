@@ -13,6 +13,7 @@
  * `phase`. The host re-validates every emitted tree.
  */
 import type { PanelSession, PanelSessionInputs } from "@voidhash/paywalls/panel";
+import { Effect, Result } from "effect";
 
 import { PANEL_SANDBOX_PROTOCOL, type GuestMessage, type HostMessage } from "./sandbox-messages";
 
@@ -132,11 +133,9 @@ export const createPanelSandboxDriver = (deps: PanelSandboxDriverDeps): PanelSan
   const disposeSession = (): void => {
     cancelTree();
     if (session !== null) {
-      try {
-        session.dispose();
-      } catch {
-        // A dispose throw must not wedge the driver; the iframe is discarded.
-      }
+      // A dispose throw must not wedge the driver; the iframe is discarded.
+      const live = session;
+      Effect.runSync(Effect.try(() => live.dispose()).pipe(Effect.ignore));
       session = null;
     }
   };
@@ -152,20 +151,25 @@ export const createPanelSandboxDriver = (deps: PanelSandboxDriverDeps): PanelSan
     // A second init on a live driver replaces the session (a host restart uses a
     // fresh driver, but guard defensively so we never leak a session).
     disposeSession();
-    let mounted: PanelSandboxSession | null;
-    try {
-      mounted = createSession({
-        compiledCode,
-        initialInputs: inputs as PanelSessionInputs,
-        onTree: scheduleTree,
-        onError: (message) => postError("render", message),
-        onIntents: (intents) =>
-          emit({ protocol: PANEL_SANDBOX_PROTOCOL, sessionId, type: "panel/intent", intents }),
-      });
-    } catch (error) {
-      postError("init", errorText(error));
+    const outcome = Effect.runSync(
+      Effect.try({
+        try: (): PanelSandboxSession | null =>
+          createSession({
+            compiledCode,
+            initialInputs: inputs as PanelSessionInputs,
+            onTree: scheduleTree,
+            onError: (message) => postError("render", message),
+            onIntents: (intents) =>
+              emit({ protocol: PANEL_SANDBOX_PROTOCOL, sessionId, type: "panel/intent", intents }),
+          }),
+        catch: errorText,
+      }).pipe(Effect.result),
+    );
+    if (Result.isFailure(outcome)) {
+      postError("init", outcome.failure);
       return;
     }
+    const mounted = outcome.success;
     if (mounted === null) {
       postError("init", "This component does not declare a custom panel.");
       return;
@@ -173,22 +177,26 @@ export const createPanelSandboxDriver = (deps: PanelSandboxDriverDeps): PanelSan
     session = mounted;
   };
 
-  const onUpdate = (inputs: unknown): void => {
-    if (session === null) return;
-    try {
-      session.update(inputs as PanelSessionInputs);
-    } catch (error) {
-      postError("runtime", errorText(error));
+  /** Runs a live-session call, turning a throw into `panel/error{runtime}`. */
+  const runOnSession = (call: (live: PanelSandboxSession) => void): void => {
+    const live = session;
+    if (live === null) return;
+    const outcome = Effect.runSync(
+      Effect.try({ try: () => call(live), catch: errorText }).pipe(Effect.result),
+    );
+    if (Result.isFailure(outcome)) {
+      postError("runtime", outcome.failure);
     }
   };
 
+  const onUpdate = (inputs: unknown): void => {
+    runOnSession((live) => live.update(inputs as PanelSessionInputs));
+  };
+
   const onEvent = (nodeId: number, name: string, args: ReadonlyArray<unknown>): void => {
-    if (session === null) return;
-    try {
-      session.dispatchEvent(nodeId, name, args);
-    } catch (error) {
-      postError("runtime", errorText(error));
-    }
+    runOnSession((live) => {
+      live.dispatchEvent(nodeId, name, args);
+    });
   };
 
   const onPing = (seq: number): void => {
@@ -261,7 +269,9 @@ export const loadCompiledDefinition = (
   const requireShim = (specifier: string): unknown => {
     const mod = guest.modules[specifier];
     if (mod === undefined) {
-      throw new Error(`Cannot find module '${specifier}'`);
+      // `runSync` squashes the cause, so this surfaces to the author module as
+      // the plain Error the require shim has always thrown.
+      return Effect.runSync(Effect.die(new Error(`Cannot find module '${specifier}'`)));
     }
     return mod;
   };
@@ -277,7 +287,9 @@ export const loadCompiledDefinition = (
     | { readonly panel?: unknown }
     | undefined;
   if (!definition || typeof (definition as { render?: unknown }).render !== "function") {
-    throw new Error("Component must export a default defineComponent({ ... })");
+    return Effect.runSync(
+      Effect.die(new Error("Component must export a default defineComponent({ ... })")),
+    );
   }
   return definition;
 };

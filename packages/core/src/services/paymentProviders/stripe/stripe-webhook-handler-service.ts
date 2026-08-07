@@ -9,7 +9,9 @@
  * is shared verbatim with the App Store path.
  */
 import { generateId } from "../../../utils/index.ts";
-import { Effect, Layer, Match, Predicate, Context } from "effect";
+import { DateTime, Effect, Layer, Match, Predicate, Schema, Context } from "effect";
+
+import { constant, stringOr } from "@voidhash/lib/lang";
 
 import {
   StripePaymentProviderConfigurationNotFoundError,
@@ -23,7 +25,7 @@ import { decodeStripeEvent, StripeEventType } from "./events.ts";
 import { StripePaymentProvider, type StripeRecordInput } from "./payment-provider.ts";
 import { StripePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import type { StripeContext, StripeMode } from "./sdk-context.ts";
-import { ProviderEnvironment } from "@voidhash/db";
+import { ProviderEnvironment, type ProviderEnvironmentValue } from "@voidhash/db";
 
 const truncateResultNote = (note: string): string => note.slice(0, 500);
 
@@ -32,6 +34,46 @@ const TERMINAL_RECORD_FAILURE_TAGS = new Set<string>([
   "StripePurchaseProcessingIdempotencyKeyDerivationError",
   "InvalidISO4217CurrencyCodeError",
 ]);
+
+/** Parses a parked (already signature-verified) webhook body as arbitrary JSON. */
+const decodeJsonBody = Schema.decodeEffect(Schema.fromJsonString(Schema.Unknown));
+
+/** Coerces `error[key]` to a string, falling back when the property is absent. */
+const propertyOr = <K extends string>(error: unknown, key: K, fallback: string): string => {
+  if (Predicate.hasProperty(error, key)) return String(error[key]);
+  return fallback;
+};
+
+/** Reads `error[key]` when it is a string, falling back otherwise. */
+const stringPropertyOr = <K extends string>(
+  error: unknown,
+  key: K,
+  fallback: string,
+): string => {
+  if (Predicate.hasProperty(error, key)) return stringOr(error[key], fallback);
+  return fallback;
+};
+
+/** Stripe stamps `livemode: false` on test-mode events. */
+const stripeModeFromLivemode = (livemode: unknown): StripeMode => {
+  if (livemode === false) return "test";
+  return "live";
+};
+
+const providerEnvironmentForMode = (mode: StripeMode): ProviderEnvironmentValue => {
+  if (mode === "test") return ProviderEnvironment.Sandbox;
+  return ProviderEnvironment.Production;
+};
+
+/** The wire-dedup ledger `result` for this delivery. */
+const ledgerResultOf = (
+  terminalResult: "failed" | undefined,
+  handled: boolean,
+): "failed" | "applied" | "ignored" => {
+  if (terminalResult) return terminalResult;
+  if (handled) return "applied";
+  return "ignored";
+};
 
 const isTerminalRecordFailure = (error: unknown): boolean =>
   Predicate.hasProperty(error, "_tag") &&
@@ -62,10 +104,7 @@ const toStripeServiceError = (error: unknown): StripePaymentProviderServiceError
       kind: "not_found",
     });
   }
-  const cause =
-    Predicate.hasProperty(error, "cause") && typeof error.cause === "string"
-      ? error.cause
-      : String(error);
+  const cause = stringPropertyOr(error, "cause", String(error));
   return new StripePaymentProviderServiceError({ cause, kind: "transient" });
 };
 
@@ -74,12 +113,8 @@ const describeRecordFailure = (error: unknown): string => {
     Predicate.hasProperty(error, "_tag") &&
     error._tag === "StripePurchaseProcessingIdempotencyKeyDerivationError"
   ) {
-    const eventType = Predicate.hasProperty(error, "eventType")
-      ? String(error.eventType)
-      : "unknown";
-    const missingField = Predicate.hasProperty(error, "missingField")
-      ? String(error.missingField)
-      : "unknown";
+    const eventType = propertyOr(error, "eventType", "unknown");
+    const missingField = propertyOr(error, "missingField", "unknown");
     return `idempotency key derivation failed for ${eventType}: missing ${missingField}`;
   }
   return `invalid ISO 4217 currency code: ${String(error)}`;
@@ -132,32 +167,33 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           // Live ingress verifies the HMAC; replay trusts the already-verified
           // stored body (the signature header is not persisted) and derives the
           // mode from `livemode`.
-          const { event, mode } = input.isReplay
-            ? yield* Effect.gen(function* () {
-                const parsed = yield* Effect.try({
-                  catch: (error) =>
-                    new StripePaymentProviderServiceError({
-                      cause: `parked Stripe payload is not valid JSON: ${String(error)}`,
-                    }),
-                  try: () => JSON.parse(input.rawBody) as unknown,
-                });
+          const resolveEvent = () => {
+            if (input.isReplay) {
+              return Effect.gen(function* () {
+                const parsed = yield* decodeJsonBody(input.rawBody).pipe(
+                  Effect.mapError(
+                    (error) =>
+                      new StripePaymentProviderServiceError({
+                        cause: `parked Stripe payload is not valid JSON: ${error.message}`,
+                      }),
+                  ),
+                );
                 const decoded = yield* decodeStripeEvent(parsed);
-                return {
-                  event: decoded,
-                  mode: (decoded.livemode === false ? "test" : "live") as StripeMode,
-                };
-              })
-            : yield* stripeContext.verifyAndDecodeEvent({
-                rawBody: input.rawBody,
-                signatureHeader: input.signatureHeader,
-                skipTimestampTolerance: false,
+                return { event: decoded, mode: stripeModeFromLivemode(decoded.livemode) };
               });
+            }
+            return stripeContext.verifyAndDecodeEvent({
+              rawBody: input.rawBody,
+              signatureHeader: input.signatureHeader,
+              skipTimestampTolerance: false,
+            });
+          };
+          const { event, mode } = yield* resolveEvent();
 
           yield* Effect.annotateCurrentSpan("voidhash.payment_provider.event_type", event.type);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.id", event.id);
 
-          const providerEnvironment =
-            mode === "test" ? ProviderEnvironment.Sandbox : ProviderEnvironment.Production;
+          const providerEnvironment = providerEnvironmentForMode(mode);
 
           const ack = (handled: boolean): StripeAcceptWebhookEventResult => ({
             accepted: true,
@@ -240,7 +276,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               ),
             );
 
-          const matchResult = (yield* Match.value(event.type).pipe(
+          const matchResult: StripeAcceptWebhookEventResult = yield* Match.value(event.type).pipe(
             Match.when(StripeEventType.InvoicePaid, () =>
               handled(stripePaymentProvider.recordInvoicePaid(recordInput)),
             ),
@@ -266,12 +302,13 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               handled(stripePaymentProvider.recordDisputeClosed(recordInput)),
             ),
             Match.orElse(() => Effect.succeed(ack(false))),
-          )) as StripeAcceptWebhookEventResult;
+          );
 
           // Wire-level dedup ledger: one row per Stripe `event.id`, regardless of
           // routing. UNIQUE on (configurationId, event.id) makes a duplicate
           // delivery a no-op insert and leaves an earlier parked row's result
           // untouched.
+          const ledgerResult = ledgerResultOf(terminalLedgerResult, matchResult.handled);
           yield* queries.insertNotificationProcessedIfAbsent({
             id: generateId("paymentProviderNotification"),
             notificationSubtype: null,
@@ -281,15 +318,12 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
             parkedUntilProviderProductKey: null,
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             providerId: "stripe",
-            result: terminalLedgerResult ?? (matchResult.handled ? "applied" : "ignored"),
+            result: ledgerResult,
             resultNote: terminalLedgerResultNote,
             source: "webhook",
           });
 
-          yield* Effect.annotateCurrentSpan({
-            "stripe.webhook_result":
-              terminalLedgerResult ?? (matchResult.handled ? "applied" : "ignored"),
-          });
+          yield* Effect.annotateCurrentSpan({ "stripe.webhook_result": ledgerResult });
           return matchResult;
         },
         // Collapse every internal failure into the single public error, stamping
@@ -337,16 +371,17 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
             failedCount++;
             continue;
           }
+          const receivedAt = yield* DateTime.nowAsDate;
           const replayed = yield* acceptWebhookEvent({
             isReplay: true,
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             rawBody: rawPayload,
-            receivedAt: new Date(),
+            receivedAt,
             signatureHeader: "",
           }).pipe(
             Effect.match({
-              onFailure: (error) => ({ error: String(error), ok: false as const }),
-              onSuccess: () => ({ ok: true as const }),
+              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+              onSuccess: () => ({ ok: constant(true) }),
             }),
           );
           if (replayed.ok) {
@@ -372,7 +407,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
         return { appliedCount, failedCount, totalParked: parked.length };
       });
 
-      return { acceptWebhookEvent, replayParkedNotificationsForProductMapping } as const;
+      return constant({ acceptWebhookEvent, replayParkedNotificationsForProductMapping });
     }),
   },
 ) {

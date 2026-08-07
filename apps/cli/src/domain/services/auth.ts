@@ -1,11 +1,10 @@
 import { NodeServices, NodeHttpServer } from "@effect/platform-node";
 import type { AuthSession200 } from "@voidhash/generated-clients";
-import { Console, Data, Effect, Layer, PubSub, Context } from "effect";
+import { Console, Data, Effect, Layer, Option, PubSub, Context } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { ChildProcess } from "effect/unstable/process";
 import { customAlphabet } from "nanoid";
-import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import url from "node:url";
 
 import { CONFIG_FILE_NAME } from "../../constants";
 import { ApiClient } from "../../utils/api-client";
@@ -66,6 +65,16 @@ const hasNestedTag = (
   typeof error.data._tag === "string" &&
   error.data._tag === innerTag;
 
+/**
+ * Best-effort: hand the confirmation URL to the user's default browser. The
+ * opener is detached so it outlives the login command, and never fails it.
+ */
+const openBrowser = (url: string) =>
+  Effect.gen(function* openBrowser() {
+    const child = yield* ChildProcess.make("open", [url]);
+    yield* child.unref;
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer), Effect.ignore);
+
 const isNoSignedInUserError = (error: unknown): error is NoSignedInUserError =>
   error instanceof NoSignedInUserError || hasTag(error, "NoSignedInUserError");
 
@@ -80,10 +89,12 @@ const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
           "/callback",
           Effect.gen(function* CallbackRoute() {
             const req = yield* HttpServerRequest.HttpServerRequest;
-            const parsedUrl = url.parse(req.url as string, true);
-            const { query } = parsedUrl;
+            const query = Option.match(HttpServerRequest.toURL(req), {
+              onNone: () => new URLSearchParams(),
+              onSome: (requestUrl) => requestUrl.searchParams,
+            });
 
-            if (query.cancelled) {
+            if (query.get("cancelled")) {
               yield* PubSub.publish(callbackEvents, { type: "cancelled" });
               return HttpServerResponse.text("Login cancelled").pipe(
                 HttpServerResponse.setHeader("Access-Control-Allow-Origin", "*"),
@@ -92,8 +103,8 @@ const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
             }
 
             yield* PubSub.publish(callbackEvents, {
-              code: query.code as string,
-              key: query.key as string,
+              code: query.get("code") ?? "",
+              key: query.get("key") ?? "",
               type: "success",
             });
             return HttpServerResponse.text("Login successful").pipe(
@@ -182,10 +193,11 @@ const make = Effect.gen(function* effect() {
       // Launch the callback server in a separate fiber to avoid blocking
       yield* Effect.logDebug(`Starting callback server on ${host}:${port}`);
       yield* Effect.forkChild(
-        Effect.catch(runCallbackServer(callbackEventsPubSub), (error) => {
-          console.log(error);
-          return Effect.die(error);
-        }),
+        Effect.catch(runCallbackServer(callbackEventsPubSub), (error) =>
+          Effect.logError(`Callback server failed: ${String(error)}`).pipe(
+            Effect.andThen(Effect.die(error)),
+          ),
+        ),
       );
 
       // Set up the application server with routing
@@ -204,7 +216,7 @@ const make = Effect.gen(function* effect() {
       yield* Console.log(
         `If something goes wrong, copy and paste this URL into your browser: ${confirmationUrl.toString()}\n`,
       );
-      spawn("open", [confirmationUrl.toString()]);
+      yield* openBrowser(confirmationUrl.toString());
 
       // Wait for the callback event
       yield* Effect.logDebug("Waiting for callback from browser");

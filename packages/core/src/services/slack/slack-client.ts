@@ -3,21 +3,46 @@
  * (https://slack.com/api/chat.postMessage). Built for the in-app feedback relay,
  * but generic enough for any internal notification.
  *
- * Uses the runtime's built-in `fetch` so it runs natively on Cloudflare Workers
- * without an Effect `HttpClient` dependency. The bot token (`xoxb-…`) and
- * default channel are read from {@link SlackConfig} at layer build (worker
- * boot), keeping the
- * resolver (Alchemy secrets / `Config`) decoupled from the constructor.
+ * Runs on `HttpClient` over {@link FetchHttpClient.layer}, provided internally so
+ * the client keeps running natively on Cloudflare Workers and callers never have
+ * to supply an `HttpClient` themselves. The bot token (`xoxb-…`) and default
+ * channel are read from {@link SlackConfig} at layer build (worker boot),
+ * keeping the resolver (Alchemy secrets / `Config`) decoupled from the
+ * constructor.
  *
  * When the bot token or the target channel is missing the client **fails
  * closed** — `postMessage` becomes a no-op that succeeds — so un-provisioned
  * stages (local dev, in-process smoke tests) boot and callers relaying to Slack
  * don't error when Slack simply isn't configured.
  */
+import { causeMessage } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
+import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 
 /** Slack Web API base URL. */
 const SLACK_API_BASE_URL = "https://slack.com/api";
+
+/** Request body sent to `chat.postMessage`, encoded as JSON text. */
+const encodePostMessageBody = Schema.encodeSync(
+  Schema.fromJsonString(
+    Schema.Struct({
+      blocks: Schema.optional(Schema.Array(Schema.Unknown)),
+      channel: Schema.String,
+      text: Schema.String,
+    }),
+  ),
+);
+
+/**
+ * `chat.postMessage` response body. Slack signals logical failures with HTTP 200
+ * plus `{ ok: false, error }`, so the body is decoded rather than trusted.
+ */
+const slackResponseSchema = Schema.fromJsonString(
+  Schema.Struct({
+    error: Schema.optional(Schema.String),
+    ok: Schema.optional(Schema.Boolean),
+  }),
+);
 
 /**
  * Catch-all Slack client error. Wraps transport failures and non-`ok` Slack
@@ -61,7 +86,7 @@ export interface SlackConfig {
 }
 
 /**
- * Builds a live {@link SlackClient} over the runtime `fetch`. When `botToken` is
+ * Builds a live {@link SlackClient} over `HttpClient`. When `botToken` is
  * empty, or a call has no `channel` and no `defaultChannel` is set,
  * `postMessage` is a successful no-op.
  */
@@ -74,36 +99,47 @@ export const createSlackClient = (config: {
     if (!config.botToken || !channel) {
       return Effect.void;
     }
-    return Effect.tryPromise({
-      catch: (cause) =>
-        new SlackClientError({
-          cause: cause instanceof Error ? cause.message : String(cause),
+    return Effect.gen(function* () {
+      const httpClient = yield* HttpClient.HttpClient;
+      const response = yield* httpClient.post(`${SLACK_API_BASE_URL}/chat.postMessage`, {
+        body: HttpBody.text(
+          encodePostMessageBody({ blocks: input.blocks, channel, text: input.text }),
+          "application/json; charset=utf-8",
+        ),
+        headers: { Authorization: `Bearer ${config.botToken}` },
+      });
+      const text = yield* response.text;
+      if (response.status < 200 || response.status >= 300) {
+        return yield* new SlackClientError({
+          cause: `Slack returned ${response.status}: ${text.slice(0, 500)}`,
           message: "Slack chat.postMessage failed",
-        }),
-      try: async (): Promise<void> => {
-        const response = await fetch(`${SLACK_API_BASE_URL}/chat.postMessage`, {
-          body: JSON.stringify({
-            blocks: input.blocks,
-            channel,
-            text: input.text,
-          }),
-          headers: {
-            Authorization: `Bearer ${config.botToken}`,
-            "Content-Type": "application/json; charset=utf-8",
-          },
-          method: "POST",
         });
-        const text = await response.text();
-        if (!response.ok) {
-          throw new Error(`Slack returned ${response.status}: ${text.slice(0, 500)}`);
+      }
+      if (text.length === 0) {
+        return;
+      }
+      // Slack signals logical failures in the JSON body with `ok: false`.
+      const body = yield* Schema.decodeUnknownEffect(slackResponseSchema)(text);
+      if (body.ok === false) {
+        return yield* new SlackClientError({
+          cause: `Slack error: ${body.error ?? "unknown"}`,
+          message: "Slack chat.postMessage failed",
+        });
+      }
+    }).pipe(
+      Effect.catch((cause) => {
+        if (cause instanceof SlackClientError) {
+          return Effect.fail(cause);
         }
-        // Slack signals logical failures in the JSON body with `ok: false`.
-        const body = text ? (JSON.parse(text) as { ok?: boolean; error?: string }) : {};
-        if (body.ok === false) {
-          throw new Error(`Slack error: ${body.error ?? "unknown"}`);
-        }
-      },
-    });
+        return Effect.fail(
+          new SlackClientError({
+            cause: causeMessage(cause),
+            message: "Slack chat.postMessage failed",
+          }),
+        );
+      }),
+      Effect.provide(FetchHttpClient.layer),
+    );
   };
 
   return { postMessage };
@@ -118,7 +154,10 @@ export const slackClientLayer = (config: SlackConfig): Layer.Layer<SlackClientTa
   Layer.effect(SlackClientTag)(
     Effect.gen(function* () {
       const botToken = yield* config.botToken;
-      const defaultChannel = config.defaultChannel ? yield* config.defaultChannel : undefined;
+      let defaultChannel: string | undefined;
+      if (config.defaultChannel) {
+        defaultChannel = yield* config.defaultChannel;
+      }
       return createSlackClient({ botToken, defaultChannel });
     }),
   );

@@ -66,11 +66,10 @@ describe("PathFillPanel — snapshot structure", () => {
     expect(row.props.align).toBe("stretch");
     expect(row.props.justify).toBe("between");
 
-    const toggle = findNodeByType(root, "toggleGroup");
-    expect((toggle?.props.options as { value: string; label?: string }[]).map((o) => o.value)).toEqual(
-      ["nonzero", "evenodd"],
-    );
-    expect(toggle?.props.value).toBe("nonzero");
+    const toggle = findNodeByType(root, "toggleGroup")!;
+    const toggleOptions = toggle.props.options as { value: string; label?: string }[];
+    expect(toggleOptions.map((o) => o.value)).toEqual(["nonzero", "evenodd"]);
+    expect(toggle.props.value).toBe("nonzero");
 
     // The disable `−` button sits in the content row (not the header).
     const buttons = findNodesByType(root, "button");

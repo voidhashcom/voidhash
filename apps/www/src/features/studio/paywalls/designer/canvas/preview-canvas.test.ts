@@ -1,4 +1,5 @@
 import { renderPaywallToHtml } from "@voidhash/paywall-renderer-preact";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import {
@@ -35,7 +36,7 @@ function makeDesignerDoc() {
   let viewId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     viewId = screen.children.insertLast({ type: "view", name: "Card" }).id;
   });
   return { doc, viewId };

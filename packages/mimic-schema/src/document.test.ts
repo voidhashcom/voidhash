@@ -1,4 +1,5 @@
 import { parseSchema, serializeSchema, validate } from "@voidhash/mimic-core";
+import { Effect, Schema } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 import { expectTypeOf } from "vitest";
 
@@ -10,6 +11,25 @@ import type {
   ScreenNodeData,
   ViewNodeData,
 } from "./nodes/index.ts";
+
+// `children` is a merged snapshot type (not a discriminated union), so concrete
+// variants are narrowed structurally by their `type` tag before reading `data`.
+function isNodeOfType<T extends { readonly type: string }>(
+  node: { readonly type: string },
+  type: T["type"],
+): node is T {
+  return node.type === type;
+}
+
+function narrowNode<T extends { readonly type: string }>(
+  node: { readonly type: string } | undefined,
+  type: T["type"],
+): T {
+  if (node === undefined || !isNodeOfType<T>(node, type)) {
+    return Effect.runSync(Effect.die(new Error(`expected a ${type} node, got ${node?.type}`)));
+  }
+  return node;
+}
 
 describe("PaywallDesignerDocument", () => {
   test("encodes the initial document input", () => {
@@ -26,9 +46,7 @@ describe("PaywallDesignerDocument", () => {
     expect(root.parentId).toBeNull();
     expect(root.data.name).toBe("Paywall");
     expect(root.children).toHaveLength(1);
-    // `root.children` is a merged `screen | library` snapshot type (not a
-    // discriminated union), so cast to the concrete variant to read `data`.
-    const screen = root.children[0]! as ScreenNodeData;
+    const screen = narrowNode<ScreenNodeData>(root.children[0], "screen");
     expect(screen.type).toBe("screen");
     expect(screen.data.name).toBe("Screen");
     expect(screen.data.style.width).toBe(375);
@@ -56,9 +74,9 @@ describe("PaywallDesignerDocument", () => {
 
     const validated = validate(PaywallDesignerDocument.schema, value);
     const roots = PaywallDesignerDocument.decode(validated);
-    const screen = roots![0]!.children[0]! as ScreenNodeData;
+    const screen = narrowNode<ScreenNodeData>(roots![0]!.children[0], "screen");
     expect(screen.type).toBe("screen");
-    const component = screen.children[0]! as ComponentNodeData;
+    const component = narrowNode<ComponentNodeData>(screen.children[0], "component");
     expect(component.type).toBe("component");
     expect(component.data.componentSource).toBe("catalog");
     expect(component.data.componentPath).toBe("");
@@ -83,11 +101,12 @@ describe("PaywallDesignerDocument", () => {
     ]);
 
     const roots = PaywallDesignerDocument.decode(validate(PaywallDesignerDocument.schema, value));
-    const library = roots![0]!.children.find((child) => child.type === "library") as
-      | LibraryNodeData
-      | undefined;
-    expect(library).toBeDefined();
-    const definition = library!.children[0]! as CodeComponentNodeData;
+    const library = narrowNode<LibraryNodeData>(
+      roots![0]!.children.find((child) => child.type === "library"),
+      "library",
+    );
+    expect(library.type).toBe("library");
+    const definition = narrowNode<CodeComponentNodeData>(library.children[0], "codeComponent");
     expect(definition.type).toBe("codeComponent");
     expect(definition.data.path).toBe("components/product-option.tsx");
     expect(definition.data.source).toBe("");
@@ -101,7 +120,10 @@ describe("PaywallDesignerDocument", () => {
 
     // The provisioning path stores the schema as JSON text — prove the
     // serialized form survives a JSON round-trip and still parses.
-    const jsonRoundTripped: unknown = JSON.parse(JSON.stringify(serialized));
+    const jsonText = Schema.encodeSync(Schema.UnknownFromJsonString)(serialized);
+    const jsonRoundTripped: unknown = Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(
+      jsonText,
+    );
     expect(serializeSchema(parseSchema(jsonRoundTripped))).toEqual(serialized);
   });
 

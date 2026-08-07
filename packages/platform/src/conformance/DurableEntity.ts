@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Clock, Effect, Layer, Random } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -29,6 +29,18 @@ export interface DurableEntityConformanceOptions {
    */
   readonly requiresShardLocality?: () => Layer.Layer<DurableEntityHost>;
 }
+
+/**
+ * Distinguishes this run from the rows a previous run left behind in a durable
+ * store, so an address is never answered by an earlier run's state.
+ */
+const runId = Effect.runSync(
+  Effect.gen(function* () {
+    const millis = yield* Clock.currentTimeMillis;
+    const entropy = yield* Random.nextIntBetween(0, 0xff_ff_ff);
+    return `${millis.toString(36)}-${entropy.toString(36)}`;
+  }),
+);
 
 /** Records every frame and close a host delivered to one attached session. */
 interface RecordingSession {
@@ -70,22 +82,19 @@ export const durableEntityHostConformance = (
   const runWith = <A, E, R>(
     layer: Layer.Layer<R>,
     effect: Effect.Effect<A, E, R>,
-  ): Promise<A> =>
-    Effect.runPromise(
-      Effect.scoped(effect.pipe(Effect.provide(layer))) as Effect.Effect<A, E>,
-    );
+  ): Promise<A> => Effect.runPromise(Effect.scoped(effect.pipe(Effect.provide(layer))));
 
   const run = <A, E>(effect: Effect.Effect<A, E, DurableEntityHost>): Promise<A> =>
     runWith(options.layer(), effect);
 
   describe(`${options.name}: durable entity host conformance`, () => {
-    it("serializes one address while letting different addresses overlap", async () => {
-      const events: Array<string> = [];
-      const first = makeDurableEntityAddress("document", "first");
-      const second = makeDurableEntityAddress("document", "second");
-
-      await run(
+    it("serializes one address while letting different addresses overlap", () =>
+      run(
         Effect.gen(function* () {
+          const events: Array<string> = [];
+          const first = makeDurableEntityAddress("document", "first");
+          const second = makeDurableEntityAddress("document", "second");
+
           const host = yield* DurableEntityHost;
           yield* Effect.all(
             [
@@ -107,121 +116,112 @@ export const durableEntityHostConformance = (
             ],
             { concurrency: "unbounded" },
           );
+
+          // The short second-address turn finishes before the long first-address
+          // turn, and the queued first-address turn only starts once it is done.
+          expect(events.indexOf("second:end")).toBeLessThan(events.indexOf("first:end"));
+          expect(events.indexOf("first:end")).toBeLessThan(events.indexOf("first:next"));
         }),
-      );
+      ));
 
-      // The short second-address turn finishes before the long first-address
-      // turn, and the queued first-address turn only starts once it is done.
-      expect(events.indexOf("second:end")).toBeLessThan(events.indexOf("first:end"));
-      expect(events.indexOf("first:end")).toBeLessThan(events.indexOf("first:next"));
-    });
-
-    it("retains key-value state across separate turns", async () => {
-      const address = makeDurableEntityAddress("document", "stateful");
-
-      const value = await run(
+    it("retains key-value state across separate turns", () =>
+      run(
         Effect.gen(function* () {
+          const address = makeDurableEntityAddress("document", "stateful");
+
           const host = yield* DurableEntityHost;
           yield* host.run(address, (entity) => entity.keyValue.put("value", { count: 1 }));
-          return yield* host.run(address, (entity) => entity.keyValue.get("value"));
+          const value = yield* host.run(address, (entity) => entity.keyValue.get("value"));
+
+          expect(value).toEqual({ count: 1 });
         }),
-      );
+      ));
 
-      expect(value).toEqual({ count: 1 });
-    });
-
-    it("deletes key-value state", async () => {
-      const address = makeDurableEntityAddress("document", "deletes");
-
-      const value = await run(
+    it("deletes key-value state", () =>
+      run(
         Effect.gen(function* () {
+          const address = makeDurableEntityAddress("document", "deletes");
+
           const host = yield* DurableEntityHost;
           yield* host.run(address, (entity) => entity.keyValue.put("value", "present"));
           yield* host.run(address, (entity) => entity.keyValue.delete("value"));
-          return yield* host.run(address, (entity) => entity.keyValue.get("value"));
+          const value = yield* host.run(address, (entity) => entity.keyValue.get("value"));
+
+          expect(value).toBeUndefined();
         }),
-      );
+      ));
 
-      expect(value).toBeUndefined();
-    });
-
-    it("round-trips a replaceable alarm", async () => {
-      const address = makeDurableEntityAddress("document", "alarms");
-
-      const [set, cleared] = await run(
+    it("round-trips a replaceable alarm", () =>
+      run(
         Effect.gen(function* () {
+          const address = makeDurableEntityAddress("document", "alarms");
+
           const host = yield* DurableEntityHost;
           yield* host.run(address, (entity) => entity.alarm.set(1234));
           const set = yield* host.run(address, (entity) => entity.alarm.get);
           yield* host.run(address, (entity) => entity.alarm.delete);
           const cleared = yield* host.run(address, (entity) => entity.alarm.get);
-          return [set, cleared] as const;
+
+          expect(set).toBe(1234);
+          expect(cleared).toBeUndefined();
         }),
-      );
+      ));
 
-      expect(set).toBe(1234);
-      expect(cleared).toBeUndefined();
-    });
-
-    it("isolates state between addresses", async () => {
-      const first = makeDurableEntityAddress("document", "isolated-a");
-      const second = makeDurableEntityAddress("document", "isolated-b");
-
-      const value = await run(
+    it("isolates state between addresses", () =>
+      run(
         Effect.gen(function* () {
+          const first = makeDurableEntityAddress("document", "isolated-a");
+          const second = makeDurableEntityAddress("document", "isolated-b");
+
           const host = yield* DurableEntityHost;
           yield* host.run(first, (entity) => entity.keyValue.put("value", "a"));
-          return yield* host.run(second, (entity) => entity.keyValue.get("value"));
-        }),
-      );
+          const value = yield* host.run(second, (entity) => entity.keyValue.get("value"));
 
-      expect(value).toBeUndefined();
-    });
+          expect(value).toBeUndefined();
+        }),
+      ));
 
     if (options.supportsSessions !== false) {
-      it("tracks attached sessions", async () => {
-        const address = makeDurableEntityAddress("document", "sessions");
-
-        const [attached, remaining] = await run(
+      it("tracks attached sessions", () =>
+        run(
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "sessions");
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) => entity.sessions.attach(testSession("s-1")));
             const attached = yield* host.run(address, (entity) => entity.sessions.list);
             yield* host.run(address, (entity) => entity.sessions.remove("s-1"));
             const remaining = yield* host.run(address, (entity) => entity.sessions.list);
-            return [attached, remaining] as const;
+
+            expect(attached.map((session) => session.id)).toEqual(["s-1"]);
+            expect(remaining).toEqual([]);
           }),
-        );
+        ));
 
-        expect(attached.map((session) => session.id)).toEqual(["s-1"]);
-        expect(remaining).toEqual([]);
-      });
-
-      it("replaces an attachment that reuses a session id", async () => {
-        const address = makeDurableEntityAddress("document", "session-reattach");
-        const first = recordingSession("s-1");
-        const second = recordingSession("s-1");
-
-        const sessions = await run(
+      it("replaces an attachment that reuses a session id", () =>
+        run(
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "session-reattach");
+            const first = recordingSession("s-1");
+            const second = recordingSession("s-1");
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) => entity.sessions.attach(first.session));
             yield* host.run(address, (entity) => entity.sessions.attach(second.session));
-            return yield* host.run(address, (entity) => entity.sessions.list);
+            const sessions = yield* host.run(address, (entity) => entity.sessions.list);
+
+            expect(sessions).toHaveLength(1);
+            // Identity, not just the id: a reconnect must not keep delivering to
+            // the socket it replaced.
+            expect(sessions[0]).toBe(second.session);
           }),
-        );
+        ));
 
-        expect(sessions).toHaveLength(1);
-        // Identity, not just the id: a reconnect must not keep delivering to
-        // the socket it replaced.
-        expect(sessions[0]).toBe(second.session);
-      });
-
-      it("looks sessions up by id and forgets unknown ids", async () => {
-        const address = makeDurableEntityAddress("document", "session-lookup");
-
-        const [found, missing, afterRemove] = await run(
+      it("looks sessions up by id and forgets unknown ids", () =>
+        run(
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "session-lookup");
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) => entity.sessions.attach(testSession("s-1")));
             const found = yield* host.run(address, (entity) => entity.sessions.get("s-1"));
@@ -230,60 +230,59 @@ export const durableEntityHostConformance = (
             yield* host.run(address, (entity) => entity.sessions.remove("s-2"));
             yield* host.run(address, (entity) => entity.sessions.remove("s-1"));
             const afterRemove = yield* host.run(address, (entity) => entity.sessions.get("s-1"));
-            return [found, missing, afterRemove] as const;
+
+            expect(found?.id).toBe("s-1");
+            expect(missing).toBeUndefined();
+            expect(afterRemove).toBeUndefined();
           }),
-        );
+        ));
 
-        expect(found?.id).toBe("s-1");
-        expect(missing).toBeUndefined();
-        expect(afterRemove).toBeUndefined();
-      });
-
-      it("isolates sessions between addresses", async () => {
-        const first = makeDurableEntityAddress("document", "session-isolated-a");
-        const second = makeDurableEntityAddress("document", "session-isolated-b");
-
-        const sessions = await run(
+      it("isolates sessions between addresses", () =>
+        run(
           Effect.gen(function* () {
+            const first = makeDurableEntityAddress("document", "session-isolated-a");
+            const second = makeDurableEntityAddress("document", "session-isolated-b");
+
             const host = yield* DurableEntityHost;
             yield* host.run(first, (entity) => entity.sessions.attach(testSession("s-1")));
-            return yield* host.run(second, (entity) => entity.sessions.list);
+            const sessions = yield* host.run(second, (entity) => entity.sessions.list);
+
+            expect(sessions).toEqual([]);
           }),
-        );
+        ));
 
-        expect(sessions).toEqual([]);
-      });
+      it("drops sessions when the host is rebuilt", () => {
+        const address = makeDurableEntityAddress("document", `session-restart-${runId}`);
 
-      it("drops sessions when the host is rebuilt", async () => {
-        const address = makeDurableEntityAddress("document", `session-restart-${Date.now()}`);
-
-        await run(
+        return run(
           Effect.gen(function* () {
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) => entity.sessions.attach(testSession("s-1")));
           }),
-        );
-
-        // A socket belongs to the process that holds it open, so a new host
-        // must never resurrect one from storage.
-        const sessions = await run(
-          Effect.gen(function* () {
-            const host = yield* DurableEntityHost;
-            return yield* host.run(address, (entity) => entity.sessions.list);
-          }),
-        );
-
-        expect(sessions).toEqual([]);
+        )
+          .then(() =>
+            // A socket belongs to the process that holds it open, so a new host
+            // must never resurrect one from storage.
+            run(
+              Effect.gen(function* () {
+                const host = yield* DurableEntityHost;
+                return yield* host.run(address, (entity) => entity.sessions.list);
+              }),
+            ),
+          )
+          .then((sessions) => {
+            expect(sessions).toEqual([]);
+          });
       });
 
-      it("delivers text and binary frames to every attached session exactly once", async () => {
-        const address = makeDurableEntityAddress("document", "session-delivery");
-        const first = recordingSession("s-1");
-        const second = recordingSession("s-2");
-        const binary = new Uint8Array([1, 2, 3]);
-
-        await run(
+      it("delivers text and binary frames to every attached session exactly once", () =>
+        run(
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "session-delivery");
+            const first = recordingSession("s-1");
+            const second = recordingSession("s-2");
+            const binary = new Uint8Array([1, 2, 3]);
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) =>
               Effect.gen(function* () {
@@ -302,25 +301,27 @@ export const durableEntityHostConformance = (
                 });
               }),
             );
+
+            for (const recorded of [first, second]) {
+              expect(recorded.frames).toHaveLength(2);
+              expect(recorded.frames[0]).toBe("hello");
+              // The frame must arrive as bytes, not as a stringified array or a
+              // JSON round trip of one.
+              const binaryFrame = recorded.frames[1];
+              expect(binaryFrame).toBeInstanceOf(Uint8Array);
+              if (binaryFrame instanceof Uint8Array) {
+                expect(Array.from(binaryFrame)).toEqual([1, 2, 3]);
+              }
+            }
           }),
-        );
+        ));
 
-        for (const recorded of [first, second]) {
-          expect(recorded.frames).toHaveLength(2);
-          expect(recorded.frames[0]).toBe("hello");
-          // The frame must arrive as bytes, not as a stringified array or a
-          // JSON round trip of one.
-          expect(recorded.frames[1]).toBeInstanceOf(Uint8Array);
-          expect(Array.from(recorded.frames[1] as Uint8Array)).toEqual([1, 2, 3]);
-        }
-      });
-
-      it("propagates the close code and reason to the transport", async () => {
-        const address = makeDurableEntityAddress("document", "session-close");
-        const recorded = recordingSession("s-1");
-
-        await run(
+      it("propagates the close code and reason to the transport", () =>
+        run(
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "session-close");
+            const recorded = recordingSession("s-1");
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) => entity.sessions.attach(recorded.session));
             yield* host.run(address, (entity) =>
@@ -332,17 +333,16 @@ export const durableEntityHostConformance = (
                 ),
               ),
             );
+
+            expect(recorded.closes).toEqual([{ code: 1008, reason: "policy" }]);
           }),
-        );
+        ));
 
-        expect(recorded.closes).toEqual([{ code: 1008, reason: "policy" }]);
-      });
-
-      it("keeps session attachments readable from a later turn", async () => {
-        const address = makeDurableEntityAddress("document", "session-attachment");
-
-        const attachment = await run(
+      it("keeps session attachments readable from a later turn", () =>
+        run(
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "session-attachment");
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) =>
               Effect.gen(function* () {
@@ -351,24 +351,21 @@ export const durableEntityHostConformance = (
                 yield* session.setAttachment({ authenticated: true });
               }),
             );
-            return yield* host.run(address, (entity) =>
-              entity.sessions.list.pipe(
-                Effect.flatMap((sessions) => sessions[0]!.getAttachment),
-              ),
+            const attachment = yield* host.run(address, (entity) =>
+              entity.sessions.list.pipe(Effect.flatMap((sessions) => sessions[0]!.getAttachment)),
             );
+
+            expect(attachment).toEqual({ authenticated: true });
           }),
-        );
+        ));
 
-        expect(attachment).toEqual({ authenticated: true });
-      });
-
-      it("sends on a session while a turn for that address is still running", async () => {
-        const address = makeDurableEntityAddress("document", "session-outside-turn");
-        const recorded = recordingSession("s-1");
-        const events: Array<string> = [];
-
-        await run(
+      it("sends on a session while a turn for that address is still running", () =>
+        run(
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "session-outside-turn");
+            const recorded = recordingSession("s-1");
+            const events: Array<string> = [];
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) => entity.sessions.attach(recorded.session));
             const session = yield* host.run(address, (entity) =>
@@ -390,27 +387,26 @@ export const durableEntityHostConformance = (
               ],
               { concurrency: "unbounded" },
             );
-          }),
-        );
 
-        expect(recorded.frames).toEqual(["out-of-band"]);
-        expect(events).toEqual(["sent", "turn:end"]);
-      });
+            expect(recorded.frames).toEqual(["out-of-band"]);
+            expect(events).toEqual(["sent", "turn:end"]);
+          }),
+        ));
     }
 
     const alarmDispatchLayer = options.supportsAlarmDispatch;
     if (alarmDispatchLayer !== undefined) {
-      it("reports an armed alarm as due exactly once and forgets it after delete", async () => {
-        // Adapters back this with one shared table, so the addresses have to be
-        // unique per run or a previous run's rows would answer the assertion.
-        const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const address = makeDurableEntityAddress("document", `alarm-due-${suffix}`);
-        const future = makeDurableEntityAddress("document", `alarm-future-${suffix}`);
-        const now = Date.now();
-
-        const [due, afterDelete] = await runWith(
+      it("reports an armed alarm as due exactly once and forgets it after delete", () =>
+        runWith(
           alarmDispatchLayer(),
           Effect.gen(function* () {
+            // Adapters back this with one shared table, so the addresses have to
+            // be unique per run or a previous run's rows would answer the
+            // assertion.
+            const address = makeDurableEntityAddress("document", `alarm-due-${runId}`);
+            const future = makeDurableEntityAddress("document", `alarm-future-${runId}`);
+            const now = yield* Clock.currentTimeMillis;
+
             const host = yield* DurableEntityHost;
             const control = yield* DurableEntityAlarmControl;
             yield* host.run(address, (entity) => entity.alarm.set(now - 1_000));
@@ -419,55 +415,49 @@ export const durableEntityHostConformance = (
             yield* host.run(address, (entity) => entity.alarm.delete);
             yield* host.run(future, (entity) => entity.alarm.delete);
             const afterDelete = yield* control.listDueAlarms(now, 100);
-            return [due, afterDelete] as const;
-          }),
-        );
 
-        const matching = due.filter((alarm) => alarm.address.id === address.id);
-        expect(matching).toEqual([{ address, scheduledTime: now - 1_000 }]);
-        // An alarm that has not come due yet must stay invisible to the
-        // dispatcher, or it would fire early on every poll.
-        expect(due.some((alarm) => alarm.address.id === future.id)).toBe(false);
-        expect(afterDelete.some((alarm) => alarm.address.id === address.id)).toBe(false);
-      });
+            const matching = due.filter((alarm) => alarm.address.id === address.id);
+            expect(matching).toEqual([{ address, scheduledTime: now - 1_000 }]);
+            // An alarm that has not come due yet must stay invisible to the
+            // dispatcher, or it would fire early on every poll.
+            expect(due.some((alarm) => alarm.address.id === future.id)).toBe(false);
+            expect(afterDelete.some((alarm) => alarm.address.id === address.id)).toBe(false);
+          }),
+        ));
     }
 
     const unownedLayer = options.requiresShardLocality;
     if (unownedLayer !== undefined) {
-      it("refuses to attach a session the runner does not own", async () => {
-        const address = makeDurableEntityAddress("document", "unowned-attach");
-
-        const failed = await runWith(
+      it("refuses to attach a session the runner does not own", () =>
+        runWith(
           unownedLayer(),
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "unowned-attach");
+
             const host = yield* DurableEntityHost;
             const exit = yield* Effect.exit(
               host.run(address, (entity) => entity.sessions.attach(testSession("s-1"))),
             );
-            return exit._tag === "Failure";
+
+            expect(exit._tag === "Failure").toBe(true);
           }),
-        );
+        ));
 
-        expect(failed).toBe(true);
-      });
-
-      it("keeps session reads and removals total on an unowned address", async () => {
-        const address = makeDurableEntityAddress("document", "unowned-reads");
-
-        const [sessions, found] = await runWith(
+      it("keeps session reads and removals total on an unowned address", () =>
+        runWith(
           unownedLayer(),
           Effect.gen(function* () {
+            const address = makeDurableEntityAddress("document", "unowned-reads");
+
             const host = yield* DurableEntityHost;
             yield* host.run(address, (entity) => entity.sessions.remove("s-1"));
             const sessions = yield* host.run(address, (entity) => entity.sessions.list);
             const found = yield* host.run(address, (entity) => entity.sessions.get("s-1"));
-            return [sessions, found] as const;
-          }),
-        );
 
-        expect(sessions).toEqual([]);
-        expect(found).toBeUndefined();
-      });
+            expect(sessions).toEqual([]);
+            expect(found).toBeUndefined();
+          }),
+        ));
     }
   });
 };

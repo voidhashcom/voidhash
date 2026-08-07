@@ -11,7 +11,7 @@ export interface FeatureFlagsResult {
   readonly flags: ReadonlyArray<{
     readonly enabled: boolean;
     readonly key: string;
-    readonly payload: unknown | null;
+    readonly payload: unknown;
     readonly variantKey: string | null;
   }>;
 }

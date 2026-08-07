@@ -8,6 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@voidhash/ui";
+import { Effect } from "effect";
 import { LayoutGridIcon, Rows3Icon, Settings2Icon } from "lucide-react";
 
 const STORAGE_KEY = "voidhash.paywalls.view";
@@ -20,11 +21,14 @@ export function loadPaywallView(): PaywallView {
   if (typeof window === "undefined") {
     return "grid";
   }
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === "table" ? "table" : "grid";
-  } catch {
-    return "grid";
-  }
+  return Effect.runSync(
+    Effect.try((): PaywallView => {
+      if (window.localStorage.getItem(STORAGE_KEY) === "table") {
+        return "table";
+      }
+      return "grid";
+    }).pipe(Effect.orElseSucceed((): PaywallView => "grid")),
+  );
 }
 
 /** Persist the chosen dashboard view so it survives reloads. */
@@ -32,11 +36,12 @@ export function persistPaywallView(view: PaywallView): void {
   if (typeof window === "undefined") {
     return;
   }
-  try {
-    window.localStorage.setItem(STORAGE_KEY, view);
-  } catch {
-    // Storage may be unavailable (private mode, quota) — the choice just won't persist.
-  }
+  // Storage may be unavailable (private mode, quota) — the choice just won't persist.
+  Effect.runSync(
+    Effect.try(() => {
+      window.localStorage.setItem(STORAGE_KEY, view);
+    }).pipe(Effect.ignore),
+  );
 }
 
 interface PaywallViewSettingsProps {

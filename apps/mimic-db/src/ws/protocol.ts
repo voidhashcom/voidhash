@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Data, Effect, Schema } from "effect";
 
 import type { Value } from "@voidhash/mimic-core";
 import type { PresenceEntry } from "../app/hostService.ts";
@@ -103,15 +104,35 @@ export type ServerMessage =
   | PresenceRemoveMessage
   | PresenceSnapshotMessage;
 
+/** A client frame that is not valid JSON. Never leaves the socket handler. */
+export class MalformedClientMessageError extends Data.TaggedError("MalformedClientMessageError")<{
+  readonly message: string;
+}> {}
+
+/**
+ * The wire codec for client frames. Message shape is *not* validated here:
+ * `handleDocumentSocketMessage` dispatches on `type` and rejects anything it
+ * does not recognize, so decoding stays lossless for forward-compatible fields.
+ */
+const ClientMessageFromJson = Schema.fromJsonString(
+  Schema.declare<ClientMessage>((_value): _value is ClientMessage => true),
+);
+
+const ServerMessageToJson = Schema.fromJsonString(
+  Schema.declare<ServerMessage>((_value): _value is ServerMessage => true),
+);
+
+const decodeText = (data: string | Uint8Array): string => {
+  if (typeof data === "string") return data;
+  return new TextDecoder().decode(data);
+};
+
 export const parseClientMessage = (
   data: string | Uint8Array,
-): Effect.Effect<ClientMessage, Error> =>
-  Effect.try({
-    try: () => {
-      const text = typeof data === "string" ? data : new TextDecoder().decode(data);
-      return JSON.parse(text) as ClientMessage;
-    },
-    catch: (cause) => (cause instanceof Error ? cause : new Error(String(cause))),
-  });
+): Effect.Effect<ClientMessage, MalformedClientMessageError> =>
+  Schema.decodeUnknownEffect(ClientMessageFromJson)(decodeText(data)).pipe(
+    Effect.mapError((issue) => new MalformedClientMessageError({ message: causeMessage(issue) })),
+  );
 
-export const encodeServerMessage = (message: ServerMessage): string => JSON.stringify(message);
+export const encodeServerMessage = (message: ServerMessage): string =>
+  Schema.encodeSync(ServerMessageToJson)(message);

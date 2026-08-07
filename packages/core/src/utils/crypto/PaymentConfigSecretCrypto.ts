@@ -10,6 +10,7 @@
  * written. Decryption always works on both forms (plaintext passes through;
  * ciphertext requires the key, else it fails loud).
  */
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Option } from "effect";
 
 import {
@@ -31,37 +32,37 @@ const make = (config: PaymentConfigSecretCryptoConfig) =>
     const keyB64 = yield* config.key;
     // A malformed key is a deployment misconfiguration — fail fast (die) at
     // layer construction rather than degrade silently.
-    const keyOpt =
-      keyB64.length === 0
-        ? Option.none<Uint8Array>()
-        : Option.some(yield* decodeEncryptionKey(keyB64).pipe(Effect.orDie));
+    const keyOpt = yield* Effect.gen(function* () {
+      if (keyB64.length === 0) return Option.none<Uint8Array>();
+      return Option.some(yield* decodeEncryptionKey(keyB64).pipe(Effect.orDie));
+    });
 
     /** Encrypt a secret. Idempotent — already-encrypted values pass through. */
-    const encrypt = (plaintext: string): Effect.Effect<string, SecretKeyError> =>
-      isEncrypted(plaintext)
-        ? Effect.succeed(plaintext)
-        : Option.match(keyOpt, {
-            onNone: () => Effect.succeed(plaintext),
-            onSome: (key) => encryptSecret(plaintext, key),
-          });
+    const encrypt = (plaintext: string): Effect.Effect<string, SecretKeyError> => {
+      if (isEncrypted(plaintext)) return Effect.succeed(plaintext);
+      return Option.match(keyOpt, {
+        onNone: () => Effect.succeed(plaintext),
+        onSome: (key) => encryptSecret(plaintext, key),
+      });
+    };
 
     /** Decrypt a secret. Plaintext (non-prefixed) values pass through. */
     const decrypt = (
       value: string,
-    ): Effect.Effect<string, SecretDecryptionError | SecretKeyError> =>
-      !isEncrypted(value)
-        ? Effect.succeed(value)
-        : Option.match(keyOpt, {
-            onNone: () =>
-              Effect.fail(
-                new SecretDecryptionError({
-                  message: "Configuration value is encrypted but ENCRYPTION_KEY is not set",
-                }),
-              ),
-            onSome: (key) => decryptSecret(value, key),
-          });
+    ): Effect.Effect<string, SecretDecryptionError | SecretKeyError> => {
+      if (!isEncrypted(value)) return Effect.succeed(value);
+      return Option.match(keyOpt, {
+        onNone: () =>
+          Effect.fail(
+            new SecretDecryptionError({
+              message: "Configuration value is encrypted but ENCRYPTION_KEY is not set",
+            }),
+          ),
+        onSome: (key) => decryptSecret(value, key),
+      });
+    };
 
-    return { encrypt, decrypt } as const;
+    return constant({ encrypt, decrypt });
   });
 
 export class PaymentConfigSecretCrypto extends Context.Service<PaymentConfigSecretCrypto>()(

@@ -2,6 +2,7 @@
 
 import type { VariableType } from "@voidhash/mimic-schema";
 import { act } from "@testing-library/react";
+import { Effect } from "effect";
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 // The product literal editor renders a ProductInput reading TanStack Router
@@ -181,24 +182,24 @@ describe("VariablesPanel — pending add flow", () => {
 
   test("selecting a type opens a pending row after the 200ms timer", async () => {
     vi.useFakeTimers();
-    try {
-      const doc = createOfflineDesignerDocument();
-      const { nodeIds } = seedNodes(doc, [{ type: "view" }]);
-      harness = mountPanelDefinition(VariablesPanel, doc, { nodeIds: [nodeIds[0]!] });
+    await Effect.runPromise(
+      Effect.promise(async () => {
+        const doc = createOfflineDesignerDocument();
+        const { nodeIds } = seedNodes(doc, [{ type: "view" }]);
+        harness = mountPanelDefinition(VariablesPanel, doc, { nodeIds: [nodeIds[0]!] });
 
-      act(() => startAdding(harness!, "string"));
-      // Row exists but its popover is not yet open.
-      let pop = findNodeByType(harness.tree().root, "popover")!;
-      expect(pop.props.open).toBe(false);
+        act(() => startAdding(harness!, "string"));
+        // Row exists but its popover is not yet open.
+        let pop = findNodeByType(harness.tree().root, "popover")!;
+        expect(pop.props.open).toBe(false);
 
-      await act(async () => {
-        vi.advanceTimersByTime(200);
-      });
-      pop = findNodeByType(harness.tree().root, "popover")!;
-      expect(pop.props.open).toBe(true);
-    } finally {
-      vi.useRealTimers();
-    }
+        await act(async () => {
+          vi.advanceTimersByTime(200);
+        });
+        pop = findNodeByType(harness.tree().root, "popover")!;
+        expect(pop.props.open).toBe(true);
+      }).pipe(Effect.ensuring(Effect.sync(() => vi.useRealTimers()))),
+    );
   });
 
   test("empty name is silently dropped on close (no addVariable)", async () => {
@@ -209,7 +210,7 @@ describe("VariablesPanel — pending add flow", () => {
     harness = mountPanelDefinition(VariablesPanel, doc, { nodeIds: [nodeIds[0]!] });
 
     startAdding(harness, "string");
-    await new Promise((r) => setTimeout(r, 210));
+    await Effect.runPromise(Effect.sleep("210 millis"));
     await flush();
     const pop = findNodeByType(harness.tree().root, "popover")!;
     expect(pop.props.open).toBe(true);
@@ -226,7 +227,7 @@ describe("VariablesPanel — pending add flow", () => {
     harness = mountPanelDefinition(VariablesPanel, doc, { nodeIds: [nodeIds[0]!] });
 
     startAdding(harness, "string");
-    await new Promise((r) => setTimeout(r, 210));
+    await Effect.runPromise(Effect.sleep("210 millis"));
     await flush();
     const nameInput = findNodeByType(findNodeByLabel(harness.tree().root, "Name")!, "textField")!;
     harness.dispatch(nameInput.id, "onChange", ["x".repeat(33)]);
@@ -248,7 +249,7 @@ describe("VariablesPanel — pending add flow", () => {
     harness = mountPanelDefinition(VariablesPanel, doc, { nodeIds: [nodeIds[0]!] });
 
     startAdding(harness, "string");
-    await new Promise((r) => setTimeout(r, 210));
+    await Effect.runPromise(Effect.sleep("210 millis"));
     await flush();
     // The pending row is the LAST popover (appended after the seeded row); its
     // Name field is likewise the last one.
@@ -272,7 +273,7 @@ describe("VariablesPanel — pending add flow", () => {
     harness = mountPanelDefinition(VariablesPanel, doc, { nodeIds: [nodeIds[0]!] });
 
     startAdding(harness, "number");
-    await new Promise((r) => setTimeout(r, 210));
+    await Effect.runPromise(Effect.sleep("210 millis"));
     await flush();
     const nameInput = findNodeByType(findNodeByLabel(harness.tree().root, "Name")!, "textField")!;
     harness.dispatch(nameInput.id, "onChange", ["  score  "]);

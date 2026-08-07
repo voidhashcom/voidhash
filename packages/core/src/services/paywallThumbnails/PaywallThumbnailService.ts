@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Predicate, Schema } from "effect";
+import { constant, pick } from "@voidhash/lib/lang";
+import { Context, Effect, Layer, Option, Predicate, Random, Schema } from "effect";
 
 import { Db, eq, paywalls, type Paywall } from "@voidhash/db";
 import { hashSource } from "@voidhash/paywall-workspace";
@@ -68,6 +69,12 @@ export const collectDeployedComponentContentHashes = (snapshot: unknown): Readon
   return hashes;
 };
 
+const decodeLocalComponentData = Schema.decodeUnknownOption(
+  Schema.Struct({ path: Schema.String, source: Schema.String }),
+);
+
+const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
+
 /** Collects local component definitions embedded in a paywall document library. */
 export const collectLocalComponentSources = (
   snapshot: unknown,
@@ -78,9 +85,9 @@ export const collectLocalComponentSources = (
       return;
     }
     if (value.type === "codeComponent") {
-      const data = value.data as { readonly path?: unknown; readonly source?: unknown } | undefined;
-      if (typeof data?.path === "string" && typeof data.source === "string") {
-        components.push({ path: data.path, source: data.source });
+      const data = decodeLocalComponentData(value.data);
+      if (Option.isSome(data)) {
+        components.push({ path: data.value.path, source: data.value.source });
       }
     }
     for (const child of value.children ?? []) {
@@ -141,10 +148,7 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
             if (object === null) {
               continue;
             }
-            const tree = yield* Effect.try({
-              try: (): unknown => JSON.parse(new TextDecoder().decode(object.body)),
-              catch: () => null,
-            }).pipe(Effect.orElseSucceed(() => null));
+            const tree = Option.getOrNull(decodeJson(new TextDecoder().decode(object.body)));
             if (tree !== null) {
               trees[contentHash] = { [THUMBNAIL_PREVIEW_STATE]: tree };
             }
@@ -255,21 +259,24 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
               return false;
             }
 
-            const previousKey =
-              current.thumbnailUrl === null
-                ? null
-                : paywallThumbnailKeyFromUrl(
-                    current.thumbnailUrl,
-                    paywall.projectId,
-                    paywall.id,
-                    publicFileStore.publicBaseUrl,
-                  );
+            const previousThumbnailUrl = current.thumbnailUrl;
+            const previousKey = (() => {
+              if (previousThumbnailUrl === null) return null;
+              return paywallThumbnailKeyFromUrl(
+                previousThumbnailUrl,
+                paywall.projectId,
+                paywall.id,
+                publicFileStore.publicBaseUrl,
+              );
+            })();
             if (previousKey !== null && previousKey !== key) {
               yield* publicFileStore.deleteObject(previousKey);
             }
 
             yield* publicFileStore.putObject({ body: png, contentType: "image/png", key });
-            const cacheVersion = force ? `${seq}&r=${crypto.randomUUID()}` : String(seq);
+            // Ephemeral cache-buster for a forced re-render — not a domain id.
+            const nonce = yield* Random.nextInt;
+            const cacheVersion = pick(force, `${seq}&r=${nonce}`, String(seq));
             const url = `${publicFileStore.publicUrl(key)}?v=${cacheVersion}`;
             yield* tx
               .update(paywalls)
@@ -406,7 +413,7 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
         (paywallId: string) => renderCurrentPaywall(paywallId, true),
       );
 
-      return { forceRenderCurrent, handleDocumentIdle, renderCurrent } as const;
+      return constant({ forceRenderCurrent, handleDocumentIdle, renderCurrent });
     }),
   },
 ) {

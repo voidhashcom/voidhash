@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@voidhash/ui";
+import { Effect } from "effect";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -131,10 +132,12 @@ export function PanelHostServicesHost({
         setStateManagerNodeId(nodeId);
       },
       confirmComponentUpdate(plan: ComponentUpdatePlan) {
-        return new Promise<boolean>((resolve) => {
-          confirmResolveRef.current = resolve;
-          setConfirmPlan(plan);
-        });
+        return Effect.runPromise(
+          Effect.callback<boolean>((resume) => {
+            confirmResolveRef.current = (confirmed) => resume(Effect.succeed(confirmed));
+            setConfirmPlan(plan);
+          }),
+        );
       },
       toastError(message: string) {
         toast.error(message);

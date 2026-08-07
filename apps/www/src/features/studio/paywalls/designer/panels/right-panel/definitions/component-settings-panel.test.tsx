@@ -129,7 +129,7 @@ describe("ComponentSettingsPanel — builtin instance", () => {
     expect(texts).toContain("Sample Badge");
     expect(texts).not.toContain("sample-badge");
     // Builtins are unpinned — no version row (no `v…` text) leaks through.
-    expect(texts.some((content) => /^v/.test(String(content)))).toBe(false);
+    expect(texts.some((content) => String(content).startsWith('v'))).toBe(false);
     // No catalog-only update affordance.
     expect(
       findNodesByType(harness.tree().root, "button").some((b) =>

@@ -5,6 +5,7 @@
   next-themes can be found at https://github.com/pacocoursey/next-themes under the MIT license.
 */
 
+import { Effect } from "effect";
 import * as React from "react";
 
 interface ValueObject {
@@ -140,12 +141,14 @@ const Theme = ({
       const newTheme = typeof value === "function" ? value(theme) : value;
       setThemeState(newTheme);
 
-      // Save to storage
-      try {
-        localStorage.setItem(storageKey, newTheme);
-      } catch {
-        // Unsupported
-      }
+      // Save to storage (unsupported / blocked storage is ignored)
+      Effect.runSync(
+        Effect.ignore(
+          Effect.try(() => {
+            localStorage.setItem(storageKey, newTheme);
+          }),
+        ),
+      );
     },
     [theme],
   );
@@ -266,12 +269,12 @@ const getTheme = (key: string, fallback?: string) => {
   if (isServer) {
     return;
   }
-  let theme: string | undefined;
-  try {
-    theme = localStorage.getItem(key) || undefined;
-  } catch {
-    // Unsupported
-  }
+  // Unsupported / blocked storage reads as absent.
+  const theme = Effect.runSync(
+    Effect.try(() => localStorage.getItem(key) || undefined).pipe(
+      Effect.orElseSucceed((): string | undefined => undefined),
+    ),
+  );
   return theme || fallback;
 };
 

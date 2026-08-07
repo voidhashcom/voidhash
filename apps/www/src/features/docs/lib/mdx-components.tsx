@@ -13,7 +13,8 @@ import { DOCS_PATH } from "@/lib/paths";
 
 // Lazy so the OpenAPI reference renderer (Scalar playground, shiki) is only
 // pulled into the bundle for generated API pages, not every doc/guide page.
-const OpenAPIPage = lazy(() => import("./openapi-page"));
+const loadOpenAPIPage = () => import("./openapi-page");
+const OpenAPIPage = lazy(loadOpenAPIPage);
 
 /**
  * Renders links authored inside MDX. Root-relative hrefs (e.g. `/foo`) are

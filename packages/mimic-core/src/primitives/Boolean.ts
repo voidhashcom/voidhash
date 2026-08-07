@@ -1,4 +1,5 @@
 import { booleanValue, type Path, type Value } from "../core/types.ts";
+import type { Mutable } from "../internal/lang.ts";
 import type { BooleanSchema } from "../schema/types.ts";
 import { getValueAtPath } from "./path.ts";
 import {
@@ -48,13 +49,14 @@ export class BooleanPrimitive<
   }
 
   get schema(): BooleanSchema {
-    return {
-      kind: "boolean" as const,
-      ...(this.state.required ? { required: true } : {}),
-      ...(this.state.defaultValue !== undefined
-        ? { default: booleanValue(this.state.defaultValue) }
-        : {}),
-    };
+    const schema: Mutable<BooleanSchema> = { kind: "boolean" };
+    if (this.state.required) {
+      schema.required = true;
+    }
+    if (this.state.defaultValue !== undefined) {
+      schema.default = booleanValue(this.state.defaultValue);
+    }
+    return schema;
   }
 
   required(): BooleanPrimitive<true, THasDefault> {
@@ -72,10 +74,16 @@ export class BooleanPrimitive<
   }
 
   optional(stripDefaults: boolean): BooleanPrimitive<false, false> {
+    if (stripDefaults) {
+      return new BooleanPrimitive({
+        ...this.state,
+        required: false,
+        defaultValue: undefined,
+      });
+    }
     return new BooleanPrimitive({
       ...this.state,
       required: false,
-      defaultValue: stripDefaults ? undefined : this.state.defaultValue,
     });
   }
 

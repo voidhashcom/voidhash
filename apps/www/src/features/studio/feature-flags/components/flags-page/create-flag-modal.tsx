@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Effect } from "effect";
 import {
   Button,
   cn,
@@ -48,21 +49,29 @@ const createVariant = (type: FlagType): DraftVariant => ({
   value: type === "json" ? "{}" : "",
 });
 
-const parseVariantValue = (type: FlagType, value: string): unknown => {
+type VariantState = { state: "empty" } | { state: "invalid" } | { state: "valid"; value: unknown };
+
+/** Reads a non-empty raw input as the flag's declared type; `invalid` when it cannot be parsed. */
+const parseVariantValue = (type: FlagType, value: string): VariantState => {
   if (type === "string") {
-    return value;
+    return { state: "valid", value };
   }
   if (type === "number") {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
-      throw new Error("Enter a valid number");
+      return { state: "invalid" };
     }
-    return parsed;
+    return { state: "valid", value: parsed };
   }
-  return JSON.parse(value);
+  return Effect.runSync(
+    Effect.try(() => JSON.parse(value)).pipe(
+      Effect.match({
+        onFailure: (): VariantState => ({ state: "invalid" }),
+        onSuccess: (parsed): VariantState => ({ state: "valid", value: parsed }),
+      }),
+    ),
+  );
 };
-
-type VariantState = { state: "empty" } | { state: "invalid" } | { state: "valid"; value: unknown };
 
 /**
  * An untouched variant reads as `empty` rather than `invalid`: it blocks
@@ -73,11 +82,7 @@ const readVariantValue = (type: FlagType, raw: string): VariantState => {
   if (raw.trim() === "") {
     return { state: "empty" };
   }
-  try {
-    return { state: "valid", value: parseVariantValue(type, raw) };
-  } catch {
-    return { state: "invalid" };
-  }
+  return parseVariantValue(type, raw);
 };
 
 /** Dialog for creating a typed feature flag and its initial variants. */
@@ -99,7 +104,7 @@ export function CreateFlagModal({ projectId, trigger }: CreateFlagModalProps) {
   const createFlag = useMutation({
     ...createFeatureFlagOptions(),
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.featureFlag.all,
       });
       setOpen(false);

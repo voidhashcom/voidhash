@@ -1,5 +1,6 @@
-import { Effect, Result } from "effect";
-import { describe, expect, it } from "vite-plus/test";
+import { Effect, Encoding, Result } from "effect";
+
+import { describe, expect, it } from "../testing/effect-vitest.ts";
 
 import {
   MAX_PAYWALL_ASSET_BYTES,
@@ -11,13 +12,7 @@ import {
   validateAndDecodePaywallAsset,
 } from "./paywallAssetImage.ts";
 
-const toBase64 = (bytes: readonly number[]): string => {
-  let binary = "";
-  for (const b of bytes) {
-    binary += String.fromCharCode(b);
-  }
-  return btoa(binary);
-};
+const toBase64 = (bytes: readonly number[]): string => Encoding.encodeBase64(new Uint8Array(bytes));
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const JPEG_MAGIC = [0xff, 0xd8, 0xff, 0x00];
@@ -116,12 +111,14 @@ describe("derivePaywallAssetKey", () => {
 });
 
 describe("paywallAssetSha256Hex", () => {
-  it("is deterministic for identical bytes (dedup foundation)", async () => {
-    const a = await Effect.runPromise(paywallAssetSha256Hex(new Uint8Array(PNG_MAGIC)));
-    const b = await Effect.runPromise(paywallAssetSha256Hex(new Uint8Array(PNG_MAGIC)));
-    expect(a).toBe(b);
-    expect(a).toMatch(/^[0-9a-f]{64}$/);
-  });
+  it.effect("is deterministic for identical bytes (dedup foundation)", () =>
+    Effect.gen(function* () {
+      const a = yield* paywallAssetSha256Hex(new Uint8Array(PNG_MAGIC));
+      const b = yield* paywallAssetSha256Hex(new Uint8Array(PNG_MAGIC));
+      expect(a).toBe(b);
+      expect(a).toMatch(/^[0-9a-f]{64}$/);
+    }),
+  );
 });
 
 describe("ownership guards", () => {

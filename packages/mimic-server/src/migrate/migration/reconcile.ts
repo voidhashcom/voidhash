@@ -1,4 +1,7 @@
+import { Effect } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
 import { isSchemaError, validate, validateValue } from "@voidhash/mimic-core";
+import type { Path } from "@voidhash/mimic-core";
 
 import type {
   ReconcileMigrationValueOptions,
@@ -6,23 +9,17 @@ import type {
   SchemaMigrationIssue,
 } from "./types.ts";
 
-const pathToString = (
-  path: readonly {
-    readonly kind: "field" | "item" | "node";
-    readonly key?: string;
-    readonly id?: string;
-  }[],
-): string => {
+const pathToString = (path: Path): string => {
   if (path.length === 0) {
     return "root";
   }
   const segments = path.map((segment) => {
     switch (segment.kind) {
       case "field":
-        return segment.key ?? "";
+        return segment.key;
       case "item":
       case "node":
-        return segment.id ?? "";
+        return segment.id;
     }
   });
   return `root.${segments.join(".")}`;
@@ -53,7 +50,7 @@ const toIssue = (error: unknown): SchemaMigrationIssue => {
 
     return {
       code,
-      path: pathToString(error.valuePath as never),
+      path: pathToString(error.valuePath),
       message: error.message,
     };
   }
@@ -61,35 +58,37 @@ const toIssue = (error: unknown): SchemaMigrationIssue => {
   return {
     code: "invalid-value",
     path: "root",
-    message: error instanceof Error ? error.message : String(error),
+    message: causeMessage(error),
   };
 };
 
 export const reconcileMigrationValue = (
   options: ReconcileMigrationValueOptions,
-): ReconcileMigrationValueResult => {
-  try {
-    validateValue(options.value);
-    const normalized = validate(options.oldSchema, options.value);
-    if (normalized === undefined) {
-      return {
-        ok: false,
-        error: {
-          code: "missing-value",
-          path: "root",
-          message: "Old schema sanitized the input value to undefined",
-        },
-      };
-    }
+): ReconcileMigrationValueResult =>
+  Effect.runSync(
+    Effect.try({
+      try: (): ReconcileMigrationValueResult => {
+        validateValue(options.value);
+        const normalized = validate(options.oldSchema, options.value);
+        if (normalized === undefined) {
+          return {
+            ok: false,
+            error: {
+              code: "missing-value",
+              path: "root",
+              message: "Old schema sanitized the input value to undefined",
+            },
+          };
+        }
 
-    return {
-      ok: true,
-      value: validate(options.newSchema, normalized),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error: toIssue(error),
-    };
-  }
-};
+        return {
+          ok: true,
+          value: validate(options.newSchema, normalized),
+        };
+      },
+      catch: (error): ReconcileMigrationValueResult => ({
+        ok: false,
+        error: toIssue(error),
+      }),
+    }).pipe(Effect.catch((result) => Effect.succeed(result))),
+  );

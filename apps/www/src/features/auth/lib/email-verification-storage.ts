@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 const STORAGE_KEY = "voidhash.email-verification";
 
 /**
@@ -20,33 +22,35 @@ export const saveEmailVerificationState = (state: EmailVerificationState): void 
   if (typeof window === "undefined") {
     return;
   }
-  try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // sessionStorage can be unavailable (private mode, storage disabled). The
-    // verify page degrades to the email search param, so this is non-fatal.
-  }
+  // sessionStorage can be unavailable (private mode, storage disabled). The
+  // verify page degrades to the email search param, so this is non-fatal.
+  Effect.runSync(
+    Effect.try(() =>
+      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)),
+    ).pipe(Effect.ignore),
+  );
 };
 
 export const loadEmailVerificationState = (): EmailVerificationState | null => {
   if (typeof window === "undefined") {
     return null;
   }
-  try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as EmailVerificationState) : null;
-  } catch {
-    return null;
-  }
+  return Effect.runSync(
+    Effect.try((): EmailVerificationState | null => {
+      const raw = window.sessionStorage.getItem(STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as EmailVerificationState) : null;
+    }).pipe(Effect.orElseSucceed(() => null)),
+  );
 };
 
 export const clearEmailVerificationState = (): void => {
   if (typeof window === "undefined") {
     return;
   }
-  try {
-    window.sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Ignore — nothing actionable if the entry can't be removed.
-  }
+  // Ignore failures — nothing actionable if the entry can't be removed.
+  Effect.runSync(
+    Effect.try(() => window.sessionStorage.removeItem(STORAGE_KEY)).pipe(
+      Effect.ignore,
+    ),
+  );
 };

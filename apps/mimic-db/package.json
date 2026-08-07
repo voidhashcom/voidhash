@@ -24,6 +24,7 @@
   "dependencies": {
     "@effect/platform-node": "catalog:",
     "@effect/sql-pg": "catalog:",
+    "@voidhash/lib": "workspace:*",
     "@voidhash/mimic-core": "workspace:*",
     "@voidhash/mimic-server": "workspace:*",
     "@voidhash/platform": "workspace:*",

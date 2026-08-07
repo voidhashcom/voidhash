@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
 import type { ProductTypeValue } from "@voidhash/lib";
 
@@ -64,6 +65,12 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  * Catch-all service error. Wraps `DatabaseError` (and other infrastructural
  * failures) at the public-method boundary so callers see one stable error tag.
  */
+/** `products.type` is a plain smallint column mirroring the `ProductType` enum. */
+const asProductType = (type: any): ProductTypeValue => type;
+
+/** `payment_provider_configuration_product.configuration` is an untyped JSON column. */
+const asConfigurationRecord = (configuration: any): Record<string, unknown> => configuration;
+
 export class SchemaServiceError extends Schema.TaggedErrorClass<SchemaServiceError>(
   "SchemaServiceError",
 )("SchemaServiceError", { cause: Schema.String }) {}
@@ -237,7 +244,7 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
           if (!providerId) {
             continue;
           }
-          const configuration = (mapping.configuration ?? {}) as Record<string, unknown>;
+          const configuration = asConfigurationRecord(mapping.configuration ?? {});
           const entry = { providerId, configuration };
           const list = providersByProductId.get(mapping.productId);
           if (list) {
@@ -258,7 +265,7 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
               perks: perksForProduct,
               providers: providersForProduct,
               slug: product.slug,
-              type: dbProductTypeToLabel(product.type as ProductTypeValue),
+              type: dbProductTypeToLabel(asProductType(product.type)),
             };
           })
           .sort((a, b) => a.slug.localeCompare(b.slug));
@@ -398,11 +405,11 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
       return { version: schema.version };
     });
 
-    return {
+    return constant({
       computeProjectSchemaVersion,
       getProjectSchema,
       getProjectSchemaForSdk,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(SchemaService)(SchemaService.make);

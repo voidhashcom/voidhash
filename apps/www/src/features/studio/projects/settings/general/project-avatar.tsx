@@ -27,7 +27,7 @@ export function ProjectAvatarForm({
     ...setProjectAvatarOptions(),
     onSuccess: () => {
       toast.success("Project avatar updated");
-      invalidate();
+      void invalidate();
     },
     onError: (error) => toast.error(errorMessage(error, "Failed to update project avatar")),
   });
@@ -36,7 +36,7 @@ export function ProjectAvatarForm({
     ...removeProjectAvatarOptions(),
     onSuccess: () => {
       toast.success("Project avatar removed");
-      invalidate();
+      void invalidate();
     },
     onError: () => toast.error("Failed to remove project avatar"),
   });

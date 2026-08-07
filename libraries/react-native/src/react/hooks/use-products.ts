@@ -46,7 +46,7 @@ export function productsHookFactory(
 
     const data = useMemo(
       () => ({
-        ...(products ?? {}),
+        ...products,
         get: getProduct,
         toList,
       }),

@@ -9,21 +9,21 @@ import {
 } from "./shared.ts";
 
 export class LazyPrimitive<
-  TThunk extends () => AnyPrimitive,
+  TPrimitive extends AnyPrimitive,
 > implements PrimitiveWithOptionalEncoding<
-  InferInput<ReturnType<TThunk>>,
-  InferSnapshot<ReturnType<TThunk>>,
-  InferProxy<ReturnType<TThunk>>
+  InferInput<TPrimitive>,
+  InferSnapshot<TPrimitive>,
+  InferProxy<TPrimitive>
 > {
   readonly _tag = "LazyPrimitive";
-  readonly _Input!: InferInput<ReturnType<TThunk>>;
-  readonly _Snapshot!: InferSnapshot<ReturnType<TThunk>>;
-  readonly _Proxy!: InferProxy<ReturnType<TThunk>>;
+  readonly _Input!: InferInput<TPrimitive>;
+  readonly _Snapshot!: InferSnapshot<TPrimitive>;
+  readonly _Proxy!: InferProxy<TPrimitive>;
 
-  private readonly thunk: TThunk;
-  private resolved?: ReturnType<TThunk>;
+  private readonly thunk: () => TPrimitive;
+  private resolved?: TPrimitive;
 
-  constructor(thunk: TThunk) {
+  constructor(thunk: () => TPrimitive) {
     this.thunk = thunk;
   }
 
@@ -31,7 +31,7 @@ export class LazyPrimitive<
     return this.resolve().schema;
   }
 
-  encode(input: InferInput<ReturnType<TThunk>>): Value {
+  encode(input: InferInput<TPrimitive>): Value {
     return this.resolve().encode(input);
   }
 
@@ -39,21 +39,22 @@ export class LazyPrimitive<
     return this.resolve().encodeOptional(input);
   }
 
-  decode(value: Value | undefined): InferSnapshot<ReturnType<TThunk>> | undefined {
+  decode(value: Value | undefined): InferSnapshot<TPrimitive> | undefined {
     return this.resolve().decode(value);
   }
 
-  createProxy(session: CommandSession, path: Path): InferProxy<ReturnType<TThunk>> {
+  createProxy(session: CommandSession, path: Path): InferProxy<TPrimitive> {
     return this.resolve().createProxy(session, path);
   }
 
-  private resolve(): ReturnType<TThunk> {
+  private resolve(): TPrimitive {
     if (this.resolved === undefined) {
-      this.resolved = this.thunk() as ReturnType<TThunk>;
+      this.resolved = this.thunk();
     }
-    return this.resolved as ReturnType<TThunk>;
+    return this.resolved;
   }
 }
 
-export const Lazy = <TThunk extends () => AnyPrimitive>(thunk: TThunk): LazyPrimitive<TThunk> =>
-  new LazyPrimitive(thunk);
+export const Lazy = <TPrimitive extends AnyPrimitive>(
+  thunk: () => TPrimitive,
+): LazyPrimitive<TPrimitive> => new LazyPrimitive(thunk);

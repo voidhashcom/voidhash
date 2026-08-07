@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Effect, Option, Schema, SchemaIssue, SchemaTransformation } from "effect";
+import { DateTime, Effect, Option, Schema, SchemaIssue, SchemaTransformation } from "effect";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -16,9 +16,9 @@ const DateFromNumber = Schema.Number.pipe(
     Schema.Date,
     SchemaTransformation.transformOrFail({
       decode: (value) => {
-        const parsed = new Date(value);
+        const parsed = DateTime.make(value);
 
-        if (Number.isNaN(parsed.getTime())) {
+        if (Option.isNone(parsed)) {
           return Effect.fail(
             new SchemaIssue.InvalidValue(Option.some(value), {
               message: "Expected a valid Date",
@@ -26,7 +26,7 @@ const DateFromNumber = Schema.Number.pipe(
           );
         }
 
-        return Effect.succeed(parsed);
+        return Effect.succeed(DateTime.toDateUtc(parsed.value));
       },
       encode: (value) => Effect.succeed(value.getTime()),
     }),

@@ -38,8 +38,12 @@ export const commander = createCommander<KanbanStoreState, typeof MimicExampleSc
 
 const getBoard = (root: KanbanRoot): BoardProxy | undefined => root.children.first()?.as(BoardNode);
 
-const getColumnIndex = (board: BoardProxy, columnId: string): number =>
-  board.children.findIndex((column) => column.id === columnId);
+const getColumnIndex = (board: BoardProxy | undefined, columnId: string): number => {
+  if (!board) {
+    return -1;
+  }
+  return board.children.findIndex((column) => column.id === columnId);
+};
 
 const getColumnRestoreData = (board: BoardProxy, columnId: string): ColumnRestoreData | null => {
   const column = board.children.findById(columnId);
@@ -56,7 +60,14 @@ const getColumnRestoreData = (board: BoardProxy, columnId: string): ColumnRestor
   };
 };
 
-const getCardLocation = (board: BoardProxy, cardId: string): CardLocation | undefined => {
+const getCardLocation = (
+  board: BoardProxy | undefined,
+  cardId: string,
+): CardLocation | undefined => {
+  if (!board) {
+    return undefined;
+  }
+
   for (const column of board.children) {
     const typedColumn = column.as(ColumnNode);
     const cardIndex = typedColumn.children.findIndex((card: CardProxy) => card.id === cardId);
@@ -155,7 +166,7 @@ export const deleteColumn = commander.undoableAction<
       type: "column",
       name: result.columnData.name,
       children: result.columnData.cards.map((card) => ({
-        type: "card" as const,
+        type: "card",
         title: card.title,
         description: card.description,
         children: [],
@@ -230,7 +241,7 @@ export const deleteCard = commander.undoableAction<
 >(
   (ctx, params) => {
     const board = getBoard(ctx.root);
-    const location = board ? getCardLocation(board, params.cardId) : undefined;
+    const location = getCardLocation(board, params.cardId);
 
     ctx.root.findByIdAcrossTree(params.cardId)?.as(CardNode).remove();
 
@@ -264,7 +275,7 @@ export const moveCard = commander.undoableAction<
 >(
   (ctx, params) => {
     const board = getBoard(ctx.root);
-    const location = board ? getCardLocation(board, params.cardId) : undefined;
+    const location = getCardLocation(board, params.cardId);
     const card = ctx.root.findByIdAcrossTree(params.cardId)?.as(CardNode);
     const destinationColumn = ctx.root
       .findByIdAcrossTree(params.destinationColumnId)
@@ -304,7 +315,7 @@ export const reorderColumn = commander.undoableAction<
 >(
   (ctx, params) => {
     const board = getBoard(ctx.root);
-    const sourceIndex = board ? getColumnIndex(board, params.columnId) : -1;
+    const sourceIndex = getColumnIndex(board, params.columnId);
     const column = ctx.root.findByIdAcrossTree(params.columnId)?.as(ColumnNode);
     if (!column) {
       return { sourceIndex };

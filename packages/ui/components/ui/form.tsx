@@ -1,5 +1,7 @@
 "use client";
 
+import { Effect } from "effect";
+
 import type { Label as LabelPrimitive } from "radix-ui";
 
 import { Slot } from "radix-ui";
@@ -47,7 +49,9 @@ const useFormField = () => {
   const fieldState = getFieldState(fieldContext.name, formState);
 
   if (!fieldContext) {
-    throw new Error("useFormField should be used within <FormField>");
+    return Effect.runSync(
+      Effect.die(new Error("useFormField should be used within <FormField>")),
+    );
   }
 
   const { id } = itemContext;

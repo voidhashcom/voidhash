@@ -94,7 +94,7 @@ export function CreateProductModal({
     onSuccess: (data) => {
       onSuccess?.(data);
       toast.success("Product created successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.product.list({ projectId }),
       });
       handleOpenChange(false);

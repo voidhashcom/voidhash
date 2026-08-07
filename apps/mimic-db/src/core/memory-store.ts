@@ -149,11 +149,13 @@ export const makeMemoryDocumentStore = (): DocumentStoreApi => {
         snapshots.push({ seq: 0, value: cloneValue(value), schemaVersion });
       }),
     loadLatestSnapshot: () =>
-      sync(() =>
-        snapshots.length === 0
-          ? undefined
-          : snapshots.reduce((best, row) => (row.seq >= best.seq ? row : best)),
-      ),
+      sync(() => {
+        if (snapshots.length === 0) return undefined;
+        return snapshots.reduce((best, row) => {
+          if (row.seq >= best.seq) return row;
+          return best;
+        });
+      }),
     listCommandsAfter: (seq) =>
       sync(() => commands.filter((row) => row.seq > seq).sort((a, b) => a.seq - b.seq)),
     appendCommands: (fromSeq, cmds: readonly Command[], txId) =>

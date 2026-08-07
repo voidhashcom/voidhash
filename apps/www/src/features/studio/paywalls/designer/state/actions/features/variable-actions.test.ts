@@ -1,5 +1,6 @@
 import { ViewNode } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -15,7 +16,7 @@ function makeDesignerDoc() {
   let flexId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     flexId = screen.children.insertLast({ type: "view" }).id;
   });
   return { doc, flexId };
@@ -39,7 +40,7 @@ function makeCtx(doc: OfflineDesignerDocument) {
 function rawVariables(doc: OfflineDesignerDocument, nodeId: string) {
   const data = findTypedNode(doc.root, nodeId, ViewNode)?.get()?.data;
   if (data === undefined) {
-    throw new Error("expected a flex node");
+    return Effect.runSync(Effect.die(new Error("expected a flex node")));
   }
   return data.localVariables;
 }
@@ -79,7 +80,7 @@ describe("updateVariable", () => {
       type: "boolean" as const,
     });
     const variableId = added.variableId;
-    if (variableId === null) throw new Error("expected a variable entry id");
+    if (variableId === null) return Effect.runSync(Effect.die(new Error("expected a variable entry id")));
 
     const params = {
       newName: "isSelected",
@@ -112,7 +113,7 @@ describe("updateVariable", () => {
       type: "boolean" as const,
     });
     const variableId = added.variableId;
-    if (variableId === null) throw new Error("expected a variable entry id");
+    if (variableId === null) return Effect.runSync(Effect.die(new Error("expected a variable entry id")));
 
     const result = updateVariable.fn(ctx as never, {
       newValue: { key: "future-kind", value: { weird: true } },
@@ -150,7 +151,7 @@ describe("removeVariable", () => {
       type: "boolean" as const,
     });
     const variableId = added.variableId;
-    if (variableId === null) throw new Error("expected a variable entry id");
+    if (variableId === null) return Effect.runSync(Effect.die(new Error("expected a variable entry id")));
     const beforeValue = JSON.stringify(rawVariables(doc, flexId)[0]?.value);
 
     const params = { nodeId: flexId, nodeType: "view" as const, variableId };

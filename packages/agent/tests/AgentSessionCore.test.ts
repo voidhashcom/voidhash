@@ -7,7 +7,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { makeMemoryDurableEntityHost } from "@voidhash/platform-selfhost/MemoryDurableEntity";
 import { makeNodeDurableEntitySession } from "@voidhash/platform-selfhost/NodeDurableEntitySession";
-import { Effect } from "effect";
+import { Clock, Deferred, Effect, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -15,7 +15,10 @@ import {
   agentSessionAddress,
   type AgentSessionConnection,
 } from "../src/AgentSessionCore.ts";
+import { AgentClientMessageSchema } from "../src/Protocol.ts";
 import { readSessionLog } from "../src/SessionLog.ts";
+
+const encodeClientMessage = Schema.encodeSync(Schema.fromJsonString(AgentClientMessageSchema));
 
 const model: Model<string> = {
   id: "test-model",
@@ -53,16 +56,33 @@ const assistantMessage = (text: string): AssistantMessage => ({
   model: model.id,
   usage,
   stopReason: "stop",
-  timestamp: Date.now(),
+  timestamp: Effect.runSync(Clock.currentTimeMillis),
 });
 
-const waitFor = async (predicate: () => boolean): Promise<void> => {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-  throw new Error("Timed out waiting for condition");
+const messageText = (message: AssistantMessage): string => {
+  const first = message.content[0];
+  if (first?.type === "text") return first.text;
+  return "";
 };
+
+const replyText = (call: number): string => {
+  if (call === 1) return "first";
+  return "steered";
+};
+
+const resolveTestModel = (candidate: Model<string>, provider: string, modelId: string) => {
+  if (provider === candidate.provider && modelId === candidate.id) return candidate;
+  return undefined;
+};
+
+const waitFor = (predicate: () => boolean): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (predicate()) return;
+      yield* Effect.sleep("5 millis");
+    }
+    return yield* Effect.die(new Error("Timed out waiting for condition"));
+  });
 
 interface TestConnectionData {
   readonly token: string;
@@ -71,229 +91,228 @@ interface TestConnectionData {
 const owner = { organizationId: "org", projectId: "project", userId: "user" };
 
 describe("AgentSessionCore", () => {
-  it("streams, persists, rehydrates, and accepts steering while a turn is active", async () => {
-    const host = makeMemoryDurableEntityHost();
-    const frames: string[] = [];
-    let releaseFirst!: () => void;
-    const firstGate = new Promise<void>((resolve) => void (releaseFirst = resolve));
-    const contexts: PiContext[] = [];
-    let streamCalls = 0;
+  it("streams, persists, rehydrates, and accepts steering while a turn is active", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const host = makeMemoryDurableEntityHost();
+        const frames: string[] = [];
+        const firstGate = yield* Deferred.make<void>();
+        const contexts: PiContext[] = [];
+        let streamCalls = 0;
 
-    const streamFn: StreamFn = (_model, context) => {
-      contexts.push(context);
-      streamCalls += 1;
-      const call = streamCalls;
-      const stream = createAssistantMessageEventStream();
-      void (async () => {
-        if (call === 1) await firstGate;
-        const message = assistantMessage(call === 1 ? "first" : "steered");
-        stream.push({ type: "start", partial: { ...message, content: [] } });
-        stream.push({
-          type: "text_start",
-          contentIndex: 0,
-          partial: { ...message, content: [{ type: "text", text: "" }] },
-        });
-        stream.push({
-          type: "text_delta",
-          contentIndex: 0,
-          delta: message.content[0]?.type === "text" ? message.content[0].text : "",
-          partial: message,
-        });
-        stream.push({
-          type: "text_end",
-          contentIndex: 0,
-          content: message.content[0]?.type === "text" ? message.content[0].text : "",
-          partial: message,
-        });
-        stream.push({ type: "done", reason: "stop", message });
-      })();
-      return stream;
-    };
+        const streamFn: StreamFn = (_model, context) => {
+          contexts.push(context);
+          streamCalls += 1;
+          const call = streamCalls;
+          const stream = createAssistantMessageEventStream();
+          Effect.runFork(
+            Effect.gen(function* () {
+              if (call === 1) yield* Deferred.await(firstGate);
+              const message = assistantMessage(replyText(call));
+              stream.push({ type: "start", partial: { ...message, content: [] } });
+              stream.push({
+                type: "text_start",
+                contentIndex: 0,
+                partial: { ...message, content: [{ type: "text", text: "" }] },
+              });
+              stream.push({
+                type: "text_delta",
+                contentIndex: 0,
+                delta: messageText(message),
+                partial: message,
+              });
+              stream.push({
+                type: "text_end",
+                contentIndex: 0,
+                content: messageText(message),
+                partial: message,
+              });
+              stream.push({ type: "done", reason: "stop", message });
+            }),
+          );
+          return stream;
+        };
 
-    const core = new AgentSessionCore<TestConnectionData>({
-      host,
-      idleTimeoutMs: 100,
-      factory: {
-        create: ({ messages }) =>
-          new Agent({
-            initialState: {
-              model,
-              messages: [...messages],
-              systemPrompt: "test",
-              tools: [],
-            },
-            streamFn,
+        const core = new AgentSessionCore<TestConnectionData>({
+          host,
+          idleTimeoutMs: 100,
+          factory: {
+            create: ({ messages }) =>
+              new Agent({
+                initialState: {
+                  model,
+                  messages: [...messages],
+                  systemPrompt: "test",
+                  tools: [],
+                },
+                streamFn,
+              }),
+            resolveModel: (provider, modelId) => resolveTestModel(model, provider, modelId),
+          },
+        });
+        const durableSession = makeNodeDurableEntitySession("connection-1", {
+          send: (frame) => frames.push(String(frame)),
+          close: () => undefined,
+        });
+        const connection: AgentSessionConnection<TestConnectionData> = {
+          sessionId: "session-1",
+          owner,
+          session: durableSession,
+          data: { token: "private" },
+        };
+
+        expect(yield* core.connect(connection)).toBe(true);
+        yield* core.handleMessage(
+          connection,
+          encodeClientMessage({
+            v: 1,
+            requestId: "prompt-1",
+            type: "prompt",
+            text: "initial",
           }),
-        resolveModel: (provider, modelId) =>
-          provider === model.provider && modelId === model.id ? model : undefined,
-      },
-    });
-    const durableSession = makeNodeDurableEntitySession("connection-1", {
-      send: (frame) => frames.push(String(frame)),
-      close: () => undefined,
-    });
-    const connection: AgentSessionConnection<TestConnectionData> = {
-      sessionId: "session-1",
-      owner,
-      session: durableSession,
-      data: { token: "private" },
-    };
+        );
+        yield* waitFor(() => streamCalls === 1);
 
-    await expect(Effect.runPromise(core.connect(connection))).resolves.toBe(true);
-    await Effect.runPromise(
-      core.handleMessage(
-        connection,
-        JSON.stringify({
-          v: 1,
-          requestId: "prompt-1",
-          type: "prompt",
-          text: "initial",
-        }),
-      ),
-    );
-    await waitFor(() => streamCalls === 1);
+        yield* core.handleMessage(
+          connection,
+          encodeClientMessage({
+            v: 1,
+            requestId: "steer-1",
+            type: "steer",
+            text: "change direction",
+          }),
+        );
+        expect(frames.some((frame) => frame.includes('"requestId":"steer-1"'))).toBe(true);
+        yield* Deferred.succeed(firstGate, undefined);
+        yield* waitFor(() => frames.some((frame) => frame.includes('"type":"agent_end"')));
+        yield* waitFor(() => streamCalls === 2);
 
-    await Effect.runPromise(
-      core.handleMessage(
-        connection,
-        JSON.stringify({
-          v: 1,
-          requestId: "steer-1",
-          type: "steer",
-          text: "change direction",
-        }),
-      ),
-    );
-    expect(frames.some((frame) => frame.includes('"requestId":"steer-1"'))).toBe(true);
-    releaseFirst();
-    await waitFor(() => frames.some((frame) => frame.includes('"type":"agent_end"')));
-    await waitFor(() => streamCalls === 2);
+        expect(contexts[1]?.messages.some((message) => message.role === "user")).toBe(true);
+        const entries = yield* readSessionLog(host, agentSessionAddress(connection.sessionId));
+        const messages = entries.flatMap((entry) => {
+          if (entry.type === "message") return [entry.message];
+          return [];
+        });
+        expect(messages.map((message) => message.role)).toEqual([
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+        ]);
 
-    expect(contexts[1]?.messages.some((message) => message.role === "user")).toBe(true);
-    const entries = await Effect.runPromise(
-      readSessionLog(host, agentSessionAddress(connection.sessionId)),
-    );
-    const messages = entries.flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
-    expect(messages.map((message) => message.role)).toEqual([
-      "user",
-      "assistant",
-      "user",
-      "assistant",
-    ]);
-
-    await Effect.runPromise(core.disconnect(connection.sessionId, durableSession.id));
-  });
-
-  it("rejects a different owner and evicts idle in-memory agents", async () => {
-    const host = makeMemoryDurableEntityHost();
-    let now = 1_000;
-    const core = new AgentSessionCore<TestConnectionData>({
-      host,
-      idleTimeoutMs: 50,
-      now: () => now,
-      factory: {
-        create: ({ messages }) =>
-          new Agent({ initialState: { model, messages: [...messages], tools: [] } }),
-        resolveModel: () => model,
-      },
-    });
-    const session = makeNodeDurableEntitySession("connection-1", {
-      send: () => undefined,
-      close: () => undefined,
-    });
-    const connection: AgentSessionConnection<TestConnectionData> = {
-      sessionId: "session-2",
-      owner,
-      session,
-      data: { token: "private" },
-    };
-    await expect(Effect.runPromise(core.connect(connection))).resolves.toBe(true);
-    await Effect.runPromise(
-      core.handleMessage(
-        connection,
-        JSON.stringify({ v: 1, requestId: "state-1", type: "get_state" }),
-      ),
-    );
-    expect(core.hasLiveSession(connection.sessionId)).toBe(true);
-
-    const intruder = {
-      ...connection,
-      session: makeNodeDurableEntitySession("connection-2", {
-        send: () => undefined,
-        close: () => undefined,
+        yield* core.disconnect(connection.sessionId, durableSession.id);
       }),
-      owner: { ...owner, userId: "other" },
-    };
-    await expect(Effect.runPromise(core.connect(intruder))).resolves.toBe(false);
+    ));
 
-    await Effect.runPromise(core.disconnect(connection.sessionId, session.id));
-    now += 51;
-    await expect(Effect.runPromise(core.onAlarm(connection.sessionId))).resolves.toBe(true);
-    expect(core.hasLiveSession(connection.sessionId)).toBe(false);
-  });
+  it("rejects a different owner and evicts idle in-memory agents", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const host = makeMemoryDurableEntityHost();
+        let now = 1_000;
+        const core = new AgentSessionCore<TestConnectionData>({
+          host,
+          idleTimeoutMs: 50,
+          now: () => now,
+          factory: {
+            create: ({ messages }) =>
+              new Agent({ initialState: { model, messages: [...messages], tools: [] } }),
+            resolveModel: () => model,
+          },
+        });
+        const session = makeNodeDurableEntitySession("connection-1", {
+          send: () => undefined,
+          close: () => undefined,
+        });
+        const connection: AgentSessionConnection<TestConnectionData> = {
+          sessionId: "session-2",
+          owner,
+          session,
+          data: { token: "private" },
+        };
+        expect(yield* core.connect(connection)).toBe(true);
+        yield* core.handleMessage(
+          connection,
+          encodeClientMessage({ v: 1, requestId: "state-1", type: "get_state" }),
+        );
+        expect(core.hasLiveSession(connection.sessionId)).toBe(true);
 
-  it("rehydrates the latest persisted model selection after idle eviction", async () => {
-    const host = makeMemoryDurableEntityHost();
-    let now = 1_000;
-    const core = new AgentSessionCore<TestConnectionData>({
-      host,
-      idleTimeoutMs: 50,
-      now: () => now,
-      factory: {
-        create: ({ messages }) =>
-          new Agent({ initialState: { model, messages: [...messages], tools: [] } }),
-        resolveModel: (provider, modelId) =>
-          provider === alternateModel.provider && modelId === alternateModel.id
-            ? alternateModel
-            : undefined,
-      },
-    });
-    const frames: string[] = [];
-    const firstSession = makeNodeDurableEntitySession("connection-model-1", {
-      send: () => undefined,
-      close: () => undefined,
-    });
-    const firstConnection: AgentSessionConnection<TestConnectionData> = {
-      sessionId: "session-model",
-      owner,
-      session: firstSession,
-      data: { token: "private" },
-    };
-    await Effect.runPromise(core.connect(firstConnection));
-    await Effect.runPromise(
-      core.handleMessage(
-        firstConnection,
-        JSON.stringify({
-          v: 1,
-          requestId: "model-1",
-          type: "set_model",
-          provider: alternateModel.provider,
-          modelId: alternateModel.id,
-        }),
-      ),
-    );
-    await Effect.runPromise(core.disconnect(firstConnection.sessionId, firstSession.id));
-    now += 51;
-    await Effect.runPromise(core.onAlarm(firstConnection.sessionId));
+        const intruder = {
+          ...connection,
+          session: makeNodeDurableEntitySession("connection-2", {
+            send: () => undefined,
+            close: () => undefined,
+          }),
+          owner: { ...owner, userId: "other" },
+        };
+        expect(yield* core.connect(intruder)).toBe(false);
 
-    const secondSession = makeNodeDurableEntitySession("connection-model-2", {
-      send: (frame) => frames.push(String(frame)),
-      close: () => undefined,
-    });
-    const secondConnection = { ...firstConnection, session: secondSession };
-    await Effect.runPromise(core.connect(secondConnection));
-    await Effect.runPromise(
-      core.handleMessage(
-        secondConnection,
-        JSON.stringify({ v: 1, requestId: "state-model", type: "get_state" }),
-      ),
-    );
-    expect(
-      frames.some(
-        (frame) =>
-          frame.includes('"requestId":"state-model"') && frame.includes('"id":"alternate-model"'),
-      ),
-    ).toBe(true);
-    await Effect.runPromise(core.disconnect(secondConnection.sessionId, secondSession.id));
-  });
+        yield* core.disconnect(connection.sessionId, session.id);
+        now += 51;
+        expect(yield* core.onAlarm(connection.sessionId)).toBe(true);
+        expect(core.hasLiveSession(connection.sessionId)).toBe(false);
+      }),
+    ));
+
+  it("rehydrates the latest persisted model selection after idle eviction", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const host = makeMemoryDurableEntityHost();
+        let now = 1_000;
+        const core = new AgentSessionCore<TestConnectionData>({
+          host,
+          idleTimeoutMs: 50,
+          now: () => now,
+          factory: {
+            create: ({ messages }) =>
+              new Agent({ initialState: { model, messages: [...messages], tools: [] } }),
+            resolveModel: (provider, modelId) =>
+              resolveTestModel(alternateModel, provider, modelId),
+          },
+        });
+        const frames: string[] = [];
+        const firstSession = makeNodeDurableEntitySession("connection-model-1", {
+          send: () => undefined,
+          close: () => undefined,
+        });
+        const firstConnection: AgentSessionConnection<TestConnectionData> = {
+          sessionId: "session-model",
+          owner,
+          session: firstSession,
+          data: { token: "private" },
+        };
+        yield* core.connect(firstConnection);
+        yield* core.handleMessage(
+          firstConnection,
+          encodeClientMessage({
+            v: 1,
+            requestId: "model-1",
+            type: "set_model",
+            provider: alternateModel.provider,
+            modelId: alternateModel.id,
+          }),
+        );
+        yield* core.disconnect(firstConnection.sessionId, firstSession.id);
+        now += 51;
+        yield* core.onAlarm(firstConnection.sessionId);
+
+        const secondSession = makeNodeDurableEntitySession("connection-model-2", {
+          send: (frame) => frames.push(String(frame)),
+          close: () => undefined,
+        });
+        const secondConnection = { ...firstConnection, session: secondSession };
+        yield* core.connect(secondConnection);
+        yield* core.handleMessage(
+          secondConnection,
+          encodeClientMessage({ v: 1, requestId: "state-model", type: "get_state" }),
+        );
+        expect(
+          frames.some(
+            (frame) =>
+              frame.includes('"requestId":"state-model"') &&
+              frame.includes('"id":"alternate-model"'),
+          ),
+        ).toBe(true);
+        yield* core.disconnect(secondConnection.sessionId, secondSession.id);
+      }),
+    ));
 });

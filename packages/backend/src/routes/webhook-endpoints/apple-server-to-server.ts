@@ -16,7 +16,7 @@ import {
   AppStorePaymentProviderService,
   AppStorePaymentProviderServiceError,
 } from "@voidhash/core/services";
-import { Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 const AppleServerToServerPathParamsSchema = Schema.Struct({
@@ -66,10 +66,11 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
         return yield* invalidPayloadResponse;
       }
 
+      const receivedAt = yield* DateTime.nowAsDate;
       const appStorePaymentProviderService = yield* AppStorePaymentProviderService;
       yield* appStorePaymentProviderService.acceptServerNotification({
         paymentProviderConfigurationId: pathParamsResult.success.paymentProviderConfigurationId,
-        receivedAt: new Date(),
+        receivedAt,
         signedPayload: bodyResult.success.signedPayload,
       });
 

@@ -61,7 +61,7 @@ const uuidToBytes = (uuid: string): Uint8Array => {
 const bytesToUuid = (bytes: Uint8Array): string => {
   let hex = "";
   for (let i = 0; i < 16; i++) {
-    hex += (bytes[i] as number).toString(16).padStart(2, "0");
+    hex += (bytes[i] ?? 0).toString(16).padStart(2, "0");
   }
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
@@ -71,16 +71,19 @@ const bytesToUuid = (bytes: Uint8Array): string => {
  * `crypto`/`Buffer`, so it runs unchanged on Cloudflare Workers.
  */
 export const uuidV5 = (namespaceUuid: string, name: string): Effect.Effect<string> =>
-  Effect.promise(async () => {
+  Effect.gen(function* () {
     const namespaceBytes = uuidToBytes(namespaceUuid);
     const nameBytes = new TextEncoder().encode(name);
-    const input = new Uint8Array(namespaceBytes.length + nameBytes.length);
-    input.set(namespaceBytes, 0);
-    input.set(nameBytes, namespaceBytes.length);
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-1", input as BufferSource));
+    const input = new ArrayBuffer(namespaceBytes.length + nameBytes.length);
+    const inputBytes = new Uint8Array(input);
+    inputBytes.set(namespaceBytes, 0);
+    inputBytes.set(nameBytes, namespaceBytes.length);
+    const digest = new Uint8Array(
+      yield* Effect.promise(() => crypto.subtle.digest("SHA-1", input)),
+    );
     const uuidBytes = digest.slice(0, 16);
-    uuidBytes[6] = ((uuidBytes[6] as number) & 0x0f) | 0x50;
-    uuidBytes[8] = ((uuidBytes[8] as number) & 0x3f) | 0x80;
+    uuidBytes[6] = ((uuidBytes[6] ?? 0) & 0x0f) | 0x50;
+    uuidBytes[8] = ((uuidBytes[8] ?? 0) & 0x3f) | 0x80;
     return bytesToUuid(uuidBytes);
   });
 

@@ -2,17 +2,13 @@ import {
   make as makeCoreClient,
   type VoidhashCoreClient,
   type EvaluateFeatureFlagsBody,
-  type SdkEvaluateFeatureFlagsParams,
   type SdkFeatureFlagsResponse,
-  type SdkGetPersonParams,
-  type SdkIdentifyPersonParams,
   type SdkIdentifyBody,
   type SdkResolvePaywallBody,
   type SdkSyncPersonAttributesBody,
-  type SdkSyncPersonAttributesParams,
 } from "@voidhash/generated-clients";
 import { Effect, Layer, Context } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { SdkConfiguration } from "../sdk-configuration";
 
@@ -20,12 +16,12 @@ interface WebFeatureFlagsResponse {
   readonly flags: ReadonlyArray<{
     readonly enabled: boolean;
     readonly key: string;
-    readonly payload: unknown | null;
+    readonly payload: unknown;
     readonly variantKey: string | null;
   }>;
 }
 
-interface WebSdkHeaders {
+export interface WebSdkHeaders {
   readonly "x-client-bundle-id": string;
   readonly "x-client-locale"?: string | undefined;
   readonly "x-client-version"?: string | undefined;
@@ -47,6 +43,25 @@ interface WebSdkHeaders {
   readonly "x-storefront"?: string | undefined;
 }
 
+/** SDK headers as produced by the platform provider, before identity is known. */
+export type WebSdkHeadersWithoutDistinctId = Omit<WebSdkHeaders, "x-distinct-id">;
+
+/**
+ * The generated OpenAPI parameter types collapse every boolean-ish SDK header
+ * enum down to the single literal `"false"`, so a real header object (which can
+ * legitimately carry `"true"`) is not structurally assignable to them. This is
+ * the one place that bridges the generator gap; every endpoint binding below
+ * goes through it instead of asserting at the call site.
+ *
+ * The widening lives in the overload pair rather than in a call-site assertion:
+ * the implementation honestly returns `unknown`, and the single declared
+ * signature is the one seam the generator gap is allowed to pass through.
+ */
+function toSdkParams<TParams>(headers: WebSdkHeaders): TParams;
+function toSdkParams(headers: WebSdkHeaders): unknown {
+  return headers;
+}
+
 const normalizeFeatureFlagsResponse = (
   response: SdkFeatureFlagsResponse,
 ): WebFeatureFlagsResponse => ({
@@ -66,21 +81,21 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
     }) =>
       Effect.map(
         client.sdkEvaluateFeatureFlags({
-          params: request.headers as SdkEvaluateFeatureFlagsParams,
+          params: toSdkParams(request.headers),
           payload: request.payload,
         }),
         normalizeFeatureFlagsResponse,
       ),
     getPerson: (request: { headers: WebSdkHeaders }) =>
-      client.sdkGetPerson(request.headers as SdkGetPersonParams),
+      client.sdkGetPerson(toSdkParams(request.headers)),
     identify: (request: { headers: WebSdkHeaders; payload: SdkIdentifyBody }) =>
       client.sdkIdentifyPerson({
-        params: request.headers as SdkIdentifyPersonParams,
+        params: toSdkParams(request.headers),
         payload: request.payload,
       }),
     resolvePaywall: (request: { headers: WebSdkHeaders; payload: SdkResolvePaywallBody }) =>
       client.sdkResolvePaywall({
-        params: request.headers as Parameters<typeof client.sdkResolvePaywall>[0]["params"],
+        params: toSdkParams(request.headers),
         payload: request.payload,
       }),
     syncPersonAttributes: (request: {
@@ -88,7 +103,7 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
       payload: SdkSyncPersonAttributesBody;
     }) =>
       client.sdkSyncPersonAttributes({
-        params: request.headers as SdkSyncPersonAttributesParams,
+        params: toSdkParams(request.headers),
         payload: request.payload,
       }),
   },
@@ -98,7 +113,7 @@ const make = Effect.gen(function* effect() {
   const config = yield* SdkConfiguration;
   const httpClient = yield* HttpClient.HttpClient;
   return bindWebSdkClient(
-    makeCoreClient(httpClient as VoidhashCoreClient["httpClient"], {
+    makeCoreClient(httpClient, {
       transformClient: (client) =>
         Effect.succeed(
           client.pipe(

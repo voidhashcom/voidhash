@@ -1,4 +1,4 @@
-import { Effect, Layer, Context } from "effect";
+import { Clock, Context, Effect, Layer, Schema } from "effect";
 
 import { SdkConfiguration } from "../sdk-configuration";
 import { CacheAdapter } from "./cache-adapter";
@@ -17,6 +17,40 @@ export interface CacheHit<T> extends CacheEnvelope<T> {
 
 const CACHE_INDEX_SUFFIX = "__keys__";
 
+const StorageKeyIndexFromJson = Schema.fromJsonString(Schema.Array(Schema.String));
+const decodeStorageKeyIndex = Schema.decodeUnknownEffect(StorageKeyIndexFromJson);
+const encodeStorageKeyIndex = Schema.encodeSync(StorageKeyIndexFromJson);
+
+const EMPTY_STORAGE_KEYS: ReadonlyArray<string> = [];
+
+/**
+ * JSON codec for a cache envelope. The stored `value` is opaque to the cache
+ * layer, so it is declared as an unvalidated pass-through of the caller's type.
+ */
+const cacheEnvelopeFromJson = <T>() =>
+  Schema.fromJsonString(
+    Schema.Struct({
+      createdAt: Schema.Number,
+      expiresAt: Schema.NullOr(Schema.Number),
+      staleAt: Schema.NullOr(Schema.Number),
+      value: Schema.declare((_value: unknown): _value is T => true),
+    }),
+  );
+
+const hasElapsed = (timestamp: number | null, now: number) => {
+  if (typeof timestamp !== "number") {
+    return false;
+  }
+  return timestamp < now;
+};
+
+const deadlineFrom = (now: number, offset?: number) => {
+  if (!offset) {
+    return null;
+  }
+  return now + offset;
+};
+
 const make = Effect.gen(function* effect() {
   const cache = yield* CacheAdapter;
   const config = yield* SdkConfiguration;
@@ -31,18 +65,16 @@ const make = Effect.gen(function* effect() {
     Effect.gen(function* loadIndexedStorageKeys() {
       const rawIndex = yield* cache.get(persistentIndexKey);
       if (!rawIndex) {
-        return [] as string[];
+        return EMPTY_STORAGE_KEYS;
       }
-      try {
-        return JSON.parse(rawIndex) as string[];
-      } catch {
-        return [] as string[];
-      }
+      return yield* decodeStorageKeyIndex(rawIndex).pipe(
+        Effect.orElseSucceed(() => EMPTY_STORAGE_KEYS),
+      );
     });
 
   const persistIndex = () =>
     Effect.gen(function* persistIndex() {
-      const serialized = JSON.stringify([...memoryIndex]);
+      const serialized = encodeStorageKeyIndex([...memoryIndex]);
       yield* cache.set(persistentIndexKey, serialized);
     });
 
@@ -57,22 +89,24 @@ const make = Effect.gen(function* effect() {
 
   const get = <T>(key: string) =>
     Effect.gen(function* get() {
+      const miss: CacheHit<T> | null = null;
       const storageKey = buildStorageKey(key);
       const rawValue = yield* cache.get(storageKey);
 
       if (!rawValue) {
-        return null as CacheHit<T> | null;
+        return miss;
       }
 
-      const cachedValue = JSON.parse(rawValue) as CacheEnvelope<T>;
-      const isExpired =
-        typeof cachedValue.expiresAt === "number" ? cachedValue.expiresAt < Date.now() : false;
-      const isStale =
-        typeof cachedValue.staleAt === "number" ? cachedValue.staleAt < Date.now() : false;
+      const cachedValue = yield* Schema.decodeUnknownEffect(cacheEnvelopeFromJson<T>())(
+        rawValue,
+      ).pipe(Effect.orDie);
+      const now = yield* Clock.currentTimeMillis;
+      const isExpired = hasElapsed(cachedValue.expiresAt, now);
+      const isStale = hasElapsed(cachedValue.staleAt, now);
 
       if (isExpired) {
         yield* deleteValue(key);
-        return null as CacheHit<T> | null;
+        return miss;
       }
 
       yield* rememberKey(storageKey);
@@ -81,19 +115,20 @@ const make = Effect.gen(function* effect() {
         ...cachedValue,
         isExpired,
         isStale,
-      } as CacheHit<T>;
+      };
     });
 
   const setValue = <T>(key: string, value: T, options?: { staleTime?: number; ttl?: number }) =>
     Effect.gen(function* setValue() {
       const storageKey = buildStorageKey(key);
+      const now = yield* Clock.currentTimeMillis;
       const envelope: CacheEnvelope<T> = {
-        createdAt: Date.now(),
-        expiresAt: options?.ttl ? Date.now() + options.ttl : null,
-        staleAt: options?.staleTime ? Date.now() + options.staleTime : null,
+        createdAt: now,
+        expiresAt: deadlineFrom(now, options?.ttl),
+        staleAt: deadlineFrom(now, options?.staleTime),
         value,
       };
-      const serialized = JSON.stringify(envelope);
+      const serialized = Schema.encodeSync(cacheEnvelopeFromJson<T>())(envelope);
       yield* cache.set(storageKey, serialized);
       yield* rememberKey(storageKey);
     });
@@ -136,7 +171,7 @@ const make = Effect.gen(function* effect() {
     get,
     getCacheKeys,
     set: setValue,
-  } as const;
+  };
 });
 
 export class CacheManager extends Context.Service<CacheManager, Effect.Success<typeof make>>()(

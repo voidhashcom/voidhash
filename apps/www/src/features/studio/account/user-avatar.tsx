@@ -27,7 +27,7 @@ export function UserAvatarForm({
     ...setUserAvatarOptions(),
     onSuccess: () => {
       toast.success("Avatar updated");
-      invalidate();
+      void invalidate();
     },
     onError: (error) => toast.error(errorMessage(error, "Failed to update avatar")),
   });
@@ -36,7 +36,7 @@ export function UserAvatarForm({
     ...removeUserAvatarOptions(),
     onSuccess: () => {
       toast.success("Avatar removed");
-      invalidate();
+      void invalidate();
     },
     onError: () => toast.error("Failed to remove avatar"),
   });

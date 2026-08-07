@@ -31,17 +31,7 @@ export function validate(components: readonly ResolvedComponent[]): readonly Bui
     if (paths.length > 1) {
       const unique = [...new Set(paths)];
       for (const path of unique) {
-        diagnostics.push(
-          error(
-            path,
-            "validate",
-            unique.length === 1
-              ? `Duplicate component path "${path}".`
-              : `Component path collides (case-insensitively) with: ${unique
-                  .filter((p) => p !== path)
-                  .join(", ")}.`,
-          ),
-        );
+        diagnostics.push(error(path, "validate", collisionMessage(unique, path)));
       }
     }
   }
@@ -63,6 +53,17 @@ export function validate(components: readonly ResolvedComponent[]): readonly Bui
   }
 
   return diagnostics;
+}
+
+/**
+ * The message for a colliding canonical path: an exact duplicate (one unique
+ * spelling) reads differently from a case-insensitive collision between
+ * distinct spellings.
+ */
+function collisionMessage(unique: readonly string[], path: string): string {
+  if (unique.length === 1) return `Duplicate component path "${path}".`;
+  const others = unique.filter((p) => p !== path).join(", ");
+  return `Component path collides (case-insensitively) with: ${others}.`;
 }
 
 /**

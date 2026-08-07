@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentMessage } from "@voidhash/agent";
+import { Effect } from "effect";
 import type { AgentServerMessage } from "@voidhash/agent/Protocol";
 import type { SessionLogEntry } from "@voidhash/agent/SessionLog";
 
@@ -80,11 +81,11 @@ const messageId = (message: { readonly role: string; readonly timestamp: number 
 
 const formatUnknown = (value: unknown): string => {
   if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
+  return Effect.runSync(
+    Effect.try(() => JSON.stringify(value) ?? String(value)).pipe(
+      Effect.orElseSucceed(() => String(value)),
+    ),
+  );
 };
 
 const toolResultOutput = (value: unknown): unknown => {

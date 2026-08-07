@@ -1,4 +1,6 @@
 import { PaywallLocationShowingType } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
+import { DateTime } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -8,15 +10,17 @@ import {
   toShowingView,
 } from "../../../src/services/paywallLocations/helpers.ts";
 
+const at = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
 /**
  * Fresh `ShowingWithRelations` fixture per test. Defaults to a feature-flag
  * showing with both relations absent so individual cases only override the
  * fields they exercise.
  */
 const showing = (overrides: Partial<ShowingWithRelations> = {}): ShowingWithRelations => ({
-  createdAt: new Date("2026-01-02T00:00:00.000Z"),
+  createdAt: at("2026-01-02T00:00:00.000Z"),
   createdByUserId: "user-1",
-  endedAt: new Date("2026-02-01T00:00:00.000Z"),
+  endedAt: at("2026-02-01T00:00:00.000Z"),
   featureFlagId: null,
   id: "showing-1",
   paywall: null,
@@ -25,9 +29,9 @@ const showing = (overrides: Partial<ShowingWithRelations> = {}): ShowingWithRela
   paywallRelease: null,
   paywallReleaseId: null,
   projectId: "project-1",
-  startedAt: new Date("2026-01-01T00:00:00.000Z"),
+  startedAt: at("2026-01-01T00:00:00.000Z"),
   type: PaywallLocationShowingType.paywallRelease,
-  updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+  updatedAt: at("2026-01-03T00:00:00.000Z"),
   ...overrides,
 });
 
@@ -42,7 +46,7 @@ const editorRelease = (
 ): NonNullable<ShowingWithRelations["paywallRelease"]> => ({
   contentHash: null,
   id: "rel-1",
-  publishedAt: new Date("2026-01-05T00:00:00.000Z"),
+  publishedAt: at("2026-01-05T00:00:00.000Z"),
   runtimeConfig: null,
   s3Bucket: "paywalls",
   s3Key: "project-1/rel-1/index.html",
@@ -65,10 +69,12 @@ describe("toShowingTypeLabel", () => {
 });
 
 describe("toDbShowingType", () => {
-  it.each([
-    ["paywall_release", PaywallLocationShowingType.paywallRelease],
-    ["feature_flag", PaywallLocationShowingType.featureFlag],
-  ] as const)("maps label %s to db type %i", (label, type) => {
+  it.each(
+    constant([
+      ["paywall_release", PaywallLocationShowingType.paywallRelease],
+      ["feature_flag", PaywallLocationShowingType.featureFlag],
+    ]),
+  )("maps label %s to db type %i", (label, type) => {
     expect(toDbShowingType(label)).toBe(type);
   });
 
@@ -81,18 +87,18 @@ describe("toDbShowingType", () => {
 describe("toShowingView", () => {
   it("preserves all scalar fields and maps the type via toShowingTypeLabel", () => {
     const row = showing({
-      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      createdAt: at("2026-01-02T00:00:00.000Z"),
       createdByUserId: "user-42",
-      endedAt: new Date("2026-02-01T00:00:00.000Z"),
+      endedAt: at("2026-02-01T00:00:00.000Z"),
       featureFlagId: "ff-1",
       id: "showing-99",
       paywallId: "pw-1",
       paywallLocationId: "loc-99",
       paywallReleaseId: "rel-1",
       projectId: "project-99",
-      startedAt: new Date("2026-01-01T00:00:00.000Z"),
+      startedAt: at("2026-01-01T00:00:00.000Z"),
       type: PaywallLocationShowingType.featureFlag,
-      updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+      updatedAt: at("2026-01-03T00:00:00.000Z"),
     });
 
     const view = toShowingView(row, urlConfig);
@@ -104,11 +110,11 @@ describe("toShowingView", () => {
     expect(view.paywallId).toBe("pw-1");
     expect(view.paywallReleaseId).toBe("rel-1");
     expect(view.featureFlagId).toBe("ff-1");
-    expect(view.startedAt).toEqual(new Date("2026-01-01T00:00:00.000Z"));
-    expect(view.endedAt).toEqual(new Date("2026-02-01T00:00:00.000Z"));
+    expect(view.startedAt).toEqual(at("2026-01-01T00:00:00.000Z"));
+    expect(view.endedAt).toEqual(at("2026-02-01T00:00:00.000Z"));
     expect(view.createdByUserId).toBe("user-42");
-    expect(view.createdAt).toEqual(new Date("2026-01-02T00:00:00.000Z"));
-    expect(view.updatedAt).toEqual(new Date("2026-01-03T00:00:00.000Z"));
+    expect(view.createdAt).toEqual(at("2026-01-02T00:00:00.000Z"));
+    expect(view.updatedAt).toEqual(at("2026-01-03T00:00:00.000Z"));
   });
 
   it("maps a present paywall relation into the view", () => {
@@ -132,7 +138,7 @@ describe("toShowingView", () => {
 
     expect(view.paywallRelease).toEqual({
       htmlUrl: "https://cdn.example.com/paywalls/project-1/rel-1/index.html",
-      publishedAt: new Date("2026-01-05T00:00:00.000Z"),
+      publishedAt: at("2026-01-05T00:00:00.000Z"),
       releaseId: "rel-1",
       runtime: null,
       version: 3,
@@ -160,7 +166,7 @@ describe("toShowingView", () => {
 
     expect(view.paywallRelease).toEqual({
       htmlUrl: `https://api.example.com/p/${contentHash}/index.html`,
-      publishedAt: new Date("2026-01-05T00:00:00.000Z"),
+      publishedAt: at("2026-01-05T00:00:00.000Z"),
       releaseId: "rel-7",
       runtime: {
         contentHash,

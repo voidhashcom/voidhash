@@ -8,52 +8,83 @@ import {
   PaywallWorkspaceService,
 } from "@voidhash/core/services";
 import { Db } from "@voidhash/db";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import { makeMemoryDurableEntityHost } from "@voidhash/platform-selfhost/MemoryDurableEntity";
-import { Context, Effect, Redacted } from "effect";
+import { Context, Data, DateTime, Effect, Latch, Redacted, Schema } from "effect";
 import { WebSocket } from "ws";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vite-plus/test";
 
 import { installAgentNodeWebSocketServer } from "../src/agent/AgentNodeWebSocket.ts";
 
-const servers: Server[] = [];
+class AgentNodeTestError extends Data.TaggedError("AgentNodeTestError")<{
+  readonly message: string;
+}> {}
 
-afterEach(async () => {
-  await Promise.all(
-    servers.splice(0).map(
-      (server) =>
-        new Promise<void>((resolve) => {
-          server.close(() => resolve());
-        }),
-    ),
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+const decodeJson = Schema.decodeUnknownSync(Schema.UnknownFromJsonString);
+
+/** Decodes a server frame, keeping the loose shape the assertions below read. */
+const decodeFrame = (raw: string): Record<string, any> => {
+  const frame: any = decodeJson(raw);
+  return frame;
+};
+
+/**
+ * Builds a partial service stub. Members that are not listed read as
+ * `undefined`, exactly like the object literals this replaces, but the value
+ * types as the full service so no call site needs an assertion.
+ */
+const serviceStub = <A>(members: object): A => {
+  const stub: any = { ...members };
+  return stub;
+};
+
+/**
+ * Listens on an ephemeral loopback port and reports it, closing the server when
+ * the surrounding scope ends.
+ */
+const listen = (server: Server) =>
+  Effect.acquireRelease(
+    Effect.callback<number, AgentNodeTestError>((resume) => {
+      const onError = (error: Error) =>
+        resume(Effect.fail(new AgentNodeTestError({ message: causeMessage(error) })));
+      server.once("error", onError);
+      server.listen(0, "127.0.0.1", () => {
+        server.off("error", onError);
+        const address = server.address();
+        if (address === null || typeof address === "string") {
+          resume(
+            Effect.fail(
+              new AgentNodeTestError({ message: "HTTP server did not expose a TCP port" }),
+            ),
+          );
+          return;
+        }
+        resume(Effect.succeed(address.port));
+      });
+    }),
+    () =>
+      Effect.callback<void>((resume) => {
+        server.close(() => resume(Effect.void));
+      }),
   );
-});
 
-const listen = (server: Server): Promise<number> =>
-  new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      server.off("error", reject);
-      const address = server.address();
-      if (address === null || typeof address === "string") {
-        reject(new Error("HTTP server did not expose a TCP port"));
-        return;
-      }
-      servers.push(server);
-      resolve(address.port);
-    });
+const waitFor = (predicate: () => boolean) =>
+  Effect.gen(function* () {
+    for (let attempt = 0; attempt < 150; attempt += 1) {
+      if (predicate()) return;
+      yield* Effect.sleep("20 millis");
+    }
+    return yield* Effect.fail(
+      new AgentNodeTestError({ message: "Timed out waiting for the Node agent WebSocket" }),
+    );
   });
 
-const waitFor = async (predicate: () => boolean): Promise<void> => {
-  for (let attempt = 0; attempt < 150; attempt += 1) {
-    if (predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  throw new Error("Timed out waiting for the Node agent WebSocket");
-};
+const epoch = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 
 const authSession = {
   cookie: null,
-  method: "user" as const,
+  method: constant("user"),
   name: "Probe user",
   person: null,
   organizations: [
@@ -78,8 +109,8 @@ const authSession = {
   ],
   user: {
     id: "user_1",
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
+    createdAt: epoch,
+    updatedAt: epoch,
     email: "user@example.com",
     emailVerified: true,
     image: null,
@@ -100,191 +131,214 @@ const identity = {
 };
 
 const makeServices = () => {
-  let context = Context.empty() as Context.Context<never>;
-  context = Context.add(context, Db, {} as never);
-  context = Context.add(context, LocalUserSessionService, {
-    resolveLocalUser: () => Effect.succeed(authSession.user),
-    loadUserAccess: () =>
-      Effect.succeed({
-        organizations: authSession.organizations,
-        projects: authSession.projects,
-      }),
-    toUserSession: () => authSession,
-  } as unknown as LocalUserSessionService["Service"]);
-  context = Context.add(context, IdentityProvider, {
-    cookieName: "voidhash-session",
-    authenticateSessionCookie: () => Effect.succeed(null),
-    resolveIdentity: () => Effect.succeed(identity),
-    resolveIdentityById: () => Effect.succeed(identity),
-    linkExternalId: () => Effect.void,
-  } as IdentityProvider["Service"]);
-  context = Context.add(context, AgentSessionIndexService, {
-    touch: () => Effect.succeed(undefined),
-  } as unknown as AgentSessionIndexService["Service"]);
-  context = Context.add(context, PaywallService, {
-    getPaywalls: () => Effect.succeed([]),
-  } as unknown as PaywallService["Service"]);
-  context = Context.add(context, PaywallWorkspaceService, {} as PaywallWorkspaceService["Service"]);
-  return context as Context.Context<any>;
+  const withDb = Context.make(Db, serviceStub({}));
+  const withLocalUserSession = Context.add(
+    withDb,
+    LocalUserSessionService,
+    serviceStub({
+      resolveLocalUser: () => Effect.succeed(authSession.user),
+      loadUserAccess: () =>
+        Effect.succeed({
+          organizations: authSession.organizations,
+          projects: authSession.projects,
+        }),
+      toUserSession: () => authSession,
+    }),
+  );
+  const withIdentityProvider = Context.add(
+    withLocalUserSession,
+    IdentityProvider,
+    serviceStub({
+      cookieName: "voidhash-session",
+      authenticateSessionCookie: () => Effect.succeed(null),
+      resolveIdentity: () => Effect.succeed(identity),
+      resolveIdentityById: () => Effect.succeed(identity),
+      linkExternalId: () => Effect.void,
+    }),
+  );
+  const withSessionIndex = Context.add(
+    withIdentityProvider,
+    AgentSessionIndexService,
+    serviceStub({ touch: () => Effect.succeed(undefined) }),
+  );
+  const withPaywalls = Context.add(
+    withSessionIndex,
+    PaywallService,
+    serviceStub({ getPaywalls: () => Effect.succeed([]) }),
+  );
+  const services: Context.Context<any> = Context.add(
+    withPaywalls,
+    PaywallWorkspaceService,
+    serviceStub({}),
+  );
+  return services;
+};
+
+const collectUserText = (entries: unknown): string[] => {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .filter((entry) => entry.type === "message" && entry.message?.role === "user")
+    .flatMap((entry) => {
+      const content = entry.message.content;
+      if (typeof content === "string") return [content];
+      if (!Array.isArray(content)) return [];
+      return content.filter((part) => part.type === "text").map((part) => part.text);
+    });
 };
 
 describe("installAgentNodeWebSocketServer", () => {
-  it("authenticates, streams, and accepts steering through a real Node WebSocket", async () => {
-    let releaseFirstProvider!: () => void;
-    const firstProviderGate = new Promise<void>((resolve) => {
-      releaseFirstProvider = resolve;
-    });
-    let providerRequests = 0;
-    const provider = createServer((request, response) => {
-      if (request.url !== "/v1/responses") {
-        response.writeHead(404).end();
-        return;
-      }
-      providerRequests += 1;
-      response.writeHead(200, {
-        "content-type": "text/event-stream",
-        "cache-control": "no-cache",
-      });
-      response.write(
-        `data: ${JSON.stringify({
-          type: "response.created",
-          response: { id: `response_${providerRequests}`, status: "in_progress", output: [] },
-        })}\n\n`,
-      );
-      const finishResponse = () => {
-        const events = [
-          {
-            type: "response.output_item.added",
-            output_index: 0,
-            item: {
-              id: "message_1",
-              type: "message",
-              role: "assistant",
-              status: "in_progress",
-              content: [],
-            },
-          },
-          { type: "response.output_text.delta", output_index: 0, delta: "node-host-ok" },
-          {
-            type: "response.output_item.done",
-            output_index: 0,
-            item: {
-              id: "message_1",
-              type: "message",
-              role: "assistant",
-              status: "completed",
-              content: [{ type: "output_text", text: "node-host-ok", annotations: [] }],
-            },
-          },
-          {
-            type: "response.completed",
-            response: {
-              id: "response_1",
-              status: "completed",
-              output: [],
-              usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-            },
-          },
-        ];
-        for (const event of events) response.write(`data: ${JSON.stringify(event)}\n\n`);
-        response.end("data: [DONE]\n\n");
-      };
-      if (providerRequests === 1) {
-        void firstProviderGate.then(finishResponse);
-      } else {
-        finishResponse();
-      }
-    });
-    const providerPort = await listen(provider);
+  it("authenticates, streams, and accepts steering through a real Node WebSocket", () =>
+    Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const firstProviderGate = yield* Latch.make(false);
+          let providerRequests = 0;
+          const provider = createServer((request, response) => {
+            if (request.url !== "/v1/responses") {
+              response.writeHead(404).end();
+              return;
+            }
+            providerRequests += 1;
+            response.writeHead(200, {
+              "content-type": "text/event-stream",
+              "cache-control": "no-cache",
+            });
+            response.write(
+              `data: ${encodeJson({
+                type: "response.created",
+                response: { id: `response_${providerRequests}`, status: "in_progress", output: [] },
+              })}\n\n`,
+            );
+            const finishResponse = () => {
+              const events = [
+                {
+                  type: "response.output_item.added",
+                  output_index: 0,
+                  item: {
+                    id: "message_1",
+                    type: "message",
+                    role: "assistant",
+                    status: "in_progress",
+                    content: [],
+                  },
+                },
+                { type: "response.output_text.delta", output_index: 0, delta: "node-host-ok" },
+                {
+                  type: "response.output_item.done",
+                  output_index: 0,
+                  item: {
+                    id: "message_1",
+                    type: "message",
+                    role: "assistant",
+                    status: "completed",
+                    content: [{ type: "output_text", text: "node-host-ok", annotations: [] }],
+                  },
+                },
+                {
+                  type: "response.completed",
+                  response: {
+                    id: "response_1",
+                    status: "completed",
+                    output: [],
+                    usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+                  },
+                },
+              ];
+              for (const event of events) response.write(`data: ${encodeJson(event)}\n\n`);
+              response.end("data: [DONE]\n\n");
+            };
+            if (providerRequests === 1) {
+              Effect.runFork(
+                firstProviderGate.await.pipe(Effect.flatMap(() => Effect.sync(finishResponse))),
+              );
+            } else {
+              finishResponse();
+            }
+          });
+          const providerPort = yield* listen(provider);
 
-    const server = createServer((_request, response) => response.writeHead(404).end());
-    const host = installAgentNodeWebSocketServer(
-      server,
-      makeMemoryDurableEntityHost(),
-      makeServices(),
-      {
-        validateToken: () =>
-          Effect.succeed({
-            payload: { sub: "workos_user_1", email: "user@example.com" },
-            provider: "workos" as const,
-          }),
-      },
-      {
-        provider: "openai",
-        modelId: "gpt-5.4",
-        visionProvider: "openai",
-        visionModelId: "gpt-5.4",
-        openaiApiKey: Redacted.make("probe-key"),
-        openaiBaseUrl: `http://127.0.0.1:${providerPort}/v1`,
-      },
-    );
-    const port = await listen(server);
-    const frames: Array<Record<string, any>> = [];
-    const socket = new WebSocket(
-      `ws://127.0.0.1:${port}/api/agent/sessions/agent_1/ws?organizationId=org_1&projectId=project_1&surface=designer`,
-      { headers: { authorization: "Bearer probe-token" } },
-    );
-    socket.on("message", (data) => frames.push(JSON.parse(data.toString())));
-    await new Promise<void>((resolve, reject) => {
-      socket.once("open", resolve);
-      socket.once("error", reject);
-    });
-    socket.send(JSON.stringify({ v: 1, type: "prompt", requestId: "prompt_1", text: "hello" }));
-    await waitFor(
-      () =>
-        providerRequests === 1 &&
-        frames.some((frame) => frame.type === "event" && frame.event?.type === "agent_start"),
-    );
-    socket.send(JSON.stringify({ v: 1, type: "get_state", requestId: "streaming_state" }));
-    await waitFor(() =>
-      frames.some(
-        (frame) =>
-          frame.type === "state" &&
-          frame.requestId === "streaming_state" &&
-          frame.state?.isStreaming === true,
+          const server = createServer((_request, response) => response.writeHead(404).end());
+          const host = installAgentNodeWebSocketServer(
+            server,
+            makeMemoryDurableEntityHost(),
+            makeServices(),
+            {
+              validateToken: () =>
+                Effect.succeed({
+                  payload: { sub: "workos_user_1", email: "user@example.com" },
+                  provider: constant("workos"),
+                }),
+            },
+            {
+              provider: "openai",
+              modelId: "gpt-5.4",
+              visionProvider: "openai",
+              visionModelId: "gpt-5.4",
+              openaiApiKey: Redacted.make("probe-key"),
+              openaiBaseUrl: `http://127.0.0.1:${providerPort}/v1`,
+            },
+          );
+          const port = yield* listen(server);
+          const frames: Array<Record<string, any>> = [];
+          const socket = new WebSocket(
+            `ws://127.0.0.1:${port}/api/agent/sessions/agent_1/ws?organizationId=org_1&projectId=project_1&surface=designer`,
+            { headers: { authorization: "Bearer probe-token" } },
+          );
+          socket.on("message", (data) => frames.push(decodeFrame(data.toString())));
+          yield* Effect.callback<void, AgentNodeTestError>((resume) => {
+            socket.once("open", () => resume(Effect.void));
+            socket.once("error", (error) =>
+              resume(Effect.fail(new AgentNodeTestError({ message: causeMessage(error) }))),
+            );
+          });
+          socket.send(encodeJson({ v: 1, type: "prompt", requestId: "prompt_1", text: "hello" }));
+          yield* waitFor(
+            () =>
+              providerRequests === 1 &&
+              frames.some((frame) => frame.type === "event" && frame.event?.type === "agent_start"),
+          );
+          socket.send(encodeJson({ v: 1, type: "get_state", requestId: "streaming_state" }));
+          yield* waitFor(() =>
+            frames.some(
+              (frame) =>
+                frame.type === "state" &&
+                frame.requestId === "streaming_state" &&
+                frame.state?.isStreaming === true,
+            ),
+          );
+          socket.send(
+            encodeJson({ v: 1, type: "steer", requestId: "steer_1", text: "change direction" }),
+          );
+          yield* waitFor(() =>
+            frames.some(
+              (frame) =>
+                frame.type === "ack" && frame.requestId === "steer_1" && frame.command === "steer",
+            ),
+          );
+          yield* firstProviderGate.open;
+          yield* waitFor(() =>
+            frames.some((frame) => frame.type === "event" && frame.event?.type === "agent_end"),
+          );
+
+          const text = frames
+            .filter((frame) => frame.type === "event" && frame.event?.type === "message_end")
+            .flatMap((frame) => frame.event.message?.content ?? [])
+            .find((content) => content.type === "text")?.text;
+          expect(text).toBe("node-host-ok");
+          expect(providerRequests).toBeGreaterThanOrEqual(2);
+
+          socket.send(encodeJson({ v: 1, type: "get_entries", requestId: "entries_1" }));
+          yield* waitFor(() =>
+            frames.some((frame) => frame.type === "entries" && frame.requestId === "entries_1"),
+          );
+          const entries = frames.find(
+            (frame) => frame.type === "entries" && frame.requestId === "entries_1",
+          )?.entries;
+          expect(collectUserText(entries)).toContain("change direction");
+
+          socket.close();
+          host.close();
+        }),
       ),
-    );
-    socket.send(
-      JSON.stringify({ v: 1, type: "steer", requestId: "steer_1", text: "change direction" }),
-    );
-    await waitFor(() =>
-      frames.some(
-        (frame) =>
-          frame.type === "ack" && frame.requestId === "steer_1" && frame.command === "steer",
-      ),
-    );
-    releaseFirstProvider();
-    await waitFor(() =>
-      frames.some((frame) => frame.type === "event" && frame.event?.type === "agent_end"),
-    );
-
-    const text = frames
-      .filter((frame) => frame.type === "event" && frame.event?.type === "message_end")
-      .flatMap((frame) => frame.event.message?.content ?? [])
-      .find((content) => content.type === "text")?.text;
-    expect(text).toBe("node-host-ok");
-    expect(providerRequests).toBeGreaterThanOrEqual(2);
-
-    socket.send(JSON.stringify({ v: 1, type: "get_entries", requestId: "entries_1" }));
-    await waitFor(() =>
-      frames.some((frame) => frame.type === "entries" && frame.requestId === "entries_1"),
-    );
-    const entries = frames.find(
-      (frame) => frame.type === "entries" && frame.requestId === "entries_1",
-    )?.entries;
-    const userText = Array.isArray(entries)
-      ? entries
-          .filter((entry) => entry.type === "message" && entry.message?.role === "user")
-          .flatMap((entry) => {
-            const content = entry.message.content;
-            if (typeof content === "string") return [content];
-            if (!Array.isArray(content)) return [];
-            return content.filter((part) => part.type === "text").map((part) => part.text);
-          })
-      : [];
-    expect(userText).toContain("change direction");
-
-    socket.close();
-    host.close();
-  });
+    ));
 });

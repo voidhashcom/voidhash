@@ -1,5 +1,5 @@
 import { CliError } from "effect/unstable/cli";
-import { Cause, Console, Effect } from "effect";
+import { Cause, Console, Data, Effect } from "effect";
 
 const CliErrorTypeId = Symbol.for("~effect/cli/CliError");
 
@@ -42,8 +42,16 @@ export const getActiveProfile = (): string | null => {
  * )
  * ```
  */
+/**
+ * The cause carried by a {@link userError} — an ordinary `Error` (so
+ * `Cause.pretty` renders it) whose only payload is the user-facing message.
+ */
+export class UserMessageError extends Data.TaggedError("UserMessageError")<{
+  readonly message: string;
+}> {}
+
 export const userError = (message: string): CliError.UserError =>
-  new CliError.UserError({ cause: new Error(message) });
+  new CliError.UserError({ cause: new UserMessageError({ message }) });
 
 /**
  * Check if an error is a CliError from @effect/cli
@@ -97,13 +105,19 @@ export const withValidationErrorHandler = <A, E, R>(
         );
       }
 
-      // Re-fail with non-CliError
-      const firstFailure = failures[0];
+      // Re-fail with non-CliError. Every CliError already returned above, so
+      // whatever is left in `failures` is outside the excluded union.
+      const firstFailure = failures.find(
+        (failure): failure is Exclude<E, CliError.CliError> => !isCliError(failure),
+      );
       if (firstFailure !== undefined) {
-        return Effect.fail(firstFailure as Exclude<E, CliError.CliError>);
+        return Effect.fail(firstFailure);
       }
 
       // Handle defects
-      return Effect.failCause(cause as Cause.Cause<Exclude<E, CliError.CliError>>);
+      const defects = cause.reasons.filter(
+        (reason): reason is Cause.Die | Cause.Interrupt => reason._tag !== "Fail",
+      );
+      return Effect.failCause(Cause.fromReasons(defects));
     }),
   );

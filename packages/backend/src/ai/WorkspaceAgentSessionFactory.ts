@@ -12,6 +12,8 @@ import {
   type StreamFn,
 } from "@voidhash/agent";
 import { PaywallService } from "@voidhash/core/services";
+import { pick } from "@voidhash/lib/lang";
+import { Effect } from "effect";
 
 import { buildDesignerContext } from "./DesignerContext.ts";
 import { registeredSkillSource } from "./skills/registry.ts";
@@ -51,27 +53,38 @@ const latestUserHasImage = (messages: ReadonlyArray<AgentMessage>): boolean => {
 
 const skillPrompt = (): string => {
   const disclosure = renderSkillDisclosure(registeredSkillSource());
-  return disclosure.length === 0
-    ? ""
-    : `\n\nCall \`read_skill\` before work covered by a listed skill.\n${disclosure}`;
+  if (disclosure.length === 0) return "";
+  return `\n\nCall \`read_skill\` before work covered by a listed skill.\n${disclosure}`;
 };
 
-const contextSystemPrompt = async <ConnectionData>(
+const contextSystemPrompt = <ConnectionData>(
   input: Pick<
     AgentSessionFactoryInput<ConnectionData>,
     "owner" | "connectionData" | "dynamicContext"
   >,
   runEffect: WorkspaceAgentSessionFactoryOptions<ConnectionData>["runEffect"],
-): Promise<string> => {
-  const resolved = await runEffect(
+): Promise<string> =>
+  runEffect(
     input.connectionData,
     buildDesignerContext({
       projectId: input.owner.projectId,
       paywallId: input.dynamicContext.current.paywallId,
       selectedNodeIds: input.dynamicContext.current.selectedNodeIds,
     }),
-  );
-  return `${designerAgentSystemPrompt(resolved)}${skillPrompt()}`;
+  ).then((resolved) => `${designerAgentSystemPrompt(resolved)}${skillPrompt()}`);
+
+/** Spreads `streamFn` only when the host supplied one, leaving the Pi default otherwise. */
+const optionalStreamFn = (streamFn: StreamFn | undefined): { streamFn?: StreamFn } => {
+  if (streamFn === undefined) return {};
+  return { streamFn };
+};
+
+type GetApiKey = NonNullable<WorkspaceAgentSessionFactoryOptions<unknown>["getApiKey"]>;
+
+/** Spreads `getApiKey` only when the host supplied one. */
+const optionalGetApiKey = (getApiKey: GetApiKey | undefined): { getApiKey?: GetApiKey } => {
+  if (getApiKey === undefined) return {};
+  return { getApiKey };
 };
 
 /**
@@ -91,8 +104,16 @@ export const makeWorkspaceAgentSessionFactory = <ConnectionData>(
     return preferredTextModels.get(agent) ?? options.defaultModel;
   };
 
+  const turnModel = (
+    messages: ReadonlyArray<AgentMessage>,
+    agent: Agent,
+  ): Model<string> => {
+    if (latestUserHasImage(messages)) return options.visionModel;
+    return preferredTextModel(agent);
+  };
+
   return {
-    create: async (input) => {
+    create: (input) => {
       const editSessions = new AgentEditSessionTracker();
       editSessions.rehydrate(input.messages);
       const runEffect = bindEffectRunner(options.runEffect, input.connectionData);
@@ -104,42 +125,41 @@ export const makeWorkspaceAgentSessionFactory = <ConnectionData>(
         ),
         makeReadSkillTool(registeredSkillSource()),
       ];
-      let agent: Agent;
-      agent = new Agent({
-        initialState: {
-          model: options.defaultModel,
-          messages: [...input.messages],
-          systemPrompt: await contextSystemPrompt(input, options.runEffect),
-          tools,
-        },
-        ...(options.streamFn === undefined ? {} : { streamFn: options.streamFn }),
-        ...(options.getApiKey === undefined ? {} : { getApiKey: options.getApiKey }),
-        sessionId: input.sessionId,
-        steeringMode: "all",
-        followUpMode: "all",
-        toolExecution: "sequential",
-        afterToolCall: async ({ result }) => effectAgentToolErrorOverride(result),
-        prepareNextTurnWithContext: async ({ context: piContext }) => {
-          const systemPrompt = await contextSystemPrompt(input, options.runEffect);
-          return {
-            context: { ...piContext, systemPrompt },
-            model: latestUserHasImage(piContext.messages)
-              ? options.visionModel
-              : preferredTextModel(agent),
-          };
-        },
+      return contextSystemPrompt(input, options.runEffect).then((systemPrompt) => {
+        let agent: Agent;
+        agent = new Agent({
+          initialState: {
+            model: options.defaultModel,
+            messages: [...input.messages],
+            systemPrompt,
+            tools,
+          },
+          ...optionalStreamFn(options.streamFn),
+          ...optionalGetApiKey(options.getApiKey),
+          sessionId: input.sessionId,
+          steeringMode: "all",
+          followUpMode: "all",
+          toolExecution: "sequential",
+          afterToolCall: ({ result }) =>
+            Effect.runPromise(Effect.sync(() => effectAgentToolErrorOverride(result))),
+          prepareNextTurnWithContext: ({ context: piContext }) =>
+            contextSystemPrompt(input, options.runEffect).then((nextSystemPrompt) => ({
+              context: { ...piContext, systemPrompt: nextSystemPrompt },
+              model: turnModel(piContext.messages, agent),
+            })),
+        });
+        preferredTextModels.set(agent, options.defaultModel);
+        return agent;
       });
-      preferredTextModels.set(agent, options.defaultModel);
-      return agent;
     },
-    preparePrompt: async ({ agent, message, owner, connectionData, dynamicContext }) => {
-      agent.state.systemPrompt = await contextSystemPrompt(
-        { owner, connectionData, dynamicContext },
-        options.runEffect,
-      );
-      const textModel = preferredTextModel(agent);
-      agent.state.model = messageHasImage(message) ? options.visionModel : textModel;
-    },
+    preparePrompt: ({ agent, message, owner, connectionData, dynamicContext }) =>
+      contextSystemPrompt({ owner, connectionData, dynamicContext }, options.runEffect).then(
+        (systemPrompt) => {
+          agent.state.systemPrompt = systemPrompt;
+          const textModel = preferredTextModel(agent);
+          agent.state.model = pick(messageHasImage(message), options.visionModel, textModel);
+        },
+      ),
     resolveModel: (provider, modelId, connectionData) => {
       if (provider === options.defaultModel.provider && modelId === options.defaultModel.id) {
         return options.defaultModel;

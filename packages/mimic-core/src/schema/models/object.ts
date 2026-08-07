@@ -8,6 +8,7 @@ import {
   serializeRequired,
 } from "../shared.ts";
 import type { ObjectSchema, Schema, SchemaObject } from "../types.ts";
+import type { Mutable } from "../../internal/lang.ts";
 
 export const objectSchemaModel: SchemaModel<ObjectSchema> = {
   kind: "object",
@@ -31,7 +32,7 @@ export const objectSchemaModel: SchemaModel<ObjectSchema> = {
       },
       input["default"],
       schemaPath,
-    ) as ObjectSchema;
+    );
   },
   serialize: (schema, serializeSchema) => {
     const fields: Record<string, SchemaObject> = {};
@@ -39,12 +40,15 @@ export const objectSchemaModel: SchemaModel<ObjectSchema> = {
       fields[key] = serializeSchema(field);
     }
 
-    return {
+    const serialized: Mutable<ObjectSchema> = {
       kind: "object",
       fields,
       ...serializeRequired(schema.required),
-      ...(schema.default !== undefined ? { default: cloneSchemaDefault(schema.default) } : {}),
     };
+    if (schema.default !== undefined) {
+      serialized.default = cloneSchemaDefault(schema.default);
+    }
+    return serialized;
   },
   validate: (schema, value, context, valuePath, schemaPath) => {
     const object = expectObjectValue(schema.kind, value, valuePath, schemaPath);

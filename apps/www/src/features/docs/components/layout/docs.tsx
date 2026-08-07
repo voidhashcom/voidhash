@@ -113,7 +113,11 @@ interface DocsNavGroup {
   items: DocsNavItem[];
 }
 
-const nodeName = (name: ReactNode): string => (typeof name === "string" ? name : String(name));
+const nodeName = (name: ReactNode): string => {
+  if (typeof name === "string") return name;
+  if (typeof name === "number") return String(name);
+  return "";
+};
 
 /**
  * Maps the active tab's slice of the fumadocs page tree onto the sidebar shape:

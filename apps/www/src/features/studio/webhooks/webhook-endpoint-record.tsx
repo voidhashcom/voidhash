@@ -57,7 +57,7 @@ export function WebhookEndpointRecord({
   const [revealSecret, setRevealSecret] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
     toast.success(`${label} copied to clipboard`);
   };
 
@@ -69,7 +69,7 @@ export function WebhookEndpointRecord({
     },
     onSuccess: () => {
       toast.success("Webhook deleted successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.list({ projectId }),
       });
     },
@@ -95,7 +95,7 @@ export function WebhookEndpointRecord({
     onSuccess: (data) => {
       toast.success("Secret rotated successfully");
       setRevealSecret(data.secret);
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.list({ projectId }),
       });
     },

@@ -9,6 +9,7 @@
  * The provider can only ever emit the single root identity, which is what makes
  * self-host single-player structurally rather than by policy.
  */
+import { pick } from "@voidhash/lib/lang";
 import { Effect, Layer } from "effect";
 
 import type { LocalUserIdentity } from "../../domain/auth/LocalUserSession.ts";
@@ -60,8 +61,8 @@ export const StandaloneAuthTokenVerifierLive = (secret: string): Layer.Layer<Aut
               payload: {
                 email: claims.email,
                 sub: claims.sub,
-                ...(claims.image === undefined ? {} : { image: claims.image }),
-                ...(claims.name === undefined ? {} : { name: claims.name }),
+                ...pick(claims.image === undefined, {}, { image: claims.image }),
+                ...pick(claims.name === undefined, {}, { name: claims.name }),
               },
               provider: STANDALONE_PROVIDER,
             }),
@@ -96,15 +97,17 @@ export const StandaloneIdentityProviderLive = (secret: string): Layer.Layer<Iden
       // Nothing to link: the root subject is a constant, so the mapping to the
       // local user row is already stable without writing anything back.
       linkExternalId: () => Effect.void,
-      resolveIdentity: (validated) =>
-        validated.provider === STANDALONE_PROVIDER
-          ? Effect.succeed(identityFromClaims(validated.payload))
-          : Effect.fail(
-              new IdentityProviderError({
-                cause: validated.provider,
-                message: "Standalone identity provider received a token from another provider",
-              }),
-            ),
+      resolveIdentity: (validated) => {
+        if (validated.provider === STANDALONE_PROVIDER) {
+          return Effect.succeed(identityFromClaims(validated.payload));
+        }
+        return Effect.fail(
+          new IdentityProviderError({
+            cause: validated.provider,
+            message: "Standalone identity provider received a token from another provider",
+          }),
+        );
+      },
       // Only reached through an OAuth path that requires a remote directory.
       // Self-host MCP clients authenticate with project secret keys or user API
       // keys instead.

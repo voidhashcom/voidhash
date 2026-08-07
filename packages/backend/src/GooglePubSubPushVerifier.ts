@@ -1,4 +1,5 @@
-import { Context, Data, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Config, Context, Data, Effect, Layer, Schema } from "effect";
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 
 const GooglePubSubClaimsSchema = Schema.Struct({
@@ -6,7 +7,7 @@ const GooglePubSubClaimsSchema = Schema.Struct({
   email_verified: Schema.Boolean,
 });
 
-const GOOGLE_OIDC_ISSUERS = ["accounts.google.com", "https://accounts.google.com"] as const;
+const GOOGLE_OIDC_ISSUERS = constant(["accounts.google.com", "https://accounts.google.com"]);
 const GOOGLE_OIDC_JWKS_URL = new URL("https://www.googleapis.com/oauth2/v3/certs");
 
 export class GooglePubSubPushVerificationError extends Data.TaggedError(
@@ -97,10 +98,18 @@ export const makeGooglePubSubPushVerifier = (
 const googleOidcJwks = createRemoteJWKSet(GOOGLE_OIDC_JWKS_URL);
 
 /** Production verifier configured by the authenticated push subscription settings. */
-export const GooglePubSubPushVerifierLive = Layer.sync(GooglePubSubPushVerifier, () =>
-  makeGooglePubSubPushVerifier({
-    audience: process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE ?? "",
-    jwks: googleOidcJwks,
-    serviceAccountEmail: process.env.GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL ?? "",
+const envString = (name: string) =>
+  Config.string(name).pipe(Config.withDefault(""), Effect.orDie);
+
+export const GooglePubSubPushVerifierLive = Layer.effect(
+  GooglePubSubPushVerifier,
+  Effect.gen(function* () {
+    const audience = yield* envString("GOOGLE_PUBSUB_PUSH_AUDIENCE");
+    const serviceAccountEmail = yield* envString("GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL");
+    return makeGooglePubSubPushVerifier({
+      audience,
+      jwks: googleOidcJwks,
+      serviceAccountEmail,
+    });
   }),
 );

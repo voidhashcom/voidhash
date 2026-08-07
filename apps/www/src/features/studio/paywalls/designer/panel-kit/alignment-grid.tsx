@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import type { AlignItems, FlexDirection, JustifyContent } from "@voidhash/mimic-schema";
 import {
   Button,
@@ -45,7 +46,7 @@ function createGridInfo() {
         const Icon = isColumn ? columnIcons[columnIndex] : rowIcons[rowIndex];
 
         if (!Icon) {
-          throw new Error("Invalid icon index");
+          return Effect.runSync(Effect.die(new Error("Invalid icon index")));
         }
 
         return {

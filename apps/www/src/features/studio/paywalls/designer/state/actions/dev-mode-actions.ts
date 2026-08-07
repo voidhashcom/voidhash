@@ -5,7 +5,7 @@
  */
 
 import { commander } from "../designer-commander";
-import type { DesignerStoreState, DevModeTab } from "../designer-store-state";
+import type { DevModeTab } from "../designer-store-state";
 
 // =============================================================================
 // Dev Mode Commands

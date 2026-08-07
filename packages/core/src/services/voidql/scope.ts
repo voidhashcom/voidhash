@@ -6,26 +6,27 @@
  * is no second tenant-setting mechanism to keep in sync, so the substitution is
  * derived from one value the user cannot influence.
  */
-declare const AuthorizedScopeBrand: unique symbol;
+import { Brand } from "effect";
 
-export interface AuthorizedScope {
-  readonly [AuthorizedScopeBrand]: true;
+/** The structural payload an {@link AuthorizedScope} carries. */
+export interface AuthorizedScopeFields {
   /** The single authorized organization id. */
   readonly organizationId: string;
   /** Exactly the projects the caller may read — the `project_id IN (…)` allow-set. */
   readonly availableProjectIds: readonly string[];
 }
 
+export type AuthorizedScope = Brand.Branded<AuthorizedScopeFields, "AuthorizedScope">;
+
+const authorizedScope = Brand.nominal<AuthorizedScope>();
+
 /**
  * Construct an {@link AuthorizedScope}. MUST only be called after an affirmative
  * `checkOrganizationPermission` against the *authorized* org (never the request
  * body) — enforced by convention in `VoidQlService.buildScope`.
  */
-export const makeAuthorizedScope = (input: {
-  readonly organizationId: string;
-  readonly availableProjectIds: readonly string[];
-}): AuthorizedScope =>
-  ({
+export const makeAuthorizedScope = (input: AuthorizedScopeFields): AuthorizedScope =>
+  authorizedScope({
     organizationId: input.organizationId,
     availableProjectIds: input.availableProjectIds,
-  }) as AuthorizedScope;
+  });

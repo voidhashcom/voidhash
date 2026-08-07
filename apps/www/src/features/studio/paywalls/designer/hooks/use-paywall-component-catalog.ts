@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { useEffect, useMemo } from "react";
 import { useStore } from "zustand/react";
 import { ComponentManifestSchema } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
@@ -37,24 +37,31 @@ interface RawVersionDetail {
 }
 
 function decodeVersionDetail(raw: RawVersionDetail): ComponentCatalogVersion | null {
-  try {
-    return {
-      artifactBaseUrl: raw.artifactBaseUrl,
-      contentHash: raw.contentHash,
-      createdAt: raw.createdAt,
-      hasPanel: raw.hasPanel,
-      manifest: decodeManifest(raw.manifest),
-      previewStates: raw.previewStates,
-      slug: raw.slug,
-      version: raw.version,
-    };
-  } catch (error) {
-    console.warn(
-      `[paywall-component-catalog] Skipping component "${raw.slug}"@${raw.version}: invalid manifest`,
-      error,
-    );
-    return null;
-  }
+  return Effect.runSync(
+    Effect.try({
+      try: (): ComponentCatalogVersion => ({
+        artifactBaseUrl: raw.artifactBaseUrl,
+        contentHash: raw.contentHash,
+        createdAt: raw.createdAt,
+        hasPanel: raw.hasPanel,
+        manifest: decodeManifest(raw.manifest),
+        previewStates: raw.previewStates,
+        slug: raw.slug,
+        version: raw.version,
+      }),
+      catch: (error) => error,
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.sync((): ComponentCatalogVersion | null => {
+          console.warn(
+            `[paywall-component-catalog] Skipping component "${raw.slug}"@${raw.version}: invalid manifest`,
+            error,
+          );
+          return null;
+        }),
+      ),
+    ),
+  );
 }
 
 function collectMissingComponentRefs(

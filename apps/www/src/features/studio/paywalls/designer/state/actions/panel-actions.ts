@@ -6,7 +6,6 @@
 
 import { clampLeftPanelWidth, clampRightPanelWidth } from "../../panels/constants";
 import { commander } from "../designer-commander";
-import type { DesignerStoreState } from "../designer-store-state";
 
 // =============================================================================
 // Panel Commands

@@ -1,6 +1,6 @@
-import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
+import { DateTime, Effect } from "effect";
 
+import { constant } from "@voidhash/lib/lang";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
 import * as Workflow from "@voidhash/platform/Workflow";
@@ -11,9 +11,10 @@ import {
   GooglePlayReplayParkedNotifications,
   StripeReplayParkedNotifications,
 } from "./definitions.ts";
+import { describe, expect, it } from "../testing/effect-vitest.ts";
 import { backendWorkflows } from "./registry.ts";
 
-const workflowNames = [
+const workflowNames = constant([
   "DeliverWebhookWorkflow",
   "FxRateSyncWorkflow",
   "PurchaseLedgerDrainWorkflow",
@@ -23,7 +24,7 @@ const workflowNames = [
   "AppStoreReconcileOriginalTransactionWorkflow",
   "GooglePlayReplayParkedNotificationsWorkflow",
   "StripeReplayParkedNotificationsWorkflow",
-] as const;
+]);
 
 describe("backend workflow registry", () => {
   it("contains the canonical workflow set and cron metadata", () => {
@@ -31,11 +32,11 @@ describe("backend workflow registry", () => {
       workflowNames,
     );
     expect(
-      backendWorkflows.flatMap((registration) =>
-        registration.cron
-          ? [[registration.workflow.name, registration.cron.schedule] as const]
-          : [],
-      ),
+      backendWorkflows.flatMap((registration) => {
+        const cron = registration.cron;
+        if (!cron) return [];
+        return [constant([registration.workflow.name, cron.schedule])];
+      }),
     ).toEqual([
       ["FxRateSyncWorkflow", "0 5 * * *"],
       ["PurchaseLedgerDrainWorkflow", "* * * * *"],
@@ -43,27 +44,27 @@ describe("backend workflow registry", () => {
     ]);
   });
 
-  it("derives cron payloads from the scheduled time", async () => {
-    const runner = TestWorkflowRunner.make();
-    const scheduledTime = new Date("2026-08-05T05:00:00.000Z");
+  it.effect("derives cron payloads from the scheduled time", () =>
+    Effect.gen(function* () {
+      const runner = TestWorkflowRunner.make();
+      const scheduledTime = DateTime.toDateUtc(DateTime.makeUnsafe("2026-08-05T05:00:00.000Z"));
 
-    await Effect.runPromise(
-      Effect.forEach(
+      yield* Effect.forEach(
         backendWorkflows,
         (registration) => registration.cron?.dispatch(scheduledTime) ?? Effect.void,
         { discard: true },
       ).pipe(
         Effect.provideService(WorkflowRunner, runner),
         Effect.provideService(PlatformRuntime, PlatformRuntime.of({})),
-      ),
-    );
+      );
 
-    expect(runner.dispatches.map(({ payload, workflow }) => [workflow.name, payload])).toEqual([
-      ["FxRateSyncWorkflow", { runId: scheduledTime.toISOString() }],
-      ["PurchaseLedgerDrainWorkflow", { runId: scheduledTime.toISOString() }],
-      ["AppStoreExpireParkedNotificationsWorkflow", { triggeredAt: scheduledTime.toISOString() }],
-    ]);
-  });
+      expect(runner.dispatches.map(({ payload, workflow }) => [workflow.name, payload])).toEqual([
+        ["FxRateSyncWorkflow", { runId: scheduledTime.toISOString() }],
+        ["PurchaseLedgerDrainWorkflow", { runId: scheduledTime.toISOString() }],
+        ["AppStoreExpireParkedNotificationsWorkflow", { triggeredAt: scheduledTime.toISOString() }],
+      ]);
+    }),
+  );
 
   it("includes requestedAt in every replay idempotency key", () => {
     const productReplay = {
@@ -98,16 +99,18 @@ describe("backend workflow registry", () => {
     );
   });
 
-  it("bounds long durable operation names deterministically", async () => {
-    const short = "app-store-replay:configuration:product";
-    const long = `app-store-replay:${"configuration".repeat(24)}:${"product".repeat(24)}`;
+  it.effect("bounds long durable operation names deterministically", () =>
+    Effect.gen(function* () {
+      const short = "app-store-replay:configuration:product";
+      const long = `app-store-replay:${"configuration".repeat(24)}:${"product".repeat(24)}`;
 
-    expect(await Effect.runPromise(Workflow.durableOperationName(short))).toBe(short);
-    const first = await Effect.runPromise(Workflow.durableOperationName(long));
-    const second = await Effect.runPromise(Workflow.durableOperationName(long));
+      expect(yield* Workflow.durableOperationName(short)).toBe(short);
+      const first = yield* Workflow.durableOperationName(long);
+      const second = yield* Workflow.durableOperationName(long);
 
-    expect(first).toBe(second);
-    expect(new TextEncoder().encode(first).byteLength).toBeLessThanOrEqual(96);
-    expect(first).not.toBe(long);
-  });
+      expect(first).toBe(second);
+      expect(new TextEncoder().encode(first).byteLength).toBeLessThanOrEqual(96);
+      expect(first).not.toBe(long);
+    }),
+  );
 });

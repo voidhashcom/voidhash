@@ -1,3 +1,5 @@
+import { constant, pick } from "@voidhash/lib/lang";
+
 /**
  * SVG Parser utility for converting SVG strings to Shape + Path node data.
  * Handles flattening of SVG groups by applying transforms to path data.
@@ -42,7 +44,7 @@ const FALLBACK_VIEWBOX: ViewBox = {
 
 const FALLBACK_COLOR = "rgba(0, 0, 0, 1)";
 
-const INHERITABLE_STYLE_PROPERTIES = [
+const INHERITABLE_STYLE_PROPERTIES = constant([
   "fill",
   "stroke",
   "stroke-width",
@@ -51,7 +53,7 @@ const INHERITABLE_STYLE_PROPERTIES = [
   "stroke-opacity",
   "stroke-linecap",
   "stroke-linejoin",
-] as const;
+]);
 
 const NAMED_COLORS: Record<string, string> = {
   black: "rgba(0, 0, 0, 1)",
@@ -206,7 +208,40 @@ function parseNumber(value: string | null, fallback: number): number {
   }
 
   const parsed = Number.parseFloat(value);
-  return Number.isNaN(parsed) ? fallback : parsed;
+  if (Number.isNaN(parsed)) {
+    return fallback;
+  }
+  return parsed;
+}
+
+/** Maps a resolved `fill-rule` value onto the two rules the path node supports. */
+function toFillRule(value: string | null): "nonzero" | "evenodd" {
+  if (value === "evenodd") {
+    return "evenodd";
+  }
+  return "nonzero";
+}
+
+/** Maps a resolved `stroke-linecap` value onto the supported cap union. */
+function toStrokeLinecap(value: string | null): "butt" | "round" | "square" {
+  if (value === "round") {
+    return "round";
+  }
+  if (value === "square") {
+    return "square";
+  }
+  return "butt";
+}
+
+/** Maps a resolved `stroke-linejoin` value onto the supported join union. */
+function toStrokeLinejoin(value: string | null): "miter" | "round" | "bevel" {
+  if (value === "round") {
+    return "round";
+  }
+  if (value === "bevel") {
+    return "bevel";
+  }
+  return "miter";
 }
 
 function resolvePathStyle(
@@ -228,16 +263,16 @@ function resolvePathStyle(
   const strokeEnabled = stroke !== null && stroke !== "none" && stroke !== "transparent";
 
   return {
-    fillColor: parseColorToRgba(fillEnabled ? fill : "black"),
+    fillColor: parseColorToRgba(pick(fillEnabled, fill, "black")),
     fillEnabled,
-    fillRule: fillRule === "evenodd" ? "evenodd" : "nonzero",
+    fillRule: toFillRule(fillRule),
     fillOpacity: parseNumber(fillOpacity, 1),
-    strokeColor: parseColorToRgba(strokeEnabled ? stroke : "black"),
+    strokeColor: parseColorToRgba(pick(strokeEnabled, stroke, "black")),
     strokeEnabled,
     strokeWidth: parseNumber(strokeWidth, 1),
     strokeOpacity: parseNumber(strokeOpacity, 1),
-    strokeLinecap: (strokeLinecap as "butt" | "round" | "square") ?? "butt",
-    strokeLinejoin: (strokeLinejoin as "miter" | "round" | "bevel") ?? "miter",
+    strokeLinecap: toStrokeLinecap(strokeLinecap),
+    strokeLinejoin: toStrokeLinejoin(strokeLinejoin),
   };
 }
 
@@ -436,7 +471,7 @@ function collectPaths(
         d,
         name: nextPathName(
           pathCounter,
-          tagName === "polygon" ? "Polygon" : "Polyline",
+          pick(tagName === "polygon", "Polygon", "Polyline"),
           child.getAttribute("id"),
         ),
         transform: childTransform,
@@ -458,12 +493,25 @@ function buildRootInheritedStyles(svg: SvgElement): Record<string, string> {
   return inherited;
 }
 
+/** Narrows the ambient `DOMParser` global, absent outside the browser. */
+function isSvgParserConstructor(value: unknown): value is SvgParserConstructor {
+  return typeof value === "function";
+}
+
+/** `null` for a `NaN` measurement, so absent dimensions stay absent. */
+function nullIfNaN(value: number): number | null {
+  if (Number.isNaN(value)) {
+    return null;
+  }
+  return value;
+}
+
 /**
  * Parse an SVG string into shape + paths data.
  */
 export function parseSvg(svgString: string): ParsedSvg {
-  const domParserConstructor = (globalThis as { DOMParser?: SvgParserConstructor }).DOMParser;
-  if (!domParserConstructor) {
+  const domParserConstructor: unknown = Reflect.get(globalThis, "DOMParser");
+  if (!isSvgParserConstructor(domParserConstructor)) {
     return {
       viewBox: { ...FALLBACK_VIEWBOX },
       width: null,
@@ -491,8 +539,8 @@ export function parseSvg(svgString: string): ParsedSvg {
   const width = parseNumber(svg.getAttribute("width"), Number.NaN);
   const height = parseNumber(svg.getAttribute("height"), Number.NaN);
 
-  const parsedWidth = Number.isNaN(width) ? null : width;
-  const parsedHeight = Number.isNaN(height) ? null : height;
+  const parsedWidth = nullIfNaN(width);
+  const parsedHeight = nullIfNaN(height);
 
   if (!svg.getAttribute("viewBox") && parsedWidth !== null && parsedHeight !== null) {
     viewBox.width = parsedWidth;

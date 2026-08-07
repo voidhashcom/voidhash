@@ -29,7 +29,8 @@
  *    test provides its own layer for it.
  */
 import { AnalyticsIngestDlqReplayStatus, Db, analyticsIngestDlq, inArray } from "@voidhash/db";
-import { Effect, Layer, Ref } from "effect";
+import { generateId } from "@voidhash/core/utils/generate-id";
+import { Clock, Effect, Layer, Ref } from "effect";
 import { describe, expect } from "vitest";
 
 import {
@@ -48,9 +49,10 @@ import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness"
 
 const { test } = CoreIntegrationTestHarness.make();
 
-/** Monotonic counter so ids/values stay unique even within the same millisecond. */
+/** Per-run token plus a monotonic counter so ids/values stay unique across and within runs. */
+const runToken = generateId("test");
 let seq = 0;
-const unique = (label: string) => `it-an-dlq-${label}-${Date.now()}-${seq++}`;
+const unique = (label: string) => `it-an-dlq-${label}-${runToken}-${seq++}`;
 
 /** Read a single DLQ row straight from the database, bypassing the service. */
 const findDlqRow = (id: string) =>
@@ -98,7 +100,7 @@ const recordInput = (
   distinctId: unique("dist"),
   failureClass: unique("class"),
   failureMessage: "boom",
-  payloadJson: { hello: "world" } as unknown,
+  payloadJson: { hello: "world" },
   projectId: unique("proj"),
   routeClass: "main",
   sourceSequence: 1,
@@ -423,7 +425,8 @@ describe("AnalyticsIngestDlqService.requeueFailure", () => {
       const service = yield* AnalyticsIngestDlqService;
       const ref = yield* Ref.make<ReadonlyArray<PublishableCaptureEvent>>([]);
 
-      const missingId = `an_ing_dlq_missing_${Date.now()}`;
+      const nowMillis = yield* Clock.currentTimeMillis;
+      const missingId = `an_ing_dlq_missing_${nowMillis}`;
       const error = yield* Effect.flip(
         service.requeueFailure(missingId).pipe(Effect.provide(makeRecordingCaptureIngress(ref))),
       );

@@ -25,7 +25,7 @@ export function SetupPaymentProviderButton({
     onSuccess: (data) => {
       toast.success(`${paymentProvider?.title} configuration saved successfully`);
       if (data.id) {
-        navigate({
+        void navigate({
           params: {
             organizationSlug,
             paymentProviderConfigurationId: data.id,

@@ -33,7 +33,7 @@
  *  - Typed failures are asserted with `Effect.flip` + `instanceof`, paired with
  *    a state assertion on the failure path (project convention).
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import { AnalyticsWriterService } from "@voidhash/core/services/analyticsIngest/AnalyticsWriterService";
@@ -58,7 +58,8 @@ const PERSON_IDENTITY_PENDING_OVERRIDES_TABLE = "person_identity_pending_overrid
 
 /** Monotonic counter so ids stay unique even within the same millisecond. */
 let idSeq = 0;
-const uniqueId = (label: string) => `it-aw-${label}-${Date.now()}-${idSeq++}`;
+const uniqueId = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-aw-${label}-${now}-${idSeq++}`);
 
 /** A reservation-grade revenue event name (drives the revenue dedup path). */
 const REVENUE_EVENT_NAME = "$purchase.completed";
@@ -75,38 +76,41 @@ const processedMessage = (overrides: {
   readonly distinctId?: string;
   readonly eventTimestamp?: string;
   readonly sourceTopic?: string;
-}): AnalyticsWriterMessageType => {
-  const distinctId = overrides.distinctId ?? uniqueId("distinct");
-  const eventTimestamp = overrides.eventTimestamp ?? new Date().toISOString();
-  return {
-    kind: "processed",
-    messageId: overrides.eventId,
-    value: {
-      captureId: `cap-${overrides.eventId}`,
-      context: {},
-      distinctId,
-      event: overrides.event ?? "checkout_started",
-      eventTimestamp,
-      groups: [],
-      identity: { distinctId, mode: "full", personId: uniqueId("person") },
-      organizationId,
-      processedAt: eventTimestamp,
-      processedEventId: overrides.eventId,
-      projectId,
-      properties: { plan: "pro" },
-      request: { path: "/i/v1/capture", requestId: `req-${overrides.eventId}` },
-      routing: {
-        lane: "main",
-        skipEnrichment: false,
-        sourceOffset: overrides.eventId,
-        sourcePartition: 0,
-        sourceTopic: overrides.sourceTopic ?? "capture.v1",
+}): Effect.Effect<AnalyticsWriterMessageType> =>
+  Effect.gen(function* () {
+    const distinctId = overrides.distinctId ?? (yield* uniqueId("distinct"));
+    const eventTimestamp = overrides.eventTimestamp ?? (yield* DateTime.nowAsDate).toISOString();
+    const personId = yield* uniqueId("person");
+    const token = yield* uniqueId("token");
+    return {
+      kind: "processed",
+      messageId: overrides.eventId,
+      value: {
+        captureId: `cap-${overrides.eventId}`,
+        context: {},
+        distinctId,
+        event: overrides.event ?? "checkout_started",
+        eventTimestamp,
+        groups: [],
+        identity: { distinctId, mode: "full", personId },
+        organizationId,
+        processedAt: eventTimestamp,
+        processedEventId: overrides.eventId,
+        projectId,
+        properties: { plan: "pro" },
+        request: { path: "/i/v1/capture", requestId: `req-${overrides.eventId}` },
+        routing: {
+          lane: "main",
+          skipEnrichment: false,
+          sourceOffset: overrides.eventId,
+          sourcePartition: 0,
+          sourceTopic: overrides.sourceTopic ?? "capture.v1",
+        },
+        schemaVersion: 2,
+        token,
       },
-      schemaVersion: 2,
-      token: uniqueId("token"),
-    },
-  };
-};
+    };
+  });
 
 /**
  * Build a `person` writer message under the fixture project. The
@@ -117,21 +121,22 @@ const processedMessage = (overrides: {
 const personMessage = (overrides: {
   readonly personId: string;
   readonly primaryDistinctId: string;
-}): AnalyticsWriterMessageType => ({
-  kind: "person",
-  messageId: overrides.personId,
-  value: {
-    changedAt: new Date().toISOString(),
-    isArchived: false,
-    name: "Integration Person",
-    personId: overrides.personId,
-    primaryDistinctId: overrides.primaryDistinctId,
-    projectId,
-    schemaVersion: 1,
-    traits: { tier: "gold" },
-    version: 1,
-  },
-});
+}): Effect.Effect<AnalyticsWriterMessageType> =>
+  Effect.map(DateTime.nowAsDate, (now) => ({
+    kind: "person",
+    messageId: overrides.personId,
+    value: {
+      changedAt: now.toISOString(),
+      isArchived: false,
+      name: "Integration Person",
+      personId: overrides.personId,
+      primaryDistinctId: overrides.primaryDistinctId,
+      projectId,
+      schemaVersion: 1,
+      traits: { tier: "gold" },
+      version: 1,
+    },
+  }));
 
 /**
  * Build a `person-distinct-id` writer message. A non-empty `previousDistinctId`
@@ -142,20 +147,21 @@ const personIdentityMessage = (overrides: {
   readonly distinctId: string;
   readonly previousDistinctId?: string;
   readonly version?: number;
-}): AnalyticsWriterMessageType => ({
-  kind: "person-distinct-id",
-  messageId: overrides.personId,
-  value: {
-    changedAt: new Date().toISOString(),
-    distinctId: overrides.distinctId,
-    isDeleted: false,
-    personId: overrides.personId,
-    previousDistinctId: overrides.previousDistinctId,
-    projectId,
-    schemaVersion: 1,
-    version: overrides.version ?? 1,
-  },
-});
+}): Effect.Effect<AnalyticsWriterMessageType> =>
+  Effect.map(DateTime.nowAsDate, (now) => ({
+    kind: "person-distinct-id",
+    messageId: overrides.personId,
+    value: {
+      changedAt: now.toISOString(),
+      distinctId: overrides.distinctId,
+      isDeleted: false,
+      personId: overrides.personId,
+      previousDistinctId: overrides.previousDistinctId,
+      projectId,
+      schemaVersion: 1,
+      version: overrides.version ?? 1,
+    },
+  }));
 
 /** Read back the processed-event rows for the given ids straight from ClickHouse. */
 const findEventRows = (eventIds: ReadonlyArray<string>) =>
@@ -186,13 +192,20 @@ const findPersonRows = (personIds: ReadonlyArray<string>) =>
        FROM ${ch.literal(PERSONS_TABLE)} WHERE person_id IN ${ch.param("Array(String)", [...personIds])}`;
   });
 
+/** The distinct-id column each identity table keys its rows on. */
+const identityColumn = (table: string): string => {
+  if (table === PERSON_IDENTITY_PENDING_OVERRIDES_TABLE) {
+    return "target_distinct_id";
+  }
+  return "distinct_id";
+};
+
 /** Read back rows from one of the three identity tables by `distinct_id`. */
 const findIdentityRows = (table: string, distinctIds: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     if (distinctIds.length === 0) return [];
     const ch = yield* ClickhouseWebClient.ClickhouseWebClient;
-    const column =
-      table === PERSON_IDENTITY_PENDING_OVERRIDES_TABLE ? "target_distinct_id" : "distinct_id";
+    const column = identityColumn(table);
     return yield* ch<{
       person_id: string;
       organization_id: string;
@@ -278,23 +291,23 @@ describe("AnalyticsWriterService.writeMessages", () => {
       Effect.gen(function* () {
         const writer = yield* AnalyticsWriterService;
 
-        const eventId = uniqueId("fanout-event");
-        const eventDistinct = uniqueId("fanout-event-distinct");
-        const personId = uniqueId("fanout-person");
-        const personPrimaryDistinct = uniqueId("fanout-person-primary");
-        const identityDistinct = uniqueId("fanout-identity-distinct");
-        const identityPrevious = uniqueId("fanout-identity-prev");
+        const eventId = yield* uniqueId("fanout-event");
+        const eventDistinct = yield* uniqueId("fanout-event-distinct");
+        const personId = yield* uniqueId("fanout-person");
+        const personPrimaryDistinct = yield* uniqueId("fanout-person-primary");
+        const identityDistinct = yield* uniqueId("fanout-identity-distinct");
+        const identityPrevious = yield* uniqueId("fanout-identity-prev");
         trackEvent(eventId);
         trackDistinct(eventDistinct);
         trackDistinct(personPrimaryDistinct);
         trackDistinct(identityDistinct);
 
         const messages: ReadonlyArray<AnalyticsWriterMessageType> = [
-          processedMessage({ distinctId: eventDistinct, eventId }),
-          personMessage({ personId, primaryDistinctId: personPrimaryDistinct }),
+          yield* processedMessage({ distinctId: eventDistinct, eventId }),
+          yield* personMessage({ personId, primaryDistinctId: personPrimaryDistinct }),
           // version > 0 + a previous distinct id → also emits override +
           // pending-override rows, exercising all five tables at once.
-          personIdentityMessage({
+          yield* personIdentityMessage({
             distinctId: identityDistinct,
             personId,
             previousDistinctId: identityPrevious,
@@ -335,17 +348,17 @@ describe("AnalyticsWriterService.writeMessages", () => {
       Effect.gen(function* () {
         const writer = yield* AnalyticsWriterService;
 
-        const personId = uniqueId("org-person");
-        const personPrimaryDistinct = uniqueId("org-person-primary");
-        const identityDistinct = uniqueId("org-identity-distinct");
+        const personId = yield* uniqueId("org-person");
+        const personPrimaryDistinct = yield* uniqueId("org-person-primary");
+        const identityDistinct = yield* uniqueId("org-identity-distinct");
         trackDistinct(personPrimaryDistinct);
         trackDistinct(identityDistinct);
 
         // Person/identity messages carry only projectId; the writer looks up the
         // organization in MySQL. The fixture seeds it_project under it_org.
         yield* writer.writeMessages([
-          personMessage({ personId, primaryDistinctId: personPrimaryDistinct }),
-          personIdentityMessage({ distinctId: identityDistinct, personId }),
+          yield* personMessage({ personId, primaryDistinctId: personPrimaryDistinct }),
+          yield* personIdentityMessage({ distinctId: identityDistinct, personId }),
         ]);
 
         const personRows = yield* findPersonRows([personId]);
@@ -368,30 +381,30 @@ describe("AnalyticsWriterService.writeMessages", () => {
       Effect.gen(function* () {
         const writer = yield* AnalyticsWriterService;
 
-        const sharedEventId = uniqueId("batch-dup-event");
+        const sharedEventId = yield* uniqueId("batch-dup-event");
         trackEvent(sharedEventId);
 
         // Two trusted revenue messages with the SAME event_id: within-batch dedup
         // keeps the first and skips the second. The two non-revenue events have
         // distinct ids and pass through untouched.
-        const passEventA = uniqueId("batch-pass-a");
-        const passEventB = uniqueId("batch-pass-b");
+        const passEventA = yield* uniqueId("batch-pass-a");
+        const passEventB = yield* uniqueId("batch-pass-b");
         trackEvent(passEventA);
         trackEvent(passEventB);
 
         const result = yield* writer.writeMessages([
-          processedMessage({
+          yield* processedMessage({
             event: REVENUE_EVENT_NAME,
             eventId: sharedEventId,
             sourceTopic: REVENUE_TRUSTED_SOURCE_TOPIC,
           }),
-          processedMessage({
+          yield* processedMessage({
             event: REVENUE_EVENT_NAME,
             eventId: sharedEventId,
             sourceTopic: REVENUE_TRUSTED_SOURCE_TOPIC,
           }),
-          processedMessage({ eventId: passEventA }),
-          processedMessage({ eventId: passEventB }),
+          yield* processedMessage({ eventId: passEventA }),
+          yield* processedMessage({ eventId: passEventB }),
         ]);
 
         // 4 messages in, but the duplicate revenue row is dropped → 3 inserted.
@@ -410,18 +423,18 @@ describe("AnalyticsWriterService.writeMessages", () => {
       Effect.gen(function* () {
         const writer = yield* AnalyticsWriterService;
 
-        const existingId = uniqueId("existing-event");
-        const freshId = uniqueId("fresh-event");
+        const existingId = yield* uniqueId("existing-event");
+        const freshId = yield* uniqueId("fresh-event");
         trackEvent(existingId);
         trackEvent(freshId);
 
         // Seed `existingId` so the writer's fetchExistingEventIds sees it and
         // skips it; only the fresh event should be inserted.
-        yield* writer.writeMessages([processedMessage({ eventId: existingId })]);
+        yield* writer.writeMessages([yield* processedMessage({ eventId: existingId })]);
 
         const result = yield* writer.writeMessages([
-          processedMessage({ eventId: existingId }),
-          processedMessage({ eventId: freshId }),
+          yield* processedMessage({ eventId: existingId }),
+          yield* processedMessage({ eventId: freshId }),
         ]);
 
         // 2 messages in, but `existingId` is already in ClickHouse → 1 inserted.
@@ -443,8 +456,8 @@ describe("AnalyticsWriterService.writeMessages", () => {
       Effect.gen(function* () {
         const writer = yield* AnalyticsWriterService;
 
-        const existingRevenueId = uniqueId("existing-revenue");
-        const freshRevenueId = uniqueId("fresh-revenue");
+        const existingRevenueId = yield* uniqueId("existing-revenue");
+        const freshRevenueId = yield* uniqueId("fresh-revenue");
         trackEvent(existingRevenueId);
         trackEvent(freshRevenueId);
 
@@ -453,9 +466,12 @@ describe("AnalyticsWriterService.writeMessages", () => {
         // dedup must still catch its re-dispatch — this is the at-least-once
         // guarantee: a late ledger retry or duplicate provider redelivery
         // collapses no matter how stale.
-        const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        const nowMillis = yield* Clock.currentTimeMillis;
+        const ninetyDaysAgo = DateTime.toDateUtc(
+          DateTime.makeUnsafe(nowMillis - 90 * 24 * 60 * 60 * 1000),
+        ).toISOString();
         yield* writer.writeMessages([
-          processedMessage({
+          yield* processedMessage({
             event: REVENUE_EVENT_NAME,
             eventId: existingRevenueId,
             eventTimestamp: ninetyDaysAgo,
@@ -466,16 +482,16 @@ describe("AnalyticsWriterService.writeMessages", () => {
         // Second batch re-sends the (90-day-old) existing revenue id plus a fresh
         // one. The already-present revenue row is not re-inserted; the fresh one is.
         const result = yield* writer.writeMessages([
-          processedMessage({
+          yield* processedMessage({
             event: REVENUE_EVENT_NAME,
             eventId: existingRevenueId,
             eventTimestamp: ninetyDaysAgo,
             sourceTopic: REVENUE_TRUSTED_SOURCE_TOPIC,
           }),
-          processedMessage({
+          yield* processedMessage({
             event: REVENUE_EVENT_NAME,
             eventId: freshRevenueId,
-            eventTimestamp: new Date().toISOString(),
+            eventTimestamp: (yield* DateTime.nowAsDate).toISOString(),
             sourceTopic: REVENUE_TRUSTED_SOURCE_TOPIC,
           }),
         ]);

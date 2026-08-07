@@ -26,6 +26,16 @@ import { SubscriptionTransferModeSchema } from "../../../domain/paymentProvider/
 import { PaymentConfigSecretCrypto } from "../../../utils/crypto/PaymentConfigSecretCrypto.ts";
 import { AppStorePaymentProvider } from "../PaymentProvider.ts";
 
+/**
+ * Reads a key off an as-yet-unvalidated configuration bag, rendering it the way
+ * the previous `${bag.key ?? ""}` interpolation did (absent/null ⇒ empty).
+ */
+const configurationField = (configuration: unknown, key: string): string => {
+  if (typeof configuration !== "object" || configuration === null) return "";
+  if (!(key in configuration)) return "";
+  return String(Reflect.get(configuration, key) ?? "");
+};
+
 const APP_APPLE_ID_PATTERN = /^[1-9]\d{0,14}$/;
 
 export const globalConfigurationSchema = Schema.Struct({
@@ -134,10 +144,9 @@ export const makeAppStoreConfigProvider = (
     Effect.succeed({
       productId: "",
     }),
-  createGlobalKey: (configuration) =>
-    Effect.succeed(`${(configuration as { bundleId?: unknown }).bundleId ?? ""}`),
+  createGlobalKey: (configuration) => Effect.succeed(configurationField(configuration, "bundleId")),
   createProductKey: (configuration) =>
-    Effect.succeed(`${(configuration as { productId?: unknown }).productId ?? ""}`),
+    Effect.succeed(configurationField(configuration, "productId")),
   validateGlobalConfiguration: (configuration) =>
     Schema.decodeUnknownEffect(globalConfigurationSchema)(configuration).pipe(
       Effect.mapError(

@@ -131,7 +131,7 @@ export const useDomDrag = (
           false,
         ),
       };
-      controller.animateTo(target, { type: "spring", ...(props.dragTransition ?? {}) });
+      controller.animateTo(target, { type: "spring", ...props.dragTransition });
     }
   };
 

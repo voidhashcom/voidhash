@@ -7,7 +7,6 @@ import {
   Pressable,
   Slot,
   Text,
-  View,
 } from "../src/index";
 import { renderComponentToTree } from "../src/sandbox";
 import { parseComponentManifest } from "../src/schema/validate";

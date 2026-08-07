@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import { createStateSchemaWithStyleOverrides } from "../states/index.ts";
@@ -118,7 +119,7 @@ export const textNodeLocalizedSchema = Primitive.Array(
 
 /** TextNode tree node schema */
 export const TextNode = Primitive.TreeNode("text", {
-  children: [] as const,
+  children: constant([]),
   data: Primitive.Struct({
     linkedVariables,
     localVariables,

@@ -78,7 +78,7 @@ export function EditWebhookModal({ open, onClose, webhook, projectId }: EditWebh
     },
     onSuccess: () => {
       toast.success("Webhook updated successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.list({ projectId }),
       });
       onClose();

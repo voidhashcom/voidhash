@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import { MimicSDK } from "@voidhash/mimic-server";
+import { Effect } from "effect";
 
 import type { Credentials } from "@/lib/auth";
 
@@ -41,7 +42,9 @@ export function MimicSdkProvider({
 export function useMimicSdk(): MimicSDK {
   const sdk = useContext(SdkContext);
   if (!sdk) {
-    throw new Error("useMimicSdk must be used within a MimicSdkProvider");
+    // Missing provider is a programmer error, not a recoverable failure:
+    // `runSync` on a defect rethrows the Error verbatim to the React tree.
+    return Effect.runSync(Effect.die(new Error("useMimicSdk must be used within a MimicSdkProvider")));
   }
   return sdk;
 }

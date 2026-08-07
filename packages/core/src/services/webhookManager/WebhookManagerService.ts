@@ -1,4 +1,6 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import { getRandomValues } from "uncrypto";
 
 import {
   WebhookDeliveryNotFoundError,
@@ -39,25 +41,27 @@ export type WebhookDeliveryStatusString =
   | "failed"
   | "exhausted";
 
-const ENDPOINT_STATUS_TO_STRING: Record<WebhookEndpointStatusValue, WebhookEndpointStatusString> = {
+// Annotated as `Record<number, …>` so raw DB integers index it directly, while
+// `satisfies` still pins every enum member to a label at compile time.
+const ENDPOINT_STATUS_TO_STRING: Record<number, WebhookEndpointStatusString> = {
   [WebhookEndpointStatus.Active]: "active",
   [WebhookEndpointStatus.Disabled]: "disabled",
   [WebhookEndpointStatus.Failed]: "failed",
-};
+} satisfies Record<WebhookEndpointStatusValue, WebhookEndpointStatusString>;
 
-const DELIVERY_STATUS_TO_STRING: Record<WebhookDeliveryStatusValue, WebhookDeliveryStatusString> = {
+const DELIVERY_STATUS_TO_STRING: Record<number, WebhookDeliveryStatusString> = {
   [WebhookDeliveryStatus.Pending]: "pending",
   [WebhookDeliveryStatus.InProgress]: "in_progress",
   [WebhookDeliveryStatus.Succeeded]: "succeeded",
   [WebhookDeliveryStatus.Failed]: "failed",
   [WebhookDeliveryStatus.Exhausted]: "exhausted",
-};
+} satisfies Record<WebhookDeliveryStatusValue, WebhookDeliveryStatusString>;
 
 const mapEndpointStatus = (status: number): WebhookEndpointStatusString =>
-  ENDPOINT_STATUS_TO_STRING[status as WebhookEndpointStatusValue] ?? "disabled";
+  ENDPOINT_STATUS_TO_STRING[status] ?? "disabled";
 
 const mapDeliveryStatus = (status: number): WebhookDeliveryStatusString =>
-  DELIVERY_STATUS_TO_STRING[status as WebhookDeliveryStatusValue] ?? "pending";
+  DELIVERY_STATUS_TO_STRING[status] ?? "pending";
 
 interface WebhookEndpointRow {
   readonly id: string;
@@ -88,11 +92,28 @@ interface WebhookDeliveryRow {
   readonly createdAt: Date | null;
 }
 
+const decodeStrings = Schema.decodeUnknownOption(Schema.Array(Schema.String));
+
+/**
+ * Narrows the JSON `events` column to the known event union, dropping anything
+ * the current build no longer recognises.
+ */
+const toWebhookEventTypes = (events: unknown): WebhookEventType[] =>
+  Option.getOrElse(decodeStrings(events), (): ReadonlyArray<string> => []).filter(
+    isValidWebhookEvent,
+  );
+
+const decodeRecord = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown));
+
+/** Narrows the JSON `payload` column to an object, defaulting to `{}`. */
+const decodePayload = (payload: unknown): object =>
+  Option.getOrElse(decodeRecord(payload), () => ({}));
+
 const mapEndpointToResponse = (endpoint: WebhookEndpointRow) => ({
   consecutiveFailures: endpoint.consecutiveFailures,
   createdAt: endpoint.createdAt,
   description: endpoint.description,
-  events: endpoint.events as WebhookEventType[],
+  events: toWebhookEventTypes(endpoint.events),
   id: endpoint.id,
   lastSuccessAt: endpoint.lastSuccessAt,
   name: endpoint.name,
@@ -111,7 +132,7 @@ const mapDeliveryToResponse = (delivery: WebhookDeliveryRow) => ({
   id: delivery.id,
   maxAttempts: delivery.maxAttempts,
   nextAttemptAt: delivery.nextAttemptAt,
-  payload: delivery.payload as object,
+  payload: decodePayload(delivery.payload),
   projectId: delivery.projectId,
   status: mapDeliveryStatus(delivery.status),
   webhookEndpointId: delivery.webhookEndpointId,
@@ -124,22 +145,29 @@ const mapDeliveryToResponse = (delivery: WebhookDeliveryRow) => ({
  * remain interchangeable.
  */
 const generateSecret = (): string => {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
+  const bytes = getRandomValues(new Uint8Array(32));
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   return `whsec_${hex}`;
 };
 
 const validateUrl = (url: string): WebhookValidationError | null => {
-  try {
-    const parsed = new URL(url);
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      return new WebhookValidationError({ message: "URL must use http or https protocol" });
-    }
-    return null;
-  } catch {
+  if (!URL.canParse(url)) {
     return new WebhookValidationError({ message: "Invalid URL format" });
   }
+  const parsed = new URL(url);
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    return new WebhookValidationError({ message: "URL must use http or https protocol" });
+  }
+  return null;
+};
+
+/** Delivery listing scope: one endpoint when given, otherwise the whole project. */
+const deliveriesWhere = (input: {
+  readonly projectId: string;
+  readonly endpointId?: string;
+}): { webhookEndpointId: string } | { projectId: string } => {
+  if (input.endpointId) return { webhookEndpointId: input.endpointId };
+  return { projectId: input.projectId };
 };
 
 const validateEvents = (events: ReadonlyArray<string>): WebhookValidationError | null => {
@@ -187,7 +215,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", endpointId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.status", "active");
           const secret = generateSecret();
-          const createdAt = new Date();
+          const createdAt = yield* DateTime.nowAsDate;
 
           yield* db.insert(webhookEndpoints).values({
             consecutiveFailures: 0,
@@ -218,13 +246,13 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             consecutiveFailures: 0,
             createdAt,
             description: input.description ?? null,
-            events: input.events as WebhookEventType[],
+            events: toWebhookEventTypes(input.events),
             id: endpointId,
             lastSuccessAt: null,
             name: input.name,
             projectId: input.projectId,
             secret,
-            status: "active" as const,
+            status: constant("active"),
             url: input.url,
           };
         },
@@ -281,11 +309,9 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           if (input.events !== undefined) updates.events = [...input.events];
           if (input.description !== undefined) updates.description = input.description;
           if (input.status !== undefined) {
-            updates.status =
-              input.status === "active"
-                ? WebhookEndpointStatus.Active
-                : WebhookEndpointStatus.Disabled;
+            updates.status = WebhookEndpointStatus.Disabled;
             if (input.status === "active") {
+              updates.status = WebhookEndpointStatus.Active;
               updates.consecutiveFailures = 0;
             }
           }
@@ -495,9 +521,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           const deliveries = yield* db.query.webhookDeliveries.findMany({
             limit,
             orderBy: { createdAt: "desc" },
-            where: input.endpointId
-              ? { webhookEndpointId: input.endpointId }
-              : { projectId: input.projectId },
+            where: deliveriesWhere(input),
           });
           return deliveries.map(mapDeliveryToResponse);
         },
@@ -677,7 +701,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           }
 
           const deliveryId = generateId("webhookDelivery");
-          const eventOccurredAt = new Date();
+          const eventOccurredAt = yield* DateTime.nowAsDate;
           const eventType = "test.ping";
           yield* Effect.annotateCurrentSpan("voidhash.webhook.delivery.id", deliveryId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.event_type", eventType);
@@ -686,7 +710,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             message: "This is a test webhook delivery",
             timestamp: eventOccurredAt.toISOString(),
           };
-          const createdAt = new Date();
+          const createdAt = yield* DateTime.nowAsDate;
 
           yield* db.insert(webhookDeliveries).values({
             attemptCount: 0,
@@ -738,7 +762,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           ),
       );
 
-      return {
+      return constant({
         createEndpoint,
         deleteEndpoint,
         getDeliveries,
@@ -749,7 +773,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
         rotateSecret,
         testEndpoint,
         updateEndpoint,
-      } as const;
+      });
     }),
   },
 ) {

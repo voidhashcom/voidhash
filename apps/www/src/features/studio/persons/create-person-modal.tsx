@@ -57,7 +57,7 @@ export function CreatePersonModal({ open, onClose, trigger, projectId }: CreateP
     ...createPersonOptions(),
     onSuccess: () => {
       toast.success("Person created successfully");
-      queryClient.invalidateQueries({ queryKey: queryKeys.person.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.person.all });
     },
     onError: () => {
       toast.error("Failed to create person");

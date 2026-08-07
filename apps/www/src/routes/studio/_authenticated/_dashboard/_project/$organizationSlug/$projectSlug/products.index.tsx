@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Page, PageHeader, PageHeaderTitle } from "@voidhash/ui";
@@ -48,7 +49,7 @@ function ProductsIndexPage() {
   );
 
   if (!project) {
-    throw new Error("Project not found");
+    return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
   const { data: products } = useSuspenseQuery(listProductsOptions({ projectId: project.id }));

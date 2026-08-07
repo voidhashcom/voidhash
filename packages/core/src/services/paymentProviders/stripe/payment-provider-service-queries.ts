@@ -16,6 +16,7 @@ import {
   type DbError,
   Db,
 } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Option } from "effect";
 
 /** Bound on `mergedIntoPersonId` chain-following — cycle/runaway backstop. */
@@ -68,9 +69,8 @@ const make = Effect.gen(function* () {
           },
           with: { product: { columns: { type: true } } },
         });
-        return row
-          ? Option.some({ id: row.id, productType: row.product?.type })
-          : Option.none<{ readonly id: string; readonly productType: number | undefined }>();
+        if (row) return Option.some({ id: row.id, productType: row.product?.type });
+        return Option.none<{ readonly id: string; readonly productType: number | undefined }>();
       }),
   );
 
@@ -299,7 +299,7 @@ const make = Effect.gen(function* () {
     });
   });
 
-  return {
+  return constant({
     createExternalIdentifier,
     findActiveProviderProductByPrimaryKey,
     findExternalIdentifier,
@@ -312,7 +312,7 @@ const make = Effect.gen(function* () {
     markParkedNotificationResolved,
     resolveCanonicalPersonId,
     upsertExternalIdentifier,
-  } as const;
+  });
 });
 
 export type StripePaymentProviderServiceQueriesShape = Effect.Success<typeof make>;

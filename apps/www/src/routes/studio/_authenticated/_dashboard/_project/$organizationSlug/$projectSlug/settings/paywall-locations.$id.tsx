@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -52,7 +53,7 @@ function PaywallLocationDetailPage() {
   );
 
   if (!project) {
-    throw new Error("Project not found");
+    return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
   const { data: locations } = useSuspenseQuery(

@@ -40,7 +40,7 @@
  * `Effect.ensuring` finalizer. Typed failures are asserted with `Effect.flip` +
  * `instanceof`, paired with a DB-state assertion proving nothing leaked.
  */
-import { Effect, Layer, Option } from "effect";
+import { Clock, DateTime, Effect, Layer, Option } from "effect";
 import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
 import { describe, expect, test as vitestTest } from "vitest";
 
@@ -64,6 +64,7 @@ import {
   deriveAccountToken,
 } from "@voidhash/core/utils/crypto/account-token";
 import { generateId } from "@voidhash/core/utils";
+import { constant, numberOr, stringOr } from "@voidhash/lib/lang";
 // The App Store error classes have no public package subpath, so they are
 // imported by relative path into `src` (the unit-test convention in the brief).
 import {
@@ -72,7 +73,6 @@ import {
   AppStorePurchaseProcessingIdempotencyKeyDerivationError,
 } from "../../../../src/services/paymentProviders/appStore/errors.ts";
 import {
-  type PaymentProviderConfiguration as DbPaymentProviderConfiguration,
   type Project as DbProject,
   Db,
   PersonOrigin,
@@ -102,7 +102,12 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so generated keys stay unique even within one millisecond. */
 let seq = 0;
-const uniq = (label: string) => `it-as-${label}-${Date.now()}-${seq++}`;
+/**
+ * Unique per file run (a cuid2), so generated keys never collide with a
+ * concurrent run against the same shared database.
+ */
+const runToken = generateId("test");
+const uniq = (label: string) => `it-as-${label}-${runToken}-${seq++}`;
 
 /**
  * Full dependency graph for the App Store record engine. Everything here is
@@ -203,46 +208,48 @@ const decodedRenewal = (raw: Record<string, unknown>) =>
  * Builds a raw auto-renewable subscription JWS (initial purchase). Pass
  * `transactionReason: "RENEWAL"` to make it a renewal.
  */
-const subscriptionRaw = (overrides: RawTransaction = {}): RawTransaction => {
-  const now = Date.now();
-  const tx = uniq("tx");
-  const orig = uniq("orig");
-  return {
-    transactionId: tx,
-    originalTransactionId: orig,
-    productId: undefined, // set by callers from the mapped product key
-    type: AppleTransactionType.AUTO_RENEWABLE_SUBSCRIPTION,
-    purchaseDate: now,
-    originalPurchaseDate: now,
-    expiresDate: now + 30 * 24 * 60 * 60 * 1000,
-    signedDate: now,
-    currency: "USD",
-    price: 9990, // milliunits → 999 minor units
-    storefront: "USA",
-    environment: "Sandbox",
-    ...overrides,
-  };
-};
+const subscriptionRaw = (overrides: RawTransaction = {}): Effect.Effect<RawTransaction> =>
+  Effect.gen(function* () {
+    const now = yield* Clock.currentTimeMillis;
+    const tx = uniq("tx");
+    const orig = uniq("orig");
+    return {
+      transactionId: tx,
+      originalTransactionId: orig,
+      productId: undefined, // set by callers from the mapped product key
+      type: AppleTransactionType.AUTO_RENEWABLE_SUBSCRIPTION,
+      purchaseDate: now,
+      originalPurchaseDate: now,
+      expiresDate: now + 30 * 24 * 60 * 60 * 1000,
+      signedDate: now,
+      currency: "USD",
+      price: 9990, // milliunits → 999 minor units
+      storefront: "USA",
+      environment: "Sandbox",
+      ...overrides,
+    };
+  });
 
 /** Builds a raw one-time / consumable charge JWS. */
-const oneTimeRaw = (overrides: RawTransaction = {}): RawTransaction => {
-  const now = Date.now();
-  const tx = uniq("tx");
-  return {
-    transactionId: tx,
-    originalTransactionId: tx,
-    productId: undefined,
-    type: AppleTransactionType.NON_CONSUMABLE,
-    purchaseDate: now,
-    originalPurchaseDate: now,
-    signedDate: now,
-    currency: "USD",
-    price: 4990,
-    storefront: "USA",
-    environment: "Sandbox",
-    ...overrides,
-  };
-};
+const oneTimeRaw = (overrides: RawTransaction = {}): Effect.Effect<RawTransaction> =>
+  Effect.gen(function* () {
+    const now = yield* Clock.currentTimeMillis;
+    const tx = uniq("tx");
+    return {
+      transactionId: tx,
+      originalTransactionId: tx,
+      productId: undefined,
+      type: AppleTransactionType.NON_CONSUMABLE,
+      purchaseDate: now,
+      originalPurchaseDate: now,
+      signedDate: now,
+      currency: "USD",
+      price: 4990,
+      storefront: "USA",
+      environment: "Sandbox",
+      ...overrides,
+    };
+  });
 
 // ----------------------------------------------------------------------------
 // Per-test parent-row seeding + cleanup.
@@ -330,9 +337,14 @@ const seedConfig = (track: CleanupTrack, label: string, configOverrides: object 
     });
 
     const configuration = yield* findConfiguration(configId);
+    if (configuration === undefined) {
+      // The row was just inserted in this transaction — its absence is a broken
+      // invariant, not a test expectation.
+      return yield* Effect.die(new Error(`seeded configuration ${configId} was not persisted`));
+    }
 
     return {
-      configuration: configuration as DbPaymentProviderConfiguration,
+      configuration,
       productKey,
       providerProductId,
       productId,
@@ -412,7 +424,7 @@ const cleanup = (track: CleanupTrack) =>
             inArray(personExternalIdentifiers.identifier, track.externalIdentifiers),
           ),
         )
-        .pipe(Effect.orElseSucceed(() => [] as { id: string; personId: string }[]));
+        .pipe(Effect.orElseSucceed((): Array<{ id: string; personId: string }> => []));
       const personIds = [...new Set(extRows.map((r) => r.personId))];
       yield* ignore(
         db
@@ -447,9 +459,12 @@ const withEngine = <E, R>(
   const track = newTrack();
   return Effect.gen(function* () {
     const db = yield* Db;
-    const project = (yield* db.query.projects
+    const project = yield* db.query.projects
       .findFirst({ where: { id: projectId } })
-      .pipe(Effect.orDie)) as DbProject;
+      .pipe(Effect.orDie);
+    if (project === undefined) {
+      return yield* Effect.die(new Error(`fixture project ${projectId} is missing`));
+    }
     return yield* body({ project, track });
   }).pipe(Effect.ensuring(cleanup(track)));
 };
@@ -461,11 +476,14 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "sub-initial");
-        const raw = subscriptionRaw({ productId: seeded.productKey, appAccountToken: uniq("aat") });
+        const raw = yield* subscriptionRaw({
+          productId: seeded.productKey,
+          appAccountToken: uniq("aat"),
+        });
         const decodedTx = yield* decoded(raw);
         const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
         track.subscriptionStoreIds.push(storeSubId);
-        track.externalIdentifiers.push(raw.appAccountToken as string);
+        track.externalIdentifiers.push(stringOr(raw.appAccountToken, ""));
 
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
@@ -473,7 +491,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "sdk",
           distinctId: uniq("distinct"),
         });
@@ -511,7 +529,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
         // The client derives the token from the distinctId; the equality guard
         // in the SDK path only writes the binding for this matching case.
         const token = yield* deriveAccountToken(distinctId);
-        const raw = subscriptionRaw({ productId: seeded.productKey, appAccountToken: token });
+        const raw = yield* subscriptionRaw({ productId: seeded.productKey, appAccountToken: token });
         const decodedTx = yield* decoded(raw);
         const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
         track.subscriptionStoreIds.push(storeSubId);
@@ -529,7 +547,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "sdk",
           distinctId,
         });
@@ -560,7 +578,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
         // equality guard must skip the binding so the buyer's token is not
         // re-homed onto the restoring person.
         const foreignToken = yield* deriveAccountToken(uniq("other-person"));
-        const raw = subscriptionRaw({
+        const raw = yield* subscriptionRaw({
           productId: seeded.productKey,
           appAccountToken: foreignToken,
         });
@@ -577,7 +595,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "sdk",
           distinctId,
         });
@@ -601,7 +619,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "renew");
-        const raw = subscriptionRaw({
+        const raw = yield* subscriptionRaw({
           productId: seeded.productKey,
           transactionReason: "RENEWAL",
           appAccountToken: uniq("aat"),
@@ -609,7 +627,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
         const decodedTx = yield* decoded(raw);
         const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
         track.subscriptionStoreIds.push(storeSubId);
-        track.externalIdentifiers.push(raw.appAccountToken as string);
+        track.externalIdentifiers.push(stringOr(raw.appAccountToken, ""));
 
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
@@ -617,7 +635,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "sdk",
           distinctId: uniq("distinct"),
         });
@@ -638,11 +656,14 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "one-time");
-        const raw = oneTimeRaw({ productId: seeded.productKey, appAccountToken: uniq("aat") });
+        const raw = yield* oneTimeRaw({
+          productId: seeded.productKey,
+          appAccountToken: uniq("aat"),
+        });
         const decodedTx = yield* decoded(raw);
         const providerKey = Option.getOrThrow(decodedTx.transactionId);
         track.purchaseProviderKeys.push(providerKey);
-        track.externalIdentifiers.push(raw.appAccountToken as string);
+        track.externalIdentifiers.push(stringOr(raw.appAccountToken, ""));
 
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
@@ -650,7 +671,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "sdk",
           distinctId: uniq("distinct"),
         });
@@ -674,7 +695,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "sdk-identity");
         // No appAccountToken → personIdentifier falls back to originalTransactionId.
-        const raw = subscriptionRaw({ productId: seeded.productKey, appAccountToken: undefined });
+        const raw = yield* subscriptionRaw({ productId: seeded.productKey, appAccountToken: undefined });
         const decodedTx = yield* decoded(raw);
         const personIdentifier = Option.getOrThrow(decodedTx.originalTransactionId);
         track.subscriptionStoreIds.push(personIdentifier);
@@ -686,7 +707,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "sdk",
           distinctId: uniq("distinct"),
         });
@@ -709,7 +730,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "webhook-standin");
-        const raw = subscriptionRaw({ productId: seeded.productKey, appAccountToken: undefined });
+        const raw = yield* subscriptionRaw({ productId: seeded.productKey, appAccountToken: undefined });
         const decodedTx = yield* decoded(raw);
         const personIdentifier = Option.getOrThrow(decodedTx.originalTransactionId);
         track.subscriptionStoreIds.push(personIdentifier);
@@ -721,7 +742,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
         track.ledgerKeys.push(
@@ -748,7 +769,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "ignored");
-        const raw = subscriptionRaw({ productId: undefined, appAccountToken: undefined });
+        const raw = yield* subscriptionRaw({ productId: undefined, appAccountToken: undefined });
         const decodedTx = yield* decoded(raw);
         const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
 
@@ -758,7 +779,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
 
@@ -781,7 +802,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "not-mapped");
         const unmappedKey = uniq("unmapped");
-        const raw = subscriptionRaw({ productId: unmappedKey, appAccountToken: undefined });
+        const raw = yield* subscriptionRaw({ productId: unmappedKey, appAccountToken: undefined });
         const decodedTx = yield* decoded(raw);
         const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
         track.externalIdentifiers.push(storeSubId); // identity is resolved before the mapping check
@@ -793,7 +814,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
             decodedTransaction: decodedTx,
             decodedRenewalInfo: Option.none(),
             providerEnvironment: ProviderEnvironment.Sandbox,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             source: "webhook",
           }),
         );
@@ -834,22 +855,25 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "sdk-no-distinct");
-        const raw = subscriptionRaw({ productId: seeded.productKey });
+        const raw = yield* subscriptionRaw({ productId: seeded.productKey });
         const decodedTx = yield* decoded(raw);
         const providerTransactionId = Option.getOrThrow(decodedTx.transactionId);
 
-        // Force the `source: "sdk"` branch with distinctId absent at runtime;
-        // the discriminated-union type requires it, so cast through unknown.
-        const input = {
+        // Force the `source: "sdk"` branch with distinctId absent at runtime.
+        // The discriminated union requires the field, so it is built typed and
+        // the key is then removed reflectively (a plain `delete` is rejected for
+        // a non-optional property).
+        const input: Parameters<typeof engine.recordPurchase>[0] = {
           configuration: seeded.configuration,
           project,
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "sdk",
-          distinctId: undefined,
-        } as unknown as Parameters<typeof engine.recordPurchase>[0];
+          distinctId: uniq("unused-distinct"),
+        };
+        Reflect.deleteProperty(input, "distinctId");
 
         const error = yield* Effect.flip(engine.recordPurchase(input));
         expect(error).toBeInstanceOf(AppStorePaymentProviderSdkTransactionMissingDistinctIdError);
@@ -867,7 +891,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "idemp-fail");
         // purchase/renewal idempotency key needs purchaseDate; omit it.
-        const raw = subscriptionRaw({
+        const raw = yield* subscriptionRaw({
           productId: seeded.productKey,
           appAccountToken: undefined,
           purchaseDate: undefined,
@@ -883,7 +907,7 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
             decodedTransaction: decodedTx,
             decodedRenewalInfo: Option.none(),
             providerEnvironment: ProviderEnvironment.Sandbox,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             source: "webhook",
           }),
         );
@@ -904,11 +928,14 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "idempotent");
-        const raw = subscriptionRaw({ productId: seeded.productKey, appAccountToken: uniq("aat") });
+        const raw = yield* subscriptionRaw({
+          productId: seeded.productKey,
+          appAccountToken: uniq("aat"),
+        });
         const decodedTx = yield* decoded(raw);
         const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
         track.subscriptionStoreIds.push(storeSubId);
-        track.externalIdentifiers.push(raw.appAccountToken as string);
+        track.externalIdentifiers.push(stringOr(raw.appAccountToken, ""));
         track.ledgerKeys.push(
           `apple:${Option.getOrThrow(decodedTx.transactionId)}:purchase:${Option.getOrThrow(decodedTx.purchaseDate)}`,
         );
@@ -919,8 +946,8 @@ describe("AppStorePaymentProvider.recordPurchase", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
-          source: "sdk" as const,
+          receivedAt: yield* DateTime.nowAsDate,
+          source: constant("sdk"),
           distinctId: uniq("distinct"),
         };
 
@@ -948,13 +975,16 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
     Effect.gen(function* () {
       const engine = yield* AppStorePaymentProvider;
       const seeded = yield* seedConfig(track, label);
-      const raw = subscriptionRaw({ productId: seeded.productKey, appAccountToken: uniq("aat") });
+      const raw = yield* subscriptionRaw({
+        productId: seeded.productKey,
+        appAccountToken: uniq("aat"),
+      });
       // Returned to tests; its (later) purchaseDate drives every follow-up
       // lifecycle event's occurredAt.
       const decodedTx = yield* decoded(raw);
       const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
       track.subscriptionStoreIds.push(storeSubId);
-      track.externalIdentifiers.push(raw.appAccountToken as string);
+      track.externalIdentifiers.push(stringOr(raw.appAccountToken, ""));
       // Seed the initial purchase one hour EARLIER so the subscription's
       // `last_event_occurred_at` watermark sits strictly before every follow-up
       // lifecycle event that reuses `decodedTx`. A same-occurredAt projection
@@ -964,7 +994,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
       // at its default. Same originalTransactionId ⇒ same subscription target.
       const seedTx = yield* decoded({
         ...raw,
-        purchaseDate: (raw.purchaseDate as number) - 60 * 60 * 1000,
+        purchaseDate: numberOr(raw.purchaseDate, 0) - 60 * 60 * 1000,
       });
       track.ledgerKeys.push(
         `apple:${Option.getOrThrow(seedTx.transactionId)}:purchase:${Option.getOrThrow(seedTx.purchaseDate)}`,
@@ -975,7 +1005,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
         decodedTransaction: seedTx,
         decodedRenewalInfo: Option.none(),
         providerEnvironment: ProviderEnvironment.Sandbox,
-        receivedAt: new Date(),
+        receivedAt: yield* DateTime.nowAsDate,
         source: "sdk",
         distinctId: uniq("distinct"),
       });
@@ -997,7 +1027,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
           decodedTransaction: active.decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
         expect(Option.isSome(result.subscriptionId)).toBe(true);
@@ -1030,7 +1060,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
         // unchanged.
         const cancelTx = yield* decoded({
           ...active.raw,
-          purchaseDate: (active.raw.purchaseDate as number) + 60_000,
+          purchaseDate: numberOr(active.raw.purchaseDate, 0) + 60_000,
         });
 
         yield* engine.recordSubscriptionCanceled({
@@ -1039,7 +1069,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
           decodedTransaction: cancelTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
           cancelAtPeriodEnd: true,
         });
@@ -1056,7 +1086,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const active = yield* seedActiveSubscription(track, project, "revoke-sub");
-        const now = Date.now();
+        const now = yield* Clock.currentTimeMillis;
         const revokedTx = yield* decoded({
           ...active.raw,
           revocationDate: now,
@@ -1069,7 +1099,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
           decodedTransaction: revokedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
         expect(Option.isSome(result.subscriptionId)).toBe(true);
@@ -1089,7 +1119,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
         const engine = yield* AppStorePaymentProvider;
         const active = yield* seedActiveSubscription(track, project, "billing-retry");
         const expiresDate = Option.getOrThrow(active.decodedTx.expiresDate);
-        const grace = Date.now() + 5 * 24 * 60 * 60 * 1000;
+        const grace = (yield* Clock.currentTimeMillis) + 5 * 24 * 60 * 60 * 1000;
         track.ledgerKeys.push(`apple:${active.storeSubId}:billing_retry:${expiresDate}`);
 
         const renewalInfo = yield* decodedRenewal({
@@ -1105,7 +1135,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
         // key) and originalTransactionId (the subscription target) are unchanged.
         const retryTx = yield* decoded({
           ...active.raw,
-          purchaseDate: (active.raw.purchaseDate as number) + 60_000,
+          purchaseDate: numberOr(active.raw.purchaseDate, 0) + 60_000,
         });
 
         yield* engine.recordBillingRetry({
@@ -1114,7 +1144,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
           decodedTransaction: retryTx,
           decodedRenewalInfo: Option.some(renewalInfo),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
 
@@ -1143,7 +1173,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
           decodedTransaction: offerTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
 
@@ -1174,7 +1204,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
           decodedTransaction: active.decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
         expect(Option.isSome(result.subscriptionId)).toBe(true);
@@ -1191,7 +1221,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
       Effect.gen(function* () {
         const engine = yield* AppStorePaymentProvider;
         const seeded = yield* seedConfig(track, "informational");
-        const raw = subscriptionRaw({ productId: seeded.productKey, appAccountToken: undefined });
+        const raw = yield* subscriptionRaw({ productId: seeded.productKey, appAccountToken: undefined });
         const decodedTx = yield* decoded(raw);
         const storeSubId = Option.getOrThrow(decodedTx.originalTransactionId);
 
@@ -1201,7 +1231,7 @@ describe("AppStorePaymentProvider lifecycle record* routing", () => {
           decodedTransaction: decodedTx,
           decodedRenewalInfo: Option.none(),
           providerEnvironment: ProviderEnvironment.Sandbox,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           source: "webhook",
         });
 
@@ -1246,10 +1276,11 @@ describe("AppStorePaymentProvider.buildSdkContextFromConfiguration", () => {
           .set({ configuration: { bundleId: "" } })
           .where(eq(paymentProviderConfigurations.id, seeded.configuration.id));
         const broken = yield* findConfiguration(seeded.configuration.id);
+        if (broken === undefined) {
+          return yield* Effect.die(new Error("the overwritten configuration row disappeared"));
+        }
 
-        const exit = yield* Effect.exit(
-          engine.buildSdkContextFromConfiguration(broken as DbPaymentProviderConfiguration),
-        );
+        const exit = yield* Effect.exit(engine.buildSdkContextFromConfiguration(broken));
         expect(exit._tag).toBe("Failure");
       }),
     ).pipe(Effect.provide(AppStoreEngineLive), CoreAuthSession.authenticate()),

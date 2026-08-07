@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Cause, Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { extractCertificateChain, validateCertificateChain } from "../src/verification/index.ts";
 import { VerificationError, VerificationStatus, CertificateError } from "../src/errors/index.ts";
 
@@ -21,17 +21,26 @@ const LEAF_CERT_FOR_INTERMEDIATE_CA_INVALID_OID_BASE64_ENCODED =
 const LEAF_CERT_INVALID_OID_BASE64_ENCODED =
   "MIIBoDCCAUagAwIBAgIBDzAKBggqhkjOPQQDAzBFMQswCQYDVQQGEwJVUzELMAkGA1UECAwCQ0ExEjAQBgNVBAcMCUN1cGVydGlubzEVMBMGA1UECgwMSW50ZXJtZWRpYXRlMB4XDTIzMDEwNTIxMzczMVoXDTMzMDEwMTIxMzczMVowPTELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAkNBMRIwEAYDVQQHDAlDdXBlcnRpbm8xDTALBgNVBAoMBExlYWYwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATitYHEaYVuc8g9AjTOwErMvGyPykPa+puvTI8hJTHZZDLGas2qX1+ErxgQTJgVXv76nmLhhRJH+j25AiAI8iGsoy8wLTAJBgNVHRMEAjAAMA4GA1UdDwEB/wQEAwIHgDAQBgoqhkiG92NkBgsCBAIFADAKBggqhkjOPQQDAwNIADBFAiAb+7S3i//bSGy7skJY9+D4VgcQLKFeYfIMSrUCmdrFqwIhAIMVwzD1RrxPRtJyiOCXLyibIvwcY+VS73HYfk0O9lgz";
 
-const EFFECTIVE_DATE = new Date(1761962975000); // October 2025 — within the cert validity window
+/** Builds a fixed `Date` without reaching for the `Date` global. */
+const dateFromMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
+const EFFECTIVE_DATE = dateFromMillis(1761962975000); // October 2025 — within the cert validity window
 
 const toPem = (base64: string): string =>
   `-----BEGIN CERTIFICATE-----\n${base64}\n-----END CERTIFICATE-----`;
+
+/** Reads the `status` off a failure that is expected to be a `VerificationError`. */
+const statusOf = (error: VerificationError | CertificateError) => {
+  if (error instanceof VerificationError) return error.status;
+  return undefined;
+};
 
 const runVerify = (
   rootBase64: string,
   leafBase64: string,
   intermediateBase64: string,
   currentTime: Date = EFFECTIVE_DATE,
-): Promise<Cause.Cause<VerificationError | CertificateError> | "ok"> =>
+): Effect.Effect<"ok", VerificationError | CertificateError> =>
   Effect.gen(function* () {
     const chain = yield* extractCertificateChain([leafBase64, intermediateBase64, rootBase64]);
     yield* validateCertificateChain(chain, {
@@ -39,133 +48,120 @@ const runVerify = (
       enableOnlineChecks: false,
       currentTime,
     });
-    return "ok" as const;
-  })
-    .pipe(Effect.runPromiseExit)
-    .then((exit) => (exit._tag === "Success" ? "ok" : exit.cause));
+    return "ok";
+  });
 
 describe("JWS Chain Verification", () => {
-  it("validates a valid chain", async () => {
-    const result = await runVerify(
-      ROOT_CA_BASE64_ENCODED,
-      LEAF_CERT_BASE64_ENCODED,
-      INTERMEDIATE_CA_BASE64_ENCODED,
-    );
-    expect(result).toBe("ok");
-  });
+  it("validates a valid chain", () =>
+    Effect.gen(function* () {
+      const result = yield* runVerify(
+        ROOT_CA_BASE64_ENCODED,
+        LEAF_CERT_BASE64_ENCODED,
+        INTERMEDIATE_CA_BASE64_ENCODED,
+      );
+      expect(result).toBe("ok");
+    }).pipe(Effect.runPromise));
 
-  it("rejects a chain with an invalid intermediate OID", async () => {
-    const result = await runVerify(
-      ROOT_CA_BASE64_ENCODED,
-      LEAF_CERT_FOR_INTERMEDIATE_CA_INVALID_OID_BASE64_ENCODED,
-      INTERMEDIATE_CA_INVALID_OID_BASE64_ENCODED,
-    );
-    expect(result).not.toBe("ok");
-    if (result !== "ok") {
-      const err = Cause.squash(result) as VerificationError;
-      expect(err.status).toBe(VerificationStatus.VERIFICATION_FAILURE);
-    }
-  });
+  it("rejects a chain with an invalid intermediate OID", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        runVerify(
+          ROOT_CA_BASE64_ENCODED,
+          LEAF_CERT_FOR_INTERMEDIATE_CA_INVALID_OID_BASE64_ENCODED,
+          INTERMEDIATE_CA_INVALID_OID_BASE64_ENCODED,
+        ),
+      );
+      expect(statusOf(error)).toBe(VerificationStatus.VERIFICATION_FAILURE);
+    }).pipe(Effect.runPromise));
 
-  it("rejects a chain with an invalid leaf OID", async () => {
-    const result = await runVerify(
-      ROOT_CA_BASE64_ENCODED,
-      LEAF_CERT_INVALID_OID_BASE64_ENCODED,
-      INTERMEDIATE_CA_BASE64_ENCODED,
-    );
-    expect(result).not.toBe("ok");
-    if (result !== "ok") {
-      const err = Cause.squash(result) as VerificationError;
-      expect(err.status).toBe(VerificationStatus.VERIFICATION_FAILURE);
-    }
-  });
+  it("rejects a chain with an invalid leaf OID", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        runVerify(
+          ROOT_CA_BASE64_ENCODED,
+          LEAF_CERT_INVALID_OID_BASE64_ENCODED,
+          INTERMEDIATE_CA_BASE64_ENCODED,
+        ),
+      );
+      expect(statusOf(error)).toBe(VerificationStatus.VERIFICATION_FAILURE);
+    }).pipe(Effect.runPromise));
 
-  it("rejects an expired chain", async () => {
-    const result = await runVerify(
-      ROOT_CA_BASE64_ENCODED,
-      LEAF_CERT_BASE64_ENCODED,
-      INTERMEDIATE_CA_BASE64_ENCODED,
-      new Date(2280946846000), // far future, beyond cert validity
-    );
-    expect(result).not.toBe("ok");
-    if (result !== "ok") {
-      const err = Cause.squash(result) as VerificationError;
-      expect(err.status).toBe(VerificationStatus.INVALID_CERTIFICATE);
-    }
-  });
+  it("rejects an expired chain", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        runVerify(
+          ROOT_CA_BASE64_ENCODED,
+          LEAF_CERT_BASE64_ENCODED,
+          INTERMEDIATE_CA_BASE64_ENCODED,
+          dateFromMillis(2280946846000), // far future, beyond cert validity
+        ),
+      );
+      expect(statusOf(error)).toBe(VerificationStatus.INVALID_CERTIFICATE);
+    }).pipe(Effect.runPromise));
 
-  it("rejects a chain when root is not in trusted roots", async () => {
+  it("rejects a chain when root is not in trusted roots", () => {
     // The real Apple Root CA G3 — totally unrelated to the test chain,
     // so fingerprint comparison must fail.
     const otherRoot =
       "MIICQzCCAcmgAwIBAgIILcX8iNLFS5UwCgYIKoZIzj0EAwMwZzEbMBkGA1UEAwwSQXBwbGUgUm9vdCBDQSAtIEczMSYwJAYDVQQLDB1BcHBsZSBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTETMBEGA1UECgwKQXBwbGUgSW5jLjELMAkGA1UEBhMCVVMwHhcNMTQwNDMwMTgxOTA2WhcNMzkwNDMwMTgxOTA2WjBnMRswGQYDVQQDDBJBcHBsZSBSb290IENBIC0gRzMxJjAkBgNVBAsMHUFwcGxlIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRMwEQYDVQQKDApBcHBsZSBJbmMuMQswCQYDVQQGEwJVUzB2MBAGByqGSM49AgEGBSuBBAAiA2IABJjpLz1AcqTtkyJygRMc3RCV8cWjTnHcFBbZDuWmBSp3ZHtfTjjTuxxEtX/1H7YyYl3J6YRbTzBPEVoA/VhYDKX1DyxNB0cTddqXl5dvMVztK517IDvYuVTZXpmkOlEKMaNCMEAwHQYDVR0OBBYEFLuw3qFYM4iapIqZ3r6966/ayySrMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMDA2gAMGUCMQCD6cHEFl4aXTQY2e3v9GwOAEZLuN+yRhHFD/3meoyhpmvOwgPUnPWTxnS4at+qIxUCMG1mihDK1A3UT82NQz60imOlM27jbdoXt2QfyFMm+YhidDkLF1vLUagM6BgD56KyKA==";
-    const result = await runVerify(
-      otherRoot,
-      LEAF_CERT_BASE64_ENCODED,
-      INTERMEDIATE_CA_BASE64_ENCODED,
-    );
-    expect(result).not.toBe("ok");
-    if (result !== "ok") {
-      const err = Cause.squash(result) as VerificationError;
-      expect(err.status).toBe(VerificationStatus.VERIFICATION_FAILURE);
-    }
+    return Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        runVerify(otherRoot, LEAF_CERT_BASE64_ENCODED, INTERMEDIATE_CA_BASE64_ENCODED),
+      );
+      expect(statusOf(error)).toBe(VerificationStatus.VERIFICATION_FAILURE);
+    }).pipe(Effect.runPromise);
   });
 
-  it("rejects an empty roots list", async () => {
-    const program = Effect.gen(function* () {
-      const chain = yield* extractCertificateChain([
-        LEAF_CERT_BASE64_ENCODED,
-        INTERMEDIATE_CA_BASE64_ENCODED,
-        ROOT_CA_BASE64_ENCODED,
-      ]);
-      yield* validateCertificateChain(chain, {
-        rootCertificates: [],
-        enableOnlineChecks: false,
-        currentTime: EFFECTIVE_DATE,
+  it("rejects an empty roots list", () =>
+    Effect.gen(function* () {
+      const program = Effect.gen(function* () {
+        const chain = yield* extractCertificateChain([
+          LEAF_CERT_BASE64_ENCODED,
+          INTERMEDIATE_CA_BASE64_ENCODED,
+          ROOT_CA_BASE64_ENCODED,
+        ]);
+        yield* validateCertificateChain(chain, {
+          rootCertificates: [],
+          enableOnlineChecks: false,
+          currentTime: EFFECTIVE_DATE,
+        });
       });
-    });
-    const exit = await Effect.runPromiseExit(program);
-    expect(exit._tag).toBe("Failure");
-    if (exit._tag === "Failure") {
-      const err = Cause.squash(exit.cause) as VerificationError;
-      expect(err.status).toBe(VerificationStatus.VERIFICATION_FAILURE);
-    }
-  });
+      const error = yield* Effect.flip(program);
+      expect(statusOf(error)).toBe(VerificationStatus.VERIFICATION_FAILURE);
+    }).pipe(Effect.runPromise));
 
-  it("rejects a chain of the wrong length", async () => {
-    const program = Effect.gen(function* () {
-      const chain = yield* extractCertificateChain([
-        LEAF_CERT_BASE64_ENCODED,
-        INTERMEDIATE_CA_BASE64_ENCODED,
-      ]);
-      yield* validateCertificateChain(chain, {
-        rootCertificates: [toPem(ROOT_CA_BASE64_ENCODED)],
-        enableOnlineChecks: false,
-        currentTime: EFFECTIVE_DATE,
+  it("rejects a chain of the wrong length", () =>
+    Effect.gen(function* () {
+      const program = Effect.gen(function* () {
+        const chain = yield* extractCertificateChain([
+          LEAF_CERT_BASE64_ENCODED,
+          INTERMEDIATE_CA_BASE64_ENCODED,
+        ]);
+        yield* validateCertificateChain(chain, {
+          rootCertificates: [toPem(ROOT_CA_BASE64_ENCODED)],
+          enableOnlineChecks: false,
+          currentTime: EFFECTIVE_DATE,
+        });
       });
-    });
-    const exit = await Effect.runPromiseExit(program);
-    expect(exit._tag).toBe("Failure");
-    if (exit._tag === "Failure") {
-      const err = Cause.squash(exit.cause) as VerificationError;
-      expect(err.status).toBe(VerificationStatus.INVALID_CHAIN_LENGTH);
-    }
-  });
+      const error = yield* Effect.flip(program);
+      expect(statusOf(error)).toBe(VerificationStatus.INVALID_CHAIN_LENGTH);
+    }).pipe(Effect.runPromise));
 
-  it("rejects garbage root data", async () => {
-    const program = Effect.gen(function* () {
-      const chain = yield* extractCertificateChain([
-        LEAF_CERT_BASE64_ENCODED,
-        INTERMEDIATE_CA_BASE64_ENCODED,
-        ROOT_CA_BASE64_ENCODED,
-      ]);
-      yield* validateCertificateChain(chain, {
-        rootCertificates: ["not-a-cert"],
-        enableOnlineChecks: false,
-        currentTime: EFFECTIVE_DATE,
+  it("rejects garbage root data", () =>
+    Effect.gen(function* () {
+      const program = Effect.gen(function* () {
+        const chain = yield* extractCertificateChain([
+          LEAF_CERT_BASE64_ENCODED,
+          INTERMEDIATE_CA_BASE64_ENCODED,
+          ROOT_CA_BASE64_ENCODED,
+        ]);
+        yield* validateCertificateChain(chain, {
+          rootCertificates: ["not-a-cert"],
+          enableOnlineChecks: false,
+          currentTime: EFFECTIVE_DATE,
+        });
       });
-    });
-    const exit = await Effect.runPromiseExit(program);
-    expect(exit._tag).toBe("Failure");
-  });
+      const error = yield* Effect.flip(program);
+      expect(error).toBeDefined();
+    }).pipe(Effect.runPromise));
 });

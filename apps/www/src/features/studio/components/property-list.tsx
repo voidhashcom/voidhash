@@ -93,7 +93,7 @@ export function PropertyCopyValue({ label, value }: { label: string; value: stri
       aria-label={`Copy ${label}`}
       className={cn(PROPERTY_VALUE_CLASS_NAME, PROPERTY_VALUE_DIMMED, "group max-w-full")}
       onClick={() => {
-        navigator.clipboard.writeText(value);
+        void navigator.clipboard.writeText(value);
         toast.success(`${label} copied to clipboard`);
       }}
       size="sm"

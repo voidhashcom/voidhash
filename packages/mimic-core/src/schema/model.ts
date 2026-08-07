@@ -3,11 +3,11 @@ import type { Schema, SchemaKind, SchemaObject } from "./types.ts";
 
 export interface ParseContext {
   readonly parseSchema: (input: unknown, schemaPath: readonly (string | number)[]) => Schema;
-  readonly normalizeDefault: (
-    schema: Schema,
+  readonly normalizeDefault: <TSchema extends Schema>(
+    schema: TSchema,
     rawDefault: unknown,
     schemaPath: readonly (string | number)[],
-  ) => Schema;
+  ) => TSchema;
 }
 
 export interface DefaultContext {
@@ -32,29 +32,34 @@ export interface ParseMetadata<K extends SchemaKind = SchemaKind> {
   readonly required?: boolean;
 }
 
+/**
+ * Per-kind behaviour for one schema node.
+ *
+ * The members are declared with method syntax on purpose: method parameters are
+ * checked bivariantly, so a concrete `SchemaModel<ArraySchema>` is assignable to
+ * `SchemaModel<Schema>`. That is what lets {@link getSchemaModel} hand back a
+ * model for a runtime kind without a type assertion.
+ */
 export interface SchemaModel<TSchema extends Schema = Schema> {
   readonly kind: TSchema["kind"];
-  readonly parse: (
+  parse(
     input: Record<string, unknown>,
     metadata: ParseMetadata<TSchema["kind"]>,
     context: ParseContext,
     schemaPath: readonly (string | number)[],
-  ) => TSchema;
-  readonly serialize: (
-    schema: TSchema,
-    serializeSchema: (schema: Schema) => SchemaObject,
-  ) => SchemaObject;
-  readonly validate: (
+  ): TSchema;
+  serialize(schema: TSchema, serializeSchema: (schema: Schema) => SchemaObject): TSchema;
+  validate(
     schema: TSchema,
     value: Value,
     context: ValidationContext,
     valuePath: Path,
     schemaPath: readonly (string | number)[],
-  ) => Value;
-  readonly materializeDefault: (
+  ): Value;
+  materializeDefault(
     schema: TSchema,
     context: DefaultContext,
     valuePath: Path,
     schemaPath: readonly (string | number)[],
-  ) => Value | undefined;
+  ): Value | undefined;
 }

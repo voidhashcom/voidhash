@@ -1,5 +1,6 @@
 import type { ComponentManifest } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
 import type { BuiltinDefaultProp } from "@voidhash/paywall-builtins";
+import { Effect, Option } from "effect";
 
 import { commander } from "../../designer-commander";
 import { componentDisplayName } from "../../utils/code-components";
@@ -47,17 +48,19 @@ export const insertComponentNode = commander.undoableAction<
         previewState: "default",
       };
 
-      try {
-        const node =
-          params.index === undefined
-            ? parent.children.insertLast(data)
-            : parent.children.insertAt(params.index, data);
+      return Option.getOrNull(
+        Effect.runSync(
+          Effect.try(() => {
+            const node =
+              params.index === undefined
+                ? parent.children.insertLast(data)
+                : parent.children.insertAt(params.index, data);
 
-        prefillComponentDefaultProps(root, node.id, component.latest.manifest.props);
-        return node.id;
-      } catch {
-        return null;
-      }
+            prefillComponentDefaultProps(root, node.id, component.latest.manifest.props);
+            return node.id;
+          }).pipe(Effect.option),
+        ),
+      );
     });
 
     if (newNodeId) {
@@ -116,19 +119,21 @@ export const insertLocalComponentNode = commander.undoableAction<
         previewState: "default",
       };
 
-      try {
-        const node =
-          params.index === undefined
-            ? parent.children.insertLast(data)
-            : parent.children.insertAt(params.index, data);
+      return Option.getOrNull(
+        Effect.runSync(
+          Effect.try(() => {
+            const node =
+              params.index === undefined
+                ? parent.children.insertLast(data)
+                : parent.children.insertAt(params.index, data);
 
-        if (params.manifest) {
-          prefillComponentDefaultProps(root, node.id, params.manifest.props);
-        }
-        return node.id;
-      } catch {
-        return null;
-      }
+            if (params.manifest) {
+              prefillComponentDefaultProps(root, node.id, params.manifest.props);
+            }
+            return node.id;
+          }).pipe(Effect.option),
+        ),
+      );
     });
 
     if (newNodeId) {
@@ -186,17 +191,19 @@ export const insertBuiltinComponentNode = commander.undoableAction<
         previewState: "default",
       };
 
-      try {
-        const node =
-          params.index === undefined
-            ? parent.children.insertLast(data)
-            : parent.children.insertAt(params.index, data);
+      return Option.getOrNull(
+        Effect.runSync(
+          Effect.try(() => {
+            const node =
+              params.index === undefined
+                ? parent.children.insertLast(data)
+                : parent.children.insertAt(params.index, data);
 
-        prefillBuiltinDefaultProps(root, node.id, params.defaultProps);
-        return node.id;
-      } catch {
-        return null;
-      }
+            prefillBuiltinDefaultProps(root, node.id, params.defaultProps);
+            return node.id;
+          }).pipe(Effect.option),
+        ),
+      );
     });
 
     if (newNodeId) {

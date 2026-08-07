@@ -1,4 +1,5 @@
-import { Context, Effect, Layer } from "effect";
+import { Clock, Context, DateTime, Duration, Effect, Layer, Schema } from "effect";
+import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 
 import {
   Db,
@@ -8,6 +9,7 @@ import {
   webhookDeliveryAttempts,
   webhookEndpoints,
 } from "@voidhash/db";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import { generateId } from "../../utils/generate-id.ts";
 import type { DeliverWebhookInput } from "../../workflows/definitions.ts";
 
@@ -24,17 +26,24 @@ export interface SendWebhookResult {
 }
 
 // Retry backoff in seconds: 1min, 5min, 30min, 2hr, 24hr.
-const RETRY_DELAYS_SECONDS = [60, 300, 1800, 7200, 86400] as const;
+const RETRY_DELAYS_SECONDS = constant([60, 300, 1800, 7200, 86400]);
 const SIGNATURE_VERSION = "v1";
+const REQUEST_TIMEOUT = Duration.seconds(30);
+
+/** Serializes the webhook payload to the exact JSON body that gets signed. */
+const encodeJsonBody = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
  * Retry time for `attemptNumber`, or `null` once the backoff schedule is
  * exhausted.
  */
-export const nextWebhookDeliveryRetryTime = (attemptNumber: number): Date | null => {
-  const delaySeconds = RETRY_DELAYS_SECONDS[attemptNumber - 1];
-  return delaySeconds === undefined ? null : new Date(Date.now() + delaySeconds * 1000);
-};
+export const nextWebhookDeliveryRetryTime = (attemptNumber: number): Effect.Effect<Date | null> =>
+  Effect.gen(function* () {
+    const delaySeconds = RETRY_DELAYS_SECONDS[attemptNumber - 1];
+    if (delaySeconds === undefined) return null;
+    const now = yield* DateTime.now;
+    return DateTime.toDateUtc(DateTime.addDuration(now, Duration.seconds(delaySeconds)));
+  });
 
 const bytesToHex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -42,18 +51,18 @@ const bytesToHex = (bytes: Uint8Array) =>
 /** HMAC-SHA256 signature of `${timestamp}.${payload}`, prefixed with the
  * scheme version so receivers can roll the algorithm forward. */
 const generateSignature = (payload: string, timestamp: string, secret: string) =>
-  Effect.promise(async () => {
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(secret),
-      { hash: "SHA-256", name: "HMAC" },
-      false,
-      ["sign"],
+  Effect.gen(function* () {
+    const key = yield* Effect.promise(() =>
+      crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(secret),
+        { hash: "SHA-256", name: "HMAC" },
+        false,
+        ["sign"],
+      ),
     );
-    const signature = await crypto.subtle.sign(
-      "HMAC",
-      key,
-      new TextEncoder().encode(`${timestamp}.${payload}`),
+    const signature = yield* Effect.promise(() =>
+      crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${payload}`)),
     );
     return `${SIGNATURE_VERSION}=${bytesToHex(new Uint8Array(signature))}`;
   });
@@ -73,60 +82,64 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
   {
     make: Effect.gen(function* () {
       const db = yield* Db;
+      const httpClient = yield* HttpClient.HttpClient;
 
       /** Sign and POST the payload, capturing the outcome. Never fails. */
       const send = (input: DeliverWebhookInput): Effect.Effect<SendWebhookResult> =>
         Effect.gen(function* () {
-          const timestamp = Math.floor(Date.now() / 1000).toString();
-          const payloadString = JSON.stringify(input.payload);
+          const nowMillis = yield* Clock.currentTimeMillis;
+          const timestamp = Math.floor(nowMillis / 1000).toString();
+          const payloadString = encodeJsonBody(input.payload);
           const signature = yield* generateSignature(payloadString, timestamp, input.secret);
-          const startTime = Date.now();
+          const startTime = yield* Clock.currentTimeMillis;
 
-          return yield* Effect.promise(async () => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30_000);
+          const elapsed = Effect.map(Clock.currentTimeMillis, (end) => end - startTime);
 
-            try {
-              const response = await fetch(input.url, {
-                body: payloadString,
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Webhook-Event": input.eventType,
-                  "X-Webhook-Signature": signature,
-                  "X-Webhook-Timestamp": timestamp,
-                },
-                method: "POST",
-                signal: controller.signal,
-              });
-              const responseBody = await response.text().catch(() => undefined);
+          const post = Effect.gen(function* () {
+            const response = yield* httpClient.post(input.url, {
+              body: HttpBody.text(payloadString, "application/json"),
+              headers: {
+                "X-Webhook-Event": input.eventType,
+                "X-Webhook-Signature": signature,
+                "X-Webhook-Timestamp": timestamp,
+              },
+            });
+            const responseBody = yield* response.text.pipe(Effect.orElseSucceed(() => undefined));
 
-              return {
-                durationMs: Date.now() - startTime,
-                errorMessage: null,
-                responseBody: responseBody?.slice(0, 2048) ?? null,
-                statusCode: response.status,
-                succeeded: response.status >= 200 && response.status < 300,
-              };
-            } catch (error) {
-              return {
-                durationMs: Date.now() - startTime,
-                errorMessage: error instanceof Error ? error.message.slice(0, 500) : String(error),
-                responseBody: null,
-                statusCode: null,
-                succeeded: false,
-              };
-            } finally {
-              clearTimeout(timeoutId);
-            }
+            return {
+              durationMs: yield* elapsed,
+              errorMessage: null,
+              responseBody: responseBody?.slice(0, 2048) ?? null,
+              statusCode: response.status,
+              succeeded: response.status >= 200 && response.status < 300,
+            };
           });
+
+          // A transport failure (or the 30s cap) is not a defect: it is captured
+          // as a non-succeeded result so the workflow can decide to retry.
+          return yield* post.pipe(
+            Effect.timeout(REQUEST_TIMEOUT),
+            Effect.catch((error) =>
+              Effect.gen(function* () {
+                return {
+                  durationMs: yield* elapsed,
+                  errorMessage: causeMessage(error).slice(0, 500),
+                  responseBody: null,
+                  statusCode: null,
+                  succeeded: false,
+                };
+              }),
+            ),
+          );
         });
 
       /** Persist the result of a single attempt against the delivery. */
       const recordAttempt = (input: DeliverWebhookInput, result: SendWebhookResult) =>
         Effect.gen(function* () {
+          const createdAt = yield* DateTime.nowAsDate;
           yield* db.insert(webhookDeliveryAttempts).values({
             attemptNumber: input.attemptNumber,
-            createdAt: new Date(),
+            createdAt,
             durationMs: result.durationMs,
             errorMessage: result.errorMessage,
             id: generateId("webhookDeliveryAttempt"),
@@ -140,11 +153,12 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
       /** Mark the delivery succeeded and reset the endpoint's failure counter. */
       const markSucceeded = (input: DeliverWebhookInput) =>
         Effect.gen(function* () {
+          const completedAt = yield* DateTime.nowAsDate;
           yield* db
             .update(webhookDeliveries)
             .set({
               attemptCount: input.attemptNumber,
-              completedAt: new Date(),
+              completedAt,
               nextAttemptAt: null,
               status: WebhookDeliveryStatus.Succeeded,
             })
@@ -154,7 +168,7 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
             .update(webhookEndpoints)
             .set({
               consecutiveFailures: 0,
-              lastSuccessAt: new Date(),
+              lastSuccessAt: completedAt,
             })
             .where(eq(webhookEndpoints.id, input.endpointId));
         });
@@ -180,11 +194,12 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
       /** Mark the delivery exhausted once the retry schedule is depleted. */
       const markExhausted = (input: DeliverWebhookInput) =>
         Effect.gen(function* () {
+          const completedAt = yield* DateTime.nowAsDate;
           yield* db
             .update(webhookDeliveries)
             .set({
               attemptCount: input.attemptNumber,
-              completedAt: new Date(),
+              completedAt,
               nextAttemptAt: null,
               status: WebhookDeliveryStatus.Exhausted,
             })
@@ -200,16 +215,22 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
        * Retry time for `attemptNumber`, or `null` once the backoff schedule is
        * exhausted (signalling the delivery should be marked exhausted).
        */
-      return {
+      return constant({
         markExhausted,
         markFailed,
         markSucceeded,
         nextRetryTime: nextWebhookDeliveryRetryTime,
         recordAttempt,
         send,
-      } as const;
+      });
     }),
   },
 ) {
-  static layer = Layer.effect(WebhookDeliveryService)(WebhookDeliveryService.make);
+  /**
+   * The HTTP client is provided here rather than by consumers so the service
+   * stays a drop-in `Db`-only dependency for the durable workflow.
+   */
+  static layer = Layer.effect(WebhookDeliveryService)(WebhookDeliveryService.make).pipe(
+    Layer.provide(FetchHttpClient.layer),
+  );
 }

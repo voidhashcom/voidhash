@@ -1,12 +1,14 @@
-import { describe, expect, it } from "vite-plus/test";
+import { Effect, Encoding } from "effect";
+
+import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 
 import { base64Url, createHash } from "../../../src/services/apiKeys/create-hash.ts";
 
 /**
  * `base64Url` and `createHash` are pure, framework-free helpers (no Effect, no
- * infra) — `base64Url.{encode,decode}` are synchronous and `createHash().digest`
- * returns a plain `Promise`. So these tests assert synchronously or `await` the
- * promise directly, mirroring SecretBox.test.ts rather than the `it.effect` shim.
+ * infra) — `base64Url.{encode,decode}` are synchronous, so those tests assert
+ * synchronously. `createHash().digest` returns a plain `Promise`, so its tests
+ * wrap it with `Effect.promise` inside the `it.effect` shim.
  *
  * The hash assertions use the canonical SHA-256 digest of the ASCII string
  * "test" as a fixed test vector across every output encoding:
@@ -86,69 +88,89 @@ describe("base64Url.decode", () => {
 });
 
 describe("createHash.digest", () => {
-  it("produces a consistent SHA-256 digest for the same input", async () => {
-    const hash = createHash("SHA-256", "hex");
-    const a = await hash.digest("test");
-    const b = await hash.digest("test");
-    expect(a).toBe(b);
-    expect(a).toBe(SHA256_TEST_HEX);
-  });
+  it.effect("produces a consistent SHA-256 digest for the same input", () =>
+    Effect.gen(function* () {
+      const hash = createHash("SHA-256", "hex");
+      const a = yield* Effect.promise(() => hash.digest("test"));
+      const b = yield* Effect.promise(() => hash.digest("test"));
+      expect(a).toBe(b);
+      expect(a).toBe(SHA256_TEST_HEX);
+    }),
+  );
 
-  it("produces different digests for different inputs", async () => {
-    const hash = createHash("SHA-256", "hex");
-    const a = await hash.digest("test");
-    const b = await hash.digest("different");
-    expect(a).not.toBe(b);
-  });
+  it.effect("produces different digests for different inputs", () =>
+    Effect.gen(function* () {
+      const hash = createHash("SHA-256", "hex");
+      const a = yield* Effect.promise(() => hash.digest("test"));
+      const b = yield* Effect.promise(() => hash.digest("different"));
+      expect(a).not.toBe(b);
+    }),
+  );
 
-  it("returns a raw ArrayBuffer when no encoding is specified", async () => {
-    const buffer = await createHash("SHA-256").digest("test");
-    expect(buffer).toBeInstanceOf(ArrayBuffer);
-    // SHA-256 is always 32 bytes regardless of input length.
-    expect((buffer as ArrayBuffer).byteLength).toBe(32);
-    expect([...new Uint8Array(buffer as ArrayBuffer)]).toEqual([...SHA256_TEST_BYTES]);
-  });
+  it.effect("returns a raw ArrayBuffer when no encoding is specified", () =>
+    Effect.gen(function* () {
+      const buffer = yield* Effect.promise(() => createHash("SHA-256").digest("test"));
+      expect(buffer).toBeInstanceOf(ArrayBuffer);
+      // SHA-256 is always 32 bytes regardless of input length.
+      expect(buffer.byteLength).toBe(32);
+      expect([...new Uint8Array(buffer)]).toEqual([...SHA256_TEST_BYTES]);
+    }),
+  );
 
-  it("returns a lowercase hex string when encoding='hex'", async () => {
-    const hex = await createHash("SHA-256", "hex").digest("test");
-    expect(hex).toBe(SHA256_TEST_HEX);
-    expect(hex).toMatch(/^[0-9a-f]{64}$/);
-  });
+  it.effect("returns a lowercase hex string when encoding='hex'", () =>
+    Effect.gen(function* () {
+      const hex = yield* Effect.promise(() => createHash("SHA-256", "hex").digest("test"));
+      expect(hex).toBe(SHA256_TEST_HEX);
+      expect(hex).toMatch(/^[0-9a-f]{64}$/);
+    }),
+  );
 
-  it("returns a standard base64 string when encoding='base64'", async () => {
-    const b64 = await createHash("SHA-256", "base64").digest("test");
-    // Must equal the standard-base64 encoding of the raw digest bytes.
-    expect(b64).toBe(btoa(String.fromCharCode(...SHA256_TEST_BYTES)));
-  });
+  it.effect("returns a standard base64 string when encoding='base64'", () =>
+    Effect.gen(function* () {
+      const b64 = yield* Effect.promise(() => createHash("SHA-256", "base64").digest("test"));
+      // Must equal the standard-base64 encoding of the raw digest bytes.
+      expect(b64).toBe(Encoding.encodeBase64(SHA256_TEST_BYTES));
+    }),
+  );
 
-  it("returns a padded URL-safe string when encoding='base64url'", async () => {
-    const b64url = await createHash("SHA-256", "base64url").digest("test");
-    expect(b64url).toBe(base64Url.encode(SHA256_TEST_BYTES, { padding: true }));
-    expect(b64url).not.toContain("+");
-    expect(b64url).not.toContain("/");
-  });
+  it.effect("returns a padded URL-safe string when encoding='base64url'", () =>
+    Effect.gen(function* () {
+      const b64url = yield* Effect.promise(() => createHash("SHA-256", "base64url").digest("test"));
+      expect(b64url).toBe(base64Url.encode(SHA256_TEST_BYTES, { padding: true }));
+      expect(b64url).not.toContain("+");
+      expect(b64url).not.toContain("/");
+    }),
+  );
 
-  it("returns an unpadded URL-safe string when encoding='base64urlnopad'", async () => {
-    const nopad = await createHash("SHA-256", "base64urlnopad").digest("test");
-    expect(nopad).toBe(base64Url.encode(SHA256_TEST_BYTES, { padding: false }));
-    expect(nopad).not.toContain("=");
-  });
+  it.effect("returns an unpadded URL-safe string when encoding='base64urlnopad'", () =>
+    Effect.gen(function* () {
+      const nopad = yield* Effect.promise(() =>
+        createHash("SHA-256", "base64urlnopad").digest("test"),
+      );
+      expect(nopad).toBe(base64Url.encode(SHA256_TEST_BYTES, { padding: false }));
+      expect(nopad).not.toContain("=");
+    }),
+  );
 
-  it("hashes ArrayBuffer and TypedArray inputs the same as the equivalent string bytes", async () => {
-    const hash = createHash("SHA-256", "hex");
-    const expected = await hash.digest("test");
-    const bytes = new TextEncoder().encode("test");
-    expect(await hash.digest(bytes)).toBe(expected);
-    expect(await hash.digest(bytes.buffer)).toBe(expected);
-    // A non-byte TypedArray view is read via its underlying buffer.
-    const u16 = new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
-    expect(await hash.digest(u16)).toBe(expected);
-  });
+  it.effect("hashes ArrayBuffer and TypedArray inputs the same as the equivalent string bytes", () =>
+    Effect.gen(function* () {
+      const hash = createHash("SHA-256", "hex");
+      const expected = yield* Effect.promise(() => hash.digest("test"));
+      const bytes = new TextEncoder().encode("test");
+      expect(yield* Effect.promise(() => hash.digest(bytes))).toBe(expected);
+      expect(yield* Effect.promise(() => hash.digest(bytes.buffer))).toBe(expected);
+      // A non-byte TypedArray view is read via its underlying buffer.
+      const u16 = new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
+      expect(yield* Effect.promise(() => hash.digest(u16))).toBe(expected);
+    }),
+  );
 
-  it("supports other SHA families with their expected digest lengths", async () => {
-    const sha1 = await createHash("SHA-1").digest("test");
-    const sha512 = await createHash("SHA-512").digest("test");
-    expect((sha1 as ArrayBuffer).byteLength).toBe(20);
-    expect((sha512 as ArrayBuffer).byteLength).toBe(64);
-  });
+  it.effect("supports other SHA families with their expected digest lengths", () =>
+    Effect.gen(function* () {
+      const sha1 = yield* Effect.promise(() => createHash("SHA-1").digest("test"));
+      const sha512 = yield* Effect.promise(() => createHash("SHA-512").digest("test"));
+      expect(sha1.byteLength).toBe(20);
+      expect(sha512.byteLength).toBe(64);
+    }),
+  );
 });

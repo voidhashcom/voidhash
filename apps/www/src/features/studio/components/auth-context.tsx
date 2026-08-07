@@ -1,4 +1,5 @@
 import type { User } from "@voidhash/rpc";
+import { Effect } from "effect";
 import { type ReactNode, createContext, useContext } from "react";
 
 interface AuthContextType {
@@ -20,7 +21,7 @@ export function AuthProvider({ children, user }: AuthProviderProps) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    return Effect.runSync(Effect.die(new Error("useAuth must be used within an AuthProvider")));
   }
   return context;
 }

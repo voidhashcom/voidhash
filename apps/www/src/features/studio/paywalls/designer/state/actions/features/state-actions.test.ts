@@ -1,5 +1,6 @@
 import { TextNode, ViewNode } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -34,7 +35,7 @@ function makeDesignerDoc() {
   const ids = { flexId: "", textId: "" };
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const flex = screen.children.insertLast({ type: "view" });
     ids.flexId = flex.id;
     ids.textId = flex.children.insertLast({ type: "text" }).id;
@@ -63,7 +64,7 @@ function makeCtx(doc: OfflineDesignerDocument, initialSelection: Record<string, 
 function rawViewStates(doc: OfflineDesignerDocument, nodeId: string) {
   const data = findTypedNode(doc.root, nodeId, ViewNode)?.get()?.data;
   if (data === undefined) {
-    throw new Error("expected a flex node");
+    return Effect.runSync(Effect.die(new Error("expected a flex node")));
   }
   return data.states;
 }
@@ -71,7 +72,7 @@ function rawViewStates(doc: OfflineDesignerDocument, nodeId: string) {
 function rawTextStates(doc: OfflineDesignerDocument, nodeId: string) {
   const data = findTypedNode(doc.root, nodeId, TextNode)?.get()?.data;
   if (data === undefined) {
-    throw new Error("expected a text node");
+    return Effect.runSync(Effect.die(new Error("expected a text node")));
   }
   return data.states;
 }
@@ -128,7 +129,7 @@ describe("updateNodeState", () => {
       nodeType: "view" as const,
     });
     const stateId = added.stateId;
-    if (stateId === null) throw new Error("expected a state entry id");
+    if (stateId === null) return Effect.runSync(Effect.die(new Error("expected a state entry id")));
     const beforeCondition = JSON.stringify(rawViewStates(doc, ids.flexId)[0]?.value?.condition);
 
     const params = { newName: "Active", nodeId: ids.flexId, nodeType: "view" as const, stateId };
@@ -153,7 +154,7 @@ describe("updateNodeState", () => {
       nodeType: "view" as const,
     });
     const stateId = added.stateId;
-    if (stateId === null) throw new Error("expected a state entry id");
+    if (stateId === null) return Effect.runSync(Effect.die(new Error("expected a state entry id")));
 
     const newCondition = {
       type: "or",
@@ -210,7 +211,7 @@ describe("removeNodeState", () => {
       nodeType: "view" as const,
     });
     const stateId = added.stateId;
-    if (stateId === null) throw new Error("expected a state entry id");
+    if (stateId === null) return Effect.runSync(Effect.die(new Error("expected a state entry id")));
     const beforeValue = JSON.stringify(rawViewStates(doc, ids.flexId)[0]?.value);
 
     const { ctx, selection } = makeCtx(doc, { [ids.flexId]: stateId });

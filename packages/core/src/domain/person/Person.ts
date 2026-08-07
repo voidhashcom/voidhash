@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Schema } from "effect";
 
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
@@ -7,10 +8,10 @@ import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
  * person's primary identity. Numeric values mirror the `person_identity.kind`
  * column so the comparator's `right.kind - left.kind` arithmetic stays valid.
  */
-export const PersonIdentityKind = {
+export const PersonIdentityKind = constant({
   Anonymous: 1,
   Identified: 2,
-} as const;
+});
 
 export type PersonIdentityKindValue = (typeof PersonIdentityKind)[keyof typeof PersonIdentityKind];
 
@@ -111,7 +112,9 @@ export class Person extends Schema.TaggedClass<Person>()("Person", {
     if (this.identities.length === 0) {
       return undefined;
     }
-    return [...this.identities].sort(PersonIdentity.compareForPrimary)[0];
+    return [...this.identities].sort((left, right) =>
+      PersonIdentity.compareForPrimary(left, right),
+    )[0];
   }
 
   /**
@@ -246,5 +249,8 @@ export const nextMappingVersion = ({
   }
 
   const currentVersion = existingVersion ?? 0;
-  return currentVersion > 0 ? currentVersion : 1;
+  if (currentVersion > 0) {
+    return currentVersion;
+  }
+  return 1;
 };

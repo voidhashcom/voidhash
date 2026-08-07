@@ -4,7 +4,7 @@ import type {
   DurableEntityContext,
   DurableEntityHostShape,
 } from "@voidhash/platform/DurableEntity";
-import { Effect } from "effect";
+import { Clock, Effect, Schema } from "effect";
 
 const LOG_META_KEY = "agent-session/log/meta";
 const LOG_ENTRY_PREFIX = "agent-session/log/entry/";
@@ -78,8 +78,23 @@ export interface SessionLogOptions {
 
 const defaultOptions: SessionLogOptions = {
   id: () => globalThis.crypto.randomUUID(),
-  now: Date.now,
+  now: () => Effect.runSync(Clock.currentTimeMillis),
 };
+
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/**
+ * Entity key-value storage is untyped, so a stored value is recognised as the
+ * caller-owned shape it was written with rather than asserted at each call site.
+ */
+const isStoredValue = <Value>(value: unknown): value is Value => value !== undefined;
+
+const isSessionLogEntry = (value: unknown): value is SessionLogEntry =>
+  isRecord(value) && typeof value.id === "string" && typeof value.type === "string";
 
 const entryPrefix = (index: number): string =>
   `${LOG_ENTRY_PREFIX}${index.toString().padStart(12, "0")}/`;
@@ -90,35 +105,28 @@ const entryChunkKey = (index: number, chunk: number): string =>
   `${entryPrefix(index)}chunk/${chunk.toString().padStart(6, "0")}`;
 
 const parseMeta = (value: unknown): SessionLogMeta => {
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "count" in value &&
-    typeof value.count === "number" &&
-    Number.isSafeInteger(value.count) &&
-    value.count >= 0
-  ) {
-    return value as SessionLogMeta;
-  }
-  return { count: 0 };
+  if (!isRecord(value)) return { count: 0 };
+  const count = value.count;
+  if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) return { count: 0 };
+  const headId = value.headId;
+  if (typeof headId === "string") return { count, headId };
+  return { count };
 };
 
-const parseEntryMeta = (value: unknown, index: number): StoredEntryMeta => {
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "chunks" in value &&
-    typeof value.chunks === "number" &&
-    Number.isSafeInteger(value.chunks) &&
-    value.chunks > 0
-  ) {
-    return value as StoredEntryMeta;
-  }
-  throw new Error(`Agent session log entry ${index} has invalid metadata`);
+const parseEntryMeta = (value: unknown): StoredEntryMeta | undefined => {
+  if (!isRecord(value)) return undefined;
+  const chunks = value.chunks;
+  if (typeof chunks !== "number" || !Number.isSafeInteger(chunks) || chunks <= 0) return undefined;
+  return { chunks };
 };
+
+const makeEntry = <Input extends SessionLogEntryInput>(
+  input: Input,
+  base: SessionLogEntryBase,
+): Input & SessionLogEntryBase => ({ ...input, ...base });
 
 const serializeEntry = (entry: SessionLogEntry): ReadonlyArray<string> => {
-  const bytes = new TextEncoder().encode(JSON.stringify(entry));
+  const bytes = new TextEncoder().encode(encodeJson(entry));
   const decoder = new TextDecoder();
   const chunks: string[] = [];
   let offset = 0;
@@ -133,7 +141,10 @@ const serializeEntry = (entry: SessionLogEntry): ReadonlyArray<string> => {
 
 const readEntry = (entity: DurableEntityContext, index: number) =>
   Effect.gen(function* () {
-    const meta = parseEntryMeta(yield* entity.keyValue.get(entryMetaKey(index)), index);
+    const meta = parseEntryMeta(yield* entity.keyValue.get(entryMetaKey(index)));
+    if (meta === undefined) {
+      return yield* Effect.die(new Error(`Agent session log entry ${index} has invalid metadata`));
+    }
     const chunks = yield* Effect.forEach(
       Array.from({ length: meta.chunks }, (_, chunk) => chunk),
       (chunk) => entity.keyValue.get(entryChunkKey(index, chunk)),
@@ -144,7 +155,11 @@ const readEntry = (entity: DurableEntityContext, index: number) =>
         new Error(`Agent session log entry ${index} is missing a storage chunk`),
       );
     }
-    return JSON.parse(chunks.join("")) as SessionLogEntry;
+    const parsed = decodeJson(chunks.join(""));
+    if (!isSessionLogEntry(parsed)) {
+      return yield* Effect.die(new Error(`Agent session log entry ${index} is malformed`));
+    }
+    return parsed;
   });
 
 const readEntries = (entity: DurableEntityContext) =>
@@ -181,21 +196,19 @@ export const appendSessionLog = (
   address: DurableEntityAddress,
   inputs: ReadonlyArray<SessionLogEntryInput>,
   options: SessionLogOptions = defaultOptions,
-): Effect.Effect<ReadonlyArray<SessionLogEntry>> =>
-  inputs.length === 0
-    ? Effect.succeed([])
-    : host.run(address, (entity) =>
+): Effect.Effect<ReadonlyArray<SessionLogEntry>> => {
+  if (inputs.length === 0) return Effect.succeed([]);
+  return host.run(address, (entity) =>
         Effect.gen(function* () {
           let meta = parseMeta(yield* entity.keyValue.get(LOG_META_KEY));
           const appended: SessionLogEntry[] = [];
 
           for (const input of inputs) {
-            const entry = {
-              ...input,
+            const entry = makeEntry(input, {
               id: options.id(),
               parentId: meta.headId ?? null,
               timestamp: options.now(),
-            } as SessionLogEntry;
+            });
             const entryIndex = meta.count;
             const chunks = serializeEntry(entry);
             yield* Effect.forEach(
@@ -215,7 +228,8 @@ export const appendSessionLog = (
           yield* entity.keyValue.put(LOG_META_KEY, meta);
           return appended;
         }),
-      );
+  );
+};
 
 /** Loads the persisted session owner, if this session has been initialized. */
 export const readSessionOwner = <Owner>(
@@ -223,7 +237,12 @@ export const readSessionOwner = <Owner>(
   address: DurableEntityAddress,
 ): Effect.Effect<Owner | undefined> =>
   host.run(address, (entity) =>
-    entity.keyValue.get(OWNER_KEY).pipe(Effect.map((value) => value as Owner | undefined)),
+    entity.keyValue.get(OWNER_KEY).pipe(
+      Effect.map((value) => {
+        if (isStoredValue<Owner>(value)) return value;
+        return undefined;
+      }),
+    ),
   );
 
 /** Atomically initializes a session owner or verifies that it matches. */
@@ -235,8 +254,8 @@ export const ensureSessionOwner = <Owner>(
 ): Effect.Effect<boolean> =>
   host.run(address, (entity) =>
     Effect.gen(function* () {
-      const existing = (yield* entity.keyValue.get(OWNER_KEY)) as Owner | undefined;
-      if (existing !== undefined) return equals(existing, owner);
+      const existing = yield* entity.keyValue.get(OWNER_KEY);
+      if (isStoredValue<Owner>(existing)) return equals(existing, owner);
       yield* entity.keyValue.put(OWNER_KEY, owner);
       return true;
     }),
@@ -246,4 +265,7 @@ export const ensureSessionOwner = <Owner>(
 export const messagesFromSessionLog = (
   entries: ReadonlyArray<SessionLogEntry>,
 ): ReadonlyArray<AgentMessage> =>
-  entries.flatMap((entry) => (entry.type === "message" ? [entry.message] : []));
+  entries.flatMap((entry) => {
+    if (entry.type === "message") return [entry.message];
+    return [];
+  });

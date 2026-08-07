@@ -26,7 +26,7 @@ export function SetupNotificationProviderButton({
     onSuccess: (data) => {
       toast.success(`${notificationProvider?.title} configuration saved successfully`);
       if (data.id) {
-        navigate({
+        void navigate({
           params: {
             organizationSlug,
             providerConfigurationId: data.id,

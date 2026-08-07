@@ -15,7 +15,10 @@ import {
   type CaptureEvent,
 } from "@voidhash/api-contracts/event-capture";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
+import { constant, pick } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
+
+import { createIdGenerator } from "../../utils/generate-id.ts";
 
 import {
   type CaptureProjectPolicy,
@@ -77,10 +80,16 @@ const parseForceRoute = (value: string | null | undefined): RouteClass | undefin
 };
 
 /** Stable per-lane topic strings carried in the envelope's `routing.targetTopic`. */
-export const CAPTURE_TOPIC_MAIN = "capture.main.v1" as const;
-export const CAPTURE_TOPIC_OVERFLOW = "capture.overflow.v1" as const;
-export const CAPTURE_TOPIC_HISTORICAL = "capture.historical.v1" as const;
-export const CAPTURE_TOPIC_DLQ = "capture.dlq.v1" as const;
+export const CAPTURE_TOPIC_MAIN = constant("capture.main.v1");
+export const CAPTURE_TOPIC_OVERFLOW = constant("capture.overflow.v1");
+export const CAPTURE_TOPIC_HISTORICAL = constant("capture.historical.v1");
+export const CAPTURE_TOPIC_DLQ = constant("capture.dlq.v1");
+
+/**
+ * Mints the server-side capture id. Local prefix table (rather than the shared
+ * core one) because the id never leaves the capture envelope.
+ */
+const generateCaptureId = createIdGenerator(constant({ capture: "cap" }));
 
 const TOKEN_FORMAT = /^vh_pk_\w+$/;
 
@@ -125,7 +134,7 @@ export const selectRoute = ({
   readonly policy: CaptureProjectPolicy;
 }): Effect.Effect<RouteDecision, CaptureRateLimitedError> =>
   Effect.gen(function* () {
-    const routeClass = policy.forceRoute ?? (overQuota ? "overflow" : "main");
+    const routeClass = policy.forceRoute ?? pick(overQuota, "overflow", "main");
 
     switch (routeClass) {
       case "main":
@@ -168,6 +177,43 @@ export const selectRoute = ({
     }
   });
 
+/**
+ * Decide whether the event should materialise a person profile.
+ *
+ * An explicit attribute-set (`$set`/`$set_once` via the SDK's
+ * `setPersonAttributes`) is itself a reason to have a person, so the SDK stamps
+ * `$process_person_profile: true` even for anonymous distinct ids. That
+ * client-supplied boolean wins when present; otherwise only identified ids get a
+ * person profile.
+ */
+const resolveProcessPersonProfile = ({
+  clientFlag,
+  distinctId,
+}: {
+  readonly clientFlag: unknown;
+  readonly distinctId: string;
+}): boolean => {
+  if (typeof clientFlag === "boolean") return clientFlag;
+  return !distinctId.startsWith(ANONYMOUS_USER_ID_PREFIX);
+};
+
+/** Map a stored capture-policy row (or its absence) onto the effective policy. */
+const toCaptureProjectPolicy = (
+  record: typeof captureProjectPolicies.$inferSelect | undefined,
+  projectId: string,
+): CaptureProjectPolicy => {
+  if (!record) return defaultCaptureProjectPolicy(projectId);
+  return {
+    customTopic: record.customTopic ?? undefined,
+    eventsPerDay: record.eventsPerDay ?? undefined,
+    forceRoute: parseForceRoute(record.forceRoute),
+    ingestEnabled: record.ingestEnabled,
+    projectId: record.projectId,
+    requestsPerMinute: record.requestsPerMinute ?? undefined,
+    skipEnrichment: record.skipEnrichment,
+  };
+};
+
 /** Build the wire-stable {@link CapturedEventV1} envelope for an accepted event. */
 export const makeEnvelope = ({
   event,
@@ -194,28 +240,24 @@ export const makeEnvelope = ({
   readonly token: string;
 }): CapturedEventV1Type => {
   const timestamp = resolveEventTimestamp({ sentAt, receivedAt, timestamp: event.timestamp });
-  // An explicit attribute-set (`$set`/`$set_once` via the SDK's
-  // `setPersonAttributes`) is itself a reason to have a person, so the SDK
-  // stamps `$process_person_profile: true` even for anonymous distinct ids.
-  // Honor that client-supplied boolean when present; otherwise fall back to the
-  // default (only identified ids get a person profile).
-  const clientProcessPersonProfile = event.properties.$process_person_profile;
   const properties = {
     distinctId: event.distinct_id,
     properties: event.properties,
-    $process_person_profile:
-      typeof clientProcessPersonProfile === "boolean"
-        ? clientProcessPersonProfile
-        : !event.distinct_id.startsWith(ANONYMOUS_USER_ID_PREFIX),
+    $process_person_profile: resolveProcessPersonProfile({
+      clientFlag: event.properties.$process_person_profile,
+      distinctId: event.distinct_id,
+    }),
   };
-  const canonicalProperties =
-    typeof request.clientIp === "string" ? { ...properties, $ip: request.clientIp } : properties;
+  const canonicalProperties = {
+    ...properties,
+    ...(typeof request.clientIp === "string" && { $ip: request.clientIp }),
+  };
 
   return {
     schemaVersion: 1,
-    captureId: crypto.randomUUID(),
-    ...(event.uuid ? { clientEventId: event.uuid } : {}),
-    ...(event.session_id ? { sessionId: event.session_id } : {}),
+    captureId: generateCaptureId("capture"),
+    ...(event.uuid && { clientEventId: event.uuid }),
+    ...(event.session_id && { sessionId: event.session_id }),
     context: event.context,
     distinctId: event.distinct_id,
     event: event.event,
@@ -228,17 +270,17 @@ export const makeEnvelope = ({
       distinct_id: event.distinct_id,
       event: event.event,
       properties,
-      ...(event.session_id ? { session_id: event.session_id } : {}),
-      ...(sentAt ? { sent_at: sentAt } : {}),
-      ...(event.timestamp ? { timestamp: event.timestamp } : {}),
-      ...(event.uuid ? { uuid: event.uuid } : {}),
+      ...(event.session_id && { session_id: event.session_id }),
+      ...(sentAt && { sent_at: sentAt }),
+      ...(event.timestamp && { timestamp: event.timestamp }),
+      ...(event.uuid && { uuid: event.uuid }),
     },
     receivedAt: receivedAt.toISOString(),
     request: {
       requestId: request.requestId,
-      ...(request.path ? { path: request.path } : {}),
-      ...(request.headers["user-agent"] ? { userAgent: request.headers["user-agent"] } : {}),
-      ...(request.clientIp ? { clientIp: request.clientIp } : {}),
+      ...(request.path && { path: request.path }),
+      ...(request.headers["user-agent"] && { userAgent: request.headers["user-agent"] }),
+      ...(request.clientIp && { clientIp: request.clientIp }),
     },
     routing: route,
     token,
@@ -271,41 +313,23 @@ export class EventCaptureService extends Context.Service<EventCaptureService>()(
             .where(and(eq(apiKeys.isPublic, true), eq(apiKeys.key, token)))
             .limit(1);
 
-          const result = !apiKeyRecord
-            ? null
-            : yield* Effect.gen(function* () {
-                const [policyRecord] = yield* db
-                  .select()
-                  .from(captureProjectPolicies)
-                  .where(eq(captureProjectPolicies.projectId, apiKeyRecord.projectId))
-                  .limit(1);
-
-                const policy: CaptureProjectPolicy = policyRecord
-                  ? {
-                      customTopic: policyRecord.customTopic ?? undefined,
-                      eventsPerDay: policyRecord.eventsPerDay ?? undefined,
-                      forceRoute: parseForceRoute(policyRecord.forceRoute),
-                      ingestEnabled: policyRecord.ingestEnabled,
-                      projectId: policyRecord.projectId,
-                      requestsPerMinute: policyRecord.requestsPerMinute ?? undefined,
-                      skipEnrichment: policyRecord.skipEnrichment,
-                    }
-                  : defaultCaptureProjectPolicy(apiKeyRecord.projectId);
-
-                return {
-                  organizationId: apiKeyRecord.organizationId,
-                  policy,
-                  projectId: apiKeyRecord.projectId,
-                } satisfies ResolvedCaptureProject;
-              });
-
-          if (!result) {
+          if (!apiKeyRecord) {
             return yield* Effect.fail(
               new CaptureUnauthorizedError({ code: "unauthorized", error: "invalid token" }),
             );
           }
 
-          const project = result;
+          const [policyRecord] = yield* db
+            .select()
+            .from(captureProjectPolicies)
+            .where(eq(captureProjectPolicies.projectId, apiKeyRecord.projectId))
+            .limit(1);
+
+          const project = {
+            organizationId: apiKeyRecord.organizationId,
+            policy: toCaptureProjectPolicy(policyRecord, apiKeyRecord.projectId),
+            projectId: apiKeyRecord.projectId,
+          } satisfies ResolvedCaptureProject;
 
           yield* Effect.annotateCurrentSpan("voidhash.request.id", input.request.requestId);
           yield* Effect.annotateCurrentSpan("voidhash.api_key.suffix", tokenSuffix(token));
@@ -332,9 +356,9 @@ export class EventCaptureService extends Context.Service<EventCaptureService>()(
               new CaptureRateLimitedError({
                 code: "rate_limited",
                 error: "request rate limit exceeded",
-                ...(typeof requestLimit.retryAfterMs === "number"
-                  ? { retry_after_ms: requestLimit.retryAfterMs }
-                  : {}),
+                ...(typeof requestLimit.retryAfterMs === "number" && {
+                  retry_after_ms: requestLimit.retryAfterMs,
+                }),
               }),
             );
           }
@@ -450,7 +474,7 @@ export class EventCaptureService extends Context.Service<EventCaptureService>()(
           ),
       );
 
-      return { captureEvents } as const;
+      return constant({ captureEvents });
     }),
   },
 ) {

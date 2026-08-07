@@ -16,7 +16,6 @@
  * and image URLs are scheme-allowlisted before they reach a DOM attribute.
  */
 import {
-  AlertDialog,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -153,6 +152,16 @@ const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" ? value : undefined;
 const asBool = (value: unknown): boolean | undefined =>
   typeof value === "boolean" ? value : undefined;
+/**
+ * Text form of a wire value for text-like controls. Only primitives have a
+ * meaningful rendering; anything else (objects, arrays) becomes empty rather
+ * than the useless `[object Object]`.
+ */
+const asText = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return value.toString();
+  return "";
+};
 const asIcon = (value: unknown): IconName | undefined =>
   typeof value === "string" ? (value as IconName) : undefined;
 
@@ -400,9 +409,7 @@ const renderNode = (
       const onChange = eventHandler(transport, node, "onChange");
       const onCommit = eventHandler(transport, node, "onCommit");
       const onTrailingSelect = eventHandler(transport, node, "onTrailingSelect");
-      const rawValue = props.value;
-      const value =
-        rawValue === null || rawValue === undefined ? "" : String(rawValue);
+      const value = asText(props.value);
       const trailingMenu = props.trailingMenu as
         | { items: WireOption[]; value?: string }
         | undefined;

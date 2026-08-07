@@ -35,6 +35,7 @@ import {
   webhookDeliveryAttempts,
   webhookEndpoints,
 } from "@voidhash/db";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
 import { makeSmokeIds } from "./smoke-ids.ts";
@@ -52,16 +53,25 @@ import { makeSmokeIds } from "./smoke-ids.ts";
  * Effects executed against `Db.layer(testConnections.db)` in a `beforeAll`.
  */
 
+const isNonEmpty = <T>(values: ReadonlyArray<T>): values is [T, ...T[]] => values.length > 0;
+
 const deleteIfAny = <T, A, E, R>(
   values: ReadonlyArray<T>,
   run: (values: [T, ...T[]]) => Effect.Effect<A, E, R>,
-): Effect.Effect<A | void, E, R> =>
-  values.length === 0 ? Effect.void : run(values as [T, ...T[]]);
+): Effect.Effect<A | void, E, R> => {
+  if (!isNonEmpty(values)) return Effect.void;
+  return run(values);
+};
 
 const selectIds = <T extends { id: string | null }, E, R>(
   rows: Effect.Effect<ReadonlyArray<T>, E, R>,
 ): Effect.Effect<string[], E, R> =>
-  Effect.map(rows, (resolved) => resolved.flatMap((row) => (row.id ? [row.id] : [])));
+  Effect.map(rows, (resolved) =>
+    resolved.flatMap((row) => {
+      if (!row.id) return [];
+      return [row.id];
+    }),
+  );
 
 /**
  * Delete every row the smoke fixture (and the cases that build on it) creates,
@@ -201,7 +211,7 @@ export const seedSmokeData = (runId: string) =>
   Effect.gen(function* () {
     const db = yield* Db;
     const ids = makeSmokeIds(runId);
-    const now = new Date();
+    const now = yield* DateTime.nowAsDate;
 
     yield* resetSmokeData(runId);
     yield* db.insert(user).values([

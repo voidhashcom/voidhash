@@ -37,7 +37,7 @@ export function ProductDetailAddPerkButton({
     ...createProductPerkOptions(),
     onSuccess: () => {
       toast.success("Perk added");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.productPerk.listByProduct({ productId }),
       });
     },

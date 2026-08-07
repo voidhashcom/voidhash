@@ -246,7 +246,7 @@ describe("sandbox renderComponentToTree", () => {
       props: (p) => ({
         accentColor: p.string().editor("color").default("#000"),
       }),
-      panel: (ctx) => (
+      panel: (_ctx) => (
         <Panel>
           <Panel.Section title="Style">
             <Panel.PropField name="accentColor" />

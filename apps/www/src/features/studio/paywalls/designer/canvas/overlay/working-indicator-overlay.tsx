@@ -128,7 +128,7 @@ export function WorkingIndicatorOverlay({ containerRef }: WorkingIndicatorOverla
       }
     };
 
-    initialize();
+    void initialize();
 
     return () => {
       mounted = false;

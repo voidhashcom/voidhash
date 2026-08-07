@@ -1,5 +1,6 @@
 import { ViewNode } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -20,7 +21,7 @@ function makeDesignerDoc() {
   let flexId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     flexId = screen.children.insertLast({ type: "view", name: "Card" }).id;
   });
   return { doc, flexId };
@@ -28,7 +29,7 @@ function makeDesignerDoc() {
 
 function rawStyle(doc: OfflineDesignerDocument, nodeId: string) {
   const data = findTypedNode(doc.root, nodeId, ViewNode)?.get()?.data;
-  if (data === undefined) throw new Error("expected a view node");
+  if (data === undefined) return Effect.runSync(Effect.die(new Error("expected a view node")));
   return data.style;
 }
 
@@ -204,7 +205,7 @@ function makeState(doc: OfflineDesignerDocument, nodeId: string): string {
     nodeId,
     nodeType: "view" as const,
   });
-  if (stateId === null) throw new Error("expected a state id");
+  if (stateId === null) return Effect.runSync(Effect.die(new Error("expected a state id")));
   return stateId;
 }
 

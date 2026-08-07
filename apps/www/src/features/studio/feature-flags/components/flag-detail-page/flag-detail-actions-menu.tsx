@@ -28,7 +28,7 @@ export function FlagDetailActionsMenu({ flagId, isArchived }: FlagDetailActionsM
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.featureFlag.getFlag(flagId) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.featureFlag.all });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.featureFlag.all });
   };
 
   const { isPending: isArchiving, mutate: archive } = useMutation({

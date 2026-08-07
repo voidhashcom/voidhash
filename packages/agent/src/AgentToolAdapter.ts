@@ -4,7 +4,8 @@ import type {
   AgentToolResult,
 } from "@earendil-works/pi-agent-core";
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
-import { Effect, type Context } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Data, Effect, type Context } from "effect";
 import type { TSchema } from "typebox";
 
 import type { BoundEffectRunner } from "./EffectRunner.ts";
@@ -14,6 +15,11 @@ const EffectToolError = Symbol("@voidhash/agent/EffectToolError");
 type MarkedAgentToolResult<Details> = AgentToolResult<Details> & {
   readonly [EffectToolError]?: true;
 };
+
+/** Failure surfaced to Pi when an Effect tool fails with a non-`Error` value. */
+class EffectAgentToolError extends Data.TaggedError("EffectAgentToolError")<{
+  readonly message: string;
+}> {}
 
 /** Normalized result shared by Effect-backed tools and Pi. */
 export interface EffectAgentToolResult<Details = unknown> {
@@ -34,6 +40,20 @@ export interface EffectAgentToolDefinition<Params, Details, E, R> {
   ) => Effect.Effect<EffectAgentToolResult<Details>, E, R>;
 }
 
+/**
+ * Pi validates raw tool arguments against `definition.parameters` before it
+ * calls `execute`, but `Static<TSchema>` erases to `unknown`, so the handler's
+ * parameter shape is guaranteed by the runtime rather than by TypeScript.
+ */
+const isValidatedParams = <Params>(_params: unknown): _params is Params => true;
+
+const runOptions = (
+  signal: AbortSignal | undefined,
+): { readonly signal: AbortSignal } | undefined => {
+  if (signal === undefined) return undefined;
+  return { signal };
+};
+
 /** Adapts one Effect handler to a Pi tool using a lazy Effect runner. */
 export const makeEffectAgentToolWithRunner = <Params, Details, E, R>(
   definition: EffectAgentToolDefinition<Params, Details, E, R>,
@@ -43,20 +63,29 @@ export const makeEffectAgentToolWithRunner = <Params, Details, E, R>(
   label: definition.label ?? definition.name,
   description: definition.description,
   parameters: definition.parameters,
-  execute: async (_toolCallId, params, signal) => {
-    const effect = definition
-      .effectHandler(params as Params, signal)
-      .pipe(Effect.mapError(toError));
-    const result = await runEffect(effect, signal);
-    const output: MarkedAgentToolResult<Details> = {
-      content: [...result.content],
-      details: result.details,
-    };
-    if (result.isError) {
-      Object.defineProperty(output, EffectToolError, { value: true });
-    }
-    return output;
-  },
+  execute: (_toolCallId, params, signal) =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        if (!isValidatedParams<Params>(params)) {
+          return yield* Effect.die(
+            new Error(`Tool ${definition.name} received unvalidated arguments`),
+          );
+        }
+        const effect = definition.effectHandler(params, signal).pipe(Effect.mapError(toError));
+        const result = yield* Effect.tryPromise({
+          try: () => runEffect(effect, signal),
+          catch: toError,
+        });
+        const output: MarkedAgentToolResult<Details> = {
+          content: [...result.content],
+          details: result.details,
+        };
+        if (result.isError) {
+          Object.defineProperty(output, EffectToolError, { value: true });
+        }
+        return output;
+      }),
+    ),
 });
 
 /**
@@ -68,11 +97,13 @@ export const makeEffectAgentTool = <Params, Details, E, R>(
   context: Context.Context<R>,
 ): AgentTool<TSchema, Details> =>
   makeEffectAgentToolWithRunner(definition, (effect, signal) =>
-    Effect.runPromise(
-      effect.pipe(Effect.provide(context)),
-      signal === undefined ? undefined : { signal },
-    ),
+    Effect.runPromise(effect.pipe(Effect.provide(context)), runOptions(signal)),
   );
+
+const isEffectToolError = (result: AgentToolResult<unknown>): boolean => {
+  if (!(EffectToolError in result)) return false;
+  return result[EffectToolError] === true;
+};
 
 /**
  * Pi `afterToolCall` override that preserves structured Effect-tool details
@@ -80,10 +111,12 @@ export const makeEffectAgentTool = <Params, Details, E, R>(
  */
 export const effectAgentToolErrorOverride = (
   result: AgentToolResult<unknown>,
-): AfterToolCallResult | undefined =>
-  (result as MarkedAgentToolResult<unknown>)[EffectToolError] === true
-    ? { isError: true }
-    : undefined;
+): AfterToolCallResult | undefined => {
+  if (isEffectToolError(result)) return { isError: true };
+  return undefined;
+};
 
-const toError = (cause: unknown): Error =>
-  cause instanceof Error ? cause : new Error(typeof cause === "string" ? cause : String(cause));
+const toError = (cause: unknown): Error => {
+  if (cause instanceof Error) return cause;
+  return new EffectAgentToolError({ message: causeMessage(cause) });
+};

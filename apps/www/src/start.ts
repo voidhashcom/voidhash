@@ -1,4 +1,5 @@
 import { createCsrfMiddleware, createStart } from "@tanstack/react-start";
+import { Effect, Result } from "effect";
 
 import { authRequestMiddleware } from "@/features/auth/adapter/session-adapter";
 
@@ -16,20 +17,22 @@ const requestOrigin = (request: Request): string => {
     return internalUrl.origin;
   }
 
-  try {
-    const forwardedUrl = new URL(`${forwardedProtocol}://${forwardedHost}`);
-    return localHostnames.has(forwardedUrl.hostname) ? forwardedUrl.origin : internalUrl.origin;
-  } catch {
+  const forwarded = Effect.runSync(
+    Effect.try(() => new URL(`${forwardedProtocol}://${forwardedHost}`)).pipe(Effect.result),
+  );
+  if (Result.isFailure(forwarded)) {
     return internalUrl.origin;
   }
+  const forwardedUrl = forwarded.success;
+  return localHostnames.has(forwardedUrl.hostname) ? forwardedUrl.origin : internalUrl.origin;
 };
 
 const isAllowedOrigin = (origin: string, request: Request): boolean => {
-  try {
-    return new URL(origin).origin === requestOrigin(request);
-  } catch {
+  const parsed = Effect.runSync(Effect.try(() => new URL(origin).origin).pipe(Effect.result));
+  if (Result.isFailure(parsed)) {
     return false;
   }
+  return parsed.success === requestOrigin(request);
 };
 
 const csrfMiddleware = createCsrfMiddleware({

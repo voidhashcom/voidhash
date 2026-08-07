@@ -67,6 +67,8 @@
   },
   "dependencies": {
     "@effect/language-service": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "effect": "catalog:",
     "@types/node": "^24.0.12",
     "@typescript/native-preview": "7.0.0-dev.20260210.1",
     "bumpp": "^10.3.2",
@@ -81,6 +83,7 @@
   "devDependencies": {
     "@typescript/native-preview": "7.0.0-dev.20260302.1",
     "dotenv-cli": "^8.0.0",
+    "oxlint-plugin-effect": "^0.6.0",
     "tslib": "2.8.1",
     "tsx": "^4.19.3",
     "vite-plus": "catalog:"

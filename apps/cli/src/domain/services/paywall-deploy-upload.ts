@@ -4,10 +4,17 @@
  * follows the CLI's API conventions — `api_url` base + `x-api-key` header from
  * the user's CLI config.
  */
-import { promises as fsp } from "node:fs";
-import { join } from "node:path";
-
-import { Data, Effect, Schema } from "effect";
+import {
+  Data,
+  Effect,
+  FileSystem,
+  Match,
+  Option,
+  Path,
+  Schema,
+  SchemaGetter,
+  SchemaTransformation,
+} from "effect";
 import { HttpClient, HttpClientRequest, type HttpClientResponse } from "effect/unstable/http";
 
 import type { DeployManifest } from "../schema/paywall-deploy";
@@ -85,13 +92,26 @@ export const collectManifestFiles = (manifest: DeployManifest): Map<string, stri
   return files;
 };
 
-const tryParseJson = (body: string): unknown => {
-  try {
-    return JSON.parse(body);
-  } catch {
-    return;
-  }
-};
+/** JSON text codec used to read server response bodies. */
+const JsonText = Schema.UnknownFromJsonString;
+
+/**
+ * JSON text codec used to re-render a server response body for the user.
+ * `space: 2` keeps the printed detail block readable, as it was before.
+ */
+const PrettyJsonText = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Unknown,
+    new SchemaTransformation.Transformation<unknown, string>(
+      SchemaGetter.parseJson(),
+      SchemaGetter.stringifyJson({ space: 2 }),
+    ),
+  ),
+);
+
+/** Parses a response body as JSON, `None` when it is not JSON at all. */
+const tryParseJson = (body: string): Option.Option<unknown> =>
+  Schema.decodeUnknownOption(JsonText)(body);
 
 /**
  * Extracts the `missing` hash list from a finalize `409` body (contract §4.3:
@@ -99,7 +119,7 @@ const tryParseJson = (body: string): unknown => {
  * such list — callers then fall back to the generic failure path.
  */
 const readMissingHashes = (body: string): string[] | undefined => {
-  const parsed = tryParseJson(body);
+  const parsed = Option.getOrUndefined(tryParseJson(body));
   if (typeof parsed !== "object" || parsed === null || !("missing" in parsed)) {
     return;
   }
@@ -114,23 +134,39 @@ const readMissingHashes = (body: string): string[] | undefined => {
   return missing;
 };
 
+/** The actionable hint appended to a failure of the given HTTP status. */
+const failureHint = (status: number): string =>
+  Match.value(status).pipe(
+    Match.when(
+      400,
+      () => " The server rejected the manifest — your CLI may be outdated; try upgrading voidhash-cli.",
+    ),
+    Match.when(401, () => " Authentication failed. Run 'voidhash-cli auth login' and retry."),
+    Match.when(
+      403,
+      () => " Check that the team/project in voidhash.config.ts match a project you have access to.",
+    ),
+    Match.when(
+      409,
+      () => " The deploy is incomplete (blobs missing server-side). Re-run deploy to retry.",
+    ),
+    Match.when(422, () => " The server rejected the deploy contents:"),
+    Match.orElse(() => ""),
+  );
+
+/** The response body block appended below the failure line, if any. */
+const detailsBlock = (details: string): string => {
+  if (details) return `\n${details}`;
+  return "";
+};
+
 /** Renders a non-2xx response into an actionable message (esp. 422 details). */
 const describeHttpFailure = (step: string, status: number, body: string): string => {
-  const parsed = tryParseJson(body);
-  const details = parsed !== undefined ? JSON.stringify(parsed, null, 2) : body.trim();
-  const hint =
-    status === 400
-      ? " The server rejected the manifest — your CLI may be outdated; try upgrading voidhash-cli."
-      : status === 401
-        ? " Authentication failed. Run 'voidhash-cli auth login' and retry."
-        : status === 403
-          ? " Check that the team/project in voidhash.config.ts match a project you have access to."
-          : status === 409
-            ? " The deploy is incomplete (blobs missing server-side). Re-run deploy to retry."
-            : status === 422
-              ? " The server rejected the deploy contents:"
-              : "";
-  return `${step} failed with status ${status}.${hint}${details ? `\n${details}` : ""}`;
+  const details = tryParseJson(body).pipe(
+    Option.flatMap(Schema.encodeUnknownOption(PrettyJsonText)),
+    Option.getOrElse(() => body.trim()),
+  );
+  return `${step} failed with status ${status}.${failureHint(status)}${detailsBlock(details)}`;
 };
 
 const failHttp = (
@@ -207,11 +243,13 @@ export const uploadPaywallDeploy = ({
 }: UploadPaywallDeployOptions): Effect.Effect<
   UploadPaywallDeployResult,
   PaywallDeployUploadError,
-  HttpClient.HttpClient | CliConfig
+  HttpClient.HttpClient | CliConfig | FileSystem.FileSystem | Path.Path
 > =>
   Effect.gen(function* uploadPaywallDeploy() {
     const httpClient = yield* HttpClient.HttpClient;
     const cliConfig = yield* CliConfig;
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
 
     const config = yield* cliConfig.readConfig().pipe(
       Effect.mapError(
@@ -244,8 +282,10 @@ export const uploadPaywallDeploy = ({
         )
         .pipe(Effect.mapError(networkFailure(step)));
 
-    const report = (message: string): Effect.Effect<void> =>
-      onProgress ? onProgress(message) : Effect.void;
+    const report = (message: string): Effect.Effect<void> => {
+      if (onProgress) return onProgress(message);
+      return Effect.void;
+    };
 
     // 1. Create the deploy from the manifest.
     const createStep = "Creating the deploy";
@@ -275,14 +315,15 @@ export const uploadPaywallDeploy = ({
             }),
           );
         }
-        const bytes = yield* Effect.tryPromise({
-          try: () => fsp.readFile(join(projectRoot, relPath)),
-          catch: (cause) =>
-            new PaywallDeployUploadError({
-              cause,
-              message: `Failed to read ${relPath} for upload.`,
-            }),
-        });
+        const bytes = yield* fs.readFile(path.join(projectRoot, relPath)).pipe(
+          Effect.mapError(
+            (cause) =>
+              new PaywallDeployUploadError({
+                cause,
+                message: `Failed to read ${relPath} for upload.`,
+              }),
+          ),
+        );
         const uploadStep = `Uploading ${relPath}`;
         const uploadResponse = yield* send(
           uploadStep,

@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import type { QueryClient } from "@tanstack/react-query";
 import type { User } from "@voidhash/rpc";
 import { queryKeys } from "@/features/studio/lib/tanstack-query";

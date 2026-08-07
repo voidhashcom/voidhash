@@ -1,4 +1,5 @@
 "use client";
+import { Effect } from "effect";
 import { useCallback, useState } from "react";
 
 import {
@@ -37,9 +38,13 @@ export function useConfirmDialog() {
   const openDialog = useCallback((config: ConfirmDialogConfig) => {
     setIsOpen(true);
     setDialogConfig(config);
-    return new Promise<boolean>((resolve) => {
-      setResolveCallback(() => resolve);
-    });
+    return Effect.runPromise(
+      Effect.callback<boolean>((resume) => {
+        setResolveCallback(() => (value: boolean) => {
+          resume(Effect.succeed(value));
+        });
+      }),
+    );
   }, []);
 
   const handleConfirm = useCallback(() => {

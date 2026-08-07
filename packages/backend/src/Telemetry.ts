@@ -1,3 +1,4 @@
+import { generateId } from "@voidhash/core/utils/generate-id";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Headers from "effect/unstable/http/Headers";
@@ -19,7 +20,7 @@ import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 const REQUEST_ID_HEADER = "x-request-id";
 
 /** Stable, greppable prefix so request ids are obvious in logs and Axiom. */
-const generateRequestId = (): string => `req_${crypto.randomUUID()}`;
+const generateRequestId = (): string => generateId("request");
 
 /**
  * HTTP middleware that establishes the per-request correlation id. Reads an

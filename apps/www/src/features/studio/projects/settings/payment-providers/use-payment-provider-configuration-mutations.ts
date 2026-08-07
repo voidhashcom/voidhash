@@ -35,7 +35,7 @@ export function usePaymentProviderConfigurationMutations({
     ...deletePaymentProviderConfigurationOptions(),
     onSuccess: () => {
       toast.success(`${providerTitle} configuration deleted successfully`);
-      navigate({
+      void navigate({
         params: {
           organizationSlug,
           projectSlug,

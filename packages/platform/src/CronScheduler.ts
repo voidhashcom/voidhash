@@ -82,7 +82,7 @@ export const ScheduledJob = {
   define: <const Name extends string, R>(
     job: CronJob<R> & { readonly name: Name },
   ): CronDefinition<Name, R> => {
-    const definition = { ...job, kind: "cron" as const };
+    const definition: CronJob<R> & PrimitiveDefinition<"cron", Name> = { ...job, kind: "cron" };
     return {
       ...definition,
       tick: (now) =>

@@ -1,9 +1,10 @@
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
 import type { ImageContent } from "@earendil-works/pi-ai";
+import { constant } from "@voidhash/lib/lang";
 import { Schema } from "effect";
 
 /** Current WebSocket protocol version. */
-export const AGENT_PROTOCOL_VERSION = 1 as const;
+export const AGENT_PROTOCOL_VERSION = constant(1);
 
 const Version = Schema.Literal(AGENT_PROTOCOL_VERSION);
 const RequestId = Schema.String;
@@ -12,12 +13,12 @@ const Image = Schema.Struct({
   data: Schema.String,
   mimeType: Schema.String,
 });
-const TextCommand = {
+const TextCommand = constant({
   v: Version,
   requestId: RequestId,
   text: Schema.String,
   images: Schema.optional(Schema.Array(Image)),
-} as const;
+});
 
 /** Commands accepted by an agent-session WebSocket. */
 export const AgentClientMessageSchema = Schema.Union([
@@ -95,13 +96,18 @@ export type AgentServerMessage =
       readonly entries: ReadonlyArray<unknown>;
     };
 
+const decodeClientFrame = Schema.decodeUnknownSync(
+  Schema.fromJsonString(AgentClientMessageSchema),
+);
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 /** Decodes and validates one text WebSocket command. */
 export const decodeAgentClientMessage = (frame: string): AgentClientMessage =>
-  Schema.decodeUnknownSync(AgentClientMessageSchema)(JSON.parse(frame));
+  decodeClientFrame(frame);
 
 /** JSON-encodes one server frame. */
 export const encodeAgentServerMessage = (message: AgentServerMessage): string =>
-  JSON.stringify(message);
+  encodeJson(message);
 
 /** Converts prompt wire content into the Pi image content shape. */
 export const promptImages = (

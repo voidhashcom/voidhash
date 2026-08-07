@@ -16,6 +16,7 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { Effect } from "effect";
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -82,7 +83,7 @@ function seedDefinition(doc: OfflineDesignerDocument, localComponentId: string):
   let defId = "";
   doc.transaction((root) => {
     const node = insertCodeComponent(root as never, { path, source: "// seed" });
-    if (node === null) throw new Error("failed to insert code-component definition");
+    if (node === null) return Effect.runSync(Effect.die(new Error("failed to insert code-component definition")));
     defId = node;
   });
   return defId;
@@ -105,7 +106,7 @@ function seedNode(
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (v: unknown) => { id: string } }
     ).insertLast({
@@ -170,7 +171,7 @@ function seedCatalogNode(doc: OfflineDesignerDocument, contentHash: string): str
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (v: unknown) => { id: string } }
     ).insertLast({
@@ -198,7 +199,7 @@ function seedBuiltinNode(doc: OfflineDesignerDocument, slug: string): string {
   let nodeId = "";
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const node = (
       screen.children as unknown as { insertLast: (v: unknown) => { id: string } }
     ).insertLast({
@@ -626,7 +627,7 @@ describe("ComponentPanelHost — catalog custom panel (async fetch)", () => {
       store,
       <ComponentPanelHost
         createSandboxTransport={() => fake.transport}
-        fetchPanelCode={() => Promise.resolve("export default 1")}
+        fetchPanelCode={() => Effect.runPromise(Effect.succeed("export default 1"))}
         nodes={[node]}
       />,
     );
@@ -649,7 +650,7 @@ describe("ComponentPanelHost — catalog custom panel (async fetch)", () => {
 
     renderSlot(
       store,
-      <ComponentPanelHost fetchPanelCode={() => Promise.resolve(null)} nodes={[node]} />,
+      <ComponentPanelHost fetchPanelCode={() => Effect.runPromise(Effect.succeed(null))} nodes={[node]} />,
     );
 
     // The fetch resolves null; the slot remains the default panel and never shows
@@ -672,7 +673,7 @@ describe("ComponentPanelHost — catalog custom panel (async fetch)", () => {
       <ComponentPanelHost
         fetchPanelCode={() => {
           calls += 1;
-          return Promise.resolve("export default 1");
+          return Effect.runPromise(Effect.succeed("export default 1"));
         }}
         nodes={[node]}
       />,
@@ -698,7 +699,7 @@ describe("ComponentPanelHost — catalog custom panel (async fetch)", () => {
         createSandboxTransport={() => fake.transport}
         fetchPanelCode={() => {
           calls += 1;
-          return Promise.resolve("export default 1");
+          return Effect.runPromise(Effect.succeed("export default 1"));
         }}
         nodes={nodes}
       />,

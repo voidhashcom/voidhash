@@ -1,9 +1,10 @@
 import { Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
 
 /**
  * Status codes for JWS verification operations.
  */
-export const VerificationStatus = {
+export const VerificationStatus = constant({
   OK: "OK",
   VERIFICATION_FAILURE: "VERIFICATION_FAILURE",
   RETRYABLE_VERIFICATION_FAILURE: "RETRYABLE_VERIFICATION_FAILURE",
@@ -12,7 +13,7 @@ export const VerificationStatus = {
   INVALID_CHAIN_LENGTH: "INVALID_CHAIN_LENGTH",
   INVALID_CERTIFICATE: "INVALID_CERTIFICATE",
   FAILURE: "FAILURE",
-} as const;
+});
 
 export type VerificationStatus = (typeof VerificationStatus)[keyof typeof VerificationStatus];
 

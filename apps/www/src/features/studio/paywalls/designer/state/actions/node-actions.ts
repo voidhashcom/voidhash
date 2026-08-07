@@ -8,6 +8,7 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import { canBeChildOf, isSvgContent } from "@voidhash/mimic-schema";
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import { Effect, Option } from "effect";
 
 import { commander } from "../designer-commander";
 import { selectDocumentRoot } from "../utils/document-root";
@@ -68,12 +69,12 @@ function isValidNodeDataInput<TNode extends Primitive.AnyTreeNodePrimitive>(
   node: TNode,
   raw: Record<string, unknown>,
 ): raw is Record<string, unknown> & NonNullable<Primitive.InferInput<TNode["data"]>> {
-  try {
-    node.data.encodeOptional(raw);
-    return true;
-  } catch {
-    return false;
-  }
+  return Effect.runSync(
+    Effect.try(() => {
+      node.data.encodeOptional(raw);
+      return true;
+    }).pipe(Effect.orElseSucceed(() => false)),
+  );
 }
 
 /**
@@ -109,25 +110,28 @@ function isSerializedNode(value: unknown): value is SerializedNode {
  * old flat node shape and are rejected.
  */
 function parseClipboardData(text: string): ClipboardData | null {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (
-      isRecord(parsed) &&
-      parsed["__voidhash"] === true &&
-      parsed["version"] === 2 &&
-      Array.isArray(parsed["nodes"]) &&
-      parsed["nodes"].every((node) => isSerializedNode(node))
-    ) {
-      const originalParentId = parsed["originalParentId"];
-      return {
-        __voidhash: true,
-        nodes: parsed["nodes"].filter((node) => isSerializedNode(node)),
-        originalParentId: typeof originalParentId === "string" ? originalParentId : null,
-        version: 2,
-      };
-    }
-  } catch {
-    // Not valid JSON
+  // Not valid JSON -> no clipboard payload.
+  const decoded = Effect.runSync(
+    Effect.try(() => JSON.parse(text) as unknown).pipe(Effect.option),
+  );
+  if (Option.isNone(decoded)) {
+    return null;
+  }
+  const parsed = decoded.value;
+  if (
+    isRecord(parsed) &&
+    parsed["__voidhash"] === true &&
+    parsed["version"] === 2 &&
+    Array.isArray(parsed["nodes"]) &&
+    parsed["nodes"].every((node) => isSerializedNode(node))
+  ) {
+    const originalParentId = parsed["originalParentId"];
+    return {
+      __voidhash: true,
+      nodes: parsed["nodes"].filter((node) => isSerializedNode(node)),
+      originalParentId: typeof originalParentId === "string" ? originalParentId : null,
+      version: 2,
+    };
   }
   return null;
 }
@@ -156,20 +160,23 @@ function insertSerializedSubtree(
     return null;
   }
 
-  try {
-    const input = { ...serialized.data, type: nodeType };
-    const node =
+  const input = { ...serialized.data, type: nodeType };
+  const inserted = Effect.runSync(
+    Effect.try(() =>
       index === undefined
         ? parent.children.insertLast(input)
-        : parent.children.insertAt(index, input);
-    for (const child of serialized.children) {
-      insertSerializedSubtree(root, node.id, child);
-    }
-    return node.id;
-  } catch {
+        : parent.children.insertAt(index, input),
+    ).pipe(Effect.option),
+  );
+  if (Option.isNone(inserted)) {
     // Failed to insert node (disallowed parent/child combination)
     return null;
   }
+  const node = inserted.value;
+  for (const child of serialized.children) {
+    insertSerializedSubtree(root, node.id, child);
+  }
+  return node.id;
 }
 
 // =============================================================================
@@ -229,11 +236,12 @@ export const deleteNodes = commander.undoableAction<
     // Perform deletion
     mimic.document.transaction((transactionRoot) => {
       for (const { serialized } of deletedNodes) {
-        try {
-          transactionRoot.findByIdAcrossTree(serialized.id)?.remove();
-        } catch {
-          // Failed to remove node
-        }
+        // Ignore failures — a node that can't be removed is left in place.
+        Effect.runSync(
+          Effect.try(() => transactionRoot.findByIdAcrossTree(serialized.id)?.remove()).pipe(
+            Effect.ignore,
+          ),
+        );
       }
     });
 
@@ -312,11 +320,12 @@ export const copyNodes = commander.action(async (ctx) => {
     version: 2,
   };
 
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(clipboardData));
-  } catch {
-    // Clipboard API might not be available
-  }
+  // Ignore failures — the Clipboard API might not be available.
+  await Effect.runPromise(
+    Effect.tryPromise(() =>
+      navigator.clipboard.writeText(JSON.stringify(clipboardData)),
+    ).pipe(Effect.ignore),
+  );
 });
 
 /**
@@ -337,12 +346,13 @@ export const cutNodes = commander.action(async (ctx) => {
  */
 export const pasteNodes = commander.action(async (ctx) => {
   // Read from clipboard
-  let clipboardText: string;
-  try {
-    clipboardText = await navigator.clipboard.readText();
-  } catch {
+  const clipboardRead = await Effect.runPromise(
+    Effect.tryPromise(() => navigator.clipboard.readText()).pipe(Effect.option),
+  );
+  if (Option.isNone(clipboardRead)) {
     return;
   }
+  const clipboardText = clipboardRead.value;
 
   // Check if clipboard contains SVG content
   if (isSvgContent(clipboardText)) {

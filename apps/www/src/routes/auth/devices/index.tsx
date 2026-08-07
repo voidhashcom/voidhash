@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Button } from "@voidhash/ui";
+import { Effect, Result } from "effect";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,7 +32,9 @@ export const Route = createFileRoute("/auth/devices/")({
     if (!user) {
       const params = new URLSearchParams(location.searchStr);
       const nextUrl = `/auth/devices?${params.toString()}`;
-      throw redirect({ search: { next: nextUrl }, to: "/auth/login" });
+      // TanStack Router signals a redirect by throwing its descriptor; `runSync`
+      // squashes the cause, so the router still sees that exact object.
+      return Effect.runSync(Effect.die(redirect({ search: { next: nextUrl }, to: "/auth/login" })));
     }
   },
   validateSearch: zodValidator(devicesSearchSchema),
@@ -127,34 +130,51 @@ function AuthDevicesPage() {
 
   const confirm = async () => {
     setIsLoading(true);
-    try {
-      const { rawKey } = await createUserApiKey({ name: "CLI", prefix: "vh_cli_" });
+    const issued = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { rawKey } = yield* Effect.tryPromise({
+          try: () => createUserApiKey({ name: "CLI", prefix: "vh_cli_" }),
+          catch: (error) => error,
+        });
 
-      const url = new URL(redirectUrl);
-      url.searchParams.append("code", code);
-      url.searchParams.append("key", rawKey);
-      await fetch(url.toString());
-      setIsLoading(false);
-      setSuccess(true);
-    } catch (error) {
-      console.error("[devices] failed to issue CLI key", error);
+        const url = yield* Effect.try({
+          try: () => new URL(redirectUrl),
+          catch: (error) => error,
+        });
+        url.searchParams.append("code", code);
+        url.searchParams.append("key", rawKey);
+        yield* Effect.tryPromise({ try: () => fetch(url.toString()), catch: (error) => error });
+      }).pipe(Effect.result),
+    );
+    if (Result.isFailure(issued)) {
+      console.error("[devices] failed to issue CLI key", issued.failure);
       toast.error("Error creating Voidhash API key.");
       setIsLoading(false);
+      return;
     }
+    setIsLoading(false);
+    setSuccess(true);
   };
 
   const cancel = async () => {
-    try {
-      setIsLoading(true);
-      const url = new URL(redirectUrl);
-      url.searchParams.append("cancelled", "true");
-      await fetch(url.toString());
-      setIsLoading(false);
-      setCancelled(true);
-    } catch {
+    setIsLoading(true);
+    const cancelResult = await Effect.runPromise(
+      Effect.gen(function* () {
+        const url = yield* Effect.try({
+          try: () => new URL(redirectUrl),
+          catch: (error) => error,
+        });
+        url.searchParams.append("cancelled", "true");
+        yield* Effect.tryPromise({ try: () => fetch(url.toString()), catch: (error) => error });
+      }).pipe(Effect.result),
+    );
+    if (Result.isFailure(cancelResult)) {
       setIsLoading(false);
       toast.error("Error cancelling login. Is your local CLI running?");
+      return;
     }
+    setIsLoading(false);
+    setCancelled(true);
   };
 
   if (cancelled) {
@@ -174,7 +194,7 @@ function AuthDevicesPage() {
       <div className="mt-10 flex flex-col gap-6">
         <div className="flex flex-row items-center justify-center">
           <div className="grid auto-cols-auto grid-flow-col gap-1 leading-none lg:gap-3">
-            {[...code].map((char, i) => (
+            {code.split("").map((char, i) => (
               <CodeCharacter
                 char={char}
                 key={`${char}-${

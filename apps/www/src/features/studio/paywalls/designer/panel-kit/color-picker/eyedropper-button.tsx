@@ -1,5 +1,6 @@
 "use client";
 
+import { Effect } from "effect";
 import { PipetteIcon } from "lucide-react";
 
 export interface EyedropperButtonProps {
@@ -12,15 +13,20 @@ export function EyedropperButton({ onColorPick }: EyedropperButtonProps) {
       return;
     }
 
-    try {
-      // @ts-expect-error - EyeDropper API is not yet in TypeScript types
-      const eyeDropper = new window.EyeDropper();
-      const result = await eyeDropper.open();
-      // Result is in format "#rrggbb"
-      const hex = result.sRGBHex.slice(1).toUpperCase();
+    const hex = await Effect.runPromise(
+      Effect.tryPromise(async (): Promise<string> => {
+        // @ts-expect-error - EyeDropper API is not yet in TypeScript types
+        const eyeDropper = new window.EyeDropper();
+        const result = await eyeDropper.open();
+        // Result is in format "#rrggbb"
+        return result.sRGBHex.slice(1).toUpperCase();
+      }).pipe(
+        // User cancelled or API not supported — nothing to apply.
+        Effect.orElseSucceed((): string | undefined => undefined),
+      ),
+    );
+    if (hex !== undefined) {
       onColorPick(hex);
-    } catch {
-      // User cancelled or API not supported
     }
   };
 

@@ -48,7 +48,7 @@ export function WebhookEndpointActionsDropdown({
     },
     onSuccess: () => {
       toast.success("Webhook deleted successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.list({ projectId }),
       });
       onDeleted?.();
@@ -75,10 +75,10 @@ export function WebhookEndpointActionsDropdown({
     onSuccess: (data) => {
       toast.success("Secret rotated successfully");
       setRevealSecret(data.secret);
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.list({ projectId }),
       });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.getEndpoint(webhook.id),
       });
     },
@@ -104,7 +104,7 @@ export function WebhookEndpointActionsDropdown({
     },
     onSuccess: () => {
       toast.success("Test webhook sent");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.webhook.deliveries({
           projectId,
           endpointId: webhook.id,

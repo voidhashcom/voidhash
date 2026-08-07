@@ -1,5 +1,6 @@
 import { SLUG_BLACKLIST } from "@voidhash/lib";
-import { Cause, Context, Effect, Layer, Schema } from "effect";
+import { causeMessage, constant } from "@voidhash/lib/lang";
+import { Cause, Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -184,9 +185,10 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           const workosUserId = yield* resolveWorkosUserIdForSession(sessionUser);
 
           const baseSlug = createSlug(input.name);
-          let slug = SLUG_BLACKLIST.includes(baseSlug)
-            ? `${baseSlug}-${createShortId()}`
-            : baseSlug;
+          let slug = baseSlug;
+          if (SLUG_BLACKLIST.includes(baseSlug)) {
+            slug = `${baseSlug}-${createShortId()}`;
+          }
           while (!(yield* checkSlugAvailable(slug))) {
             slug = `${baseSlug}-${createShortId()}`;
           }
@@ -234,7 +236,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
               ),
             );
 
-          const now = new Date();
+          const now = yield* DateTime.nowAsDate;
           const ownerMembershipId = generateId("member");
           yield* Effect.annotateCurrentSpan("voidhash.member.id", ownerMembershipId);
           yield* Effect.annotateCurrentSpan("voidhash.member.external_id", workosMembership.id);
@@ -287,7 +289,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
             .pipe(
               Effect.catch((error) =>
                 Effect.logWarning(
-                  `Failed to run the organization-created hook for org ${orgId}: ${error}`,
+                  `Failed to run the organization-created hook for org ${orgId}: ${causeMessage(error)}`,
                 ),
               ),
             );
@@ -506,7 +508,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           ),
       );
 
-      return {
+      return constant({
         createOrganization,
         deleteOrganization,
         getOrganizationById,
@@ -514,7 +516,7 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
         removeAvatar,
         setAvatar,
         updateOrganization,
-      } as const;
+      });
     }),
   },
 ) {

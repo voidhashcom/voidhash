@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Effect, Result } from "effect";
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -106,8 +107,12 @@ interface FlagDraftValue extends FlagDraft {
 let nextLocalId = 0;
 
 /** Formats a saved variant value for the text input that edits it. */
-const formatVariantValue = (type: FlagType, value: unknown): string =>
-  type === "json" ? (JSON.stringify(value, null, 2) ?? "") : String(value ?? "");
+const formatVariantValue = (type: FlagType, value: unknown): string => {
+  if (type === "json") return JSON.stringify(value, null, 2) ?? "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+};
 
 /** Reads an edited variant value back into the flag's type. Throws when invalid. */
 export const parseVariantValue = (type: FlagType, value: string): unknown => {
@@ -117,7 +122,8 @@ export const parseVariantValue = (type: FlagType, value: string): unknown => {
   if (type === "number") {
     const parsed = Number(value);
     if (value.trim() === "" || !Number.isFinite(parsed)) {
-      throw new Error("Enter a valid number");
+      // `runSync` squashes the cause, so callers still catch this exact Error.
+      return Effect.runSync(Effect.die(new Error("Enter a valid number")));
     }
     return parsed;
   }
@@ -168,7 +174,9 @@ const FlagDraftContext = createContext<FlagDraftValue | null>(null);
 export function useFlagDraft(): FlagDraftValue {
   const value = useContext(FlagDraftContext);
   if (!value) {
-    throw new Error("useFlagDraft must be used inside a FlagDraftProvider");
+    return Effect.runSync(
+      Effect.die(new Error("useFlagDraft must be used inside a FlagDraftProvider")),
+    );
   }
   return value;
 }
@@ -203,9 +211,10 @@ export function FlagDraftProvider({
       return invalid;
     }
     for (const variant of draft.variants) {
-      try {
-        parseVariantValue(flag.type, variant.value);
-      } catch {
+      const parsed = Effect.runSync(
+        Effect.try(() => parseVariantValue(flag.type, variant.value)).pipe(Effect.result),
+      );
+      if (Result.isFailure(parsed)) {
         invalid.add(variant.localId);
       }
     }
@@ -304,7 +313,7 @@ export function FlagDraftProvider({
       const updated = await queryClient.fetchQuery(getFeatureFlagOptions({ id: flag.id }));
       setSyncedFlag(updated);
       setDraft(toDraft(updated));
-      queryClient.invalidateQueries({ queryKey: queryKeys.featureFlag.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.featureFlag.all });
     },
   });
 

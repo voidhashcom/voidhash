@@ -92,7 +92,7 @@ export function withDerivedEnabledFlags(
  */
 export function deriveEnabledFlagsForNodeInput(node: NodeInput): NodeInput {
   const style = node.style;
-  const nextStyle = isPlainObject(style) ? withDerivedEnabledFlags(node.type, style) : style;
+  const nextStyle = derivedStyleOf(node.type, style);
 
   const children = node.children;
   const nextChildren = children?.map(deriveEnabledFlagsForNodeInput);
@@ -102,11 +102,19 @@ export function deriveEnabledFlagsForNodeInput(node: NodeInput): NodeInput {
     nextChildren.some((child, index) => child !== children[index]);
 
   if (nextStyle === style && !childrenChanged) return node;
-  return {
-    ...node,
-    ...(nextStyle === style ? {} : { style: nextStyle }),
-    ...(childrenChanged ? { children: nextChildren } : {}),
-  };
+  const next: NodeInput = { ...node };
+  if (nextStyle !== style) next.style = nextStyle;
+  if (childrenChanged && nextChildren !== undefined) next.children = nextChildren;
+  return next;
+}
+
+/**
+ * {@link withDerivedEnabledFlags} applied to a node's raw `style` value: a
+ * non-object style (absent, scalar, array) passes through by reference.
+ */
+function derivedStyleOf(type: string, style: unknown): unknown {
+  if (!isPlainObject(style)) return style;
+  return withDerivedEnabledFlags(type, style);
 }
 
 /**

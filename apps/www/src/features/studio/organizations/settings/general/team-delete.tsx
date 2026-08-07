@@ -21,8 +21,8 @@ export function TeamDelete({ organizationId }: { organizationId: string }) {
     ...deleteOrganizationOptions(),
     onSuccess: () => {
       toast.success("Organization deleted successfully");
-      queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
-      navigate({ to: "/studio" });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+      void navigate({ to: "/studio" });
     },
     onError: () => {
       toast.error("Failed to delete organization");

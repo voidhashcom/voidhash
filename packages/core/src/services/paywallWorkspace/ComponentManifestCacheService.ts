@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 import { sql } from "drizzle-orm";
 
 import { Db, paywallComponentManifests } from "@voidhash/db";
@@ -29,6 +30,19 @@ export interface ComponentManifestDiagnostic {
   readonly line?: number;
   readonly column?: number;
 }
+
+const decodeDiagnostics = Schema.decodeUnknownOption(
+  Schema.Array(
+    Schema.Struct({
+      message: Schema.String,
+      phase: Schema.optional(Schema.String),
+      line: Schema.optional(Schema.Number),
+      column: Schema.optional(Schema.Number),
+    }),
+  ),
+);
+
+const NO_DIAGNOSTICS: ReadonlyArray<ComponentManifestDiagnostic> = [];
 
 /** Payload for {@link ComponentManifestCacheService.record}. */
 export interface RecordComponentManifestInput {
@@ -83,13 +97,12 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
         input: unknown,
       ): Effect.Effect<ComponentManifest, ComponentManifestInvalidError> => {
         const result = parseComponentManifest(input);
-        return result.ok
-          ? Effect.succeed(result.value)
-          : Effect.fail(
-              new ComponentManifestInvalidError({
-                message: `manifest failed validation: ${result.errors.join("; ")}`,
-              }),
-            );
+        if (result.ok) return Effect.succeed(result.value);
+        return Effect.fail(
+          new ComponentManifestInvalidError({
+            message: `manifest failed validation: ${result.errors.join("; ")}`,
+          }),
+        );
       };
 
       /**
@@ -134,13 +147,19 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
           }
 
           const diagnostics = input.diagnostics ?? [];
+          // Only a `ready` upload carries preview trees; `error` rows clear them.
+          const previewTrees = (() => {
+            if (input.status !== "ready") return null;
+            return input.previewTrees ?? null;
+          })();
+          const updatedAt = yield* DateTime.nowAsDate;
           yield* db
             .insert(paywallComponentManifests)
             .values({
               sourceHash: input.sourceHash,
               status: input.status,
               manifest,
-              previewTrees: input.status === "ready" ? (input.previewTrees ?? null) : null,
+              previewTrees,
               diagnostics,
             })
             .onConflictDoUpdate({
@@ -150,7 +169,7 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
                 manifest: sql`CASE WHEN ${paywallComponentManifests.status} = 'error' THEN excluded.manifest ELSE ${paywallComponentManifests.manifest} END`,
                 previewTrees: sql`CASE WHEN ${paywallComponentManifests.status} = 'error' OR (${paywallComponentManifests.previewTrees} IS NULL AND excluded.status = 'ready') THEN excluded.preview_trees ELSE ${paywallComponentManifests.previewTrees} END`,
                 diagnostics: sql`CASE WHEN ${paywallComponentManifests.status} = 'error' THEN excluded.diagnostics ELSE ${paywallComponentManifests.diagnostics} END`,
-                updatedAt: new Date(),
+                updatedAt,
               },
               // Keep a ready derivation immutable, except for filling the new
               // preview-tree column on rows recorded before it existed.
@@ -185,8 +204,10 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
             where: { sourceHash: { in: distinct } },
           });
           for (const row of rows) {
-            const diagnostics = (row.diagnostics ??
-              []) as ReadonlyArray<ComponentManifestDiagnostic>;
+            const diagnostics = Option.getOrElse(
+              decodeDiagnostics(row.diagnostics ?? []),
+              () => NO_DIAGNOSTICS,
+            );
             if (row.status === "ready") {
               const manifest = yield* decodeManifest(row.manifest).pipe(
                 Effect.map((value): ComponentManifest | null => value),
@@ -223,7 +244,7 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
           ),
       );
 
-      return { record, getMany } as const;
+      return constant({ record, getMany });
     }),
   },
 ) {

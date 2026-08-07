@@ -1,6 +1,6 @@
 import * as PgClient from "@effect/sql-pg/PgClient";
 import { validateValue, type Command, type Value } from "@voidhash/mimic-core";
-import { Effect, Predicate, Redacted } from "effect";
+import { Effect, Predicate, Redacted, Schema } from "effect";
 import { SqlClient, SqlError } from "effect/unstable/sql";
 
 import type { CommandRow, DocumentMeta, DocumentStoreApi, SnapshotRow } from "./store.ts";
@@ -39,14 +39,31 @@ const clientLayer = (config: PgDocumentConfig) =>
 
 // `@effect/sql-pg` runs statements through node-postgres's prepared path.
 
+const JsonText = Schema.fromJsonString(Schema.Any);
+const parseJsonText = Schema.decodeUnknownSync(JsonText);
+const formatJsonText = Schema.encodeSync(JsonText);
+const acceptAny = Schema.decodeUnknownSync(Schema.Any);
+
+/**
+ * Reads a `jsonb` column. node-postgres hands back either an already-parsed
+ * object or the raw JSON text depending on the driver's type parsers, so both
+ * shapes are normalised here through the same JSON codec.
+ */
+const decodeJsonColumn = <A>(input: unknown): A => {
+  if (Predicate.isString(input)) return parseJsonText(input);
+  return acceptAny(input);
+};
+
+/** Renders a value as the JSON text bound to a `jsonb` parameter. */
+const encodeJsonColumn = (value: unknown): string => formatJsonText(value);
+
 const decodeValue = (input: unknown): Value => {
-  const decoded = typeof input === "string" ? (JSON.parse(input) as Value) : (input as Value);
+  const decoded = decodeJsonColumn<Value>(input);
   validateValue(decoded);
   return decoded;
 };
 
-const decodeCommand = (input: unknown): Command =>
-  (typeof input === "string" ? JSON.parse(input) : input) as Command;
+const decodeCommand = (input: unknown): Command => decodeJsonColumn<Command>(input);
 
 interface MetaSqlRow {
   readonly collectionId: string;
@@ -56,6 +73,11 @@ interface MetaSqlRow {
   readonly snapshotSeq: number | string;
   readonly deletedAt: number | string | null;
 }
+const nullableNumber = (value: number | string | null): number | null => {
+  if (value === null) return null;
+  return Number(value);
+};
+
 interface SnapshotSqlRow {
   readonly seq: number | string;
   readonly schemaVersion: number;
@@ -74,8 +96,10 @@ const UNDEFINED_COLUMN = "42703";
 /** Postgres SQLSTATE for `insufficient_privilege`. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 
-const sqlErrorCauseProperty = (error: SqlError.SqlError, property: string): unknown =>
-  Predicate.hasProperty(error.reason.cause, property) ? error.reason.cause[property] : undefined;
+const sqlErrorCauseProperty = (error: SqlError.SqlError, property: string): unknown => {
+  if (!Predicate.hasProperty(error.reason.cause, property)) return undefined;
+  return error.reason.cause[property];
+};
 
 /** Whether a `SqlError` is Postgres's `undefined_table` — the queried table is missing. */
 export const isMissingTableError = (error: SqlError.SqlError): boolean =>
@@ -126,17 +150,16 @@ export const ensureDocumentTables = (config: PgDocumentConfig): Effect.Effect<vo
           if (!isMissingTableError(error)) return Effect.fail(error);
           return create.pipe(
             Effect.asVoid,
-            Effect.catch((createError) =>
-              isDdlDeniedError(createError)
-                ? Effect.die(
-                    new Error(
-                      `mimic document table "${table}" does not exist and the database denies runtime DDL ` +
-                        `(the connected Postgres role cannot CREATE TABLE). Apply the ` +
-                        `mimic_document_tables migration in packages/db/src/alchemy-migrations before serving traffic.`,
-                    ),
-                  )
-                : Effect.fail(createError),
-            ),
+            Effect.catch((createError) => {
+              if (!isDdlDeniedError(createError)) return Effect.fail(createError);
+              return Effect.die(
+                new Error(
+                  `mimic document table "${table}" does not exist and the database denies runtime DDL ` +
+                    `(the connected Postgres role cannot CREATE TABLE). Apply the ` +
+                    `mimic_document_tables migration in packages/db/src/alchemy-migrations before serving traffic.`,
+                ),
+              );
+            }),
           );
         }),
       );
@@ -162,15 +185,14 @@ export const ensureDocumentTables = (config: PgDocumentConfig): Effect.Effect<vo
         if (!isMissingColumnError(error)) return Effect.fail(error);
         return sql`ALTER TABLE mimic_documents ADD COLUMN migration_version INTEGER`.pipe(
           Effect.asVoid,
-          Effect.catch((alterError) =>
-            isDdlDeniedError(alterError)
-              ? Effect.die(
-                  new Error(
-                    "mimic_documents.migration_version is missing and the database denies runtime DDL. Apply the current database migrations before serving traffic.",
-                  ),
-                )
-              : Effect.fail(alterError),
-          ),
+          Effect.catch((alterError) => {
+            if (!isDdlDeniedError(alterError)) return Effect.fail(alterError);
+            return Effect.die(
+              new Error(
+                "mimic_documents.migration_version is missing and the database denies runtime DDL. Apply the current database migrations before serving traffic.",
+              ),
+            );
+          }),
         );
       }),
     );
@@ -251,7 +273,7 @@ export const makePgDocumentStore = (
             migrationVersion: row.migrationVersion,
             currentSeq: Number(row.currentSeq),
             snapshotSeq: Number(row.snapshotSeq),
-            deletedAt: row.deletedAt === null ? null : Number(row.deletedAt),
+            deletedAt: nullableNumber(row.deletedAt),
           } satisfies DocumentMeta;
         }),
       ),
@@ -269,7 +291,7 @@ export const makePgDocumentStore = (
           `;
           yield* sql`
             INSERT INTO mimic_document_snapshots (document_id, seq, schema_version, state_json)
-            VALUES (${documentId}, 0, ${schemaVersion}, ${JSON.stringify(value)}::jsonb)
+            VALUES (${documentId}, 0, ${schemaVersion}, ${encodeJsonColumn(value)}::jsonb)
           `;
         }),
       ),
@@ -284,13 +306,12 @@ export const makePgDocumentStore = (
             ORDER BY seq DESC LIMIT 1
           `;
           const row = rows[0];
-          return row
-            ? ({
-                seq: Number(row.seq),
-                value: decodeValue(row.stateJson),
-                schemaVersion: row.schemaVersion,
-              } satisfies SnapshotRow)
-            : undefined;
+          if (!row) return undefined;
+          return {
+            seq: Number(row.seq),
+            value: decodeValue(row.stateJson),
+            schemaVersion: row.schemaVersion,
+          } satisfies SnapshotRow;
         }),
       ),
 
@@ -323,7 +344,7 @@ export const makePgDocumentStore = (
             (command, index) =>
               sql`
                 INSERT INTO mimic_document_commands (document_id, seq, command_json, tx_id)
-                VALUES (${documentId}, ${fromSeq + 1 + index}, ${JSON.stringify(command)}::jsonb, ${txId})
+                VALUES (${documentId}, ${fromSeq + 1 + index}, ${encodeJsonColumn(command)}::jsonb, ${txId})
               `,
             { discard: true },
           );
@@ -338,7 +359,7 @@ export const makePgDocumentStore = (
           // (e.g. seq 0) with the migrated value + new schema version.
           yield* sql`
             INSERT INTO mimic_document_snapshots (document_id, seq, schema_version, state_json)
-            VALUES (${documentId}, ${seq}, ${schemaVersion}, ${JSON.stringify(value)}::jsonb)
+            VALUES (${documentId}, ${seq}, ${schemaVersion}, ${encodeJsonColumn(value)}::jsonb)
             ON CONFLICT (document_id, seq)
             DO UPDATE SET state_json = EXCLUDED.state_json, schema_version = EXCLUDED.schema_version
           `;
@@ -353,7 +374,7 @@ export const makePgDocumentStore = (
             Effect.gen(function* () {
               yield* sql`
                 INSERT INTO mimic_document_snapshots (document_id, seq, schema_version, state_json)
-                VALUES (${documentId}, ${seq}, ${schemaVersion}, ${JSON.stringify(value)}::jsonb)
+                VALUES (${documentId}, ${seq}, ${schemaVersion}, ${encodeJsonColumn(value)}::jsonb)
                 ON CONFLICT (document_id, seq)
                 DO UPDATE SET state_json = EXCLUDED.state_json, schema_version = EXCLUDED.schema_version
               `;

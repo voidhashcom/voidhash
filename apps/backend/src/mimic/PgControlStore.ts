@@ -11,7 +11,7 @@ import type {
 } from "@voidhash/mimic-db/core/store";
 import { ControlStore } from "@voidhash/mimic-db/core/store";
 import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Predicate, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
 interface ControlState {
@@ -28,6 +28,8 @@ interface ControlStateRow {
   readonly state: unknown;
 }
 
+const encodeStateJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 const emptyState = (): ControlState => ({
   databases: [],
   collections: [],
@@ -38,23 +40,36 @@ const emptyState = (): ControlState => ({
   documents: [],
 });
 
+/**
+ * Reads one array-valued field off the persisted control-state blob.
+ *
+ * `Array.isArray` narrows `unknown` to `Array<any>`, which lets the caller name
+ * the row type without an assertion; anything else degrades to an empty list.
+ */
+const readRows = <A>(state: { readonly [key: PropertyKey]: unknown }, key: string): A[] => {
+  const rows = state[key];
+  if (Array.isArray(rows)) return rows;
+  return [];
+};
+
+const migrationVersionOf = (value: number | null | undefined): number | null => {
+  if (typeof value === "number") return value;
+  return null;
+};
+
 const decodeState = (value: unknown): ControlState => {
-  if (typeof value !== "object" || value === null) return emptyState();
-  const state = value as Partial<ControlState>;
+  if (!Predicate.isObject(value)) return emptyState();
   return {
-    databases: Array.isArray(state.databases) ? state.databases : [],
-    collections: Array.isArray(state.collections)
-      ? state.collections.map((collection) => ({
-          ...collection,
-          migrationVersion:
-            typeof collection.migrationVersion === "number" ? collection.migrationVersion : null,
-        }))
-      : [],
-    schemaVersions: Array.isArray(state.schemaVersions) ? state.schemaVersions : [],
-    users: Array.isArray(state.users) ? state.users : [],
-    grants: Array.isArray(state.grants) ? state.grants : [],
-    tokens: Array.isArray(state.tokens) ? state.tokens : [],
-    documents: Array.isArray(state.documents) ? state.documents : [],
+    databases: readRows<DatabaseRecord>(value, "databases"),
+    collections: readRows<CollectionRecord>(value, "collections").map((collection) => ({
+      ...collection,
+      migrationVersion: migrationVersionOf(collection.migrationVersion),
+    })),
+    schemaVersions: readRows<SchemaVersionRecord>(value, "schemaVersions"),
+    users: readRows<UserRecord>(value, "users"),
+    grants: readRows<GrantRecord>(value, "grants"),
+    tokens: readRows<TokenRecord>(value, "tokens"),
+    documents: readRows<DocumentIndexRecord>(value, "documents"),
   };
 };
 
@@ -87,12 +102,16 @@ export const makePgControlStore = (sql: SqlClient.SqlClient): ControlStoreApi =>
   const load = sql<ControlStateRow>`
     SELECT state_json AS "state" FROM mimic_control_state WHERE id = 'default'
   `.pipe(
-    Effect.map((rows) => (rows[0] ? decodeState(rows[0].state) : emptyState())),
+    Effect.map((rows) => {
+      const row = rows[0];
+      if (!row) return emptyState();
+      return decodeState(row.state);
+    }),
     Effect.orDie,
   );
 
   const save = (state: ControlState) => {
-    const json = JSON.stringify(state);
+    const json = encodeStateJson(state);
     return sql`
       INSERT INTO mimic_control_state (id, state_json)
       VALUES ('default', ${json}::jsonb)

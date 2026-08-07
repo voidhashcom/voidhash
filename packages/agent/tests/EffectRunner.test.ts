@@ -8,35 +8,40 @@ class Lease extends Context.Service<Lease, { readonly id: number; readonly use: 
 ) {}
 
 describe("makeLayerEffectRunner", () => {
-  it("acquires and releases a fresh scoped layer for every execution", async () => {
-    let nextId = 0;
-    const released = new Set<number>();
-    const runner = makeLayerEffectRunner<void, Lease>(() =>
-      Layer.effect(
-        Lease,
-        Effect.acquireRelease(
-          Effect.sync(() => {
-            const id = ++nextId;
-            return {
-              id,
-              use: () => {
-                if (released.has(id)) throw new Error(`lease ${id} was already released`);
-                return id;
-              },
-            };
-          }),
-          (lease) => Effect.sync(() => released.add(lease.id)),
-        ),
-      ),
-    );
-    const useLease = Effect.gen(function* () {
-      const lease = yield* Lease;
-      return lease.use();
-    });
+  it("acquires and releases a fresh scoped layer for every execution", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        let nextId = 0;
+        const released = new Set<number>();
+        const runner = makeLayerEffectRunner<void, Lease>(() =>
+          Layer.effect(
+            Lease,
+            Effect.acquireRelease(
+              Effect.sync(() => {
+                const id = ++nextId;
+                return {
+                  id,
+                  use: () => {
+                    if (released.has(id)) {
+                      return Effect.runSync(Effect.die(new Error(`lease ${id} was already released`)));
+                    }
+                    return id;
+                  },
+                };
+              }),
+              (lease) => Effect.sync(() => released.add(lease.id)),
+            ),
+          ),
+        );
+        const useLease = Effect.gen(function* () {
+          const lease = yield* Lease;
+          return lease.use();
+        });
 
-    await expect(runner(undefined, useLease)).resolves.toBe(1);
-    expect(released).toEqual(new Set([1]));
-    await expect(runner(undefined, useLease)).resolves.toBe(2);
-    expect(released).toEqual(new Set([1, 2]));
-  });
+        expect(yield* Effect.promise(() => runner(undefined, useLease))).toBe(1);
+        expect(released).toEqual(new Set([1]));
+        expect(yield* Effect.promise(() => runner(undefined, useLease))).toBe(2);
+        expect(released).toEqual(new Set([1, 2]));
+      }),
+    ));
 });

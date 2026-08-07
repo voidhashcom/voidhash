@@ -23,9 +23,12 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
+    "@effect/platform-node": "catalog:",
     "@tailwindcss/vite": "^4.1.13",
     "@vitejs/plugin-react": "^5.2.0",
+    "@voidhash/lib": "workspace:*",
     "@voidhash/paywalls": "workspace:*",
+    "effect": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tailwindcss": "^4.1.13",

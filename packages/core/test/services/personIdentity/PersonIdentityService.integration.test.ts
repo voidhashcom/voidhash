@@ -30,7 +30,7 @@
  *    ({@link PersonServiceError}), paired with a DB-state assertion proving the
  *    rejected write left nothing behind.
  */
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { IdentityProjectionPublisher, PersonIdentityService } from "@voidhash/core/services";
@@ -59,11 +59,26 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
+/** Wall-clock helpers — `DateTime` equivalents of `Date.now()` / `new Date(...)`. */
+const nowMillis = (): number => DateTime.toEpochMillis(DateTime.nowUnsafe());
+const now = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe());
+const instant = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+const millisAgo = (millis: number): Date =>
+  DateTime.toDateUtc(DateTime.makeUnsafe(nowMillis() - millis));
+
+/** The canonical (lexicographically sorted) form of an identity-assertion pair. */
+const canonicalPair = (a: string, b: string): readonly [string, string] => {
+  if (a <= b) {
+    return [a, b];
+  }
+  return [b, a];
+};
+
 /** Monotonic counter so distinct ids stay unique even within the same ms. */
 let seq = 0;
-const uniqueDistinctId = (label: string) => `it-pid-${label}-${Date.now()}-${seq++}`;
+const uniqueDistinctId = (label: string) => `it-pid-${label}-${nowMillis()}-${seq++}`;
 const anonymousDistinctId = (label: string) =>
-  `${ANONYMOUS_USER_ID_PREFIX}it-pid-${label}-${Date.now()}-${seq++}`;
+  `${ANONYMOUS_USER_ID_PREFIX}it-pid-${label}-${nowMillis()}-${seq++}`;
 
 // --- raw DB read-back helpers (bypass the service) ---------------------------
 
@@ -218,12 +233,14 @@ const makeServiceWiring = () => {
   return { layer };
 };
 
+const emptyAttributes = (): Record<string, unknown> => ({});
+
 const baseInput = (distinctId: string, eventTimestamp: Date) => ({
   distinctId,
   eventTimestamp,
   projectId,
-  setAttributes: {} as Record<string, unknown>,
-  setOnceAttributes: {} as Record<string, unknown>,
+  setAttributes: emptyAttributes(),
+  setOnceAttributes: emptyAttributes(),
 });
 
 describe("PersonIdentityService.resolveDistinctId", () => {
@@ -238,7 +255,7 @@ describe("PersonIdentityService.resolveDistinctId", () => {
         track.distinctId(distinctId);
 
         const result = yield* service.resolveDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           shouldCreatePerson: false,
         });
 
@@ -269,7 +286,7 @@ describe("PersonIdentityService.resolveDistinctId", () => {
 
         // Seed a full mapping first (shouldCreatePerson=true creates person + identity).
         const created = yield* service.resolveDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           shouldCreatePerson: true,
         });
         const personId = created.identity.personId;
@@ -278,7 +295,7 @@ describe("PersonIdentityService.resolveDistinctId", () => {
 
         // Read-only resolve must return the same person and write nothing new.
         const resolved = yield* service.resolveDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           shouldCreatePerson: false,
         });
 
@@ -302,7 +319,7 @@ describe("PersonIdentityService.resolveDistinctId", () => {
 
         const distinctId = uniqueDistinctId("create-full");
         track.distinctId(distinctId);
-        const eventTimestamp = new Date();
+        const eventTimestamp = now();
 
         const result = yield* service.resolveDistinctId({
           ...baseInput(distinctId, eventTimestamp),
@@ -343,7 +360,7 @@ describe("PersonIdentityService.resolveDistinctId", () => {
         track.distinctId(distinctId);
 
         const result = yield* service.resolveDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           shouldCreatePerson: true,
         });
 
@@ -367,8 +384,8 @@ describe("PersonIdentityService.resolveDistinctId", () => {
         const distinctId = uniqueDistinctId("merge-profile");
         track.distinctId(distinctId);
 
-        const firstTimestamp = new Date("2026-01-01T00:00:00.000Z");
-        const laterTimestamp = new Date("2026-02-01T00:00:00.000Z");
+        const firstTimestamp = instant("2026-01-01T00:00:00.000Z");
+        const laterTimestamp = instant("2026-02-01T00:00:00.000Z");
 
         const created = yield* service.resolveDistinctId({
           ...baseInput(distinctId, firstTimestamp),
@@ -389,7 +406,7 @@ describe("PersonIdentityService.resolveDistinctId", () => {
         });
 
         const person = yield* findPersonRow(personId);
-        const traits = (person?.traits ?? {}) as Record<string, unknown>;
+        const traits: Record<string, unknown> = person?.traits ?? {};
         expect(traits.city).toBe("Berlin");
         // setOnce("plan") must be ignored because it was already present.
         expect(traits.plan).toBe("free");
@@ -413,7 +430,7 @@ describe("PersonIdentityService.resolveDistinctId", () => {
         const email = "person@example.test";
         const name = "Jane Person";
         const result = yield* service.resolveDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           email,
           name,
           shouldCreatePerson: true,
@@ -451,7 +468,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         // Seed the anonymous source EARLIER than the identify so it is
         // deterministically the older (surviving) person under oldest-wins.
         const source = yield* service.resolveDistinctId({
-          ...baseInput(previousDistinctId, new Date(Date.now() - 60_000)),
+          ...baseInput(previousDistinctId, millisAgo(60_000)),
           setAttributes: { sourceTrait: "from-anon" },
           shouldCreatePerson: true,
         });
@@ -459,7 +476,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         track.person(survivorId);
 
         const result = yield* service.identifyDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           previousDistinctId,
         });
         track.person(result.identity.personId!);
@@ -483,9 +500,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
 
         // Source traits live on the survivor; no async work is scheduled.
         const survivor = yield* findPersonRow(survivorId);
-        expect((survivor?.traits as Record<string, unknown> | undefined)?.sourceTrait).toBe(
-          "from-anon",
-        );
+        expect(survivor?.traits?.sourceTrait).toBe("from-anon");
         yield* Effect.sleep("20 millis");
         expect(yield* findMigrationJobsForDistinctId(distinctId)).toEqual([]);
       }),
@@ -503,7 +518,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
 
       const error = yield* Effect.flip(
         service.identifyDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           previousDistinctId,
         }),
       );
@@ -530,7 +545,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         track.distinctId(distinctId);
 
         const result = yield* service.identifyDistinctId({
-          ...baseInput(distinctId, new Date()),
+          ...baseInput(distinctId, now()),
           previousDistinctId: distinctId,
         });
 
@@ -558,7 +573,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         const distinctId = uniqueDistinctId("conflict-target");
         track.distinctId(previousDistinctId);
         track.distinctId(distinctId);
-        const eventTimestamp = new Date();
+        const eventTimestamp = now();
 
         const source = yield* service.resolveDistinctId({
           ...baseInput(previousDistinctId, eventTimestamp),
@@ -581,7 +596,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
 
         // Conflicting source traits must NOT bleed into the target.
         const targetPerson = yield* findPersonRow(targetPersonId);
-        const traits = (targetPerson?.traits ?? {}) as Record<string, unknown>;
+        const traits: Record<string, unknown> = targetPerson?.traits ?? {};
         expect(traits.sourceOnly).toBeUndefined();
 
         // Conflict short-circuits the async path: no job, no dispatch.
@@ -602,7 +617,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         const distinctId = uniqueDistinctId("merge-attrs-target");
         track.distinctId(previousDistinctId);
         track.distinctId(distinctId);
-        const eventTimestamp = new Date();
+        const eventTimestamp = now();
 
         // Pre-create the target with an existing trait so setOnce can be tested.
         const target = yield* service.resolveDistinctId({
@@ -622,7 +637,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         track.person(result.identity.personId!);
 
         const person = yield* findPersonRow(targetPersonId);
-        const traits = (person?.traits ?? {}) as Record<string, unknown>;
+        const traits: Record<string, unknown> = person?.traits ?? {};
         expect(traits.campaign).toBe("spring");
         // setOnce("tier") must not override the pre-existing value.
         expect(traits.tier).toBe("bronze");
@@ -641,7 +656,7 @@ describe("PersonIdentityService.identifyDistinctId", () => {
         const distinctId = uniqueDistinctId("fresh-target");
         track.distinctId(previousDistinctId);
         track.distinctId(distinctId);
-        const eventTimestamp = new Date();
+        const eventTimestamp = now();
 
         // No prior resolve for the target — identify must map it on the fly.
         expect(yield* findIdentityRow(distinctId)).toBeUndefined();
@@ -692,8 +707,8 @@ describe("PersonIdentityService — order-agnostic behavior (Option B)", () => {
         const distinctId = uniqueDistinctId("lww");
         track.distinctId(distinctId);
 
-        const newer = new Date("2026-05-02T00:00:00.000Z");
-        const older = new Date("2026-05-01T00:00:00.000Z");
+        const newer = instant("2026-05-02T00:00:00.000Z");
+        const older = instant("2026-05-01T00:00:00.000Z");
 
         // Process the NEWER write first...
         const created = yield* service.resolveDistinctId({
@@ -716,7 +731,7 @@ describe("PersonIdentityService — order-agnostic behavior (Option B)", () => {
 
         const row = yield* findPersonRow(personId!);
         expect(row).toBeDefined();
-        expect((row!.traits as Record<string, unknown>).plan).toBe("pro");
+        expect(row!.traits!.plan).toBe("pro");
         expect(row?.traitsMeta?.plan?.ts).toBe(newer.getTime());
         expect(row?.traitsMeta?.plan?.mode).toBe("set");
       }),
@@ -736,7 +751,7 @@ describe("PersonIdentityService — order-agnostic behavior (Option B)", () => {
 
         // Seed the anonymous source so the identify performs a real merge.
         const seeded = yield* service.resolveDistinctId({
-          ...baseInput(previousDistinctId, new Date("2026-05-01T00:00:00.000Z")),
+          ...baseInput(previousDistinctId, instant("2026-05-01T00:00:00.000Z")),
           shouldCreatePerson: true,
         });
         track.person(seeded.identity.personId!);
@@ -744,19 +759,16 @@ describe("PersonIdentityService — order-agnostic behavior (Option B)", () => {
         const identifyInput = {
           distinctId,
           eventId: "evt-identify-1",
-          eventTimestamp: new Date("2026-05-02T00:00:00.000Z"),
+          eventTimestamp: instant("2026-05-02T00:00:00.000Z"),
           previousDistinctId,
           projectId,
-          setAttributes: {} as Record<string, unknown>,
-          setOnceAttributes: {} as Record<string, unknown>,
+          setAttributes: emptyAttributes(),
+          setOnceAttributes: emptyAttributes(),
         };
         const result = yield* service.identifyDistinctId(identifyInput);
         track.person(result.identity.personId!);
 
-        const [expectedA, expectedB] =
-          previousDistinctId <= distinctId
-            ? [previousDistinctId, distinctId]
-            : [distinctId, previousDistinctId];
+        const [expectedA, expectedB] = canonicalPair(previousDistinctId, distinctId);
         const rows = yield* findAssertionRows(distinctId);
         expect(rows).toHaveLength(1);
         expect(rows[0]?.distinctIdA).toBe(expectedA);

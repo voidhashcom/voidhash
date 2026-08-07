@@ -12,10 +12,13 @@
  * re-couple every surface's runtime types into this one frontend-importable
  * module. Serving-resolve + showing wiring live in each surface's own service.
  *
- * This module is dependency-light (only `effect`'s `Schema`) so it can be
- * imported from the frontend (`apps/www`), the backend, and `@voidhash/core`.
+ * This module is dependency-light (only `effect`'s `Schema` and `@voidhash/lib`
+ * language helpers) so it can be imported from the frontend (`apps/www`), the
+ * backend, and `@voidhash/core`.
  */
 import { Schema } from "effect";
+
+import { constant } from "@voidhash/lib/lang";
 
 /** Platform surfaces an experiment treatment can bind to. Grows over time. */
 export type ExperimentSurface = "paywall_location" | "notification_flow" | "automation";
@@ -49,19 +52,24 @@ export interface ExperimentVariantPayload {
   >;
 }
 
-const paywallLocationTreatment = {
+const isPaywallLocationTreatmentConfig = Schema.is(PaywallLocationTreatmentConfigSchema);
+
+const paywallLocationTreatment = constant({
   type: "paywall_location",
   name: "Paywall at a location",
   surface: "paywall_location",
   configSchema: PaywallLocationTreatmentConfigSchema,
-  compileToVariantPayload: (
-    configs: readonly PaywallLocationTreatmentConfig[],
-  ): Partial<ExperimentVariantPayload> => ({
+  // Configs arrive as `unknown` from the treatment rows (see
+  // `compileVariantPayload`), so each entry narrows its own config shape at the
+  // registry seam rather than the caller bridging the union.
+  compileToVariantPayload: (configs: readonly unknown[]): Partial<ExperimentVariantPayload> => ({
     byLocation: Object.fromEntries(
-      configs.map((c) => [c.paywallLocationId, { paywallId: c.paywallId }]),
+      configs
+        .filter(isPaywallLocationTreatmentConfig)
+        .map((c) => [c.paywallLocationId, { paywallId: c.paywallId }]),
     ),
   }),
-} as const;
+});
 
 /**
  * The registry of treatment types. Add an entry to make a new kind of
@@ -69,9 +77,9 @@ const paywallLocationTreatment = {
  * requires a serving-resolve hook + a lifecycle branch in that surface's
  * service (see `ExperimentService`), plus a studio config picker.
  */
-export const EXPERIMENT_TREATMENT_TYPES = {
+export const EXPERIMENT_TREATMENT_TYPES = constant({
   paywall_location: paywallLocationTreatment,
-} as const;
+});
 
 export type TreatmentType = keyof typeof EXPERIMENT_TREATMENT_TYPES;
 
@@ -87,7 +95,7 @@ export const isTreatmentType = (t: string): t is TreatmentType =>
 export const compileVariantPayload = (
   treatments: ReadonlyArray<{ readonly treatmentType: string; readonly config: unknown }>,
 ): ExperimentVariantPayload => {
-  const payload: Record<string, unknown> = {};
+  const payload: ExperimentVariantPayload = {};
   const byType = new Map<TreatmentType, unknown[]>();
   for (const t of treatments) {
     if (!isTreatmentType(t.treatmentType)) continue;
@@ -96,14 +104,9 @@ export const compileVariantPayload = (
     byType.set(t.treatmentType, arr);
   }
   for (const [type, configs] of byType) {
-    // The registry value is union-typed across entries; each entry's compile
-    // fn accepts its own config array — bridged here at the registry seam.
-    const compile = EXPERIMENT_TREATMENT_TYPES[type].compileToVariantPayload as (
-      configs: readonly unknown[],
-    ) => Partial<ExperimentVariantPayload>;
-    Object.assign(payload, compile(configs));
+    Object.assign(payload, EXPERIMENT_TREATMENT_TYPES[type].compileToVariantPayload(configs));
   }
-  return payload as ExperimentVariantPayload;
+  return payload;
 };
 
 /** Decode + validate a treatment config against its type's schema. */

@@ -17,7 +17,9 @@
  * sign, OAuth, network — is mapped onto the normalized {@link PushDeliveryError}
  * channel rather than thrown.
  */
-import { Effect, Layer, Schema } from "effect";
+import { constant, numberOr, stringOr } from "@voidhash/lib/lang";
+import { Clock, Duration, Effect, Layer, Option, Schema } from "effect";
+import { FetchHttpClient, Headers, HttpBody, HttpClient } from "effect/unstable/http";
 
 import { NotificationConfigValidationError } from "../../domain/notifications/PushNotificationConfiguration.ts";
 import { PaymentConfigSecretCrypto } from "../../utils/crypto/PaymentConfigSecretCrypto.ts";
@@ -55,24 +57,47 @@ export const fcmConfigurationSchema = Schema.Struct({
 
 export type FcmConfiguration = typeof fcmConfigurationSchema.Type;
 
-const FCM_DEFAULT_CONFIGURATION = {
+const FCM_DEFAULT_CONFIGURATION = constant({
   projectId: "",
   serviceAccountJson: "",
   androidPriority: "normal",
   androidTtl: "2419200s", // 28d, the FCM max
   apnsPriority: "10",
-} as const satisfies Record<string, unknown>;
+}) satisfies Record<string, unknown>;
 
 const FCM_OAUTH_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const FCM_DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token";
-const FCM_SEND_TIMEOUT_MS = 15_000;
+const FCM_SEND_TIMEOUT = Duration.seconds(15);
 /** Refresh a cached OAuth token this many seconds before its stated expiry. */
 const FCM_TOKEN_REFRESH_SKEW_SECONDS = 60;
 
-const readString = (configuration: Record<string, unknown>, key: string): string => {
-  const value = configuration[key];
-  return typeof value === "string" ? value : "";
+/**
+ * FCM delivery runs on Cloudflare Workers, where the platform `fetch` is the
+ * only transport. Discharging the `HttpClient` requirement locally (rather than
+ * threading it through the provider factory) keeps `deliver` dependency-free, as
+ * the erased {@link PushDeliveryProviderShape} contract requires.
+ */
+const withFetchClient = Effect.provide(FetchHttpClient.layer);
+
+/** The `JSON.stringify` seam — the same Schema codec the webhook sender uses. */
+const encodeJsonValue = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+const readString = (configuration: Record<string, unknown>, key: string): string =>
+  stringOr(configuration[key], "");
+
+const stringOrUndefined = (value: unknown): string | undefined => {
+  if (typeof value === "string") {
+    return value;
+  }
+  return undefined;
 };
+
+/**
+ * Decode a JSON response body against `schema`, yielding `Option.none()` when the
+ * body is absent, non-JSON or shaped unexpectedly — the parse must never defect.
+ */
+const decodeJsonBody = <S extends Schema.Codec<any, string>>(schema: S, bodyText: string) =>
+  Effect.option(Schema.decodeUnknownEffect(schema)(bodyText));
 
 /** Parsed service-account credentials extracted from the config secret JSON. */
 interface ServiceAccount {
@@ -81,22 +106,53 @@ interface ServiceAccount {
   readonly tokenUri: string;
 }
 
-const parseServiceAccount = (json: string): ServiceAccount => {
-  const parsed = JSON.parse(json) as {
-    client_email?: unknown;
-    private_key?: unknown;
-    token_uri?: unknown;
-  };
-  const clientEmail = typeof parsed.client_email === "string" ? parsed.client_email : "";
-  const privateKey = typeof parsed.private_key === "string" ? parsed.private_key : "";
-  if (clientEmail.length === 0 || privateKey.length === 0) {
-    throw new Error("service-account JSON missing client_email or private_key");
+const serviceAccountSchema = Schema.fromJsonString(
+  Schema.Struct({
+    client_email: Schema.optional(Schema.Unknown),
+    private_key: Schema.optional(Schema.Unknown),
+    token_uri: Schema.optional(Schema.Unknown),
+  }),
+);
+
+const parseServiceAccount = (
+  json: string,
+): Effect.Effect<ServiceAccount, PushInvalidCredentialsError> =>
+  Effect.gen(function* () {
+    const parsed = Option.getOrUndefined(yield* decodeJsonBody(serviceAccountSchema, json));
+    const clientEmail = stringOr(parsed?.client_email, "");
+    const privateKey = stringOr(parsed?.private_key, "");
+    if (clientEmail.length === 0 || privateKey.length === 0) {
+      return yield* new PushInvalidCredentialsError({});
+    }
+    return {
+      clientEmail,
+      privateKey,
+      tokenUri: stringOr(parsed?.token_uri, FCM_DEFAULT_TOKEN_URI),
+    };
+  });
+
+/** FCM rejects non-string `data` values, so anything else is JSON-encoded. */
+const toDataValue = (value: unknown): string => {
+  if (typeof value === "string") {
+    return value;
   }
-  return {
-    clientEmail,
-    privateKey,
-    tokenUri: typeof parsed.token_uri === "string" ? parsed.token_uri : FCM_DEFAULT_TOKEN_URI,
-  };
+  return encodeJsonValue(value);
+};
+
+const buildDataBlock = (
+  data: PushMessage["data"],
+): Record<string, string> | undefined => {
+  if (data === undefined) {
+    return undefined;
+  }
+  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, toDataValue(value)]));
+};
+
+const toAndroidPriority = (priority: PushMessage["priority"]): string => {
+  if (priority === "high") {
+    return "HIGH";
+  }
+  return "NORMAL";
 };
 
 /**
@@ -110,18 +166,10 @@ export const buildFcmMessage = (
   message: PushMessage,
   options: { readonly androidTtl?: string; readonly apnsPriority?: string },
 ): Record<string, unknown> => {
-  const data =
-    message.data === undefined
-      ? undefined
-      : Object.fromEntries(
-          Object.entries(message.data).map(([key, value]) => [
-            key,
-            typeof value === "string" ? value : JSON.stringify(value),
-          ]),
-        );
+  const data = buildDataBlock(message.data);
 
   const android: Record<string, unknown> = {
-    priority: message.priority === "high" ? "HIGH" : "NORMAL",
+    priority: toAndroidPriority(message.priority),
   };
   if (options.androidTtl) {
     android.ttl = options.androidTtl;
@@ -130,10 +178,14 @@ export const buildFcmMessage = (
     android.collapse_key = message.collapseId;
   }
   if (message.channelId || message.sound) {
-    android.notification = {
-      ...(message.channelId ? { channel_id: message.channelId } : {}),
-      ...(message.sound ? { sound: message.sound } : {}),
-    };
+    const notification: Record<string, unknown> = {};
+    if (message.channelId) {
+      notification.channel_id = message.channelId;
+    }
+    if (message.sound) {
+      notification.sound = message.sound;
+    }
+    android.notification = notification;
   }
 
   const apnsHeaders: Record<string, string> = {
@@ -152,57 +204,47 @@ export const buildFcmMessage = (
     aps.badge = message.badge;
   }
 
-  return {
-    message: {
-      token: fcmToken,
-      notification: { title: message.title, body: message.body },
-      ...(data ? { data } : {}),
-      android,
-      apns: { headers: apnsHeaders, payload: { aps } },
-    },
+  const fcmMessage: Record<string, unknown> = {
+    token: fcmToken,
+    notification: { title: message.title, body: message.body },
   };
+  if (data) {
+    fcmMessage.data = data;
+  }
+  fcmMessage.android = android;
+  fcmMessage.apns = { headers: apnsHeaders, payload: { aps } };
+
+  return { message: fcmMessage };
 };
 
+const sendSuccessSchema = Schema.fromJsonString(
+  Schema.Struct({ name: Schema.optional(Schema.Unknown) }),
+);
+
+const sendErrorSchema = Schema.fromJsonString(
+  Schema.Struct({
+    error: Schema.optional(
+      Schema.Struct({
+        status: Schema.optional(Schema.Unknown),
+        details: Schema.optional(
+          Schema.Array(Schema.Struct({ errorCode: Schema.optional(Schema.Unknown) })),
+        ),
+      }),
+    ),
+  }),
+);
+
 /**
- * Classify an FCM `messages:send` HTTP response onto the normalized error
- * vocabulary — pure so the (terminal vs retryable) decision is directly tested.
- * FCM v1 carries the canonical error in `error.details[].errorCode`, falling back
- * to `error.status`. Misclassification is unforgiving (see the enum docs), so the
- * mapping is explicit and conservative: unknown 4xx is terminal `BadToken`,
- * unknown 5xx is retryable `Transient`.
+ * Map an FCM canonical error code (plus the HTTP status as fallback) onto the
+ * normalized vocabulary. Unforgiving mapping (see the enum docs), so it stays
+ * explicit and conservative: unknown 4xx is terminal `BadToken`, unknown 5xx is
+ * retryable `Transient`.
  */
-export const classifyFcmResult = (
+const classifyFcmErrorCode = (
   statusCode: number,
-  bodyText: string,
+  errorCode: string,
   retryAfterSeconds?: number,
-): Effect.Effect<PushDeliverySuccess, PushDeliveryError> => {
-  if (statusCode >= 200 && statusCode < 300) {
-    let providerMessageId: string | undefined;
-    try {
-      const parsed = JSON.parse(bodyText) as { name?: unknown };
-      providerMessageId = typeof parsed.name === "string" ? parsed.name : undefined;
-    } catch {
-      providerMessageId = undefined;
-    }
-    return Effect.succeed({ statusCode, providerMessageId });
-  }
-
-  let errorCode = "";
-  try {
-    const parsed = JSON.parse(bodyText) as {
-      error?: { status?: unknown; details?: ReadonlyArray<{ errorCode?: unknown }> };
-    };
-    const detailCode = parsed.error?.details?.find(
-      (detail) => typeof detail?.errorCode === "string",
-    )?.errorCode;
-    errorCode =
-      (typeof detailCode === "string" ? detailCode : undefined) ??
-      (typeof parsed.error?.status === "string" ? parsed.error.status : "") ??
-      "";
-  } catch {
-    errorCode = "";
-  }
-
+): Effect.Effect<never, PushDeliveryError> => {
   switch (errorCode) {
     case "UNREGISTERED":
       return Effect.fail(new PushUnregisteredError({ statusCode }));
@@ -240,18 +282,54 @@ export const classifyFcmResult = (
   return Effect.fail(new PushBadTokenError({ statusCode }));
 };
 
-const parseRetryAfterSeconds = (headerValue: string | null): number | undefined => {
+/**
+ * Classify an FCM `messages:send` HTTP response onto the normalized error
+ * vocabulary — pure so the (terminal vs retryable) decision is directly tested.
+ * FCM v1 carries the canonical error in `error.details[].errorCode`, falling back
+ * to `error.status`.
+ */
+export const classifyFcmResult = (
+  statusCode: number,
+  bodyText: string,
+  retryAfterSeconds?: number,
+): Effect.Effect<PushDeliverySuccess, PushDeliveryError> =>
+  Effect.gen(function* () {
+    if (statusCode >= 200 && statusCode < 300) {
+      const parsed = Option.getOrUndefined(yield* decodeJsonBody(sendSuccessSchema, bodyText));
+      return { statusCode, providerMessageId: stringOrUndefined(parsed?.name) };
+    }
+
+    const parsed = Option.getOrUndefined(yield* decodeJsonBody(sendErrorSchema, bodyText));
+    const detailCode = parsed?.error?.details?.find(
+      (detail) => typeof detail?.errorCode === "string",
+    )?.errorCode;
+    const errorCode = stringOr(detailCode, stringOr(parsed?.error?.status, ""));
+
+    return yield* classifyFcmErrorCode(statusCode, errorCode, retryAfterSeconds);
+  });
+
+const parseRetryAfterSeconds = (headerValue: string | undefined): number | undefined => {
   if (!headerValue) {
     return undefined;
   }
   const asSeconds = Number(headerValue);
-  return Number.isFinite(asSeconds) && asSeconds >= 0 ? asSeconds : undefined;
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+    return asSeconds;
+  }
+  return undefined;
 };
 
 interface CachedAccessToken {
   readonly token: string;
   readonly expiresAtEpochMs: number;
 }
+
+const accessTokenSchema = Schema.fromJsonString(
+  Schema.Struct({
+    access_token: Schema.optional(Schema.Unknown),
+    expires_in: Schema.optional(Schema.Unknown),
+  }),
+);
 
 /**
  * Builds the erased {@link PushDeliveryProviderShape} for FCM, closing over the
@@ -270,7 +348,8 @@ export const makeFirebaseCloudMessagingProvider = (
 
   const fetchAccessToken = (account: ServiceAccount): Effect.Effect<string, PushDeliveryError> =>
     Effect.gen(function* () {
-      const nowSeconds = Math.floor(Date.now() / 1000);
+      const nowMillis = yield* Clock.currentTimeMillis;
+      const nowSeconds = Math.floor(nowMillis / 1000);
       const jwt = yield* signJwtRs256(
         {
           iss: account.clientEmail,
@@ -282,60 +361,57 @@ export const makeFirebaseCloudMessagingProvider = (
         account.privateKey,
       ).pipe(Effect.mapError(() => new PushInvalidCredentialsError({})));
 
-      const response = yield* Effect.tryPromise({
-        try: () =>
-          fetch(account.tokenUri, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: new URLSearchParams({
-              grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-              assertion: jwt,
-            }).toString(),
+      const client = yield* HttpClient.HttpClient;
+      // A network error is RETRYABLE; the response status decides the rest.
+      const response = yield* client
+        .post(account.tokenUri, {
+          body: HttpBody.urlParams({
+            grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            assertion: jwt,
           }),
-        catch: () => new PushTransientError({}),
-      });
-      const bodyText = yield* Effect.promise(() => response.text().catch(() => ""));
-      if (!response.ok) {
+        })
+        .pipe(Effect.mapError(() => new PushTransientError({})));
+      const bodyText = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
+      if (response.status < 200 || response.status >= 300) {
         // 4xx from the token endpoint means the credentials are bad (terminal
         // config); 5xx is a transient Google outage.
-        return yield* Effect.fail(
-          response.status >= 500
-            ? new PushTransientError({ statusCode: response.status })
-            : new PushInvalidCredentialsError({ statusCode: response.status }),
-        );
+        if (response.status >= 500) {
+          return yield* new PushTransientError({ statusCode: response.status });
+        }
+        return yield* new PushInvalidCredentialsError({ statusCode: response.status });
       }
       // Guard the parse: a non-JSON token response must NOT throw a defect (the
       // consumer recovers typed errors from `deliver`, never defects).
-      const parsed = yield* Effect.try({
-        try: () => JSON.parse(bodyText) as { access_token?: unknown; expires_in?: unknown },
-        catch: () => new PushInvalidCredentialsError({}),
-      });
-      const accessToken = typeof parsed.access_token === "string" ? parsed.access_token : "";
+      const parsed = Option.getOrUndefined(yield* decodeJsonBody(accessTokenSchema, bodyText));
+      const accessToken = stringOr(parsed?.access_token, "");
       if (accessToken.length === 0) {
-        return yield* Effect.fail(new PushInvalidCredentialsError({}));
+        return yield* new PushInvalidCredentialsError({});
       }
-      const expiresIn = typeof parsed.expires_in === "number" ? parsed.expires_in : 3600;
+      const expiresIn = numberOr(parsed?.expires_in, 3600);
+      const issuedAtMillis = yield* Clock.currentTimeMillis;
       tokenCache.set(account.clientEmail, {
         token: accessToken,
-        expiresAtEpochMs: Date.now() + expiresIn * 1000,
+        expiresAtEpochMs: issuedAtMillis + expiresIn * 1000,
       });
       return accessToken;
-    });
+    }).pipe(withFetchClient);
 
   const getAccessToken = (
     account: ServiceAccount,
     forceRefresh: boolean,
-  ): Effect.Effect<string, PushDeliveryError> => {
-    if (!forceRefresh) {
-      const cached = tokenCache.get(account.clientEmail);
-      if (cached && cached.expiresAtEpochMs - FCM_TOKEN_REFRESH_SKEW_SECONDS * 1000 > Date.now()) {
-        return Effect.succeed(cached.token);
+  ): Effect.Effect<string, PushDeliveryError> =>
+    Effect.gen(function* () {
+      if (forceRefresh) {
+        tokenCache.delete(account.clientEmail);
+        return yield* fetchAccessToken(account);
       }
-    } else {
-      tokenCache.delete(account.clientEmail);
-    }
-    return fetchAccessToken(account);
-  };
+      const cached = tokenCache.get(account.clientEmail);
+      const nowMillis = yield* Clock.currentTimeMillis;
+      if (cached && cached.expiresAtEpochMs - FCM_TOKEN_REFRESH_SKEW_SECONDS * 1000 > nowMillis) {
+        return cached.token;
+      }
+      return yield* fetchAccessToken(account);
+    });
 
   const sendOnce = (
     projectId: string,
@@ -346,39 +422,29 @@ export const makeFirebaseCloudMessagingProvider = (
     PushDeliveryError
   > =>
     Effect.gen(function* () {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FCM_SEND_TIMEOUT_MS);
-      // `tryPromise` (not `promise`): a network error or the AbortController
-      // timeout rejects — map it to a RETRYABLE typed error, never a defect that
-      // escapes the `deliver` error channel.
-      return yield* Effect.tryPromise({
-        try: async () => {
-          try {
-            const response = await fetch(
-              `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-              {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(body),
-                signal: controller.signal,
-              },
-            );
-            const bodyText = await response.text().catch(() => "");
-            return {
-              status: response.status,
-              bodyText,
-              retryAfter: parseRetryAfterSeconds(response.headers.get("Retry-After")),
-            };
-          } finally {
-            clearTimeout(timeout);
-          }
+      const client = yield* HttpClient.HttpClient;
+      const response = yield* client.post(
+        `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: HttpBody.text(encodeJsonValue(body), "application/json"),
         },
-        catch: () => new PushTransientError({}),
-      });
-    });
+      );
+      const bodyText = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
+      return {
+        status: response.status,
+        bodyText,
+        retryAfter: parseRetryAfterSeconds(
+          Option.getOrUndefined(Headers.get(response.headers, "Retry-After")),
+        ),
+      };
+    }).pipe(
+      // A network error or the send timeout becomes a RETRYABLE typed error,
+      // never a defect that escapes the `deliver` error channel.
+      Effect.timeout(FCM_SEND_TIMEOUT),
+      Effect.mapError(() => new PushTransientError({})),
+      withFetchClient,
+    );
 
   const deliver = (
     configuration: Record<string, unknown>,
@@ -390,10 +456,7 @@ export const makeFirebaseCloudMessagingProvider = (
       const secretJson = yield* secretCrypto
         .decrypt(readString(configuration, "serviceAccountJson"))
         .pipe(Effect.mapError(() => new PushInvalidCredentialsError({})));
-      const account = yield* Effect.try({
-        try: () => parseServiceAccount(secretJson),
-        catch: () => new PushInvalidCredentialsError({}),
-      });
+      const account = yield* parseServiceAccount(secretJson);
 
       const body = buildFcmMessage(token.platformToken, message, {
         androidTtl: readString(configuration, "androidTtl") || undefined,

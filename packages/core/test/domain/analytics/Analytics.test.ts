@@ -1,3 +1,5 @@
+import { DateTime } from "effect";
+
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -11,7 +13,7 @@ import {
 /** Fresh data point builder — one object per use, no shared mutable state. */
 const point = (
   value: number,
-  timestamp = new Date("2026-01-01T00:00:00Z"),
+  timestamp = DateTime.toDateUtc(DateTime.makeUnsafe("2026-01-01T00:00:00Z")),
 ): AnalyticsDataPoint => ({
   timestamp,
   value,

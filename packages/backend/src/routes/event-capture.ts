@@ -22,7 +22,8 @@ import {
   EventCaptureApi,
 } from "@voidhash/api-contracts/event-capture";
 import { EventCaptureService } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
-import { Effect } from "effect";
+import { generateId } from "@voidhash/core/utils/generate-id";
+import { DateTime, Effect } from "effect";
 import * as HttpEffect from "effect/unstable/http/HttpEffect";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
@@ -63,8 +64,9 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("capture", ({ request, payload }) =>
           Effect.gen(function* () {
-            const requestId = `req_${crypto.randomUUID()}`;
+            const requestId = generateId("request");
             yield* appendRequestIdHeader(requestId);
+            const receivedAt = yield* DateTime.nowAsDate;
 
             const result = yield* captureService
               .captureEvents({
@@ -72,7 +74,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                 request: {
                   clientIp: extractClientIp(request.headers),
                   path: "/i/v1/capture",
-                  receivedAt: new Date(),
+                  receivedAt,
                   sentAt: payload.sent_at,
                   token: payload.token,
                   headers: request.headers,
@@ -119,8 +121,9 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
         )
         .handle("batch", ({ request, payload }) =>
           Effect.gen(function* () {
-            const requestId = `req_${crypto.randomUUID()}`;
+            const requestId = generateId("request");
             yield* appendRequestIdHeader(requestId);
+            const receivedAt = yield* DateTime.nowAsDate;
 
             const result = yield* captureService
               .captureEvents({
@@ -128,7 +131,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                 request: {
                   clientIp: extractClientIp(request.headers),
                   path: "/i/v1/batch",
-                  receivedAt: new Date(),
+                  receivedAt,
                   sentAt: payload.sent_at,
                   token: payload.token,
                   headers: request.headers,

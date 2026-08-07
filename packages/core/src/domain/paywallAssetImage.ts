@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Encoding, Schema } from "effect";
 
 /**
  * Raised when an uploaded paywall asset image fails validation (unsupported
@@ -57,16 +57,24 @@ const matchesContentType = (bytes: Uint8Array, contentType: string): boolean => 
   }
 };
 
-const decodeBase64 = (base64: string): Uint8Array => {
-  // Tolerate a `data:<type>;base64,` prefix even though the studio sends raw base64.
+/** Tolerate a `data:<type>;base64,` prefix even though the studio sends raw base64. */
+const base64Payload = (base64: string): string => {
   const comma = base64.indexOf(",");
-  const payload = base64.startsWith("data:") && comma !== -1 ? base64.slice(comma + 1) : base64;
-  const binary = atob(payload);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  if (base64.startsWith("data:") && comma !== -1) {
+    return base64.slice(comma + 1);
   }
-  return bytes;
+  return base64;
+};
+
+/**
+ * Copies `bytes` into a standalone `ArrayBuffer` so it can be handed to
+ * WebCrypto, whose `BufferSource` parameter does not accept a view over a
+ * possibly-shared buffer.
+ */
+const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 };
 
 const MAX_MB = Math.round(MAX_PAYWALL_ASSET_BYTES / 1024 / 1024);
@@ -101,10 +109,13 @@ export const validateAndDecodePaywallAsset = (input: {
       );
     }
 
-    const bytes = yield* Effect.try({
-      try: () => decodeBase64(input.imageBase64),
-      catch: () => new PaywallAssetValidationError({ message: "Image data is not valid base64." }),
-    });
+    const bytes = yield* Effect.fromResult(
+      Encoding.decodeBase64(base64Payload(input.imageBase64)),
+    ).pipe(
+      Effect.mapError(
+        () => new PaywallAssetValidationError({ message: "Image data is not valid base64." }),
+      ),
+    );
 
     if (bytes.length === 0) {
       return yield* Effect.fail(new PaywallAssetValidationError({ message: "Image is empty." }));
@@ -127,12 +138,13 @@ export const validateAndDecodePaywallAsset = (input: {
 
 /** SHA-256 hex digest of the asset bytes (WebCrypto; available in workerd). */
 export const paywallAssetSha256Hex = (bytes: Uint8Array): Effect.Effect<string> =>
-  Effect.promise(async () => {
-    const digest = await crypto.subtle.digest("SHA-256", bytes as unknown as ArrayBuffer);
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  });
+  Effect.promise(() => crypto.subtle.digest("SHA-256", toArrayBuffer(bytes))).pipe(
+    Effect.map((digest) =>
+      Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(""),
+    ),
+  );
 
 /** Content-addressed object key: `paywall-assets/<organizationId>/<sha256>.<ext>`. */
 export const derivePaywallAssetKey = (
@@ -168,5 +180,8 @@ export const paywallAssetKeyFromUrl = (
     return null;
   }
   const key = url.slice(prefix.length);
-  return key.startsWith(`paywall-assets/${organizationId}/`) ? key : null;
+  if (!key.startsWith(`paywall-assets/${organizationId}/`)) {
+    return null;
+  }
+  return key;
 };

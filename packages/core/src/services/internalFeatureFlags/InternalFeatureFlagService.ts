@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { Db, and, eq, inArray, internalFeatureFlagOverrides } from "@voidhash/db";
 import {
@@ -42,11 +43,18 @@ export const enabledKeysFromOverrides = (overrides: ReadonlyMap<string, boolean>
  * effective `enabled` state. Stale override keys not in the registry are
  * ignored.
  */
+/** Reads an override, distinguishing "absent" (`null`) from a stored `false`. */
+const overrideFor = (overrides: ReadonlyMap<string, boolean>, key: string): boolean | null => {
+  const value = overrides.get(key);
+  if (value === undefined) return null;
+  return value;
+};
+
 export const resolveInternalFeatureFlagList = (
   overrides: ReadonlyMap<string, boolean>,
 ): ResolvedInternalFeatureFlag[] =>
   INTERNAL_FEATURE_FLAG_LIST.map((flag) => {
-    const override = overrides.has(flag.key) ? (overrides.get(flag.key) as boolean) : null;
+    const override = overrideFor(overrides, flag.key);
     return {
       key: flag.key,
       name: flag.name,
@@ -169,6 +177,7 @@ export class InternalFeatureFlagService extends Context.Service<InternalFeatureF
               }),
             );
           }
+          const updatedAt = yield* DateTime.nowAsDate;
           yield* db
             .insert(internalFeatureFlagOverrides)
             .values({
@@ -182,7 +191,7 @@ export class InternalFeatureFlagService extends Context.Service<InternalFeatureF
                 internalFeatureFlagOverrides.organizationId,
                 internalFeatureFlagOverrides.flagKey,
               ],
-              set: { enabled, updatedAt: new Date() },
+              set: { enabled, updatedAt },
             });
         },
         (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: mapDbError })),
@@ -202,14 +211,14 @@ export class InternalFeatureFlagService extends Context.Service<InternalFeatureF
         (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: mapDbError })),
       );
 
-      return {
+      return constant({
         resolveEnabledForOrganization,
         resolveEnabledForOrganizations,
         isEnabled,
         listForOrganization,
         setOverride,
         clearOverride,
-      } as const;
+      });
     }),
   },
 ) {

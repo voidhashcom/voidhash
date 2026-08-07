@@ -3,13 +3,20 @@
  * the dashboard configuration shape, derives the provider key from the Stripe
  * account id, and encrypts API/webhook secrets before persistence.
  */
-import { Effect, Layer, Schema } from "effect";
+import { stringOr } from "@voidhash/lib/lang";
+import { Effect, Layer, Predicate, Schema } from "effect";
 
 import { PaymentProviderConfigurationValidationError } from "../../../domain/paymentProvider/PaymentProviderConfiguration.ts";
 import { PaymentProviderProductValidationError } from "../../../domain/paymentProvider/PaymentProviderProduct.ts";
 import { PaymentConfigSecretCrypto } from "../../../utils/crypto/PaymentConfigSecretCrypto.ts";
 import { isEncrypted } from "../../../utils/crypto/SecretBox.ts";
 import { StripePaymentProvider } from "../PaymentProvider.ts";
+
+/** Reads a property off an unknown configuration blob without an `as` assertion. */
+const readProperty = <P extends string>(value: unknown, property: P): unknown => {
+  if (Predicate.hasProperty(value, property)) return value[property];
+  return undefined;
+};
 
 const ACCOUNT_ID_PATTERN = /^acct_[A-Za-z0-9]+$/;
 const WEBHOOK_SECRET_PATTERN = /^whsec_[A-Za-z0-9]+$/;
@@ -60,6 +67,12 @@ export interface StripeConfigProvider {
   >;
 }
 
+/** Prefix-requirement message for the mode-specific Stripe API key. */
+const secretKeyPrefixMessage = (mode: "live" | "test"): string => {
+  if (mode === "live") return "Live Stripe API key must start with sk_live_ or rk_live_";
+  return "Test Stripe API key must start with sk_test_ or rk_test_";
+};
+
 const validateSecretKey = ({
   mode,
   secretKey,
@@ -74,13 +87,7 @@ const validateSecretKey = ({
   return Effect.succeed(secretKey).pipe(
     Effect.filterOrFail(
       (value) => value.startsWith(`sk_${mode}_`) || value.startsWith(`rk_${mode}_`),
-      () =>
-        new PaymentProviderConfigurationValidationError({
-          cause:
-            mode === "live"
-              ? "Live Stripe API key must start with sk_live_ or rk_live_"
-              : "Test Stripe API key must start with sk_test_ or rk_test_",
-        }),
+      () => new PaymentProviderConfigurationValidationError({ cause: secretKeyPrefixMessage(mode) }),
     ),
     Effect.asVoid,
   );
@@ -126,12 +133,10 @@ export const makeStripeConfigProvider = (
   secretCrypto: typeof PaymentConfigSecretCrypto.Service,
 ): StripeConfigProvider => ({
   createGlobalKey: (configuration) =>
-    Effect.succeed(`${(configuration as { accountId?: unknown }).accountId ?? ""}`),
+    Effect.succeed(stringOr(readProperty(configuration, "accountId"), "")),
   createProductKey: (configuration) =>
     Effect.succeed(
-      `${(configuration as { productId?: unknown }).productId ?? ""}:${
-        (configuration as { priceId?: unknown }).priceId ?? ""
-      }`,
+      `${stringOr(readProperty(configuration, "productId"), "")}:${stringOr(readProperty(configuration, "priceId"), "")}`,
     ),
   defaultGlobalConfiguration: () =>
     Effect.succeed({

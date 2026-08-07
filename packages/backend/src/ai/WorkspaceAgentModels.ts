@@ -1,8 +1,11 @@
 import { getCatalogModel, type Model } from "@voidhash/agent";
+import { Effect } from "effect";
 
 const requiredModel = (provider: string, modelId: string): Model<string> => {
   const model = getCatalogModel(provider, modelId);
-  if (model === undefined) throw new Error(`Missing workspace model: ${provider}/${modelId}`);
+  if (model === undefined) {
+    return Effect.runSync(Effect.die(new Error(`Missing workspace model: ${provider}/${modelId}`)));
+  }
   return model;
 };
 

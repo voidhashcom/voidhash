@@ -5,6 +5,7 @@ import {
   type ObjectStoreShape,
 } from "@voidhash/platform/ObjectStore";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Layer, Option, Redacted } from "effect";
 
 /** S3-compatible connection and bucket parameters. */
@@ -32,8 +33,21 @@ const storeError = (
 
 const isNotFound = (error: unknown): boolean => {
   if (typeof error !== "object" || error === null) return false;
-  const tagged = error as { readonly _tag?: unknown };
-  return tagged._tag === "NoSuchKey" || tagged._tag === "NotFound";
+  if (!("_tag" in error)) return false;
+  return error._tag === "NoSuchKey" || error._tag === "NotFound";
+};
+
+/**
+ * AWS SDK v3 enables CRC32 checksums by default. Some S3-compatible stores
+ * reject those optional headers, so custom endpoints use the compatibility mode
+ * while native AWS S3 retains its stronger default.
+ */
+const checksumCompatibility = (endpoint: string | undefined) => {
+  if (endpoint === undefined) return {};
+  return constant({
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
+  });
 };
 
 const makeStore = (
@@ -77,15 +91,11 @@ const makeStore = (
           ),
         );
       }),
-      Effect.catch((cause) =>
-        isNotFound(cause)
-          ? Effect.succeedNone
-          : Effect.fail(
-              cause instanceof ObjectStoreError
-                ? cause
-                : storeError(config, key, "get", cause),
-            ),
-      ),
+      Effect.catch((cause) => {
+        if (isNotFound(cause)) return Effect.succeedNone;
+        if (cause instanceof ObjectStoreError) return Effect.fail(cause);
+        return Effect.fail(storeError(config, key, "get", cause));
+      }),
     ),
   head: (key) =>
     PlatformRuntime.pipe(
@@ -97,11 +107,10 @@ const makeStore = (
           size: output.ContentLength ?? 0,
         }),
       ),
-      Effect.catch((cause) =>
-        isNotFound(cause)
-          ? Effect.succeedNone
-          : Effect.fail(storeError(config, key, "head", cause)),
-      ),
+      Effect.catch((cause) => {
+        if (isNotFound(cause)) return Effect.succeedNone;
+        return Effect.fail(storeError(config, key, "head", cause));
+      }),
     ),
   delete: (key) =>
     PlatformRuntime.pipe(
@@ -124,15 +133,7 @@ export const S3ObjectStoreLive = (
         region: config.region,
         endpoint: config.endpoint,
         forcePathStyle: config.forcePathStyle ?? config.endpoint !== undefined,
-        // AWS SDK v3 enables CRC32 checksums by default. Some S3-compatible
-        // stores reject those optional headers, so custom endpoints use the
-        // compatibility mode while native AWS S3 retains its stronger default.
-        ...(config.endpoint === undefined
-          ? {}
-          : {
-              requestChecksumCalculation: "WHEN_REQUIRED" as const,
-              responseChecksumValidation: "WHEN_REQUIRED" as const,
-            }),
+        ...checksumCompatibility(config.endpoint),
         credentials: {
           accessKeyId: config.accessKeyId,
           secretAccessKey: Redacted.value(config.secretAccessKey),

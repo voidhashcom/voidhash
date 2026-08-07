@@ -10,19 +10,24 @@
  * internal storage format. We use a flat JSON shape with nullable strings to
  * keep payloads small and inspectable in DB clients.
  */
-import { Option } from "effect";
+import { Option, Schema } from "effect";
 
 import { PurchaseProcessingResult } from "../../domain/purchaseProcessing/PurchaseProcessing.ts";
 
-interface EncodedPurchaseProcessingResult {
-  readonly personId: string;
-  readonly purchaseId: string | null;
-  readonly subscriptionId: string | null;
-  readonly transactionId: string | null;
-  readonly changedGrantIds: ReadonlyArray<string>;
-  readonly analyticsEventIds: ReadonlyArray<string>;
-  readonly idempotent: boolean;
-}
+/** The flat, nullable-string storage shape written to (and read back from) the outbox row. */
+const EncodedPurchaseProcessingResultSchema = Schema.Struct({
+  personId: Schema.String,
+  purchaseId: Schema.NullOr(Schema.String),
+  subscriptionId: Schema.NullOr(Schema.String),
+  transactionId: Schema.NullOr(Schema.String),
+  changedGrantIds: Schema.Array(Schema.String),
+  analyticsEventIds: Schema.Array(Schema.String),
+  idempotent: Schema.Boolean,
+});
+
+type EncodedPurchaseProcessingResult = typeof EncodedPurchaseProcessingResultSchema.Type;
+
+const decodeEncodedResult = Schema.decodeUnknownSync(EncodedPurchaseProcessingResultSchema);
 
 /** Encodes the result to a JSON-friendly object suitable for the outbox row. */
 export const encodePurchaseProcessingResult = (
@@ -43,7 +48,7 @@ export const encodePurchaseProcessingResult = (
  * one already produced the canonical operational state.
  */
 export const decodePurchaseProcessingResult = (encoded: unknown): PurchaseProcessingResult => {
-  const e = encoded as EncodedPurchaseProcessingResult;
+  const e = decodeEncodedResult(encoded);
   return new PurchaseProcessingResult({
     analyticsEventIds: e.analyticsEventIds,
     changedGrantIds: e.changedGrantIds,

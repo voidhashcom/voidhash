@@ -3,6 +3,7 @@ import { type Path, type Value } from "../core/types.ts";
 import { materializeDefaultAt } from "./defaults.ts";
 import { getSchemaModel } from "./registry.ts";
 import type { Schema } from "./types.ts";
+import { constant } from "../internal/lang.ts";
 
 export const validate = (schema: Schema, value?: Value): Value | undefined => {
   if (value !== undefined) {
@@ -30,7 +31,7 @@ const validateInternal = (
   );
 };
 
-const validationContext = {
+const validationContext = constant({
   validate: validateInternal,
   materializeDefault: materializeDefaultAt,
-} as const;
+});

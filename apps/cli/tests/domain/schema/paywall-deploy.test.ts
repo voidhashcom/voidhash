@@ -106,14 +106,26 @@ describe("DeployManifestSchema", () => {
 
   it("accepts a component-only manifest and a panel artifact", () => {
     const fixture = validManifest();
-    fixture.paywalls = [];
-    fixture.components[0]!.artifacts.panel = artifact(
-      ".voidhash/.build/components/product-option/panel.js",
-      "f",
-      "text/javascript; charset=utf-8",
-    ) as never;
+    const component = fixture.components[0]!;
+    const withPanel = {
+      ...fixture,
+      components: [
+        {
+          ...component,
+          artifacts: {
+            ...component.artifacts,
+            panel: artifact(
+              ".voidhash/.build/components/product-option/panel.js",
+              "f",
+              "text/javascript; charset=utf-8",
+            ),
+          },
+        },
+      ],
+      paywalls: [],
+    };
 
-    const manifest = decode(fixture);
+    const manifest = decode(withPanel);
     expect(manifest.components[0]?.artifacts.panel?.sha256).toBe(hash("f"));
   });
 
@@ -129,10 +141,11 @@ describe("DeployManifestSchema", () => {
 
   it("rejects non-scalar variable values", () => {
     const fixture = validManifest();
-    fixture.paywalls[0]!.variables = {
-      accentColor: { hex: "#16a34a" },
-    } as never;
-    expect(() => decode(fixture)).toThrow();
+    const withObjectVariable = {
+      ...fixture,
+      paywalls: [{ ...fixture.paywalls[0]!, variables: { accentColor: { hex: "#16a34a" } } }],
+    };
+    expect(() => decode(withObjectVariable)).toThrow();
   });
 
   it("rejects malformed sha256 digests", () => {

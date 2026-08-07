@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import {
   and,
@@ -28,6 +29,9 @@ export interface ActivePushDevice {
   readonly bundleId: string | null;
   readonly environment: string | null;
 }
+
+/** Shared empty result for a send that targets no canonical person. */
+const NO_ACTIVE_DEVICES: ReadonlyArray<ActivePushDevice> = [];
 
 /**
  * Answers "which devices belong to a person right now?" — owns the
@@ -60,7 +64,7 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
           if (existing) {
             yield* tx
               .update(pushPersonDeviceTokens)
-              .set({ deletedAt: null, updatedAt: new Date() })
+              .set({ deletedAt: null, updatedAt: yield* DateTime.nowAsDate })
               .where(eq(pushPersonDeviceTokens.id, existing.id));
             return;
           }
@@ -81,16 +85,19 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
           readonly pushDeviceTokenId: string;
         },
       ) =>
-        tx
-          .update(pushPersonDeviceTokens)
-          .set({ deletedAt: new Date(), updatedAt: new Date() })
-          .where(
-            and(
-              eq(pushPersonDeviceTokens.projectId, input.projectId),
-              eq(pushPersonDeviceTokens.personId, input.personId),
-              eq(pushPersonDeviceTokens.pushDeviceTokenId, input.pushDeviceTokenId),
-            ),
-          );
+        Effect.gen(function* () {
+          const now = yield* DateTime.nowAsDate;
+          return yield* tx
+            .update(pushPersonDeviceTokens)
+            .set({ deletedAt: now, updatedAt: now })
+            .where(
+              and(
+                eq(pushPersonDeviceTokens.projectId, input.projectId),
+                eq(pushPersonDeviceTokens.personId, input.personId),
+                eq(pushPersonDeviceTokens.pushDeviceTokenId, input.pushDeviceTokenId),
+              ),
+            );
+        });
 
       /**
        * Ownership TRANSFER (last-registration-wins): soft-delete every ACTIVE
@@ -105,17 +112,20 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
           readonly keepPersonId: string;
         },
       ) =>
-        tx
-          .update(pushPersonDeviceTokens)
-          .set({ deletedAt: new Date(), updatedAt: new Date() })
-          .where(
-            and(
-              eq(pushPersonDeviceTokens.projectId, input.projectId),
-              eq(pushPersonDeviceTokens.pushDeviceTokenId, input.pushDeviceTokenId),
-              ne(pushPersonDeviceTokens.personId, input.keepPersonId),
-              isNull(pushPersonDeviceTokens.deletedAt),
-            ),
-          );
+        Effect.gen(function* () {
+          const now = yield* DateTime.nowAsDate;
+          return yield* tx
+            .update(pushPersonDeviceTokens)
+            .set({ deletedAt: now, updatedAt: now })
+            .where(
+              and(
+                eq(pushPersonDeviceTokens.projectId, input.projectId),
+                eq(pushPersonDeviceTokens.pushDeviceTokenId, input.pushDeviceTokenId),
+                ne(pushPersonDeviceTokens.personId, input.keepPersonId),
+                isNull(pushPersonDeviceTokens.deletedAt),
+              ),
+            );
+        });
 
       /** Active-link lookup for ownership assertion (refresh / unregister). */
       const findActiveLink = (
@@ -165,7 +175,7 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
             canonicalPersonIds.length,
           );
           if (canonicalPersonIds.length === 0) {
-            return [] as ReadonlyArray<ActivePushDevice>;
+            return NO_ACTIVE_DEVICES;
           }
 
           // Belt: every loser whose merge chain lands on a requested canonical id.
@@ -199,7 +209,8 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
             });
           }
           yield* Effect.annotateCurrentSpan("voidhash.push.device_count", deduped.size);
-          return [...deduped.values()] as ReadonlyArray<ActivePushDevice>;
+          const devices: ReadonlyArray<ActivePushDevice> = [...deduped.values()];
+          return devices;
         },
         (effect) =>
           effect.pipe(
@@ -237,7 +248,7 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
           // merged-loser expansion (belt-and-suspenders).
           yield* tx
             .update(pushPersonDeviceTokens)
-            .set({ personId: input.survivorPersonId, updatedAt: new Date() })
+            .set({ personId: input.survivorPersonId, updatedAt: yield* DateTime.nowAsDate })
             .where(
               and(
                 eq(pushPersonDeviceTokens.projectId, input.projectId),
@@ -247,7 +258,7 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
             );
         });
 
-      return {
+      return constant({
         countActiveOwners,
         findActiveLink,
         getActiveTokensForPersonIds,
@@ -255,7 +266,7 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
         repointLinksToSurvivor,
         unlink,
         unlinkOtherOwners,
-      } as const;
+      });
     }),
   },
 ) {

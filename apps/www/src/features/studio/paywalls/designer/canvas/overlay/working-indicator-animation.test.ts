@@ -59,7 +59,7 @@ describe("working indicator animation", () => {
     syncWorkingIndicatorScreens(animation, [SCREEN]);
 
     const scalesByDepth = new Map(readDots(animation).map((dot) => [dot.depth, dot.sizeScale]));
-    expect([...scalesByDepth.keys()].sort()).toEqual([1, 2, 3]);
+    expect([...scalesByDepth.keys()].sort((a, b) => a - b)).toEqual([1, 2, 3]);
     expect(scalesByDepth.get(1)).toBeCloseTo(1);
     expect(scalesByDepth.get(2)).toBeCloseTo(2 / 3);
     expect(scalesByDepth.get(3)).toBeCloseTo(1 / 3);

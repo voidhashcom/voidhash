@@ -1,5 +1,6 @@
 import { PathNode, ScreenNode, ShapeNode, TextNode, ViewNode } from "@voidhash/mimic-schema";
 import { describe, expect, test } from "vite-plus/test";
+import { Effect } from "effect";
 
 import {
   createOfflineDesignerDocument,
@@ -44,7 +45,7 @@ function makeDocument() {
   const ids = { flexId: "", pathId: "", screenId, shapeId: "", textId: "" };
   doc.transaction((root) => {
     const screen = root.findByIdAcrossTree(screenId);
-    if (!screen) throw new Error("expected the seeded screen node");
+    if (!screen) return Effect.runSync(Effect.die(new Error("expected the seeded screen node")));
     const flex = screen.children.insertLast({ type: "view", name: "Card" });
     ids.flexId = flex.id;
     ids.textId = flex.children.insertLast({ type: "text", text: "Buy now" }).id;
@@ -58,7 +59,7 @@ function makeDocument() {
 function rawViewData(doc: OfflineDesignerDocument, nodeId: string) {
   const data = findTypedNode(doc.root, nodeId, ViewNode)?.get()?.data;
   if (data === undefined) {
-    throw new Error("expected a flex node");
+    return Effect.runSync(Effect.die(new Error("expected a flex node")));
   }
   return data;
 }
@@ -70,7 +71,7 @@ function rawViewData(doc: OfflineDesignerDocument, nodeId: string) {
 function populateFlexArrays(doc: OfflineDesignerDocument, flexId: string) {
   doc.transaction((root) => {
     const proxy = findTypedNode(root, flexId, ViewNode);
-    if (!proxy) throw new Error("expected a flex node");
+    if (!proxy) return Effect.runSync(Effect.die(new Error("expected a flex node")));
     proxy.data.interactions.push({
       action: { type: "close-paywall" },
       id: "interaction-1",
@@ -185,7 +186,7 @@ describe("updateScreenNodeData", () => {
     const { doc, ids } = makeDocument();
     doc.transaction((root) => {
       const proxy = findTypedNode(root, ids.screenId, ScreenNode);
-      if (!proxy) throw new Error("expected a screen node");
+      if (!proxy) return Effect.runSync(Effect.die(new Error("expected a screen node")));
       proxy.data.states.push({ condition: sampleCondition, id: "state-1", name: "Selected" });
       proxy.data.localVariables.push({
         id: "var-1",
@@ -195,7 +196,7 @@ describe("updateScreenNodeData", () => {
     });
     const screenNode = () => {
       const data = findTypedNode(doc.root, ids.screenId, ScreenNode)?.get()?.data;
-      if (data === undefined) throw new Error("expected a screen node");
+      if (data === undefined) return Effect.runSync(Effect.die(new Error("expected a screen node")));
       return data;
     };
     const beforeStates = JSON.stringify(screenNode().states);
@@ -219,7 +220,7 @@ describe("updateTextNodeData", () => {
     const { doc, ids } = makeDocument();
     const textNode = () => {
       const data = findTypedNode(doc.root, ids.textId, TextNode)?.get()?.data;
-      if (data === undefined) throw new Error("expected a text node");
+      if (data === undefined) return Effect.runSync(Effect.die(new Error("expected a text node")));
       return data;
     };
 
@@ -242,7 +243,7 @@ describe("updatePathNodeData", () => {
     const { doc, ids } = makeDocument();
     const pathNode = () => {
       const data = findTypedNode(doc.root, ids.pathId, PathNode)?.get()?.data;
-      if (data === undefined) throw new Error("expected a path node");
+      if (data === undefined) return Effect.runSync(Effect.die(new Error("expected a path node")));
       return data;
     };
 
@@ -266,7 +267,7 @@ describe("updateShapeNodeData", () => {
     const { doc, ids } = makeDocument();
     const shapeNode = () => {
       const data = findTypedNode(doc.root, ids.shapeId, ShapeNode)?.get()?.data;
-      if (data === undefined) throw new Error("expected a shape node");
+      if (data === undefined) return Effect.runSync(Effect.die(new Error("expected a shape node")));
       return data;
     };
     const beforeViewBox = JSON.stringify(shapeNode().viewBox);

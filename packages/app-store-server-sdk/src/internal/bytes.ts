@@ -2,37 +2,31 @@
  * WebCrypto-only byte/encoding helpers.
  *
  * This module deliberately avoids Node's `Buffer` so the SDK runs unchanged on
- * Cloudflare Workers (workerd). All helpers use `atob`/`btoa`, `TextEncoder`/
- * `TextDecoder`, and `Uint8Array`, which are available on both Node 18+ and
- * workerd.
+ * Cloudflare Workers (workerd). All helpers use Effect's `Encoding`,
+ * `TextEncoder`/`TextDecoder`, and `Uint8Array`, which are available on both
+ * Node 18+ and workerd.
  */
+import { Encoding, Result } from "effect";
 
-/** Decode a standard (non-url) base64 string into raw bytes. */
-export const base64ToBytes = (base64: string): Uint8Array => {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-};
+/**
+ * Decode a standard (non-url) base64 string into raw bytes.
+ *
+ * Throws on malformed input (as `atob` did before the port to `Encoding`);
+ * every caller runs inside an `Effect.try` that maps the failure to a tagged
+ * parse error.
+ */
+export const base64ToBytes = (base64: string): Uint8Array =>
+  Result.getOrThrow(Encoding.decodeBase64(base64));
 
 /** Encode raw bytes as a standard (non-url) base64 string. */
-export const bytesToBase64 = (bytes: Uint8Array): string => {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i] as number);
-  }
-  return btoa(binary);
-};
+export const bytesToBase64 = (bytes: Uint8Array): string => Encoding.encodeBase64(bytes);
 
 const HEX_ALPHABET = "0123456789abcdef";
 
 /** Encode raw bytes as a lowercase hex string. */
 export const bytesToHex = (bytes: Uint8Array): string => {
   let hex = "";
-  for (let i = 0; i < bytes.length; i++) {
-    const byte = bytes[i] as number;
+  for (const byte of bytes) {
     hex += HEX_ALPHABET.charAt(byte >> 4) + HEX_ALPHABET.charAt(byte & 0x0f);
   }
   return hex;
@@ -52,6 +46,20 @@ export const utf8ToBytes = (text: string): Uint8Array => new TextEncoder().encod
 
 /** UTF-8 decode bytes to a string. */
 export const bytesToUtf8 = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
+
+/**
+ * Copy bytes into a freshly allocated `ArrayBuffer`.
+ *
+ * `TextEncoder` yields `Uint8Array<ArrayBufferLike>`, which the DOM lib's
+ * `BufferSource` (ArrayBuffer-backed) rejects at the type level even though it
+ * is valid at runtime. Copying into a real `ArrayBuffer` gives WebCrypto a
+ * correctly typed input without an assertion.
+ */
+export const bytesToArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+};
 
 /**
  * Convert a fixed-width IEEE-P1363 ECDSA signature (`r‖s`, the format emitted by
@@ -74,7 +82,8 @@ export const rawEcdsaSignatureToDer = (raw: Uint8Array): Uint8Array => {
     let trimmed = bytes.slice(start);
     // DER INTEGERs are signed: prepend 0x00 when the high bit is set so the
     // value isn't misread as negative.
-    if ((trimmed[0] as number) & 0x80) {
+    const leading = trimmed[0] ?? 0;
+    if (leading & 0x80) {
       const padded = new Uint8Array(trimmed.length + 1);
       padded.set(trimmed, 1);
       trimmed = padded;

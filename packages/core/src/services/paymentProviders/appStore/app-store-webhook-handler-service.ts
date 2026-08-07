@@ -5,7 +5,8 @@ import {
 } from "@voidhash/app-store-server-sdk";
 import { generateId } from "../../../utils/index.ts";
 import { ProviderEnvironment } from "@voidhash/db";
-import { Effect, Layer, Match, Option, Predicate, Schema, Context } from "effect";
+import { constant, pick, stringOr } from "@voidhash/lib/lang";
+import { DateTime, Effect, Layer, Match, Option, Predicate, Schema, Context } from "effect";
 
 import {
   AppStorePaymentProviderConfigurationNotFoundError,
@@ -21,21 +22,24 @@ const truncateResultNote = (note: string): string => note.slice(0, 500);
 const optionSpanAttribute = <A>(
   value: Option.Option<A>,
   map: (value: A) => unknown = (some) => some,
-): unknown | undefined => (Option.isSome(value) ? map(value.value) : undefined);
+): unknown =>
+  Option.match(value, { onNone: () => undefined, onSome: (some) => map(some) });
 
 const hasErrorTag = <TTag extends string>(
   error: unknown,
   tag: TTag,
 ): error is { readonly _tag: TTag } =>
-  typeof error === "object" &&
-  error !== null &&
-  "_tag" in error &&
-  (error as { readonly _tag?: unknown })._tag === tag;
+  Predicate.hasProperty(error, "_tag") && error._tag === tag;
 
-const verificationStatus = (error: unknown): string =>
-  typeof error === "object" && error !== null && "status" in error
-    ? String((error as { readonly status: unknown }).status)
-    : "unknown";
+/** Reads `key` off an unknown error as a string, or `fallback` when absent. */
+const errorProperty = (error: unknown, key: string, fallback: string): string => {
+  if (Predicate.hasProperty(error, key)) {
+    return String(error[key]);
+  }
+  return fallback;
+};
+
+const verificationStatus = (error: unknown): string => errorProperty(error, "status", "unknown");
 
 /** Tags `handled` collapses into a terminal record-failure ledger row. */
 const TERMINAL_RECORD_FAILURE_TAGS = new Set<string>([
@@ -55,25 +59,23 @@ const isTerminalRecordFailure = (error: unknown): boolean =>
  * predicate only, so the concrete field set isn't statically known) so no cast
  * is needed.
  */
+const describeTransactionSuffix = (error: unknown): string => {
+  if (!Predicate.hasProperty(error, "providerTransactionId")) return "";
+  const transactionId = stringOr(error.providerTransactionId, "");
+  if (transactionId === "") return "";
+  return ` (transaction ${transactionId})`;
+};
+
 const describeRecordFailure = (error: unknown): string => {
-  const tag = Predicate.hasProperty(error, "_tag") ? error._tag : undefined;
+  const tag = errorProperty(error, "_tag", "");
   if (tag === "AppStorePaymentProviderTransactionMissingPersonIdentifierError") {
-    const transactionId = Predicate.hasProperty(error, "providerTransactionId")
-      ? String(error.providerTransactionId)
-      : "unknown";
+    const transactionId = errorProperty(error, "providerTransactionId", "unknown");
     return `missing person identifier for App Store transaction ${transactionId}`;
   }
   if (tag === "AppStorePurchaseProcessingIdempotencyKeyDerivationError") {
-    const eventType = Predicate.hasProperty(error, "eventType")
-      ? String(error.eventType)
-      : "unknown";
-    const missingField = Predicate.hasProperty(error, "missingField")
-      ? String(error.missingField)
-      : "unknown";
-    const transaction =
-      Predicate.hasProperty(error, "providerTransactionId") && error.providerTransactionId
-        ? ` (transaction ${String(error.providerTransactionId)})`
-        : "";
+    const eventType = errorProperty(error, "eventType", "unknown");
+    const missingField = errorProperty(error, "missingField", "unknown");
+    const transaction = describeTransactionSuffix(error);
     return `idempotency key derivation failed for ${eventType}: missing ${missingField}${transaction}`;
   }
   return `invalid ISO 4217 currency code: ${String(error)}`;
@@ -165,8 +167,8 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
             .decodeNotification(input.signedPayload)
             .pipe(
               Effect.match({
-                onFailure: (error) => ({ error, ok: false as const }),
-                onSuccess: (value) => ({ ok: true as const, value }),
+                onFailure: (error) => ({ error, ok: constant(false) }),
+                onSuccess: (value) => ({ ok: constant(true), value }),
               }),
             );
 
@@ -268,10 +270,9 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
             return ack(false);
           }
 
-          const notificationData = Option.getOrUndefined(notification.data);
-          const signedTransactionInfo = notificationData
-            ? Option.getOrUndefined(notificationData.signedTransactionInfo)
-            : undefined;
+          const signedTransactionInfo = Option.getOrUndefined(
+            Option.flatMap(notification.data, (data) => data.signedTransactionInfo),
+          );
 
           /**
            * Notification kinds that carry purchase state require a signed
@@ -288,24 +289,26 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
             return ack(false);
           }
 
-          const notificationEnvironment = notificationData
-            ? Option.getOrUndefined(notificationData.environment)
-            : undefined;
-          const transactionEnvironment =
-            notificationEnvironment === Environment.SANDBOX
-              ? Environment.SANDBOX
-              : Environment.PRODUCTION;
-          const providerEnvironment =
-            transactionEnvironment === Environment.SANDBOX
-              ? ProviderEnvironment.Sandbox
-              : ProviderEnvironment.Production;
+          const notificationEnvironment = Option.getOrUndefined(
+            Option.flatMap(notification.data, (data) => data.environment),
+          );
+          const transactionEnvironment = pick(
+            notificationEnvironment === Environment.SANDBOX,
+            Environment.SANDBOX,
+            Environment.PRODUCTION,
+          );
+          const providerEnvironment = pick(
+            transactionEnvironment === Environment.SANDBOX,
+            ProviderEnvironment.Sandbox,
+            ProviderEnvironment.Production,
+          );
 
           const decodedTransactionResult = yield* sdkContext
             .decodeSignedTransaction(signedTransactionInfo, transactionEnvironment)
             .pipe(
               Effect.match({
-                onFailure: (error) => ({ error, ok: false as const }),
-                onSuccess: (value) => ({ ok: true as const, value }),
+                onFailure: (error) => ({ error, ok: constant(false) }),
+                onSuccess: (value) => ({ ok: constant(true), value }),
               }),
             );
 
@@ -352,13 +355,12 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
            * whole notification, since renewal info is supplementary to the
            * authoritative `signedTransactionInfo` decoded above.
            */
-          const signedRenewalInfo = notificationData
-            ? Option.getOrUndefined(notificationData.signedRenewalInfo)
-            : undefined;
-          const decodedRenewalInfo = signedRenewalInfo
-            ? yield* sdkContext
-                .decodeSignedRenewalInfo(signedRenewalInfo, transactionEnvironment)
-                .pipe(
+          const decodedRenewalInfo = yield* Option.match(
+            Option.flatMap(notification.data, (data) => data.signedRenewalInfo),
+            {
+              onNone: () => Effect.succeed(Option.none<JWSRenewalInfoDecodedPayload>()),
+              onSome: (signedRenewalInfo) =>
+                sdkContext.decodeSignedRenewalInfo(signedRenewalInfo, transactionEnvironment).pipe(
                   Effect.map(Option.some),
                   Effect.catch((error: unknown) =>
                     Effect.logWarning("Failed to decode App Store signedRenewalInfo", {
@@ -367,8 +369,9 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
                       notificationUUID,
                     }).pipe(Effect.as(Option.none<JWSRenewalInfoDecodedPayload>())),
                   ),
-                )
-            : Option.none<JWSRenewalInfoDecodedPayload>();
+                ),
+            },
+          );
 
           /**
            * Per-tenant deferred-replay gate.
@@ -434,7 +437,7 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
             project,
             providerEnvironment,
             receivedAt: input.receivedAt,
-            source: "webhook" as const,
+            source: constant("webhook"),
             subtype,
           };
 
@@ -508,7 +511,9 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
            * etc.) follow the same gate: they too are parked until the SDK
            * confirms the series.
            */
-          const matchResult = (yield* Match.value(notificationType).pipe(
+          const matchResult: AcceptServerNotificationResult = yield* Match.value(
+            notificationType,
+          ).pipe(
             /**
              * New subscription (subtypes `INITIAL_BUY`, `RESUBSCRIBE`) or a
              * one-time charge / non-renewing purchase.
@@ -623,7 +628,7 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
 
             /** Any other notification type still gets a notification-ledger row but is ignored. */
             Match.orElse(() => Effect.succeed(ack(false))),
-          )) as AcceptServerNotificationResult;
+          );
 
           /**
            * Wire-level dedup ledger: one row per Apple notificationUUID,
@@ -646,7 +651,7 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
               parkedUntilProviderProductKey: null,
               paymentProviderConfigurationId: input.paymentProviderConfigurationId,
               providerId: "apple-app-store",
-              result: terminalLedgerResult ?? (matchResult.handled ? "applied" : "ignored"),
+              result: terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored"),
               resultNote: terminalLedgerResultNote,
               source: "webhook",
             });
@@ -654,7 +659,7 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
 
           yield* Effect.annotateCurrentSpan({
             "app_store.webhook_result":
-              terminalLedgerResult ?? (matchResult.handled ? "applied" : "ignored"),
+              terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored"),
           });
           return matchResult;
         },
@@ -738,12 +743,12 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           const replayed = yield* acceptServerNotification({
             isReplay: true,
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             signedPayload: rawPayload,
           }).pipe(
             Effect.match({
-              onFailure: (error) => ({ ok: false as const, error: String(error) }),
-              onSuccess: () => ({ ok: true as const }),
+              onFailure: (error) => ({ ok: constant(false), error: String(error) }),
+              onSuccess: () => ({ ok: constant(true) }),
             }),
           );
           if (replayed.ok) {
@@ -820,12 +825,12 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           const replayed = yield* acceptServerNotification({
             isReplay: true,
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             signedPayload: rawPayload,
           }).pipe(
             Effect.match({
-              onFailure: (error) => ({ ok: false as const, error: String(error) }),
-              onSuccess: () => ({ ok: true as const }),
+              onFailure: (error) => ({ ok: constant(false), error: String(error) }),
+              onSuccess: () => ({ ok: constant(true) }),
             }),
           );
           if (replayed.ok) {
@@ -851,11 +856,11 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
         return { appliedCount, failedCount, totalParked: parked.length };
       });
 
-      return {
+      return constant({
         acceptServerNotification,
         replayParkedNotificationsForProductMapping,
         replayParkedNotificationsForSdkConfirmation,
-      } as const;
+      });
     }),
   },
 ) {

@@ -9,15 +9,16 @@
  * `nosniff`.
  */
 import { PublicFileStore } from "@voidhash/core/services";
+import { constant } from "@voidhash/lib/lang";
 import { Cause, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 
 const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
-const HEADERS = {
+const HEADERS = constant({
   "access-control-allow-origin": "*",
   "x-content-type-options": "nosniff",
-} as const;
+});
 
 const notFound = HttpServerResponse.json({ error: "Not found" }, { headers: HEADERS, status: 404 });
 

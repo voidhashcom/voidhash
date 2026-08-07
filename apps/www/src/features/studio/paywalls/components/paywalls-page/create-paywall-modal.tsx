@@ -77,7 +77,7 @@ export function CreatePaywallModal({
     onSuccess: (data) => {
       onSuccess?.(data);
       toast.success("Paywall created successfully");
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.paywall.list({ projectId }),
       });
       handleOpenChange(false);

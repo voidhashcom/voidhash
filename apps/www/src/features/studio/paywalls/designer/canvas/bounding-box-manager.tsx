@@ -1,5 +1,6 @@
 "use client";
 
+import { Effect } from "effect";
 import {
   createContext,
   type PropsWithChildren,
@@ -149,7 +150,9 @@ export function BoundingBoxManagerProvider({ children }: PropsWithChildren) {
 export function useBoundingBoxManager() {
   const context = useContext(BoundingBoxManagerContext);
   if (!context) {
-    throw new Error("useBoundingBoxManager must be used within a BoundingBoxManagerProvider");
+    return Effect.runSync(
+      Effect.die(new Error("useBoundingBoxManager must be used within a BoundingBoxManagerProvider")),
+    );
   }
   return context;
 }

@@ -107,19 +107,27 @@ describe("runtime environment hooks", () => {
     });
 
     const renderCount = snapshots.length;
-    act(() => window.dispatchEvent(new Event("resize")));
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
     expect(snapshots).toHaveLength(renderCount);
 
     setWindowNumber("innerWidth", 640);
-    act(() => window.dispatchEvent(new Event("resize")));
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
     expect(snapshots.at(-1)?.window.width).toBe(640);
 
     setScreenNumber("height", 1024);
-    act(() => window.dispatchEvent(new Event("orientationchange")));
+    act(() => {
+      window.dispatchEvent(new Event("orientationchange"));
+    });
     expect(snapshots.at(-1)?.screen.height).toBe(1024);
 
     setSafeAreaCss(24, 0, 20, 0);
-    act(() => visualViewport.dispatchEvent(new Event("scroll")));
+    act(() => {
+      visualViewport.dispatchEvent(new Event("scroll"));
+    });
     expect(snapshots.at(-1)?.safeAreaInsets).toEqual({
       top: 24,
       right: 0,

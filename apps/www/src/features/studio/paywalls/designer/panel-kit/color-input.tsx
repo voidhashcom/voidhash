@@ -32,7 +32,7 @@ export interface ColorInputProps {
 const HEX_REGEX = /^[0-9A-Fa-f]{6}$/;
 
 export function ColorInput({
-  value = "rgba(255, 255, 255, 1)",
+  value,
   onChange,
   mixed = false,
   mixedLabel = "Mixed",

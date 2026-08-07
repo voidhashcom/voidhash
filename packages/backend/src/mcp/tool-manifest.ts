@@ -18,6 +18,7 @@
  * + invalid samples through both to prove structural agreement.
  */
 import { documentEditSchema } from "@voidhash/ai-shared";
+import { constant } from "@voidhash/lib/lang";
 import { Effect } from "effect";
 import { z } from "zod";
 
@@ -54,7 +55,7 @@ export interface McpTool {
  * and `documentEditSchema` remains the single validation vocabulary for every
  * server-executed document batch.
  */
-const mcpToolSchemas = {
+const mcpToolSchemas = constant({
   list_paywalls: z.strictObject({}),
   bash: z.strictObject({
     command: z
@@ -165,7 +166,7 @@ const mcpToolSchemas = {
   revert_paywall_edit: z.strictObject({
     editSessionId: z.string().describe("Edit session whose edits should be reverted."),
   }),
-} as const;
+});
 
 /**
  * Build a tool that validates its arguments with `schema`, then runs `run` with
@@ -184,7 +185,7 @@ const validatedTool = <Input>(
   descriptor: {
     name,
     description,
-    inputSchema: z.toJSONSchema(schema) as JsonSchema,
+    inputSchema: { ...z.toJSONSchema(schema) },
   },
   dispatch: (scope, args) => {
     const parsed = schema.safeParse(args);

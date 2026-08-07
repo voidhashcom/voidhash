@@ -1,4 +1,4 @@
-import { Effect, Layer, Schedule } from "effect";
+import { Cause, Config, Effect, Layer, Schedule } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 import { MimicSDK } from "@voidhash/mimic-server/effect";
 import { MimicExampleSchema } from "../shared";
@@ -7,33 +7,32 @@ import { MimicExampleSchema } from "../shared";
 // Config
 // ---------------------------------------------------------------------------
 
-const HOST_URL = process.env.HOST_URL;
-const HOST_USERNAME = process.env.HOST_USERNAME;
-const HOST_PASSWORD = process.env.HOST_PASSWORD;
-
 const DATABASE_NAME = "example";
 const COLLECTION_NAME = "todos";
 const DOCUMENT_ID = "kanban-board";
 
-const sdk = new MimicSDK({
-  url: HOST_URL ?? "http://localhost:5001",
-  username: HOST_USERNAME ?? "root",
-  password: HOST_PASSWORD ?? "password",
+const makeSdk = Effect.gen(function* () {
+  const url = yield* Config.string("HOST_URL").pipe(Config.withDefault("http://localhost:5001"));
+  const username = yield* Config.string("HOST_USERNAME").pipe(Config.withDefault("root"));
+  const password = yield* Config.string("HOST_PASSWORD").pipe(Config.withDefault("password"));
+
+  return new MimicSDK({ url, username, password });
 });
 
-const ensureDatabase = Effect.gen(function* () {
-  const databases = yield* sdk.listDatabases();
-  const existingDb = databases.find((database) => database.name === DATABASE_NAME);
-  if (existingDb) {
-    return sdk.database(existingDb.id, existingDb.name, existingDb.description);
-  }
-  return yield* sdk.createDatabase({
-    name: DATABASE_NAME,
-    description: "Example mimic database",
+const ensureDatabase = (sdk: MimicSDK) =>
+  Effect.gen(function* () {
+    const databases = yield* sdk.listDatabases();
+    const existingDb = databases.find((database) => database.name === DATABASE_NAME);
+    if (existingDb) {
+      return sdk.database(existingDb.id, existingDb.name, existingDb.description);
+    }
+    return yield* sdk.createDatabase({
+      name: DATABASE_NAME,
+      description: "Example mimic database",
+    });
   });
-});
 
-const ensureCollection = (dbHandle: ReturnType<typeof sdk.database>) =>
+const ensureCollection = (dbHandle: ReturnType<MimicSDK["database"]>) =>
   Effect.gen(function* () {
     const collections = yield* dbHandle.listCollections();
     const existingCollection = collections.find(
@@ -46,8 +45,10 @@ const ensureCollection = (dbHandle: ReturnType<typeof sdk.database>) =>
   });
 
 const startup = Effect.gen(function* () {
+  const sdk = yield* makeSdk;
+
   yield* Effect.log("Startup: ensuring database...");
-  const dbHandle = yield* ensureDatabase;
+  const dbHandle = yield* ensureDatabase(sdk);
   yield* Effect.log(`Startup: db=${dbHandle.id}`);
 
   yield* Effect.log("Startup: ensuring collection...");
@@ -62,12 +63,12 @@ const startup = Effect.gen(function* () {
       return colHandle.create(
         [
           {
-            type: "board" as const,
+            type: "board",
             name: "My Board",
             children: [
-              { type: "column" as const, name: "Todo", children: [] },
-              { type: "column" as const, name: "In Progress", children: [] },
-              { type: "column" as const, name: "Done", children: [] },
+              { type: "column", name: "Todo", children: [] },
+              { type: "column", name: "In Progress", children: [] },
+              { type: "column", name: "Done", children: [] },
             ],
           },
         ],
@@ -78,9 +79,9 @@ const startup = Effect.gen(function* () {
 
   yield* Effect.log(`Ready: db=${dbHandle.id} col=${colHandle.id} doc=${DOCUMENT_ID}`);
 
-  return { dbHandle, colHandle } as const;
+  return { dbHandle, colHandle };
 }).pipe(
-  Effect.tapCause((cause) => Effect.log(`Startup failed: ${cause}`)),
+  Effect.tapCause((cause) => Effect.log(`Startup failed: ${Cause.pretty(cause)}`)),
   Effect.retry(Schedule.exponential("1 second").pipe(Schedule.upTo({ times: 15 }))),
 );
 
@@ -88,9 +89,27 @@ const startup = Effect.gen(function* () {
 // HTTP routes
 // ---------------------------------------------------------------------------
 
+const DEFAULT_CORS_ORIGINS: ReadonlyArray<string> = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:4173",
+  "http://localhost:4460",
+  "http://localhost:3003",
+];
+
+const corsAllowedOrigins = Effect.gen(function* () {
+  const configured = yield* Config.string("CORS_ORIGINS").pipe(Config.withDefault(""));
+  const trimmed = configured.trim();
+  if (!trimmed) {
+    return DEFAULT_CORS_ORIGINS;
+  }
+  return trimmed.split(",").map((o) => o.trim());
+});
+
 const TokenRoute = Layer.effectDiscard(
   Effect.gen(function* () {
     const { colHandle } = yield* startup;
+    const origins = yield* corsAllowedOrigins;
 
     const router = yield* HttpRouter.HttpRouter;
     yield* router.add(
@@ -100,7 +119,7 @@ const TokenRoute = Layer.effectDiscard(
         const { token, url } = yield* colHandle.setupDocumentAuthentication({
           documentId: DOCUMENT_ID,
           permission: "write",
-          origins: corsAllowedOrigins(),
+          origins,
         });
 
         return yield* HttpServerResponse.json({
@@ -112,27 +131,16 @@ const TokenRoute = Layer.effectDiscard(
   }),
 );
 
-const corsAllowedOrigins = (): ReadonlyArray<string> => {
-  const env = process.env.CORS_ORIGINS?.trim();
-  if (!env) {
-    return [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:4173",
-      "http://localhost:4460",
-      "http://localhost:3003",
-    ];
-  }
-  return env.split(",").map((o) => o.trim());
-};
-
-const AllRoutes = Layer.mergeAll(TokenRoute).pipe(
-  Layer.provide(
-    HttpRouter.cors({
-      allowedOrigins: corsAllowedOrigins(),
+const CorsLive = Layer.unwrap(
+  Effect.gen(function* () {
+    const allowedOrigins = yield* corsAllowedOrigins;
+    return HttpRouter.cors({
+      allowedOrigins,
       credentials: true,
-    }),
-  ),
+    });
+  }),
 );
+
+const AllRoutes = Layer.mergeAll(TokenRoute).pipe(Layer.provide(CorsLive));
 
 export const AppLive = HttpRouter.serve(AllRoutes);

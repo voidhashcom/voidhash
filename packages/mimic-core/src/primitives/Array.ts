@@ -250,6 +250,9 @@ export class ArrayPrimitive<
   }
 
   createProxy(session: CommandSession, path: Path): ArrayProxy<TElement> {
+    // Bound outside the handle's object-literal getters: a `get` shorthand
+    // rebinds `this` to the handle, so the element primitive must be captured.
+    const element = this.state.element;
     const createHandle = (id: string): ArrayItemHandle<TElement> => ({
       get id() {
         return id;
@@ -258,7 +261,7 @@ export class ArrayPrimitive<
         return getArrayItemById(getArrayAtPath(session.current(), path), id)?.pos ?? "";
       },
       get value() {
-        return thisPrimitive.state.element.createProxy(session, [...path, { kind: "item", id }]);
+        return element.createProxy(session, [...path, { kind: "item", id }]);
       },
       get: () => {
         const item = getArrayItemById(getArrayAtPath(session.current(), path), id);
@@ -280,7 +283,6 @@ export class ArrayPrimitive<
         createHandle(item.id),
       );
 
-    const thisPrimitive = this;
     return {
       get length() {
         return getOrderedArrayItems(getArrayAtPath(session.current(), path)).length;

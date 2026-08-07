@@ -62,7 +62,11 @@ const makeSqlStore = (sql: SqlClient.SqlClient): DurableEntityAlarmStoreShape =>
       FROM platform_entity_alarms
       WHERE entity_type = ${address.type} AND entity_id = ${address.id}
     `.pipe(
-      Effect.map((rows) => (rows[0] ? Number(rows[0].scheduledTime) : undefined)),
+      Effect.map((rows) => {
+        const row = rows[0];
+        if (!row) return undefined;
+        return Number(row.scheduledTime);
+      }),
       Effect.orDie,
     ),
   set: (address, scheduledTime) =>

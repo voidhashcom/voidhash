@@ -1,4 +1,5 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn, Spinner } from "@voidhash/ui";
+import { Effect } from "effect";
 import { AlertCircle, ChevronRight, CheckCircle2, Wrench } from "lucide-react";
 
 import type { AgentUiToolPart } from "../agent-ui";
@@ -11,11 +12,13 @@ function formatValue(value: unknown): string {
   if (typeof value === "string") {
     return value;
   }
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
+  // Cyclic or BigInt-bearing values cannot be serialized; there is no useful
+  // string form for them, so label the type rather than render "[object Object]".
+  return Effect.runSync(
+    Effect.try(() => JSON.stringify(value, null, 2)).pipe(
+      Effect.orElseSucceed(() => `[unserializable ${typeof value}]`),
+    ),
+  );
 }
 
 interface ToolOutputImage {

@@ -1,6 +1,7 @@
 "use client";
 
 import { performRedo, performUndo } from "@voidhash/mimic/zustand-commander";
+import { Effect } from "effect";
 import { useEffect } from "react";
 import { useStore } from "zustand/react";
 import { useShallow } from "zustand/react/shallow";
@@ -101,11 +102,18 @@ export function useKeyboardShortcuts() {
 
       if (action) {
         e.preventDefault();
-        try {
-          action.execute(context, dispatch);
-        } catch (error) {
-          console.error(`[KeyboardShortcuts] Action "${action.id}" failed:`, error);
-        }
+        Effect.runSync(
+          Effect.try({
+            try: () => action.execute(context, dispatch),
+            catch: (error) => error,
+          }).pipe(
+            Effect.catch((error) =>
+              Effect.sync(() => {
+                console.error(`[KeyboardShortcuts] Action "${action.id}" failed:`, error);
+              }),
+            ),
+          ),
+        );
       }
     };
 

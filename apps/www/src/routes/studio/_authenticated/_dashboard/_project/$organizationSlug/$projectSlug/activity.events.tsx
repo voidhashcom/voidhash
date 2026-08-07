@@ -399,15 +399,16 @@ function formatValue(value: unknown): React.ReactNode {
   if (Array.isArray(value)) {
     return <span className="text-muted-foreground/60">Array({value.length})</span>;
   }
-  if (typeof value === "object") {
-    return (
-      <span className="text-muted-foreground/60">
-        Object({Object.keys(value as object).length})
-      </span>
-    );
+  if (typeof value === "string") return <span>{value}</span>;
+  if (typeof value === "boolean" || typeof value === "number" || typeof value === "bigint") {
+    return <span>{String(value)}</span>;
   }
-  if (typeof value === "boolean") return <span>{String(value)}</span>;
-  return <span>{String(value)}</span>;
+  if (typeof value === "symbol" || typeof value === "function") {
+    return <span>{value.toString()}</span>;
+  }
+  return (
+    <span className="text-muted-foreground/60">Object({Object.keys(value as object).length})</span>
+  );
 }
 
 function renderPersonCell(

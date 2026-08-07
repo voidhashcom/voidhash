@@ -1,5 +1,5 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { Effect, Schema } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 
 import { APP_STORE_PARKED_SDK_TTL_DAYS } from "../services/paymentProviders/appStore/payment-provider.ts";
 import { AppStorePaymentProviderServiceQueries } from "../services/paymentProviders/appStore/payment-provider-service-queries.ts";
@@ -21,7 +21,9 @@ export const AppStoreExpireParkedNotificationsRegistration = WorkflowRegistratio
         const triggeredAt = Date.parse(input.triggeredAt);
         if (Number.isNaN(triggeredAt)) return { expired: 0 };
 
-        const olderThan = new Date(triggeredAt - APP_STORE_PARKED_SDK_TTL_DAYS * dayMillis);
+        const olderThan = DateTime.toDateUtc(
+          DateTime.makeUnsafe(triggeredAt - APP_STORE_PARKED_SDK_TTL_DAYS * dayMillis),
+        );
         const expired = yield* ctx.step({
           name: `app-store-expire-parked:${input.triggeredAt}`,
           success: Schema.Struct({ expired: Schema.Number }),

@@ -14,6 +14,8 @@
  * re-assertions the dropped decode boundary used to do (a non-empty `chain`, a valid
  * `numType`) live here.
  */
+import { DateTime, Option } from "effect";
+
 import { toClickhouseDateTime } from "../analytics/clickhouse-accessor.ts";
 import type {
   Binary,
@@ -22,6 +24,7 @@ import type {
   Expr,
   FnCall,
   InExpr,
+  Join,
   OrderItem,
   Query,
   Select,
@@ -86,19 +89,50 @@ interface PrintedExpr {
   readonly type: VoidQLType;
 }
 
+const substitutionCost = (left: string | undefined, right: string | undefined): number => {
+  if (left === right) return 0;
+  return 1;
+};
+
 const levenshtein = (a: string, b: string): number => {
   const m = a.length;
   const n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+  const dp = Array.from({ length: m + 1 }, () => Array.from({ length: n + 1 }, () => 0));
   for (let i = 0; i <= m; i++) dp[i]![0] = i;
   for (let j = 0; j <= n; j++) dp[0]![j] = j;
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const cost = substitutionCost(a[i - 1], b[j - 1]);
       dp[i]![j] = Math.min(dp[i - 1]![j]! + 1, dp[i]![j - 1]! + 1, dp[i - 1]![j - 1]! + cost);
     }
   }
   return dp[m]![n]!;
+};
+
+/** `ASC`/`DESC` for an ORDER BY item — shared by plain and window ORDER BY printing. */
+const orderDirectionSql = (dir: OrderItem["dir"]): string => {
+  if (dir === "desc") return " DESC";
+  return " ASC";
+};
+
+/** `NULLS FIRST`/`NULLS LAST` for an ORDER BY item. */
+const orderNullsSql = (nulls: "first" | "last"): string => {
+  if (nulls === "first") return " NULLS FIRST";
+  return " NULLS LAST";
+};
+
+const joinKindSql = (kind: Join["kind"]): string => {
+  if (kind === "left") return " LEFT JOIN ";
+  if (kind === "right") return " RIGHT JOIN ";
+  if (kind === "full") return " FULL JOIN ";
+  if (kind === "cross") return " CROSS JOIN ";
+  return " INNER JOIN ";
+};
+
+/** A numeric literal adopts the expected column width when one is propagated. */
+const numberLitType = (expected: VoidQLType | undefined, declared: VoidQLType): VoidQLType => {
+  if (expected === "Int64" || expected === "UInt64" || expected === "Float64") return expected;
+  return declared;
 };
 
 export type { ColumnSpec };
@@ -113,7 +147,8 @@ const nearest = (target: string, candidates: readonly string[]): string => {
       best = c;
     }
   }
-  return bestDist <= Math.max(2, Math.ceil(target.length / 2)) ? best : "";
+  if (bestDist <= Math.max(2, Math.ceil(target.length / 2))) return best;
+  return "";
 };
 
 export class Compiler {
@@ -171,15 +206,18 @@ export class Compiler {
         alias,
         columns: new Map(cteShape.map((c) => [c.name, c.type])),
       });
-      const tail = source.alias ? ` AS ${this.id(source.alias)}` : "";
+      let tail = "";
+      if (source.alias) tail = ` AS ${this.id(source.alias)}`;
       return [lit(`${this.id(source.name)}${tail}`)];
     }
 
     const table = CATALOG[nameLower];
     if (!table) {
       const suggestion = nearest(source.name, Object.keys(CATALOG));
+      let didYouMean = "";
+      if (suggestion) didYouMean = ` Did you mean '${suggestion}'?`;
       throw new VoidQlSchemaError({
-        message: `Unknown table '${source.name}'.${suggestion ? ` Did you mean '${suggestion}'?` : ""}`,
+        message: `Unknown table '${source.name}'.${didYouMean}`,
       });
     }
     if (source.alias) this.assertBindableAlias(source.alias);
@@ -222,7 +260,8 @@ export class Compiler {
   // ── columns / properties ────────────────────────────────────────────────
 
   private relationColumnNames(rel: ResolvedRelation): readonly string[] {
-    return rel.kind === "view" ? Object.keys(rel.table.columns) : [...rel.columns.keys()];
+    if (rel.kind === "view") return Object.keys(rel.table.columns);
+    return [...rel.columns.keys()];
   }
 
   /**
@@ -386,7 +425,8 @@ export class Compiler {
       (r): r is Extract<ResolvedRelation, { kind: "view" }> =>
         r.kind === "view" && name in r.table.namespaces,
     );
-    return hits.length === 1 ? { alias: hits[0]!.alias, table: hits[0]!.table } : undefined;
+    if (hits.length !== 1) return undefined;
+    return { alias: hits[0]!.alias, table: hits[0]!.table };
   }
 
   // ── expressions ────────────────────────────────────────────────────────────
@@ -398,23 +438,24 @@ export class Compiler {
           return { pieces: [par("String", expr.value)], type: "String" };
         }
         // A string compared against a DateTime column is coerced to DateTime for
-        // partition pruning. Guard the parse: `new Date('not-a-date').toISOString()`
-        // throws a raw `RangeError` (not a typed compile error), which would escape
-        // as an opaque defect/500 and break the validate-repair loop (§18 #9).
-        const parsed = new Date(expr.value);
-        if (Number.isNaN(parsed.getTime())) {
+        // partition pruning. Guard the parse: an unparseable literal would otherwise
+        // escape as an opaque defect/500 and break the validate-repair loop (§18 #9).
+        // `Date.parse` (not `DateTime.make(string)`) keeps the host's literal-parsing
+        // semantics — `DateTime.make` appends `Z` to zone-less strings.
+        const parsed = DateTime.make(Date.parse(expr.value));
+        if (Option.isNone(parsed)) {
           throw new VoidQlSyntaxError({
             message: `'${expr.value}' is not a valid date/time literal.`,
             hint: "Use an ISO-8601 date like '2026-01-01' or '2026-01-01 12:00:00'.",
           });
         }
-        return { pieces: [par("DateTime", toClickhouseDateTime(parsed))], type: "DateTime" };
+        return {
+          pieces: [par("DateTime", toClickhouseDateTime(DateTime.toDateUtc(parsed.value)))],
+          type: "DateTime",
+        };
       }
       case "NumberLit": {
-        const type =
-          expected === "Int64" || expected === "UInt64" || expected === "Float64"
-            ? expected
-            : expr.numType;
+        const type = numberLitType(expected, expr.numType);
         return { pieces: [par(chParamType(type), expr.value)], type };
       }
       case "BoolLit":
@@ -433,12 +474,13 @@ export class Compiler {
         return { pieces: [lit("("), ...inner.pieces, lit(")")], type: inner.type };
       }
       case "Unary": {
-        const inner = this.printExpr(expr.expr, frame, expr.op === "neg" ? expected : undefined);
-        const op = expr.op === "not" ? "NOT " : "-";
-        return {
-          pieces: [lit(`(${op}`), ...inner.pieces, lit(")")],
-          type: expr.op === "not" ? "Bool" : inner.type,
-        };
+        let innerExpected: VoidQLType | undefined = undefined;
+        if (expr.op === "neg") innerExpected = expected;
+        const inner = this.printExpr(expr.expr, frame, innerExpected);
+        if (expr.op === "not") {
+          return { pieces: [lit("(NOT "), ...inner.pieces, lit(")")], type: "Bool" };
+        }
+        return { pieces: [lit("(-"), ...inner.pieces, lit(")")], type: inner.type };
       }
       case "Binary":
         return this.printBinary(expr, frame);
@@ -465,11 +507,13 @@ export class Compiler {
         const target = this.printExpr(expr.expr, frame);
         const low = this.printExpr(expr.low, frame, target.type);
         const high = this.printExpr(expr.high, frame, target.type);
+        let betweenOp = " BETWEEN ";
+        if (expr.negated) betweenOp = " NOT BETWEEN ";
         return {
           pieces: [
             lit("("),
             ...target.pieces,
-            lit(expr.negated ? " NOT BETWEEN " : " BETWEEN "),
+            lit(betweenOp),
             ...low.pieces,
             lit(" AND "),
             ...high.pieces,
@@ -480,8 +524,10 @@ export class Compiler {
       }
       case "IsNull": {
         const target = this.printExpr(expr.expr, frame);
+        let nullTest = " IS NULL)";
+        if (expr.negated) nullTest = " IS NOT NULL)";
         return {
-          pieces: [lit("("), ...target.pieces, lit(expr.negated ? " IS NOT NULL)" : " IS NULL)")],
+          pieces: [lit("("), ...target.pieces, lit(nullTest)],
           type: "Bool",
         };
       }
@@ -506,10 +552,10 @@ export class Compiler {
             if (index > 0) pieces.push(lit(", "));
             pieces.push(
               ...this.printExpr(order.expr, frame).pieces,
-              lit(order.dir === "desc" ? " DESC" : " ASC"),
+              lit(orderDirectionSql(order.dir)),
             );
             if (order.nulls) {
-              pieces.push(lit(order.nulls === "first" ? " NULLS FIRST" : " NULLS LAST"));
+              pieces.push(lit(orderNullsSql(order.nulls)));
             }
           });
         }
@@ -520,7 +566,9 @@ export class Compiler {
             if (value === "unboundedFollowing") return "UNBOUNDED FOLLOWING";
             return "CURRENT ROW";
           };
-          pieces.push(lit(expr.frame.unit === "rows" ? "ROWS " : "RANGE "));
+          let frameUnitSql = "RANGE ";
+          if (expr.frame.unit === "rows") frameUnitSql = "ROWS ";
+          pieces.push(lit(frameUnitSql));
           if (expr.frame.end) {
             pieces.push(lit(`BETWEEN ${bound(expr.frame.start)} AND ${bound(expr.frame.end)}`));
           } else {
@@ -556,27 +604,19 @@ export class Compiler {
     const isComparison = ["eq", "neq", "lt", "lte", "gt", "gte"].includes(expr.op);
     const isLogical = expr.op === "and" || expr.op === "or";
     const isArith = ["add", "sub", "mul", "div", "mod"].includes(expr.op);
+    const isPattern =
+      expr.op === "like" || expr.op === "notLike" || expr.op === "ilike" || expr.op === "notIlike";
 
-    const left = this.printExpr(expr.left, frame, isComparison ? undefined : undefined);
+    const left = this.printExpr(expr.left, frame);
     // Propagate the left operand's type to a comparison RHS so a string literal
     // compared to a DateTime column binds as DateTime (partition pruning, §18 #9).
-    const rhsExpected = isComparison
-      ? left.type
-      : expr.op === "like" || expr.op === "notLike" || expr.op === "ilike" || expr.op === "notIlike"
-        ? "String"
-        : undefined;
+    let rhsExpected: VoidQLType | undefined = undefined;
+    if (isComparison) rhsExpected = left.type;
+    else if (isPattern) rhsExpected = "String";
     const right = this.printExpr(expr.right, frame, rhsExpected);
-    const type: VoidQLType =
-      isComparison ||
-      isLogical ||
-      expr.op === "like" ||
-      expr.op === "notLike" ||
-      expr.op === "ilike" ||
-      expr.op === "notIlike"
-        ? "Bool"
-        : isArith
-          ? "Float64"
-          : "String";
+    let type: VoidQLType = "String";
+    if (isComparison || isLogical || isPattern) type = "Bool";
+    else if (isArith) type = "Float64";
     return {
       pieces: [lit("("), ...left.pieces, lit(sqlOp[expr.op]), ...right.pieces, lit(")")],
       type,
@@ -585,11 +625,9 @@ export class Compiler {
 
   private printIn(expr: InExpr, frame: Frame): PrintedExpr {
     const target = this.printExpr(expr.expr, frame);
-    const pieces: SqlPiece[] = [
-      lit("("),
-      ...target.pieces,
-      lit(expr.negated ? " NOT IN (" : " IN ("),
-    ];
+    let inOp = " IN (";
+    if (expr.negated) inOp = " NOT IN (";
+    const pieces: SqlPiece[] = [lit("("), ...target.pieces, lit(inOp)];
     if (expr.query) {
       const query = this.printQuery(expr.query, frame);
       if (query.shape.length !== 1) {
@@ -740,8 +778,10 @@ export class Compiler {
       }
       const compiled = this.printQuery(cte.query, frame);
       frame.cteShapes.set(nameLower, compiled.shape);
+      let cteLead = ", ";
+      if (i === 0) cteLead = "WITH ";
       ctePieces.push(
-        lit(i === 0 ? "WITH " : ", "),
+        lit(cteLead),
         lit(`${cte.name} AS ( `),
         ...compiled.pieces,
         lit(" )"),
@@ -750,22 +790,13 @@ export class Compiler {
     if (ctePieces.length > 0) ctePieces.push(lit(" "));
 
     // FROM + JOINs build the relation frame before any expression is resolved.
-    const fromPieces = select.from ? this.resolveSource(select.from, frame) : [];
+    let fromPieces: readonly SqlPiece[] = [];
+    if (select.from) fromPieces = this.resolveSource(select.from, frame);
     const joinPieces: SqlPiece[] = [];
     for (const join of select.joins) {
       const relationCountBeforeJoin = frame.relations.length;
       const sourcePieces = this.resolveSource(join.source, frame);
-      const kindSql =
-        join.kind === "left"
-          ? " LEFT JOIN "
-          : join.kind === "right"
-            ? " RIGHT JOIN "
-            : join.kind === "full"
-              ? " FULL JOIN "
-              : join.kind === "cross"
-                ? " CROSS JOIN "
-                : " INNER JOIN ";
-      joinPieces.push(lit(kindSql), ...sourcePieces);
+      joinPieces.push(lit(joinKindSql(join.kind)), ...sourcePieces);
       if (join.on) {
         joinPieces.push(lit(" ON "), ...this.printExpr(join.on, frame, "Bool").pieces);
       } else if (join.using) {
@@ -791,24 +822,20 @@ export class Compiler {
 
     const { columnPieces, shape } = this.printColumns(select.columns, frame);
 
-    const pieces: SqlPiece[] = [
-      ...ctePieces,
-      lit(select.distinct ? "SELECT DISTINCT" : "SELECT"),
-      ...(select.distinctOn.length > 0
-        ? [
-            lit(" ON ("),
-            ...select.distinctOn.flatMap((expr, index) => [
-              ...(index > 0 ? [lit(", ")] : []),
-              ...this.printExpr(expr, frame).pieces,
-            ]),
-            lit(")"),
-          ]
-        : []),
-      lit(" "),
-      ...columnPieces,
-      ...(select.from ? [lit(" FROM "), ...fromPieces] : []),
-      ...joinPieces,
-    ];
+    let selectKeyword = "SELECT";
+    if (select.distinct) selectKeyword = "SELECT DISTINCT";
+    const pieces: SqlPiece[] = [...ctePieces, lit(selectKeyword)];
+    if (select.distinctOn.length > 0) {
+      pieces.push(lit(" ON ("));
+      select.distinctOn.forEach((expr, index) => {
+        if (index > 0) pieces.push(lit(", "));
+        pieces.push(...this.printExpr(expr, frame).pieces);
+      });
+      pieces.push(lit(")"));
+    }
+    pieces.push(lit(" "), ...columnPieces);
+    if (select.from) pieces.push(lit(" FROM "), ...fromPieces);
+    pieces.push(...joinPieces);
 
     if (select.prewhere || select.where) {
       pieces.push(lit(" WHERE "));
@@ -825,7 +852,9 @@ export class Compiler {
         pieces.push(...this.printExpr(g, frame).pieces);
       });
       if (select.groupByModifier) {
-        pieces.push(lit(select.groupByModifier === "rollup" ? " WITH ROLLUP" : " WITH CUBE"));
+        let modifierSql = " WITH CUBE";
+        if (select.groupByModifier === "rollup") modifierSql = " WITH ROLLUP";
+        pieces.push(lit(modifierSql));
       }
       if (select.withTotals) pieces.push(lit(" WITH TOTALS"));
     }
@@ -839,11 +868,8 @@ export class Compiler {
       pieces.push(lit(" ORDER BY "));
       select.orderBy.forEach((o: OrderItem, i) => {
         if (i > 0) pieces.push(lit(", "));
-        pieces.push(
-          ...this.printExpr(o.expr, frame).pieces,
-          lit(o.dir === "desc" ? " DESC" : " ASC"),
-        );
-        if (o.nulls) pieces.push(lit(o.nulls === "first" ? " NULLS FIRST" : " NULLS LAST"));
+        pieces.push(...this.printExpr(o.expr, frame).pieces, lit(orderDirectionSql(o.dir)));
+        if (o.nulls) pieces.push(lit(orderNullsSql(o.nulls)));
       });
     }
 
@@ -949,11 +975,12 @@ export class Compiler {
     qualifier: string | undefined,
     frame: Frame,
   ): readonly { readonly alias: string; readonly col: string; readonly type: VoidQLType }[] {
-    const relations = qualifier
-      ? [this.findRelation(frame, qualifier.toLowerCase())].filter(
-          (r): r is ResolvedRelation => r !== undefined,
-        )
-      : frame.relations;
+    let relations: readonly ResolvedRelation[] = frame.relations;
+    if (qualifier) {
+      relations = [this.findRelation(frame, qualifier.toLowerCase())].filter(
+        (r): r is ResolvedRelation => r !== undefined,
+      );
+    }
     if (qualifier && relations.length === 0) {
       throw new VoidQlUnknownFieldError({
         field: `${qualifier}.*`,

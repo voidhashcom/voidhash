@@ -1,5 +1,4 @@
 import {
-  Button,
   Select,
   SelectContent,
   SelectItem,
@@ -8,7 +7,6 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@voidhash/ui";
-import { PlusIcon } from "lucide-react";
 
 export type DateRange = "last_7d" | "last_30d" | "last_90d";
 export type Granularity = "daily" | "weekly" | "monthly";

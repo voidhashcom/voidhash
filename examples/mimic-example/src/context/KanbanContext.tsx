@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
+import { Effect } from "effect";
 import type { BoardSnapshot } from "../shared";
 import { useTodoStore, TodoStoreContext } from "../lib/store";
 import { useCommander } from "@voidhash/mimic/zustand-commander";
@@ -98,7 +99,9 @@ export function KanbanProvider({ children }: { children: ReactNode }) {
 export function useKanban() {
   const context = useContext(KanbanContext);
   if (!context) {
-    throw new Error("useKanban must be used within a KanbanProvider");
+    return Effect.runSync(
+      Effect.die(new Error("useKanban must be used within a KanbanProvider")),
+    );
   }
   return context;
 }

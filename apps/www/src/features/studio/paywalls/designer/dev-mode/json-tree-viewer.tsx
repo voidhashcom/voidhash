@@ -55,11 +55,24 @@ function getPreview(value: unknown): string {
   return "";
 }
 
-// Copy to clipboard helper
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
+/**
+ * Renders a non-object value exactly the way `String` would, but through
+ * explicit narrowing so no object can reach the conversion and print
+ * `[object Object]`.
+ */
+function primitiveText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  if (typeof value === "symbol" || typeof value === "function") return String(value);
+  return "undefined";
+}
+
+// Copy to clipboard helper. The clipboard write is intentionally fire-and-forget:
+// callers are event handlers that have nothing to do with the result.
+function copyToClipboard(text: string): void {
+  void navigator.clipboard.writeText(text).catch(() => {
     // Fallback for older browsers
     const textArea = document.createElement("textarea");
     textArea.value = text;
@@ -67,7 +80,7 @@ async function copyToClipboard(text: string) {
     textArea.select();
     document.execCommand("copy");
     document.body.removeChild(textArea);
-  }
+  });
 }
 
 // Highlight matching text in a string
@@ -118,13 +131,15 @@ function JsonNodeContextMenu({
   const type = getValueType(value);
 
   const handleCopyValue = () => {
-    if (type === "object" || type === "array") {
-      copyToClipboard(JSON.stringify(value, null, 2));
-    } else if (value === null) {
+    if (value === null) {
       copyToClipboard("null");
-    } else {
-      copyToClipboard(String(value));
+      return;
     }
+    if (typeof value === "object") {
+      copyToClipboard(JSON.stringify(value, null, 2));
+      return;
+    }
+    copyToClipboard(primitiveText(value));
   };
 
   const handleCopyJson = () => {

@@ -105,10 +105,10 @@ const DomView = forwardRef<MotionNodeHandle, ViewProps>((props, ref): ReactNode 
     <div
       aria-label={props.accessibilityLabel}
       data-testid={props.testID}
-      onPointerCancel={drag.onPointerCancel}
-      onPointerDown={drag.onPointerDown}
-      onPointerMove={drag.onPointerMove}
-      onPointerUp={drag.onPointerUp}
+      onPointerCancel={(event) => drag.onPointerCancel(event)}
+      onPointerDown={(event) => drag.onPointerDown(event)}
+      onPointerMove={(event) => drag.onPointerMove(event)}
+      onPointerUp={(event) => drag.onPointerUp(event)}
       ref={elementRef}
       style={{ ...VIEW_BASE, ...resolveStaticStyle(props.style), ...motion.staticStyle, touchAction: drag.touchAction }}
     >
@@ -188,7 +188,7 @@ const DomPressable = forwardRef<MotionNodeHandle, PressableHostProps>((props, re
         drag.onPointerDown(event);
       }}
       onPointerLeave={() => setPressed(false)}
-      onPointerMove={drag.onPointerMove}
+      onPointerMove={(event) => drag.onPointerMove(event)}
       onPointerUp={(event) => {
         setPressed(false);
         drag.onPointerUp(event);
@@ -261,10 +261,10 @@ const DomImage = forwardRef<MotionNodeHandle, ImageProps>((props, ref): ReactNod
       alt={props.accessibilityLabel ?? ""}
       data-testid={props.testID}
       draggable={false}
-      onPointerCancel={drag.onPointerCancel}
-      onPointerDown={drag.onPointerDown}
-      onPointerMove={drag.onPointerMove}
-      onPointerUp={drag.onPointerUp}
+      onPointerCancel={(event) => drag.onPointerCancel(event)}
+      onPointerDown={(event) => drag.onPointerDown(event)}
+      onPointerMove={(event) => drag.onPointerMove(event)}
+      onPointerUp={(event) => drag.onPointerUp(event)}
       ref={elementRef}
       src={resolveImageSource(props.source)}
       style={{

@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import { interactionsSchema } from "../interactions/index.ts";
@@ -190,7 +191,7 @@ const scrollViewNodeData = Primitive.Struct({
 export const ScrollViewNode: Primitive.TreeNodePrimitive<"scrollView", typeof scrollViewNodeData> =
   Primitive.TreeNode("scrollView", {
     children: () =>
-      [ViewNode, Primitive.TreeNodeSelf, TextNode, ShapeNode, ComponentNode] as const,
+      constant([ViewNode, Primitive.TreeNodeSelf, TextNode, ShapeNode, ComponentNode]),
     data: scrollViewNodeData,
   });
 

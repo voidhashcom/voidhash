@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+import { causeMessage, pick } from "@voidhash/lib/lang";
 import { parseComponentManifest } from "@voidhash/paywalls/schema";
 import type { ComponentManifest } from "@voidhash/paywalls/schema";
 import type { CompiledComponent } from "./compile.ts";
@@ -8,8 +10,10 @@ import { staticExtractManifest } from "./static-manifest.ts";
 import type {
   BuildCapabilities,
   BuildDiagnosticInput,
+  CachedManifest,
   ComponentStatus,
   ExtractOutcome,
+  ManifestCache,
 } from "./types.ts";
 
 /** The per-component result of the extract stage. */
@@ -27,6 +31,14 @@ export interface ExtractResult {
   readonly diagnostics: readonly BuildDiagnostic[];
 }
 
+/** The 1-based position of a capability diagnostic, when it carries one. */
+function positionOf(diagnostic: BuildDiagnosticInput): { line?: number; column?: number } {
+  const position: { line?: number; column?: number } = {};
+  if (diagnostic.line !== undefined) position.line = diagnostic.line;
+  if (diagnostic.column !== undefined) position.column = diagnostic.column;
+  return position;
+}
+
 /** Map a capability diagnostic to a `runtime`-phase build diagnostic. */
 function fromCapability(path: string, diagnostic: BuildDiagnosticInput): BuildDiagnostic {
   return {
@@ -34,9 +46,17 @@ function fromCapability(path: string, diagnostic: BuildDiagnosticInput): BuildDi
     phase: "runtime",
     severity: diagnostic.severity ?? "error",
     message: diagnostic.message,
-    ...(diagnostic.line !== undefined ? { line: diagnostic.line } : {}),
-    ...(diagnostic.column !== undefined ? { column: diagnostic.column } : {}),
+    ...positionOf(diagnostic),
   };
+}
+
+/** Batch cache lookup by source hash — an absent cache resolves to no hits. */
+function cacheLookup(
+  cache: ManifestCache | undefined,
+  hashes: readonly string[],
+): Effect.Effect<Map<string, CachedManifest>> {
+  if (!cache) return Effect.succeed(new Map());
+  return Effect.promise(() => cache.get([...new Set(hashes)]));
 }
 
 /**
@@ -69,100 +89,113 @@ function fromCapability(path: string, diagnostic: BuildDiagnosticInput): BuildDi
  * - No compiled code, no cache, and static extraction fails — the static
  *   extractor's diagnostics are surfaced.
  */
-export async function extractManifests(
+export function extractManifests(
   compiled: readonly CompiledComponent[],
   caps: BuildCapabilities,
 ): Promise<ExtractResult> {
-  const diagnostics: BuildDiagnostic[] = [];
-  const cache = caps.manifestCache;
-  const extractManifest = caps.extractManifest;
+  return Effect.runPromise(extractManifestsEffect(compiled, caps));
+}
 
-  // Batch cache lookup by source hash (misses simply absent from the map).
-  const hashByComponent = compiled.map((c) => hashSource(c.component.source));
-  const cacheHits = cache
-    ? await cache.get([...new Set(hashByComponent)])
-    : new Map();
+/** The extract stage as an Effect; {@link extractManifests} runs it. */
+function extractManifestsEffect(
+  compiled: readonly CompiledComponent[],
+  caps: BuildCapabilities,
+): Effect.Effect<ExtractResult> {
+  return Effect.gen(function* () {
+    const diagnostics: BuildDiagnostic[] = [];
+    const cache = caps.manifestCache;
+    const extractManifest = caps.extractManifest;
 
-  const extracted: ExtractedComponent[] = [];
-  for (let i = 0; i < compiled.length; i += 1) {
-    const { component, code } = compiled[i]!;
-    const sourceHash = hashByComponent[i]!;
-    const base = { path: component.path, source: component.source, sourceHash };
+    // Batch cache lookup by source hash (misses simply absent from the map).
+    const hashByComponent = compiled.map((c) => hashSource(c.component.source));
+    const cacheHits = yield* cacheLookup(cache, hashByComponent);
 
-    // 1. Cache hit — trust the cached manifest (may be null ⇒ known-unknown).
-    const cached = cacheHits.get(sourceHash);
-    if (cached) {
-      extracted.push({
-        ...base,
-        manifest: cached.manifest,
-        status: cached.manifest ? "ready" : "unknown",
-      });
-      continue;
-    }
+    const extracted: ExtractedComponent[] = [];
+    for (let i = 0; i < compiled.length; i += 1) {
+      const { component, code } = compiled[i]!;
+      const sourceHash = hashByComponent[i]!;
+      const base = { path: component.path, source: component.source, sourceHash };
 
-    let manifest: ComponentManifest | null = null;
-    // Runtime diagnostics deferred until the static outcome is known: on a
-    // static success they downgrade to non-blocking warnings (the build
-    // proceeds on the static manifest, but a module that crashes at eval must
-    // stay observable); only when static ALSO fails do they surface at their
-    // original severity.
-    const deferred: BuildDiagnostic[] = [];
+      // 1. Cache hit — trust the cached manifest (may be null ⇒ known-unknown).
+      const cached = cacheHits.get(sourceHash);
+      if (cached) {
+        extracted.push({
+          ...base,
+          manifest: cached.manifest,
+          status: pick(cached.manifest !== null, "ready", "unknown"),
+        });
+        continue;
+      }
 
-    // 2. Runtime extract + validate (ground truth), when possible.
-    if (extractManifest && code !== null) {
-      try {
-        const outcome = await extractManifest(code);
-        manifest = validateOutcome(component.path, outcome, deferred);
-      } catch (err) {
-        deferred.push(
-          error(component.path, "runtime", err instanceof Error ? err.message : String(err)),
+      let manifest: ComponentManifest | null = null;
+      // Runtime diagnostics deferred until the static outcome is known: on a
+      // static success they downgrade to non-blocking warnings (the build
+      // proceeds on the static manifest, but a module that crashes at eval must
+      // stay observable); only when static ALSO fails do they surface at their
+      // original severity.
+      const deferred: BuildDiagnostic[] = [];
+
+      // 2. Runtime extract + validate (ground truth), when possible.
+      if (extractManifest && code !== null) {
+        manifest = yield* Effect.tryPromise({
+          try: () => extractManifest(code),
+          catch: (cause) => cause,
+        }).pipe(
+          Effect.match({
+            onSuccess: (outcome) => validateOutcome(component.path, outcome, deferred),
+            onFailure: (cause) => {
+              deferred.push(error(component.path, "runtime", causeMessage(cause)));
+              return null;
+            },
+          }),
         );
       }
-    }
 
-    // 3. Static AST fallback — the only manifest source on a degraded runtime.
-    //    Runs whenever the runtime path did not resolve a manifest (including
-    //    the `code === null` short-circuit workerd hits).
-    if (!manifest) {
-      const staticDiagnostics: BuildDiagnostic[] = [];
-      const staticManifest = validateOutcome(
-        component.path,
-        staticExtractManifest(component.source, component.path),
-        staticDiagnostics,
-      );
-      if (staticManifest) {
-        manifest = staticManifest;
-        for (const diagnostic of deferred) {
-          diagnostics.push({
-            ...diagnostic,
-            severity: "warning",
-            message: `Manifest resolved statically, but the runtime extractor failed: ${diagnostic.message}`,
-          });
+      // 3. Static AST fallback — the only manifest source on a degraded runtime.
+      //    Runs whenever the runtime path did not resolve a manifest (including
+      //    the `code === null` short-circuit workerd hits).
+      if (!manifest) {
+        const staticDiagnostics: BuildDiagnostic[] = [];
+        const staticManifest = validateOutcome(
+          component.path,
+          staticExtractManifest(component.source, component.path),
+          staticDiagnostics,
+        );
+        if (staticManifest) {
+          manifest = staticManifest;
+          for (const diagnostic of deferred) {
+            diagnostics.push({
+              ...diagnostic,
+              severity: "warning",
+              message: `Manifest resolved statically, but the runtime extractor failed: ${diagnostic.message}`,
+            });
+          }
+        } else {
+          // Both paths failed: surface the runtime's diagnostics (if any) AND the
+          // static extractor's, so the author sees why the manifest is unavailable.
+          diagnostics.push(...deferred, ...staticDiagnostics);
         }
-      } else {
-        // Both paths failed: surface the runtime's diagnostics (if any) AND the
-        // static extractor's, so the author sees why the manifest is unavailable.
-        diagnostics.push(...deferred, ...staticDiagnostics);
       }
+
+      // 4. Record fresh valid manifests best-effort (cache errors never fail).
+      const fresh = manifest;
+      if (fresh && cache) {
+        // Intentionally ignored — the cache is an optimization, not a gate.
+        yield* Effect.tryPromise({
+          try: () => cache.record({ sourceHash, manifest: fresh }),
+          catch: (cause) => cause,
+        }).pipe(Effect.ignore);
+      }
+
+      extracted.push({
+        ...base,
+        manifest,
+        status: pick(manifest !== null, "ready", "unknown"),
+      });
     }
 
-    // 4. Record fresh valid manifests best-effort (cache errors never fail).
-    if (manifest && cache) {
-      try {
-        await cache.record({ sourceHash, manifest });
-      } catch {
-        // Intentionally swallowed — the cache is an optimization, not a gate.
-      }
-    }
-
-    extracted.push({
-      ...base,
-      manifest,
-      status: manifest ? "ready" : "unknown",
-    });
-  }
-
-  return { extracted, diagnostics };
+    return { extracted, diagnostics };
+  });
 }
 
 /**

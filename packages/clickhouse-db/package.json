@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@clickhouse/client-web": "^1.12.0",
-    "@effect/platform-bun": "catalog:"
+    "@effect/platform-bun": "catalog:",
+    "@voidhash/lib": "workspace:*"
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",

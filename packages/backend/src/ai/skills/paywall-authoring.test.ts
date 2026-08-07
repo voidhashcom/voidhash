@@ -61,9 +61,10 @@ describe("paywallAuthoringSkill — generated style reference", () => {
 describe("paywallAuthoringSkill — generated containment reference", () => {
   it("matches ALLOWED_CHILDREN_BY_NODE_TYPE for every authorable parent", () => {
     // root/library/codeComponent are engine-managed and intentionally omitted.
-    const authorable: readonly NodeType[] = (
-      Object.keys(ALLOWED_CHILDREN_BY_NODE_TYPE) as NodeType[]
-    ).filter((type) => type !== "root" && type !== "library" && type !== "codeComponent");
+    const isNodeType = (key: string): key is NodeType => key in ALLOWED_CHILDREN_BY_NODE_TYPE;
+    const authorable: readonly NodeType[] = Object.keys(ALLOWED_CHILDREN_BY_NODE_TYPE)
+      .filter(isNodeType)
+      .filter((type) => type !== "root" && type !== "library" && type !== "codeComponent");
 
     for (const type of authorable) {
       const children = ALLOWED_CHILDREN_BY_NODE_TYPE[type];

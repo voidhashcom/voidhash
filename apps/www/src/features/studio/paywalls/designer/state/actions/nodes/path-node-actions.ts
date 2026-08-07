@@ -1,5 +1,6 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import type { PathNode } from "@voidhash/mimic-schema";
+import { Effect } from "effect";
 
 import { commander } from "../../designer-commander";
 import {
@@ -33,11 +34,11 @@ export const createPathNode = commander.undoableAction<
       if (parent === undefined) {
         return null;
       }
-      try {
-        return parent.children.insertLast({ ...(params.initialValues ?? {}), type: "path" }).id;
-      } catch {
-        return null;
-      }
+      return Effect.runSync(
+        Effect.try(() => parent.children.insertLast({ ...params.initialValues, type: "path" }).id).pipe(
+          Effect.orElseSucceed((): string | null => null),
+        ),
+      );
     });
 
     if (newNodeId) {

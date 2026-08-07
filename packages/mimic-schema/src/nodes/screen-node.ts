@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import { createStateSchemaWithStyleOverrides } from "../states/index.ts";
@@ -141,7 +142,7 @@ export const screenNodeLocalizedSchema = Primitive.Array(
 
 /** ScreenNode tree node schema */
 export const ScreenNode = Primitive.TreeNode("screen", {
-  children: () => [ViewNode, ScrollViewNode, TextNode, ShapeNode, ComponentNode] as const,
+  children: () => constant([ViewNode, ScrollViewNode, TextNode, ShapeNode, ComponentNode]),
   data: Primitive.Struct({
     linkedVariables,
     localVariables,

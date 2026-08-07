@@ -1,4 +1,6 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Clock, Context, DateTime, Effect, Layer, Schema } from "effect";
+
+import { constant } from "@voidhash/lib/lang";
 
 import { ApiKeyNotFoundError } from "../../domain/apiKey/ApiKey.ts";
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -34,8 +36,8 @@ export class ApiKeyServiceError extends Schema.TaggedErrorClass<ApiKeyServiceErr
   "ApiKeyServiceError",
 )("ApiKeyServiceError", { cause: Schema.String }) {}
 
-const isExpired = (expiresAt: Date | null | undefined): boolean =>
-  expiresAt !== null && expiresAt !== undefined && expiresAt.getTime() <= Date.now();
+const isExpired = (expiresAt: Date | null | undefined, nowMillis: number): boolean =>
+  expiresAt !== null && expiresAt !== undefined && expiresAt.getTime() <= nowMillis;
 
 /**
  * `ApiKeyService` is the single entry point for the three kinds of api keys:
@@ -194,7 +196,7 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
         );
 
         const { rawKey, ...newKey } = yield* generateSecretKeyFn();
-        const now = new Date();
+        const now = yield* DateTime.nowAsDate;
         yield* db
           .update(apiKeys)
           .set({ ...newKey, updatedAt: now, createdAt: now })
@@ -285,7 +287,7 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
 
         const { rawKey, ...userApiKey } = yield* generateUserApiKeyFn(input.prefix);
         const apiKeyId = crypto.randomUUID();
-        const now = new Date();
+        const now = yield* DateTime.nowAsDate;
         yield* db.insert(apikey).values({
           createdAt: now,
           end: userApiKey.end,
@@ -380,15 +382,18 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
     const validateUserApiKey = Effect.fn("validateUserApiKey")(
       function* (rawKey: string) {
         const hashed = yield* hashKey(rawKey);
-        const record = (yield* db.query.apikey.findFirst({
+        const found = yield* db.query.apikey.findFirst({
           where: { key: hashed },
           with: { user: true },
-        })) as UserApiKeyWithUser | undefined;
+        });
+        const nowMillis = yield* Clock.currentTimeMillis;
+        const user = found?.user;
 
-        if (!record?.user || record.enabled === false || isExpired(record.expiresAt)) {
+        if (!found || !user || found.enabled === false || isExpired(found.expiresAt, nowMillis)) {
           // Never echo the raw (secret-equivalent) key — omit the id entirely.
           return yield* Effect.fail(new ApiKeyNotFoundError({}));
         }
+        const record: UserApiKeyWithUser = { ...found, user };
 
         yield* Effect.annotateCurrentSpan("voidhash.api_key.id", record.id);
         yield* Effect.annotateCurrentSpan("voidhash.user.id", record.userId);
@@ -414,15 +419,18 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
     const validateSecretKey = Effect.fn("validateSecretKey")(
       function* (rawKey: string) {
         const hashed = yield* hashKey(rawKey);
-        const record = (yield* db.query.apiKeys.findFirst({
+        const found = yield* db.query.apiKeys.findFirst({
           where: { key: hashed, isPublic: false },
           with: { project: true },
-        })) as ApiKeyWithProject | undefined;
+        });
 
-        if (!record) {
+        // `project` is a non-null foreign key, so the relation always resolves;
+        // the check is what lets the non-nullable `project` be returned.
+        if (!found?.project) {
           // Never echo the raw (secret-equivalent) key — omit the id entirely.
           return yield* Effect.fail(new ApiKeyNotFoundError({}));
         }
+        const record: ApiKeyWithProject = { ...found, project: found.project };
 
         yield* Effect.annotateCurrentSpan("voidhash.api_key.id", record.id);
         yield* Effect.annotateCurrentSpan("voidhash.api_key.is_public", record.isPublic);
@@ -454,15 +462,18 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
      */
     const validatePublishableKey = Effect.fn("validatePublishableKey")(
       function* (rawKey: string) {
-        const record = (yield* db.query.apiKeys.findFirst({
+        const found = yield* db.query.apiKeys.findFirst({
           where: { key: rawKey, isPublic: true },
           with: { project: true },
-        })) as ApiKeyWithProject | undefined;
+        });
 
-        if (!record) {
+        // `project` is a non-null foreign key, so the relation always resolves;
+        // the check is what lets the non-nullable `project` be returned.
+        if (!found?.project) {
           // Never echo the raw (secret-equivalent) key — omit the id entirely.
           return yield* Effect.fail(new ApiKeyNotFoundError({}));
         }
+        const record: ApiKeyWithProject = { ...found, project: found.project };
 
         yield* Effect.annotateCurrentSpan("voidhash.api_key.id", record.id);
         yield* Effect.annotateCurrentSpan("voidhash.api_key.is_public", record.isPublic);
@@ -487,7 +498,7 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
         ),
     );
 
-    return {
+    return constant({
       createSecretKey,
       createUserApiKey,
       deleteSecretKey,
@@ -499,7 +510,7 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
       validatePublishableKey,
       validateSecretKey,
       validateUserApiKey,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(ApiKeyService)(ApiKeyService.make);

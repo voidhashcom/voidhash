@@ -1,8 +1,22 @@
 import { Schema } from "effect";
 import type { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi";
 
-const cloneWithPrototype = <T extends object>(value: T, properties: Record<string, unknown>): T =>
-  Object.assign(Object.create(Object.getPrototypeOf(value)), value, properties) as T;
+/** Literal-preserving identity function; stands in for a `const` assertion. */
+const constant = <const T>(value: T): T => value;
+
+const cloneWithPrototype = <T extends object>(value: T, properties: Record<string, unknown>): T => {
+  const clone: T = Object.create(Object.getPrototypeOf(value));
+  return Object.assign(clone, value, properties);
+};
+
+/** Maps an optional endpoint schema to its JSON-compatible codec. */
+const mapOptionalSchema = (schema: Schema.Top | undefined) => {
+  if (!schema) {
+    return undefined;
+  }
+
+  return Schema.toCodecJson(schema);
+};
 
 const mapPayloadSchemas = (payload: HttpApiEndpoint.PayloadMap): HttpApiEndpoint.PayloadMap =>
   new Map(
@@ -12,10 +26,10 @@ const mapPayloadSchemas = (payload: HttpApiEndpoint.PayloadMap): HttpApiEndpoint
         contentType,
         {
           ...value,
-          schemas: [
+          schemas: constant([
             Schema.toCodecJson(first),
             ...rest.map((schema) => Schema.toCodecJson(schema)),
-          ] as const,
+          ]),
         },
       ];
     }),
@@ -24,10 +38,10 @@ const mapPayloadSchemas = (payload: HttpApiEndpoint.PayloadMap): HttpApiEndpoint
 const mapEndpoint = <TEndpoint extends HttpApiEndpoint.Top>(endpoint: TEndpoint): TEndpoint =>
   cloneWithPrototype(endpoint, {
     error: new Set(Array.from(endpoint.error, (schema) => Schema.toCodecJson(schema))),
-    headers: endpoint.headers ? Schema.toCodecJson(endpoint.headers) : undefined,
-    params: endpoint.params ? Schema.toCodecJson(endpoint.params) : undefined,
+    headers: mapOptionalSchema(endpoint.headers),
+    params: mapOptionalSchema(endpoint.params),
     payload: mapPayloadSchemas(endpoint.payload),
-    query: endpoint.query ? Schema.toCodecJson(endpoint.query) : undefined,
+    query: mapOptionalSchema(endpoint.query),
     success: new Set(Array.from(endpoint.success, (schema) => Schema.toCodecJson(schema))),
   });
 

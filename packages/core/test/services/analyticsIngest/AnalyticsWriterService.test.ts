@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { describe, expect, it } from "vite-plus/test";
 
 import { REVENUE_TRUSTED_SOURCE_TOPIC } from "../../../src/domain/internalAnalytics/InternalAnalyticsEvents.ts";
@@ -33,14 +34,14 @@ describe("isRevenueAnalyticsWriterRow", () => {
 
   it("returns true for every reserved revenue event name on the revenue topic", () => {
     // Drive the real domain set so adding a new reserved event keeps coverage.
-    const reservedNames = [
+    const reservedNames = constant([
       "$purchase.refunded",
       "$purchase.revoked",
       "$subscription.created",
       "$subscription.renewed",
       "$subscription.canceled",
       "$subscription.transferred_in",
-    ] as const;
+    ]);
     for (const event_name of reservedNames) {
       expect(isRevenueAnalyticsWriterRow(revenueRow({ event_name }))).toBe(true);
     }

@@ -46,7 +46,7 @@ export function ProjectNameForm({
     ...updateProjectOptions(),
     onSuccess: () => {
       toast.success("Project name updated successfully");
-      queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
     },
     onError: () => {
       toast.error("Failed to update project name");

@@ -1,4 +1,5 @@
 import { Db, type User as DbUser } from "@voidhash/db";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import type { LocalUserIdentity } from "../../domain/auth/LocalUserSession.ts";
@@ -44,11 +45,11 @@ export class IdentityLinkBackfillService extends Context.Service<
         const localUser = yield* localUserSessions.resolveLocalUser(identity);
         if (localUser.id) yield* Effect.annotateCurrentSpan("voidhash.user.id", localUser.id);
 
-        yield* !identity.externalId
-          ? identityProvider
-              .linkExternalId(identity.id, localUser.id)
-              .pipe(Effect.catch(() => Effect.void))
-          : Effect.void;
+        if (!identity.externalId) {
+          yield* identityProvider
+            .linkExternalId(identity.id, localUser.id)
+            .pipe(Effect.catch(() => Effect.void));
+        }
 
         const synced = yield* membershipSync.syncMemberships({
           localUserId: localUser.id,
@@ -62,7 +63,7 @@ export class IdentityLinkBackfillService extends Context.Service<
           Effect.catchTags({
             EffectDrizzleQueryError: (error) =>
               Effect.fail(
-                new IdentityLinkBackfillError({ cause: String(error.cause ?? error.message) }),
+                new IdentityLinkBackfillError({ cause: causeMessage(error.cause ?? error.message) }),
               ),
             OrganizationMembershipSyncPortError: (error) =>
               Effect.fail(new IdentityLinkBackfillError({ cause: error.cause })),
@@ -70,7 +71,7 @@ export class IdentityLinkBackfillService extends Context.Service<
         ),
     );
 
-    return { syncAuthenticatedUser } as const;
+    return constant({ syncAuthenticatedUser });
   }),
 }) {
   static layer = Layer.effect(IdentityLinkBackfillService)(IdentityLinkBackfillService.make);

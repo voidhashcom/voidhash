@@ -103,7 +103,10 @@ function formatValue(value: unknown): React.ReactNode {
     return <span className="text-purple-400">{String(value)}</span>;
   }
 
-  return <span>{String(value)}</span>;
+  if (typeof value === "bigint" || typeof value === "symbol" || typeof value === "function") {
+    return <span>{value.toString()}</span>;
+  }
+  return <span>{JSON.stringify(value)}</span>;
 }
 
 // Property row with expandable support

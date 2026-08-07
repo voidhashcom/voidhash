@@ -124,13 +124,14 @@ export const StandaloneOrgDirectoryLive: Layer.Layer<OrgDirectoryPort, never, Db
         query(
           Effect.gen(function* () {
             const row = yield* db.query.organization.findFirst({ where: { id: externalId } });
-            return row === undefined
-              ? null
-              : ({
-                  externalId: row.id,
-                  id: row.workosOrganizationId,
-                  name: row.name,
-                } satisfies OrgDirectoryOrganization);
+            if (row === undefined) {
+              return null;
+            }
+            return {
+              externalId: row.id,
+              id: row.workosOrganizationId,
+              name: row.name,
+            } satisfies OrgDirectoryOrganization;
           }),
         ),
 

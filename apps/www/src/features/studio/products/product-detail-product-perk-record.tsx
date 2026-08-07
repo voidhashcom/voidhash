@@ -31,7 +31,7 @@ export function ProductDetailPerkRecord({
     ...deleteProductPerkOptions(),
     onSuccess: () => {
       toast.success(`${perk?.name} perk successfully deleted`);
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.productPerk.listByProduct({
           productId: productPerk.productId,
         }),

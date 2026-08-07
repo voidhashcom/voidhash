@@ -31,7 +31,8 @@
  * `test.todo` below. Project scoping (an explicit `project_id IN (...)` WHERE
  * clause) IS exercised by every test.
  */
-import { Effect } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Clock, DateTime, Effect, Schema } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import type {
@@ -72,10 +73,21 @@ const organizationId = CoreTestFixture.organizationId;
 
 const EVENTS_TABLE = "events_v2";
 
+/** Build a fixed instant from an ISO string or epoch millis. */
+const instant = (input: string | number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(input));
+
+/** Encodes the `event_properties` column, which ClickHouse stores as JSON text. */
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+/**
+ * Read once per process so namespaces never collide with a previous run's rows
+ * (ClickHouse `DELETE` cleanup is eventual).
+ */
+const RUN_TOKEN = Effect.runSync(Clock.currentTimeMillis);
 /** Monotonic counter so namespaces stay unique even within the same millisecond. */
 let seq = 0;
 /** A unique token used to prefix every `event_id`/`distinct_id` a test seeds. */
-const uniqueNs = (label: string) => `it-cha-${label}-${Date.now()}-${seq++}`;
+const uniqueNs = (label: string) => `it-cha-${label}-${RUN_TOKEN}-${seq++}`;
 
 /** Format a JS `Date` as the `YYYY-MM-DD HH:MM:SS.mmm` string ClickHouse stores. */
 const toEventTs = (date: Date): string => date.toISOString().replace("T", " ").replace("Z", "");
@@ -102,9 +114,9 @@ interface SeedEvent {
  * it. Far enough in the past that no real ingest collides with the window, and
  * narrow enough that only this test's seeded rows fall inside it.
  */
-const startDate = new Date("2021-01-01T00:00:00.000Z");
-const endDate = new Date("2021-01-31T23:59:59.000Z");
-const baseTs = new Date("2021-01-15T12:00:00.000Z");
+const startDate = instant("2021-01-01T00:00:00.000Z");
+const endDate = instant("2021-01-31T23:59:59.000Z");
+const baseTs = instant("2021-01-15T12:00:00.000Z");
 
 const timeRange = (granularity: TimeGranularity = "day"): TimeRangeParams => ({
   endDate,
@@ -136,7 +148,7 @@ const seedEvents = (ns: string, events: ReadonlyArray<SeedEvent>) =>
       project_id: ns,
       distinct_id: event.distinctId,
       person_id: event.personId ?? null,
-      event_properties: JSON.stringify(event.properties ?? {}),
+      event_properties: encodeJson(event.properties ?? {}),
     }));
     yield* ch.insertQuery({ table: EVENTS_TABLE, values }).pipe(Effect.asVoid);
     // `events_v2` is a MergeTree; reads see inserted parts immediately, but be
@@ -237,7 +249,7 @@ describe("analyticsAccessor.getRevenue", () => {
         yield* seedEvents(ns, [
           {
             eventName: "$purchase.completed",
-            eventTs: new Date("2019-06-01T00:00:00.000Z"),
+            eventTs: instant("2019-06-01T00:00:00.000Z"),
             distinctId: `${ns}-u`,
             properties: { amount_usd: 1000 },
           },
@@ -639,7 +651,7 @@ describe("analyticsAccessor.getNewPersons", () => {
     withEventCleanup((track) =>
       Effect.gen(function* () {
         const ns = track(uniqueNs("new-persons"));
-        const beforeWindow = new Date("2020-06-01T00:00:00.000Z");
+        const beforeWindow = instant("2020-06-01T00:00:00.000Z");
         yield* seedEvents(ns, [
           // Person A's earliest event is BEFORE the window, so min(event_ts) is
           // 2020 and the `first_seen >= start` filter excludes it.
@@ -709,8 +721,8 @@ describe("analyticsAccessor — granularity & period normalisation", () => {
       Effect.gen(function* () {
         const ns = track(uniqueNs("granularity-day"));
         const distinctId = `${ns}-u`;
-        const dayA = new Date("2021-01-10T08:00:00.000Z");
-        const dayB = new Date("2021-01-20T20:00:00.000Z");
+        const dayA = instant("2021-01-10T08:00:00.000Z");
+        const dayB = instant("2021-01-20T20:00:00.000Z");
         yield* seedEvents(ns, [
           {
             eventName: "$purchase.completed",
@@ -721,7 +733,7 @@ describe("analyticsAccessor — granularity & period normalisation", () => {
           // Same day, different hour -> folds into the same day bucket.
           {
             eventName: "$purchase.completed",
-            eventTs: new Date("2021-01-10T18:00:00.000Z"),
+            eventTs: instant("2021-01-10T18:00:00.000Z"),
             distinctId,
             properties: { amount_usd: 500 },
           },
@@ -759,13 +771,13 @@ describe("analyticsAccessor — granularity & period normalisation", () => {
         yield* seedEvents(ns, [
           {
             eventName: "$purchase.completed",
-            eventTs: new Date("2021-01-05T00:00:00.000Z"),
+            eventTs: instant("2021-01-05T00:00:00.000Z"),
             distinctId,
             properties: { amount_usd: 1000 },
           },
           {
             eventName: "$purchase.completed",
-            eventTs: new Date("2021-01-25T00:00:00.000Z"),
+            eventTs: instant("2021-01-25T00:00:00.000Z"),
             distinctId,
             properties: { amount_usd: 1000 },
           },
@@ -863,7 +875,7 @@ describe("analyticsAccessor — read-side dedup by event_id (latest processed_ts
             eventName: "$purchase.completed",
             eventTs: baseTs,
             distinctId,
-            processedTs: new Date("2021-01-15T12:00:00.000Z"),
+            processedTs: instant("2021-01-15T12:00:00.000Z"),
             properties: { amount_usd: 1000 },
           },
           // A redelivery / replay of the SAME event_id with a later processed_ts
@@ -874,7 +886,7 @@ describe("analyticsAccessor — read-side dedup by event_id (latest processed_ts
             eventName: "$purchase.completed",
             eventTs: baseTs,
             distinctId,
-            processedTs: new Date("2021-01-16T12:00:00.000Z"),
+            processedTs: instant("2021-01-16T12:00:00.000Z"),
             properties: { amount_usd: 1500 },
           },
         ]);
@@ -900,7 +912,7 @@ describe("analyticsAccessor — read-side dedup by event_id (latest processed_ts
             eventName: "$subscription.created",
             eventTs: baseTs,
             distinctId,
-            processedTs: new Date("2021-01-15T12:00:00.000Z"),
+            processedTs: instant("2021-01-15T12:00:00.000Z"),
             properties: { subscription_id: `${ns}-s`, is_trial: false },
           },
           // Same event_id written twice (a race / retry) -> count() must see one.
@@ -909,7 +921,7 @@ describe("analyticsAccessor — read-side dedup by event_id (latest processed_ts
             eventName: "$subscription.created",
             eventTs: baseTs,
             distinctId,
-            processedTs: new Date("2021-01-16T12:00:00.000Z"),
+            processedTs: instant("2021-01-16T12:00:00.000Z"),
             properties: { subscription_id: `${ns}-s`, is_trial: false },
           },
         ]);
@@ -930,19 +942,19 @@ describe("getEventTrendSeries", () => {
         yield* seedEvents(ns, [
           {
             eventName: "screen_viewed",
-            eventTs: new Date("2021-01-15T12:00:00.000Z"),
+            eventTs: instant("2021-01-15T12:00:00.000Z"),
             distinctId: `${ns}-one`,
             properties: { duration_ms: 10 },
           },
           {
             eventName: "screen_viewed",
-            eventTs: new Date("2021-01-16T12:00:00.000Z"),
+            eventTs: instant("2021-01-16T12:00:00.000Z"),
             distinctId: `${ns}-one`,
             properties: { duration_ms: 30 },
           },
           {
             eventName: "screen_viewed",
-            eventTs: new Date("2021-01-17T12:00:00.000Z"),
+            eventTs: instant("2021-01-17T12:00:00.000Z"),
             distinctId: `${ns}-one`,
           },
         ]);
@@ -951,7 +963,7 @@ describe("getEventTrendSeries", () => {
           eventNames: ["screen_viewed"],
           filters: filtersFor(),
           organizationId,
-          params: { endDate, granularity: "day" as const, startDate },
+          params: { endDate, granularity: constant("day"), startDate },
         };
 
         const totals = yield* getEventTrendSeries({ ...input, aggregation: "total_events" });
@@ -986,34 +998,34 @@ describe("getEventTrendSeries", () => {
         yield* seedEvents(ns, [
           {
             eventName: "opened",
-            eventTs: new Date("2021-01-15T12:00:00.000Z"),
+            eventTs: instant("2021-01-15T12:00:00.000Z"),
             distinctId: `${ns}-one-distinct`,
             personId: `${ns}-one`,
             properties: { account_id: "account-a" },
           },
           {
             eventName: "opened",
-            eventTs: new Date("2021-01-16T12:00:00.000Z"),
+            eventTs: instant("2021-01-16T12:00:00.000Z"),
             distinctId: `${ns}-two-distinct`,
             personId: `${ns}-two`,
             properties: { account_id: "account-a" },
           },
           {
             eventName: "opened",
-            eventTs: new Date("2021-01-17T12:00:00.000Z"),
+            eventTs: instant("2021-01-17T12:00:00.000Z"),
             distinctId: `${ns}-three-distinct`,
             personId: `${ns}-three`,
             properties: { account_id: "account-b" },
           },
         ]);
         const input = {
-          actor: { kind: "group" as const, property: "account_id" },
+          actor: { kind: constant("group"), property: "account_id" },
           aggregateOverRange: true,
-          aggregation: "unique_users" as const,
+          aggregation: constant("unique_users"),
           eventNames: ["opened"],
           filters: filtersFor(),
           organizationId,
-          params: { endDate, granularity: "day" as const, startDate },
+          params: { endDate, granularity: constant("day"), startDate },
         };
 
         const allGroups = yield* getEventTrendSeries(input);
@@ -1038,28 +1050,28 @@ describe("getEventPersonDrilldown", () => {
         yield* seedEvents(ns, [
           {
             eventName: "screen_viewed",
-            eventTs: new Date("2021-01-15T12:00:00.000Z"),
+            eventTs: instant("2021-01-15T12:00:00.000Z"),
             distinctId: `${ns}-one-distinct`,
             personId: `${ns}-one`,
             properties: { workspace_id: "mobile" },
           },
           {
             eventName: "screen_viewed",
-            eventTs: new Date("2021-01-16T12:00:00.000Z"),
+            eventTs: instant("2021-01-16T12:00:00.000Z"),
             distinctId: `${ns}-one-distinct`,
             personId: `${ns}-one`,
             properties: { workspace_id: "mobile" },
           },
           {
             eventName: "screen_viewed",
-            eventTs: new Date("2021-01-17T12:00:00.000Z"),
+            eventTs: instant("2021-01-17T12:00:00.000Z"),
             distinctId: `${ns}-two-distinct`,
             personId: `${ns}-two`,
             properties: { workspace_id: "web" },
           },
           {
             eventName: "screen_viewed",
-            eventTs: new Date("2021-01-18T12:00:00.000Z"),
+            eventTs: instant("2021-01-18T12:00:00.000Z"),
             distinctId: `${ns}-three-distinct`,
             personId: `${ns}-three`,
             properties: { workspace_id: "mobile" },
@@ -1079,7 +1091,7 @@ describe("getEventPersonDrilldown", () => {
         expect(people).toEqual([
           {
             eventCount: 2,
-            lastSeenAt: new Date("2021-01-16T12:00:00.000Z"),
+            lastSeenAt: instant("2021-01-16T12:00:00.000Z"),
             personId: `${ns}-one`,
           },
         ]);
@@ -1094,7 +1106,7 @@ describe("getEventFunnelCounts", () => {
     withEventCleanup((track) =>
       Effect.gen(function* () {
         const ns = track(uniqueNs("custom-funnel-orders"));
-        const at = (seconds: number) => new Date(baseTs.getTime() + seconds * 1000);
+        const at = (seconds: number) => instant(baseTs.getTime() + seconds * 1000);
         yield* seedEvents(ns, [
           {
             eventName: "step_a",
@@ -1124,10 +1136,10 @@ describe("getEventFunnelCounts", () => {
           filters: filtersFor(),
           organizationId,
           params: { endDate, startDate },
-          steps: [
-            { eventNames: ["step_a"] as const, key: "A" },
-            { eventNames: ["step_b"] as const, key: "B" },
-          ] as const,
+          steps: constant([
+            { eventNames: constant(["step_a"]), key: "A" },
+            { eventNames: constant(["step_b"]), key: "B" },
+          ]),
         };
 
         const sequential = yield* getEventFunnelCounts({ ...input, order: "sequential" });
@@ -1160,7 +1172,7 @@ describe("getEventRetentionCohorts", () => {
       Effect.gen(function* () {
         const ns = track(uniqueNs("custom-retention"));
         const day = (offset: number, hour = 12) =>
-          new Date(
+          instant(
             `2021-01-${String(15 + offset).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00.000Z`,
           );
         yield* seedEvents(ns, [
@@ -1179,15 +1191,15 @@ describe("getEventRetentionCohorts", () => {
           intervals: 4,
           organizationId,
           params: { endDate, startDate },
-          period: "day" as const,
+          period: constant("day"),
           returning: {
-            aggregation: "unique_users" as const,
-            eventNames: ["opened"] as const,
+            aggregation: constant("unique_users"),
+            eventNames: constant(["opened"]),
             key: "returning",
           },
           start: {
-            aggregation: "unique_users" as const,
-            eventNames: ["activated"] as const,
+            aggregation: constant("unique_users"),
+            eventNames: constant(["activated"]),
             key: "start",
           },
         };
@@ -1227,7 +1239,7 @@ describe("getEventLifecyclePoints", () => {
       Effect.gen(function* () {
         const ns = track(uniqueNs("custom-lifecycle"));
         const day = (offset: number, hour = 12) =>
-          new Date(
+          instant(
             `2021-01-${String(15 + offset).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00.000Z`,
           );
         yield* seedEvents(ns, [
@@ -1308,7 +1320,7 @@ describe("getEventPathLinks", () => {
     withEventCleanup((track) =>
       Effect.gen(function* () {
         const ns = track(uniqueNs("custom-paths"));
-        const at = (minutes: number) => new Date(baseTs.getTime() + minutes * 60_000);
+        const at = (minutes: number) => instant(baseTs.getTime() + minutes * 60_000);
         yield* seedEvents(ns, [
           { eventName: "home", eventTs: at(0), distinctId: `${ns}-one` },
           { eventName: "home", eventTs: at(1), distinctId: `${ns}-one` },
@@ -1456,7 +1468,7 @@ describe("getEventStickinessBuckets", () => {
       Effect.gen(function* () {
         const ns = track(uniqueNs("custom-stickiness"));
         const activeAt = (dayOffset: number, hour: number) =>
-          new Date(
+          instant(
             `2021-01-${String(15 + dayOffset).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00.000Z`,
           );
         yield* seedEvents(ns, [
@@ -1482,12 +1494,12 @@ describe("getEventStickinessBuckets", () => {
         ]);
         const input = {
           filters: filtersFor(),
-          interval: "day" as const,
+          interval: constant("day"),
           organizationId,
           params: { endDate, startDate },
           series: {
-            aggregation: "unique_users" as const,
-            eventNames: ["opened"] as const,
+            aggregation: constant("unique_users"),
+            eventNames: constant(["opened"]),
             key: "A",
           },
         };
@@ -1519,7 +1531,7 @@ describe("custom insight actor scope", () => {
       Effect.gen(function* () {
         const ns = track(uniqueNs("custom-group-cohort-engines"));
         const at = (dayOffset: number, minutes: number) =>
-          new Date(Date.UTC(2021, 0, 15 + dayOffset, 9, minutes));
+          instant(Date.UTC(2021, 0, 15 + dayOffset, 9, minutes));
         const personOne = `${ns}-person-one`;
         const personTwo = `${ns}-person-two`;
         const personThree = `${ns}-person-three`;
@@ -1639,7 +1651,7 @@ describe("custom insight actor scope", () => {
           },
         ]);
 
-        const actor = { kind: "group" as const, property: "account_id" };
+        const actor = { kind: constant("group"), property: "account_id" };
         const cohortPersonIds = [personOne, personTwo];
         const scope = {
           actor,

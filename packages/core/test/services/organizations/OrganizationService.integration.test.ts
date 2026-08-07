@@ -36,7 +36,7 @@
  *    to dodge the unique index) when a test needs an org it may freely mutate
  *    without disturbing the shared fixture org.
  */
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
 
 import {
@@ -66,10 +66,15 @@ import { CoreTestFixture } from "@testing/CoreTestFixture";
 
 const { test } = CoreIntegrationTestHarness.make();
 
+/** Wall-clock helpers — `DateTime` equivalents of `nowMillis()` / `new Date(...)`. */
+const nowMillis = (): number => DateTime.toEpochMillis(DateTime.nowUnsafe());
+const now = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe());
+const instant = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
 /** Monotonic counter so names/slugs stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueName = (label: string) => `IT Org ${label} ${Date.now()} ${seq++}`;
-const uniqueId = (label: string) => `it-${label}-${Date.now()}-${seq++}`;
+const uniqueName = (label: string) => `IT Org ${label} ${nowMillis()} ${seq++}`;
+const uniqueId = (label: string) => `it-${label}-${nowMillis()}-${seq++}`;
 
 /** Slug `createSlug` produces for a name built by {@link uniqueName} (no blacklist hit). */
 const slugFor = (name: string) =>
@@ -112,7 +117,7 @@ const insertOrg = (input: {
   Effect.gen(function* () {
     const db = yield* Db;
     yield* db.insert(organization).values({
-      createdAt: new Date(),
+      createdAt: now(),
       id: input.id,
       logo: null,
       metadata: null,
@@ -133,7 +138,7 @@ const insertMember = (input: {
   Effect.gen(function* () {
     const db = yield* Db;
     yield* db.insert(member).values({
-      createdAt: new Date(),
+      createdAt: now(),
       id: input.id,
       organizationId: input.organizationId,
       role: input.role,
@@ -249,7 +254,7 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
       calls.createMembership.push(input);
       if (config.onCreateMembership) return config.onCreateMembership(input);
       return Effect.succeed({
-        id: `wm_${Date.now()}_${portSeq++}`,
+        id: `wm_${nowMillis()}_${portSeq++}`,
         organizationId: input.workosOrganizationId,
         role: input.roleSlug ?? "member",
         userId: input.workosUserId,
@@ -260,7 +265,7 @@ const makeFakePort = (config: FakePortConfig = {}): FakePort => {
       if (config.onCreateOrganization) return config.onCreateOrganization(input);
       return Effect.succeed({
         externalId: input.externalId,
-        id: `wo_${Date.now()}_${portSeq++}`,
+        id: `wo_${nowMillis()}_${portSeq++}`,
         name: input.name,
       } satisfies OrgDirectoryOrganization);
     },
@@ -357,6 +362,12 @@ const orgServiceLayer = (port: FakePort, lifecycle: FakeLifecycle) =>
 
 // --- session builders -------------------------------------------------------
 
+/** Applies the `workosUserId` override, treating an absent key as "keep the fixture value". */
+const resolveWorkosUserId = (override: string | null | undefined): string | null => {
+  if (override === undefined) return CoreTestFixture.workosUserId;
+  return override;
+};
+
 /** Full-permission user session carrying `organization:all` for the given org ids. */
 const userSessionWithOrgs = (
   orgIds: ReadonlyArray<string>,
@@ -376,16 +387,15 @@ const userSessionWithOrgs = (
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: instant(0),
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
-    workosUserId:
-      overrides.workosUserId === undefined ? CoreTestFixture.workosUserId : overrides.workosUserId,
+    updatedAt: instant(0),
+    workosUserId: resolveWorkosUserId(overrides.workosUserId),
   },
 });
 
@@ -431,7 +441,7 @@ describe("OrganizationService.getOrganizationById", () => {
     "fails with OrganizationNotFoundError for an unknown id",
     Effect.gen(function* () {
       const svc = yield* OrganizationService;
-      const error = yield* Effect.flip(svc.getOrganizationById(`org_missing_${Date.now()}`));
+      const error = yield* Effect.flip(svc.getOrganizationById(`org_missing_${nowMillis()}`));
       expect(error).toBeInstanceOf(OrganizationNotFoundError);
     }).pipe(
       Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
@@ -473,7 +483,7 @@ describe("OrganizationService.getOrganizationBySlug", () => {
     "fails with OrganizationNotFoundError for an unknown slug",
     Effect.gen(function* () {
       const svc = yield* OrganizationService;
-      const error = yield* Effect.flip(svc.getOrganizationBySlug(`it-missing-${Date.now()}`));
+      const error = yield* Effect.flip(svc.getOrganizationBySlug(`it-missing-${nowMillis()}`));
       expect(error).toBeInstanceOf(OrganizationNotFoundError);
     }).pipe(
       Effect.provide(orgServiceLayer(makeFakePort(), makeFakeLifecycle())),
@@ -798,7 +808,7 @@ describe("OrganizationService.updateOrganization", () => {
     (() => {
       const port = makeFakePort();
       const lifecycle = makeFakeLifecycle();
-      const orgId = `org_missing_${Date.now()}`;
+      const orgId = `org_missing_${nowMillis()}`;
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
         const error = yield* Effect.flip(
@@ -911,7 +921,7 @@ describe("OrganizationService.deleteOrganization", () => {
     (() => {
       const port = makeFakePort();
       const lifecycle = makeFakeLifecycle();
-      const orgId = `org_missing_${Date.now()}`;
+      const orgId = `org_missing_${nowMillis()}`;
       return Effect.gen(function* () {
         const svc = yield* OrganizationService;
         yield* svc

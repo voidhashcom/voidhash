@@ -10,7 +10,7 @@
  * behaviour (same key → one underlying call, distinct keys → separate calls)
  * can be asserted directly.
  */
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 import type {
@@ -30,9 +30,11 @@ import { buildSeriesResolver } from "../../../src/services/analytics/series-reso
 // Fixtures + a recording accessor fake
 // =============================================================================
 
-const TS0 = new Date("2026-01-01T00:00:00.000Z");
-const TS1 = new Date("2026-01-02T00:00:00.000Z");
-const TS2 = new Date("2026-01-03T00:00:00.000Z");
+const at = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
+const TS0 = at("2026-01-01T00:00:00.000Z");
+const TS1 = at("2026-01-02T00:00:00.000Z");
+const TS2 = at("2026-01-03T00:00:00.000Z");
 
 /** A fresh data point, one value per period. */
 const point = (timestamp: Date, value: number): AnalyticsDataPoint => ({ timestamp, value });
@@ -102,22 +104,26 @@ const makeFakeAccessor = (
  * that the resolver's return type carries. The fake accessor never reaches
  * ClickHouse, so any access throws (which would signal the fake leaked).
  */
-const clickhouseStub = new Proxy(
-  {},
-  {
-    get() {
-      throw new Error("ClickhouseWebClient must not be used in this test");
+// `ClickhouseWebClient` is a wide `SqlClient` surface that cannot be built here,
+// so this narrow helper is the single seam where an untyped value is handed to
+// the type system. Every property access dies, so a leak surfaces loudly.
+const unusableService = (message: string): any =>
+  new Proxy(
+    {},
+    {
+      get: () => Effect.runSync(Effect.die(new Error(message))),
     },
-  },
-) as unknown as ClickhouseWebClient.ClickhouseWebClient;
+  );
+
+const clickhouseStub: ClickhouseWebClient.ClickhouseWebClient = unusableService(
+  "ClickhouseWebClient must not be used in this test",
+);
 
 /** Run a resolver effect with the ClickHouse requirement stubbed out. */
 const runSeries = (
   effect: Effect.Effect<AnalyticsDataPoint[], unknown, ClickhouseWebClient.ClickhouseWebClient>,
-): Promise<AnalyticsDataPoint[]> =>
-  Effect.runPromise(
-    effect.pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, clickhouseStub)),
-  );
+): Effect.Effect<AnalyticsDataPoint[], unknown> =>
+  effect.pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, clickhouseStub));
 
 const get = (
   resolver: ReturnType<typeof buildSeriesResolver>,
@@ -125,56 +131,73 @@ const get = (
 ): Effect.Effect<AnalyticsDataPoint[], unknown, ClickhouseWebClient.ClickhouseWebClient> =>
   resolver.getSeries(insightId, filter(), granularity, timeRange(), organizationId);
 
+
 // =============================================================================
 // Rate / growth-rate primitives (exercised through their public callers)
 // =============================================================================
 
 describe("calculateRate (via churn_rate / retention / trial_conversion_rate)", () => {
-  it("returns a percentage of numerator over the combined denominator", async () => {
-    // churn_rate = churned / (active + churned) * 100 = 1 / (3 + 1) * 100 = 25.
-    const { accessor } = makeFakeAccessor({
-      getActiveSubscriptions: [point(TS0, 3)],
-      getChurnedSubscriptions: [point(TS0, 1)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/churn_rate"));
-    expect(result).toEqual([point(TS0, 25)]);
-  });
+  it.effect("returns a percentage of numerator over the combined denominator", () =>
+    Effect.gen(function* () {
+      // churn_rate = churned / (active + churned) * 100 = 1 / (3 + 1) * 100 = 25.
+      const { accessor } = makeFakeAccessor({
+        getActiveSubscriptions: [point(TS0, 3)],
+        getChurnedSubscriptions: [point(TS0, 1)],
+      });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/churn_rate"));
+      expect(result).toEqual([point(TS0, 25)]);
+    }),
+  );
 
-  it("returns 0 when the denominator is 0", async () => {
-    // No active and no churned → 0 / 0 → calculateRate guards to 0.
-    const { accessor } = makeFakeAccessor({
-      getActiveSubscriptions: [point(TS0, 0)],
-      getChurnedSubscriptions: [point(TS0, 0)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/churn_rate"));
-    expect(result).toEqual([point(TS0, 0)]);
-  });
+  it.effect("returns 0 when the denominator is 0", () =>
+    Effect.gen(function* () {
+      // No active and no churned → 0 / 0 → calculateRate guards to 0.
+      const { accessor } = makeFakeAccessor({
+        getActiveSubscriptions: [point(TS0, 0)],
+        getChurnedSubscriptions: [point(TS0, 0)],
+      });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/churn_rate"));
+      expect(result).toEqual([point(TS0, 0)]);
+    }),
+  );
 });
 
 describe("calculateGrowthRate (via mrr_growth_rate / active_subscribers_growth)", () => {
-  it("returns 0 for the first period (no previous value, current is 0)", async () => {
-    // First point has previous = 0 and current = 0 → 0.
-    const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 0), point(TS1, 0)] });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"));
-    expect(result[0]).toEqual(point(TS0, 0));
-  });
+  it.effect("returns 0 for the first period (no previous value, current is 0)", () =>
+    Effect.gen(function* () {
+      // First point has previous = 0 and current = 0 → 0.
+      const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 0), point(TS1, 0)] });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"),
+      );
+      expect(result[0]).toEqual(point(TS0, 0));
+    }),
+  );
 
-  it("returns 100 when growing from zero to a positive value", async () => {
-    // previous = 0, current > 0 → 100.
-    const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 0), point(TS1, 50)] });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"));
-    expect(result[1]).toEqual(point(TS1, 100));
-  });
+  it.effect("returns 100 when growing from zero to a positive value", () =>
+    Effect.gen(function* () {
+      // previous = 0, current > 0 → 100.
+      const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 0), point(TS1, 50)] });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"),
+      );
+      expect(result[1]).toEqual(point(TS1, 100));
+    }),
+  );
 
-  it("returns ((current - previous) / previous) * 100 between periods", async () => {
-    // 200 → 250 = +25%; 250 → 200 = -20%.
-    const { accessor } = makeFakeAccessor({
-      getMRR: [point(TS0, 100), point(TS1, 200), point(TS2, 250)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"));
-    expect(result[1]).toEqual(point(TS1, 100)); // 100 → 200 = +100%
-    expect(result[2]).toEqual(point(TS2, 25)); // 200 → 250 = +25%
-  });
+  it.effect("returns ((current - previous) / previous) * 100 between periods", () =>
+    Effect.gen(function* () {
+      // 200 → 250 = +25%; 250 → 200 = -20%.
+      const { accessor } = makeFakeAccessor({
+        getMRR: [point(TS0, 100), point(TS1, 200), point(TS2, 250)],
+      });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"),
+      );
+      expect(result[1]).toEqual(point(TS1, 100)); // 100 → 200 = +100%
+      expect(result[2]).toEqual(point(TS2, 25)); // 200 → 250 = +25%
+    }),
+  );
 });
 
 // =============================================================================
@@ -182,59 +205,69 @@ describe("calculateGrowthRate (via mrr_growth_rate / active_subscribers_growth)"
 // =============================================================================
 
 describe("buildSeriesResolver cache", () => {
-  it("caches by (insightId, filter, granularity, timeRange, organizationId)", async () => {
-    const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
-    const resolver = buildSeriesResolver(accessor);
-    await runSeries(get(resolver, "builtin/revenue"));
-    await runSeries(get(resolver, "builtin/revenue"));
-    // Identical cache key → only one underlying accessor call.
-    expect(calls.getRevenue).toBe(1);
-  });
+  it.effect("caches by (insightId, filter, granularity, timeRange, organizationId)", () =>
+    Effect.gen(function* () {
+      const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
+      const resolver = buildSeriesResolver(accessor);
+      yield* runSeries(get(resolver, "builtin/revenue"));
+      yield* runSeries(get(resolver, "builtin/revenue"));
+      // Identical cache key → only one underlying accessor call.
+      expect(calls.getRevenue).toBe(1);
+    }),
+  );
 
-  it("reuses the cached result without re-querying for the same key", async () => {
-    const { accessor, calls } = makeFakeAccessor({ getMRR: [point(TS0, 7)] });
-    const resolver = buildSeriesResolver(accessor);
-    // ARR and MRR-growth both derive from MRR; with one shared resolver the
-    // MRR query is issued exactly once across all three reads.
-    await runSeries(get(resolver, "builtin/mrr"));
-    await runSeries(get(resolver, "builtin/arr"));
-    await runSeries(get(resolver, "builtin/mrr_growth_rate"));
-    expect(calls.getMRR).toBe(1);
-  });
+  it.effect("reuses the cached result without re-querying for the same key", () =>
+    Effect.gen(function* () {
+      const { accessor, calls } = makeFakeAccessor({ getMRR: [point(TS0, 7)] });
+      const resolver = buildSeriesResolver(accessor);
+      // ARR and MRR-growth both derive from MRR; with one shared resolver the
+      // MRR query is issued exactly once across all three reads.
+      yield* runSeries(get(resolver, "builtin/mrr"));
+      yield* runSeries(get(resolver, "builtin/arr"));
+      yield* runSeries(get(resolver, "builtin/mrr_growth_rate"));
+      expect(calls.getMRR).toBe(1);
+    }),
+  );
 
-  it("queries separately for different cache keys (distinct organization)", async () => {
-    const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
-    const resolver = buildSeriesResolver(accessor);
-    await runSeries(get(resolver, "builtin/revenue"));
-    await runSeries(
-      resolver.getSeries("builtin/revenue", filter(), granularity, timeRange(), "other_org"),
-    );
-    expect(calls.getRevenue).toBe(2);
-  });
+  it.effect("queries separately for different cache keys (distinct organization)", () =>
+    Effect.gen(function* () {
+      const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
+      const resolver = buildSeriesResolver(accessor);
+      yield* runSeries(get(resolver, "builtin/revenue"));
+      yield* runSeries(
+        resolver.getSeries("builtin/revenue", filter(), granularity, timeRange(), "other_org"),
+      );
+      expect(calls.getRevenue).toBe(2);
+    }),
+  );
 
-  it("queries separately for different cache keys (distinct filter)", async () => {
-    const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
-    const resolver = buildSeriesResolver(accessor);
-    await runSeries(get(resolver, "builtin/revenue"));
-    await runSeries(
-      resolver.getSeries(
-        "builtin/revenue",
-        filter({ productIds: ["prod_1"] }),
-        granularity,
-        timeRange(),
-        organizationId,
-      ),
-    );
-    expect(calls.getRevenue).toBe(2);
-  });
+  it.effect("queries separately for different cache keys (distinct filter)", () =>
+    Effect.gen(function* () {
+      const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
+      const resolver = buildSeriesResolver(accessor);
+      yield* runSeries(get(resolver, "builtin/revenue"));
+      yield* runSeries(
+        resolver.getSeries(
+          "builtin/revenue",
+          filter({ productIds: ["prod_1"] }),
+          granularity,
+          timeRange(),
+          organizationId,
+        ),
+      );
+      expect(calls.getRevenue).toBe(2);
+    }),
+  );
 
-  it("does not share a cache across separate resolver instances", async () => {
-    const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
-    await runSeries(get(buildSeriesResolver(accessor), "builtin/revenue"));
-    await runSeries(get(buildSeriesResolver(accessor), "builtin/revenue"));
-    // Fresh per-call cache each time → two underlying calls.
-    expect(calls.getRevenue).toBe(2);
-  });
+  it.effect("does not share a cache across separate resolver instances", () =>
+    Effect.gen(function* () {
+      const { accessor, calls } = makeFakeAccessor({ getRevenue: [point(TS0, 10)] });
+      yield* runSeries(get(buildSeriesResolver(accessor), "builtin/revenue"));
+      yield* runSeries(get(buildSeriesResolver(accessor), "builtin/revenue"));
+      // Fresh per-call cache each time → two underlying calls.
+      expect(calls.getRevenue).toBe(2);
+    }),
+  );
 });
 
 // =============================================================================
@@ -242,110 +275,132 @@ describe("buildSeriesResolver cache", () => {
 // =============================================================================
 
 describe("derived metrics", () => {
-  it("ARR maps MRR x 12 over the series", async () => {
-    const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 100), point(TS1, 0)] });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/arr"));
-    expect(result).toEqual([point(TS0, 1200), point(TS1, 0)]);
-  });
+  it.effect("ARR maps MRR x 12 over the series", () =>
+    Effect.gen(function* () {
+      const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 100), point(TS1, 0)] });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/arr"));
+      expect(result).toEqual([point(TS0, 1200), point(TS1, 0)]);
+    }),
+  );
 
-  it("churn_rate combines churned and active subscriptions per period", async () => {
-    // p0: 1 / (1 + 1) = 50; p1: 0 / (4 + 0) = 0.
-    const { accessor } = makeFakeAccessor({
-      getActiveSubscriptions: [point(TS0, 1), point(TS1, 4)],
-      getChurnedSubscriptions: [point(TS0, 1), point(TS1, 0)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/churn_rate"));
-    expect(result).toEqual([point(TS0, 50), point(TS1, 0)]);
-  });
+  it.effect("churn_rate combines churned and active subscriptions per period", () =>
+    Effect.gen(function* () {
+      // p0: 1 / (1 + 1) = 50; p1: 0 / (4 + 0) = 0.
+      const { accessor } = makeFakeAccessor({
+        getActiveSubscriptions: [point(TS0, 1), point(TS1, 4)],
+        getChurnedSubscriptions: [point(TS0, 1), point(TS1, 0)],
+      });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/churn_rate"));
+      expect(result).toEqual([point(TS0, 50), point(TS1, 0)]);
+    }),
+  );
 
-  it("retention computes active / (active + churned)", async () => {
-    // p0: 3 / (3 + 1) = 75; p1: 0 / (0 + 0) = 0 (guarded).
-    const { accessor } = makeFakeAccessor({
-      getActiveSubscriptions: [point(TS0, 3), point(TS1, 0)],
-      getChurnedSubscriptions: [point(TS0, 1), point(TS1, 0)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/retention"));
-    expect(result).toEqual([point(TS0, 75), point(TS1, 0)]);
-  });
+  it.effect("retention computes active / (active + churned)", () =>
+    Effect.gen(function* () {
+      // p0: 3 / (3 + 1) = 75; p1: 0 / (0 + 0) = 0 (guarded).
+      const { accessor } = makeFakeAccessor({
+        getActiveSubscriptions: [point(TS0, 3), point(TS1, 0)],
+        getChurnedSubscriptions: [point(TS0, 1), point(TS1, 0)],
+      });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/retention"));
+      expect(result).toEqual([point(TS0, 75), point(TS1, 0)]);
+    }),
+  );
 
-  it("ARPU divides revenue by person_count with division-by-zero handling", async () => {
-    // p0: 100 / 4 = 25; p1: persons = 0 → guarded to 0.
-    const { accessor } = makeFakeAccessor({
-      getRevenue: [point(TS0, 100), point(TS1, 80)],
-      getPersonCount: [point(TS0, 4), point(TS1, 0)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/arpu"));
-    expect(result).toEqual([point(TS0, 25), point(TS1, 0)]);
-  });
+  it.effect("ARPU divides revenue by person_count with division-by-zero handling", () =>
+    Effect.gen(function* () {
+      // p0: 100 / 4 = 25; p1: persons = 0 → guarded to 0.
+      const { accessor } = makeFakeAccessor({
+        getRevenue: [point(TS0, 100), point(TS1, 80)],
+        getPersonCount: [point(TS0, 4), point(TS1, 0)],
+      });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/arpu"));
+      expect(result).toEqual([point(TS0, 25), point(TS1, 0)]);
+    }),
+  );
 
-  it("ARPPU divides revenue by paying-person count with division-by-zero handling", async () => {
-    // p0: 100 / 2 = 50; p1: paying = 0 → guarded to 0.
-    const { accessor } = makeFakeAccessor({
-      getRevenue: [point(TS0, 100), point(TS1, 60)],
-      getPayingPersonCount: [point(TS0, 2), point(TS1, 0)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/arppu"));
-    expect(result).toEqual([point(TS0, 50), point(TS1, 0)]);
-  });
+  it.effect("ARPPU divides revenue by paying-person count with division-by-zero handling", () =>
+    Effect.gen(function* () {
+      // p0: 100 / 2 = 50; p1: paying = 0 → guarded to 0.
+      const { accessor } = makeFakeAccessor({
+        getRevenue: [point(TS0, 100), point(TS1, 60)],
+        getPayingPersonCount: [point(TS0, 2), point(TS1, 0)],
+      });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/arppu"));
+      expect(result).toEqual([point(TS0, 50), point(TS1, 0)]);
+    }),
+  );
 
-  it("MRR growth rate uses the previous-period value", async () => {
-    // first period previous = 0 & current 100 → 100; 100 → 150 = +50%.
-    const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 100), point(TS1, 150)] });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"));
-    expect(result).toEqual([point(TS0, 100), point(TS1, 50)]);
-  });
+  it.effect("MRR growth rate uses the previous-period value", () =>
+    Effect.gen(function* () {
+      // first period previous = 0 & current 100 → 100; 100 → 150 = +50%.
+      const { accessor } = makeFakeAccessor({ getMRR: [point(TS0, 100), point(TS1, 150)] });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/mrr_growth_rate"),
+      );
+      expect(result).toEqual([point(TS0, 100), point(TS1, 50)]);
+    }),
+  );
 
-  it("active-subscriber growth uses the previous-period value", async () => {
-    // first period previous = 0 & current 10 → 100; 10 → 5 = -50%.
-    const { accessor } = makeFakeAccessor({
-      getActiveSubscriptions: [point(TS0, 10), point(TS1, 5)],
-    });
-    const result = await runSeries(
-      get(buildSeriesResolver(accessor), "builtin/active_subscribers_growth"),
-    );
-    expect(result).toEqual([point(TS0, 100), point(TS1, -50)]);
-  });
+  it.effect("active-subscriber growth uses the previous-period value", () =>
+    Effect.gen(function* () {
+      // first period previous = 0 & current 10 → 100; 10 → 5 = -50%.
+      const { accessor } = makeFakeAccessor({
+        getActiveSubscriptions: [point(TS0, 10), point(TS1, 5)],
+      });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/active_subscribers_growth"),
+      );
+      expect(result).toEqual([point(TS0, 100), point(TS1, -50)]);
+    }),
+  );
 
-  it("trial conversion rate divides conversions by trials", async () => {
-    // p0: 5 conversions / 10 trials = 50; p1: trials = 0 → guarded to 0.
-    const { accessor } = makeFakeAccessor({
-      getTrials: [point(TS0, 10), point(TS1, 0)],
-      getTrialConversions: [point(TS0, 5), point(TS1, 3)],
-    });
-    const result = await runSeries(
-      get(buildSeriesResolver(accessor), "builtin/trial_conversion_rate"),
-    );
-    expect(result).toEqual([point(TS0, 50), point(TS1, 0)]);
-  });
+  it.effect("trial conversion rate divides conversions by trials", () =>
+    Effect.gen(function* () {
+      // p0: 5 conversions / 10 trials = 50; p1: trials = 0 → guarded to 0.
+      const { accessor } = makeFakeAccessor({
+        getTrials: [point(TS0, 10), point(TS1, 0)],
+        getTrialConversions: [point(TS0, 5), point(TS1, 3)],
+      });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/trial_conversion_rate"),
+      );
+      expect(result).toEqual([point(TS0, 50), point(TS1, 0)]);
+    }),
+  );
 
-  it("subscriber lifetime value divides ARPU by the churn fraction", async () => {
-    // ARPU = revenue/persons = 100/10 = 10; churn_rate = churned/(active+churned)
-    // = 5/(15+5) = 25 (percent). SLV = ARPU / (churn% / 100) = 10 / 0.25 = 40.
-    const { accessor } = makeFakeAccessor({
-      getRevenue: [point(TS0, 100)],
-      getPersonCount: [point(TS0, 10)],
-      getActiveSubscriptions: [point(TS0, 15)],
-      getChurnedSubscriptions: [point(TS0, 5)],
-    });
-    const result = await runSeries(
-      get(buildSeriesResolver(accessor), "builtin/subscriber_lifetime_value"),
-    );
-    expect(result).toEqual([point(TS0, 40)]);
-  });
+  it.effect("subscriber lifetime value divides ARPU by the churn fraction", () =>
+    Effect.gen(function* () {
+      // ARPU = revenue/persons = 100/10 = 10; churn_rate = churned/(active+churned)
+      // = 5/(15+5) = 25 (percent). SLV = ARPU / (churn% / 100) = 10 / 0.25 = 40.
+      const { accessor } = makeFakeAccessor({
+        getRevenue: [point(TS0, 100)],
+        getPersonCount: [point(TS0, 10)],
+        getActiveSubscriptions: [point(TS0, 15)],
+        getChurnedSubscriptions: [point(TS0, 5)],
+      });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/subscriber_lifetime_value"),
+      );
+      expect(result).toEqual([point(TS0, 40)]);
+    }),
+  );
 
-  it("subscriber lifetime value is 0 when churn is 0 (no division by zero)", async () => {
-    // churn_rate = 0 → SLV guarded to 0.
-    const { accessor } = makeFakeAccessor({
-      getRevenue: [point(TS0, 100)],
-      getPersonCount: [point(TS0, 10)],
-      getActiveSubscriptions: [point(TS0, 15)],
-      getChurnedSubscriptions: [point(TS0, 0)],
-    });
-    const result = await runSeries(
-      get(buildSeriesResolver(accessor), "builtin/subscriber_lifetime_value"),
-    );
-    expect(result).toEqual([point(TS0, 0)]);
-  });
+  it.effect("subscriber lifetime value is 0 when churn is 0 (no division by zero)", () =>
+    Effect.gen(function* () {
+      // churn_rate = 0 → SLV guarded to 0.
+      const { accessor } = makeFakeAccessor({
+        getRevenue: [point(TS0, 100)],
+        getPersonCount: [point(TS0, 10)],
+        getActiveSubscriptions: [point(TS0, 15)],
+        getChurnedSubscriptions: [point(TS0, 0)],
+      });
+      const result = yield* runSeries(
+        get(buildSeriesResolver(accessor), "builtin/subscriber_lifetime_value"),
+      );
+      expect(result).toEqual([point(TS0, 0)]);
+    }),
+  );
 });
 
 // =============================================================================
@@ -353,12 +408,14 @@ describe("derived metrics", () => {
 // =============================================================================
 
 describe("primitive metrics", () => {
-  it("passes a primitive insight straight through the accessor", async () => {
-    const { accessor, calls } = makeFakeAccessor({
-      getNewPersons: [point(TS0, 3), point(TS1, 7)],
-    });
-    const result = await runSeries(get(buildSeriesResolver(accessor), "builtin/new_persons"));
-    expect(result).toEqual([point(TS0, 3), point(TS1, 7)]);
-    expect(calls.getNewPersons).toBe(1);
-  });
+  it.effect("passes a primitive insight straight through the accessor", () =>
+    Effect.gen(function* () {
+      const { accessor, calls } = makeFakeAccessor({
+        getNewPersons: [point(TS0, 3), point(TS1, 7)],
+      });
+      const result = yield* runSeries(get(buildSeriesResolver(accessor), "builtin/new_persons"));
+      expect(result).toEqual([point(TS0, 3), point(TS1, 7)]);
+      expect(calls.getNewPersons).toBe(1);
+    }),
+  );
 });

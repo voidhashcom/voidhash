@@ -12,9 +12,15 @@ export {
 // expects (see `rawEcdsaSignatureToDer`).
 
 import { Effect, Option } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
 import { importPKCS8 } from "jose";
 import { JwtCreationError } from "../errors/index.ts";
-import { bytesToBase64, rawEcdsaSignatureToDer, utf8ToBytes } from "../internal/bytes.ts";
+import {
+  bytesToArrayBuffer,
+  bytesToBase64,
+  rawEcdsaSignatureToDer,
+  utf8ToBytes,
+} from "../internal/bytes.ts";
 
 /**
  * Special separator character used in V1 promotional offer signatures.
@@ -32,6 +38,12 @@ export interface PromotionalOfferV1SignatureConfig {
   /** Your app's bundle ID. */
   bundleId: string;
 }
+
+const toSignatureError = (error: unknown): JwtCreationError =>
+  new JwtCreationError({
+    message: `Failed to create V1 promotional offer signature: ${causeMessage(error)}`,
+    cause: Option.some(error),
+  });
 
 /**
  * Creates a V1 promotional offer signature (legacy).
@@ -52,36 +64,32 @@ export const createPromotionalOfferV1Signature = (
   nonce: string,
   timestamp: number,
 ): Effect.Effect<string, JwtCreationError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const payload = [
-        config.bundleId,
-        config.keyId,
-        productId,
-        offerId,
-        appAccountToken,
-        nonce.toLowerCase(),
-        timestamp.toString(),
-      ].join(INVISIBLE_SEPARATOR);
+  Effect.gen(function* () {
+    const payload = [
+      config.bundleId,
+      config.keyId,
+      productId,
+      offerId,
+      appAccountToken,
+      nonce.toLowerCase(),
+      timestamp.toString(),
+    ].join(INVISIBLE_SEPARATOR);
 
-      const key = await importPKCS8(config.signingKey, "ES256");
-      // `as BufferSource`: TextEncoder yields `Uint8Array<ArrayBufferLike>`,
-      // which the DOM lib's `BufferSource` (ArrayBuffer-backed) rejects at the
-      // type level even though it is valid at runtime.
-      const rawSignature = new Uint8Array(
-        await globalThis.crypto.subtle.sign(
+    const key = yield* Effect.tryPromise({
+      try: () => importPKCS8(config.signingKey, "ES256"),
+      catch: toSignatureError,
+    });
+
+    const signed = yield* Effect.tryPromise({
+      try: () =>
+        globalThis.crypto.subtle.sign(
           { name: "ECDSA", hash: "SHA-256" },
           key,
-          utf8ToBytes(payload) as BufferSource,
+          bytesToArrayBuffer(utf8ToBytes(payload)),
         ),
-      );
+      catch: toSignatureError,
+    });
 
-      // Apple expects the DER `Ecdsa-Sig-Value`, not WebCrypto's raw r‖s output.
-      return bytesToBase64(rawEcdsaSignatureToDer(rawSignature));
-    },
-    catch: (error) =>
-      new JwtCreationError({
-        message: `Failed to create V1 promotional offer signature: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+    // Apple expects the DER `Ecdsa-Sig-Value`, not WebCrypto's raw r‖s output.
+    return bytesToBase64(rawEcdsaSignatureToDer(new Uint8Array(signed)));
   });

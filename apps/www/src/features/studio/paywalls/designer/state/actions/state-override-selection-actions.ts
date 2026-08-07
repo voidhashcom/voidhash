@@ -1,5 +1,4 @@
 import { commander } from "../designer-commander";
-import type { DesignerStoreState } from "../designer-store-state";
 import { setSelectedStateIdForNode } from "../utils/state-overrides";
 
 export interface SetStateOverrideSelectionParams {

@@ -3,7 +3,7 @@ import {
   type JWSTransactionDecodedPayload,
   Type as AppleTransactionType,
 } from "@voidhash/app-store-server-sdk";
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 
 import { describe, expect, it } from "../../../testing/effect-vitest.ts";
 import {
@@ -53,6 +53,8 @@ const decoded = (
     ...overrides,
   }) satisfies JWSTransactionDecodedPayload;
 
+const at = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
 const sbpEnabled = {
   appleSmallBusinessProgramEndDate: undefined,
   appleSmallBusinessProgramHasEndDate: false,
@@ -90,7 +92,7 @@ describe("resolveAppleCommissionRateBps", () => {
         type: Option.some(AppleTransactionType.AUTO_RENEWABLE_SUBSCRIPTION),
       }),
       globalConfiguration: sbpDisabled,
-      occurredAt: new Date("2026-01-01"),
+      occurredAt: at("2026-01-01"),
     });
     expect(rate).toBe(3_000);
   });
@@ -101,7 +103,7 @@ describe("resolveAppleCommissionRateBps", () => {
         type: Option.some(AppleTransactionType.NON_CONSUMABLE),
       }),
       globalConfiguration: sbpEnabled,
-      occurredAt: new Date("2026-01-01"),
+      occurredAt: at("2026-01-01"),
     });
     expect(rate).toBe(1_500);
   });
@@ -114,7 +116,7 @@ describe("resolveAppleCommissionRateBps", () => {
         type: Option.some(AppleTransactionType.AUTO_RENEWABLE_SUBSCRIPTION),
       }),
       globalConfiguration: sbpDisabled,
-      occurredAt: new Date("2026-01-01"),
+      occurredAt: at("2026-01-01"),
     });
     expect(rate).toBe(1_500);
   });
@@ -127,7 +129,7 @@ describe("resolveAppleCommissionRateBps", () => {
         type: Option.some(AppleTransactionType.CONSUMABLE),
       }),
       globalConfiguration: sbpDisabled,
-      occurredAt: new Date("2026-01-01"),
+      occurredAt: at("2026-01-01"),
     });
     expect(rate).toBe(3_000);
   });
@@ -136,7 +138,7 @@ describe("resolveAppleCommissionRateBps", () => {
     const rate = resolveAppleCommissionRateBps({
       decoded: decoded({}),
       globalConfiguration: sbpEnabled,
-      occurredAt: new Date("2024-01-01"),
+      occurredAt: at("2024-01-01"),
     });
     expect(rate).toBe(3_000);
   });
@@ -192,48 +194,48 @@ describe("estimateAppleTaxAmount", () => {
 });
 
 describe("buildAppStoreMoney", () => {
-  it("returns Option.none() when price is missing", async () => {
-    const result = await Effect.runPromise(
-      buildAppStoreMoney({
+  it.effect("returns Option.none() when price is missing", () =>
+    Effect.gen(function* () {
+      const result = yield* buildAppStoreMoney({
         decoded: decoded({ currency: Option.some("USD") }),
         fxRateService: stubFxAt(1_000_000),
         globalConfiguration: sbpDisabled,
-        occurredAt: new Date("2026-01-01"),
-      }),
-    );
-    expect(Option.isNone(result)).toBe(true);
-  });
+        occurredAt: at("2026-01-01"),
+      });
+      expect(Option.isNone(result)).toBe(true);
+    }),
+  );
 
-  it("returns Option.none() when currency is missing", async () => {
-    const result = await Effect.runPromise(
-      buildAppStoreMoney({
+  it.effect("returns Option.none() when currency is missing", () =>
+    Effect.gen(function* () {
+      const result = yield* buildAppStoreMoney({
         decoded: decoded({ price: Option.some(9_990) }),
         fxRateService: stubFxAt(1_000_000),
         globalConfiguration: sbpDisabled,
-        occurredAt: new Date("2026-01-01"),
-      }),
-    );
-    expect(Option.isNone(result)).toBe(true);
-  });
+        occurredAt: at("2026-01-01"),
+      });
+      expect(Option.isNone(result)).toBe(true);
+    }),
+  );
 
-  it("returns Option.none() when the currency is not a valid ISO 4217 code", async () => {
-    const result = await Effect.runPromise(
-      buildAppStoreMoney({
+  it.effect("returns Option.none() when the currency is not a valid ISO 4217 code", () =>
+    Effect.gen(function* () {
+      const result = yield* buildAppStoreMoney({
         decoded: decoded({
           currency: Option.some("ZZ"),
           price: Option.some(9_990),
         }),
         fxRateService: stubFxAt(1_000_000),
         globalConfiguration: sbpDisabled,
-        occurredAt: new Date("2026-01-01"),
-      }),
-    );
-    expect(Option.isNone(result)).toBe(true);
-  });
+        occurredAt: at("2026-01-01"),
+      });
+      expect(Option.isNone(result)).toBe(true);
+    }),
+  );
 
-  it("computes gross/commission/proceeds and a USD mirror for a standard USD purchase", async () => {
-    const result = await Effect.runPromise(
-      buildAppStoreMoney({
+  it.effect("computes gross/commission/proceeds and a USD mirror for a standard USD purchase", () =>
+    Effect.gen(function* () {
+      const result = yield* buildAppStoreMoney({
         decoded: decoded({
           currency: Option.some("USD"),
           originalPurchaseDate: Option.some(Date.UTC(2025, 11, 1)),
@@ -244,26 +246,26 @@ describe("buildAppStoreMoney", () => {
         }),
         fxRateService: stubFxAt(1_000_000),
         globalConfiguration: sbpDisabled,
-        occurredAt: new Date("2026-01-01"),
-      }),
-    );
-    expect(Option.isSome(result)).toBe(true);
-    const money = Option.getOrThrow(result);
-    expect(money.currency).toBe("USD");
-    expect(money.grossAmount).toBe(999);
-    // 30% commission → 300
-    expect(money.storeCommissionAmount).toBe(300);
-    expect(money.taxAmount).toBe(0);
-    expect(money.proceedsAmount).toBe(699);
-    expect(money.proceedsAfterTaxAmount).toBe(699);
-    const usd = Option.getOrThrow(money.usd);
-    expect(usd.grossAmount).toBe(999);
-    expect(usd.proceedsAmount).toBe(699);
-  });
+        occurredAt: at("2026-01-01"),
+      });
+      expect(Option.isSome(result)).toBe(true);
+      const money = Option.getOrThrow(result);
+      expect(money.currency).toBe("USD");
+      expect(money.grossAmount).toBe(999);
+      // 30% commission → 300
+      expect(money.storeCommissionAmount).toBe(300);
+      expect(money.taxAmount).toBe(0);
+      expect(money.proceedsAmount).toBe(699);
+      expect(money.proceedsAfterTaxAmount).toBe(699);
+      const usd = Option.getOrThrow(money.usd);
+      expect(usd.grossAmount).toBe(999);
+      expect(usd.proceedsAmount).toBe(699);
+    }),
+  );
 
-  it("scales every amount proportionally for a partial refund", async () => {
-    const result = await Effect.runPromise(
-      buildAppStoreMoney({
+  it.effect("scales every amount proportionally for a partial refund", () =>
+    Effect.gen(function* () {
+      const result = yield* buildAppStoreMoney({
         decoded: decoded({
           currency: Option.some("USD"),
           price: Option.some(10_000), // 1000 cents in milliunits
@@ -272,18 +274,18 @@ describe("buildAppStoreMoney", () => {
         }),
         fxRateService: stubFxAt(1_000_000),
         globalConfiguration: sbpDisabled,
-        occurredAt: new Date("2026-01-01"),
-      }),
-    );
-    const money = Option.getOrThrow(result);
-    expect(money.grossAmount).toBe(500);
-    expect(money.storeCommissionAmount).toBe(150);
-    expect(money.proceedsAmount).toBe(350);
-  });
+        occurredAt: at("2026-01-01"),
+      });
+      const money = Option.getOrThrow(result);
+      expect(money.grossAmount).toBe(500);
+      expect(money.storeCommissionAmount).toBe(150);
+      expect(money.proceedsAmount).toBe(350);
+    }),
+  );
 
-  it("zeroes commission for family-shared transactions but keeps gross", async () => {
-    const result = await Effect.runPromise(
-      buildAppStoreMoney({
+  it.effect("zeroes commission for family-shared transactions but keeps gross", () =>
+    Effect.gen(function* () {
+      const result = yield* buildAppStoreMoney({
         decoded: decoded({
           currency: Option.some("USD"),
           inAppOwnershipType: Option.some(InAppOwnershipType.FAMILY_SHARED),
@@ -293,18 +295,18 @@ describe("buildAppStoreMoney", () => {
         }),
         fxRateService: stubFxAt(1_000_000),
         globalConfiguration: sbpDisabled,
-        occurredAt: new Date("2026-01-01"),
-      }),
-    );
-    const money = Option.getOrThrow(result);
-    expect(money.grossAmount).toBe(999);
-    expect(money.storeCommissionAmount).toBe(0);
-    expect(money.proceedsAmount).toBe(999);
-  });
+        occurredAt: at("2026-01-01"),
+      });
+      const money = Option.getOrThrow(result);
+      expect(money.grossAmount).toBe(999);
+      expect(money.storeCommissionAmount).toBe(0);
+      expect(money.proceedsAmount).toBe(999);
+    }),
+  );
 
-  it("leaves the USD mirror absent when the FX service has no rate", async () => {
-    const result = await Effect.runPromise(
-      buildAppStoreMoney({
+  it.effect("leaves the USD mirror absent when the FX service has no rate", () =>
+    Effect.gen(function* () {
+      const result = yield* buildAppStoreMoney({
         decoded: decoded({
           currency: Option.some("EUR"),
           price: Option.some(9_990),
@@ -312,13 +314,13 @@ describe("buildAppStoreMoney", () => {
         }),
         fxRateService: fxNone,
         globalConfiguration: sbpDisabled,
-        occurredAt: new Date("2026-01-01"),
-      }),
-    );
-    const money = Option.getOrThrow(result);
-    expect(money.currency).toBe("EUR");
-    expect(Option.isNone(money.usd)).toBe(true);
-    // gross 999, German VAT 19%: 999 × 1900 / 11900 = 159.504 → 160 (rounded)
-    expect(money.taxAmount).toBe(160);
-  });
+        occurredAt: at("2026-01-01"),
+      });
+      const money = Option.getOrThrow(result);
+      expect(money.currency).toBe("EUR");
+      expect(Option.isNone(money.usd)).toBe(true);
+      // gross 999, German VAT 19%: 999 × 1900 / 11900 = 159.504 → 160 (rounded)
+      expect(money.taxAmount).toBe(160);
+    }),
+  );
 });

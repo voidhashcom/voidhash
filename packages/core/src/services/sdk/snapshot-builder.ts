@@ -1,3 +1,5 @@
+import { DateTime } from "effect";
+
 import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
 
 import {
@@ -151,6 +153,34 @@ const decideFromMigrationJob = (input: DecideSnapshotScopeInput): TemporaryCanon
   };
 };
 
+/** Unix epoch, used as the stable fallback for rows without a `createdAt`. */
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
+/**
+ * Collapses a history status into the narrower "current subscription" status —
+ * an expired subscription is reported as no current subscription at all.
+ */
+const toCurrentStatus = (status: SdkSubscriptionHistoryStatus): SdkSubscriptionCurrentStatus => {
+  if (status === "expired") {
+    return "none";
+  }
+  return status;
+};
+
+/** Which purchase artefact unlocked a perk grant, if any. */
+const grantSource = (perk: {
+  readonly unlockedBySubscriptionId: string | null;
+  readonly unlockedByPurchaseId: string | null;
+}): SdkPersonSnapshotGrantSource => {
+  if (perk.unlockedBySubscriptionId) {
+    return "subscription";
+  }
+  if (perk.unlockedByPurchaseId) {
+    return "purchase";
+  }
+  return "manual";
+};
+
 export const mapSubscriptionStatus = (
   subscription: DbSubscription,
   now: Date,
@@ -221,8 +251,7 @@ export const selectCurrentSubscription = (
   }
 
   const status = mapSubscriptionStatus(best, now);
-  const currentStatus: SdkSubscriptionCurrentStatus =
-    status === "expired" ? "none" : (status satisfies SdkSubscriptionCurrentStatus);
+  const currentStatus = toCurrentStatus(status);
 
   return new SdkPersonSnapshotCurrentSubscription({
     expiresAt: best.expiresAt ?? null,
@@ -259,7 +288,7 @@ export const mapPurchaseHistory = (
   productIdLookup: ReadonlyMap<string, string>,
 ): SdkPersonSnapshotPurchaseHistory =>
   new SdkPersonSnapshotPurchaseHistory({
-    createdAt: purchase.createdAt ?? new Date(0),
+    createdAt: purchase.createdAt ?? EPOCH,
     productId: productIdLookup.get(purchase.paymentProviderConfigurationProductId) ?? null,
     providerKey: purchase.providerKey,
     purchaseId: purchase.id,
@@ -267,15 +296,18 @@ export const mapPurchaseHistory = (
     type: mapPurchaseType(purchase),
   });
 
+/** Whether a stored grant is still active. */
+const grantStatus = (status: number): SdkPersonSnapshotGrantStatus => {
+  if (status === PersonUnlockedPerkStatus.Active) {
+    return "active";
+  }
+  return "expired";
+};
+
 export const mapGrant = (perk: DbPersonUnlockedPerk): SdkPersonSnapshotGrant => {
-  const isActive = perk.status === PersonUnlockedPerkStatus.Active;
-  const source: SdkPersonSnapshotGrantSource = perk.unlockedBySubscriptionId
-    ? "subscription"
-    : perk.unlockedByPurchaseId
-      ? "purchase"
-      : "manual";
+  const source = grantSource(perk);
   const sourceId = perk.unlockedBySubscriptionId ?? perk.unlockedByPurchaseId ?? null;
-  const status: SdkPersonSnapshotGrantStatus = isActive ? "active" : "expired";
+  const status = grantStatus(perk.status);
 
   return new SdkPersonSnapshotGrant({
     expiresAt: perk.expiresAt ?? null,
@@ -339,11 +371,7 @@ export const dedupeGrants = (
   rows: ReadonlyArray<DbPersonUnlockedPerk>,
 ): ReadonlyArray<DbPersonUnlockedPerk> => {
   const buildKey = (row: DbPersonUnlockedPerk) => {
-    const source = row.unlockedBySubscriptionId
-      ? "subscription"
-      : row.unlockedByPurchaseId
-        ? "purchase"
-        : "manual";
+    const source = grantSource(row);
     const sourceId = row.unlockedBySubscriptionId ?? row.unlockedByPurchaseId ?? "";
     return `${row.perkId}:${source}:${sourceId}`;
   };
@@ -389,7 +417,10 @@ export const sortGrants = (
 ): ReadonlyArray<SdkPersonSnapshotGrant> =>
   [...grants].sort((left, right) => {
     if (left.status !== right.status) {
-      return left.status === "active" ? -1 : 1;
+      if (left.status === "active") {
+        return -1;
+      }
+      return 1;
     }
     const leftExpires = left.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
     const rightExpires = right.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;

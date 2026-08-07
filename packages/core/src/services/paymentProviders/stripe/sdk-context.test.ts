@@ -18,10 +18,10 @@
  * mirrors the verifier's HMAC byte-for-byte), so unit and integration agree on
  * the wire format.
  */
-import { Effect } from "effect";
+import { Clock, Effect, Schema } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "../../../testing/effect-vitest.ts";
 
 import { StripeWebhookSignatureError } from "./errors.ts";
 import { buildStripeContext } from "./sdk-context.ts";
@@ -31,29 +31,26 @@ import { buildStripeContext } from "./sdk-context.ts";
  * than imported from the integration test-support module) so this unit test
  * carries no `@testing/*`-aliased / harness dependency under the unit runner.
  */
-const signStripePayload = async (
+const signStripePayload = (
   rawBody: string,
   secret: string,
   timestampSeconds: number,
-): Promise<string> => {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { hash: "SHA-256", name: "HMAC" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(`${timestampSeconds}.${rawBody}`),
-  );
-  const hex = Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-  return `t=${timestampSeconds},v1=${hex}`;
-};
+): Effect.Effect<string> =>
+  Effect.gen(function* () {
+    const encoder = new TextEncoder();
+    const key = yield* Effect.promise(() =>
+      crypto.subtle.importKey("raw", encoder.encode(secret), { hash: "SHA-256", name: "HMAC" }, false, [
+        "sign",
+      ]),
+    );
+    const signature = yield* Effect.promise(() =>
+      crypto.subtle.sign("HMAC", key, encoder.encode(`${timestampSeconds}.${rawBody}`)),
+    );
+    const hex = Array.from(new Uint8Array(signature))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    return `t=${timestampSeconds},v1=${hex}`;
+  });
 
 const LIVE_WEBHOOK_SECRET = "whsec_live_unitsecret";
 const TEST_WEBHOOK_SECRET = "whsec_test_unitsecret";
@@ -86,9 +83,12 @@ const makeContext = () =>
     testWebhookSecret: TEST_WEBHOOK_SECRET,
   });
 
+/** Serializes an event envelope to the exact JSON body that gets signed. */
+const encodeJsonBody = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 /** A minimal but schema-valid Stripe event envelope, JSON-stringified. */
 const eventBody = (overrides: Record<string, unknown> = {}): string =>
-  JSON.stringify({
+  encodeJsonBody({
     created: 1_700_000_000,
     data: { object: { id: "in_unit", object: "invoice" } },
     id: "evt_unit_1",
@@ -98,95 +98,99 @@ const eventBody = (overrides: Record<string, unknown> = {}): string =>
     ...overrides,
   });
 
-const nowSeconds = () => Math.floor(Date.now() / 1000);
+const nowSeconds = Effect.map(Clock.currentTimeMillis, (millis) => Math.floor(millis / 1000));
 
 describe("buildStripeContext.verifyAndDecodeEvent", () => {
-  it("verifies a LIVE-secret signature and reports mode='live'", async () => {
-    const context = makeContext();
-    const rawBody = eventBody({ id: "evt_live_ok", livemode: true });
-    const ts = nowSeconds();
-    const signatureHeader = await signStripePayload(rawBody, LIVE_WEBHOOK_SECRET, ts);
+  it.effect("verifies a LIVE-secret signature and reports mode='live'", () =>
+    Effect.gen(function* () {
+      const context = makeContext();
+      const rawBody = eventBody({ id: "evt_live_ok", livemode: true });
+      const ts = yield* nowSeconds;
+      const signatureHeader = yield* signStripePayload(rawBody, LIVE_WEBHOOK_SECRET, ts);
 
-    const result = await Effect.runPromise(
-      context.verifyAndDecodeEvent({ rawBody, signatureHeader }),
-    );
+      const result = yield* context.verifyAndDecodeEvent({ rawBody, signatureHeader });
 
-    expect(result.mode).toBe("live");
-    expect(result.event.id).toBe("evt_live_ok");
-    expect(result.event.type).toBe("invoice.paid");
-  });
+      expect(result.mode).toBe("live");
+      expect(result.event.id).toBe("evt_live_ok");
+      expect(result.event.type).toBe("invoice.paid");
+    }),
+  );
 
-  it("verifies a TEST-secret signature and reports mode='test'", async () => {
-    const context = makeContext();
-    const rawBody = eventBody({ id: "evt_test_ok" });
-    const ts = nowSeconds();
-    const signatureHeader = await signStripePayload(rawBody, TEST_WEBHOOK_SECRET, ts);
+  it.effect("verifies a TEST-secret signature and reports mode='test'", () =>
+    Effect.gen(function* () {
+      const context = makeContext();
+      const rawBody = eventBody({ id: "evt_test_ok" });
+      const ts = yield* nowSeconds;
+      const signatureHeader = yield* signStripePayload(rawBody, TEST_WEBHOOK_SECRET, ts);
 
-    const result = await Effect.runPromise(
-      context.verifyAndDecodeEvent({ rawBody, signatureHeader }),
-    );
+      const result = yield* context.verifyAndDecodeEvent({ rawBody, signatureHeader });
 
-    expect(result.mode).toBe("test");
-    expect(result.event.id).toBe("evt_test_ok");
-  });
+      expect(result.mode).toBe("test");
+      expect(result.event.id).toBe("evt_test_ok");
+    }),
+  );
 
-  it("rejects a signature produced with neither configured secret", async () => {
-    const context = makeContext();
-    const rawBody = eventBody();
-    const ts = nowSeconds();
-    // Sign with a secret that matches neither the live nor the test webhook key.
-    const signatureHeader = await signStripePayload(rawBody, "whsec_wrong", ts);
+  it.effect("rejects a signature produced with neither configured secret", () =>
+    Effect.gen(function* () {
+      const context = makeContext();
+      const rawBody = eventBody();
+      const ts = yield* nowSeconds;
+      // Sign with a secret that matches neither the live nor the test webhook key.
+      const signatureHeader = yield* signStripePayload(rawBody, "whsec_wrong", ts);
 
-    const error = await Effect.runPromise(
-      Effect.flip(context.verifyAndDecodeEvent({ rawBody, signatureHeader })),
-    );
+      const error = yield* Effect.flip(context.verifyAndDecodeEvent({ rawBody, signatureHeader }));
 
-    expect(error).toBeInstanceOf(StripeWebhookSignatureError);
-    expect(error.reason).toContain("no signature matched");
-  });
+      expect(error).toBeInstanceOf(StripeWebhookSignatureError);
+      expect(error.reason).toContain("no signature matched");
+    }),
+  );
 
-  it("rejects a stale timestamp outside the tolerance window", async () => {
-    const context = makeContext();
-    const rawBody = eventBody({ id: "evt_stale" });
-    // A valid signature, but the timestamp is well past the 300s window.
-    const staleTs = nowSeconds() - (SIGNATURE_TOLERANCE_SECONDS + 10_000);
-    const signatureHeader = await signStripePayload(rawBody, LIVE_WEBHOOK_SECRET, staleTs);
+  it.effect("rejects a stale timestamp outside the tolerance window", () =>
+    Effect.gen(function* () {
+      const context = makeContext();
+      const rawBody = eventBody({ id: "evt_stale" });
+      // A valid signature, but the timestamp is well past the 300s window.
+      const staleTs = (yield* nowSeconds) - (SIGNATURE_TOLERANCE_SECONDS + 10_000);
+      const signatureHeader = yield* signStripePayload(rawBody, LIVE_WEBHOOK_SECRET, staleTs);
 
-    const error = await Effect.runPromise(
-      Effect.flip(context.verifyAndDecodeEvent({ rawBody, signatureHeader })),
-    );
+      const error = yield* Effect.flip(context.verifyAndDecodeEvent({ rawBody, signatureHeader }));
 
-    expect(error).toBeInstanceOf(StripeWebhookSignatureError);
-    expect(error.reason).toContain("tolerance");
-  });
+      expect(error).toBeInstanceOf(StripeWebhookSignatureError);
+      expect(error.reason).toContain("tolerance");
+    }),
+  );
 
-  it("accepts the SAME stale-but-signed payload when skipTimestampTolerance is set", async () => {
-    const context = makeContext();
-    const rawBody = eventBody({ id: "evt_stale_skip", livemode: true });
-    const staleTs = nowSeconds() - (SIGNATURE_TOLERANCE_SECONDS + 10_000);
-    const signatureHeader = await signStripePayload(rawBody, LIVE_WEBHOOK_SECRET, staleTs);
+  it.effect("accepts the SAME stale-but-signed payload when skipTimestampTolerance is set", () =>
+    Effect.gen(function* () {
+      const context = makeContext();
+      const rawBody = eventBody({ id: "evt_stale_skip", livemode: true });
+      const staleTs = (yield* nowSeconds) - (SIGNATURE_TOLERANCE_SECONDS + 10_000);
+      const signatureHeader = yield* signStripePayload(rawBody, LIVE_WEBHOOK_SECRET, staleTs);
 
-    // Same stale payload that was rejected above; skipping the freshness window
-    // (the replay path) still checks the HMAC, so it verifies and decodes.
-    const result = await Effect.runPromise(
-      context.verifyAndDecodeEvent({ rawBody, signatureHeader, skipTimestampTolerance: true }),
-    );
+      // Same stale payload that was rejected above; skipping the freshness window
+      // (the replay path) still checks the HMAC, so it verifies and decodes.
+      const result = yield* context.verifyAndDecodeEvent({
+        rawBody,
+        signatureHeader,
+        skipTimestampTolerance: true,
+      });
 
-    expect(result.mode).toBe("live");
-    expect(result.event.id).toBe("evt_stale_skip");
-  });
+      expect(result.mode).toBe("live");
+      expect(result.event.id).toBe("evt_stale_skip");
+    }),
+  );
 
-  it("rejects a header with no v1 signature component", async () => {
-    const context = makeContext();
-    const rawBody = eventBody();
-    // A `t=` with no `v1=` — the verifier requires at least one v1 signature.
-    const signatureHeader = `t=${nowSeconds()}`;
+  it.effect("rejects a header with no v1 signature component", () =>
+    Effect.gen(function* () {
+      const context = makeContext();
+      const rawBody = eventBody();
+      // A `t=` with no `v1=` — the verifier requires at least one v1 signature.
+      const signatureHeader = `t=${yield* nowSeconds}`;
 
-    const error = await Effect.runPromise(
-      Effect.flip(context.verifyAndDecodeEvent({ rawBody, signatureHeader })),
-    );
+      const error = yield* Effect.flip(context.verifyAndDecodeEvent({ rawBody, signatureHeader }));
 
-    expect(error).toBeInstanceOf(StripeWebhookSignatureError);
-    expect(error.reason).toContain("missing t/v1");
-  });
+      expect(error).toBeInstanceOf(StripeWebhookSignatureError);
+      expect(error.reason).toContain("missing t/v1");
+    }),
+  );
 });

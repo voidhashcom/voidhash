@@ -63,7 +63,9 @@ const dispatchInbound = (raw: unknown): void => {
     console.warn("[voidhash-paywall] ignoring unparseable inbound bridge message", raw);
     return;
   }
-  for (const listener of [...inboundListeners]) {
+  // Iterate a snapshot so a listener that unsubscribes during dispatch cannot
+  // perturb the in-flight iteration.
+  for (const listener of Array.from(inboundListeners)) {
     listener(envelope);
   }
 };

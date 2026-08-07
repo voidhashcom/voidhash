@@ -1,3 +1,4 @@
+import { DateTime } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -6,6 +7,8 @@ import {
   PersonIdentityKind,
   PersonProfile,
 } from "../../../src/domain/person/Person.ts";
+
+const at = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
 
 /**
  * Builds a fresh {@link PersonIdentity} per call so no test shares mutable
@@ -53,30 +56,30 @@ describe("PersonIdentity.compareForPrimary", () => {
   });
 
   it("orders same-kind identities by newest updatedAt first", () => {
-    const newer = identity({ distinctId: "did_a", updatedAt: new Date("2026-01-02T00:00:00Z") });
-    const older = identity({ distinctId: "did_b", updatedAt: new Date("2026-01-01T00:00:00Z") });
+    const newer = identity({ distinctId: "did_a", updatedAt: at("2026-01-02T00:00:00Z") });
+    const older = identity({ distinctId: "did_b", updatedAt: at("2026-01-01T00:00:00Z") });
     expect(PersonIdentity.compareForPrimary(newer, older)).toBeLessThan(0);
     expect(PersonIdentity.compareForPrimary(older, newer)).toBeGreaterThan(0);
   });
 
   it("falls back to newest createdAt first when kind and updatedAt are equal", () => {
-    const sharedUpdatedAt = new Date("2026-01-05T00:00:00Z");
+    const sharedUpdatedAt = at("2026-01-05T00:00:00Z");
     const newer = identity({
       distinctId: "did_a",
       updatedAt: sharedUpdatedAt,
-      createdAt: new Date("2026-01-02T00:00:00Z"),
+      createdAt: at("2026-01-02T00:00:00Z"),
     });
     const older = identity({
       distinctId: "did_b",
       updatedAt: sharedUpdatedAt,
-      createdAt: new Date("2026-01-01T00:00:00Z"),
+      createdAt: at("2026-01-01T00:00:00Z"),
     });
     expect(PersonIdentity.compareForPrimary(newer, older)).toBeLessThan(0);
     expect(PersonIdentity.compareForPrimary(older, newer)).toBeGreaterThan(0);
   });
 
   it("uses a lexicographic distinctId tie-breaker when kind/updatedAt/createdAt all match", () => {
-    const sharedAt = new Date("2026-01-05T00:00:00Z");
+    const sharedAt = at("2026-01-05T00:00:00Z");
     const a = identity({ distinctId: "aaa", updatedAt: sharedAt, createdAt: sharedAt });
     const b = identity({ distinctId: "bbb", updatedAt: sharedAt, createdAt: sharedAt });
     // "aaa".localeCompare("bbb") < 0, so `a` sorts first deterministically.
@@ -86,7 +89,7 @@ describe("PersonIdentity.compareForPrimary", () => {
   });
 
   it("treats null timestamps as epoch (0) so a dated identity outranks an undated one", () => {
-    const dated = identity({ distinctId: "did_a", updatedAt: new Date("2026-01-01T00:00:00Z") });
+    const dated = identity({ distinctId: "did_a", updatedAt: at("2026-01-01T00:00:00Z") });
     const undated = identity({ distinctId: "did_b", updatedAt: null });
     expect(PersonIdentity.compareForPrimary(dated, undated)).toBeLessThan(0);
     expect(PersonIdentity.compareForPrimary(undated, dated)).toBeGreaterThan(0);
@@ -95,7 +98,7 @@ describe("PersonIdentity.compareForPrimary", () => {
 
 describe("Person.isArchived", () => {
   it("returns true when archivedAt is a date", () => {
-    expect(person({ archivedAt: new Date("2026-01-01T00:00:00Z") }).isArchived()).toBe(true);
+    expect(person({ archivedAt: at("2026-01-01T00:00:00Z") }).isArchived()).toBe(true);
   });
 
   it("returns false when archivedAt is null", () => {
@@ -144,29 +147,29 @@ describe("Person.primaryIdentity", () => {
     const newer = identity({
       id: "pi_newer",
       distinctId: "did_newer",
-      updatedAt: new Date("2026-02-01T00:00:00Z"),
+      updatedAt: at("2026-02-01T00:00:00Z"),
     });
     const older = identity({
       id: "pi_older",
       distinctId: "did_older",
-      updatedAt: new Date("2026-01-01T00:00:00Z"),
+      updatedAt: at("2026-01-01T00:00:00Z"),
     });
     expect(person({ identities: [older, newer] }).primaryIdentity()?.id).toBe("pi_newer");
   });
 
   it("falls back to createdAt ordering when updatedAt is equal", () => {
-    const sharedUpdatedAt = new Date("2026-03-01T00:00:00Z");
+    const sharedUpdatedAt = at("2026-03-01T00:00:00Z");
     const newer = identity({
       id: "pi_newer",
       distinctId: "did_newer",
       updatedAt: sharedUpdatedAt,
-      createdAt: new Date("2026-02-01T00:00:00Z"),
+      createdAt: at("2026-02-01T00:00:00Z"),
     });
     const older = identity({
       id: "pi_older",
       distinctId: "did_older",
       updatedAt: sharedUpdatedAt,
-      createdAt: new Date("2026-01-01T00:00:00Z"),
+      createdAt: at("2026-01-01T00:00:00Z"),
     });
     expect(person({ identities: [older, newer] }).primaryIdentity()?.id).toBe("pi_newer");
   });
@@ -202,8 +205,8 @@ describe("Person.toProfile", () => {
   });
 
   it("preserves the person fields (email, name, archivedAt, createdAt, mergedIntoPersonId)", () => {
-    const createdAt = new Date("2026-01-01T00:00:00Z");
-    const archivedAt = new Date("2026-02-01T00:00:00Z");
+    const createdAt = at("2026-01-01T00:00:00Z");
+    const archivedAt = at("2026-02-01T00:00:00Z");
     const profile = person({
       email: "person@example.com",
       name: "Ada Lovelace",

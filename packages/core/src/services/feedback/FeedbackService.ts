@@ -1,13 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { Db, voidhashFeedback } from "@voidhash/db";
-import {
-  FeedbackSentimentLabels,
-  type FeedbackSentimentValue,
-  FeedbackStatus,
-  FeedbackTopicLabels,
-  type FeedbackTopicValue,
-} from "@voidhash/lib";
+import { FeedbackSentimentLabels, FeedbackStatus, FeedbackTopicLabels } from "@voidhash/lib";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { generateId } from "../../utils/generate-id.ts";
@@ -49,6 +43,28 @@ export class FeedbackService extends Context.Service<FeedbackService, FeedbackSe
 ) {}
 
 /**
+ * Human label for a topic. The topic arrives as a free string on the wire, so
+ * the lookup is widened to a string index and falls back to the raw value.
+ */
+const topicLabelFor = (topic: string): string => {
+  const labels: Record<string, string> = FeedbackTopicLabels;
+  return labels[topic] ?? topic;
+};
+
+/** Human label for an ordinal sentiment, or `null` when absent/unknown. */
+const sentimentLabelFor = (sentiment: number | null): string | null => {
+  if (sentiment == null) return null;
+  const labels: Record<number, string> = FeedbackSentimentLabels;
+  return labels[sentiment] ?? null;
+};
+
+/** Truncates a nullable free-form client field to its column limit. */
+const truncate = (value: string | null, limit: number): string | null => {
+  if (!value) return null;
+  return value.slice(0, limit);
+};
+
+/**
  * Builds the Slack Block Kit payload for one feedback item. Exported for unit
  * testing; the context block only includes the org/project/page/sentiment lines
  * that are actually present.
@@ -63,15 +79,12 @@ export const buildSlackMessage = (params: {
   readonly projectName: string | null;
   readonly pathname: string | null;
 }) => {
-  const contextLines = [
-    `*From:* ${params.userName} (${params.userEmail})`,
-    params.organizationName ? `*Organization:* ${params.organizationName}` : null,
-    params.projectName ? `*Project:* ${params.projectName}` : null,
-    params.pathname ? `*Page:* \`${params.pathname}\`` : null,
-    params.sentimentLabel ? `*Sentiment:* ${params.sentimentLabel}` : null,
-  ]
-    .filter((line): line is string => line !== null)
-    .join("\n");
+  const lines = [`*From:* ${params.userName} (${params.userEmail})`];
+  if (params.organizationName) lines.push(`*Organization:* ${params.organizationName}`);
+  if (params.projectName) lines.push(`*Project:* ${params.projectName}`);
+  if (params.pathname) lines.push(`*Page:* \`${params.pathname}\``);
+  if (params.sentimentLabel) lines.push(`*Sentiment:* ${params.sentimentLabel}`);
+  const contextLines = lines.join("\n");
 
   const blocks = [
     {
@@ -103,16 +116,23 @@ const make = Effect.gen(function* () {
       const user = session.user;
       yield* Effect.annotateCurrentSpan("voidhash.user.id", user.id);
 
-      const project = input.projectId
-        ? (session.projects.find((p) => p.id === input.projectId) ?? null)
-        : null;
+      const findProject = () => {
+        if (!input.projectId) return null;
+        return session.projects.find((p) => p.id === input.projectId) ?? null;
+      };
+      const project = findProject();
       // A project determines its organization. This prevents a user who belongs
       // to multiple tenants from persisting a mismatched org/project snapshot.
-      const organization = project
-        ? (session.organizations.find((o) => o.id === project.organizationId) ?? null)
-        : input.organizationId
-          ? (session.organizations.find((o) => o.id === input.organizationId) ?? null)
-          : null;
+      const findOrganization = () => {
+        if (project) {
+          return session.organizations.find((o) => o.id === project.organizationId) ?? null;
+        }
+        if (input.organizationId) {
+          return session.organizations.find((o) => o.id === input.organizationId) ?? null;
+        }
+        return null;
+      };
+      const organization = findOrganization();
 
       const id = generateId("voidhashFeedback");
       yield* db.insert(voidhashFeedback).values({
@@ -133,15 +153,12 @@ const make = Effect.gen(function* () {
         projectName: project?.name ?? null,
         // Truncate free-form client fields to their column limits so an
         // unusually long value can never fail the insert (and lose the feedback).
-        pathname: input.pathname ? input.pathname.slice(0, 1024) : null,
-        userAgent: input.userAgent ? input.userAgent.slice(0, 512) : null,
+        pathname: truncate(input.pathname, 1024),
+        userAgent: truncate(input.userAgent, 512),
       });
 
-      const topicLabel = FeedbackTopicLabels[input.topic as FeedbackTopicValue] ?? input.topic;
-      const sentimentLabel =
-        input.sentiment != null
-          ? (FeedbackSentimentLabels[input.sentiment as FeedbackSentimentValue] ?? null)
-          : null;
+      const topicLabel = topicLabelFor(input.topic);
+      const sentimentLabel = sentimentLabelFor(input.sentiment);
       const { blocks, text } = buildSlackMessage({
         topicLabel,
         sentimentLabel,

@@ -1,3 +1,5 @@
+import { constant } from "@voidhash/lib/lang";
+
 import type { MigrationSet } from "../live.ts";
 
 import migration0001 from "../migrations/0001_create_analytics_events.ts";
@@ -23,10 +25,10 @@ export const analyticsEventsMigrations: MigrationSet = {
   tableName: "analytics_migrations",
 };
 
-export const analyticsEventsMigrationRef = {
+export const analyticsEventsMigrationRef = constant({
   name: "analyticsEvents",
   tableName: analyticsEventsMigrations.tableName,
   version: analyticsEventsMigrations.migrations.reduce((max, [id]) => Math.max(max, id), -1),
-} as const;
+});
 
 export type MigrationSetRef = typeof analyticsEventsMigrationRef;

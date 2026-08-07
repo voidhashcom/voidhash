@@ -1,3 +1,6 @@
+import { stringOr } from "@voidhash/lib/lang";
+import { Effect } from "effect";
+
 import type { AgentUiFilePart } from "./agent-ui";
 
 /** Image types the server accepts (kept in sync with the server-side allow-list). */
@@ -53,23 +56,29 @@ export const isTextFile = (file: File): boolean =>
   file.type.startsWith("text/") ||
   /\.(ts|tsx|js|jsx|json|md|css|html|txt|yml|yaml|toml)$/i.test(file.name);
 
-/** Read a file as a `data:` URL (base64, prefix kept — the server strips it). */
-export const readAsDataUrl = (file: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
+/**
+ * Bridges a `FileReader` read into an Effect. `start` picks the read mode; the
+ * reader always resolves through `onloadend`/`onerror`, so exactly one of the
+ * two resumes the callback.
+ */
+const readBlob = (
+  file: Blob,
+  start: (reader: FileReader, blob: Blob) => void,
+): Effect.Effect<string, Error> =>
+  Effect.callback<string, Error>((resume) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsDataURL(file);
+    reader.onloadend = () => resume(Effect.succeed(stringOr(reader.result, "")));
+    reader.onerror = () => resume(Effect.fail(reader.error ?? new Error("Failed to read file")));
+    start(reader, file);
   });
 
+/** Read a file as a `data:` URL (base64, prefix kept — the server strips it). */
+export const readAsDataUrl = (file: Blob): Effect.Effect<string, Error> =>
+  readBlob(file, (reader, blob) => reader.readAsDataURL(blob));
+
 /** Read a file as UTF-8 text. */
-export const readAsText = (file: Blob): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsText(file);
-  });
+export const readAsText = (file: Blob): Effect.Effect<string, Error> =>
+  readBlob(file, (reader, blob) => reader.readAsText(blob));
 
 /** Short human-readable byte count (e.g. "1.2 MB"). */
 export function formatBytes(bytes: number): string {
