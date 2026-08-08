@@ -22,7 +22,8 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "vp dev --config vite.config.ts",
+    "dev": "portless mimic-admin.voidhash --app-port 3003 pnpm run dev:app",
+    "dev:app": "vp dev --config vite.config.ts",
     "build": "vp build --config vite.config.ts",
     "preview": "vp preview --config vite.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"

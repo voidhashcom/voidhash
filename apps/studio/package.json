@@ -17,7 +17,8 @@
     }
   },
   "scripts": {
-    "dev": "vp dev",
+    "dev": "portless studio.voidhash --app-port 4830 pnpm run dev:app",
+    "dev:app": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
     "typecheck": "tsgo --noEmit"

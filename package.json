@@ -36,7 +36,9 @@
   "type": "module",
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo  dev",
+    "dev": "node scripts/check-dev-runtime.mjs && portless prune && node scripts/check-dev-ports.mjs && turbo dev dev:server",
+    "dev:doctor": "portless doctor",
+    "dev:status": "portless list",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "vp check --fix",
     "lint": "vp lint",
@@ -68,12 +70,12 @@
   "dependencies": {
     "@effect/language-service": "catalog:",
     "@effect/platform-node": "catalog:",
-    "effect": "catalog:",
     "@types/node": "^24.0.12",
     "@typescript/native-preview": "7.0.0-dev.20260210.1",
     "bumpp": "^10.3.2",
     "cross-env": "^7.0.3",
     "drizzle-kit": "1.0.0-rc.4",
+    "effect": "catalog:",
     "simple-git-hooks": "^2.13.1",
     "taze": "^0.18.0",
     "tinyglobby": "^0.2.15",
@@ -84,6 +86,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260302.1",
     "dotenv-cli": "^8.0.0",
     "oxlint-plugin-effect": "^0.6.0",
+    "portless": "0.15.5",
     "tslib": "2.8.1",
     "tsx": "^4.19.3",
     "vite-plus": "catalog:"
@@ -91,6 +94,9 @@
   "resolutions": {
     "react": "19.1.0",
     "react-dom": "19.1.0"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "packageManager": "pnpm@11.1.3"
 }

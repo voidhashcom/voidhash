@@ -13,6 +13,9 @@ import { voidhashPaywallsPlugin } from "./virtual-paywalls-plugin";
  */
 export const STUDIO_ROOT = fileURLToPath(new URL("../..", import.meta.url)).replace(/[/\\]$/, "");
 
+/** Fixed port used by both standalone and CLI-launched Studio dev servers. */
+export const STUDIO_DEV_PORT = 4830;
+
 export interface StudioViteConfigOptions {
   /** The user's project root (folder containing `.voidhash`). */
   projectRoot: string;
@@ -36,7 +39,7 @@ export interface StudioViteConfigOptions {
 export const createStudioViteConfig = ({
   projectRoot,
   studioRoot = STUDIO_ROOT,
-  port,
+  port = STUDIO_DEV_PORT,
 }: StudioViteConfigOptions): InlineConfig => ({
   configFile: false,
   root: studioRoot,
@@ -48,7 +51,9 @@ export const createStudioViteConfig = ({
     include: ["react", "react-dom", "react-dom/client"],
   },
   server: {
+    host: "127.0.0.1",
     port,
+    strictPort: true,
     fs: { allow: [studioRoot, projectRoot] },
   },
 });

@@ -86,7 +86,7 @@ function DocumentPage() {
 		"read",
 	);
 	const [tokenExpiry, setTokenExpiry] = useState("");
-	const [tokenOrigins, setTokenOrigins] = useState("http://localhost:3003");
+	const [tokenOrigins, setTokenOrigins] = useState("https://mimic-admin.voidhash.localhost");
 	const [generatedAuth, setGeneratedAuth] = useState<{
 		token: string;
 		url: string;

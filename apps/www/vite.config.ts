@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import * as sourceConfig from "./src/features/source.config.ts";
 
 const devPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
-const devHost = process.env.HOST ?? true;
+const devHost = process.env.HOST ?? "127.0.0.1";
 const appRootPath = fileURLToPath(new URL(".", import.meta.url));
 const appSrcPath = fileURLToPath(new URL("./src", import.meta.url));
 const workspacePath = fileURLToPath(new URL("../..", import.meta.url));
@@ -27,6 +27,7 @@ const fontSourcePaths = ["@fontsource-variable/geist", "@fontsource-variable/gei
 const bundleServerDependencies = process.env.VOIDHASH_SELFHOST_BUNDLE === "true";
 
 const localDevOrigins = [
+  "https://voidhash.localhost",
   `http://localhost:${devPort}`,
   `https://localhost:${devPort}`,
   `http://127.0.0.1:${devPort}`,
@@ -159,6 +160,7 @@ export default defineConfig(() => ({
     },
     host: devHost,
     port: devPort,
+    strictPort: true,
   },
   ssr: bundleServerDependencies ? { noExternal: true } : undefined,
 }));

@@ -5,7 +5,8 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
+    "dev": "portless voidhash --app-port 3000 pnpm run dev:app",
+    "dev:app": "node scripts/dev.mjs",
     "build": "pnpm run generate:docs && vp build --configLoader runner",
     "preview": "vp preview",
     "typecheck": "pnpm run generate:docs && tsc --noEmit",

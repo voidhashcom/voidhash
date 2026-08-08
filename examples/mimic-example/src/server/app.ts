@@ -12,7 +12,9 @@ const COLLECTION_NAME = "todos";
 const DOCUMENT_ID = "kanban-board";
 
 const makeSdk = Effect.gen(function* () {
-  const url = yield* Config.string("HOST_URL").pipe(Config.withDefault("http://localhost:5001"));
+  const url = yield* Config.string("HOST_URL").pipe(
+    Config.withDefault("https://mimic.voidhash.localhost"),
+  );
   const username = yield* Config.string("HOST_USERNAME").pipe(Config.withDefault("root"));
   const password = yield* Config.string("HOST_PASSWORD").pipe(Config.withDefault("password"));
 
@@ -90,6 +92,7 @@ const startup = Effect.gen(function* () {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CORS_ORIGINS: ReadonlyArray<string> = [
+  "https://mimic-example.voidhash.localhost",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:4173",

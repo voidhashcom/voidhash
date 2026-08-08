@@ -49,6 +49,8 @@ const positiveInt = (value: string | undefined, fallback: number): number => {
 };
 
 const DEFAULT_CORS_ORIGINS = constant([
+  "https://mimic-admin.voidhash.localhost",
+  "https://mimic-example.voidhash.localhost",
   "http://localhost:5173",
   "http://localhost:4173",
   "http://localhost:4460",

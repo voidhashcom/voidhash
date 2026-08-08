@@ -2,14 +2,14 @@ import { causeMessage } from "@voidhash/lib/lang";
 import { Data, Effect } from "effect";
 import { createServer, type ViteDevServer } from "vite";
 
-import { createStudioViteConfig } from "./config";
+import { createStudioViteConfig, STUDIO_DEV_PORT } from "./config";
 
-export { createStudioViteConfig, STUDIO_ROOT } from "./config";
+export { createStudioViteConfig, STUDIO_DEV_PORT, STUDIO_ROOT } from "./config";
 
 export interface StartStudioOptions {
   /** The user's project root (folder containing `.voidhash`). */
   projectRoot: string;
-  /** Preferred port; Vite picks the next free port if taken. Defaults to 4830. */
+  /** Dev server port. Defaults to 4830 and fails if the port is unavailable. */
   port?: number;
 }
 
@@ -24,8 +24,6 @@ export interface StudioHandle {
   readonly server: ViteDevServer;
 }
 
-const DEFAULT_PORT = 4830;
-
 /** Raised when the Studio Vite dev server cannot be created or bound. */
 export class StudioStartError extends Data.TaggedError("StudioStartError")<{
   readonly message: string;
@@ -37,7 +35,7 @@ export class StudioStartError extends Data.TaggedError("StudioStartError")<{
  */
 export const startStudio = ({
   projectRoot,
-  port = DEFAULT_PORT,
+  port = STUDIO_DEV_PORT,
 }: StartStudioOptions): Effect.Effect<StudioHandle, StudioStartError> =>
   Effect.gen(function* () {
     const server = yield* Effect.tryPromise({

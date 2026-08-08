@@ -32,7 +32,7 @@ function connectLabel(isLoading: boolean): string {
 
 function LoginPage() {
   const navigate = useNavigate();
-  const [serverUrl, setServerUrl] = useState("http://localhost:5001");
+  const [serverUrl, setServerUrl] = useState("https://mimic.voidhash.localhost");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -97,7 +97,7 @@ function LoginPage() {
                 id="serverUrl"
                 value={serverUrl}
                 onChange={(e) => setServerUrl(e.target.value)}
-                placeholder="http://localhost:5001"
+                placeholder="https://mimic.voidhash.localhost"
               />
             </div>
             <div className="grid gap-2">
