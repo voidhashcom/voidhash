@@ -1,3 +1,4 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- test helper reads fixture files synchronously from disk so specs can use plain values; FileSystem would force every fixture read into an Effect.
 import fs from "node:fs";
 import { Effect, Option, Schema } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
@@ -51,6 +52,7 @@ const unwrapDeep = (value: unknown): any => {
 export const unwrapOptionsDeep = <T>(value: T): T => unwrapDeep(value);
 
 /** Ephemeral ES256 signing key used only by this test process. */
+// oxlint-disable-next-line effect/noAsyncFunction -- module-level await: the ephemeral ES256 key must be a plain value at import time because specs reference it from synchronous positions.
 export const TEST_SIGNING_KEY = await generateKeyPair("ES256", { extractable: true }).then(
   ({ privateKey }) => exportPKCS8(privateKey),
 );

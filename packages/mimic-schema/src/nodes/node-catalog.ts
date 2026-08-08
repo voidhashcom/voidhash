@@ -69,6 +69,7 @@ export function isStatefulNodeType(type: string): type is StatefulEditableNodeTy
   return STATEFUL_NODE_TYPES.some((known) => known === type);
 }
 
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: these accept unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value. Narrowing to `string` would silently accept anything at call sites.
 export function canBeChildOf(childType: string | NodeType, parentType: string | NodeType): boolean {
   if (!isNodeType(childType) || !isNodeType(parentType)) {
     return false;
@@ -76,6 +77,7 @@ export function canBeChildOf(childType: string | NodeType, parentType: string | 
   return ALLOWED_CHILDREN_BY_NODE_TYPE[parentType].includes(childType);
 }
 
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: this accepts unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value.
 export function canHaveChildren(type: string | NodeType | null | undefined): boolean {
   return type != null && isNodeType(type) && ALLOWED_CHILDREN_BY_NODE_TYPE[type].length > 0;
 }
@@ -87,6 +89,7 @@ export function canHaveChildren(type: string | NodeType | null | undefined): boo
  * qualify at the type level only — actions must additionally gate on the
  * component manifest's `slot` flag.
  */
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: this accepts unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value.
 export function canCreateLayoutChildren(type: string | NodeType | null | undefined): boolean {
   return type === "screen" || type === "view" || type === "scrollView" || type === "component";
 }

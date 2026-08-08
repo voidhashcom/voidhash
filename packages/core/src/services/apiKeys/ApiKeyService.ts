@@ -286,6 +286,7 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
           yield* Effect.annotateCurrentSpan("voidhash.api_key.prefix", input.prefix);
 
         const { rawKey, ...userApiKey } = yield* generateUserApiKeyFn(input.prefix);
+        // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (only Node/Browser/Bun, none Workers-safe), and this service runs on workerd.
         const apiKeyId = crypto.randomUUID();
         const now = yield* DateTime.nowAsDate;
         yield* db.insert(apikey).values({

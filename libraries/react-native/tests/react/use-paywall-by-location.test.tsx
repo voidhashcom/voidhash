@@ -53,6 +53,7 @@ function createPresenterMock() {
 }
 
 describe("usePaywallByLocation bridge coordinator", () => {
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- vitest module-mock reset: `vi.clearAllMocks` plus the per-test default return values operate on hoisted `vi.mock` factories, which live outside any Effect scope; effect-bun-test scoped tests cannot reach them.
   beforeEach(() => {
     __internal_resetPaywallByLocationCachesForTests();
     vi.clearAllMocks();

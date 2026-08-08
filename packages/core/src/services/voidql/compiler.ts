@@ -1,3 +1,15 @@
+/*
+ * This module is the VoidQL resolve-and-print pass: a single recursive walk over the
+ * AST where `throw` IS the control flow. Every one of the ~32 throw sites aborts the
+ * walk with a typed compile error (VoidQlUnsupportedError / VoidQlSchemaError /
+ * VoidQlUnknownFieldError / VoidQlPiiError / VoidQlSyntaxError) from deep inside a
+ * mutually-recursive printer whose methods return `SqlPiece[]`/`string`, not Effects.
+ * `compile.ts` is the single Effect boundary for this stage and converts these throws
+ * into the typed `VoidQlCompileError` union (see `isVoidQlCompileError`); threading
+ * Effect through the printer instead would surface those typed compile errors as
+ * opaque defects and rewrite the whole pass.
+ */
+// oxlint-disable effect/noThrowStatement -- throw is the deliberate control flow of this pure printer; compile.ts is the single Effect boundary that converts these typed compile errors (see block comment above).
 /**
  * The VoidQL resolve-and-print pass — stages ③–⑤ of the VM (§12).
  *

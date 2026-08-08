@@ -299,6 +299,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             // inferred requirement would otherwise escape into the worker's
             // fetch handler; pin it to a concrete `Effect` so the outer
             // `catchTags` matches the underlying tags and `R` stays `never`.
+            // oxlint-disable-next-line effect/noAs -- see the comment above: `satisfies` cannot narrow `R` back to `never`, and the pin is exactly what keeps the payment services from escaping into the worker's fetch handler.
             yield* sdkService.submitPurchaseTransaction(
               mapSdkTransactionSubmission(payload, clientBundleId),
             ) as Effect.Effect<

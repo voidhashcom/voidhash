@@ -52,6 +52,7 @@ export const PanelHostServicesProvider = PanelHostServicesContext.Provider;
 export function usePanelHostServices(): PanelHostServices {
   const services = useContext(PanelHostServicesContext);
   if (!services) {
+    // oxlint-disable-next-line effect/noThrowStatement -- React context guard as documented above: a built-in panel definition rendered outside its host provider is a programming error, and a hook cannot return a failure channel.
     throw new Error(
       "usePanelHostServices must be used inside a PanelHostServicesProvider (built-in panel host)",
     );

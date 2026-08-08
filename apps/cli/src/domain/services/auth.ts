@@ -4,6 +4,7 @@ import { Console, Data, Effect, Layer, Option, PubSub, Context } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { ChildProcess } from "effect/unstable/process";
 import { customAlphabet } from "nanoid";
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the created server value is handed to the `@effect/platform-node` HTTP adapter, which requires a real `node:http` Server instance.
 import { createServer } from "node:http";
 
 import { CONFIG_FILE_NAME } from "../../constants";

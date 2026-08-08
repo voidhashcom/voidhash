@@ -78,6 +78,7 @@ export const encryptSecret = (
 ): Effect.Effect<string, SecretKeyError> =>
   Effect.gen(function* () {
     const key = yield* importKey(rawKey, "encrypt");
+    // oxlint-disable-next-line effect/noGlobals -- WebCrypto by design (see module header: no Node crypto, so this runs unchanged on Cloudflare Workers); Effect v4's Crypto service ships no platform-neutral layer, only Node/Browser/Bun ones.
     const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
     const ciphertext = yield* Effect.tryPromise({
       try: () =>

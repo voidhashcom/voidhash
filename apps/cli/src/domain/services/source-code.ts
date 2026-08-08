@@ -248,6 +248,7 @@ const make = Effect.gen(function* effect() {
 
       const absolutePath = path.resolve(existingPath);
       const { unregister } = yield* safeRegister();
+      // oxlint-disable-next-line effect/noDynamicImports -- loads the user's `voidhash.config` from a path only known at runtime; a static import cannot name a caller-supplied absolute path.
       const required = require(absolutePath);
       unregister();
       const content = required.default ?? required;

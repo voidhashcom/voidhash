@@ -187,6 +187,7 @@ describe("panel-sandbox-driver", () => {
   test("a factory throw → panel/error{init}", () => {
     const { driver, posted } = setup({
       factory: () => {
+        // oxlint-disable-next-line effect/noThrowStatement -- the throw IS the fixture: this test asserts the driver turns a throwing panel factory into a `panel/error{init}` message.
         throw new Error("load failed");
       },
     });

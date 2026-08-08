@@ -85,6 +85,7 @@ const completeHandshake = (sessionId: string): void => {
   emit({ protocol: PANEL_SANDBOX_PROTOCOL, type: "panel/ready", sessionId });
 };
 
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- restores vitest mocks/fake timers and removes the iframes the sandbox host appended to the jsdom document; both are owned by the vitest lifecycle, not an Effect scope.
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();

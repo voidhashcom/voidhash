@@ -22,6 +22,7 @@ export const PersonDetailPage = () => {
   );
 
   if (!project) {
+    // oxlint-disable-next-line effect/noThrowStatement -- React render-path guard: throwing is how a component hands control to the route error boundary, and a render function is not an Effect.
     throw new Error("Project not found");
   }
 

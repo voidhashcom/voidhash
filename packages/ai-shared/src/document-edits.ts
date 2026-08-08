@@ -853,6 +853,7 @@ function describeValue(value: unknown): string {
   if (typeof value === "string") return toJsonText(value);
   if (Array.isArray(value)) return "an array";
   if (typeof value === "object") return "an object";
+  // oxlint-disable-next-line typescript/no-base-to-string -- every object-typed case (null, arrays, objects) has already returned above, so only primitives reach here; the rule cannot see that narrowing off `unknown`. Adding a JSON.stringify branch would change the error-message text these edits are asserted on.
   return String(value);
 }
 

@@ -228,6 +228,7 @@ const makeApiRequest = (options: ApiRequestOptions) =>
 
     const response = yield* Effect.tryPromise({
       try: () =>
+        // oxlint-disable-next-line effect/noGlobals -- deliberate raw fetch so this module runs on Cloudflare Workers without pulling in an HttpClient dependency.
         fetch(url, {
           method: options.method,
           headers,

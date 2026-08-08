@@ -119,6 +119,7 @@ export const createExchangeRateApiFxRateFetcher = (config: {
     fetchLatestUsdRates: () =>
       Effect.gen(function* () {
         const response = yield* tryMaybePromise(
+          // oxlint-disable-next-line effect/noGlobals -- deliberate raw fetch so this module runs on Cloudflare Workers without pulling in an HttpClient dependency.
           () => fetch(url, { headers: { Accept: "application/json" } }),
           fetchFailure,
         );

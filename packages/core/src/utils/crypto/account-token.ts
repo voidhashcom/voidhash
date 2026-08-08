@@ -79,6 +79,7 @@ export const uuidV5 = (namespaceUuid: string, name: string): Effect.Effect<strin
     inputBytes.set(namespaceBytes, 0);
     inputBytes.set(nameBytes, namespaceBytes.length);
     const digest = new Uint8Array(
+      // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (only Node/Browser/Bun, none Workers-safe), and this UUIDv5 helper must run on workerd.
       yield* Effect.promise(() => crypto.subtle.digest("SHA-1", input)),
     );
     const uuidBytes = digest.slice(0, 16);

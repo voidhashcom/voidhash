@@ -1,3 +1,9 @@
+// This module is the self-host deployment's synchronous `process.env` adapter: every
+// export is a plain function that reads environment variables and returns a concrete
+// config record. Its results are consumed from synchronous call sites — including the
+// pre-runtime bootstrap path that builds the layers — so there is no Effect runtime in
+// scope in which a `Config` provider could be used.
+// oxlint-disable effect/noGlobals -- synchronous process.env adapter; callers read these config records from synchronous positions before any Effect runtime exists.
 import type { DbConfig } from "@voidhash/db/db";
 import type { SmtpMailerConfig } from "@voidhash/platform-selfhost/Mailer";
 import type { S3ObjectStoreConfig } from "@voidhash/platform-selfhost/ObjectStore";
@@ -13,6 +19,7 @@ const positiveIntegerFromEnv = (name: string, fallback: number): number => {
   if (!value) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
+    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous env parser returning a plain `number`; making it fail in Effect would force every synchronous config call site in this module into an Effect.
     throw new Error(`${name} must be a positive integer`);
   }
   return parsed;
@@ -23,6 +30,7 @@ const optionalBooleanFromEnv = (name: string): boolean | undefined => {
   if (!value) return undefined;
   if (value === "true") return true;
   if (value === "false") return false;
+  // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous env parser returning `boolean | undefined`; making it fail in Effect would force every synchronous config call site in this module into an Effect.
   throw new Error(`${name} must be true or false`);
 };
 
@@ -42,6 +50,7 @@ export type SelfhostMode = "local-evaluation" | "production";
 const readSelfhostMode = (): SelfhostMode => {
   const mode = process.env.SELFHOST_MODE?.trim();
   if (mode === "local-evaluation" || mode === "production") return mode;
+  // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous env reader with a plain `SelfhostMode` return type; callers read it from synchronous positions on the pre-runtime bootstrap path, so a tagged Effect failure has nowhere to go.
   throw new Error("SELFHOST_MODE must be explicitly set to local-evaluation or production");
 };
 
@@ -84,6 +93,7 @@ export const validateSelfhostSecurityConfig = (): SelfhostMode => {
   }
 
   if (unsafeSettings.length > 0) {
+    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous self-host bootstrap guard: this runs from the process entrypoint before any Effect runtime exists, and a throw is the only way to abort the boot with a readable message.
     throw new Error(
       `Production self-host security validation failed for: ${unsafeSettings.join(", ")}`,
     );

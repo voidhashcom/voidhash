@@ -120,6 +120,7 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
     // deps at layer-build time, but the inferred `R`/`E` may still carry a
     // residual the public shape models as `never`. The deps are ambient at call
     // time (the service runs inside the deployed Worker).
+    // oxlint-disable-next-line effect/noAs -- boundary cast described in the comment above: the residual R/E left by the engine is ambient at call time inside the deployed Worker, and satisfies is not an assertion so it cannot erase it.
     return {
       acceptRtdnNotification: (input: {
         readonly paymentProviderConfigurationId: string;

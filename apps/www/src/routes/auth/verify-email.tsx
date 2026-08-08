@@ -11,6 +11,7 @@ import { authScreens } from "@/features/auth/adapter/ui-adapter";
  */
 export const Route = createFileRoute("/auth/verify-email")({
   beforeLoad: () => {
+    // oxlint-disable-next-line effect/noThrowStatement -- `throw redirect(...)` is TanStack Router's control-flow contract for route guards; the router catches the thrown redirect, so it cannot be modelled as a tagged error.
     if (authScreens.verifyEmail === null) throw redirect({ to: "/auth/login" });
   },
   component: ScreenPage,

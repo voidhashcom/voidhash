@@ -55,6 +55,7 @@ const FALLBACK_OPTIONS: ts.CompilerOptions = {
 
 const formatHost: ts.FormatDiagnosticsHost = {
   getCanonicalFileName: (fileName) => fileName,
+  // oxlint-disable-next-line typescript/unbound-method -- ts.sys is the TypeScript compiler's own host singleton: its members are standalone functions that never read `this`, and the compiler API contract is to hand them over by reference.
   getCurrentDirectory: ts.sys.getCurrentDirectory,
   getNewLine: () => ts.sys.newLine,
 };
@@ -82,12 +83,14 @@ const loadCompilerOptions = (
 > =>
   Effect.gen(function* loadCompilerOptions() {
     const configPath = yield* attempt(() =>
+      // oxlint-disable-next-line typescript/unbound-method -- ts.findConfigFile takes ts.sys.fileExists as a callback; the ts.sys members are `this`-free functions on the compiler's host singleton and are meant to be passed by reference.
       ts.findConfigFile(projectRoot, ts.sys.fileExists, "tsconfig.json"),
     );
     if (!configPath) {
       return { configPath: undefined, options: { ...FALLBACK_OPTIONS } };
     }
 
+    // oxlint-disable-next-line typescript/unbound-method -- ts.readConfigFile takes ts.sys.readFile as a callback; the ts.sys members are `this`-free functions on the compiler's host singleton and are meant to be passed by reference.
     const read = yield* attempt(() => ts.readConfigFile(configPath, ts.sys.readFile));
     if (read.error) {
       return yield* new PaywallTypecheckError({

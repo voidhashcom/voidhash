@@ -39,6 +39,7 @@ const runWithAdapter = <A>(effect: Effect.Effect<A, unknown, PaymentAdapter>) =>
   Effect.runPromise(effect.pipe(Effect.provide(GooglePlayAdapter)));
 
 describe("GooglePlayAdapter", () => {
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- vitest module-mock reset: `vi.clearAllMocks` plus the per-test default return values operate on hoisted `vi.mock` factories, which live outside any Effect scope; effect-bun-test scoped tests cannot reach them.
   beforeEach(() => {
     vi.clearAllMocks();
     googleBilling.acknowledgePurchase.mockResolvedValue({ message: "OK", responseCode: 0 });

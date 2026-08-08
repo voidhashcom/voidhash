@@ -1,3 +1,4 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- integration test boots the real Node HTTP server the agent WebSocket adapter attaches to.
 import { createServer, type Server } from "node:http";
 
 import {
@@ -284,6 +285,7 @@ describe("installAgentNodeWebSocketServer", () => {
             `ws://127.0.0.1:${port}/api/agent/sessions/agent_1/ws?organizationId=org_1&projectId=project_1&surface=designer`,
             { headers: { authorization: "Bearer probe-token" } },
           );
+          // oxlint-disable-next-line typescript/no-base-to-string -- `data` is the ws RawData union (Buffer | ArrayBuffer | Buffer[]); every frame this server sends is UTF-8 JSON, and Buffer.toString() is the documented way to read it.
           socket.on("message", (data) => frames.push(decodeFrame(data.toString())));
           yield* Effect.callback<void, AgentNodeTestError>((resume) => {
             socket.once("open", () => resume(Effect.void));

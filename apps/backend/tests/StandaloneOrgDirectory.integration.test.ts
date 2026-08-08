@@ -24,6 +24,7 @@ const withServices = <A, E>(effect: Effect.Effect<A, E, Db | OrgDirectoryPort>) 
   );
 
 describe("local organization directory", () => {
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- deletes the shared fixture rows once after the whole suite; the rows outlive every individual test's Effect scope, so acquireRelease cannot own them.
   afterAll(() =>
     withServices(
       Effect.gen(function* () {

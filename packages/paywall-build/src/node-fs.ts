@@ -1,3 +1,4 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- Node-only BuildFs adapter, exported solely from the @voidhash/paywall-build/node subpath so node:fs never lands in a browser/workerd bundle (see NodeFs docs below); FileSystem would make the synchronous BuildFs interface unimplementable.
 import {
   existsSync,
   mkdirSync,
@@ -8,6 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- same Node-only BuildFs adapter: path joining happens inside synchronous BuildFs methods that have no Effect context to obtain the Path service from.
 import { dirname as nodeDirname, join, posix } from "node:path";
 import type { BuildFileEntry, BuildFs } from "./fs.ts";
 
@@ -29,6 +31,7 @@ export class NodeFs implements BuildFs {
     // Absolute POSIX build paths map to <root>/<path-without-leading-slash>.
     const rel = absPath.replace(/^\/+/, "");
     if (rel.split("/").includes("..")) {
+      // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- BuildFs is a synchronous interface (read returns a string, not an Effect), so the path-traversal guard has no error channel other than throw.
       throw new Error(`NodeFs: path traversal is not allowed: ${absPath}`);
     }
     return join(this.root, ...rel.split("/"));

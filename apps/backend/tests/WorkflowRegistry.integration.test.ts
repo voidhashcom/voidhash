@@ -1,3 +1,4 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the test stands up a real loopback FX server whose `.address()`/`.close()` handles are driven directly; `HttpServer` from effect/unstable/http would not hand back the `http.Server` this fixture needs.
 import { createServer } from "node:http";
 
 import { AnalyticsDispatchService } from "@voidhash/core/services/analyticsIngest/AnalyticsDispatchService";
@@ -113,9 +114,13 @@ describe("self-host workflow registry", () => {
           });
         });
 
+        // oxlint-disable-next-line effect/noGlobals -- test lifecycle fixture: `getSelfhostRuntimeConfig()` below reads the FX endpoint synchronously from the real environment, so the loopback server's port has to be staged in process.env and restored in cleanup; a Config layer would not reach that synchronous read.
         const originalFxBaseUrl = process.env.EXCHANGE_RATE_API_BASE_URL;
+        // oxlint-disable-next-line effect/noGlobals -- test lifecycle fixture: original value captured so cleanup can restore the real environment.
         const originalFxApiKey = process.env.EXCHANGE_RATE_API_KEY;
+        // oxlint-disable-next-line effect/noGlobals -- test lifecycle fixture: points the synchronous selfhost config read at the loopback FX server started above.
         process.env.EXCHANGE_RATE_API_BASE_URL = `http://127.0.0.1:${address.port}/fx`;
+        // oxlint-disable-next-line effect/noGlobals -- test lifecycle fixture: supplies the API key the synchronous selfhost config read expects.
         process.env.EXCHANGE_RATE_API_KEY = "integration";
 
         const config = getSelfhostRuntimeConfig();
@@ -412,9 +417,13 @@ describe("self-host workflow registry", () => {
         const cleanup = Effect.gen(function* () {
           yield* cleanupApplicationRows;
           yield* cleanupWorkflowRows;
+          // oxlint-disable-next-line effect/noGlobals -- test lifecycle cleanup: restores the real environment the fixture mutated above; no Effect-scoped equivalent exists for a synchronous process.env read.
           if (originalFxBaseUrl === undefined) delete process.env.EXCHANGE_RATE_API_BASE_URL;
+          // oxlint-disable-next-line effect/noGlobals -- test lifecycle cleanup: restores the captured original FX base URL.
           else process.env.EXCHANGE_RATE_API_BASE_URL = originalFxBaseUrl;
+          // oxlint-disable-next-line effect/noGlobals -- test lifecycle cleanup: restores the real environment the fixture mutated above.
           if (originalFxApiKey === undefined) delete process.env.EXCHANGE_RATE_API_KEY;
+          // oxlint-disable-next-line effect/noGlobals -- test lifecycle cleanup: restores the captured original FX API key.
           else process.env.EXCHANGE_RATE_API_KEY = originalFxApiKey;
           yield* Effect.callback<void>((resume) => {
             server.close(() => resume(Effect.void));

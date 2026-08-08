@@ -1,3 +1,4 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the created server is handed to NodeHttpServer.layer and to the WebSocket upgrade installer, both of which require a real http.Server instance.
 import { createServer } from "node:http";
 
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
@@ -29,6 +30,7 @@ const platform = makeSelfhostPlatformLayers({
 const hostLayer = makeMimicNodeHostLive(config, platform.durableEntities);
 
 NodeRuntime.runMain(
+  // oxlint-disable-next-line effect/noAs -- see the comment at the closing `as never`: HttpRouter.toHttpEffect leaks HttpServerRequest into the program requirements even though makeHandler supplies it per request; the assertion is the upstream typing escape hatch.
   Effect.scoped(
     Effect.gen(function* () {
       const port = yield* Config.port("PORT").pipe(Config.withDefault(5001), Effect.orDie);

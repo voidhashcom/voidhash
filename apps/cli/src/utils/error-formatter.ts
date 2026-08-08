@@ -7,6 +7,7 @@ const CliErrorTypeId = Symbol.for("~effect/cli/CliError");
  * Check if debug mode is enabled via --debug flag
  */
 export const isDebugMode = (): boolean =>
+  // oxlint-disable-next-line effect/noGlobals -- synchronous argv adapter: `--debug` must be readable where the CliConfig layer is built, before the parsed flag values exist, so the effect-based `CommandExecutor`/`Config` path is not available yet.
   process.argv.includes("--debug") || process.argv.includes("-d");
 
 /**
@@ -19,6 +20,7 @@ export const isDebugMode = (): boolean =>
  * every command.
  */
 export const getActiveProfile = (): string | null => {
+  // oxlint-disable-next-line effect/noGlobals -- as documented above, the `--profile` value is read straight from argv because the parsed flag isn't available where the CliConfig layer is built.
   const argv = process.argv;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -85,12 +87,14 @@ export const withValidationErrorHandler = <A, E, R>(
               Effect.andThen(Console.error(Cause.pretty(cause))),
               Effect.andThen(Console.error("--- End Debug Trace ---\n")),
               Effect.andThen(Console.error(failure.message)),
+              // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the cause the handler just rendered.
               Effect.andThen(Effect.sync(() => process.exit(1))),
             );
           }
 
           // Normal mode: just show the user-friendly message
           return Console.error(failure.message).pipe(
+            // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the message just rendered.
             Effect.andThen(Effect.sync(() => process.exit(1))),
           );
         }
@@ -101,6 +105,7 @@ export const withValidationErrorHandler = <A, E, R>(
         return Console.error("\n--- Debug Trace ---").pipe(
           Effect.andThen(Console.error(Cause.pretty(cause))),
           Effect.andThen(Console.error("--- End Debug Trace ---\n")),
+          // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this debug-mode handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the trace just rendered.
           Effect.andThen(Effect.sync(() => process.exit(1))),
         );
       }

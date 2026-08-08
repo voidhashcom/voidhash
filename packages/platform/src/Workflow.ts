@@ -62,6 +62,7 @@ export const durableOperationName = (name: string): Effect.Effect<string> => {
   const encoded = new TextEncoder().encode(name);
   if (encoded.byteLength <= MAX_DURABLE_OPERATION_NAME_BYTES) return Effect.succeed(name);
 
+  // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (Node/Browser/Bun only, none Workers-safe); requiring one here would leak a Crypto dependency into every workflow caller. WebCrypto is available on all targets this package supports.
   return Effect.promise(() => crypto.subtle.digest("SHA-256", encoded)).pipe(
     Effect.map((buffer) => {
       const hash = Array.from(new Uint8Array(buffer), (byte) =>

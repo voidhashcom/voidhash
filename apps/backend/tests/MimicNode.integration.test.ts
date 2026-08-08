@@ -1,3 +1,4 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- integration test boots the real Node HTTP server the mimic WebSocket adapter attaches to.
 import { createServer } from "node:http";
 
 import { generateId } from "@voidhash/core/utils/generate-id";
@@ -192,6 +193,7 @@ describe("self-host mimic Node composition", () => {
                 socket.send(encodeJson({ type: "auth", token: created.auth.token })),
               );
               socket.on("message", (data) => {
+                // oxlint-disable-next-line typescript/no-base-to-string -- `data` is the ws RawData union (Buffer | ArrayBuffer | Buffer[]); every frame this server sends is UTF-8 JSON, and Buffer.toString() is the documented way to read it.
                 const message = decodeJson(data.toString());
                 received.push(message);
                 if (messageType(message) === "snapshot") resume(Effect.succeed(received));

@@ -12,6 +12,7 @@ export const Route = createFileRoute("/auth/")({
   loader: async () => {
     const user = await getSessionUser();
     if (!user) {
+      // oxlint-disable-next-line effect/noThrowStatement -- `throw redirect(...)` is TanStack Router's control-flow contract for route guards; the router catches the thrown redirect, so it cannot be modelled as a tagged error.
       throw redirect({ to: "/auth/login" });
     }
     return { user };

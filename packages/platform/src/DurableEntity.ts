@@ -11,12 +11,14 @@ export interface DurableEntitySession {
   readonly id: string;
   readonly send: (message: string | Uint8Array) => Effect.Effect<void>;
   readonly close: (code?: number, reason?: string) => Effect.Effect<void>;
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents -- the `| undefined` documents that the attachment may be absent; this is the published platform port implemented by the Cloudflare and Node adapters, so its declared shape is not rewritten under a lint pass.
   readonly getAttachment: Effect.Effect<unknown | undefined>;
   readonly setAttachment: (attachment: unknown) => Effect.Effect<void>;
 }
 
 /** Entity-local key-value storage. */
 export interface DurableEntityKeyValue {
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents -- the `| undefined` documents that a key may be absent; this is the published platform port implemented by the Cloudflare and Node adapters, so its declared shape is not rewritten under a lint pass.
   readonly get: (key: string) => Effect.Effect<unknown | undefined>;
   readonly put: (key: string, value: unknown) => Effect.Effect<void>;
   readonly delete: (key: string) => Effect.Effect<void>;

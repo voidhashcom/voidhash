@@ -94,6 +94,7 @@ const requestAccessToken = (serviceAccount: typeof serviceAccountSchema.Type) =>
 
     const response = yield* Effect.tryPromise({
       try: () =>
+        // oxlint-disable-next-line effect/noGlobals -- deliberate raw fetch so this module runs on Cloudflare Workers without pulling in an HttpClient dependency.
         fetch(tokenUri, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },

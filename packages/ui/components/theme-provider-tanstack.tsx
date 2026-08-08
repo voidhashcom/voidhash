@@ -349,6 +349,7 @@ export const script: (...args: any[]) => void = (
   if (forcedTheme) {
     updateDOM(forcedTheme);
   } else {
+    // oxlint-disable-next-line effect/noTryCatch -- `script` is stringified into a blocking inline <script> that runs before any bundle (let alone an Effect runtime) exists; the catch swallows localStorage access throwing under privacy modes. Adapted verbatim from next-themes.
     try {
       const themeName = localStorage.getItem(storageKey) || defaultTheme;
       const isSystem = enableSystem && themeName === "system";

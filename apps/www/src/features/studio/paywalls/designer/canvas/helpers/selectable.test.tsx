@@ -10,6 +10,7 @@ import type { PaywallDesignerStoreType } from "../../state/designer-store";
 import { Viewport } from "../viewport";
 import { Selectable } from "./selectable";
 
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- React Testing Library's DOM teardown: `cleanup` must run between renders on the shared jsdom document, and the panel/store harness is created by plain React renders outside any Effect scope, so there is no Scope for Effect.acquireRelease to close.
 afterEach(cleanup);
 
 /** Inserts one absolutely positioned view under the seeded screen. */

@@ -1,3 +1,12 @@
+/*
+ * This whole module is mimic-db's synchronous `process.env` configuration
+ * adapter: `getConfig()` / `getCorsAllowedOrigins()` are plain functions called
+ * from synchronous platform entry points (including the pre-runtime bootstrap
+ * path) before any Effect runtime exists, so `Config` is not reachable here.
+ * Every `process.env` read in the file is that one deliberate choice, hence a
+ * single file-scoped directive rather than eight identical line directives.
+ */
+// oxlint-disable effect/noGlobals -- synchronous process.env config adapter; callers read it from synchronous positions before any Effect runtime exists (see block comment above).
 import { constant } from "@voidhash/lib/lang";
 
 /**

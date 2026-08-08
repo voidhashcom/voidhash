@@ -138,6 +138,7 @@ export const validateAndDecodePaywallAsset = (input: {
 
 /** SHA-256 hex digest of the asset bytes (WebCrypto; available in workerd). */
 export const paywallAssetSha256Hex = (bytes: Uint8Array): Effect.Effect<string> =>
+  // oxlint-disable-next-line effect/noGlobals -- WebCrypto is used deliberately (see the doc comment above); Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel, and requiring one would leak a Crypto dependency into every caller.
   Effect.promise(() => crypto.subtle.digest("SHA-256", toArrayBuffer(bytes))).pipe(
     Effect.map((digest) =>
       Array.from(new Uint8Array(digest))

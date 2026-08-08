@@ -14,6 +14,7 @@ export const Route = createFileRoute("/auth/logout")({
     // A provider with a hosted sign-out endpoint performs its own redirect and
     // reports `null`; one that only holds a cookie hands the target back to us.
     const target = await performSignOut(returnTo);
+    // oxlint-disable-next-line effect/noThrowStatement -- `throw redirect(...)` is TanStack Router's control-flow contract for route guards; the router catches the thrown redirect, so it cannot be modelled as a tagged error.
     if (target !== null) throw redirect({ href: target });
   },
 });

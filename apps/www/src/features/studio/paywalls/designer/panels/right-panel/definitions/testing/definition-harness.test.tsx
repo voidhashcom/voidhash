@@ -17,6 +17,7 @@ import {
 } from "./definition-harness";
 
 let harness: PanelHarness | undefined;
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- React panel harness teardown; the harness mounts into the DOM outside any Effect scope, so there is no Effect.acquireRelease equivalent to attach the disposal to.
 afterEach(() => {
   harness?.dispose();
   harness = undefined;

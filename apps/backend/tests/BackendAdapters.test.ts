@@ -1,3 +1,11 @@
+/*
+ * This suite exercises the self-host configuration adapter (`src/config.ts`),
+ * which is a synchronous `process.env` reader consumed from synchronous call
+ * sites on the pre-runtime bootstrap path. Testing it means driving the real
+ * `process.env` object directly: every case rebuilds the environment, deletes
+ * or assigns individual variables, and then calls the synchronous getter.
+ */
+// oxlint-disable effect/noGlobals -- the subject under test IS the synchronous process.env config adapter; the only way to assert its behaviour is to mutate process.env from synchronous test bodies, and there is no Effect Config/ConfigProvider seam to substitute because the getters run before any Effect runtime exists.
 import { ProjectSchemaCache } from "@voidhash/core/services";
 import { Effect, Redacted } from "effect";
 import { describe, expect, it } from "vitest";

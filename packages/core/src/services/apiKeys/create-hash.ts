@@ -61,6 +61,7 @@ const base64Decode = (data: string, alphabet: string): Uint8Array => {
     }
     const value = decodeMap.get(char);
     if (value === undefined) {
+      // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- pure synchronous base64 decoder used from synchronous call sites (including hashing on the Workers request path); throw is the control flow here and the Effect boundary is the caller that wraps this decoder.
       throw new Error(`Invalid Base64 character: ${char}`);
     }
     buffer = (buffer << 6) | value;

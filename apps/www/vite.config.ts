@@ -5,6 +5,7 @@ import { paywallRuntimeBundlePlugin } from "@voidhash/paywall-renderer-preact/vi
 import mdx from "fumadocs-mdx/vite";
 import { defineConfig } from "vite";
 import { createRequire } from "node:module";
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- Vite config runs in Node at build time, outside any Effect runtime; Path would need a runtime that does not exist while the config module is evaluated.
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,6 +16,7 @@ const devHost = process.env.HOST ?? true;
 const appRootPath = fileURLToPath(new URL(".", import.meta.url));
 const appSrcPath = fileURLToPath(new URL("./src", import.meta.url));
 const workspacePath = fileURLToPath(new URL("../..", import.meta.url));
+// oxlint-disable-next-line effect/noDynamicImports -- createRequire is the only way to resolve the on-disk location of tslib and the fontsource packages for Vite aliasing; a static import yields the module, not its path.
 const require = createRequire(import.meta.url);
 const tslibPath = require.resolve("tslib/tslib.es6.mjs");
 const fontSourcePaths = ["@fontsource-variable/geist", "@fontsource-variable/geist-mono"].map(

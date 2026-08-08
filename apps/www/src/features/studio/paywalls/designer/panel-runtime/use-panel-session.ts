@@ -66,6 +66,7 @@ const createTransportForSource = (
     });
   }
   // component-panel — Phase 3 sandbox transport.
+  // oxlint-disable-next-line effect/noThrowStatement -- unreachable-branch guard in a synchronous React hook helper; the sandbox transport lands in Phase 3, and until then this must fail loudly at the call site rather than return an invalid session.
   throw new Error(
     "component-panel transport is not implemented yet (Phase 3 sandbox engine)",
   );

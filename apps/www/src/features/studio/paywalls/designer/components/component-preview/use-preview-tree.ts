@@ -26,6 +26,7 @@ export const componentPreviewTreeOptions = (options: ComponentPreviewTreeOptions
     queryFn: async (): Promise<PreviewTree> => {
       const response = await fetch(`${options.artifactBaseUrl}/previews/${options.state}.json`);
       if (!response.ok) {
+        // oxlint-disable-next-line effect/noThrowStatement -- TanStack Query `queryFn` contract: a rejected promise IS the failure channel, and per the jsdoc above consumers render one placeholder for fetch and decode failures alike. A tagged error resolved as a value would be cached as success.
         throw new Error(
           `Failed to fetch preview tree ${options.contentHash}/${options.state}: ${response.status}`,
         );

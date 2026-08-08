@@ -77,13 +77,16 @@ const HEX_DIGITS = "0123456789abcdef";
  */
 const webCrypto = Crypto.make({
   digest: (algorithm, data) =>
+    // oxlint-disable-next-line effect/noGlobals -- this module IS the browser platform boundary: Effect ships no browser Crypto layer, so the WebCrypto global is what backs Crypto.make here (see the webCrypto doc comment above).
     Effect.promise(() => crypto.subtle.digest(algorithm, new Uint8Array(data))).pipe(
       Effect.map((buffer) => new Uint8Array(buffer)),
     ),
+  // oxlint-disable-next-line effect/noGlobals -- this module IS the browser platform boundary: Effect ships no browser Crypto layer, and the identifiers this feeds must stay unpredictable, so the ambient Random service is deliberately not used (see the webCrypto doc comment above).
   randomBytes: (size) => crypto.getRandomValues(new Uint8Array(size)),
 });
 
 const hasWebCrypto = () =>
+  // oxlint-disable-next-line effect/noGlobals -- feature detection for the WebCrypto tier: it must probe the ambient global directly, before any Crypto layer can be chosen.
   typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function";
 
 /**

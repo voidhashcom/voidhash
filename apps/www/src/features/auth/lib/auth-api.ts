@@ -21,6 +21,7 @@ const postAuthJson = async <TResponse>(
   const payload = (await response.json()) as AuthApiErrorPayload & TResponse;
 
   if (!response.ok) {
+    // oxlint-disable-next-line effect/noThrowStatement -- plain async browser helper called from React event handlers and TanStack loaders; a rejected promise is the failure channel those callers understand, and no Effect runtime is in scope.
     throw new Error(payload.error ?? fallbackError);
   }
 

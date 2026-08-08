@@ -20,6 +20,7 @@ import { PanelTreeView } from "./host-renderer";
 import { decodePanelTree, type PanelTree } from "./schema";
 import type { PanelDispatchEvent, PanelSnapshot, PanelTransport } from "./transport";
 
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- React Testing Library `cleanup()` unmounts the shared jsdom container between tests; it is owned by the RTL/vitest lifecycle, not by an Effect scope.
 afterEach(() => cleanup());
 
 /** Renders under the minimal app providers the designer kit components expect. */

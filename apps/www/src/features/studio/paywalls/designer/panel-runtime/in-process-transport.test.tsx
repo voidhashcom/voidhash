@@ -9,6 +9,7 @@ import { afterEach, describe, expect, test } from "vite-plus/test";
 import { PanelTreeView } from "./host-renderer";
 import { createInProcessTransport } from "./in-process-transport";
 
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- React Testing Library `cleanup()` unmounts the shared jsdom container between tests; it is owned by the RTL/vitest lifecycle, not by an Effect scope.
 afterEach(() => cleanup());
 
 const EMPTY_INPUTS: PanelSessionInputs = {

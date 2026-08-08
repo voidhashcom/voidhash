@@ -1,3 +1,4 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the test stands up a real `node:http` server to receive live requests; an `HttpServer` layer would not exercise the same wire path.
 import { createServer, type Server } from "node:http";
 
 import { constant } from "@voidhash/lib/lang";

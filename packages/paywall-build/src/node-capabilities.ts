@@ -156,6 +156,7 @@ function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
         try: () => {
           // eslint-disable-next-line no-new-func -- controlled evaluation of already
           // compiled, typechecked component code; the require shim is the only ambient.
+          // oxlint-disable-next-line typescript/no-implied-eval -- same reason as the eslint directive above and the jsdoc on `nodeExtractManifest`: this evaluation shape IS the Node extractManifest capability, and any raised failure is captured as a `runtime`-phase diagnostic.
           const factory = new Function("require", "module", "exports", compiledCode);
           factory(requireShim, moduleObj, moduleObj.exports);
         },

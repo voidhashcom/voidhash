@@ -529,6 +529,7 @@ describe("createExchangeRateApiFxRateFetcher", () => {
 
   // Each test installs one of the two stubs as its first statement, and both
   // reset `lastUrl`, so no `beforeEach` is needed to clear it.
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- `vi.unstubAllGlobals()` restores vitest's global stubs, which live in the vitest lifecycle and have no Effect-scoped equivalent.
   afterEach(() => {
     vi.unstubAllGlobals();
   });

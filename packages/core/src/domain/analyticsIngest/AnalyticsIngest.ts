@@ -333,6 +333,7 @@ export const buildDlqEvent = ({
     ...optional,
     failedAt: DateTime.formatIso(DateTime.nowUnsafe()),
     failureClass,
+    // oxlint-disable-next-line effect/noGlobals -- Effect v4's Crypto is a Context.Service with no platform-neutral layer in the `effect` barrel (Node/Browser/Bun only, none Workers-safe); buildDlqEvent is a synchronous pure builder, so requiring Crypto would force every DLQ call site into an Effect.
     failureId: crypto.randomUUID(),
     failureMessage,
     headers,
@@ -626,6 +627,7 @@ export const toFlag = (value: boolean): 0 | 1 => {
 export const toClickhouseTimestamp = (value: string): string => {
   const parsed = DateTime.make(value);
   if (Option.isNone(parsed)) {
+    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous ClickHouse row mapper used inside plain object literals (see the row builders below); it has no Effect channel, and an unparseable timestamp at this point is a defect.
     throw new Error(`Invalid timestamp: ${value}`);
   }
   const date = DateTime.toDateUtc(parsed.value);

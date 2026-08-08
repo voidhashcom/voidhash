@@ -48,6 +48,7 @@ import { ComponentPanelHost, resolvePanelCode } from "./component-panel-host";
 // the same renderer the slot mounts (and to exercise the seam directly below).
 void PanelTreeView;
 
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- React Testing Library's DOM teardown: `cleanup` must run between renders on the shared jsdom document, and the panel/store harness is created by plain React renders outside any Effect scope, so there is no Scope for Effect.acquireRelease to close.
 afterEach(() => cleanup());
 
 // =============================================================================

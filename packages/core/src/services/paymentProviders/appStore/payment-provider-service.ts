@@ -214,6 +214,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
     // TODO(app-store): replace this cast by providing the worker-resource layer
     // to AppStorePaymentProviderServiceLive at the backend root once the
     // request-graph wiring for `Cloudflare.Worker` is finalized.
+    // oxlint-disable-next-line effect/noAs -- boundary cast described in the comment above: the residual Cloudflare.Worker requirement is ambient at call time inside the deployed Worker, and satisfies is not an assertion so it cannot erase it.
     return {
       acceptServerNotification: appStoreWebhookHandlerService.acceptServerNotification,
       processSdkTransaction,

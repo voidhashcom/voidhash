@@ -24,6 +24,7 @@ const stubEnvironment = (environment: Record<string, string>) => {
   }
 };
 
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- `vi.unstubAllEnvs()` restores vitest's process-env stubs, which live in the vitest lifecycle and have no Effect-scoped equivalent.
 afterEach(() => {
   vi.unstubAllEnvs();
 });

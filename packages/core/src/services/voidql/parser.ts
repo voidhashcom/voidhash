@@ -1,3 +1,13 @@
+/*
+ * Recursive-descent parsers use exceptions as their non-local exit: a bad token
+ * anywhere in the descent must unwind straight out of the nested `parse*`
+ * frames. Throwing is therefore the control flow of this entire module, not an
+ * escape hatch at a few sites. `compile.ts` is the single Effect boundary that
+ * converts these tagged VoidQL errors back into typed failures; routing them
+ * through Effect here would surface every compile error as an opaque defect and
+ * force each of the ~60 mutually recursive methods to become an Effect.
+ */
+// oxlint-disable effect/noThrowStatement -- throw IS the parser's control flow (see block comment above); compile.ts is the single Effect boundary that converts it.
 /**
  * The VoidQL parser — hand-written recursive descent with a Pratt
  * (precedence-climbing) expression core. No `eval`, no Node deps; `workerd`-pure.
@@ -845,6 +855,7 @@ class Cursor {
     const when = this.parseExpr(0);
     this.expectKw("then");
     const then = this.parseExpr(0);
+    // oxlint-disable-next-line unicorn/no-thenable -- `then` is the SQL CASE ... WHEN ... THEN branch of the frozen `CaseWhen` AST node; renaming the field would change the AST contract every consumer and the compiler match on.
     return { when, then };
   }
 

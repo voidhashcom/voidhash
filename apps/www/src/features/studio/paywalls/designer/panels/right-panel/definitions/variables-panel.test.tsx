@@ -30,6 +30,7 @@ import {
 
 let harness: PanelHarness | undefined;
 const restore: (() => void)[] = [];
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- module-scoped fixture teardown: disposes the panel harness and unwinds the `watchAction` store patches between tests. Both are installed by synchronous React renders inside each `it`, outside any Effect scope, so there is no Scope for Effect.acquireRelease to attach a finalizer to.
 afterEach(() => {
   while (restore.length) restore.pop()!();
   harness?.dispose();

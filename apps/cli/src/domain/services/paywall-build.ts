@@ -319,6 +319,7 @@ const requireFromProject = <T>(
 ): Effect.Effect<T, PaywallBuildError> =>
   Effect.try({
     try: () => {
+      // oxlint-disable-next-line effect/noDynamicImports -- the specifier is resolved out of the end user's project root at runtime (require.resolve with `paths`), so it cannot be a static import in the CLI bundle.
       const loaded: T = require(require.resolve(specifier, { paths: [projectRoot] }));
       return loaded;
     },
@@ -354,6 +355,7 @@ const loadModuleDefault = (file: string): Effect.Effect<unknown, PaywallBuildErr
   Effect.try({
     try: () => {
       delete require.cache[require.resolve(file)];
+      // oxlint-disable-next-line effect/noDynamicImports -- CJS require paired with the require.cache eviction above, so a rebuilt paywall module is re-read within the same CLI process; a static import would stay cached for the process lifetime.
       const mod: { default?: unknown } = require(file);
       return mod?.default ?? mod;
     },

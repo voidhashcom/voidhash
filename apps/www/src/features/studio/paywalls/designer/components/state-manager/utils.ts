@@ -173,6 +173,7 @@ function operandToInput(operand: LocalOperand) {
   if (isVariableReference(operand)) {
     return { type: "variable-reference" as const, value: operand.value };
   }
+  // oxlint-disable-next-line effect/noThrowStatement -- unreachable exhaustiveness guard over the `LocalOperand` union, reached only if the union gains a variant. `operandToInput` is a synchronous mapper called from React event handlers throughout this module; returning an Effect would force every call site into a runtime.
   throw new Error(`Unknown operand type: ${operand.type}`);
 }
 

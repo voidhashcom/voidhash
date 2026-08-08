@@ -55,6 +55,7 @@ const extractEffectFailure = <Result, Error>(effect: Effect.Effect<Result, Error
   });
 
 describe("@voidhash/node", () => {
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- vitest global-stub cleanup: vi.unstubAllGlobals resets vitest's own module state, which has no Effect-scoped equivalent.
   afterEach(() => {
     vi.unstubAllGlobals();
   });

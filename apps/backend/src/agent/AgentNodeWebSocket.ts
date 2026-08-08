@@ -1,4 +1,6 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- Node platform adapter: it upgrades connections on the real http.Server created by the standalone entrypoint, so it needs that module's own types.
 import type { IncomingMessage, Server } from "node:http";
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the WebSocket upgrade handler receives a node:stream Duplex from the Node HTTP server; Stream/Channel cannot type that handshake argument.
 import type { Duplex } from "node:stream";
 
 import {
