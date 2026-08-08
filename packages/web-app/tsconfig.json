@@ -18,24 +18,17 @@
     "incremental": true,
     "types": ["node", "vite/client"],
     "paths": {
-      "@/*": ["../../packages/web-app/src/*"],
-      "virtual:voidhash-web/auth-browser": [
-        "../../packages/web-app/src/composition/community/auth-browser.ts"
-      ],
-      "virtual:voidhash-web/auth-server": [
-        "../../packages/web-app/src/composition/community/auth-server.ts"
-      ],
-      "virtual:voidhash-web/edition": [
-        "../../packages/web-app/src/composition/community/edition.ts"
-      ]
+      "@/*": ["./src/*"],
+      "virtual:voidhash-web/auth-browser": ["./src/composition/community/auth-browser.ts"],
+      "virtual:voidhash-web/auth-server": ["./src/composition/community/auth-server.ts"],
+      "virtual:voidhash-web/edition": ["./src/composition/community/edition.ts"]
     }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
     "src/**/*.d.ts",
-    "../../packages/web-app/src/generated.d.ts",
-    "../../packages/web-app/src/composition.d.ts"
+    "../../apps/www/src/routeTree.gen.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "src/features/studio/.cache/**", "src/features/studio/.turbo/**"]
 }

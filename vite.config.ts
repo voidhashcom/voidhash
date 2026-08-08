@@ -51,6 +51,7 @@ const reactSurfaces = [
   "apps/www/**",
   "examples/**",
   "libraries/react-native/**",
+  "packages/web-app/**",
   "packages/paywall-renderer-preact/**",
   "packages/paywall-renderer-web-core/**",
   "packages/ui/**",

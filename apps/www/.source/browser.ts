@@ -9,7 +9,7 @@ const create = browser<typeof Config, import("fumadocs-mdx/runtime/types").Inter
 }>();
 const browserCollections = {
   docs: create.doc("docs", import.meta.glob(["./**/*.{mdx,md}"], {
-    "base": "./../src/features/docs/content/docs",
+    "base": "./../../../packages/web-app/src/features/docs/content/docs",
     "query": {
       "collection": "docs"
     },
