@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PaymentProviderProductService}, run against the
  * real backend stack provisioned once by `test/_testing/globalSetup.ts` (live
- * PlanetScale DB + ClickHouse + WorkOS; only the project schema cache is an
+ * PostgreSQL; only the project schema cache is an
  * in-memory stub).
  *
  * The service maps catalog `product` rows to provider-specific product keys via

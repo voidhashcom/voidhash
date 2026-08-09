@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link ProductPerkService}, run against the real backend
  * stack provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB +
- * ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * The service owns the `(product, perk)` join-table aggregate. Each test drives
  * a public method end-to-end and verifies the *persisted* side effects, not just

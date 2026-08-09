@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PersonService}, run against the real backend
  * stack provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB
- * + ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * and PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * `PersonService` is the dashboard / admin surface for querying persons. It is
  * a *read-heavy* service: the only writes are `createPerson` (delegated to

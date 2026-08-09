@@ -63,20 +63,15 @@ jobs:
           grep -E '^[A-Z][A-Z0-9_]*=' .env >> "$GITHUB_ENV"
 
       - name: Start stateful stores
-        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics up -d clickhouse minio --wait --wait-timeout 180
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env up -d minio --wait --wait-timeout 180
 
       - name: Initialize object store
-        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics run --rm minio-init
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env run --rm minio-init
 
-      # The dev overlay publishes Postgres and the compiler, which the
-      # host-side integration tier connects to. `CLICKHOUSE_URL` stays a shell
-      # override rather than an entry in `.env`: it names the compose-internal
-      # endpoint the application dials, while every host-side tier reaches
-      # ClickHouse on the published port instead.
+      # The dev overlay publishes PostgreSQL and the compiler, which the
+      # host-side integration tier connects to.
       - name: Build and start Community Compose
-        env:
-          CLICKHOUSE_URL: http://clickhouse:8123
-        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics up --build --wait --wait-timeout 180
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env up --build --wait --wait-timeout 180
 
       - name: Reclaim image build cache
         run: docker builder prune --all --force
@@ -100,9 +95,9 @@ jobs:
       - name: Show Compose diagnostics
         if: always()
         run: |
-          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --profile analytics ps || true
-          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --profile analytics logs --no-color || true
+          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml ps || true
+          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml logs --no-color || true
 
       - name: Stop Compose
         if: always()
-        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --profile analytics down --volumes --remove-orphans
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml down --volumes --remove-orphans

@@ -7,12 +7,6 @@ export interface BackendTestConnections {
     readonly password: string;
     readonly databaseName: string;
   };
-  readonly clickhouse: {
-    readonly url: string;
-    readonly username: string;
-    readonly password: string;
-    readonly database: string;
-  };
   readonly workos: {
     readonly apiKey: string;
     readonly clientId: string;

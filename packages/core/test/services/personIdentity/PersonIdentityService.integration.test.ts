@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PersonIdentityService}, run against the real
  * backend stack provisioned once by `test/_testing/globalSetup.ts` (live
- * PlanetScale DB + ClickHouse + WorkOS; only the project schema cache is an
+ * PostgreSQL; only the project schema cache is an
  * in-memory stub).
  *
  * Both public methods (`resolveDistinctId` / `identifyDistinctId`) drive the
@@ -16,7 +16,7 @@
  *
  * Conventions:
  *  - {@link IdentityProjectionPublisher.noop} replaces the analytics-writer
- *    publisher so the tests need no ClickHouse writer plumbing; a per-test
+ *    publisher so the tests need no analytics-writer plumbing; a per-test
  *    {@link trackingWorkflowLayer} stub captures the fire-and-forget workflow
  *    dispatches so we can assert them deterministically. The full
  *    service-under-test layer is provided at the pipe level so each test's

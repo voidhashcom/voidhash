@@ -648,11 +648,10 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
 
         yield* Effect.annotateCurrentSpan("voidhash.person.id", identityResult.identity.personId);
 
-        // Project the synchronous write into ClickHouse so analytics stays
-        // consistent with the operational Postgres row. Uses the projection
-        // publisher (person/identity rows only — no synthetic analytics event,
-        // no quota impact). A ClickHouse failure must not fail the durable
-        // Postgres write, so log-and-swallow (mirrors `identifyDistinctId`).
+        // Publish the identity projection after the durable person write. The
+        // Community publisher is a no-op; hosted runtimes may maintain an
+        // analytics-side identity model. Projection failures never roll back
+        // the operational PostgreSQL write.
         yield* identityProjectionPublisher
           .publishIdentityResult({
             identity: { distinctId },
@@ -662,7 +661,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
           .pipe(
             Effect.catch((error) =>
               Effect.logError(
-                "Failed to project synchronous person-attribute write to analytics; Postgres is updated but ClickHouse will lag until a later event re-emits this person",
+                "Failed to project synchronous person-attribute write to analytics; PostgreSQL is updated and a later event may retry the projection",
                 { cause: error, distinctId, personId: identityResult.identity.personId, projectId },
               ),
             ),

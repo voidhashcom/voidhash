@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PerkService}, run against the real backend stack
  * provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB +
- * ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * Each test drives the service end-to-end and verifies the *persisted* side
  * effects rather than just the method's return value:

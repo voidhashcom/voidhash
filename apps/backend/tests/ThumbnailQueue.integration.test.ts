@@ -4,7 +4,7 @@ import { Db, sql } from "@voidhash/db";
 import { Clock, Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { makeSelfhostAnalyticsRuntimeLive } from "../src/backend/Analytics.ts";
+import { makeSelfhostPlatformLive } from "../src/backend/PlatformProfile.ts";
 import { runSelfhostPaywallThumbnailConsumer } from "../src/backend/Thumbnails.ts";
 import { getSelfhostRuntimeConfig } from "../src/config.ts";
 import {
@@ -56,7 +56,7 @@ describe("self-host thumbnail queue", () => {
             }
           }),
         ).pipe(
-          Effect.provide(makeSelfhostAnalyticsRuntimeLive(config)),
+          Effect.provide(makeSelfhostPlatformLive(config)),
           Effect.ensuring(cleanup),
         );
 

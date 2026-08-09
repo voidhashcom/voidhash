@@ -4,7 +4,7 @@ import { Db, sql } from "@voidhash/db";
 import { Clock, Context, Effect, Layer, Predicate } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { makeSelfhostAnalyticsRuntimeLive } from "../src/backend/Analytics.ts";
+import { makeSelfhostPlatformLive } from "../src/backend/PlatformProfile.ts";
 import {
   runSelfhostPushDeliveryConsumers,
   SelfhostPushDeliveryDispatchLive,
@@ -62,7 +62,7 @@ describe("self-host push-delivery queue", () => {
               yield* Effect.sleep("25 millis");
             }
             return 1;
-          }).pipe(Effect.provide(makeSelfhostAnalyticsRuntimeLive(config))),
+          }).pipe(Effect.provide(makeSelfhostPlatformLive(config))),
         );
 
         expect(remaining).toBe(0);

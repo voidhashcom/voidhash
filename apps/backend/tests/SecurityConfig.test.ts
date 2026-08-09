@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { validateSelfhostSecurityConfig } from "../src/config.ts";
 
 const validProductionEnvironment = constant({
-  CLICKHOUSE_URL: "",
   DATABASE_PASSWORD: "database-secret",
   MIMIC_PUBLIC_BASE_URL: "https://mimic.example.test",
   MIMIC_ROOT_PASSWORD: "mimic-secret",
@@ -73,16 +72,6 @@ describe("validateSelfhostSecurityConfig", () => {
     stubEnvironment(validProductionEnvironment);
     vi.stubEnv("VOIDHASH_ROOT_PASSWORD", "replace-with-a-random-password");
     expect(() => validateSelfhostSecurityConfig()).toThrow("VOIDHASH_ROOT_PASSWORD");
-  });
-
-  it("requires every enabled ClickHouse role to have a non-example password", () => {
-    stubEnvironment(validProductionEnvironment);
-    vi.stubEnv("CLICKHOUSE_URL", "http://clickhouse:8123");
-    vi.stubEnv("CLICKHOUSE_ADMIN_PASSWORD", "configured");
-    vi.stubEnv("CLICKHOUSE_PASSWORD", "configured");
-    vi.stubEnv("CLICKHOUSE_RO_PASSWORD", "configured");
-    vi.stubEnv("CLICKHOUSE_ANALYTICS_QUERY_PASSWORD", "password");
-    expect(() => validateSelfhostSecurityConfig()).toThrow("CLICKHOUSE_ANALYTICS_QUERY_PASSWORD");
   });
 
   it.each([

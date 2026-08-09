@@ -3,7 +3,6 @@ import {
   WebhookEndpointNotFoundError,
   WebhookValidationError,
 } from "@voidhash/core/domain/webhook/Webhook";
-import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import * as TestWorkflowRunner from "@voidhash/platform/TestWorkflowRunner";
 import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import {
@@ -37,30 +36,6 @@ import {
   BackendSnapshotImageRendererStubLive,
 } from "../BackendApp.ts";
 import { smokeIdsFromEmail } from "./smoke-ids.ts";
-
-// The webhook path that consumes this stub never calls ClickHouse, so a Proxy
-// that dies on any access is a safe placeholder that satisfies the requirement
-// without standing up a real client. `ClickhouseWebClient` extends the whole
-// `SqlClient` surface, so no hand-written object can inhabit it — the single
-// unsafe conversion lives here, in one narrow helper.
-const unusableStub = (message: string): any =>
-  new Proxy(
-    {},
-    {
-      get() {
-        return Effect.runSync(Effect.die(new Error(message)));
-      },
-    },
-  );
-
-const clickhouseStub: ClickhouseWebClient.ClickhouseWebClient = unusableStub(
-  "ClickhouseWebClient must not be used in this test",
-);
-
-export const TestClickhouseLive = Layer.succeed(
-  ClickhouseWebClient.ClickhouseWebClient,
-  clickhouseStub,
-);
 
 /** Recording workflow runner used by backend smoke tests. */
 export const TestWorkflowRunnerLive = Layer.succeed(WorkflowRunner, TestWorkflowRunner.make());
@@ -447,7 +422,6 @@ export const TestWebhookManagerServiceLive = Layer.effect(
 );
 
 export const TestBackendStubInfrastructureLive = Layer.mergeAll(
-  TestClickhouseLive,
   TestProjectSchemaCacheLive,
   TestOrgDirectoryLive,
   BackendMimicHostStubLive,

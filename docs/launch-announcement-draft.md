@@ -17,7 +17,8 @@ deployment systems are not part of the Community repository.
 
 The self-host composition runs the same application services as Voidhash Cloud
 through provider-neutral platform contracts. It uses Node, PostgreSQL, MinIO,
-an isolated component compiler, Chromium, SMTP, and optional ClickHouse.
+an isolated component compiler, Chromium, and SMTP. PostgreSQL also stores the
+Community analytics event log.
 Community signs in with a root account you configure in the environment and
 uses your own provider credentials. Cloud remains the zero-operations path;
 pricing is not being announced with this release.

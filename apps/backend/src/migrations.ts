@@ -2,10 +2,8 @@ import { runAppDatabaseMigrations } from "@voidhash/db/migrations";
 import { PgClusterDurableEntityLive } from "@voidhash/platform-selfhost/ClusterDurableEntity";
 import { Effect, Layer } from "effect";
 
-import { migrateSelfhostClickhouse } from "./backend/Clickhouse.ts";
 import { selfhostPlatformPostgres } from "./backend/PlatformProfile.ts";
 import {
-  getSelfhostClickhouseConfig,
   getSelfhostMigrationDatabaseConfig,
   getSelfhostPlatformDatabaseConfig,
   validateSelfhostSecurityConfig,
@@ -24,8 +22,7 @@ export interface SelfhostMigrationOptions {
 
 /**
  * Applies every migration the self-host runtime needs: the application schema,
- * the mimic document control tables, and — when analytics is configured — the
- * ClickHouse schema.
+ * the mimic document control tables, and platform persistence tables.
  */
 export const runSelfhostMigrations = (options: SelfhostMigrationOptions = {}) =>
   Effect.gen(function* () {
@@ -47,6 +44,5 @@ export const runSelfhostMigrations = (options: SelfhostMigrationOptions = {}) =>
     yield* Layer.build(
       makeMimicNodeHostLive(mimicConfig, PgClusterDurableEntityLive(platform)),
     );
-    yield* migrateSelfhostClickhouse(getSelfhostClickhouseConfig());
     yield* Effect.logInfo("Self-host database migrations are ready", { applied, skipped });
   });

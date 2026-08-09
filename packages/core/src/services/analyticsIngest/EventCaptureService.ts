@@ -1,39 +1,18 @@
-/**
- * `EventCaptureService` orchestrates the capture pipeline: validate the inbound
- * token, resolve the project + policy, enforce the request rate limit, then for
- * each event enforce the per-event quota, pick a destination route, build the
- * wire-stable {@link CapturedEventV1} envelope, and hand accepted envelopes to
- * {@link CaptureIngress}.
- *
- * `CaptureRateLimitedError` / `CaptureUnauthorizedError` are part of the public
- * HTTP contract and pass through as typed errors; every other infrastructural
- * failure is wrapped as {@link EventCaptureServiceError} at the method boundary.
- */
 import {
   CaptureRateLimitedError,
   CaptureUnauthorizedError,
   type CaptureEvent,
 } from "@voidhash/api-contracts/event-capture";
-import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
-import { constant, pick } from "@voidhash/lib/lang";
+import { and, apiKeys, captureProjectPolicies, Db, eq, projects } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
+import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { createIdGenerator } from "../../utils/generate-id.ts";
-
 import {
-  type CaptureProjectPolicy,
-  type CapturedEventV1Type,
-  defaultCaptureProjectPolicy,
-  type RouteClass,
-  type RouteDecision,
-} from "../../domain/analyticsIngest/AnalyticsIngest.ts";
-import { and, apiKeys, captureProjectPolicies, Db, eq, projects } from "@voidhash/db";
-import {
-  isReservedRevenueEventName,
-  shouldBypassQuota,
-} from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
-import { CaptureIngress } from "./CaptureIngress.ts";
-import { PolicyCounterStore } from "./PolicyCounterStore.ts";
+  analyticsEventFromCapture,
+  isCommunityCaptureEventName,
+} from "../../domain/analytics/AnalyticsEvent.ts";
+import { AnalyticsEventStore } from "../analytics/AnalyticsEventStore.ts";
 
 export class EventCaptureServiceError extends Schema.TaggedErrorClass<EventCaptureServiceError>(
   "EventCaptureServiceError",
@@ -60,40 +39,19 @@ export interface CaptureResult {
   readonly rejected: number;
 }
 
-interface ResolvedCaptureProject {
-  readonly organizationId: string;
-  readonly policy: CaptureProjectPolicy;
-  readonly projectId: string;
+export interface EventCaptureServiceShape {
+  readonly captureEvents: (
+    input: CaptureRequest,
+  ) => Effect.Effect<
+    CaptureResult,
+    EventCaptureServiceError | CaptureRateLimitedError | CaptureUnauthorizedError,
+    PlatformRuntime
+  >;
 }
-
-const parseForceRoute = (value: string | null | undefined): RouteClass | undefined => {
-  if (
-    value === "custom" ||
-    value === "dlq" ||
-    value === "historical" ||
-    value === "main" ||
-    value === "overflow"
-  ) {
-    return value;
-  }
-  return undefined;
-};
-
-/** Stable per-lane topic strings carried in the envelope's `routing.targetTopic`. */
-export const CAPTURE_TOPIC_MAIN = constant("capture.main.v1");
-export const CAPTURE_TOPIC_OVERFLOW = constant("capture.overflow.v1");
-export const CAPTURE_TOPIC_HISTORICAL = constant("capture.historical.v1");
-export const CAPTURE_TOPIC_DLQ = constant("capture.dlq.v1");
-
-/**
- * Mints the server-side capture id. Local prefix table (rather than the shared
- * core one) because the id never leaves the capture envelope.
- */
-const generateCaptureId = createIdGenerator(constant({ capture: "cap" }));
 
 const TOKEN_FORMAT = /^vh_pk_\w+$/;
 
-/** Validate and normalise (trim) an inbound publishable capture token. */
+/** Validate and normalize an inbound publishable capture token. */
 export const validateCaptureToken = (
   token: string,
 ): Effect.Effect<string, CaptureUnauthorizedError> => {
@@ -111,376 +69,114 @@ export const validateCaptureToken = (
   return Effect.succeed(normalized);
 };
 
-/** The last 4 chars of a token, used for redacted logging. */
+/** The last four token characters, safe for request diagnostics. */
 export const tokenSuffix = (token: string): string => token.slice(-4);
 
-/** Resolve the canonical event timestamp in priority order. */
-export const resolveEventTimestamp = ({
-  receivedAt,
-  sentAt,
-  timestamp,
-}: {
-  readonly sentAt?: Date;
+/** Resolve the canonical event timestamp in capture priority order. */
+export const resolveEventTimestamp = (input: {
   readonly receivedAt: Date;
+  readonly sentAt?: Date;
   readonly timestamp?: Date;
-}): Date => timestamp ?? sentAt ?? receivedAt;
+}): Date => input.timestamp ?? input.sentAt ?? input.receivedAt;
 
-/** Pick the destination lane/topic for an accepted event from policy + quota state. */
-export const selectRoute = ({
-  overQuota,
-  policy,
-}: {
-  readonly overQuota: boolean;
-  readonly policy: CaptureProjectPolicy;
-}): Effect.Effect<RouteDecision, CaptureRateLimitedError> =>
-  Effect.gen(function* () {
-    const routeClass = policy.forceRoute ?? pick(overQuota, "overflow", "main");
+const makeEventCaptureService = Effect.gen(function* () {
+  const db = yield* Db;
+  const eventStore = yield* AnalyticsEventStore;
 
-    switch (routeClass) {
-      case "main":
-        return {
-          isHistorical: false,
-          routeClass,
-          skipEnrichment: policy.skipEnrichment,
-          targetTopic: CAPTURE_TOPIC_MAIN,
-        };
-      case "dlq":
-        return {
-          isHistorical: false,
-          routeClass,
-          skipEnrichment: policy.skipEnrichment,
-          targetTopic: CAPTURE_TOPIC_DLQ,
-        };
-      case "overflow":
-        return {
-          isHistorical: false,
-          routeClass,
-          skipEnrichment: policy.skipEnrichment,
-          targetTopic: CAPTURE_TOPIC_OVERFLOW,
-        };
-      case "historical":
-        return {
-          isHistorical: true,
-          routeClass,
-          skipEnrichment: policy.skipEnrichment,
-          targetTopic: CAPTURE_TOPIC_HISTORICAL,
-        };
-      case "custom":
-        // Custom topics aren't wired in the Cloudflare-native infra; reject so the
-        // caller doesn't silently drop events on the floor.
+  const captureEvents = Effect.fn("captureEvents")(
+    function* (input: CaptureRequest) {
+      const token = yield* validateCaptureToken(input.request.token);
+      const [apiKeyRecord] = yield* db
+        .select({
+          organizationId: projects.organizationId,
+          projectId: apiKeys.projectId,
+        })
+        .from(apiKeys)
+        .innerJoin(projects, eq(projects.id, apiKeys.projectId))
+        .where(and(eq(apiKeys.isPublic, true), eq(apiKeys.key, token)))
+        .limit(1);
+
+      if (!apiKeyRecord) {
+        return yield* Effect.fail(
+          new CaptureUnauthorizedError({ code: "unauthorized", error: "invalid token" }),
+        );
+      }
+
+      const [policy] = yield* db
+        .select({ ingestEnabled: captureProjectPolicies.ingestEnabled })
+        .from(captureProjectPolicies)
+        .where(eq(captureProjectPolicies.projectId, apiKeyRecord.projectId))
+        .limit(1);
+
+      if (policy?.ingestEnabled === false) {
         return yield* Effect.fail(
           new CaptureRateLimitedError({
             code: "rate_limited",
-            error: "custom routes are not supported in this deployment",
+            error: "capture is disabled for this project",
           }),
         );
-    }
-  });
+      }
 
-/**
- * Decide whether the event should materialise a person profile.
- *
- * An explicit attribute-set (`$set`/`$set_once` via the SDK's
- * `setPersonAttributes`) is itself a reason to have a person, so the SDK stamps
- * `$process_person_profile: true` even for anonymous distinct ids. That
- * client-supplied boolean wins when present; otherwise only identified ids get a
- * person profile.
- */
-const resolveProcessPersonProfile = ({
-  clientFlag,
-  distinctId,
-}: {
-  readonly clientFlag: unknown;
-  readonly distinctId: string;
-}): boolean => {
-  if (typeof clientFlag === "boolean") return clientFlag;
-  return !distinctId.startsWith(ANONYMOUS_USER_ID_PREFIX);
-};
-
-/** Map a stored capture-policy row (or its absence) onto the effective policy. */
-const toCaptureProjectPolicy = (
-  record: typeof captureProjectPolicies.$inferSelect | undefined,
-  projectId: string,
-): CaptureProjectPolicy => {
-  if (!record) return defaultCaptureProjectPolicy(projectId);
-  return {
-    customTopic: record.customTopic ?? undefined,
-    eventsPerDay: record.eventsPerDay ?? undefined,
-    forceRoute: parseForceRoute(record.forceRoute),
-    ingestEnabled: record.ingestEnabled,
-    projectId: record.projectId,
-    requestsPerMinute: record.requestsPerMinute ?? undefined,
-    skipEnrichment: record.skipEnrichment,
-  };
-};
-
-/** Build the wire-stable {@link CapturedEventV1} envelope for an accepted event. */
-export const makeEnvelope = ({
-  event,
-  organizationId,
-  projectId,
-  receivedAt,
-  request,
-  route,
-  sentAt,
-  token,
-}: {
-  readonly event: typeof CaptureEvent.Type;
-  readonly organizationId: string;
-  readonly projectId: string;
-  readonly receivedAt: Date;
-  readonly request: {
-    readonly clientIp?: string;
-    readonly headers: Readonly<Record<string, string | undefined>>;
-    readonly path?: string;
-    readonly requestId: string;
-  };
-  readonly route: RouteDecision;
-  readonly sentAt: Date;
-  readonly token: string;
-}): CapturedEventV1Type => {
-  const timestamp = resolveEventTimestamp({ sentAt, receivedAt, timestamp: event.timestamp });
-  const properties = {
-    distinctId: event.distinct_id,
-    properties: event.properties,
-    $process_person_profile: resolveProcessPersonProfile({
-      clientFlag: event.properties.$process_person_profile,
-      distinctId: event.distinct_id,
-    }),
-  };
-  const canonicalProperties = {
-    ...properties,
-    ...(typeof request.clientIp === "string" && { $ip: request.clientIp }),
-  };
-
-  return {
-    schemaVersion: 1,
-    captureId: generateCaptureId("capture"),
-    ...(event.uuid && { clientEventId: event.uuid }),
-    ...(event.session_id && { sessionId: event.session_id }),
-    context: event.context,
-    distinctId: event.distinct_id,
-    event: event.event,
-    eventTimestamp: timestamp.toISOString(),
-    organizationId,
-    projectId,
-    properties: canonicalProperties,
-    rawPayload: {
-      context: event.context,
-      distinct_id: event.distinct_id,
-      event: event.event,
-      properties,
-      ...(event.session_id && { session_id: event.session_id }),
-      ...(sentAt && { sent_at: sentAt }),
-      ...(event.timestamp && { timestamp: event.timestamp }),
-      ...(event.uuid && { uuid: event.uuid }),
-    },
-    receivedAt: receivedAt.toISOString(),
-    request: {
-      requestId: request.requestId,
-      ...(request.path && { path: request.path }),
-      ...(request.headers["user-agent"] && { userAgent: request.headers["user-agent"] }),
-      ...(request.clientIp && { clientIp: request.clientIp }),
-    },
-    routing: route,
-    token,
-    sentAt: sentAt.toISOString(),
-  };
-};
-
-export class EventCaptureService extends Context.Service<EventCaptureService>()(
-  "EventCaptureService",
-  {
-    make: Effect.gen(function* () {
-      const policyCounterStore = yield* PolicyCounterStore;
-      const ingress = yield* CaptureIngress;
-      const db = yield* Db;
-
-      const captureEvents = Effect.fn("captureEvents")(
-        function* (input: CaptureRequest) {
-          const token = yield* validateCaptureToken(input.request.token);
-
-          // Resolve the project + policy from the publishable token: look up the
-          // public api key (joined to its project), then load the project's
-          // capture policy (falling back to defaults), or fail unauthorized.
-          const [apiKeyRecord] = yield* db
-            .select({
-              organizationId: projects.organizationId,
-              projectId: apiKeys.projectId,
-            })
-            .from(apiKeys)
-            .innerJoin(projects, eq(projects.id, apiKeys.projectId))
-            .where(and(eq(apiKeys.isPublic, true), eq(apiKeys.key, token)))
-            .limit(1);
-
-          if (!apiKeyRecord) {
-            return yield* Effect.fail(
-              new CaptureUnauthorizedError({ code: "unauthorized", error: "invalid token" }),
-            );
-          }
-
-          const [policyRecord] = yield* db
-            .select()
-            .from(captureProjectPolicies)
-            .where(eq(captureProjectPolicies.projectId, apiKeyRecord.projectId))
-            .limit(1);
-
-          const project = {
-            organizationId: apiKeyRecord.organizationId,
-            policy: toCaptureProjectPolicy(policyRecord, apiKeyRecord.projectId),
-            projectId: apiKeyRecord.projectId,
-          } satisfies ResolvedCaptureProject;
-
-          yield* Effect.annotateCurrentSpan("voidhash.request.id", input.request.requestId);
-          yield* Effect.annotateCurrentSpan("voidhash.api_key.suffix", tokenSuffix(token));
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", project.projectId);
-          if (project.organizationId)
-            yield* Effect.annotateCurrentSpan("voidhash.organization.id", project.organizationId);
-
-          if (!project.policy.ingestEnabled) {
-            return yield* Effect.fail(
-              new CaptureRateLimitedError({
-                code: "rate_limited",
-                error: "capture is disabled for this project",
-              }),
-            );
-          }
-
-          const requestLimit = yield* policyCounterStore.checkRequestLimit({
-            now: input.request.receivedAt,
-            projectId: project.projectId,
-            requestsPerMinute: project.policy.requestsPerMinute,
-          });
-          if (!requestLimit.allowed) {
-            return yield* Effect.fail(
-              new CaptureRateLimitedError({
-                code: "rate_limited",
-                error: "request rate limit exceeded",
-                ...(typeof requestLimit.retryAfterMs === "number" && {
-                  retry_after_ms: requestLimit.retryAfterMs,
-                }),
-              }),
-            );
-          }
-
-          const publishableEvents: Array<{
-            envelope: ReturnType<typeof makeEnvelope>;
-            routeClass: RouteClass;
-          }> = [];
-          let accepted = 0;
-          let rejected = 0;
-
-          for (const event of input.events) {
-            if (isReservedRevenueEventName(event.event)) {
-              rejected += 1;
-              yield* Effect.logWarning(
-                "rejected reserved revenue event from publishable-key capture",
-                {
-                  eventName: event.event,
-                  projectId: project.projectId,
-                  tokenSuffix: tokenSuffix(token),
-                },
-              );
-              continue;
-            }
-
-            const outcome = yield* Effect.result(
-              Effect.gen(function* () {
-                // The seam to exempt specific event classes from quota. When
-                // bypassed, the counter is never read and the route is never
-                // forced to overflow; SDK events consume quota by default.
-                const bypassQuota = shouldBypassQuota({
-                  eventName: event.event,
-                  trustClass: "untrusted-sdk",
-                });
-                const withinQuota =
-                  bypassQuota ||
-                  (yield* policyCounterStore
-                    .checkEventQuota({
-                      now: input.request.receivedAt,
-                      projectId: project.projectId,
-                      quota: project.policy.eventsPerDay,
-                    })
-                    .pipe(Effect.withSpan("policy.apply")));
-
-                const route = yield* selectRoute({
-                  overQuota: !withinQuota,
-                  policy: project.policy,
-                });
-
-                const envelope = makeEnvelope({
-                  event,
-                  organizationId: project.organizationId,
-                  projectId: project.projectId,
-                  receivedAt: input.request.receivedAt,
-                  request: input.request,
-                  route,
-                  sentAt: input.request.sentAt,
-                  token,
-                });
-
-                return { envelope, routeClass: route.routeClass };
-              }),
-            );
-
-            if (outcome._tag === "Failure") {
-              rejected += 1;
-              continue;
-            }
-
-            publishableEvents.push(outcome.success);
-            accepted += 1;
-          }
-
-          yield* ingress.enqueueBatch(publishableEvents);
-          yield* Effect.annotateCurrentSpan("voidhash.capture.accepted_count", accepted);
-          yield* Effect.annotateCurrentSpan("voidhash.capture.rejected_count", rejected);
-          yield* Effect.logInfo("capture request processed", {
-            accepted,
-            projectId: project.projectId,
-            rejected,
-            requestId: input.request.requestId,
-            tokenSuffix: tokenSuffix(token),
-          });
-
-          return { accepted, rejected } satisfies CaptureResult;
-        },
-        (effect) =>
-          effect.pipe(
-            Effect.withSpan("event-capture.captureEvents"),
-            Effect.catchTags({
-              EffectDrizzleQueryError: (error) =>
-                Effect.fail(
-                  new EventCaptureServiceError({
-                    cause: String(error.cause),
-                    message: "capture project lookup failed",
-                  }),
-                ),
-              PolicyStoreError: (error) =>
-                Effect.fail(
-                  new EventCaptureServiceError({
-                    cause: String(error.cause ?? error.message),
-                    message: error.message,
-                  }),
-                ),
-              CaptureIngressError: (error) =>
-                Effect.fail(
-                  new EventCaptureServiceError({
-                    cause: String(error.cause ?? error.message),
-                    message: error.message,
-                  }),
-                ),
-            }),
-          ),
+      const supported = input.events.filter((event) => isCommunityCaptureEventName(event.event));
+      const records = supported.map((event) =>
+        analyticsEventFromCapture({
+          event,
+          organizationId: apiKeyRecord.organizationId,
+          projectId: apiKeyRecord.projectId,
+          receivedAt: input.request.receivedAt,
+          requestId: input.request.requestId,
+          requestPath: input.request.path,
+          sentAt: input.request.sentAt,
+          token,
+        }),
       );
 
-      return constant({ captureEvents });
-    }),
-  },
-) {
-  static readonly layer: Layer.Layer<
-    EventCaptureService,
-    never,
-    Db | PolicyCounterStore | CaptureIngress
-  > = Layer.effect(EventCaptureService)(EventCaptureService.make);
+      yield* eventStore.insert(records);
+      const result = {
+        accepted: supported.length,
+        rejected: input.events.length - supported.length,
+      } satisfies CaptureResult;
+
+      yield* Effect.logInfo("capture request processed", {
+        ...result,
+        projectId: apiKeyRecord.projectId,
+        requestId: input.request.requestId,
+        tokenSuffix: tokenSuffix(token),
+      });
+      return result;
+    },
+    (effect) =>
+      effect.pipe(
+        Effect.withSpan("event-capture.captureEvents"),
+        Effect.catchTags({
+          AnalyticsEventStoreError: (error) =>
+            Effect.fail(
+              new EventCaptureServiceError({ cause: error.cause, message: error.message }),
+            ),
+          EffectDrizzleQueryError: (error) =>
+            Effect.fail(
+              new EventCaptureServiceError({
+                cause: String(error.cause),
+                message: "capture project lookup failed",
+              }),
+            ),
+        }),
+      ),
+  );
+
+  return constant({ captureEvents }) satisfies EventCaptureServiceShape;
+});
+
+/**
+ * Community capture implementation. It accepts only the built-in lifecycle
+ * events and inserts them synchronously into PostgreSQL. Unsupported and
+ * custom events are intentionally counted as rejected without entering a
+ * queue, workflow, identity processor, or dead-letter path.
+ */
+export class EventCaptureService extends Context.Service<
+  EventCaptureService,
+  EventCaptureServiceShape
+>()("EventCaptureService") {
+  static readonly layer: Layer.Layer<EventCaptureService, never, Db | AnalyticsEventStore> =
+    Layer.effect(EventCaptureService)(makeEventCaptureService);
 }

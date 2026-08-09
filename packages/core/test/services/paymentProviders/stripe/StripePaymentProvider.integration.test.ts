@@ -3,7 +3,7 @@
  * — `core/StripePaymentProvider`, exported from the barrel as
  * `StripePaymentProviderEngine`), run against the real backend stack
  * provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB +
- * ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * The engine is a multi-branch purchase-recording machine: every `record*`
  * method decodes the verified Stripe `data.object`, resolves the Stripe

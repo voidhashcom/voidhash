@@ -30,8 +30,8 @@ operational objective, but not a guarantee made by the Community Edition.
 ## Assets and actors
 
 Protected assets include dashboard sessions, user and project API keys, payment
-provider credentials, webhook signing secrets, tenant database rows,
-ClickHouse events, Mimic documents and document tokens, unpublished paywall
+provider credentials, webhook signing secrets, tenant database and analytics rows,
+Mimic documents and document tokens, unpublished paywall
 artifacts, object-store credentials, and compiler/container integrity.
 
 Relevant actors are anonymous internet clients, SDK clients holding a
@@ -44,7 +44,7 @@ submitting component source.
 
 1. Internet to WWW/backend HTTP and WebSocket surfaces.
 2. Authentication middleware to request-scoped `AuthSession`.
-3. Tenant-scoped services to PostgreSQL and ClickHouse adapters.
+3. Tenant-scoped services to PostgreSQL adapters.
 4. Provider webhook ingress to provider verification and idempotent ledgers.
 5. Backend to queues, workflows, object stores, SMTP, and screenshot services.
 6. Backend to the component compiler container/sidecar.
@@ -156,9 +156,8 @@ Current controls:
   project.
 - Foreign keys and unique constraints preserve project ownership and
   idempotency invariants.
-- Cloud analytics queries use dedicated least-privilege users and compiler-
-  injected project predicates. Self-host creates separate read-write,
-  read-only, and analytics-query users when ClickHouse is enabled.
+- Community analytics reads authorize the organization or project before
+  querying the portable PostgreSQL event log.
 - The private operations plane and staff authorization are absent from this
   repository and from the product backend.
 - Integration suites exercise forbidden access across API keys, paywalls,
@@ -323,15 +322,15 @@ unchanged would compromise all stored data.
 
 Before any non-local deployment, the operator must replace every example
 password, set real root credentials and a real session signing secret,
-configure HTTPS at the reverse proxy, restrict MinIO/Mailpit/ClickHouse host
+configure HTTPS at the reverse proxy, restrict MinIO and Mailpit host
 ports, configure CORS and public URLs, use real SMTP credentials, back up
 persistent volumes, and apply host/container updates.
 
 Production mode validates configuration before migrations or the application
 start. It refuses missing and known example root credentials, session signing
-secret, database, object-store, Mimic, and enabled ClickHouse credentials, and
+secret, database, object-store, and Mimic credentials, and
 requires HTTPS for every public, file, and Mimic URL. Tests cover explicit mode
-selection, every credential class, optional ClickHouse, and every URL
+selection, every credential class, and every URL
 boundary. Independent
 review must still confirm the list remains complete as new infrastructure is
 added.

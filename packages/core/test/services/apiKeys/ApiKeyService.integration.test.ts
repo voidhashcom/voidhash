@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link ApiKeyService}, run against the real backend
  * stack provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB
- * + ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * and PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * The service manages three kinds of keys, each with a distinct contract that
  * these tests exercise end-to-end and verify by reading the persisted row back:

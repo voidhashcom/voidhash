@@ -20,7 +20,6 @@ import { ProductPerkRpcsDef } from "./groups/ProductPerkRpcsDef.ts";
 import { ProductRpcsDef } from "./groups/ProductRpcsDef.ts";
 import { ProjectRpcsDef } from "./groups/ProjectRpcsDef.ts";
 import { UserRpcsDef } from "./groups/UserRpcsDef.ts";
-import { VoidQlRpcsDef } from "./groups/VoidQlRpcsDef.ts";
 import { WebhookRpcsDef } from "./groups/WebhookRpcsDef.ts";
 import { FeatureFlagRpcsDef } from "./groups/FeatureFlagRpcsDef.ts";
 import { FeedbackRpcsDef } from "./groups/FeedbackRpcsDef.ts";
@@ -50,7 +49,6 @@ export const RpcGroups = RpcGroup.make().merge(
   PaywallRpcsDef,
   PaywallWorkspaceRpcsDef,
   UserRpcsDef,
-  VoidQlRpcsDef,
   WebhookRpcsDef,
 );
 

@@ -5,8 +5,8 @@
 // Reads `.env` at the repo root (falling back to `.env.example` defaults),
 // derives host-side connection settings from the stack's values (container
 // hostnames become 127.0.0.1 plus the published port), and runs the suites
-// sequentially. Sequential matters: the suites share one Postgres and one
-// ClickHouse, and parallel runs would race on schema setup.
+// sequentially. Sequential matters because the suites share one PostgreSQL
+// database and parallel runs would race on schema setup.
 //
 // Suites read and write the deployment's application tables, but the clusters
 // they build get an isolated database of their own — see `resetPlatformDatabase`
@@ -198,7 +198,6 @@ const program = Effect.gen(function* () {
   const databaseUsername = yield* value("DATABASE_USERNAME", "voidhash");
   const databasePassword = yield* value("DATABASE_PASSWORD", "password");
   const databaseName = yield* value("DATABASE_NAME", "voidhash");
-  const clickhousePort = yield* value("CLICKHOUSE_HTTP_PORT", "8123");
   const minioPort = yield* value("MINIO_API_PORT", "9000");
   const mailpitSmtpPort = yield* value("MAILPIT_SMTP_PORT", "1025");
   const mailpitUiPort = yield* value("MAILPIT_UI_PORT", "8025");
@@ -229,25 +228,6 @@ const program = Effect.gen(function* () {
 
     // Only the name differs; host, port, and credentials fall back to DATABASE_*.
     DATABASE_PLATFORM_NAME: platformDatabaseName,
-
-    // The stack's CLICKHOUSE_URL names the compose-internal hostname; tests run
-    // on the host and reach the published port instead.
-    CLICKHOUSE_URL: `http://127.0.0.1:${clickhousePort}`,
-    CLICKHOUSE_DATABASE: yield* value("CLICKHOUSE_DATABASE", "voidhash"),
-    CLICKHOUSE_ADMIN_USERNAME: yield* value("CLICKHOUSE_ADMIN_USERNAME", "voidhash_admin"),
-    CLICKHOUSE_ADMIN_PASSWORD: yield* value("CLICKHOUSE_ADMIN_PASSWORD", "password"),
-    CLICKHOUSE_USERNAME: yield* value("CLICKHOUSE_USERNAME", "voidhash_app"),
-    CLICKHOUSE_PASSWORD: yield* value("CLICKHOUSE_PASSWORD", "password"),
-    CLICKHOUSE_RO_USERNAME: yield* value("CLICKHOUSE_RO_USERNAME", "voidhash_ro"),
-    CLICKHOUSE_RO_PASSWORD: yield* value("CLICKHOUSE_RO_PASSWORD", "password"),
-    CLICKHOUSE_ANALYTICS_QUERY_USERNAME: yield* value(
-      "CLICKHOUSE_ANALYTICS_QUERY_USERNAME",
-      "voidhash_query",
-    ),
-    CLICKHOUSE_ANALYTICS_QUERY_PASSWORD: yield* value(
-      "CLICKHOUSE_ANALYTICS_QUERY_PASSWORD",
-      "password",
-    ),
 
     ROOT_USERNAME: yield* value("MIMIC_ROOT_USERNAME", "root"),
     ROOT_PASSWORD: yield* value("MIMIC_ROOT_PASSWORD", "password"),
@@ -305,8 +285,6 @@ const program = Effect.gen(function* () {
     // `--project-directory selfhost` keeps the image build context correct, which
     // also moves Compose's implicit env-file lookup away from the repo root.
     ...envFileArgs(yield* fileSystem.exists(envFile)),
-    "--profile",
-    "analytics",
     "--project-directory",
     "selfhost",
   ];

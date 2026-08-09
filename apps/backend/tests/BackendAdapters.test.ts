@@ -32,7 +32,6 @@ describe("self-host runtime configuration", () => {
   configTest("uses local development defaults", () => {
     delete process.env.NODE_ENV;
     delete process.env.ANTHROPIC_API_KEY;
-    delete process.env.CLICKHOUSE_URL;
     delete process.env.PUBLIC_BASE_URL;
     delete process.env.OPENAI_API_KEY;
     delete process.env.S3_ENDPOINT;
@@ -53,7 +52,6 @@ describe("self-host runtime configuration", () => {
 
     const config = getSelfhostRuntimeConfig();
 
-    expect(config.clickhouse).toBeUndefined();
     expect(config.agent).toMatchObject({
       modelId: "claude-sonnet-4-6",
       provider: "anthropic",
@@ -188,21 +186,6 @@ describe("self-host runtime configuration", () => {
     });
   });
 
-  configTest("enables ClickHouse only when its URL is configured", () => {
-    process.env.CLICKHOUSE_URL = "http://clickhouse:8123";
-    process.env.CLICKHOUSE_DATABASE = "analytics";
-    delete process.env.CLICKHOUSE_ADMIN_USERNAME;
-    delete process.env.CLICKHOUSE_ANALYTICS_QUERY_USERNAME;
-    delete process.env.CLICKHOUSE_RO_USERNAME;
-    delete process.env.CLICKHOUSE_USERNAME;
-
-    expect(getSelfhostRuntimeConfig().clickhouse).toMatchObject({
-      admin: { database: "analytics", username: "voidhash_admin" },
-      analyticsQuery: { username: "voidhash_query" },
-      readOnly: { username: "voidhash_ro" },
-      readWrite: { username: "voidhash_app" },
-    });
-  });
 });
 
 describe("memory project schema cache", () => {

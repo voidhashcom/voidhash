@@ -4,7 +4,6 @@ import {
   BackendSnapshotImageRendererStubLive,
   type InfraServices,
 } from "@voidhash/backend/BackendApp";
-import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import type { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import {
@@ -53,7 +52,6 @@ export const makeSelfhostAuthLayers = (config: SelfhostAuthConfig): SelfhostAuth
 export const makeBackendInfrastructureLive = (
   config: SelfhostRuntimeConfig,
   identity: SelfhostAuthLayers["identity"],
-  clickhouse?: Layer.Layer<ClickhouseWebClient.ClickhouseWebClient>,
   snapshotImageRenderer: Layer.Layer<
     SnapshotImageRenderer,
     never,
@@ -85,6 +83,5 @@ export const makeBackendInfrastructureLive = (
     // reads the same store instance merged above (memoized by reference).
     snapshotImageRenderer.pipe(Layer.provide(publicFileStore)),
     MemoryProjectSchemaCacheLive,
-    clickhouse ?? Layer.empty,
   );
 };

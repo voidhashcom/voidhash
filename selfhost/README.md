@@ -8,8 +8,7 @@ component compilation and manifest extraction. The application image includes
 headless Chromium, so an edited paywall is rendered to a persistent public PNG
 after its Mimic WebSocket session becomes idle. The stack uses the same
 application services and platform contracts as the Cloudflare composition.
-ClickHouse OSS is an optional `analytics` profile; without it, capture still
-processes identity state in PostgreSQL and analytics reads return empty results.
+Community analytics capture and revenue insights are stored in PostgreSQL.
 
 ## Local development
 
@@ -39,8 +38,8 @@ starts the stack if it is down and creates `.env` from `.env.example` on a
 first checkout, so there is no separate setup step to forget. It then reads
 `.env`, derives host-side connection settings (container hostnames become
 `127.0.0.1` plus the published port), and runs the suites one after another —
-they share one Postgres and one ClickHouse, so parallel runs would race on
-schema setup. Pass suite names to narrow the run, for example
+they share one PostgreSQL database, so parallel runs would race on schema
+setup. Pass suite names to narrow the run, for example
 `pnpm test:integration platform backend`.
 
 Several suites build a durable cluster of their own to exercise it — the
@@ -105,22 +104,9 @@ evaluation defaults*: the no-env quick start selects
 because its root password and signing secret are public knowledge.
 `.env.example` selects `SELFHOST_MODE=production`; in that mode the migration
 and application refuse to start unless the root credentials, signing secret,
-database, object-store, Mimic, and enabled ClickHouse credentials are all real,
+database, object-store, and Mimic credentials are all real,
 and they require HTTPS public, file, and Mimic URLs. Keep production mode
 enabled for every network-accessible deployment.
-
-To enable durable analytics, start the optional profile and tell the application
-to use its private-network HTTP endpoint:
-
-```sh
-CLICKHOUSE_URL=http://clickhouse:8123 docker compose -f selfhost/docker-compose.yml \
-  --profile analytics up --build --wait
-```
-
-When using `.env`, keep the same `CLICKHOUSE_URL` shell override and add
-`--env-file .env`. The migration entrypoint creates the analytics schema,
-a read-write ingest user, a tenant-filtered readonly user, and a hardened query
-user. Replace all ClickHouse example passwords before exposing the deployment.
 
 The dashboard and API share `http://localhost:5001`; both `GET /health` and
 `GET /api/health` report readiness, and the OpenAPI document is available at
@@ -129,8 +115,7 @@ and its console at `http://localhost:9001`. Local email is captured by Mailpit,
 whose inbox is at `http://localhost:8025`; configure the SMTP variables in
 `.env` to use an external delivery service. The Node runtime verifies
 the configured SMTP transport at startup in Compose. PostgreSQL stays on the
-private Compose network and is not published to the host. With the analytics
-profile enabled, ClickHouse HTTP is available at `http://localhost:8123`.
+private Compose network and is not published to the host.
 When running the Node entry outside its image, set `CHROMIUM_EXECUTABLE_PATH` to
 a compatible Chromium executable to enable paywall thumbnails; the remaining
 runtime stays available when it is unset.
@@ -251,8 +236,7 @@ The smoke test creates a database, collection, and document through the public
 SDK, mints a document token, authenticates over WebSocket, verifies the initial
 snapshot, submits a transaction, and removes its fixtures. It also verifies the
 shared dashboard, the Community capability response, and app health, proving that
-the backend route graph and durable workflow runner boot without ClickHouse, which
-remains an optional profile.
+the backend route graph, PostgreSQL analytics capture, and durable workflow runner boot.
 
 To include an authenticated model-backed agent round-trip, set
 `SELFHOST_AGENT_SMOKE_BEARER_TOKEN`, `SELFHOST_AGENT_SMOKE_ORGANIZATION_ID`, and
@@ -261,14 +245,10 @@ To include an authenticated model-backed agent round-trip, set
 credentials must identify a user with access to that project, and the runtime
 must have one of the agent provider keys configured.
 
-The release-grade smoke additionally requires the analytics profile and Docker
-access from the checkout:
+The release-grade smoke additionally requires Docker access from the checkout:
 
 ```sh
-docker compose -f selfhost/docker-compose.yml --profile analytics \
-  up -d clickhouse --wait
-CLICKHOUSE_URL=http://clickhouse:8123 docker compose -f selfhost/docker-compose.yml \
-  --profile analytics up --build --wait
+docker compose -f selfhost/docker-compose.yml up --build --wait
 pnpm test:e2e:release
 ```
 
@@ -277,7 +257,7 @@ the paywall document through the public Mimic SDK and WebSocket surface, waits
 for Chromium to publish its PNG through the public file route, creates and
 publishes an immutable visual release, resolves that release through the SDK
 endpoint, and fetches the rendered HTML. It then submits an event through the
-capture API and verifies that event in ClickHouse. The release CI runs both
+capture API and verifies that event in PostgreSQL. The release CI runs both
 smoke levels from a clean Compose stack.
 
 ## Stop

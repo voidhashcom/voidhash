@@ -31,13 +31,9 @@ import { HttpApiBuilder } from "effect/unstable/httpapi";
 import type * as Rpc from "effect/unstable/rpc/Rpc";
 
 import { EventCaptureGroupLive } from "@voidhash/backend/routes/event-capture";
-import {
-  makeSelfhostAnalyticsRuntimeLive,
-  runSelfhostAnalyticsConsumers,
-} from "./backend/Analytics.ts";
+import { makeSelfhostAnalyticsRuntimeLive } from "./backend/Analytics.ts";
 import { runSelfhostCronJobs } from "./backend/Background.ts";
 import { makeBackendInfrastructureLive, makeSelfhostAuthLayers } from "./backend/Backend.ts";
-import { makeSelfhostClickhouseLayers } from "./backend/Clickhouse.ts";
 import {
   runSelfhostPushDeliveryConsumers,
   SelfhostPushDeliveryDispatchLive,
@@ -78,11 +74,6 @@ const optionalEnv = (name: string): Effect.Effect<string | undefined> =>
 /** Reads an optional environment variable, trimmed, mirroring `process.env.X?.trim()`. */
 const optionalTrimmedEnv = (name: string): Effect.Effect<string | undefined> =>
   optionalEnv(name).pipe(Effect.map((value) => value?.trim()));
-
-const makeClickhouseLayers = (config: SelfhostRuntimeConfig) => {
-  if (!config.clickhouse) return undefined;
-  return makeSelfhostClickhouseLayers(config.clickhouse);
-};
 
 const makeChromiumConfig = (
   executablePath: string | undefined,
@@ -190,7 +181,6 @@ export const runSelfhostServer = <
       yield* Effect.logInfo(
         `Identity provider: standalone (root user ${config.auth.rootUsername})`,
       );
-      const clickhouse = makeClickhouseLayers(config);
       const chromiumExecutablePath = yield* optionalTrimmedEnv("CHROMIUM_EXECUTABLE_PATH");
       const chromiumDisableSandbox = yield* optionalEnv("CHROMIUM_DISABLE_SANDBOX");
       const chromiumConfig = makeChromiumConfig(
@@ -201,7 +191,6 @@ export const runSelfhostServer = <
         makeBackendInfrastructureLive(
           config,
           authLayers.identity,
-          clickhouse?.readOnly,
           makeSnapshotImageRenderer(chromiumConfig),
         ),
         options.identityDirectory ?? Layer.empty,
@@ -253,15 +242,10 @@ export const runSelfhostServer = <
         { discard: true },
       ).pipe(Effect.provide(runtimeContext), Effect.orDie);
       yield* Effect.forkScoped(
-        runSelfhostAnalyticsConsumers(config, clickhouse?.readWrite).pipe(
-          Effect.provide(runtimeContext),
-        ),
-      );
-      yield* Effect.forkScoped(
         runSelfhostPushDeliveryConsumers(config).pipe(Effect.provide(runtimeContext)),
       );
       yield* Effect.forkScoped(
-        runSelfhostCronJobs(clickhouse?.readWrite).pipe(Effect.provide(runtimeContext)),
+        runSelfhostCronJobs.pipe(Effect.provide(runtimeContext)),
       );
       if (chromiumConfig !== undefined) {
         const thumbnailContext = yield* Layer.build(
@@ -285,7 +269,6 @@ export const runSelfhostServer = <
         features: options.features,
         rpcExtension,
         infrastructure,
-        analyticsQueryClient: clickhouse?.analyticsQuery,
         pushDeliveryDispatch,
         routeExtension: options.routeExtension,
         mcpOAuth: options.mcpOAuth,

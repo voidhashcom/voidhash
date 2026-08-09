@@ -11,7 +11,7 @@ repository.
 flowchart TD
   Community["voidhash Community codebase<br/>MIT SDKs + AGPL services"]
   Platform["@voidhash/platform<br/>provider-neutral contracts"]
-  Node["Community self-host<br/>Node + PostgreSQL + MinIO + optional ClickHouse"]
+  Node["Community self-host<br/>Node + PostgreSQL + MinIO"]
   Cloud["Managed Cloud<br/>Cloudflare + PlanetScale adapters"]
   Private["Private composition<br/>Enterprise + Overwatch + deployment graph"]
 
@@ -62,8 +62,8 @@ The self-host runtime is a modular monolith. One Node process serves the API
 and dashboard and runs Mimic entities, queue consumers, workflows, and cron
 fibers. PostgreSQL provides transactional state and durable scheduling; MinIO
 provides S3-compatible objects; the compiler is isolated in a private-network
-sidecar; Chromium renders paywall artifacts. ClickHouse is an optional
-analytics profile. Community authenticates a single root account from the
+sidecar; Chromium renders paywall artifacts. PostgreSQL also stores the
+portable Community analytics event log. Community authenticates a single root account from the
 environment and needs no external identity service.
 
 See [the self-hosting guide](../selfhost/README.md) for the supported Compose

@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PaywallLocationService}, run against the real
  * backend stack provisioned once by `test/_testing/globalSetup.ts` (live
- * PlanetScale DB + ClickHouse + WorkOS; only the project schema cache is an
+ * PostgreSQL; only the project schema cache is an
  * in-memory stub).
  *
  * Every test drives the service end-to-end and verifies the *persisted* side

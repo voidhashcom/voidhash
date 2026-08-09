@@ -102,7 +102,6 @@ const pollOptions = constant({
  */
 const makeDispatch = (behavior: "succeed" | "fail"): Layer.Layer<AnalyticsDispatchService> =>
   Layer.succeed(AnalyticsDispatchService, {
-    dispatchCaptured: () => Effect.void,
     dispatchTrusted: fakeService(() => {
       if (behavior === "fail") return Effect.fail(new DispatchBoomError({ message: "dispatch boom" }));
       return Effect.void;

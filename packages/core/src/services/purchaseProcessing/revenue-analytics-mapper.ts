@@ -4,7 +4,7 @@
  * `eventId` is a DETERMINISTIC id derived from `(idempotencyKey, eventName,
  * personId)` via {@link deterministicAnalyticsEventId} — stable across retries
  * and re-dispatch, so the at-least-once analytics queue dedupes duplicates on
- * the ClickHouse `(project_id, event_id)` key rather than relying on a single
+ * the portable `(project_id, event_id)` key rather than relying on a single
  * upstream invocation. The ledger `idempotency_key` is the per-action anchor
  * (one ledger row ⇒ one mapper call), and `(eventName, personId)` disambiguates
  * the multi-event actions (a subscription start emits two named events; a

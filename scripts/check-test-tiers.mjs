@@ -92,7 +92,7 @@ const program = Effect.gen(function* () {
     // unit tests set up their fixtures, and stays in the unit tier.
     const isIntegration = file.endsWith(".integration.test.ts");
     const usesStack =
-      /process\.env\.(DATABASE_|CLICKHOUSE_|PLATFORM_|SELFHOST_|S3_|MIMIC_)[A-Z0-9_]*\s*(\?\?|\|\|)/.test(
+      /process\.env\.(DATABASE_|PLATFORM_|SELFHOST_|S3_|MIMIC_)[A-Z0-9_]*\s*(\?\?|\|\|)/.test(
         source,
       );
     if (!isIntegration && usesStack) {

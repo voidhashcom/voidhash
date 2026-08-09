@@ -73,14 +73,6 @@ export const validateSelfhostSecurityConfig = (): SelfhostMode => {
 
   const unsafeSettings: Array<string> = [...standaloneAuthConfigIssues()];
   const requiredSecrets = ["DATABASE_PASSWORD", "MIMIC_ROOT_PASSWORD", "S3_SECRET_ACCESS_KEY"];
-  if (process.env.CLICKHOUSE_URL?.trim()) {
-    requiredSecrets.push(
-      "CLICKHOUSE_ADMIN_PASSWORD",
-      "CLICKHOUSE_PASSWORD",
-      "CLICKHOUSE_RO_PASSWORD",
-      "CLICKHOUSE_ANALYTICS_QUERY_PASSWORD",
-    );
-  }
   for (const name of requiredSecrets) {
     if (isPlaceholderSecret(process.env[name])) unsafeSettings.push(name);
   }
@@ -129,22 +121,6 @@ export const getSelfhostAuthConfig = (): SelfhostAuthConfig => {
   };
 };
 
-/** A named ClickHouse connection used by the self-host analytics runtime. */
-export interface SelfhostClickhouseConnection {
-  readonly database: string;
-  readonly password: string;
-  readonly url: string;
-  readonly username: string;
-}
-
-/** ClickHouse administrative and least-privilege runtime connections. */
-export interface SelfhostClickhouseConfig {
-  readonly admin: SelfhostClickhouseConnection;
-  readonly analyticsQuery: SelfhostClickhouseConnection;
-  readonly readOnly: SelfhostClickhouseConnection;
-  readonly readWrite: SelfhostClickhouseConnection;
-}
-
 /** BYO-provider configuration for durable self-hosted agent sessions. */
 export interface SelfhostAgentConfig {
   readonly provider: string;
@@ -160,7 +136,6 @@ export interface SelfhostAgentConfig {
 export interface SelfhostRuntimeConfig {
   readonly agent: SelfhostAgentConfig;
   readonly auth: SelfhostAuthConfig;
-  readonly clickhouse?: SelfhostClickhouseConfig;
   readonly componentCompilerUrl: string;
   readonly database: DbConfig;
   readonly host: string;
@@ -177,37 +152,6 @@ export interface SelfhostRuntimeConfig {
   readonly publicObjectStore: S3ObjectStoreConfig;
   readonly artifactObjectStore: S3ObjectStoreConfig;
 }
-
-/** Reads optional ClickHouse configuration, returning undefined when analytics is disabled. */
-export const getSelfhostClickhouseConfig = (): SelfhostClickhouseConfig | undefined => {
-  const url = process.env.CLICKHOUSE_URL?.trim();
-  if (!url) return undefined;
-  const database = process.env.CLICKHOUSE_DATABASE?.trim() || "voidhash";
-  const connection = (username: string, password: string): SelfhostClickhouseConnection => ({
-    database,
-    password,
-    url,
-    username,
-  });
-  return {
-    admin: connection(
-      process.env.CLICKHOUSE_ADMIN_USERNAME?.trim() || "voidhash_admin",
-      process.env.CLICKHOUSE_ADMIN_PASSWORD ?? "password",
-    ),
-    analyticsQuery: connection(
-      process.env.CLICKHOUSE_ANALYTICS_QUERY_USERNAME?.trim() || "voidhash_query",
-      process.env.CLICKHOUSE_ANALYTICS_QUERY_PASSWORD ?? "password",
-    ),
-    readOnly: connection(
-      process.env.CLICKHOUSE_RO_USERNAME?.trim() || "voidhash_ro",
-      process.env.CLICKHOUSE_RO_PASSWORD ?? "password",
-    ),
-    readWrite: connection(
-      process.env.CLICKHOUSE_USERNAME?.trim() || "voidhash_app",
-      process.env.CLICKHOUSE_PASSWORD ?? "password",
-    ),
-  };
-};
 
 /** Reads the shared application database connection from environment variables. */
 export const getSelfhostDatabaseConfig = (): DbConfig => ({
@@ -333,14 +277,6 @@ const agentOpenaiBaseUrl = (): { readonly openaiBaseUrl?: string } => {
   return { openaiBaseUrl };
 };
 
-/** Omits the ClickHouse block entirely when analytics is disabled. */
-const optionalClickhouse = (
-  clickhouse: SelfhostClickhouseConfig | undefined,
-): { readonly clickhouse?: SelfhostClickhouseConfig } => {
-  if (clickhouse === undefined) return {};
-  return { clickhouse };
-};
-
 /** Reads and validates the complete single-process runtime configuration. */
 export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
   validateSelfhostSecurityConfig();
@@ -356,7 +292,6 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
     region,
     secretAccessKey,
   };
-  const clickhouse = getSelfhostClickhouseConfig();
   const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
   const { modelId: defaultModelId, provider: defaultProvider } = defaultAgentModel(openaiApiKey);
@@ -376,7 +311,6 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
     },
     auth: getSelfhostAuthConfig(),
     database: getSelfhostDatabaseConfig(),
-    ...optionalClickhouse(clickhouse),
     componentCompilerUrl: process.env.COMPONENT_COMPILER_URL?.trim() || "http://127.0.0.1:5002",
     host: process.env.HOST?.trim() || "0.0.0.0",
     mailer: getSelfhostSmtpConfig(),

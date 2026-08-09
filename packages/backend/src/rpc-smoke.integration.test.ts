@@ -12,7 +12,7 @@
  *  - **Raw route cases** feed synthetic requests to the real
  *    `buildBackendFetch` route graph via a synthetic `HttpServerRequest`.
  *
- * Infra is real where the deployed stack is real: `Db`/`Clickhouse`
+ * Infra is real where the deployed stack is real: PostgreSQL
  * are built from the gated `testConnections`. Only the genuine external/platform
  * seams are doubled — `OrgDirectoryPort` is faked so organization RPCs never
  * touch a real directory; payment providers use local stubs; the webhook manager
@@ -28,7 +28,6 @@ import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { RpcClient, RpcTest } from "effect/unstable/rpc";
 import { describe, expect, inject, test } from "vitest";
 
-import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import { PaywallArtifactStore } from "@voidhash/core/services";
 import { StandaloneIdentityProviderLive } from "@voidhash/core/services/auth/StandaloneIdentityProvider";
 import { Db } from "@voidhash/db";
@@ -50,7 +49,6 @@ import {
 } from "./BackendApp.ts";
 import { BackendRpcGroups as RpcGroups } from "./BackendRpcGroups.ts";
 import {
-  TestClickhouseLive,
   TestProjectSchemaCacheLive,
   TestWebhookManagerServiceLive,
   TestWorkflowRunnerLive,
@@ -120,14 +118,13 @@ const SmokePaywallArtifactStoreLive = Layer.sync(PaywallArtifactStore, () => {
 });
 
 /**
- * In-process infrastructure for the RPC handler graph: real `Db`/`Clickhouse`
+ * In-process infrastructure for the RPC handler graph: real PostgreSQL
  * from the deployed stack, an in-memory schema cache, a faked
  * `OrgDirectoryPort`, and local payment/paywall/identity stubs.
  */
 const makeRpcInfra = (tc: BackendTestConnections) =>
   Layer.mergeAll(
     Db.layer(tc.db),
-    ClickhouseWebClient.layer(tc.clickhouse).pipe(Layer.orDie),
     StandaloneIdentityProviderLive(SMOKE_AUTH_SECRET),
     TestProjectSchemaCacheLive,
     TestOrgDirectoryLive,
@@ -143,13 +140,11 @@ const makeRpcInfra = (tc: BackendTestConnections) =>
 
 /**
  * In-process infrastructure for the raw route graph: real `Db` plus the same
- * stubs as the RPC graph (these routes need no ClickHouse, so a no-op stands
- * in).
+ * stubs as the RPC graph.
  */
 const makeRouteInfra = (tc: BackendTestConnections) =>
   Layer.mergeAll(
     Db.layer(tc.db),
-    TestClickhouseLive,
     TestProjectSchemaCacheLive,
     TestOrgDirectoryLive,
     BackendMimicHostStubLive,

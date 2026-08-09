@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link SdkService}, the orchestration hub for every
  * public SDK route. They run against the real backend stack provisioned once by
- * `test/_testing/globalSetup.ts` (live PlanetScale DB + ClickHouse + WorkOS;
+ * `test/_testing/globalSetup.ts` (live PostgreSQL;
  * only the project schema cache is an in-memory stub).
  *
  * `SdkService` owns no domain logic — it composes `PersonIdentityService`,
@@ -124,7 +124,7 @@ const sdkLayer = (appStore: Layer.Layer<AppStorePaymentProviderService>) =>
         PurchaseService.layer,
         PersonIdentityService.layer.pipe(Layer.provide(IdentityProjectionPublisher.noop)),
         // SdkService itself now resolves the publisher (for the synchronous
-        // person-attribute ClickHouse projection); tests use the no-op.
+        // person-attribute analytics projection); tests use the no-op.
         IdentityProjectionPublisher.noop,
         appStore,
         googlePlayStub,

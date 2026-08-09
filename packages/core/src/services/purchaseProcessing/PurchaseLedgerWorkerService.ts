@@ -1,9 +1,9 @@
 /**
  * `PurchaseLedgerWorkerService` drains the `purchase_ledger` table — written
  * transactionally by `PurchaseProcessingService` — by re-dispatching each row's
- * `eventsPayload` onto the SHARED analytics-ingest queue via
+ * `eventsPayload` through
  * `AnalyticsDispatchService.dispatchTrusted`. The ledger is the durability
- * backstop: it guarantees every revenue event is eventually enqueued even if an
+ * backstop: it guarantees every revenue event is eventually dispatched even if an
  * immediate post-commit dispatch is lost.
  *
  * Driver: on the Cloudflare backend a cron-triggered `PurchaseLedgerDrainWorkflow`
@@ -14,12 +14,9 @@
  * given row at a time. No leader election needed. Stale claims (worker crashed
  * mid-row) are swept back to `Pending` at the top of each poll.
  *
- * Worker dispatch ≠ analytics delivery. The worker's job ends at "I enqueued
- * the batch onto the at-least-once analytics queue"; the processor + writer
- * downstream perform identity pass-through and the ClickHouse insert, and the
- * writer's unbounded `(project_id, event_id)` pre-check collapses the duplicates
- * that the immediate-dispatch + drain overlap (and queue retries) produce —
- * `eventId` is deterministic, so a re-dispatch is a no-op, never a double-write.
+ * `AnalyticsDispatchService` is edition-specific: Community persists the batch
+ * synchronously, while hosted runtimes may enqueue it. Deterministic event ids
+ * make the immediate-dispatch and ledger-drain overlap idempotent in both cases.
  */
 import { Cause, Context, Effect, Layer, Schedule, Schema } from "effect";
 

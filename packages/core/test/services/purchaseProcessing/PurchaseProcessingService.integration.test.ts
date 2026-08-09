@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PurchaseProcessingService}, run against the real
  * backend stack provisioned once by `test/_testing/globalSetup.ts` (live
- * PlanetScale DB + ClickHouse + WorkOS; only the project schema cache is an
+ * PostgreSQL; only the project schema cache is an
  * in-memory stub).
  *
  * Unlike the catalog services, `PurchaseProcessingService` is unauthenticated
