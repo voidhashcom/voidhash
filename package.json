@@ -87,13 +87,16 @@
     "dotenv-cli": "^8.0.0",
     "oxlint-plugin-effect": "^0.6.0",
     "portless": "0.15.5",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "tslib": "2.8.1",
     "tsx": "^4.19.3",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "zustand": "^5.0.9"
   },
   "resolutions": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   },
   "engines": {
     "node": ">=24"
