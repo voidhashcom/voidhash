@@ -1,6 +1,7 @@
 import type { Path } from "../core/types.ts";
+import { constant } from "../internal/lang.ts";
 
-export const SchemaErrorCodes = {
+export const SchemaErrorCodes = constant({
   InvalidSchema: "invalid_schema",
   MissingRequired: "missing_required",
   TypeMismatch: "type_mismatch",
@@ -11,9 +12,14 @@ export const SchemaErrorCodes = {
   TreeInvalidRootType: "tree_invalid_root_type",
   TreeInvalidChildType: "tree_invalid_child_type",
   TreeUnknownVariant: "tree_unknown_variant",
-} as const;
+});
 
 export type SchemaErrorCode = (typeof SchemaErrorCodes)[keyof typeof SchemaErrorCodes];
+
+const formatMessage = (code: SchemaErrorCode, message: string): string => {
+  if (message) return `${code}: ${message}`;
+  return code;
+};
 
 export class SchemaError extends Error {
   readonly code: SchemaErrorCode;
@@ -28,7 +34,7 @@ export class SchemaError extends Error {
       schemaPath?: readonly (string | number)[];
     },
   ) {
-    super(message ? `${code}: ${message}` : code);
+    super(formatMessage(code, message));
     this.name = "SchemaError";
     this.code = code;
     this.valuePath = options?.valuePath ?? [];

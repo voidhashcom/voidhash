@@ -46,7 +46,9 @@
  *    DB-state assertion on the failure path.
  */
 import { AppStoreServerSdk } from "@voidhash/app-store-server-sdk";
-import { Effect, Layer } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { generateId } from "@voidhash/core/utils/generate-id";
+import { DateTime, Effect, Layer } from "effect";
 import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
 import { describe, expect, it } from "vitest";
 
@@ -71,9 +73,10 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
-/** Monotonic counter so ids/keys stay unique even within the same millisecond. */
+/** Per-run token plus a monotonic counter so ids/keys stay unique across and within runs. */
+const runToken = generateId("test");
 let seq = 0;
-const unique = (label: string) => `it-asr-${label}-${Date.now()}-${seq++}`;
+const unique = (label: string) => `it-asr-${label}-${runToken}-${seq++}`;
 
 /**
  * No-op FX fetcher. The pre-network reconciliation paths exercised here never
@@ -193,12 +196,12 @@ const baseInput = (overrides: {
   readonly paymentProviderConfigurationId: string;
   readonly originalTransactionId?: string;
 }) =>
-  ({
+  constant({
     originalTransactionId: overrides.originalTransactionId ?? unique("orig-txn"),
     paymentProviderConfigurationId: overrides.paymentProviderConfigurationId,
-    reason: "admin_repair" as const,
-    triggeredAt: new Date("2020-01-01T00:00:00.000Z"),
-  }) as const;
+    reason: "admin_repair",
+    triggeredAt: DateTime.toDateUtc(DateTime.makeUnsafe("2020-01-01T00:00:00.000Z")),
+  });
 
 describe("AppStoreReconciliationService.reconcileOriginalTransaction", () => {
   test(

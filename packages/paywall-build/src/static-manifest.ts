@@ -26,7 +26,9 @@
  * counts, a `Slot` mention in a string or comment does not. Anything outside
  * the closed grammar returns diagnostics — never a partial guess.
  */
+import { Effect } from "effect";
 import ts from "typescript";
+import { causeMessage, pick } from "@voidhash/lib/lang";
 import { COMPONENT_MANIFEST_VERSION } from "@voidhash/paywalls/schema";
 import type { ExtractOutcome } from "./types.ts";
 
@@ -140,12 +142,24 @@ const PROP_FACTORY_KINDS: Readonly<Record<string, string>> = {
  */
 class StaticExtractError extends Error {}
 
-/** Fail with an author-facing message; caught and surfaced as diagnostics. */
+/**
+ * Fail with an author-facing message; caught and surfaced as diagnostics.
+ *
+ * The recursive-descent resolvers below use an aborting failure as control flow:
+ * any construct outside the closed grammar abandons the whole extraction.
+ * `Effect.runSync` of a defect raises the {@link StaticExtractError} instance
+ * itself, which {@link staticExtractManifest}'s `Effect.try` boundary turns back
+ * into diagnostics.
+ */
 function bail(detail: string): never {
-  throw new StaticExtractError(
-    `${detail} Keep \`defineComponent\` declarative — props/actions must be a literal ` +
-      "object of chained `p.*`/`a.*` builder calls with literal arguments so the " +
-      "manifest can be derived without executing the component.",
+  return Effect.runSync(
+    Effect.die(
+      new StaticExtractError(
+        `${detail} Keep \`defineComponent\` declarative — props/actions must be a literal ` +
+          "object of chained `p.*`/`a.*` builder calls with literal arguments so the " +
+          "manifest can be derived without executing the component.",
+      ),
+    ),
   );
 }
 
@@ -181,8 +195,8 @@ function literalValue(expr: ts.Expression): unknown {
 /** Require an array-literal of string literals (for `p.select([...])`). */
 function stringLiteralArray(expr: ts.Expression, what: string): string[] {
   const node = unwrap(expr);
-  if (!ts.isArrayLiteralExpression(node)) bail(`${what} must be an array literal of strings.`);
-  return (node as ts.ArrayLiteralExpression).elements.map((el) => {
+  if (!ts.isArrayLiteralExpression(node)) return bail(`${what} must be an array literal of strings.`);
+  return node.elements.map((el) => {
     const item = unwrap(el);
     if (ts.isStringLiteral(item) || ts.isNoSubstitutionTemplateLiteral(item)) return item.text;
     return bail(`${what} must contain only string literals.`);
@@ -222,9 +236,9 @@ function decomposeChain(expr: ts.Expression): {
     node = unwrap(node.expression.expression);
   }
   if (!ts.isCallExpression(node)) {
-    bail("A prop must be a `p.*()` builder call.");
+    return bail("A prop must be a `p.*()` builder call.");
   }
-  return { base: node as ts.CallExpression, modifiers };
+  return { base: node, modifiers };
 }
 
 /**
@@ -245,15 +259,15 @@ function resolvePropBuilder(expr: ts.Expression): StaticPropSchema {
   const { base, modifiers } = decomposeChain(expr);
   const callee = base.expression;
   if (!ts.isPropertyAccessExpression(callee) || !ts.isIdentifier(callee.expression)) {
-    bail("A prop must be a `p.<kind>()` builder call.");
+    return bail("A prop must be a `p.<kind>()` builder call.");
   }
-  const method = (callee as ts.PropertyAccessExpression).name.text;
+  const method = callee.name.text;
   const kind = PROP_FACTORY_KINDS[method];
   if (kind === undefined) {
-    bail(`Unknown prop builder \`p.${method}(...)\`.`);
+    return bail(`Unknown prop builder \`p.${method}(...)\`.`);
   }
 
-  const schema: StaticPropSchema = { kind: kind!, hasDefault: false, optional: false };
+  const schema: StaticPropSchema = { kind, hasDefault: false, optional: false };
 
   switch (kind) {
     case "select": {
@@ -264,8 +278,9 @@ function resolvePropBuilder(expr: ts.Expression): StaticPropSchema {
     }
     case "ref": {
       const arg = base.arguments[0];
-      const value = arg ? literalValue(arg) : undefined;
-      if (typeof value !== "string") bail("`p.ref(...)` requires a string refType literal.");
+      if (arg === undefined) return bail("`p.ref(...)` requires a string refType literal.");
+      const value = literalValue(arg);
+      if (typeof value !== "string") return bail("`p.ref(...)` requires a string refType literal.");
       schema.refType = value;
       break;
     }
@@ -290,9 +305,9 @@ function applyPropModifiers(schema: StaticPropSchema, modifiers: ts.CallExpressi
   for (const modifier of modifiers) {
     const access = modifier.expression;
     if (!ts.isPropertyAccessExpression(access)) {
-      bail("A prop modifier must be a method call.");
+      return bail("A prop modifier must be a method call.");
     }
-    const name = (access as ts.PropertyAccessExpression).name.text;
+    const name = access.name.text;
     switch (name) {
       case "label": {
         const value = literalValue(requireArg(modifier, "`.label(...)`"));
@@ -346,30 +361,34 @@ function serializableDefault(value: unknown): unknown {
   return undefined;
 }
 
+/** The manifest `default` of a prop schema, or `undefined` when it has none. */
+function manifestDefault(schema: StaticPropSchema): unknown {
+  if (!schema.hasDefault) return undefined;
+  return serializableDefault(schema.defaultValue);
+}
+
 /** Lower a static array-item schema to the manifest array-item shape. */
 function toManifestItem(item: StaticPropSchema): Record<string, unknown> {
-  return {
-    kind: item.kind,
-    ...(item.options ? { options: item.options } : {}),
-    ...(item.refType ? { refType: item.refType } : {}),
-    ...(item.editor ? { editor: item.editor } : {}),
-  };
+  const lowered: Record<string, unknown> = { kind: item.kind };
+  if (item.options) lowered.options = item.options;
+  if (item.refType) lowered.refType = item.refType;
+  if (item.editor) lowered.editor = item.editor;
+  return lowered;
 }
 
 /** Lower a static prop schema to the manifest prop shape (runtime-identical). */
 function toManifestProp(schema: StaticPropSchema): Record<string, unknown> {
-  const defaultValue = schema.hasDefault ? serializableDefault(schema.defaultValue) : undefined;
-  return {
-    kind: schema.kind,
-    ...(schema.kind === "select" && schema.options ? { options: schema.options } : {}),
-    ...(schema.kind === "ref" && schema.refType ? { refType: schema.refType } : {}),
-    ...(schema.kind === "array" && schema.item ? { item: toManifestItem(schema.item) } : {}),
-    ...(schema.label !== undefined ? { label: schema.label } : {}),
-    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-    ...(schema.editor !== undefined ? { editor: schema.editor } : {}),
-    ...(schema.localizable ? { localizable: true } : {}),
-    optional: schema.optional || schema.hasDefault,
-  };
+  const lowered: Record<string, unknown> = { kind: schema.kind };
+  if (schema.kind === "select" && schema.options) lowered.options = schema.options;
+  if (schema.kind === "ref" && schema.refType) lowered.refType = schema.refType;
+  if (schema.kind === "array" && schema.item) lowered.item = toManifestItem(schema.item);
+  if (schema.label !== undefined) lowered.label = schema.label;
+  const defaultValue = manifestDefault(schema);
+  if (defaultValue !== undefined) lowered.default = defaultValue;
+  if (schema.editor !== undefined) lowered.editor = schema.editor;
+  if (schema.localizable) lowered.localizable = true;
+  lowered.optional = schema.optional || schema.hasDefault;
+  return lowered;
 }
 
 /**
@@ -389,48 +408,54 @@ interface ResolvedDefinition {
 
 /** The object-literal `defineComponent(...)` argument, or `bail`. */
 function requireDefinitionObject(call: ts.CallExpression): ts.ObjectLiteralExpression {
-  const arg = call.arguments[0] ? unwrap(call.arguments[0]!) : undefined;
-  if (arg === undefined || !ts.isObjectLiteralExpression(arg)) {
-    bail("`defineComponent(...)` must be called with an object literal.");
+  const first = call.arguments[0];
+  if (first === undefined) {
+    return bail("`defineComponent(...)` must be called with an object literal.");
   }
-  return arg as ts.ObjectLiteralExpression;
+  const arg = unwrap(first);
+  if (!ts.isObjectLiteralExpression(arg)) {
+    return bail("`defineComponent(...)` must be called with an object literal.");
+  }
+  return arg;
 }
 
 /** A property's name as a plain string, or `bail` for computed/spread names. */
 function propertyName(prop: ts.ObjectLiteralElementLike): string {
   if (!ts.isPropertyAssignment(prop) && !ts.isMethodDeclaration(prop)) {
-    bail("A `defineComponent` field must be a plain property (no spread or shorthand).");
+    return bail("A `defineComponent` field must be a plain property (no spread or shorthand).");
   }
-  const name = (prop as ts.PropertyAssignment | ts.MethodDeclaration).name;
+  const name = prop.name;
   if (ts.isIdentifier(name) || ts.isStringLiteral(name)) return name.text;
   return bail("A `defineComponent` field name must be a plain identifier.");
+}
+
+/** The object literal an arrow-function builder body resolves to. */
+function arrowBodyObject(body: ts.ConciseBody, field: string): ts.Expression {
+  if (ts.isParenthesizedExpression(body)) return unwrap(body.expression);
+  if (ts.isBlock(body)) return blockReturnObject(body, field);
+  return body;
 }
 
 /** The arrow/function body of a `props`/`actions` builder callback, or `bail`. */
 function builderArrowBody(value: ts.Expression, field: string): ts.ObjectLiteralExpression {
   const node = unwrap(value);
   if (!ts.isArrowFunction(node)) {
-    bail(`\`${field}\` must be an arrow function returning an object literal.`);
+    return bail(`\`${field}\` must be an arrow function returning an object literal.`);
   }
-  const body = (node as ts.ArrowFunction).body;
-  const objectExpr = ts.isParenthesizedExpression(body)
-    ? unwrap(body.expression)
-    : ts.isBlock(body)
-      ? blockReturnObject(body, field)
-      : body;
+  const objectExpr = arrowBodyObject(node.body, field);
   if (!ts.isObjectLiteralExpression(objectExpr)) {
-    bail(`\`${field}\` must return an object literal of builder calls.`);
+    return bail(`\`${field}\` must return an object literal of builder calls.`);
   }
-  return objectExpr as ts.ObjectLiteralExpression;
+  return objectExpr;
 }
 
 /** The object literal returned by a single-`return` builder block body, or `bail`. */
 function blockReturnObject(block: ts.Block, field: string): ts.Expression {
-  const ret = block.statements.find((s) => ts.isReturnStatement(s)) as
-    | ts.ReturnStatement
-    | undefined;
-  if (!ret || !ret.expression) bail(`\`${field}\` must return an object literal.`);
-  return unwrap(ret!.expression!);
+  const ret = block.statements.find(
+    (s): s is ts.ReturnStatement => ts.isReturnStatement(s),
+  );
+  if (!ret?.expression) return bail(`\`${field}\` must return an object literal.`);
+  return unwrap(ret.expression);
 }
 
 /** Resolve the `props` object into per-name static prop schemas. */
@@ -438,10 +463,10 @@ function resolveProps(objectExpr: ts.ObjectLiteralExpression): Record<string, St
   const props: Record<string, StaticPropSchema> = {};
   for (const member of objectExpr.properties) {
     if (!ts.isPropertyAssignment(member)) {
-      bail("Each prop must be a `name: p.*()` assignment.");
+      return bail("Each prop must be a `name: p.*()` assignment.");
     }
     const name = propertyName(member);
-    props[name] = resolvePropBuilder((member as ts.PropertyAssignment).initializer);
+    props[name] = resolvePropBuilder(member.initializer);
   }
   return props;
 }
@@ -453,10 +478,10 @@ function resolveActions(
   const actions: Record<string, { payload: Record<string, { kind: string }> }> = {};
   for (const member of objectExpr.properties) {
     if (!ts.isPropertyAssignment(member)) {
-      bail("Each action must be a `name: a.action(...)` assignment.");
+      return bail("Each action must be a `name: a.action(...)` assignment.");
     }
     const name = propertyName(member);
-    actions[name] = { payload: resolveActionPayload((member as ts.PropertyAssignment).initializer) };
+    actions[name] = { payload: resolveActionPayload(member.initializer) };
   }
   return actions;
 }
@@ -469,21 +494,21 @@ function resolveActionPayload(expr: ts.Expression): Record<string, { kind: strin
     !ts.isPropertyAccessExpression(node.expression) ||
     node.expression.name.text !== "action"
   ) {
-    bail("Each action must be an `a.action(...)` call.");
+    return bail("Each action must be an `a.action(...)` call.");
   }
-  const call = node as ts.CallExpression;
-  const arg = call.arguments[0] ? unwrap(call.arguments[0]!) : undefined;
-  if (arg === undefined) return {};
+  const first = node.arguments[0];
+  if (first === undefined) return {};
+  const arg = unwrap(first);
   if (!ts.isObjectLiteralExpression(arg)) {
-    bail("`a.action(...)` payload must be an object literal of `a.string/number/boolean()`.");
+    return bail("`a.action(...)` payload must be an object literal of `a.string/number/boolean()`.");
   }
   const payload: Record<string, { kind: string }> = {};
-  for (const member of (arg as ts.ObjectLiteralExpression).properties) {
+  for (const member of arg.properties) {
     if (!ts.isPropertyAssignment(member)) {
-      bail("An action payload field must be a `name: a.<kind>()` assignment.");
+      return bail("An action payload field must be a `name: a.<kind>()` assignment.");
     }
     const name = propertyName(member);
-    payload[name] = { kind: actionPayloadKind((member as ts.PropertyAssignment).initializer) };
+    payload[name] = { kind: actionPayloadKind(member.initializer) };
   }
   return payload;
 }
@@ -535,9 +560,9 @@ function previewsDeclareProducts(value: ts.Expression): boolean {
 function previewNamesOf(value: ts.Expression): string[] {
   const node = unwrap(value);
   if (!ts.isObjectLiteralExpression(node)) {
-    bail("`previews` must be an object literal of named preview states.");
+    return bail("`previews` must be an object literal of named preview states.");
   }
-  return (node as ts.ObjectLiteralExpression).properties.map((member) => {
+  return node.properties.map((member) => {
     if (ts.isSpreadAssignment(member)) {
       return bail("`previews` must not use spread — declare each preview state literally.");
     }
@@ -569,9 +594,6 @@ function resolveDefinition(call: ts.CallExpression, bindings: SdkBindings): Reso
 
   for (const member of object.properties) {
     const name = propertyName(member);
-    const value = ts.isPropertyAssignment(member)
-      ? member.initializer
-      : (member as ts.MethodDeclaration);
     switch (name) {
       case "title":
         resolved.title = asStringField(member, "title");
@@ -580,22 +602,28 @@ function resolveDefinition(call: ts.CallExpression, bindings: SdkBindings): Reso
         resolved.description = asStringField(member, "description");
         break;
       case "props":
-        resolved.props = resolveProps(builderArrowBody(value as ts.Expression, "props"));
+        resolved.props = resolveProps(builderArrowBody(builderField(member, "props"), "props"));
         break;
       case "actions":
-        resolved.actions = resolveActions(builderArrowBody(value as ts.Expression, "actions"));
+        resolved.actions = resolveActions(
+          builderArrowBody(builderField(member, "actions"), "actions"),
+        );
         break;
       case "previews": {
-        const previews = ts.isPropertyAssignment(member) ? member.initializer : undefined;
-        if (previews) {
-          resolved.previewNames = previewNamesOf(previews);
-          resolved.previewsDeclareProducts = previewsDeclareProducts(previews);
+        if (ts.isPropertyAssignment(member)) {
+          resolved.previewNames = previewNamesOf(member.initializer);
+          resolved.previewsDeclareProducts = previewsDeclareProducts(member.initializer);
         }
         break;
       }
-      case "render":
-        renderNode = ts.isPropertyAssignment(member) ? member.initializer : member;
+      case "render": {
+        if (ts.isPropertyAssignment(member)) {
+          renderNode = member.initializer;
+          break;
+        }
+        renderNode = member;
         break;
+      }
       default:
         // `panel` and any other declarative field do not affect the manifest.
         break;
@@ -610,12 +638,22 @@ function resolveDefinition(call: ts.CallExpression, bindings: SdkBindings): Reso
   return resolved;
 }
 
+/**
+ * The initializer of a `props`/`actions` builder field. A method shorthand
+ * (`props(p) { … }`) is not an arrow function, so it degrades with the same
+ * message {@link builderArrowBody} produces for any other non-arrow value.
+ */
+function builderField(member: ts.ObjectLiteralElementLike, field: string): ts.Expression {
+  if (ts.isPropertyAssignment(member)) return member.initializer;
+  return bail(`\`${field}\` must be an arrow function returning an object literal.`);
+}
+
 /** A `defineComponent` string field (`title`/`description`) literal, or `bail`. */
 function asStringField(member: ts.ObjectLiteralElementLike, field: string): string {
   if (!ts.isPropertyAssignment(member)) {
-    bail(`\`${field}\` must be a string literal.`);
+    return bail(`\`${field}\` must be a string literal.`);
   }
-  const value = literalValue((member as ts.PropertyAssignment).initializer);
+  const value = literalValue(member.initializer);
   if (typeof value !== "string") bail(`\`${field}\` must be a string literal.`);
   return value;
 }
@@ -718,43 +756,57 @@ export function staticExtractManifest(source: string, fileName = "component.tsx"
     };
   }
 
-  try {
-    const resolved = resolveDefinition(call, sdkBindingsOf(file));
+  // `bail` aborts the recursive descent with a raised StaticExtractError; this
+  // boundary turns any such abort back into author-facing diagnostics.
+  return Effect.runSync(
+    Effect.try({
+      try: () => lowerDefinition(call, file),
+      catch: (cause) => cause,
+    }).pipe(
+      Effect.match({
+        onSuccess: (manifest): ExtractOutcome => ({ manifest }),
+        onFailure: (cause): ExtractOutcome => ({
+          diagnostics: [{ message: causeMessage(cause) }],
+        }),
+      }),
+    ),
+  );
+}
 
-    const props: Record<string, unknown> = {};
-    for (const [name, schema] of Object.entries(resolved.props)) {
-      assertUsableName(name);
-      assertSelectHasOptions(name, schema);
-      props[name] = toManifestProp(schema);
-    }
-    for (const name of Object.keys(resolved.actions)) {
-      assertUsableName(name);
-    }
+/** Resolve and lower the `defineComponent(...)` call into the raw manifest value. */
+function lowerDefinition(call: ts.CallExpression, file: ts.SourceFile): Record<string, unknown> {
+  const resolved = resolveDefinition(call, sdkBindingsOf(file));
 
-    const usesProducts =
-      Object.values(resolved.props).some(
-        (schema) => schema.kind === "ref" && schema.refType === "product",
-      ) ||
-      resolved.previewsDeclareProducts ||
-      resolved.usesProductHook;
-
-    const manifest = {
-      manifestVersion: COMPONENT_MANIFEST_VERSION,
-      ...(resolved.title !== undefined ? { title: resolved.title } : {}),
-      ...(resolved.description !== undefined ? { description: resolved.description } : {}),
-      props,
-      actions: resolved.actions,
-      slot: resolved.slot,
-      previewStates: resolved.previewNames.length > 0 ? resolved.previewNames : ["default"],
-      hostData: usesProducts ? ["products"] : [],
-    };
-    return { manifest };
-  } catch (err) {
-    if (err instanceof StaticExtractError) {
-      return { diagnostics: [{ message: err.message }] };
-    }
-    return { diagnostics: [{ message: err instanceof Error ? err.message : String(err) }] };
+  const props: Record<string, unknown> = {};
+  for (const [name, schema] of Object.entries(resolved.props)) {
+    assertUsableName(name);
+    assertSelectHasOptions(name, schema);
+    props[name] = toManifestProp(schema);
   }
+  for (const name of Object.keys(resolved.actions)) {
+    assertUsableName(name);
+  }
+
+  const usesProducts =
+    Object.values(resolved.props).some(
+      (schema) => schema.kind === "ref" && schema.refType === "product",
+    ) ||
+    resolved.previewsDeclareProducts ||
+    resolved.usesProductHook;
+
+  const manifest: Record<string, unknown> = { manifestVersion: COMPONENT_MANIFEST_VERSION };
+  if (resolved.title !== undefined) manifest.title = resolved.title;
+  if (resolved.description !== undefined) manifest.description = resolved.description;
+  manifest.props = props;
+  manifest.actions = resolved.actions;
+  manifest.slot = resolved.slot;
+  manifest.previewStates = pick(
+    resolved.previewNames.length > 0,
+    resolved.previewNames,
+    ["default"],
+  );
+  manifest.hostData = pick(usesProducts, ["products"], []);
+  return manifest;
 }
 
 /**

@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { useRouter } from "expo-router";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,17 +9,22 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const handleSignIn = async (email: string) => {
-    const user = await fakeAuthService.signIn(email);
+  const handleSignIn = (email: string) =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const user = yield* Effect.promise(() => fakeAuthService.signIn(email));
 
-    // This syncs the current user with Voidhash. Make sure the identifier passed is unique and hard to guess.
-    await voidhash.client.identify(user.id, {
-      email: user.email,
-      name: user.name,
-    });
+        // This syncs the current user with Voidhash. Make sure the identifier passed is unique and hard to guess.
+        yield* Effect.promise(() =>
+          voidhash.client.identify(user.id, {
+            email: user.email,
+            name: user.name,
+          }),
+        );
 
-    router.back();
-  };
+        router.back();
+      }),
+    );
 
   const containerStyle = [
     styles.container,

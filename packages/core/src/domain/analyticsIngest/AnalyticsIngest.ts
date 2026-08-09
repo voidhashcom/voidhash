@@ -12,11 +12,15 @@
  * - {@link AnalyticsWriterMessage} — the writer's tagged input union.
  * - {@link EventProcessorDlqV1} — processor → DLQ.
  */
-import { Schema } from "effect";
+import { createId } from "@paralleldrive/cuid2";
+import { DateTime, Option, Schema } from "effect";
 import {
   sourceTopicForInternalAnalyticsEvent,
   type InternalAnalyticsEvent,
 } from "../internalAnalytics/InternalAnalyticsEvents.ts";
+
+/** `JSON.stringify` equivalent for the JSON text columns / round-trips below. */
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 // =============================================================================
 // Captured event (capture → processor)
@@ -310,24 +314,36 @@ export const buildDlqEvent = ({
   sourcePartition,
   sourceTopic,
   token,
-}: Omit<EventProcessorDlqV1, "failedAt" | "failureId" | "schemaVersion">): EventProcessorDlqV1 => ({
-  ...(captureId ? { captureId } : {}),
-  ...(distinctId ? { distinctId } : {}),
-  failedAt: new Date().toISOString(),
-  failureClass,
-  failureId: crypto.randomUUID(),
-  failureMessage,
-  headers,
-  lane,
-  ...(projectId ? { projectId } : {}),
-  ...(rawKey ? { rawKey } : {}),
-  ...(rawValue ? { rawValue } : {}),
-  schemaVersion: 1,
-  sourceOffset,
-  sourcePartition,
-  sourceTopic,
-  ...(token ? { token } : {}),
-});
+}: Omit<EventProcessorDlqV1, "failedAt" | "failureId" | "schemaVersion">): EventProcessorDlqV1 => {
+  // Absent optionals are omitted entirely (never present-but-undefined), so the
+  // DLQ record stays minimal on the wire.
+  const optional: {
+    -readonly [K in "captureId" | "distinctId" | "projectId" | "rawKey" | "rawValue" | "token"]?:
+      | EventProcessorDlqV1[K]
+      | undefined;
+  } = {};
+  if (captureId) optional.captureId = captureId;
+  if (distinctId) optional.distinctId = distinctId;
+  if (projectId) optional.projectId = projectId;
+  if (rawKey) optional.rawKey = rawKey;
+  if (rawValue) optional.rawValue = rawValue;
+  if (token) optional.token = token;
+
+  return {
+    ...optional,
+    failedAt: DateTime.formatIso(DateTime.nowUnsafe()),
+    failureClass,
+    // oxlint-disable-next-line effect/noGlobals -- Effect v4's Crypto is a Context.Service with no platform-neutral layer in the `effect` barrel (Node/Browser/Bun only, none Workers-safe); buildDlqEvent is a synchronous pure builder, so requiring Crypto would force every DLQ call site into an Effect.
+    failureId: crypto.randomUUID(),
+    failureMessage,
+    headers,
+    lane,
+    schemaVersion: 1,
+    sourceOffset,
+    sourcePartition,
+    sourceTopic,
+  };
+};
 
 // =============================================================================
 // Person-trait helpers (pure)
@@ -369,10 +385,22 @@ export const extractInnerProperties = (
   wrappedProperties: Record<string, unknown>,
 ): Record<string, unknown> => {
   const inner = wrappedProperties.properties;
-  if (typeof inner === "object" && inner !== null && !Array.isArray(inner)) {
-    return inner as Record<string, unknown>;
+  if (isPlainRecord(inner)) {
+    return inner;
   }
   return wrappedProperties;
+};
+
+/**
+ * Epoch milliseconds for an ISO timestamp, or `NaN` when it cannot be parsed —
+ * mirroring `new Date(value).getTime()` for the callers that compare ages.
+ */
+const epochMillisOf = (value: string): number => {
+  const parsed = DateTime.make(value);
+  if (Option.isNone(parsed)) {
+    return Number.NaN;
+  }
+  return DateTime.toEpochMillis(parsed.value);
 };
 
 // =============================================================================
@@ -430,7 +458,7 @@ export const validateBuiltInProcessorRules = ({
     if (!capturedEvent.routing.isHistorical) {
       return "historical topic requires isHistorical=true";
     }
-    const eventAgeMs = now.getTime() - new Date(capturedEvent.eventTimestamp).getTime();
+    const eventAgeMs = now.getTime() - epochMillisOf(capturedEvent.eventTimestamp);
     const minimumAgeMs = historicalMinAgeHours * 60 * 60 * 1000;
     if (eventAgeMs < minimumAgeMs) {
       return "historical event is newer than the configured minimum age";
@@ -487,6 +515,27 @@ export const AnalyticsWriterMessage = Schema.Union([
   }),
 ]);
 
+const decodeEventProperties = Schema.decodeUnknownSync(Schema.fromJsonString(EventPropertiesSchema));
+const decodeEventContext = Schema.decodeUnknownSync(Schema.fromJsonString(EventContextSchema));
+
+/**
+ * Revenue always knows the person (`Resolved`); experiment exposure may fire for
+ * an anonymous viewer (`personId` null → `Anonymous`, resolved on read).
+ */
+const capturedIdentityClaim = (event: InternalAnalyticsEvent): CapturedIdentityClaim => {
+  if (event.personId) {
+    return { _tag: "Resolved", distinctId: event.distinctId, personId: event.personId };
+  }
+  return { _tag: "Anonymous", distinctId: event.distinctId };
+};
+
+const capturedTrustClass = (event: InternalAnalyticsEvent): TrustClass => {
+  if (event.eventName === "$experiment.exposed") {
+    return "trusted-internal";
+  }
+  return "trusted-revenue";
+};
+
 /**
  * Maps a server-trusted {@link InternalAnalyticsEvent} into a
  * {@link CapturedEventV1} for the SHARED ingest queue — the revenue transport's
@@ -501,28 +550,17 @@ export const AnalyticsWriterMessage = Schema.Union([
  * - `skipEnrichment` is set so the processor never runs person enrichment.
  * - `properties` is JSON round-tripped so Date values (e.g. `transferredAt`)
  *   become ISO strings — the wire `properties` schema permits only JSON
- *   primitives, and the result matches the stored `JSON.stringify(properties)`.
+ *   primitives, and the result matches the stored JSON text form.
  */
 export const makeCapturedEventFromInternalAnalyticsEvent = (
   event: InternalAnalyticsEvent,
 ): CapturedEventV1Type => {
   const captureId = `internal_${event.eventId}`;
   const targetTopic = sourceTopicForInternalAnalyticsEvent(event);
-  const properties = JSON.parse(JSON.stringify(event.properties)) as Record<
-    string,
-    EventPropertiesField
-  >;
-  const context = JSON.parse(JSON.stringify(event.context ?? {})) as Record<
-    string,
-    EventContextField
-  >;
-  // Revenue always knows the person (`Resolved`); experiment exposure may fire
-  // for an anonymous viewer (`personId` null → `Anonymous`, resolved on read).
-  const identityClaim: CapturedIdentityClaim = event.personId
-    ? { _tag: "Resolved", distinctId: event.distinctId, personId: event.personId }
-    : { _tag: "Anonymous", distinctId: event.distinctId };
-  const trustClass: TrustClass =
-    event.eventName === "$experiment.exposed" ? "trusted-internal" : "trusted-revenue";
+  const properties = decodeEventProperties(encodeJson(event.properties));
+  const context = decodeEventContext(encodeJson(event.context ?? {}));
+  const identityClaim = capturedIdentityClaim(event);
+  const trustClass = capturedTrustClass(event);
   return {
     schemaVersion: 1,
     captureId,
@@ -533,7 +571,7 @@ export const makeCapturedEventFromInternalAnalyticsEvent = (
     event: event.eventName,
     distinctId: event.distinctId,
     eventTimestamp: event.occurredAt.toISOString(),
-    receivedAt: new Date().toISOString(),
+    receivedAt: DateTime.formatIso(DateTime.nowUnsafe()),
     properties,
     context,
     rawPayload: {},
@@ -565,16 +603,34 @@ export interface AnalyticsWriterPlan {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const toNullableString = (value: string | undefined): string | null =>
-  typeof value === "string" && value.trim().length > 0 ? value : null;
+const asRecord = (value: unknown): Record<string, unknown> => {
+  if (isRecord(value)) {
+    return value;
+  }
+  return {};
+};
 
-export const toFlag = (value: boolean): 0 | 1 => (value ? 1 : 0);
+const toNullableString = (value: string | undefined): string | null => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+  return null;
+};
+
+export const toFlag = (value: boolean): 0 | 1 => {
+  if (value) {
+    return 1;
+  }
+  return 0;
+};
 
 export const toClickhouseTimestamp = (value: string): string => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const parsed = DateTime.make(value);
+  if (Option.isNone(parsed)) {
+    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous ClickHouse row mapper used inside plain object literals (see the row builders below); it has no Effect channel, and an unparseable timestamp at this point is a defect.
     throw new Error(`Invalid timestamp: ${value}`);
   }
+  const date = DateTime.toDateUtc(parsed.value);
   const pad = (part: number, length = 2) => String(part).padStart(length, "0");
   return [
     `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`,
@@ -586,25 +642,23 @@ export const toClickhouseTimestamp = (value: string): string => {
 };
 
 export const extractPreviousDistinctId = (event: ProcessedEventV2Type): string | null => {
-  const wrappedProperties = isRecord(event.properties) ? event.properties : {};
-  const innerProperties = isRecord(wrappedProperties.properties)
-    ? wrappedProperties.properties
-    : wrappedProperties;
-  const previousDistinctId =
-    typeof innerProperties.$previous_distinct_id === "string"
-      ? innerProperties.$previous_distinct_id
-      : undefined;
+  const wrappedProperties = asRecord(event.properties);
+  const innerProperties = extractInnerProperties(wrappedProperties);
+  const previousDistinctId = innerProperties.$previous_distinct_id;
+  if (typeof previousDistinctId !== "string") {
+    return null;
+  }
   return toNullableString(previousDistinctId);
 };
 
 export const toProcessedEventRow = (event: ProcessedEventV2Type): Record<string, unknown> => ({
   capture_id: event.captureId,
-  context: JSON.stringify(event.context),
+  context: encodeJson(event.context),
   person_id: toNullableString(event.identity.personId),
   distinct_id: event.identity.distinctId,
   event_id: event.processedEventId,
   event_name: event.event,
-  event_properties: JSON.stringify(event.properties),
+  event_properties: encodeJson(event.properties),
   event_ts: toClickhouseTimestamp(event.eventTimestamp),
   identity_mode: event.identity.mode,
   organization_id: event.organizationId,
@@ -635,7 +689,7 @@ export const toPersonRow = (
   name: toNullableString(event.name),
   primary_distinct_id: toNullableString(event.primaryDistinctId),
   project_id: event.projectId,
-  traits: JSON.stringify(event.traits),
+  traits: encodeJson(event.traits),
   version: event.version,
 });
 
@@ -746,7 +800,7 @@ export const sanitizeIdentifier = (value: string): string =>
 // Names are unqualified — the runtime Clickhouse client connects with the
 // per-stage database (provisioned by `Clickhouse.Database`) as its default, so
 // the staging table created mid-squash lives in the right database.
-export const makeSnapshotResources = (runId: string = crypto.randomUUID()): SnapshotResources => {
+export const makeSnapshotResources = (runId: string = createId()): SnapshotResources => {
   const suffix = sanitizeIdentifier(runId.replaceAll("-", ""));
   return {
     pendingOverrideDictionaryName: `person_identity_pending_override_dict_${suffix}`,
@@ -760,4 +814,4 @@ export const computeCutoffIso = ({
 }: {
   readonly now: Date;
   readonly safetyWindowSeconds: number;
-}): string => new Date(now.getTime() - safetyWindowSeconds * 1000).toISOString();
+}): string => DateTime.formatIso(DateTime.makeUnsafe(now.getTime() - safetyWindowSeconds * 1000));

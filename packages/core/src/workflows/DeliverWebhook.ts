@@ -55,7 +55,7 @@ export const DeliverWebhookRegistration = WorkflowRegistration.make(DeliverWebho
         }
 
         const nextAttemptNumber = attemptNumber + 1;
-        const retryTime = nextWebhookDeliveryRetryTime(nextAttemptNumber);
+        const retryTime = yield* nextWebhookDeliveryRetryTime(nextAttemptNumber);
 
         if (!retryTime) {
           yield* ctx.step({

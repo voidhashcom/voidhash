@@ -30,7 +30,7 @@ type FeatureFlagsResult = {
   readonly flags: ReadonlyArray<{
     readonly enabled: boolean;
     readonly key: string;
-    readonly payload: unknown | null;
+    readonly payload: unknown;
     readonly variantKey: string | null;
   }>;
 };
@@ -38,6 +38,13 @@ type FeatureFlagsResult = {
 export type ApiSdkCall = {
   readonly headers: Record<string, unknown>;
   readonly payload?: Record<string, unknown> | undefined;
+};
+
+/** Reads the `distinctId` field off an untyped identify payload. */
+const payloadDistinctId = (request: ApiSdkCall): string => {
+  const value = request.payload?.distinctId;
+  if (typeof value === "string") return value;
+  return "identified-user";
 };
 
 export interface ApiClientDoubleState {
@@ -124,7 +131,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
       },
       identify: (request: ApiSdkCall) => {
         state.identifyCalls.push(request);
-        const distinctId = String(request.payload?.distinctId ?? "identified-user");
+        const distinctId = payloadDistinctId(request);
         return Effect.succeed(options.identifyResult ?? createSdkPerson(distinctId));
       },
       resolvePaywall: () => Effect.succeed(null),

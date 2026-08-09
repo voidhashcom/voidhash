@@ -1,9 +1,18 @@
+import type { Value } from "@voidhash/mimic-core";
 import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { HostServiceTag } from "../../src/app/hostService.ts";
 import type { TransactionEnvelope } from "../../src/document/transaction.ts";
 import { objectValue, runHost, runHostWithControl, stringValue, titleSchema } from "../helpers.ts";
+
+/** Reads the `title` string field out of a document value. */
+const titleOf = (value: Value): string | undefined => {
+  if (value.kind !== "object") return undefined;
+  const title = value.fields["title"];
+  if (title?.kind !== "string") return undefined;
+  return title.value;
+};
 
 describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
   it("bootstraps the root user and authenticates", () =>
@@ -31,10 +40,10 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
         );
         expect(created.id).toBe("doc-1");
         expect(created.version).toBe(1);
-        expect((created.value as any).fields.title.value).toBe("Hello");
+        expect(titleOf(created.value)).toBe("Hello");
 
         const fetched = yield* host.getDocument(collection.id, "doc-1");
-        expect((fetched.value as any).fields.title.value).toBe("Hello");
+        expect(titleOf(fetched.value)).toBe("Hello");
         expect(fetched.version).toBe(1);
       }),
     ));
@@ -68,7 +77,7 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
         expect(created.id).toBe("doc-1");
 
         const fetched = yield* host.getDocument(recreated.id, "doc-1");
-        expect((fetched.value as any).fields.title.value).toBe("Fresh");
+        expect(titleOf(fetched.value)).toBe("Fresh");
       }),
     ));
 
@@ -98,7 +107,7 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
         expect(created.id).toBe("doc-1");
 
         const fetched = yield* host.getDocument(collection.id, "doc-1");
-        expect((fetched.value as any).fields.title.value).toBe("Fresh");
+        expect(titleOf(fetched.value)).toBe("Fresh");
       }),
     ));
 
@@ -143,7 +152,7 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
           id: "tx-1",
           baseVersion: 1,
           commands: [
-            { kind: "object.set", path: [], key: "title", value: stringValue("Updated") } as any,
+            { kind: "object.set", path: [], key: "title", value: stringValue("Updated") },
           ],
         };
         const result = yield* host.submitTransaction(collection.id, "doc-1", tx);
@@ -151,7 +160,7 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
         expect(result.version).toBe(2);
 
         const fetched = yield* host.getDocument(collection.id, "doc-1");
-        expect((fetched.value as any).fields.title.value).toBe("Updated");
+        expect(titleOf(fetched.value)).toBe("Updated");
         expect(fetched.version).toBe(2);
       }),
     ));
@@ -183,13 +192,13 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
           id: "tx-connected",
           baseVersion: 1,
           commands: [
-            { kind: "object.set", path: [], key: "title", value: stringValue("Updated") } as any,
+            { kind: "object.set", path: [], key: "title", value: stringValue("Updated") },
           ],
         });
         expect(result).toMatchObject({ accepted: true, version: 2 });
 
         const connected = yield* host.getConnectionDocument(collection.id, "doc-1", "edit-1");
-        expect((connected.value as any).fields.title.value).toBe("Updated");
+        expect(titleOf(connected.value)).toBe("Updated");
 
         yield* host.detachConnection(collection.id, "doc-1", "edit-1");
         expect((yield* host.getPresenceSnapshot(collection.id, "doc-1")).presences).toEqual({});
@@ -216,7 +225,7 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
           id: "tx-stale",
           baseVersion: 99,
           commands: [
-            { kind: "object.set", path: [], key: "title", value: stringValue("Nope") } as any,
+            { kind: "object.set", path: [], key: "title", value: stringValue("Nope") },
           ],
         };
         const result = yield* host.submitTransaction(collection.id, "doc-1", tx);

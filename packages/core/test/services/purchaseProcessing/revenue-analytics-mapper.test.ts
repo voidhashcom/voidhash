@@ -11,7 +11,8 @@
  *   3. DETERMINISTIC `eventId`s (derived from `(idempotencyKey, eventName,
  *      personId)`) and the shared `context` / envelope fields.
  */
-import { Option } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { DateTime, Option } from "effect";
 
 import { describe, expect, it } from "vite-plus/test";
 
@@ -104,7 +105,7 @@ const moneyNoUsd = () =>
     usd: Option.none(),
   });
 
-const at = (iso: string) => new Date(iso);
+const at = (iso: string) => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
 
 describe("toStartedAnalyticsInputs", () => {
   it("returns an empty array (no-op) when the transaction id is absent", () => {
@@ -341,7 +342,7 @@ describe("toOneTimePurchaseAnalyticsInputs", () => {
     expect(events).toEqual([]);
   });
 
-  it.each(["one-time", "consumable"] as const)(
+  it.each(constant(["one-time", "consumable"]))(
     "emits $purchase.completed with purchaseType=%s and +1 money",
     (purchaseType) => {
       const events = toOneTimePurchaseAnalyticsInputs(
@@ -612,7 +613,7 @@ const transferModeInput = () => ({
   source: "webhook",
   toDistinctId: "dist_to",
   toPersonId: "person_to",
-  transferMode: "transfer_to_new_owner" as const,
+  transferMode: constant("transfer_to_new_owner"),
   triggerReason: "restore_on_shared_device",
 });
 
@@ -679,7 +680,7 @@ describe("toPurchaseTransferredAnalyticsInputs", () => {
 
 describe("cross-cutting mapper invariants", () => {
   it("derives a DETERMINISTIC eventId — stable across repeated calls, distinct per (eventName) within a call", () => {
-    const args = [
+    const args = constant([
       {
         ...common(),
         isTrial: false,
@@ -688,7 +689,7 @@ describe("cross-cutting mapper invariants", () => {
       },
       { personId: "person_1", transactionId: Option.some("tx_42") },
       cfg(),
-    ] as const;
+    ]);
     const first = toStartedAnalyticsInputs(...args);
     const second = toStartedAnalyticsInputs(...args);
     // The two events in one call differ ONLY by eventName, so they get two

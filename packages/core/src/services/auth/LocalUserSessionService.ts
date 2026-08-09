@@ -1,4 +1,5 @@
-import { Context, Effect, Layer } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer } from "effect";
 
 import {
   Db,
@@ -17,7 +18,8 @@ import { generateId } from "../../utils/generate-id.ts";
 
 const toLocalUserName = (identity: LocalUserIdentity): string => {
   const name = [identity.firstName, identity.lastName].filter(Boolean).join(" ").trim();
-  return name.length > 0 ? name : identity.email;
+  if (name.length > 0) return name;
+  return identity.email;
 };
 
 export class LocalUserSessionService extends Context.Service<LocalUserSessionService>()(
@@ -82,11 +84,12 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
             return matchedUser;
           }
 
+          const now = yield* DateTime.nowAsDate;
           const createdUser: DbUser = {
             banned: false,
             banExpires: null,
             banReason: null,
-            createdAt: new Date(),
+            createdAt: now,
             customImageUrl: null,
             email: identity.email,
             emailVerified: identity.emailVerified,
@@ -94,7 +97,7 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
             image: nextImage,
             name: nextName,
             role: null,
-            updatedAt: new Date(),
+            updatedAt: now,
             workosUserId: identity.id,
           };
 
@@ -147,19 +150,19 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
             .where(eq(member.userId, userId));
 
           const organizationIds = memberships.map((membership) => membership.organizationId);
-          const accessibleProjects =
-            organizationIds.length === 0
-              ? []
-              : yield* db
-                  .select({
-                    id: projects.id,
-                    logo: projects.logo,
-                    name: projects.name,
-                    organizationId: projects.organizationId,
-                    slug: projects.slug,
-                  })
-                  .from(projects)
-                  .where(inArray(projects.organizationId, organizationIds));
+          const accessibleProjects = yield* Effect.gen(function* () {
+            if (organizationIds.length === 0) return [];
+            return yield* db
+              .select({
+                id: projects.id,
+                logo: projects.logo,
+                name: projects.name,
+                organizationId: projects.organizationId,
+                slug: projects.slug,
+              })
+              .from(projects)
+              .where(inArray(projects.organizationId, organizationIds));
+          });
 
           return {
             organizations: memberships.map((membership) => ({
@@ -189,7 +192,7 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
         workosUserId: string | null,
       ) => ({
         cookie,
-        method: "user" as const,
+        method: constant("user"),
         name: `${dbUser.name} <${dbUser.email}>`,
         organizations: access.organizations,
         person: null,
@@ -217,12 +220,12 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
           });
         });
 
-      return {
+      return constant({
         getLocalUser,
         loadUserAccess,
         resolveLocalUser,
         toUserSession,
-      } as const;
+      });
     }),
   },
 ) {

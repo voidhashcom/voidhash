@@ -21,7 +21,8 @@ import {
   Type as AppleTransactionType,
 } from "@voidhash/app-store-server-sdk";
 import { getStorefrontVatRateBps, parseISO4217CurrencyCode } from "@voidhash/lib/constants";
-import { Effect, Option } from "effect";
+import { pick } from "@voidhash/lib/lang";
+import { DateTime, Effect, Option } from "effect";
 
 import {
   PurchaseProcessingMoney,
@@ -58,20 +59,27 @@ export interface AppleCommissionConfiguration {
   readonly appleSmallBusinessProgramEndDate?: string;
 }
 
+/** Parses an operator-supplied date string, returning `undefined` when unparseable. */
+const parseConfiguredDate = (value: string): Date | undefined => {
+  const parsed = DateTime.make(value);
+  if (Option.isNone(parsed)) return undefined;
+  return DateTime.toDateUtc(parsed.value);
+};
+
 const isSmallBusinessProgramActiveAt = (
   config: AppleCommissionConfiguration,
   at: Date,
 ): boolean => {
   const startStr = config.appleSmallBusinessProgramStartDate;
   if (!startStr) return false;
-  const start = new Date(startStr);
-  if (Number.isNaN(start.getTime())) return false;
+  const start = parseConfiguredDate(startStr);
+  if (!start) return false;
   if (at < start) return false;
   if (!config.appleSmallBusinessProgramHasEndDate) return true;
   const endStr = config.appleSmallBusinessProgramEndDate;
   if (!endStr) return true;
-  const end = new Date(endStr);
-  if (Number.isNaN(end.getTime())) return true;
+  const end = parseConfiguredDate(endStr);
+  if (!end) return true;
   return at <= end;
 };
 
@@ -235,9 +243,11 @@ export const buildAppStoreMoney = (input: {
     // negative delta we ever emit for this kind of transaction.
     const isFamilyShared =
       Option.getOrUndefined(input.decoded.inAppOwnershipType) === InAppOwnershipType.FAMILY_SHARED;
-    const storeCommissionAmount = isFamilyShared
-      ? 0
-      : Math.round((grossAmount * commissionBps) / 10_000);
+    const storeCommissionAmount = pick(
+      isFamilyShared,
+      0,
+      Math.round((grossAmount * commissionBps) / 10_000),
+    );
     const taxAmount = estimateAppleTaxAmount({ grossAmount, storefront });
     const proceedsAmount = grossAmount - storeCommissionAmount;
     const proceedsAfterTaxAmount = proceedsAmount - taxAmount;

@@ -6,8 +6,13 @@ import { useDroppable } from "@dnd-kit/core";
 import { Card } from "./Card";
 import { AddCardForm } from "./AddCardForm";
 import { useKanban } from "../../context/KanbanContext";
-import type { Column as ColumnType, Card as CardType } from "../../types/kanban";
+import type { Card as CardType } from "../../types/kanban";
 import type { CardSnapshot, ColumnSnapshot } from "../../shared";
+
+const draggingClass = (isDragging: boolean): string => {
+  if (isDragging) return "opacity-50";
+  return "";
+};
 
 interface ColumnProps {
   column: ColumnSnapshot;
@@ -53,6 +58,47 @@ export function Column({ column, cards, onCardClick }: ColumnProps) {
     }
   };
 
+  const renderTitle = () => {
+    if (isEditing) {
+      return (
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleTitleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleTitleSubmit();
+            if (e.key === "Escape") {
+              setTitle(columnName);
+              setIsEditing(false);
+            }
+          }}
+          autoFocus
+          className="
+              font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700
+              px-2 py-1 rounded border border-blue-500 outline-none w-full
+            "
+          onClick={(e) => e.stopPropagation()}
+        />
+      );
+    }
+
+    return (
+      <h3
+        className="font-semibold text-gray-800 dark:text-gray-200 cursor-text"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsEditing(true);
+        }}
+      >
+        {columnName}
+        <span className="ml-2 text-gray-500 dark:text-gray-400 font-normal text-sm">
+          {cards.length}
+        </span>
+      </h3>
+    );
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -60,7 +106,7 @@ export function Column({ column, cards, onCardClick }: ColumnProps) {
       className={`
         bg-gray-100 dark:bg-gray-800 rounded-xl w-72 flex-shrink-0
         flex flex-col max-h-full
-        ${isDragging ? "opacity-50" : ""}
+        ${draggingClass(isDragging)}
       `}
     >
       {/* Column Header */}
@@ -69,40 +115,7 @@ export function Column({ column, cards, onCardClick }: ColumnProps) {
         {...listeners}
         className="p-3 flex items-center justify-between cursor-grab active:cursor-grabbing"
       >
-        {isEditing ? (
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={handleTitleSubmit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleTitleSubmit();
-              if (e.key === "Escape") {
-                setTitle(columnName);
-                setIsEditing(false);
-              }
-            }}
-            autoFocus
-            className="
-              font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700
-              px-2 py-1 rounded border border-blue-500 outline-none w-full
-            "
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <h3
-            className="font-semibold text-gray-800 dark:text-gray-200 cursor-text"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditing(true);
-            }}
-          >
-            {columnName}
-            <span className="ml-2 text-gray-500 dark:text-gray-400 font-normal text-sm">
-              {cards.length}
-            </span>
-          </h3>
-        )}
+        {renderTitle()}
         <button
           onClick={(e) => {
             e.stopPropagation();

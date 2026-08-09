@@ -30,8 +30,10 @@ import {
   ApiSdkValidationError,
 } from "@voidhash/api-contracts/errors";
 import type { AuthenticationError } from "@voidhash/core/domain/auth/Auth";
-import type { SdkPersonSnapshot } from "@voidhash/core/domain/sdkPerson/SdkPerson";
-import { SdkValidationError } from "@voidhash/core/domain/sdkPerson/SdkPerson";
+import type {
+  SdkPersonSnapshot,
+  SdkValidationError,
+} from "@voidhash/core/domain/sdkPerson/SdkPerson";
 import {
   FeatureFlagService,
   InternalFeatureFlagService,
@@ -44,13 +46,43 @@ import {
 } from "@voidhash/core/services";
 import { Db } from "@voidhash/db";
 import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
-import { Effect, Option, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { DateTime, Effect, Option, Schema } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, getPersonMetadataFromSdkHeaders } from "../../ApiMiddlewares.ts";
 import { schemaNotModifiedResponse, schemaResponseHeaders } from "./schema.ts";
+
+const toSdkCurrentSubscription = (current: SdkPersonSnapshot["subscriptions"]["current"]) => {
+  if (!current) return null;
+  return new SdkCurrentSubscription({
+    expiresAt: current.expiresAt,
+    productId: current.productId,
+    status: current.status,
+    subscriptionId: current.subscriptionId,
+  });
+};
+
+/** Copies an optional record payload, keeping "absent" distinct from "empty". */
+const optionalRecordCopy = <T extends object>(value: T | null | undefined): T | undefined => {
+  if (!value) return undefined;
+  return { ...value };
+};
+
+/** Copies an optional readonly list into the mutable shape the services expect. */
+const optionalListCopy = <T>(value: ReadonlyArray<T> | null | undefined): T[] | undefined => {
+  if (!value) return undefined;
+  return [...value];
+};
+
+const optionalClientEventId = (
+  clientEventId: string | null | undefined,
+): { clientEventId?: string } => {
+  if (!clientEventId) return {};
+  return { clientEventId };
+};
 
 const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
   new SdkPerson({
@@ -90,14 +122,7 @@ const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
       mode: snapshot.snapshotContext.mode,
     },
     subscriptions: {
-      current: snapshot.subscriptions.current
-        ? new SdkCurrentSubscription({
-            expiresAt: snapshot.subscriptions.current.expiresAt,
-            productId: snapshot.subscriptions.current.productId,
-            status: snapshot.subscriptions.current.status,
-            subscriptionId: snapshot.subscriptions.current.subscriptionId,
-          })
-        : null,
+      current: toSdkCurrentSubscription(snapshot.subscriptions.current),
       history: snapshot.subscriptions.history.map(
         (entry) =>
           new SdkSubscriptionHistoryEntry({
@@ -124,19 +149,21 @@ export const mapSdkTransactionSubmission = (
     readonly transactionId: string;
   },
   clientBundleId: string,
-) =>
-  payload.platform === "android"
-    ? {
-        packageName: clientBundleId,
-        productId: payload.providerProductId ?? payload.productSlug,
-        providerId: "google-play" as const,
-        purchaseToken: payload.purchaseToken,
-      }
-    : {
-        bundleId: clientBundleId,
-        providerId: "apple-app-store" as const,
-        transactionId: payload.transactionId,
-      };
+) => {
+  if (payload.platform === "android") {
+    return {
+      packageName: clientBundleId,
+      productId: payload.providerProductId ?? payload.productSlug,
+      providerId: constant("google-play"),
+      purchaseToken: payload.purchaseToken,
+    };
+  }
+  return {
+    bundleId: clientBundleId,
+    providerId: constant("apple-app-store"),
+    transactionId: payload.transactionId,
+  };
+};
 
 export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers) =>
   Effect.gen(function* () {
@@ -206,7 +233,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               distinctId: payload.distinctId,
               email: payload.email ?? null,
               name: payload.name ?? null,
-              traits: payload.traits ? { ...payload.traits } : undefined,
+              traits: optionalRecordCopy(payload.traits),
             });
 
             return toSdkPerson(snapshot);
@@ -238,9 +265,9 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               personMetadata,
               email: payload.email,
               name: payload.name,
-              traits: payload.traits ? { ...payload.traits } : undefined,
-              setOnce: payload.setOnce ? { ...payload.setOnce } : undefined,
-              ...(payload.clientEventId ? { clientEventId: payload.clientEventId } : {}),
+              traits: optionalRecordCopy(payload.traits),
+              setOnce: optionalRecordCopy(payload.setOnce),
+              ...optionalClientEventId(payload.clientEventId),
             });
             return toSdkPerson(result.snapshot);
           }),
@@ -267,8 +294,12 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             const clientBundleId = parsedHeaders["x-client-bundle-id"];
 
             // `submitPurchaseTransaction`'s `Effect.fn` wrapper widens the error
-            // channel; cast to a concrete `Effect` so the outer `catchTags`
-            // matches the underlying tags.
+            // channel AND surfaces the per-provider payment services in `R`.
+            // Those services are supplied by the backend layer graph, but the
+            // inferred requirement would otherwise escape into the worker's
+            // fetch handler; pin it to a concrete `Effect` so the outer
+            // `catchTags` matches the underlying tags and `R` stays `never`.
+            // oxlint-disable-next-line effect/noAs -- see the comment above: `satisfies` cannot narrow `R` back to `never`, and the pin is exactly what keeps the payment services from escaping into the worker's fetch handler.
             yield* sdkService.submitPurchaseTransaction(
               mapSdkTransactionSubmission(payload, clientBundleId),
             ) as Effect.Effect<
@@ -439,7 +470,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             const results = yield* featureFlagService.evaluateFlagsBatch({
               personId,
               distinctId,
-              keys: payload.flagKeys ? [...payload.flagKeys] : undefined,
+              keys: optionalListCopy(payload.flagKeys),
               projectId,
             });
 
@@ -491,11 +522,12 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             // Resolve the CANONICAL caller person from the (spoofable) distinct
             // id, creating an anonymous person if needed — ownership is bound
             // here server-side, never trusted from the raw header downstream.
+            const eventTimestamp = yield* DateTime.nowAsDate;
             const resolution = yield* personIdentityService.resolveDistinctId({
               projectId,
               distinctId,
               shouldCreatePerson: true,
-              eventTimestamp: new Date(),
+              eventTimestamp,
               setAttributes: {},
               setOnceAttributes: {},
             });
@@ -556,11 +588,12 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
 
             // Do NOT create a person here: a non-existent person cannot own the
             // device, so an unresolved caller maps to the UNIFORM NotFound.
+            const eventTimestamp = yield* DateTime.nowAsDate;
             const resolution = yield* personIdentityService.resolveDistinctId({
               projectId,
               distinctId,
               shouldCreatePerson: false,
-              eventTimestamp: new Date(),
+              eventTimestamp,
               setAttributes: {},
               setOnceAttributes: {},
             });
@@ -614,11 +647,13 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               );
             }
 
+            const eventTimestamp = yield* DateTime.nowAsDate;
+
             const resolution = yield* personIdentityService.resolveDistinctId({
               projectId,
               distinctId,
               shouldCreatePerson: false,
-              eventTimestamp: new Date(),
+              eventTimestamp,
               setAttributes: {},
               setOnceAttributes: {},
             });

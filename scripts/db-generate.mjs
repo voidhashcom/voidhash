@@ -9,9 +9,30 @@
 // generated SQL is needed. This stays a wrapper only to keep the `db:generate`
 // script interface stable and forward args verbatim (e.g. `--name init`).
 
-import { spawnSync } from "node:child_process";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { Effect, Exit, Runtime, Stdio } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
-const result = spawnSync("pnpm", ["exec", "drizzle-kit", "generate", ...process.argv.slice(2)], {
-  stdio: "inherit",
+const program = Effect.gen(function* () {
+  const stdio = yield* Stdio.Stdio;
+  const args = yield* stdio.args;
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+
+  return yield* spawner.exitCode(
+    ChildProcess.make("pnpm", ["exec", "drizzle-kit", "generate", ...args], {
+      stdin: "inherit",
+      stdout: "inherit",
+      stderr: "inherit",
+    }),
+  );
+}).pipe(Effect.provide(NodeServices.layer));
+
+// The child's exit status is this script's exit status, so a successful run of
+// the wrapper still has to surface a non-zero `drizzle-kit` code — hence the
+// custom teardown instead of the default success-means-0 mapping.
+NodeRuntime.runMain(program, {
+  teardown: (exit, onExit) => {
+    if (Exit.isSuccess(exit)) return onExit(exit.value);
+    return Runtime.defaultTeardown(exit, onExit);
+  },
 });
-process.exit(result.status ?? 1);

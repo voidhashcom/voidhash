@@ -1,12 +1,13 @@
 import { Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
 
 // ===== Environment =====
-export const Environment = {
+export const Environment = constant({
   SANDBOX: "Sandbox",
   PRODUCTION: "Production",
   XCODE: "Xcode",
   LOCAL_TESTING: "LocalTesting",
-} as const;
+});
 
 export type Environment = (typeof Environment)[keyof typeof Environment];
 
@@ -18,13 +19,13 @@ export const EnvironmentSchema = Schema.Union([
 ]);
 
 // ===== Status (subscription status) =====
-export const Status = {
+export const Status = constant({
   ACTIVE: 1,
   EXPIRED: 2,
   BILLING_RETRY: 3,
   BILLING_GRACE_PERIOD: 4,
   REVOKED: 5,
-} as const;
+});
 
 export type Status = (typeof Status)[keyof typeof Status];
 
@@ -37,12 +38,12 @@ export const StatusSchema = Schema.Union([
 ]);
 
 // ===== Type (product type) =====
-export const Type = {
+export const Type = constant({
   AUTO_RENEWABLE_SUBSCRIPTION: "Auto-Renewable Subscription",
   NON_CONSUMABLE: "Non-Consumable",
   CONSUMABLE: "Consumable",
   NON_RENEWING_SUBSCRIPTION: "Non-Renewing Subscription",
-} as const;
+});
 
 export type Type = (typeof Type)[keyof typeof Type];
 
@@ -54,12 +55,12 @@ export const TypeSchema = Schema.Union([
 ]);
 
 // ===== ProductType (for transaction history requests) =====
-export const ProductType = {
+export const ProductType = constant({
   AUTO_RENEWABLE: "AUTO_RENEWABLE",
   NON_RENEWABLE: "NON_RENEWABLE",
   CONSUMABLE: "CONSUMABLE",
   NON_CONSUMABLE: "NON_CONSUMABLE",
-} as const;
+});
 
 export type ProductType = (typeof ProductType)[keyof typeof ProductType];
 
@@ -71,10 +72,10 @@ export const ProductTypeSchema = Schema.Union([
 ]);
 
 // ===== Order (sort order) =====
-export const Order = {
+export const Order = constant({
   ASCENDING: "ASCENDING",
   DESCENDING: "DESCENDING",
-} as const;
+});
 
 export type Order = (typeof Order)[keyof typeof Order];
 
@@ -84,7 +85,7 @@ export const OrderSchema = Schema.Union([
 ]);
 
 // ===== NotificationTypeV2 =====
-export const NotificationTypeV2 = {
+export const NotificationTypeV2 = constant({
   SUBSCRIBED: "SUBSCRIBED",
   DID_CHANGE_RENEWAL_PREF: "DID_CHANGE_RENEWAL_PREF",
   DID_CHANGE_RENEWAL_STATUS: "DID_CHANGE_RENEWAL_STATUS",
@@ -105,7 +106,7 @@ export const NotificationTypeV2 = {
   EXTERNAL_PURCHASE_TOKEN: "EXTERNAL_PURCHASE_TOKEN",
   ONE_TIME_CHARGE: "ONE_TIME_CHARGE",
   RESCIND_CONSENT: "RESCIND_CONSENT",
-} as const;
+});
 
 export type NotificationTypeV2 = (typeof NotificationTypeV2)[keyof typeof NotificationTypeV2];
 
@@ -114,7 +115,7 @@ export const NotificationTypeV2Schema = Schema.Union(
 );
 
 // ===== Subtype =====
-export const Subtype = {
+export const Subtype = constant({
   INITIAL_BUY: "INITIAL_BUY",
   RESUBSCRIBE: "RESUBSCRIBE",
   DOWNGRADE: "DOWNGRADE",
@@ -132,19 +133,19 @@ export const Subtype = {
   SUMMARY: "SUMMARY",
   FAILURE: "FAILURE",
   UNREPORTED: "UNREPORTED",
-} as const;
+});
 
 export type Subtype = (typeof Subtype)[keyof typeof Subtype];
 
 export const SubtypeSchema = Schema.Union(Object.values(Subtype).map((v) => Schema.Literal(v)));
 
 // ===== OfferType =====
-export const OfferType = {
+export const OfferType = constant({
   INTRODUCTORY_OFFER: 1,
   PROMOTIONAL_OFFER: 2,
   OFFER_CODE: 3,
   WIN_BACK_OFFER: 4,
-} as const;
+});
 
 export type OfferType = (typeof OfferType)[keyof typeof OfferType];
 
@@ -156,12 +157,12 @@ export const OfferTypeSchema = Schema.Union([
 ]);
 
 // ===== OfferDiscountType =====
-export const OfferDiscountType = {
+export const OfferDiscountType = constant({
   FREE_TRIAL: "FREE_TRIAL",
   PAY_AS_YOU_GO: "PAY_AS_YOU_GO",
   PAY_UP_FRONT: "PAY_UP_FRONT",
   ONE_TIME: "ONE_TIME",
-} as const;
+});
 
 export type OfferDiscountType = (typeof OfferDiscountType)[keyof typeof OfferDiscountType];
 
@@ -173,10 +174,10 @@ export const OfferDiscountTypeSchema = Schema.Union([
 ]);
 
 // ===== AutoRenewStatus =====
-export const AutoRenewStatus = {
+export const AutoRenewStatus = constant({
   OFF: 0,
   ON: 1,
-} as const;
+});
 
 export type AutoRenewStatus = (typeof AutoRenewStatus)[keyof typeof AutoRenewStatus];
 
@@ -186,13 +187,13 @@ export const AutoRenewStatusSchema = Schema.Union([
 ]);
 
 // ===== ExpirationIntent =====
-export const ExpirationIntent = {
+export const ExpirationIntent = constant({
   CUSTOMER_CANCELLED: 1,
   BILLING_ERROR: 2,
   CUSTOMER_DID_NOT_CONSENT_TO_PRICE_INCREASE: 3,
   PRODUCT_NOT_AVAILABLE: 4,
   OTHER: 5,
-} as const;
+});
 
 export type ExpirationIntent = (typeof ExpirationIntent)[keyof typeof ExpirationIntent];
 
@@ -205,10 +206,10 @@ export const ExpirationIntentSchema = Schema.Union([
 ]);
 
 // ===== PriceIncreaseStatus =====
-export const PriceIncreaseStatus = {
+export const PriceIncreaseStatus = constant({
   CUSTOMER_HAS_NOT_RESPONDED: 0,
   CUSTOMER_CONSENTED_OR_WAS_NOTIFIED_WITHOUT_NEEDING_CONSENT: 1,
-} as const;
+});
 
 export type PriceIncreaseStatus = (typeof PriceIncreaseStatus)[keyof typeof PriceIncreaseStatus];
 
@@ -218,10 +219,10 @@ export const PriceIncreaseStatusSchema = Schema.Union([
 ]);
 
 // ===== TransactionReason =====
-export const TransactionReason = {
+export const TransactionReason = constant({
   PURCHASE: "PURCHASE",
   RENEWAL: "RENEWAL",
-} as const;
+});
 
 export type TransactionReason = (typeof TransactionReason)[keyof typeof TransactionReason];
 
@@ -231,10 +232,10 @@ export const TransactionReasonSchema = Schema.Union([
 ]);
 
 // ===== RevocationReason =====
-export const RevocationReason = {
+export const RevocationReason = constant({
   REFUNDED_DUE_TO_ISSUE: 1,
   REFUNDED_FOR_OTHER_REASON: 0,
-} as const;
+});
 
 export type RevocationReason = (typeof RevocationReason)[keyof typeof RevocationReason];
 
@@ -244,11 +245,11 @@ export const RevocationReasonSchema = Schema.Union([
 ]);
 
 // ===== RevocationType =====
-export const RevocationType = {
+export const RevocationType = constant({
   REFUND_FULL: "REFUND_FULL",
   REFUND_PRORATED: "REFUND_PRORATED",
   FAMILY_REVOKE: "FAMILY_REVOKE",
-} as const;
+});
 
 export type RevocationType = (typeof RevocationType)[keyof typeof RevocationType];
 
@@ -259,10 +260,10 @@ export const RevocationTypeSchema = Schema.Union([
 ]);
 
 // ===== InAppOwnershipType =====
-export const InAppOwnershipType = {
+export const InAppOwnershipType = constant({
   FAMILY_SHARED: "FAMILY_SHARED",
   PURCHASED: "PURCHASED",
-} as const;
+});
 
 export type InAppOwnershipType = (typeof InAppOwnershipType)[keyof typeof InAppOwnershipType];
 
@@ -272,11 +273,11 @@ export const InAppOwnershipTypeSchema = Schema.Union([
 ]);
 
 // ===== Platform (consumption) =====
-export const Platform = {
+export const Platform = constant({
   UNDECLARED: 0,
   APPLE: 1,
   NON_APPLE: 2,
-} as const;
+});
 
 export type Platform = (typeof Platform)[keyof typeof Platform];
 
@@ -287,12 +288,12 @@ export const PlatformSchema = Schema.Union([
 ]);
 
 // ===== PurchasePlatform =====
-export const PurchasePlatform = {
+export const PurchasePlatform = constant({
   IOS: "iOS",
   MAC_OS: "macOS",
   TV_OS: "tvOS",
   VISION_OS: "visionOS",
-} as const;
+});
 
 export type PurchasePlatform = (typeof PurchasePlatform)[keyof typeof PurchasePlatform];
 
@@ -304,7 +305,7 @@ export const PurchasePlatformSchema = Schema.Union([
 ]);
 
 // ===== AccountTenure =====
-export const AccountTenure = {
+export const AccountTenure = constant({
   UNDECLARED: 0,
   ZERO_TO_THREE_DAYS: 1,
   THREE_DAYS_TO_TEN_DAYS: 2,
@@ -313,7 +314,7 @@ export const AccountTenure = {
   NINETY_DAYS_TO_ONE_HUNDRED_EIGHTY_DAYS: 5,
   ONE_HUNDRED_EIGHTY_DAYS_TO_THREE_HUNDRED_SIXTY_FIVE_DAYS: 6,
   GREATER_THAN_THREE_HUNDRED_SIXTY_FIVE_DAYS: 7,
-} as const;
+});
 
 export type AccountTenure = (typeof AccountTenure)[keyof typeof AccountTenure];
 
@@ -322,7 +323,7 @@ export const AccountTenureSchema = Schema.Union(
 );
 
 // ===== PlayTime =====
-export const PlayTime = {
+export const PlayTime = constant({
   UNDECLARED: 0,
   ZERO_TO_FIVE_MINUTES: 1,
   FIVE_TO_SIXTY_MINUTES: 2,
@@ -331,19 +332,19 @@ export const PlayTime = {
   ONE_DAY_TO_FOUR_DAYS: 5,
   FOUR_DAYS_TO_SIXTEEN_DAYS: 6,
   OVER_SIXTEEN_DAYS: 7,
-} as const;
+});
 
 export type PlayTime = (typeof PlayTime)[keyof typeof PlayTime];
 
 export const PlayTimeSchema = Schema.Union(Object.values(PlayTime).map((v) => Schema.Literal(v)));
 
 // ===== ConsumptionStatus =====
-export const ConsumptionStatus = {
+export const ConsumptionStatus = constant({
   UNDECLARED: 0,
   NOT_CONSUMED: 1,
   PARTIALLY_CONSUMED: 2,
   FULLY_CONSUMED: 3,
-} as const;
+});
 
 export type ConsumptionStatus = (typeof ConsumptionStatus)[keyof typeof ConsumptionStatus];
 
@@ -355,13 +356,13 @@ export const ConsumptionStatusSchema = Schema.Union([
 ]);
 
 // ===== DeliveryStatus (V2) =====
-export const DeliveryStatus = {
+export const DeliveryStatus = constant({
   DELIVERED: "DELIVERED",
   UNDELIVERED_QUALITY_ISSUE: "UNDELIVERED_QUALITY_ISSUE",
   UNDELIVERED_WRONG_ITEM: "UNDELIVERED_WRONG_ITEM",
   UNDELIVERED_SERVER_OUTAGE: "UNDELIVERED_SERVER_OUTAGE",
   UNDELIVERED_OTHER: "UNDELIVERED_OTHER",
-} as const;
+});
 
 export type DeliveryStatus = (typeof DeliveryStatus)[keyof typeof DeliveryStatus];
 
@@ -374,14 +375,14 @@ export const DeliveryStatusSchema = Schema.Union([
 ]);
 
 // ===== DeliveryStatusV1 (deprecated) =====
-export const DeliveryStatusV1 = {
+export const DeliveryStatusV1 = constant({
   DELIVERED_AND_WORKING_PROPERLY: 0,
   DID_NOT_DELIVER_DUE_TO_QUALITY_ISSUE: 1,
   DELIVERED_WRONG_ITEM: 2,
   DID_NOT_DELIVER_DUE_TO_SERVER_OUTAGE: 3,
   DID_NOT_DELIVER_DUE_TO_IN_GAME_CURRENCY_CHANGE: 4,
   DID_NOT_DELIVER_FOR_OTHER_REASON: 5,
-} as const;
+});
 
 export type DeliveryStatusV1 = (typeof DeliveryStatusV1)[keyof typeof DeliveryStatusV1];
 
@@ -390,11 +391,11 @@ export const DeliveryStatusV1Schema = Schema.Union(
 );
 
 // ===== RefundPreference (V2) =====
-export const RefundPreference = {
+export const RefundPreference = constant({
   DECLINE: "DECLINE",
   GRANT_FULL: "GRANT_FULL",
   GRANT_PRORATED: "GRANT_PRORATED",
-} as const;
+});
 
 export type RefundPreference = (typeof RefundPreference)[keyof typeof RefundPreference];
 
@@ -405,12 +406,12 @@ export const RefundPreferenceSchema = Schema.Union([
 ]);
 
 // ===== RefundPreferenceV1 (deprecated) =====
-export const RefundPreferenceV1 = {
+export const RefundPreferenceV1 = constant({
   UNDECLARED: 0,
   PREFER_GRANT: 1,
   PREFER_DECLINE: 2,
   NO_PREFERENCE: 3,
-} as const;
+});
 
 export type RefundPreferenceV1 = (typeof RefundPreferenceV1)[keyof typeof RefundPreferenceV1];
 
@@ -422,13 +423,13 @@ export const RefundPreferenceV1Schema = Schema.Union([
 ]);
 
 // ===== UserStatus =====
-export const UserStatus = {
+export const UserStatus = constant({
   UNDECLARED: 0,
   ACTIVE: 1,
   SUSPENDED: 2,
   TERMINATED: 3,
   LIMITED_ACCESS: 4,
-} as const;
+});
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
 
@@ -441,7 +442,7 @@ export const UserStatusSchema = Schema.Union([
 ]);
 
 // ===== SendAttemptResult =====
-export const SendAttemptResult = {
+export const SendAttemptResult = constant({
   SUCCESS: "SUCCESS",
   TIMED_OUT: "TIMED_OUT",
   TLS_ISSUE: "TLS_ISSUE",
@@ -453,7 +454,7 @@ export const SendAttemptResult = {
   PREMATURE_CLOSE: "PREMATURE_CLOSE",
   UNSUCCESSFUL_HTTP_RESPONSE_CODE: "UNSUCCESSFUL_HTTP_RESPONSE_CODE",
   OTHER: "OTHER",
-} as const;
+});
 
 export type SendAttemptResult = (typeof SendAttemptResult)[keyof typeof SendAttemptResult];
 
@@ -462,10 +463,10 @@ export const SendAttemptResultSchema = Schema.Union(
 );
 
 // ===== OrderLookupStatus =====
-export const OrderLookupStatus = {
+export const OrderLookupStatus = constant({
   VALID: 0,
   INVALID: 1,
-} as const;
+});
 
 export type OrderLookupStatus = (typeof OrderLookupStatus)[keyof typeof OrderLookupStatus];
 
@@ -475,12 +476,12 @@ export const OrderLookupStatusSchema = Schema.Union([
 ]);
 
 // ===== ExtendReasonCode =====
-export const ExtendReasonCode = {
+export const ExtendReasonCode = constant({
   UNDECLARED: 0,
   CUSTOMER_SATISFACTION: 1,
   OTHER: 2,
   SERVICE_ISSUE_OR_OUTAGE: 3,
-} as const;
+});
 
 export type ExtendReasonCode = (typeof ExtendReasonCode)[keyof typeof ExtendReasonCode];
 
@@ -492,11 +493,11 @@ export const ExtendReasonCodeSchema = Schema.Union([
 ]);
 
 // ===== ImageState =====
-export const ImageState = {
+export const ImageState = constant({
   PENDING_REVIEW: "PENDING_REVIEW",
   APPROVED: "APPROVED",
   REJECTED: "REJECTED",
-} as const;
+});
 
 export type ImageState = (typeof ImageState)[keyof typeof ImageState];
 
@@ -507,11 +508,11 @@ export const ImageStateSchema = Schema.Union([
 ]);
 
 // ===== MessageState =====
-export const MessageState = {
+export const MessageState = constant({
   PENDING_REVIEW: "PENDING_REVIEW",
   APPROVED: "APPROVED",
   REJECTED: "REJECTED",
-} as const;
+});
 
 export type MessageState = (typeof MessageState)[keyof typeof MessageState];
 
@@ -522,7 +523,7 @@ export const MessageStateSchema = Schema.Union([
 ]);
 
 // ===== LifetimeDollarsPurchased =====
-export const LifetimeDollarsPurchased = {
+export const LifetimeDollarsPurchased = constant({
   UNDECLARED: 0,
   ZERO_DOLLARS: 1,
   ONE_CENT_TO_FORTY_NINE_DOLLARS_AND_NINETY_NINE_CENTS: 2,
@@ -531,7 +532,7 @@ export const LifetimeDollarsPurchased = {
   FIVE_HUNDRED_DOLLARS_TO_NINE_HUNDRED_NINETY_NINE_DOLLARS_AND_NINETY_NINE_CENTS: 5,
   ONE_THOUSAND_DOLLARS_TO_ONE_THOUSAND_NINE_HUNDRED_NINETY_NINE_DOLLARS_AND_NINETY_NINE_CENTS: 6,
   TWO_THOUSAND_DOLLARS_OR_GREATER: 7,
-} as const;
+});
 
 export type LifetimeDollarsPurchased =
   (typeof LifetimeDollarsPurchased)[keyof typeof LifetimeDollarsPurchased];
@@ -541,7 +542,7 @@ export const LifetimeDollarsPurchasedSchema = Schema.Union(
 );
 
 // ===== LifetimeDollarsRefunded =====
-export const LifetimeDollarsRefunded = {
+export const LifetimeDollarsRefunded = constant({
   UNDECLARED: 0,
   ZERO_DOLLARS: 1,
   ONE_CENT_TO_FORTY_NINE_DOLLARS_AND_NINETY_NINE_CENTS: 2,
@@ -550,7 +551,7 @@ export const LifetimeDollarsRefunded = {
   FIVE_HUNDRED_DOLLARS_TO_NINE_HUNDRED_NINETY_NINE_DOLLARS_AND_NINETY_NINE_CENTS: 5,
   ONE_THOUSAND_DOLLARS_TO_ONE_THOUSAND_NINE_HUNDRED_NINETY_NINE_DOLLARS_AND_NINETY_NINE_CENTS: 6,
   TWO_THOUSAND_DOLLARS_OR_GREATER: 7,
-} as const;
+});
 
 export type LifetimeDollarsRefunded =
   (typeof LifetimeDollarsRefunded)[keyof typeof LifetimeDollarsRefunded];
@@ -560,13 +561,13 @@ export const LifetimeDollarsRefundedSchema = Schema.Union(
 );
 
 // ===== ConsumptionRequestReason =====
-export const ConsumptionRequestReason = {
+export const ConsumptionRequestReason = constant({
   UNINTENDED_PURCHASE: "UNINTENDED_PURCHASE",
   FULFILLMENT_ISSUE: "FULFILLMENT_ISSUE",
   UNSATISFIED_WITH_PURCHASE: "UNSATISFIED_WITH_PURCHASE",
   LEGAL: "LEGAL",
   OTHER: "OTHER",
-} as const;
+});
 
 export type ConsumptionRequestReason =
   (typeof ConsumptionRequestReason)[keyof typeof ConsumptionRequestReason];
@@ -580,11 +581,11 @@ export const ConsumptionRequestReasonSchema = Schema.Union([
 ]);
 
 // ===== GetTransactionHistoryVersion =====
-export const GetTransactionHistoryVersion = {
+export const GetTransactionHistoryVersion = constant({
   /** @deprecated */
   V1: "v1",
   V2: "v2",
-} as const;
+});
 
 export type GetTransactionHistoryVersion =
   (typeof GetTransactionHistoryVersion)[keyof typeof GetTransactionHistoryVersion];
@@ -595,19 +596,19 @@ export const GetTransactionHistoryVersionSchema = Schema.Union([
 ]);
 
 // ===== ImageSize =====
-export const ImageSize = {
+export const ImageSize = constant({
   FULL_SIZE: "FULL_SIZE",
-} as const;
+});
 
 export type ImageSize = (typeof ImageSize)[keyof typeof ImageSize];
 
 export const ImageSizeSchema = Schema.Union([Schema.Literal(ImageSize.FULL_SIZE)]);
 
 // ===== HeaderPosition =====
-export const HeaderPosition = {
+export const HeaderPosition = constant({
   ABOVE_IMAGE: "ABOVE_IMAGE",
   BELOW_IMAGE: "BELOW_IMAGE",
-} as const;
+});
 
 export type HeaderPosition = (typeof HeaderPosition)[keyof typeof HeaderPosition];
 
@@ -617,10 +618,10 @@ export const HeaderPositionSchema = Schema.Union([
 ]);
 
 // ===== BillingPlanType =====
-export const BillingPlanType = {
+export const BillingPlanType = constant({
   BILLED_UPFRONT: "BILLED_UPFRONT",
   MONTHLY: "MONTHLY",
-} as const;
+});
 
 export type BillingPlanType = (typeof BillingPlanType)[keyof typeof BillingPlanType];
 
@@ -630,10 +631,10 @@ export const BillingPlanTypeSchema = Schema.Union([
 ]);
 
 // ===== RenewalBillingPlanType =====
-export const RenewalBillingPlanType = {
+export const RenewalBillingPlanType = constant({
   BILLED_UPFRONT: "BILLED_UPFRONT",
   MONTHLY: "MONTHLY",
-} as const;
+});
 
 export type RenewalBillingPlanType =
   (typeof RenewalBillingPlanType)[keyof typeof RenewalBillingPlanType];
@@ -644,11 +645,11 @@ export const RenewalBillingPlanTypeSchema = Schema.Union([
 ]);
 
 // ===== PerformanceTestStatus =====
-export const PerformanceTestStatus = {
+export const PerformanceTestStatus = constant({
   PENDING: "PENDING",
   IN_PROGRESS: "IN_PROGRESS",
   COMPLETED: "COMPLETED",
-} as const;
+});
 
 export type PerformanceTestStatus =
   (typeof PerformanceTestStatus)[keyof typeof PerformanceTestStatus];
@@ -660,10 +661,10 @@ export const PerformanceTestStatusSchema = Schema.Union([
 ]);
 
 // ===== PerformanceTestResult =====
-export const PerformanceTestResult = {
+export const PerformanceTestResult = constant({
   PASS: "PASS",
   FAIL: "FAIL",
-} as const;
+});
 
 export type PerformanceTestResult =
   (typeof PerformanceTestResult)[keyof typeof PerformanceTestResult];
@@ -674,14 +675,14 @@ export const PerformanceTestResultSchema = Schema.Union([
 ]);
 
 // ===== AdvancedCommercePeriod =====
-export const AdvancedCommercePeriod = {
+export const AdvancedCommercePeriod = constant({
   P1W: "P1W",
   P1M: "P1M",
   P2M: "P2M",
   P3M: "P3M",
   P6M: "P6M",
   P1Y: "P1Y",
-} as const;
+});
 
 export type AdvancedCommercePeriod =
   (typeof AdvancedCommercePeriod)[keyof typeof AdvancedCommercePeriod];
@@ -691,14 +692,14 @@ export const AdvancedCommercePeriodSchema = Schema.Union(
 );
 
 // ===== AdvancedCommerceOfferPeriod =====
-export const AdvancedCommerceOfferPeriod = {
+export const AdvancedCommerceOfferPeriod = constant({
   P3D: "P3D",
   P1W: "P1W",
   P2W: "P2W",
   P1M: "P1M",
   P2M: "P2M",
   P3M: "P3M",
-} as const;
+});
 
 export type AdvancedCommerceOfferPeriod =
   (typeof AdvancedCommerceOfferPeriod)[keyof typeof AdvancedCommerceOfferPeriod];
@@ -708,11 +709,11 @@ export const AdvancedCommerceOfferPeriodSchema = Schema.Union(
 );
 
 // ===== AdvancedCommerceOfferReason =====
-export const AdvancedCommerceOfferReason = {
+export const AdvancedCommerceOfferReason = constant({
   ACQUISITION: "ACQUISITION",
   WIN_BACK: "WIN_BACK",
   RETENTION: "RETENTION",
-} as const;
+});
 
 export type AdvancedCommerceOfferReason =
   (typeof AdvancedCommerceOfferReason)[keyof typeof AdvancedCommerceOfferReason];
@@ -722,11 +723,11 @@ export const AdvancedCommerceOfferReasonSchema = Schema.Union(
 );
 
 // ===== AdvancedCommerceReason =====
-export const AdvancedCommerceReason = {
+export const AdvancedCommerceReason = constant({
   UPGRADE: "UPGRADE",
   DOWNGRADE: "DOWNGRADE",
   APPLY_OFFER: "APPLY_OFFER",
-} as const;
+});
 
 export type AdvancedCommerceReason =
   (typeof AdvancedCommerceReason)[keyof typeof AdvancedCommerceReason];
@@ -736,7 +737,7 @@ export const AdvancedCommerceReasonSchema = Schema.Union(
 );
 
 // ===== AdvancedCommerceRefundReason =====
-export const AdvancedCommerceRefundReason = {
+export const AdvancedCommerceRefundReason = constant({
   UNINTENDED_PURCHASE: "UNINTENDED_PURCHASE",
   FULFILLMENT_ISSUE: "FULFILLMENT_ISSUE",
   UNSATISFIED_WITH_PURCHASE: "UNSATISFIED_WITH_PURCHASE",
@@ -744,7 +745,7 @@ export const AdvancedCommerceRefundReason = {
   OTHER: "OTHER",
   MODIFY_ITEMS_REFUND: "MODIFY_ITEMS_REFUND",
   SIMULATE_REFUND_DECLINE: "SIMULATE_REFUND_DECLINE",
-} as const;
+});
 
 export type AdvancedCommerceRefundReason =
   (typeof AdvancedCommerceRefundReason)[keyof typeof AdvancedCommerceRefundReason];
@@ -754,11 +755,11 @@ export const AdvancedCommerceRefundReasonSchema = Schema.Union(
 );
 
 // ===== AdvancedCommerceRefundType =====
-export const AdvancedCommerceRefundType = {
+export const AdvancedCommerceRefundType = constant({
   FULL: "FULL",
   PRORATED: "PRORATED",
   CUSTOM: "CUSTOM",
-} as const;
+});
 
 export type AdvancedCommerceRefundType =
   (typeof AdvancedCommerceRefundType)[keyof typeof AdvancedCommerceRefundType];
@@ -768,10 +769,10 @@ export const AdvancedCommerceRefundTypeSchema = Schema.Union(
 );
 
 // ===== AdvancedCommerceEffective =====
-export const AdvancedCommerceEffective = {
+export const AdvancedCommerceEffective = constant({
   IMMEDIATELY: "IMMEDIATELY",
   NEXT_BILL_CYCLE: "NEXT_BILL_CYCLE",
-} as const;
+});
 
 export type AdvancedCommerceEffective =
   (typeof AdvancedCommerceEffective)[keyof typeof AdvancedCommerceEffective];
@@ -781,11 +782,11 @@ export const AdvancedCommerceEffectiveSchema = Schema.Union(
 );
 
 // ===== AdvancedCommercePriceIncreaseInfoStatus =====
-export const AdvancedCommercePriceIncreaseInfoStatus = {
+export const AdvancedCommercePriceIncreaseInfoStatus = constant({
   SCHEDULED: "SCHEDULED",
   PENDING: "PENDING",
   ACCEPTED: "ACCEPTED",
-} as const;
+});
 
 export type AdvancedCommercePriceIncreaseInfoStatus =
   (typeof AdvancedCommercePriceIncreaseInfoStatus)[keyof typeof AdvancedCommercePriceIncreaseInfoStatus];

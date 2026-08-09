@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -16,7 +16,7 @@ RUN node scripts/check-selfhost-runtime-boundary.mjs /out
 RUN rm -rf /www && corepack pnpm@11.1.3 --config.ignore-scripts=true --config.node-linker=hoisted --config.allow-unused-patches=true --filter @voidhash/www deploy --prod --legacy /www
 RUN node scripts/check-selfhost-runtime-boundary.mjs /www
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 
 ENV NODE_ENV=production
 ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-headless-shell

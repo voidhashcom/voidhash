@@ -1,3 +1,9 @@
+// This module is the self-host deployment's synchronous `process.env` adapter: every
+// export is a plain function that reads environment variables and returns a concrete
+// config record. Its results are consumed from synchronous call sites — including the
+// pre-runtime bootstrap path that builds the layers — so there is no Effect runtime in
+// scope in which a `Config` provider could be used.
+// oxlint-disable effect/noGlobals -- synchronous process.env adapter; callers read these config records from synchronous positions before any Effect runtime exists.
 import type { DbConfig } from "@voidhash/db/db";
 import type { SmtpMailerConfig } from "@voidhash/platform-selfhost/Mailer";
 import type { S3ObjectStoreConfig } from "@voidhash/platform-selfhost/ObjectStore";
@@ -13,6 +19,7 @@ const positiveIntegerFromEnv = (name: string, fallback: number): number => {
   if (!value) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
+    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous env parser returning a plain `number`; making it fail in Effect would force every synchronous config call site in this module into an Effect.
     throw new Error(`${name} must be a positive integer`);
   }
   return parsed;
@@ -23,7 +30,19 @@ const optionalBooleanFromEnv = (name: string): boolean | undefined => {
   if (!value) return undefined;
   if (value === "true") return true;
   if (value === "false") return false;
+  // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous env parser returning `boolean | undefined`; making it fail in Effect would force every synchronous config call site in this module into an Effect.
   throw new Error(`${name} must be true or false`);
+};
+
+/**
+ * Reads an optional boolean override as a spreadable fragment. The key is
+ * omitted entirely when unset, because {@link DbConfig} consumers distinguish
+ * "no `ssl` key" (driver default) from an explicit `false`.
+ */
+const sslOverrideFromEnv = (name: string): { readonly ssl?: boolean } => {
+  const ssl = optionalBooleanFromEnv(name);
+  if (ssl === undefined) return {};
+  return { ssl };
 };
 
 export type SelfhostMode = "local-evaluation" | "production";
@@ -31,16 +50,14 @@ export type SelfhostMode = "local-evaluation" | "production";
 const readSelfhostMode = (): SelfhostMode => {
   const mode = process.env.SELFHOST_MODE?.trim();
   if (mode === "local-evaluation" || mode === "production") return mode;
+  // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous env reader with a plain `SelfhostMode` return type; callers read it from synchronous positions on the pre-runtime bootstrap path, so a tagged Effect failure has nowhere to go.
   throw new Error("SELFHOST_MODE must be explicitly set to local-evaluation or production");
 };
 
 const isHttpsUrl = (value: string | undefined): boolean => {
   if (!value) return false;
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
-  }
+  if (!URL.canParse(value)) return false;
+  return new URL(value).protocol === "https:";
 };
 
 /**
@@ -76,6 +93,7 @@ export const validateSelfhostSecurityConfig = (): SelfhostMode => {
   }
 
   if (unsafeSettings.length > 0) {
+    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous self-host bootstrap guard: this runs from the process entrypoint before any Effect runtime exists, and a throw is the only way to abort the boot with a readable message.
     throw new Error(
       `Production self-host security validation failed for: ${unsafeSettings.join(", ")}`,
     );
@@ -192,17 +210,14 @@ export const getSelfhostClickhouseConfig = (): SelfhostClickhouseConfig | undefi
 };
 
 /** Reads the shared application database connection from environment variables. */
-export const getSelfhostDatabaseConfig = (): DbConfig => {
-  const ssl = optionalBooleanFromEnv("DATABASE_SSL");
-  return {
-    databaseName: process.env.DATABASE_NAME?.trim() || "voidhash",
-    host: process.env.DATABASE_HOST?.trim() || "127.0.0.1",
-    password: process.env.DATABASE_PASSWORD ?? "password",
-    port: positiveIntegerFromEnv("DATABASE_PORT", 5432),
-    ...(ssl === undefined ? {} : { ssl }),
-    username: process.env.DATABASE_USERNAME?.trim() || "voidhash",
-  };
-};
+export const getSelfhostDatabaseConfig = (): DbConfig => ({
+  databaseName: process.env.DATABASE_NAME?.trim() || "voidhash",
+  host: process.env.DATABASE_HOST?.trim() || "127.0.0.1",
+  password: process.env.DATABASE_PASSWORD ?? "password",
+  port: positiveIntegerFromEnv("DATABASE_PORT", 5432),
+  ...sslOverrideFromEnv("DATABASE_SSL"),
+  username: process.env.DATABASE_USERNAME?.trim() || "voidhash",
+});
 
 /**
  * Reads the application database connection used by out-of-band tooling that
@@ -218,14 +233,13 @@ export const getSelfhostDatabaseConfig = (): DbConfig => {
  */
 export const getSelfhostMigrationDatabaseConfig = (): DbConfig => {
   const fallback = getSelfhostDatabaseConfig();
-  const ssl = optionalBooleanFromEnv("DATABASE_DIRECT_SSL");
   return {
     ...fallback,
     databaseName: process.env.DATABASE_DIRECT_NAME?.trim() || fallback.databaseName,
     host: process.env.DATABASE_DIRECT_HOST?.trim() || fallback.host,
     password: process.env.DATABASE_DIRECT_PASSWORD ?? fallback.password,
     port: positiveIntegerFromEnv("DATABASE_DIRECT_PORT", fallback.port),
-    ...(ssl === undefined ? {} : { ssl }),
+    ...sslOverrideFromEnv("DATABASE_DIRECT_SSL"),
     username: process.env.DATABASE_DIRECT_USERNAME?.trim() || fallback.username,
   };
 };
@@ -247,23 +261,31 @@ export const getSelfhostMigrationDatabaseConfig = (): DbConfig => {
  */
 export const getSelfhostPlatformDatabaseConfig = (
   fallback: DbConfig = getSelfhostDatabaseConfig(),
-): DbConfig => {
-  const ssl = optionalBooleanFromEnv("DATABASE_PLATFORM_SSL");
-  return {
-    ...fallback,
-    databaseName: process.env.DATABASE_PLATFORM_NAME?.trim() || fallback.databaseName,
-    host: process.env.DATABASE_PLATFORM_HOST?.trim() || fallback.host,
-    password: process.env.DATABASE_PLATFORM_PASSWORD ?? fallback.password,
-    port: positiveIntegerFromEnv("DATABASE_PLATFORM_PORT", fallback.port),
-    ...(ssl === undefined ? {} : { ssl }),
-    username: process.env.DATABASE_PLATFORM_USERNAME?.trim() || fallback.username,
-  };
+): DbConfig => ({
+  ...fallback,
+  databaseName: process.env.DATABASE_PLATFORM_NAME?.trim() || fallback.databaseName,
+  host: process.env.DATABASE_PLATFORM_HOST?.trim() || fallback.host,
+  password: process.env.DATABASE_PLATFORM_PASSWORD ?? fallback.password,
+  port: positiveIntegerFromEnv("DATABASE_PLATFORM_PORT", fallback.port),
+  ...sslOverrideFromEnv("DATABASE_PLATFORM_SSL"),
+  username: process.env.DATABASE_PLATFORM_USERNAME?.trim() || fallback.username,
+});
+
+/** Omits SMTP credentials entirely when the transport is unauthenticated. */
+const smtpCredentials = (): {
+  readonly username?: string;
+  readonly password?: Redacted.Redacted<string>;
+} => {
+  const credentials: { username?: string; password?: Redacted.Redacted<string> } = {};
+  const username = process.env.SMTP_USERNAME?.trim();
+  if (username) credentials.username = username;
+  const password = process.env.SMTP_PASSWORD;
+  if (password) credentials.password = Redacted.make(password);
+  return credentials;
 };
 
 /** Reads the SMTP transport and default sender configuration. */
 export const getSelfhostSmtpConfig = (): SmtpMailerConfig => {
-  const username = process.env.SMTP_USERNAME?.trim() || undefined;
-  const password = process.env.SMTP_PASSWORD || undefined;
   return {
     defaultFrom: {
       address: process.env.SMTP_FROM_ADDRESS?.trim() || "noreply@voidhash.local",
@@ -275,9 +297,48 @@ export const getSelfhostSmtpConfig = (): SmtpMailerConfig => {
     secure: optionalBooleanFromEnv("SMTP_SECURE") ?? false,
     tlsRejectUnauthorized: optionalBooleanFromEnv("SMTP_TLS_REJECT_UNAUTHORIZED") ?? true,
     verifyOnStart: optionalBooleanFromEnv("SMTP_VERIFY_ON_START") ?? false,
-    ...(username === undefined ? {} : { username }),
-    ...(password === undefined ? {} : { password: Redacted.make(password) }),
+    ...smtpCredentials(),
   };
+};
+
+/** The provider and model used when the operator pins neither explicitly. */
+const defaultAgentModel = (
+  openaiApiKey: string | undefined,
+): { readonly provider: string; readonly modelId: string } => {
+  if (openaiApiKey) return { modelId: "gpt-5.4", provider: "openai" };
+  return { modelId: "claude-sonnet-4-6", provider: "anthropic" };
+};
+
+/** Omits BYO provider keys that were never configured. */
+const agentApiKeys = (
+  openaiApiKey: string | undefined,
+  anthropicApiKey: string | undefined,
+): {
+  readonly openaiApiKey?: Redacted.Redacted<string>;
+  readonly anthropicApiKey?: Redacted.Redacted<string>;
+} => {
+  const keys: {
+    openaiApiKey?: Redacted.Redacted<string>;
+    anthropicApiKey?: Redacted.Redacted<string>;
+  } = {};
+  if (openaiApiKey !== undefined) keys.openaiApiKey = Redacted.make(openaiApiKey);
+  if (anthropicApiKey !== undefined) keys.anthropicApiKey = Redacted.make(anthropicApiKey);
+  return keys;
+};
+
+/** Omits the OpenAI-compatible base URL unless an override is configured. */
+const agentOpenaiBaseUrl = (): { readonly openaiBaseUrl?: string } => {
+  const openaiBaseUrl = process.env.OPENAI_BASE_URL?.trim();
+  if (!openaiBaseUrl) return {};
+  return { openaiBaseUrl };
+};
+
+/** Omits the ClickHouse block entirely when analytics is disabled. */
+const optionalClickhouse = (
+  clickhouse: SelfhostClickhouseConfig | undefined,
+): { readonly clickhouse?: SelfhostClickhouseConfig } => {
+  if (clickhouse === undefined) return {};
+  return { clickhouse };
 };
 
 /** Reads and validates the complete single-process runtime configuration. */
@@ -298,8 +359,7 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
   const clickhouse = getSelfhostClickhouseConfig();
   const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
   const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  const defaultProvider = openaiApiKey ? "openai" : "anthropic";
-  const defaultModelId = openaiApiKey ? "gpt-5.4" : "claude-sonnet-4-6";
+  const { modelId: defaultModelId, provider: defaultProvider } = defaultAgentModel(openaiApiKey);
 
   return {
     agent: {
@@ -307,11 +367,8 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
       modelId: process.env.VOIDHASH_AGENT_MODEL_ID?.trim() || defaultModelId,
       visionProvider: process.env.VOIDHASH_AGENT_VISION_MODEL_PROVIDER?.trim() || defaultProvider,
       visionModelId: process.env.VOIDHASH_AGENT_VISION_MODEL_ID?.trim() || defaultModelId,
-      ...(openaiApiKey === undefined ? {} : { openaiApiKey: Redacted.make(openaiApiKey) }),
-      ...(anthropicApiKey === undefined ? {} : { anthropicApiKey: Redacted.make(anthropicApiKey) }),
-      ...(process.env.OPENAI_BASE_URL?.trim()
-        ? { openaiBaseUrl: process.env.OPENAI_BASE_URL.trim() }
-        : {}),
+      ...agentApiKeys(openaiApiKey, anthropicApiKey),
+      ...agentOpenaiBaseUrl(),
     },
     artifactObjectStore: {
       ...objectStore,
@@ -319,7 +376,7 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
     },
     auth: getSelfhostAuthConfig(),
     database: getSelfhostDatabaseConfig(),
-    ...(clickhouse === undefined ? {} : { clickhouse }),
+    ...optionalClickhouse(clickhouse),
     componentCompilerUrl: process.env.COMPONENT_COMPILER_URL?.trim() || "http://127.0.0.1:5002",
     host: process.env.HOST?.trim() || "0.0.0.0",
     mailer: getSelfhostSmtpConfig(),

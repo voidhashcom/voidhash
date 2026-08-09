@@ -15,6 +15,15 @@ import {
 } from "@voidhash/rpc";
 import { Effect } from "effect";
 
+const isSnapshotDocumentNode = (value: unknown): value is SnapshotDocumentNode =>
+  typeof value === "object" && value !== null;
+
+/** The decoded renderer root as the single-element snapshot array, or empty. */
+const documentRoots = (root: unknown): SnapshotDocumentNode[] => {
+  if (!isSnapshotDocumentNode(root)) return [];
+  return [root];
+};
+
 /**
  * Read-only paywall workspace RPC handlers plus the content-addressed manifest
  * upload. List a project's paywall directories, read a paywall's live document as
@@ -53,8 +62,7 @@ export const PaywallWorkspaceRpcsLive = PaywallWorkspaceRpcsDef.toLayer(
             // serializer cleans; `serializeDocument` unwraps CRDT envelopes and
             // strips schema-default fields. A `null`/missing root (empty document)
             // serializes to `{}` so the wire shape stays a document object.
-            const roots =
-              resolved.root != null ? [resolved.root as SnapshotDocumentNode] : [];
+            const roots = documentRoots(resolved.root);
             return {
               slug: resolved.slug,
               name: resolved.name,

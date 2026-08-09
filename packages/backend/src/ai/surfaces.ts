@@ -36,9 +36,9 @@ How to work:
  * the skill registry and `read_skill`, avoiding a large static prompt on every
  * provider request.
  */
-export const designerAgentSystemPrompt = (context?: DesignerContext): string =>
-  context === undefined
-    ? DESIGNER_SYSTEM_PROMPT
-    : `${DESIGNER_SYSTEM_PROMPT}${renderDesignerContext(context)}`;
+export const designerAgentSystemPrompt = (context?: DesignerContext): string => {
+  if (context === undefined) return DESIGNER_SYSTEM_PROMPT;
+  return `${DESIGNER_SYSTEM_PROMPT}${renderDesignerContext(context)}`;
+};
 
 export type { DesignerContext } from "./DesignerContext.ts";

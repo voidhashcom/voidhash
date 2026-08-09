@@ -36,13 +36,23 @@
  *   COMMENT_FILE         (optional) where to write the PR comment markdown
  */
 
-import { execFileSync } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import {
+  Config,
+  Console,
+  Data,
+  Effect,
+  FileSystem,
+  Path,
+  Schema,
+  SchemaGetter,
+  SchemaTransformation,
+} from "effect";
+import { FetchHttpClient, HttpBody, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
-process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."));
+/** Any failure that aborts the publish run with a non-zero exit code. */
+class PublishError extends Data.TaggedError("PublishError") {}
 
 // Ordered deps-first for readable logs; uploads don't depend on order since
 // install URLs are resolved lazily, at install time.
@@ -51,6 +61,13 @@ process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."));
 // rewritten workspace-dep URLs of the public packages resolve; they are left
 // out of the PR comment.
 const PACKAGES = [
+  {
+    dir: "packages/lib",
+    name: "@voidhash/lib",
+    project: "lib",
+    build: false,
+    internal: true,
+  },
   {
     dir: "packages/generated-clients",
     name: "@voidhash/generated-clients",
@@ -106,149 +123,310 @@ const PACKAGES = [
   },
 ];
 
-const requireEnv = (key) => {
-  const value = process.env[key];
-  if (!value) {
-    console.error(`Missing required environment variable ${key}`);
-    process.exit(1);
-  }
-  return value;
+/** Manifests are round-tripped verbatim, so the parsed shape stays opaque. */
+const decodeManifest = Schema.decodeUnknownEffect(Schema.UnknownFromJsonString);
+
+/**
+ * Re-serializes a manifest with the indentation the file already used, so the
+ * rewrite touches only the fields this script changes.
+ *
+ * @param {string} indent
+ */
+const manifestJson = (indent) =>
+  Schema.String.pipe(
+    Schema.decodeTo(
+      Schema.Unknown,
+      new SchemaTransformation.Transformation(
+        SchemaGetter.parseJson(),
+        SchemaGetter.stringifyJson({ space: indent }),
+      ),
+    ),
+  );
+
+const encodeTags = Schema.encodeEffect(Schema.fromJsonString(Schema.Array(Schema.String)));
+
+/**
+ * Reads a required environment variable, aborting with the original one-line
+ * message when it is unset or empty.
+ *
+ * @param {string} key
+ */
+const requireEnv = (key) =>
+  Effect.gen(function* () {
+    const value = yield* Config.string(key).pipe(Config.withDefault(""), Effect.orDie);
+    if (!value) {
+      yield* Console.error(`Missing required environment variable ${key}`);
+      return yield* new PublishError({ message: `missing ${key}`, silent: true });
+    }
+    return value;
+  });
+
+/**
+ * Reads an optional environment variable as a possibly-empty string.
+ *
+ * @param {string} key
+ */
+const optionalEnv = (key) => Config.string(key).pipe(Config.withDefault(""), Effect.orDie);
+
+/**
+ * Wraps an effect in GitHub Actions' collapsible log group markers, closing the
+ * group even when the body fails.
+ *
+ * @param {string} title
+ */
+const group = (title, body) =>
+  Effect.gen(function* () {
+    yield* Console.log(`::group::${title}`);
+    return yield* body;
+  }).pipe(Effect.ensuring(Console.log("::endgroup::")));
+
+/**
+ * Runs a command with the parent's stdio attached, failing when it exits
+ * non-zero — the behaviour `execFileSync` had by throwing.
+ *
+ * @param {ChildProcess.Command} command
+ * @param {string} label
+ */
+const runInherit = (command, label) =>
+  Effect.gen(function* () {
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const code = yield* spawner
+      .exitCode(command)
+      .pipe(Effect.mapError((cause) => new PublishError({ message: String(cause) })));
+    if (Number(code) !== 0) {
+      return yield* new PublishError({ message: `${label} failed with exit code ${code}` });
+    }
+  });
+
+/** PR builds get an extra `pr-<number>` install tag; pushes to a branch do not. */
+const prTags = (prNumber) => {
+  if (!prNumber) return [];
+  return [`pr-${prNumber}`];
 };
 
-const dryRun = process.env.PR_PACKAGES_DRY_RUN === "1";
-const sha = requireEnv("SHA");
-const branch = requireEnv("BRANCH");
-// Trim: the server does a strict `Bearer ${token}` string compare, so a
-// trailing newline in the GitHub secret (common when a token is piped in from
-// a file) would otherwise 401 every upload.
-const token = (dryRun ? process.env.PR_PACKAGE_TOKEN : requireEnv("PR_PACKAGE_TOKEN"))?.trim();
-const host = process.env.PR_PACKAGE_HOST || "pkg.voidha.sh";
-const ttl = process.env.PR_PACKAGE_TTL || "";
-const prNumber = process.env.PR_NUMBER || "";
-
-const shortSha = sha.slice(0, 7);
-const tags = [shortSha, sha, branch, ...(prNumber ? [`pr-${prNumber}`] : [])];
-const installUrl = (pkg) => `https://${host}/${pkg.project}/${shortSha}`;
-
-const byName = new Map(PACKAGES.map((pkg) => [pkg.name, pkg]));
-
-const group = (title, fn) => {
-  console.log(`::group::${title}`);
-  try {
-    return fn();
-  } finally {
-    console.log("::endgroup::");
-  }
+/** The TTL header is only sent when configured, so the host applies its default. */
+const ttlHeader = (ttl) => {
+  if (!ttl) return {};
+  return { "x-ttl": ttl };
 };
 
-// ── 1. Rewrite manifests ─────────────────────────────────────────────
-group(`Rewrite manifests (version + workspace deps @ ${shortSha})`, () => {
-  for (const pkg of PACKAGES) {
-    const file = path.join(pkg.dir, "package.json");
-    const raw = fs.readFileSync(file, "utf8");
-    const manifest = JSON.parse(raw);
-    manifest.version = `${manifest.version}-${shortSha}`;
+/** Reported TTL in the success line — the host's default when none was set. */
+const ttlLabel = (ttl) => {
+  if (!ttl) return "default";
+  return ttl;
+};
 
-    // devDependencies are skipped: consumers never install them, and
-    // `pnpm pack` substitutes their workspace ranges with local versions.
-    for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
-      for (const [depName, range] of Object.entries(manifest[field] ?? {})) {
-        if (!range.startsWith("workspace:")) {
-          continue;
+/** The trailing "replace the sha" hint only makes sense for a PR build. */
+const prHint = (prNumber) => {
+  if (!prNumber) return [];
+  return [
+    `Replace the sha with \`pr-${prNumber}\` or the branch name to always get the latest build of this PR.`,
+    "",
+  ];
+};
+
+const program = Effect.gen(function* () {
+  const path = yield* Path.Path;
+  const fileSystem = yield* FileSystem.FileSystem;
+  const client = yield* HttpClient.HttpClient;
+
+  // The original `process.chdir`'d here; every path and child process is anchored
+  // to the repo root explicitly instead.
+  const scriptDirectory = path.dirname(yield* path.fromFileUrl(new URL(import.meta.url)));
+  const repoRoot = path.resolve(scriptDirectory, "..");
+
+  const dryRun = (yield* optionalEnv("PR_PACKAGES_DRY_RUN")) === "1";
+  const sha = yield* requireEnv("SHA");
+  const branch = yield* requireEnv("BRANCH");
+  // Trim: the server does a strict `Bearer ${token}` string compare, so a
+  // trailing newline in the GitHub secret (common when a token is piped in from
+  // a file) would otherwise 401 every upload.
+  const rawToken = yield* Effect.gen(function* () {
+    if (dryRun) return yield* optionalEnv("PR_PACKAGE_TOKEN");
+    return yield* requireEnv("PR_PACKAGE_TOKEN");
+  });
+  const token = rawToken.trim();
+  const host = (yield* optionalEnv("PR_PACKAGE_HOST")) || "pkg.voidha.sh";
+  const ttl = yield* optionalEnv("PR_PACKAGE_TTL");
+  const prNumber = yield* optionalEnv("PR_NUMBER");
+
+  const shortSha = sha.slice(0, 7);
+  const tags = [shortSha, sha, branch, ...prTags(prNumber)];
+  const installUrl = (pkg) => `https://${host}/${pkg.project}/${shortSha}`;
+
+  const byName = new Map(PACKAGES.map((pkg) => [pkg.name, pkg]));
+
+  // ── 1. Rewrite manifests ─────────────────────────────────────────────
+  yield* group(
+    `Rewrite manifests (version + workspace deps @ ${shortSha})`,
+    Effect.gen(function* () {
+      for (const pkg of PACKAGES) {
+        const file = path.join(repoRoot, pkg.dir, "package.json");
+        const raw = yield* fileSystem
+          .readFileString(file)
+          .pipe(Effect.mapError((cause) => new PublishError({ message: String(cause) })));
+        const manifest = yield* decodeManifest(raw).pipe(
+          Effect.mapError(
+            (cause) => new PublishError({ message: `${file} is not valid JSON`, cause }),
+          ),
+        );
+        manifest.version = `${manifest.version}-${shortSha}`;
+
+        // devDependencies are skipped: consumers never install them, and
+        // `pnpm pack` substitutes their workspace ranges with local versions.
+        for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
+          for (const [depName, range] of Object.entries(manifest[field] ?? {})) {
+            if (!range.startsWith("workspace:")) {
+              continue;
+            }
+            const dep = byName.get(depName);
+            if (!dep) {
+              return yield* new PublishError({
+                message: `${pkg.name} has workspace ${field} "${depName}" that is not in the pr-packages list — the published tarball would not install`,
+              });
+            }
+            manifest[field][depName] = installUrl(dep);
+          }
         }
-        const dep = byName.get(depName);
-        if (!dep) {
-          throw new Error(
-            `${pkg.name} has workspace ${field} "${depName}" that is not in the pr-packages list — the published tarball would not install`,
+
+        const indent = raw.match(/\n([ \t]+)"/)?.[1] ?? "  ";
+        const serialized = yield* Schema.encodeEffect(manifestJson(indent))(manifest).pipe(
+          Effect.mapError((cause) => new PublishError({ message: String(cause) })),
+        );
+        yield* fileSystem
+          .writeFileString(file, `${serialized}\n`)
+          .pipe(Effect.mapError((cause) => new PublishError({ message: String(cause) })));
+        yield* Console.log(`${pkg.name} → ${manifest.version}`);
+      }
+    }),
+  );
+
+  // ── 2. Build ─────────────────────────────────────────────────────────
+  for (const pkg of PACKAGES) {
+    if (!pkg.build) {
+      continue;
+    }
+    yield* group(
+      `Build ${pkg.name}`,
+      runInherit(
+        ChildProcess.make("pnpm", ["--filter", pkg.name, "run", "build"], {
+          cwd: repoRoot,
+          stdin: "inherit",
+          stdout: "inherit",
+          stderr: "inherit",
+        }),
+        `build of ${pkg.name}`,
+      ),
+    );
+  }
+
+  // ── 3. Pack + upload ─────────────────────────────────────────────────
+  for (const pkg of PACKAGES) {
+    yield* group(
+      `Publish ${pkg.name}`,
+      Effect.gen(function* () {
+        const destination = yield* fileSystem
+          .makeTempDirectory({ prefix: "pr-packages-" })
+          .pipe(Effect.mapError((cause) => new PublishError({ message: String(cause) })));
+        yield* runInherit(
+          ChildProcess.make("pnpm", ["pack", "--pack-destination", destination], {
+            cwd: path.join(repoRoot, pkg.dir),
+            stdin: "inherit",
+            stdout: "inherit",
+            stderr: "inherit",
+          }),
+          `pnpm pack of ${pkg.name}`,
+        );
+        const entries = yield* fileSystem
+          .readDirectory(destination)
+          .pipe(Effect.mapError((cause) => new PublishError({ message: String(cause) })));
+        const tarball = entries.find((f) => f.endsWith(".tgz"));
+        if (!tarball) {
+          return yield* new PublishError({
+            message: `pnpm pack produced no tarball for ${pkg.name}`,
+          });
+        }
+
+        const encodedTags = yield* encodeTags(tags).pipe(
+          Effect.mapError((cause) => new PublishError({ message: String(cause) })),
+        );
+
+        if (dryRun) {
+          return yield* Console.log(
+            `[dry run] would upload ${tarball} to ${installUrl(pkg)} with tags ${encodedTags}`,
           );
         }
-        manifest[field][depName] = installUrl(dep);
-      }
-    }
 
-    const indent = raw.match(/\n([ \t]+)"/)?.[1] ?? "  ";
-    fs.writeFileSync(file, `${JSON.stringify(manifest, null, indent)}\n`);
-    console.log(`${pkg.name} → ${manifest.version}`);
+        const body = yield* fileSystem
+          .readFile(path.join(destination, tarball))
+          .pipe(Effect.mapError((cause) => new PublishError({ message: String(cause) })));
+
+        const response = yield* client
+          .execute(
+            HttpClientRequest.put(`https://${host}/projects/${pkg.project}/packages`, {
+              headers: {
+                authorization: `Bearer ${token}`,
+                "x-tags": encodedTags,
+                ...ttlHeader(ttl),
+              },
+              body: HttpBody.uint8Array(body, "application/gzip"),
+            }),
+          )
+          .pipe(Effect.mapError((cause) => new PublishError({ message: String(cause) })));
+
+        if (response.status < 200 || response.status >= 300) {
+          const detail = yield* response.text.pipe(Effect.orElseSucceed(() => ""));
+          return yield* new PublishError({
+            message: `Upload of ${pkg.name} failed: ${response.status}\n${detail}`,
+          });
+        }
+
+        yield* Console.log(
+          `Published ${installUrl(pkg)} (tags: ${tags.join(", ")}, ttl: ${ttlLabel(ttl)})`,
+        );
+      }),
+    );
   }
+
+  // ── 4. Install instructions (PR comment / step summary) ──────────────
+  const lines = ["<!-- pr-packages -->", "", `Install the packages built from ${shortSha}:`, ""];
+  for (const pkg of PACKAGES) {
+    if (pkg.internal) {
+      continue;
+    }
+    lines.push(`**${pkg.name}**`, "```sh", `pnpm add ${pkg.name}@${installUrl(pkg)}`, "```", "");
+  }
+  lines.push(
+    "Internal workspace deps (lib, generated-clients, shared, studio) are published at the same sha and resolved automatically.",
+    "",
+    ...prHint(prNumber),
+  );
+  const body = lines.join("\n");
+
+  const commentFile = yield* optionalEnv("COMMENT_FILE");
+  if (commentFile) {
+    yield* fileSystem.writeFileString(commentFile, body).pipe(Effect.orDie);
+  }
+  const stepSummary = yield* optionalEnv("GITHUB_STEP_SUMMARY");
+  if (stepSummary) {
+    yield* fileSystem.writeFileString(stepSummary, body, { flag: "a" }).pipe(Effect.orDie);
+  }
+  yield* Console.log(body);
 });
 
-// ── 2. Build ─────────────────────────────────────────────────────────
-for (const pkg of PACKAGES) {
-  if (!pkg.build) {
-    continue;
-  }
-  group(`Build ${pkg.name}`, () => {
-    execFileSync("pnpm", ["--filter", pkg.name, "run", "build"], {
-      stdio: "inherit",
-    });
+/** Prints the failure as one line, unless it was already reported in full. */
+const reportFailure = (error) =>
+  Effect.gen(function* () {
+    if (!error.silent) yield* Console.error(`publish-pr-packages: ${error.message}`);
+    return yield* Effect.fail(error);
   });
-}
 
-// ── 3. Pack + upload ─────────────────────────────────────────────────
-for (const pkg of PACKAGES) {
-  await group(`Publish ${pkg.name}`, async () => {
-    const destination = fs.mkdtempSync(path.join(os.tmpdir(), "pr-packages-"));
-    execFileSync("pnpm", ["pack", "--pack-destination", destination], {
-      cwd: pkg.dir,
-      stdio: "inherit",
-    });
-    const tarball = fs.readdirSync(destination).find((f) => f.endsWith(".tgz"));
-    if (!tarball) {
-      throw new Error(`pnpm pack produced no tarball for ${pkg.name}`);
-    }
-
-    if (dryRun) {
-      console.log(
-        `[dry run] would upload ${tarball} to ${installUrl(pkg)} with tags ${JSON.stringify(tags)}`,
-      );
-      return;
-    }
-
-    const response = await fetch(`https://${host}/projects/${pkg.project}/packages`, {
-      method: "PUT",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-tags": JSON.stringify(tags),
-        ...(ttl ? { "x-ttl": ttl } : {}),
-        "content-type": "application/gzip",
-      },
-      body: fs.readFileSync(path.join(destination, tarball)),
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Upload of ${pkg.name} failed: ${response.status} ${response.statusText}\n${await response.text()}`,
-      );
-    }
-    console.log(
-      `Published ${installUrl(pkg)} (tags: ${tags.join(", ")}, ttl: ${ttl || "default"})`,
-    );
-  });
-}
-
-// ── 4. Install instructions (PR comment / step summary) ──────────────
-const lines = ["<!-- pr-packages -->", "", `Install the packages built from ${shortSha}:`, ""];
-for (const pkg of PACKAGES) {
-  if (pkg.internal) {
-    continue;
-  }
-  lines.push(`**${pkg.name}**`, "```sh", `pnpm add ${pkg.name}@${installUrl(pkg)}`, "```", "");
-}
-lines.push(
-  "Internal workspace deps (generated-clients, shared, studio) are published at the same sha and resolved automatically.",
-  "",
-  ...(prNumber
-    ? [
-        `Replace the sha with \`pr-${prNumber}\` or the branch name to always get the latest build of this PR.`,
-        "",
-      ]
-    : []),
+// Error reporting stays off so a failure prints only the single line above, and
+// `runMain` still exits non-zero on the tagged failure.
+NodeRuntime.runMain(
+  program.pipe(
+    Effect.catch(reportFailure),
+    Effect.provide([NodeServices.layer, FetchHttpClient.layer]),
+  ),
+  { disableErrorReporting: true },
 );
-const body = lines.join("\n");
-
-if (process.env.COMMENT_FILE) {
-  fs.writeFileSync(process.env.COMMENT_FILE, body);
-}
-if (process.env.GITHUB_STEP_SUMMARY) {
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, body);
-}
-console.log(body);

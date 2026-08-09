@@ -1,6 +1,5 @@
 import { Effect, Option } from "effect";
 
-import type { PlatformRuntime } from "./PlatformRuntime.ts";
 import type * as Workflow from "./Workflow.ts";
 import type { WorkflowExecutionResult, WorkflowRunnerShape } from "./WorkflowRunner.ts";
 
@@ -22,8 +21,8 @@ export const make = (): TestWorkflowRunner => {
 
   const dispatch: WorkflowRunnerShape["dispatch"] = (workflow, payload) => {
     const executionId = workflow.idempotencyKey(payload);
-    dispatches.push({ executionId, payload, workflow: workflow as Workflow.Any });
-    return Effect.succeed(executionId) as Effect.Effect<string, never, PlatformRuntime>;
+    dispatches.push({ executionId, payload, workflow });
+    return Effect.succeed(executionId);
   };
 
   return {
@@ -33,8 +32,8 @@ export const make = (): TestWorkflowRunner => {
     execute: (workflow, payload) =>
       dispatch(workflow, payload).pipe(
         Effect.andThen(Effect.die(new Error("TestWorkflowRunner does not execute workflows"))),
-      ) as never,
-    poll: () => Effect.succeed(Option.none<WorkflowExecutionResult<never>>()) as never,
+      ),
+    poll: () => Effect.succeed(Option.none<WorkflowExecutionResult<never>>()),
     resume: () => Effect.void,
     interrupt: () => Effect.void,
   };

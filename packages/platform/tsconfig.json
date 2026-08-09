@@ -1,4 +1,5 @@
 {
+  "compilerOptions": { "rootDir": "./src" },
   "extends": "@voidhash/tsconfig/internal-package-typescript-6.json",
   "include": ["src"],
   "exclude": ["**/node_modules/**"]

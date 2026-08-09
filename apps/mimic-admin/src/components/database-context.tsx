@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from "react";
+import { Effect } from "effect";
 
 interface DatabaseContextValue {
   selectedDatabaseId: string | null;
@@ -9,26 +10,32 @@ const DatabaseContext = createContext<DatabaseContextValue | null>(null);
 
 const STORAGE_KEY = "mimic-admin-selected-database";
 
+/** Reads the persisted selection, yielding `null` when storage is unavailable. */
+const readSelection = (): string | null =>
+  Effect.runSync(
+    Effect.try(() => window.localStorage.getItem(STORAGE_KEY)).pipe(
+      Effect.orElseSucceed(() => null),
+    ),
+  );
+
+/** Persists (or clears) the selection, ignoring storage errors. */
+const writeSelection = (id: string | null): void =>
+  Effect.runSync(
+    Effect.try(() => {
+      if (id) {
+        window.localStorage.setItem(STORAGE_KEY, id);
+        return;
+      }
+      window.localStorage.removeItem(STORAGE_KEY);
+    }).pipe(Effect.ignore),
+  );
+
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
-  const [selectedDatabaseId, setSelectedDatabaseIdState] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [selectedDatabaseId, setSelectedDatabaseIdState] = useState<string | null>(readSelection);
 
   const setSelectedDatabaseId = useCallback((id: string | null) => {
     setSelectedDatabaseIdState(id);
-    try {
-      if (id) {
-        localStorage.setItem(STORAGE_KEY, id);
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    } catch {
-      // ignore storage errors
-    }
+    writeSelection(id);
   }, []);
 
   return (
@@ -41,7 +48,9 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 export function useDatabase(): DatabaseContextValue {
   const ctx = useContext(DatabaseContext);
   if (!ctx) {
-    throw new Error("useDatabase must be used within a DatabaseProvider");
+    return Effect.runSync(
+      Effect.die(new Error("useDatabase must be used within a DatabaseProvider")),
+    );
   }
   return ctx;
 }

@@ -1,5 +1,5 @@
 import { applyBatch } from "../core/apply.ts";
-import { type Command, type Path, type Value } from "../core/types.ts";
+import { type Command, type Value } from "../core/types.ts";
 import { createGenerator } from "../fractional/index.ts";
 import { validate as validateSchema } from "../schema/validate.ts";
 import { validateValue } from "../core/validate.ts";
@@ -43,6 +43,6 @@ export const commands = <TRoot extends AnyPrimitive>(
     },
   };
 
-  build(primitive.createProxy(session, []) as InferProxy<TRoot>);
+  build(primitive.createProxy(session, []));
   return staged;
 };

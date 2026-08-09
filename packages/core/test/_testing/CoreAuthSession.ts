@@ -3,9 +3,11 @@ import {
   AuthSession,
   type UserSession,
 } from "@voidhash/core/domain/auth/Auth";
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import { CoreTestFixture } from "./CoreTestFixture";
+
+const epoch = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 
 /**
  * Default authenticated session for tests: a `user`-method session for the
@@ -40,14 +42,14 @@ const defaultUserSession = (): UserSession => ({
     },
   ],
   user: {
-    createdAt: new Date(0),
+    createdAt: epoch,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: epoch,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });

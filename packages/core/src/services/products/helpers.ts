@@ -1,4 +1,5 @@
 import { ProductType, type ProductTypeValue } from "@voidhash/lib";
+import { Effect } from "effect";
 
 /**
  * Public-facing product type label used by `ProductService` outputs. Matches
@@ -15,6 +16,14 @@ export interface ProductView {
   readonly type: ProductTypeLabel;
 }
 
+/**
+ * A value outside the `ProductType` union can only reach here from a corrupt DB
+ * row, so the exhaustiveness guard raises a defect. `Effect.die` is run
+ * synchronously so this helper keeps its pure, synchronous signature.
+ */
+const invalidProductType = (type: ProductTypeValue): never =>
+  Effect.runSync(Effect.die(new Error(`Invalid product type: ${type}`)));
+
 export const dbProductTypeToLabel = (type: ProductTypeValue): ProductTypeLabel => {
   if (type === ProductType.Subscription) {
     return "subscription";
@@ -25,5 +34,5 @@ export const dbProductTypeToLabel = (type: ProductTypeValue): ProductTypeLabel =
   if (type === ProductType.OneTimeConsumable) {
     return "one-time-consumable";
   }
-  throw new Error(`Invalid product type: ${type}`);
+  return invalidProductType(type);
 };

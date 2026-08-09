@@ -1,4 +1,4 @@
-import { Cause, type Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
+import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
@@ -153,16 +153,20 @@ export class VoidhashClient {
   }
 
   private async runSideEffect(operation: string, effect: () => Promise<void>) {
-    try {
-      await effect();
-    } catch (error) {
-      if (!this.unstableSwallowErrors) {
-        throw error;
-      }
+    await Effect.runPromise(
+      Effect.tryPromise({ try: () => effect(), catch: (error) => error }).pipe(
+        Effect.catch((error) => {
+          if (!this.unstableSwallowErrors) {
+            return Effect.die(error);
+          }
 
-      // This warning is intentionally surfaced in all environments.
-      console.warn(`[voidhash] swallowed error in ${operation}`, error);
-    }
+          // This warning is intentionally surfaced in all environments.
+          return Effect.sync(() => {
+            console.warn(`[voidhash] swallowed error in ${operation}`, error);
+          });
+        }),
+      ),
+    );
   }
 
   /**
@@ -281,7 +285,7 @@ export class VoidhashClient {
   async setPersonAttributesSync(attributes: PersonAttributes) {
     this.ensureInitialized();
     if (this.readOnly) {
-      throw new ReadOnlyModePurchaseNotAllowedError();
+      return Effect.runSync(Effect.die(new ReadOnlyModePurchaseNotAllowedError()));
     }
 
     return this.runEffect(
@@ -394,7 +398,7 @@ export class VoidhashClient {
   ) {
     this.ensureInitialized();
     if (this.readOnly) {
-      throw new ReadOnlyModePurchaseNotAllowedError();
+      return Effect.runSync(Effect.die(new ReadOnlyModePurchaseNotAllowedError()));
     }
 
     await this.runEffect(this.initializedClient!.purchase(product, _options), "FAILED_TO_PURCHASE");
@@ -516,14 +520,18 @@ export class VoidhashClient {
   ): Promise<T> {
     const result = await this.effectRuntime.runPromiseExit(effect);
     if (Exit.isSuccess(result)) return result.value;
-    throw toErrorWithMessage(errorCode, Cause.squash(result.cause));
+    return Effect.runSync(Effect.die(toErrorWithMessage(errorCode, Cause.squash(result.cause))));
   }
 
   private ensureInitialized() {
     if (!this.initializedClient) {
-      throw new VoidhashError(
-        "VOIDHASH_CLIENT_NOT_INITIALIZED",
-        new Error("ProductManager is not initialized"),
+      return Effect.runSync(
+        Effect.die(
+          new VoidhashError(
+            "VOIDHASH_CLIENT_NOT_INITIALIZED",
+            new Error("ProductManager is not initialized"),
+          ),
+        ),
       );
     }
   }

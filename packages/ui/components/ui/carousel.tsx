@@ -1,5 +1,6 @@
 "use client";
 
+import { Effect } from "effect";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import * as React from "react";
@@ -34,7 +35,9 @@ function useCarousel() {
   const context = React.useContext(CarouselContext);
 
   if (!context) {
-    throw new Error("useCarousel must be used within a <Carousel />");
+    return Effect.runSync(
+      Effect.die(new Error("useCarousel must be used within a <Carousel />")),
+    );
   }
 
   return context;

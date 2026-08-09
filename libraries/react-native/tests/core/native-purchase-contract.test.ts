@@ -1,18 +1,20 @@
-import { readFileSync } from "node:fs";
+import { NodeFileSystem } from "@effect/platform-node";
+import { Effect, FileSystem } from "effect";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "../helpers/effect-vitest";
 
-const androidSource = readFileSync(
-  new URL(
-    "../../android/src/main/java/com/margelo/nitro/voidhash/HybridGoogleBilling.kt",
-    import.meta.url,
-  ),
-  "utf8",
+const readSource = (relativePath: string) =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      return yield* fileSystem.readFileString(new URL(relativePath, import.meta.url).pathname);
+    }).pipe(Effect.provide(NodeFileSystem.layer), Effect.orDie),
+  );
+
+const androidSource = await readSource(
+  "../../android/src/main/java/com/margelo/nitro/voidhash/HybridGoogleBilling.kt",
 );
-const storekitSource = readFileSync(
-  new URL("../../ios/HybridStorekit.swift", import.meta.url),
-  "utf8",
-);
+const storekitSource = await readSource("../../ios/HybridStorekit.swift");
 
 describe("native purchase bridge invariants", () => {
   it("resolves Android purchase promises from PurchasesUpdatedListener", () => {

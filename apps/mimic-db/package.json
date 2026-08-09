@@ -15,7 +15,8 @@
     "./ws/*": "./src/ws/*.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/entrypoints/standalone/main.ts",
+    "dev": "portless mimic.voidhash --app-port 5001 pnpm run dev:app",
+    "dev:app": "tsx watch src/entrypoints/standalone/main.ts",
     "start": "tsx src/entrypoints/standalone/main.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vp test run -c vitest.mts",
@@ -24,6 +25,7 @@
   "dependencies": {
     "@effect/platform-node": "catalog:",
     "@effect/sql-pg": "catalog:",
+    "@voidhash/lib": "workspace:*",
     "@voidhash/mimic-core": "workspace:*",
     "@voidhash/mimic-server": "workspace:*",
     "@voidhash/platform": "workspace:*",

@@ -17,14 +17,16 @@ import {
   pushNotificationDeliveries,
   pushNotificationSends,
 } from "@voidhash/db";
+import { generateId } from "@voidhash/core/utils";
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 const { test } = CoreIntegrationTestHarness.make();
-const suffix = `${Date.now()}-${crypto.randomUUID()}`;
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+const suffix = generateId("test");
 const configurationId = `it_push_config_auth_${suffix}`;
 const sendId = `it_push_send_auth_${suffix}`;
 const deliveryId = `it_push_delivery_auth_${suffix}`;
@@ -61,14 +63,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });

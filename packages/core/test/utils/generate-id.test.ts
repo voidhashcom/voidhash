@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { isCuid } from "@paralleldrive/cuid2";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -14,7 +15,7 @@ import { generateId } from "../../src/utils/generate-id.ts";
 // the source. We deliberately spot-check a representative spread of entity types
 // (auth, payment providers, webhooks, feature flags, …) including a few
 // where the literal prefix is a non-obvious abbreviation (org, pw_loc_show, …).
-const PREFIX_CASES = [
+const PREFIX_CASES = constant([
   ["user", "user"],
   ["organization", "org"],
   ["member", "member"],
@@ -38,7 +39,7 @@ const PREFIX_CASES = [
   ["webhookEndpoint", "wh_ep"],
   ["featureFlag", "ff"],
   ["experiment", "exp"],
-] as const;
+]);
 
 // The CUID2 suffix: a single leading letter then 23 lowercase-alphanumeric chars
 // (the default length is 24). Used only as a secondary, structural assertion;

@@ -39,7 +39,7 @@
  *    assertion proving nothing was written.
  */
 import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option, Schema } from "effect";
 import { describe, expect } from "vitest";
 
 import { PerkGrantService } from "@voidhash/core/services";
@@ -53,7 +53,7 @@ import {
   type PurchaseEventSource,
 } from "@voidhash/core/domain/purchaseProcessing/PurchaseProcessing";
 import type { PaymentProviderId } from "@voidhash/core/domain/paymentProvider/PaymentProviderConfiguration";
-import type { CurrencyCode, MinorAmount } from "@voidhash/core/domain/shared/Money";
+import { CurrencyCode, MinorAmount } from "@voidhash/core/domain/shared/Money";
 import {
   type DbError,
   Db,
@@ -80,17 +80,21 @@ const { test } = CoreIntegrationTestHarness.make();
 const projectId = CoreTestFixture.projectId;
 const organizationId = CoreTestFixture.organizationId;
 
+/** Fixed UTC instant from an ISO literal — the stand-in for `new Date(iso)`. */
+const instant = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
 /** Monotonic counter so identifiers stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueKey = (label: string) => `it-pp-${label}-${Date.now()}-${seq++}`;
+const uniqueKey = (label: string) =>
+  `it-pp-${label}-${DateTime.toEpochMillis(DateTime.nowUnsafe())}-${seq++}`;
 
-const PROVIDER_ID = "apple-app-store" as PaymentProviderId;
-const SOURCE = "webhook" as PurchaseEventSource;
+const PROVIDER_ID: PaymentProviderId = "apple-app-store";
+const SOURCE: PurchaseEventSource = "webhook";
 
 /** Cents helper for the branded `MinorAmount` domain type at this trusted boundary. */
-const cents = (n: number) => n as MinorAmount;
+const cents = (n: number) => MinorAmount.make(n);
 /** Currency helper for the branded `CurrencyCode` domain type. */
-const ccy = (s: string) => s as CurrencyCode;
+const ccy = (s: string) => CurrencyCode.make(s);
 
 /**
  * A non-USD-converted money breakdown (no FX rate) used to fund a transaction
@@ -257,6 +261,11 @@ const withPurchaseScenario = <E, R>(
     );
   });
 
+/** Shape of the finalized `purchase_ledger.result_payload` JSON column. */
+const LedgerResultPayload = Schema.Struct({
+  analyticsEventIds: Schema.Array(Schema.String),
+});
+
 /** Builds the shared per-action context that every method receives. */
 const baseAction = (ids: ScenarioIds, idempotencyKey: string, occurredAt: Date) => ({
   idempotencyKey,
@@ -286,13 +295,13 @@ describe("PurchaseProcessingService.startSubscription", () => {
 
         const idempotencyKey = uniqueKey("start-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-01-01T00:00:00.000Z");
+        const occurredAt = instant("2026-01-01T00:00:00.000Z");
         const storeSubscriptionId = uniqueKey("start-storesub");
         const providerTransactionId = uniqueKey("start-tx");
 
         const result = yield* svc.startSubscription({
           ...baseAction(ids, idempotencyKey, occurredAt),
-          expiresAt: Option.some(new Date("2026-02-01T00:00:00.000Z")),
+          expiresAt: Option.some(instant("2026-02-01T00:00:00.000Z")),
           isTrial: false,
           money: Option.some(money(9990)),
           providerSubscriptionId: Option.some(storeSubscriptionId),
@@ -329,7 +338,9 @@ describe("PurchaseProcessingService.startSubscription", () => {
         expect(ledger?.providerEventType).toBe("TEST_EVENT");
         // The ledger row is finalized with the staged analytics events for the worker to drain.
         expect((ledger?.eventsPayload ?? []).length).toBe(2);
-        const resultPayload = ledger?.resultPayload as { readonly analyticsEventIds: string[] };
+        const resultPayload = yield* Schema.decodeUnknownEffect(LedgerResultPayload)(
+          ledger?.resultPayload,
+        );
         expect(resultPayload.analyticsEventIds.length).toBe(2);
       }),
     ).pipe(
@@ -347,7 +358,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
 
         const idempotencyKey = uniqueKey("start-notx-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-01-03T00:00:00.000Z");
+        const occurredAt = instant("2026-01-03T00:00:00.000Z");
         const storeSubscriptionId = uniqueKey("start-notx-storesub");
 
         const result = yield* svc.startSubscription({
@@ -391,13 +402,13 @@ describe("PurchaseProcessingService.startSubscription", () => {
 
         const idempotencyKey = uniqueKey("start-dup-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-01-05T00:00:00.000Z");
+        const occurredAt = instant("2026-01-05T00:00:00.000Z");
         const storeSubscriptionId = uniqueKey("start-dup-storesub");
         const providerTransactionId = uniqueKey("start-dup-tx");
 
         const action = {
           ...baseAction(ids, idempotencyKey, occurredAt),
-          expiresAt: Option.some(new Date("2026-02-05T00:00:00.000Z")),
+          expiresAt: Option.some(instant("2026-02-05T00:00:00.000Z")),
           isTrial: false,
           money: Option.some(money(4990)),
           providerSubscriptionId: Option.some(storeSubscriptionId),
@@ -452,7 +463,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
 
         const idempotencyKey = uniqueKey("start-unmapped-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-01-07T00:00:00.000Z");
+        const occurredAt = instant("2026-01-07T00:00:00.000Z");
 
         const error = yield* Effect.flip(
           svc.startSubscription({
@@ -493,7 +504,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
 
         const idempotencyKey = uniqueKey("start-wrongproj-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-01-09T00:00:00.000Z");
+        const occurredAt = instant("2026-01-09T00:00:00.000Z");
 
         const error = yield* Effect.flip(
           svc.startSubscription({
@@ -562,9 +573,9 @@ describe("PurchaseProcessingService.renewSubscription", () => {
 
         const subscriptionId = uniqueKey("renew-sub");
         const storeSubscriptionId = uniqueKey("renew-storesub");
-        const startedAt = new Date("2026-02-01T00:00:00.000Z");
+        const startedAt = instant("2026-02-01T00:00:00.000Z");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-03-01T00:00:00.000Z"),
+          expiresAt: instant("2026-03-01T00:00:00.000Z"),
           id: subscriptionId,
           lastEventOccurredAt: startedAt,
           startsAt: startedAt,
@@ -573,8 +584,8 @@ describe("PurchaseProcessingService.renewSubscription", () => {
 
         const idempotencyKey = uniqueKey("renew-key");
         trackKey(idempotencyKey);
-        const renewedAt = new Date("2026-03-01T00:00:00.000Z");
-        const newExpiresAt = new Date("2026-04-01T00:00:00.000Z");
+        const renewedAt = instant("2026-03-01T00:00:00.000Z");
+        const newExpiresAt = instant("2026-04-01T00:00:00.000Z");
 
         const result = yield* svc.renewSubscription({
           ...baseAction(ids, idempotencyKey, renewedAt),
@@ -610,24 +621,24 @@ describe("PurchaseProcessingService.renewSubscription", () => {
 
         const subscriptionId = uniqueKey("renew-stale-sub");
         const storeSubscriptionId = uniqueKey("renew-stale-storesub");
-        const freshWatermark = new Date("2026-05-01T00:00:00.000Z");
-        const expiresAt = new Date("2026-06-01T00:00:00.000Z");
+        const freshWatermark = instant("2026-05-01T00:00:00.000Z");
+        const expiresAt = instant("2026-06-01T00:00:00.000Z");
         yield* seedActiveSubscription(ids, {
           expiresAt,
           id: subscriptionId,
           lastEventOccurredAt: freshWatermark,
-          startsAt: new Date("2026-04-01T00:00:00.000Z"),
+          startsAt: instant("2026-04-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("renew-stale-key");
         trackKey(idempotencyKey);
         // occurredAt is BEFORE the current watermark -> projection update rejected.
-        const staleOccurredAt = new Date("2026-04-15T00:00:00.000Z");
+        const staleOccurredAt = instant("2026-04-15T00:00:00.000Z");
 
         const result = yield* svc.renewSubscription({
           ...baseAction(ids, idempotencyKey, staleOccurredAt),
-          expiresAt: Option.some(new Date("2026-12-01T00:00:00.000Z")),
+          expiresAt: Option.some(instant("2026-12-01T00:00:00.000Z")),
           isTrial: false,
           money: Option.none(),
           providerSubscriptionId: Option.some(storeSubscriptionId),
@@ -660,16 +671,16 @@ describe("PurchaseProcessingService.cancelSubscription / expireSubscription", ()
         const subscriptionId = uniqueKey("cancel-sub");
         const storeSubscriptionId = uniqueKey("cancel-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-08-01T00:00:00.000Z"),
+          expiresAt: instant("2026-08-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-07-01T00:00:00.000Z"),
-          startsAt: new Date("2026-07-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-07-01T00:00:00.000Z"),
+          startsAt: instant("2026-07-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("cancel-key");
         trackKey(idempotencyKey);
-        const canceledAt = new Date("2026-07-15T00:00:00.000Z");
+        const canceledAt = instant("2026-07-15T00:00:00.000Z");
 
         const result = yield* svc.cancelSubscription({
           ...baseAction(ids, idempotencyKey, canceledAt),
@@ -700,7 +711,7 @@ describe("PurchaseProcessingService.cancelSubscription / expireSubscription", ()
 
         const idempotencyKey = uniqueKey("cancel-missing-key");
         trackKey(idempotencyKey);
-        const canceledAt = new Date("2026-07-20T00:00:00.000Z");
+        const canceledAt = instant("2026-07-20T00:00:00.000Z");
 
         const result = yield* svc.cancelSubscription({
           ...baseAction(ids, idempotencyKey, canceledAt),
@@ -735,16 +746,16 @@ describe("PurchaseProcessingService.cancelSubscription / expireSubscription", ()
         const subscriptionId = uniqueKey("expire-sub");
         const storeSubscriptionId = uniqueKey("expire-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-09-01T00:00:00.000Z"),
+          expiresAt: instant("2026-09-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-08-01T00:00:00.000Z"),
-          startsAt: new Date("2026-08-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-08-01T00:00:00.000Z"),
+          startsAt: instant("2026-08-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("expire-key");
         trackKey(idempotencyKey);
-        const expiredAt = new Date("2026-09-01T00:00:00.000Z");
+        const expiredAt = instant("2026-09-01T00:00:00.000Z");
 
         yield* svc.expireSubscription({
           ...baseAction(ids, idempotencyKey, expiredAt),
@@ -775,9 +786,9 @@ describe("PurchaseProcessingService.revokeSubscription", () => {
         const subscriptionId = uniqueKey("revoke-sub-id");
         const storeSubscriptionId = uniqueKey("revoke-sub-storesub");
         const providerTransactionId = uniqueKey("revoke-sub-tx");
-        const startedAt = new Date("2026-10-01T00:00:00.000Z");
+        const startedAt = instant("2026-10-01T00:00:00.000Z");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-11-01T00:00:00.000Z"),
+          expiresAt: instant("2026-11-01T00:00:00.000Z"),
           id: subscriptionId,
           lastEventOccurredAt: startedAt,
           startsAt: startedAt,
@@ -805,7 +816,7 @@ describe("PurchaseProcessingService.revokeSubscription", () => {
 
         const idempotencyKey = uniqueKey("revoke-sub-key");
         trackKey(idempotencyKey);
-        const revokedAt = new Date("2026-10-15T00:00:00.000Z");
+        const revokedAt = instant("2026-10-15T00:00:00.000Z");
 
         const result = yield* svc.revokeSubscription({
           ...baseAction(ids, idempotencyKey, revokedAt),
@@ -846,7 +857,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
 
         const idempotencyKey = uniqueKey("otp-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-03-10T00:00:00.000Z");
+        const occurredAt = instant("2026-03-10T00:00:00.000Z");
         const providerTransactionId = uniqueKey("otp-tx");
 
         const result = yield* svc.completeOneTimePurchase({
@@ -887,7 +898,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
         // Establish the purchase + transaction via a real complete call first.
         const completeKey = uniqueKey("refund-complete-key");
         trackKey(completeKey);
-        const completedAt = new Date("2026-03-20T00:00:00.000Z");
+        const completedAt = instant("2026-03-20T00:00:00.000Z");
         const providerTransactionId = uniqueKey("refund-tx");
         yield* svc.completeOneTimePurchase({
           ...baseAction(ids, completeKey, completedAt),
@@ -899,7 +910,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
 
         const refundKey = uniqueKey("refund-key");
         trackKey(refundKey);
-        const refundedAt = new Date("2026-03-25T00:00:00.000Z");
+        const refundedAt = instant("2026-03-25T00:00:00.000Z");
         const result = yield* svc.refundPurchase({
           ...baseAction(ids, refundKey, refundedAt),
           providerTransactionId: Option.some(providerTransactionId),
@@ -934,7 +945,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
 
         const completeKey = uniqueKey("reverse-complete-key");
         trackKey(completeKey);
-        const completedAt = new Date("2026-04-01T00:00:00.000Z");
+        const completedAt = instant("2026-04-01T00:00:00.000Z");
         const providerTransactionId = uniqueKey("reverse-tx");
         yield* svc.completeOneTimePurchase({
           ...baseAction(ids, completeKey, completedAt),
@@ -946,7 +957,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
 
         const refundKey = uniqueKey("reverse-refund-key");
         trackKey(refundKey);
-        const refundedAt = new Date("2026-04-05T00:00:00.000Z");
+        const refundedAt = instant("2026-04-05T00:00:00.000Z");
         yield* svc.refundPurchase({
           ...baseAction(ids, refundKey, refundedAt),
           providerTransactionId: Option.some(providerTransactionId),
@@ -956,7 +967,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
 
         const reverseKey = uniqueKey("reverse-key");
         trackKey(reverseKey);
-        const reversedAt = new Date("2026-04-10T00:00:00.000Z");
+        const reversedAt = instant("2026-04-10T00:00:00.000Z");
         const result = yield* svc.reverseRefund({
           ...baseAction(ids, reverseKey, reversedAt),
           providerTransactionId: Option.some(providerTransactionId),
@@ -989,7 +1000,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
 
         const idempotencyKey = uniqueKey("revoke-pur-missing-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-04-15T00:00:00.000Z");
+        const occurredAt = instant("2026-04-15T00:00:00.000Z");
 
         // No providerTransactionId and no providerSubscriptionId -> no purchase identifier.
         const error = yield* Effect.flip(
@@ -1023,17 +1034,17 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         const subscriptionId = uniqueKey("retry-sub");
         const storeSubscriptionId = uniqueKey("retry-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+          expiresAt: instant("2026-06-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-05-01T00:00:00.000Z"),
-          startsAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-05-01T00:00:00.000Z"),
+          startsAt: instant("2026-05-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("retry-key");
         trackKey(idempotencyKey);
-        const billingRetryAt = new Date("2026-05-20T00:00:00.000Z");
-        const gracePeriodExpiresAt = new Date("2026-05-30T00:00:00.000Z");
+        const billingRetryAt = instant("2026-05-20T00:00:00.000Z");
+        const gracePeriodExpiresAt = instant("2026-05-30T00:00:00.000Z");
 
         const result = yield* svc.enterBillingRetry({
           ...baseAction(ids, idempotencyKey, billingRetryAt),
@@ -1065,17 +1076,17 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         const subscriptionId = uniqueKey("extend-sub");
         const storeSubscriptionId = uniqueKey("extend-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+          expiresAt: instant("2026-06-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-05-01T00:00:00.000Z"),
-          startsAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-05-01T00:00:00.000Z"),
+          startsAt: instant("2026-05-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("extend-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-05-25T00:00:00.000Z");
-        const extendedTo = new Date("2026-07-01T00:00:00.000Z");
+        const occurredAt = instant("2026-05-25T00:00:00.000Z");
+        const extendedTo = instant("2026-07-01T00:00:00.000Z");
 
         yield* svc.extendSubscription({
           ...baseAction(ids, idempotencyKey, occurredAt),
@@ -1103,16 +1114,16 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         const subscriptionId = uniqueKey("renewpref-sub");
         const storeSubscriptionId = uniqueKey("renewpref-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+          expiresAt: instant("2026-06-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-05-01T00:00:00.000Z"),
-          startsAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-05-01T00:00:00.000Z"),
+          startsAt: instant("2026-05-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("renewpref-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-05-15T00:00:00.000Z");
+        const occurredAt = instant("2026-05-15T00:00:00.000Z");
         const newConfigProductId = ids.configurationProductId;
 
         yield* svc.changeRenewalPreference({
@@ -1141,16 +1152,16 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         const subscriptionId = uniqueKey("offer-sub");
         const storeSubscriptionId = uniqueKey("offer-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+          expiresAt: instant("2026-06-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-05-01T00:00:00.000Z"),
-          startsAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-05-01T00:00:00.000Z"),
+          startsAt: instant("2026-05-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("offer-key");
         trackKey(idempotencyKey);
-        const redeemedAt = new Date("2026-05-18T00:00:00.000Z");
+        const redeemedAt = instant("2026-05-18T00:00:00.000Z");
 
         yield* svc.redeemOffer({
           ...baseAction(ids, idempotencyKey, redeemedAt),
@@ -1179,17 +1190,17 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         const subscriptionId = uniqueKey("price-sub");
         const storeSubscriptionId = uniqueKey("price-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+          expiresAt: instant("2026-06-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-05-01T00:00:00.000Z"),
-          startsAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-05-01T00:00:00.000Z"),
+          startsAt: instant("2026-05-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
         const idempotencyKey = uniqueKey("price-key");
         trackKey(idempotencyKey);
-        const occurredAt = new Date("2026-05-22T00:00:00.000Z");
-        const effectiveAt = new Date("2026-06-01T00:00:00.000Z");
+        const occurredAt = instant("2026-05-22T00:00:00.000Z");
+        const effectiveAt = instant("2026-06-01T00:00:00.000Z");
 
         yield* svc.recordPriceIncrease({
           ...baseAction(ids, idempotencyKey, occurredAt),
@@ -1219,10 +1230,10 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         const subscriptionId = uniqueKey("resume-sub");
         const storeSubscriptionId = uniqueKey("resume-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+          expiresAt: instant("2026-06-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-05-01T00:00:00.000Z"),
-          startsAt: new Date("2026-05-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-05-01T00:00:00.000Z"),
+          startsAt: instant("2026-05-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
         // Pre-set the cancel fields so resume has something to clear.
@@ -1231,14 +1242,14 @@ describe("PurchaseProcessingService subscription state mutations", () => {
           .update(subscriptions)
           .set({
             cancelAtPeriodEnd: true,
-            canceledAt: new Date("2026-05-10T00:00:00.000Z"),
+            canceledAt: instant("2026-05-10T00:00:00.000Z"),
             cancellationReason: "user_requested",
           })
           .where(eq(subscriptions.id, subscriptionId));
 
         const idempotencyKey = uniqueKey("resume-key");
         trackKey(idempotencyKey);
-        const resumedAt = new Date("2026-05-12T00:00:00.000Z");
+        const resumedAt = instant("2026-05-12T00:00:00.000Z");
 
         yield* svc.resumeAutoRenew({
           ...baseAction(ids, idempotencyKey, resumedAt),
@@ -1269,7 +1280,7 @@ const seedTargetPerson = (id: string) =>
 describe("PurchaseProcessingService.transferSubscription", () => {
   test(
     "moves subscription ownership to the target person and emits a transferred pair",
-    withPurchaseScenario("xfer-sub", (ids, trackKey) =>
+    withPurchaseScenario("xfer-sub", (ids, _trackKey) =>
       Effect.gen(function* () {
         const svc = yield* PurchaseProcessingService;
 
@@ -1279,14 +1290,14 @@ describe("PurchaseProcessingService.transferSubscription", () => {
         const subscriptionId = uniqueKey("xfer-sub-id");
         const storeSubscriptionId = uniqueKey("xfer-sub-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-12-01T00:00:00.000Z"),
+          expiresAt: instant("2026-12-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-11-01T00:00:00.000Z"),
-          startsAt: new Date("2026-11-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-11-01T00:00:00.000Z"),
+          startsAt: instant("2026-11-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
-        const occurredAt = new Date("2026-11-15T00:00:00.000Z");
+        const occurredAt = instant("2026-11-15T00:00:00.000Z");
         // transferSubscription derives its own idempotency key; clean up by personId
         // sweep (target person rows go through the scenario's personId cleanup, but
         // the transfer writes the ledger under the target — sweep both).
@@ -1359,7 +1370,7 @@ describe("PurchaseProcessingService.transferSubscription", () => {
         const error = yield* Effect.flip(
           svc.transferSubscription({
             fromPersonId: ids.personId,
-            occurredAt: new Date("2026-11-20T00:00:00.000Z"),
+            occurredAt: instant("2026-11-20T00:00:00.000Z"),
             organizationId,
             paymentProviderConfigurationId: ids.configurationId,
             projectId,
@@ -1382,7 +1393,7 @@ describe("PurchaseProcessingService.transferSubscription", () => {
 
   test(
     "transfer_if_no_active_on_target leaves ownership with the previous owner when the target already has one",
-    withPurchaseScenario("xfer-sub-keep", (ids, trackKey) =>
+    withPurchaseScenario("xfer-sub-keep", (ids, _trackKey) =>
       Effect.gen(function* () {
         const svc = yield* PurchaseProcessingService;
 
@@ -1393,10 +1404,10 @@ describe("PurchaseProcessingService.transferSubscription", () => {
         const subscriptionId = uniqueKey("xfer-sub-keep-id");
         const storeSubscriptionId = uniqueKey("xfer-sub-keep-storesub");
         yield* seedActiveSubscription(ids, {
-          expiresAt: new Date("2026-12-01T00:00:00.000Z"),
+          expiresAt: instant("2026-12-01T00:00:00.000Z"),
           id: subscriptionId,
-          lastEventOccurredAt: new Date("2026-11-01T00:00:00.000Z"),
-          startsAt: new Date("2026-11-01T00:00:00.000Z"),
+          lastEventOccurredAt: instant("2026-11-01T00:00:00.000Z"),
+          startsAt: instant("2026-11-01T00:00:00.000Z"),
           storeSubscriptionId,
         });
 
@@ -1405,7 +1416,7 @@ describe("PurchaseProcessingService.transferSubscription", () => {
         const targetSubscriptionId = uniqueKey("xfer-sub-keep-target-sub");
         yield* db.insert(subscriptions).values({
           cancelAtPeriodEnd: false,
-          expiresAt: new Date("2026-12-01T00:00:00.000Z"),
+          expiresAt: instant("2026-12-01T00:00:00.000Z"),
           id: targetSubscriptionId,
           initialTransactionId: uniqueKey("xfer-sub-keep-target-tx"),
           isTrial: false,
@@ -1413,8 +1424,8 @@ describe("PurchaseProcessingService.transferSubscription", () => {
           paymentProviderConfigurationProductId: ids.configurationProductId,
           personId: targetPersonId,
           providerEnvironment: ProviderEnvironment.Production,
-          purchasedAt: new Date("2026-11-01T00:00:00.000Z"),
-          startsAt: new Date("2026-11-01T00:00:00.000Z"),
+          purchasedAt: instant("2026-11-01T00:00:00.000Z"),
+          startsAt: instant("2026-11-01T00:00:00.000Z"),
           status: SubscriptionStatus.Active,
           storeSubscriptionId: uniqueKey("xfer-sub-keep-target-storesub"),
         });
@@ -1430,7 +1441,7 @@ describe("PurchaseProcessingService.transferSubscription", () => {
 
         const result = yield* svc.transferSubscription({
           fromPersonId: ids.personId,
-          occurredAt: new Date("2026-11-15T00:00:00.000Z"),
+          occurredAt: instant("2026-11-15T00:00:00.000Z"),
           organizationId,
           paymentProviderConfigurationId: ids.configurationId,
           projectId,
@@ -1470,7 +1481,7 @@ describe("PurchaseProcessingService.transferPurchase", () => {
         // Create a non-consumable one-time purchase owned by the scenario person.
         const completeKey = uniqueKey("xfer-pur-complete-key");
         trackKey(completeKey);
-        const completedAt = new Date("2026-04-01T00:00:00.000Z");
+        const completedAt = instant("2026-04-01T00:00:00.000Z");
         const providerKey = uniqueKey("xfer-pur-providerkey");
         const completed = yield* svc.completeOneTimePurchase({
           ...baseAction(ids, completeKey, completedAt),
@@ -1479,8 +1490,8 @@ describe("PurchaseProcessingService.transferPurchase", () => {
           purchaseType: "one-time",
           purchasedAt: completedAt,
         });
-        const purchaseId = Option.getOrNull(completed.purchaseId);
-        expect(purchaseId).not.toBeNull();
+        const purchaseId = Option.getOrElse(completed.purchaseId, () => "");
+        expect(purchaseId).not.toBe("");
 
         const db = yield* Db;
         // The transfer moves the purchase's personId to the target, so
@@ -1506,12 +1517,12 @@ describe("PurchaseProcessingService.transferPurchase", () => {
 
         const result = yield* svc.transferPurchase({
           fromPersonId: ids.personId,
-          occurredAt: new Date("2026-04-10T00:00:00.000Z"),
+          occurredAt: instant("2026-04-10T00:00:00.000Z"),
           organizationId,
           paymentProviderConfigurationId: ids.configurationId,
           projectId,
           providerId: PROVIDER_ID,
-          purchaseId: purchaseId as string,
+          purchaseId,
           source: SOURCE,
           toPersonId: targetPersonId,
           transferMode: "transfer_to_new_owner",
@@ -1542,7 +1553,7 @@ describe("PurchaseProcessingService.transferPurchase", () => {
 
         const completeKey = uniqueKey("xfer-pur-cons-complete-key");
         trackKey(completeKey);
-        const completedAt = new Date("2026-04-01T00:00:00.000Z");
+        const completedAt = instant("2026-04-01T00:00:00.000Z");
         const providerKey = uniqueKey("xfer-pur-cons-providerkey");
         const completed = yield* svc.completeOneTimePurchase({
           ...baseAction(ids, completeKey, completedAt),
@@ -1551,8 +1562,8 @@ describe("PurchaseProcessingService.transferPurchase", () => {
           purchaseType: "consumable",
           purchasedAt: completedAt,
         });
-        const purchaseId = Option.getOrNull(completed.purchaseId);
-        expect(purchaseId).not.toBeNull();
+        const purchaseId = Option.getOrElse(completed.purchaseId, () => "");
+        expect(purchaseId).not.toBe("");
 
         const db = yield* Db;
         yield* Effect.addFinalizer(() =>
@@ -1561,12 +1572,12 @@ describe("PurchaseProcessingService.transferPurchase", () => {
 
         const result = yield* svc.transferPurchase({
           fromPersonId: ids.personId,
-          occurredAt: new Date("2026-04-10T00:00:00.000Z"),
+          occurredAt: instant("2026-04-10T00:00:00.000Z"),
           organizationId,
           paymentProviderConfigurationId: ids.configurationId,
           projectId,
           providerId: PROVIDER_ID,
-          purchaseId: purchaseId as string,
+          purchaseId,
           source: SOURCE,
           toPersonId: targetPersonId,
           transferMode: "transfer_to_new_owner",

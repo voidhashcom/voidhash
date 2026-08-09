@@ -1,5 +1,5 @@
 import { Db } from "@voidhash/db";
-import { Effect, Layer, Result } from "effect";
+import { DateTime, Effect, Layer, Result } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { describe, expect, it } from "../../testing/effect-vitest.ts";
@@ -22,9 +22,13 @@ interface SessionRow {
   deletedAt: Date | null;
 }
 
-const auth = {
+const fakeService = (impl: object): any => impl;
+
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
+const auth: AuthSession["Service"] = {
   cookie: null,
-  method: "user" as const,
+  method: "user",
   name: "User",
   person: null,
   organizations: [],
@@ -40,8 +44,8 @@ const auth = {
   ],
   user: {
     id: "user_1",
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
+    createdAt: EPOCH,
+    updatedAt: EPOCH,
     email: "user@example.com",
     emailVerified: true,
     image: null,
@@ -59,8 +63,8 @@ const makeRow = (overrides: Partial<SessionRow> = {}): SessionRow => ({
   paywallId: null,
   userId: "user_1",
   title: "Session",
-  createdAt: new Date(0),
-  updatedAt: new Date(0),
+  createdAt: EPOCH,
+  updatedAt: EPOCH,
   deletedAt: null,
   ...overrides,
 });
@@ -82,14 +86,19 @@ const makeFixture = (initial?: SessionRow) => {
   let listColumns = new Set<string>();
   let insertCount = 0;
 
+  const currentRows = (): SessionRow[] => {
+    if (row === undefined) return [];
+    return [row];
+  };
+
   const db = {
     select: () => ({
       from: () => ({
         where: (condition: unknown) => ({
-          limit: () => Effect.succeed(row === undefined ? [] : [row]),
+          limit: () => Effect.succeed(currentRows()),
           orderBy: () => {
             listColumns = collectColumnNames(condition);
-            return Effect.succeed(row === undefined ? [] : [row]);
+            return Effect.succeed(currentRows());
           },
         }),
       }),
@@ -103,8 +112,8 @@ const makeFixture = (initial?: SessionRow) => {
               if (row !== undefined) return [];
               row = {
                 ...value,
-                createdAt: new Date(0),
-                updatedAt: new Date(0),
+                createdAt: EPOCH,
+                updatedAt: EPOCH,
                 deletedAt: null,
               };
               return [row];
@@ -124,7 +133,8 @@ const makeFixture = (initial?: SessionRow) => {
             returning: () =>
               Effect.sync(() => {
                 const updated = apply();
-                return updated === undefined ? [] : [updated];
+                if (updated === undefined) return [];
+                return [updated];
               }),
           });
         },
@@ -132,7 +142,7 @@ const makeFixture = (initial?: SessionRow) => {
     }),
   };
 
-  const layer = AgentSessionIndexService.layer.pipe(Layer.provide(Layer.succeed(Db, db as never)));
+  const layer = AgentSessionIndexService.layer.pipe(Layer.provide(Layer.succeed(Db, fakeService(db))));
   return {
     get insertCount() {
       return insertCount;

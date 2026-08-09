@@ -13,7 +13,7 @@ import { PaywallService } from "@voidhash/core/services/paywalls/PaywallService"
 import { ScreenNode, TextNode } from "@voidhash/mimic-schema";
 import { encodePaywallDocument } from "@voidhash/paywall-workspace";
 import { AuthMiddleware, AuthSession, PaywallWorkspaceRpcsDef } from "@voidhash/rpc";
-import { Effect, Exit, Layer } from "effect";
+import { DateTime, Effect, Exit, Formatter, Layer } from "effect";
 import { RpcTest } from "effect/unstable/rpc";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -21,14 +21,24 @@ import { PaywallWorkspaceRpcsLive } from "./paywall-workspace-rpcs.ts";
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
+/**
+ * The fakes below stand in for a few methods of services whose real shapes are
+ * span-annotated `Effect.fn` graphs, and view the generated RPC client through a
+ * hand-written interface (see {@link WorkspaceClient}). No hand-written object
+ * inhabits those types, so the single loosening for the file lives here.
+ */
+const fake = (value: unknown): any => value;
+
+const now = () => Effect.runSync(DateTime.nowAsDate);
+
 const paywallRow = () => ({
   id: "pw_1",
   slug: "trial",
   projectId: "proj_1",
   name: "Trial",
   archivedAt: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: now(),
+  updatedAt: now(),
   source: 1,
   thumbnailUrl: null,
   thumbnailSeq: null,
@@ -53,25 +63,34 @@ const USER_SESSION = { method: "user", user: { id: "user_1" } };
 
 /** The mocked infrastructure + REAL workspace service + RPC handlers. */
 const buildHandlerLayer = (fakes: Fakes) => {
-  const paywallLayer = Layer.succeed(PaywallService, {
-    getPaywalls: () => Effect.succeed([paywallRow()]),
-    getPaywallById: () => Effect.succeed(paywallRow()),
-  } as unknown as PaywallService["Service"]);
+  const paywallLayer = Layer.succeed(
+    PaywallService,
+    fake({
+      getPaywalls: () => Effect.succeed([paywallRow()]),
+      getPaywallById: () => Effect.succeed(paywallRow()),
+    }),
+  );
 
-  const mimicLayer = Layer.succeed(MimicHost, {
-    ensurePaywallDocument: () => Effect.void,
-    getPaywallSnapshot: () => Effect.succeed(null),
-    getPaywallDocument: () =>
-      Effect.sync(() => ({ tree: emptyDoc(), version: 1, root: fakes.root ?? null })),
-    submitPaywallTransaction: (_id: string, input: { baseVersion: number }) =>
-      Effect.succeed({ accepted: true, version: input.baseVersion + 1 }),
-    createPaywallEditToken: () => Effect.succeed({ token: "", url: "", expiresAt: new Date() }),
-  } as unknown as MimicHost["Service"]);
+  const mimicLayer = Layer.succeed(
+    MimicHost,
+    fake({
+      ensurePaywallDocument: () => Effect.void,
+      getPaywallSnapshot: () => Effect.succeed(null),
+      getPaywallDocument: () =>
+        Effect.sync(() => ({ tree: emptyDoc(), version: 1, root: fakes.root ?? null })),
+      submitPaywallTransaction: (_id: string, input: { baseVersion: number }) =>
+        Effect.succeed({ accepted: true, version: input.baseVersion + 1 }),
+      createPaywallEditToken: () => Effect.succeed({ token: "", url: "", expiresAt: now() }),
+    }),
+  );
 
-  const cacheLayer = Layer.succeed(ComponentManifestCacheService, {
-    record: () => Effect.void,
-    getMany: () => Effect.succeed(new Map()),
-  } as unknown as ComponentManifestCacheService["Service"]);
+  const cacheLayer = Layer.succeed(
+    ComponentManifestCacheService,
+    fake({
+      record: () => Effect.void,
+      getMany: () => Effect.succeed(new Map()),
+    }),
+  );
 
   const infra = Layer.mergeAll(paywallLayer, mimicLayer, cacheLayer);
   const workspaceLayer = PaywallWorkspaceService.layer.pipe(Layer.provide(infra));
@@ -80,7 +99,7 @@ const buildHandlerLayer = (fakes: Fakes) => {
   const session = fakes.session ?? USER_SESSION;
   const authMiddlewareLayer = Layer.succeed(
     AuthMiddleware,
-    AuthMiddleware.of((effect) => Effect.provideService(effect, AuthSession, session as never)),
+    AuthMiddleware.of((effect) => Effect.provideService(effect, AuthSession, fake(session))),
   );
 
   return Layer.mergeAll(
@@ -109,18 +128,14 @@ interface WorkspaceClient {
 }
 
 const dispatch = <A>(fakes: Fakes, f: (client: WorkspaceClient) => Effect.Effect<A, unknown>) =>
-  Effect.runPromiseExit(
-    Effect.gen(function* () {
-      const client = (yield* RpcTest.makeClient(
-        PaywallWorkspaceRpcsDef,
-      )) as unknown as WorkspaceClient;
-      return yield* f(client);
-    }).pipe(Effect.provide(buildHandlerLayer(fakes)), Effect.scoped),
-  );
+  Effect.gen(function* () {
+    const client: WorkspaceClient = fake(yield* RpcTest.makeClient(PaywallWorkspaceRpcsDef));
+    return yield* f(client);
+  }).pipe(Effect.provide(buildHandlerLayer(fakes)), Effect.scoped, Effect.exit);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const decodeNodeData = (prim: any, input: unknown): Record<string, unknown> =>
-  prim.data.decode(prim.data.encode(input)) as Record<string, unknown>;
+  prim.data.decode(prim.data.encode(input));
 
 /**
  * A decoded document root (`root` → `screen` → `text`) with the CRDT envelopes
@@ -155,50 +170,64 @@ const decodedRoot = () => ({
   ],
 });
 
+/** The cleaned-document shape the assertions below walk. */
+interface CleanedNode {
+  readonly id?: string;
+  readonly type: string;
+  readonly text?: string;
+  readonly style?: unknown;
+  readonly children?: ReadonlyArray<CleanedNode>;
+}
+
 describe("PaywallWorkspaceRpcs — ReadPaywallDocument (read_paywall)", () => {
-  it("returns the slug/name/id + the cleaned document JSON", async () => {
-    const exit = await dispatch({ root: decodedRoot() }, (client) =>
-      client.ReadPaywallDocument({ projectId: "proj_1", slug: "trial" }),
-    );
-    expect(Exit.isSuccess(exit)).toBe(true);
-    if (Exit.isSuccess(exit)) {
-      expect(exit.value.slug).toBe("trial");
-      expect(exit.value.name).toBe("Trial");
-      expect(exit.value.paywallId).toBe("pw_1");
-      const doc = exit.value.document as {
-        id: string;
-        type: string;
-        children: ReadonlyArray<{ type: string; style?: unknown; children?: unknown[] }>;
-      };
-      expect(doc.id).toBe("root_1");
-      expect(doc.type).toBe("root");
-      // Defaults are stripped: the screen shows only the authored paddingTop.
-      const screen = doc.children[0]!;
-      expect(screen.type).toBe("screen");
-      expect(screen.style).toEqual({ paddingTop: 24 });
-      const text = (screen.children as ReadonlyArray<{ type: string; text?: string }>)[0]!;
-      expect(text.type).toBe("text");
-      expect(text.text).toBe("Hello");
-    }
-  });
+  it("returns the slug/name/id + the cleaned document JSON", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const exit = yield* dispatch({ root: decodedRoot() }, (client) =>
+          client.ReadPaywallDocument({ projectId: "proj_1", slug: "trial" }),
+        );
+        expect(Exit.isSuccess(exit)).toBe(true);
+        if (Exit.isSuccess(exit)) {
+          expect(exit.value.slug).toBe("trial");
+          expect(exit.value.name).toBe("Trial");
+          expect(exit.value.paywallId).toBe("pw_1");
+          const doc: CleanedNode = fake(exit.value.document);
+          expect(doc.id).toBe("root_1");
+          expect(doc.type).toBe("root");
+          // Defaults are stripped: the screen shows only the authored paddingTop.
+          const screen = doc.children![0]!;
+          expect(screen.type).toBe("screen");
+          expect(screen.style).toEqual({ paddingTop: 24 });
+          const text = screen.children![0]!;
+          expect(text.type).toBe("text");
+          expect(text.text).toBe("Hello");
+        }
+      }),
+    ));
 
-  it("returns an empty document object when the live document has no root", async () => {
-    const exit = await dispatch({ root: null }, (client) =>
-      client.ReadPaywallDocument({ projectId: "proj_1", slug: "trial" }),
-    );
-    expect(Exit.isSuccess(exit)).toBe(true);
-    if (Exit.isSuccess(exit)) {
-      expect(exit.value.document).toEqual({});
-    }
-  });
+  it("returns an empty document object when the live document has no root", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const exit = yield* dispatch({ root: null }, (client) =>
+          client.ReadPaywallDocument({ projectId: "proj_1", slug: "trial" }),
+        );
+        expect(Exit.isSuccess(exit)).toBe(true);
+        if (Exit.isSuccess(exit)) {
+          expect(exit.value.document).toEqual({});
+        }
+      }),
+    ));
 
-  it("maps an unknown slug to Rpc/PaywallNotFoundError", async () => {
-    const exit = await dispatch({ root: decodedRoot() }, (client) =>
-      client.ReadPaywallDocument({ projectId: "proj_1", slug: "missing" }),
-    );
-    expect(Exit.isFailure(exit)).toBe(true);
-    if (Exit.isFailure(exit)) {
-      expect(JSON.stringify(exit.cause)).toContain("Rpc/PaywallNotFoundError");
-    }
-  });
+  it("maps an unknown slug to Rpc/PaywallNotFoundError", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const exit = yield* dispatch({ root: decodedRoot() }, (client) =>
+          client.ReadPaywallDocument({ projectId: "proj_1", slug: "missing" }),
+        );
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit)) {
+          expect(Formatter.formatJson(exit.cause)).toContain("Rpc/PaywallNotFoundError");
+        }
+      }),
+    ));
 });

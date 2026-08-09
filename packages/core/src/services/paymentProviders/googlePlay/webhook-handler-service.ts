@@ -8,7 +8,8 @@
  */
 import { type ProviderEnvironmentValue } from "@voidhash/db";
 import { generateId } from "../../../utils/index.ts";
-import { Context, Effect, Layer, Match, Option, Predicate, Schema } from "effect";
+import { constant, pick } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Match, Option, Predicate, Schema } from "effect";
 
 import {
   GooglePlayPaymentProviderConfigurationNotFoundError,
@@ -53,8 +54,10 @@ const TERMINAL_RECORD_FAILURE_TAGS = new Set<string>([
   "InvalidISO4217CurrencyCodeError",
 ]);
 
-const errorTag = (error: unknown): string | undefined =>
-  Predicate.hasProperty(error, "_tag") && typeof error._tag === "string" ? error._tag : undefined;
+const errorTag = (error: unknown): string | undefined => {
+  if (Predicate.hasProperty(error, "_tag") && typeof error._tag === "string") return error._tag;
+  return undefined;
+};
 
 type AcceptRtdnNotificationResult = {
   readonly accepted: true;
@@ -78,14 +81,57 @@ const deriveNotificationUuid = (
   // every distinguishing field (including the voided refundType) into the
   // composite so two distinct events for the same token never collapse to one
   // dedup key (e.g. a refund vs a revoke voided notification).
-  const token = decoded.type === "test" ? "" : decoded.purchaseToken;
-  const subtype =
-    decoded.type === "subscription" || decoded.type === "oneTimeProduct"
-      ? String(decoded.notificationType)
-      : decoded.type === "voidedPurchase"
-        ? `void:${decoded.refundType ?? ""}`
-        : "";
+  const token = notificationPurchaseToken(decoded);
+  const subtype = notificationDedupSubtype(decoded);
   return `gp:${decoded.packageName}:${token}:${decoded.eventTimeMillis ?? ""}:${decoded.type}:${subtype}`;
+};
+
+/** The purchase token a decoded notification points at (test events carry none). */
+const notificationPurchaseToken = (decoded: DecodedNotification): string => {
+  if (decoded.type === "test") return "";
+  return decoded.purchaseToken;
+};
+
+/** The distinguishing sub-discriminator folded into the composite dedup key. */
+const notificationDedupSubtype = (decoded: DecodedNotification): string => {
+  if (decoded.type === "subscription" || decoded.type === "oneTimeProduct") {
+    return String(decoded.notificationType);
+  }
+  if (decoded.type === "voidedPurchase") return `void:${decoded.refundType ?? ""}`;
+  return "";
+};
+
+/** The wire-facing event-type label recorded on the ledger row and the span. */
+const resolveNotificationType = (decoded: DecodedNotification): string => {
+  if (decoded.type === "test") return "TEST";
+  if (decoded.type === "voidedPurchase") return `VOIDED:${decoded.refundType ?? 1}`;
+  return decoded.notificationTypeName;
+};
+
+/**
+ * The notification's own event time, falling back to the receive time when the
+ * RTDN body omits it or carries an unparseable value.
+ */
+const resolveEventTime = (eventTimeMillis: string | undefined, receivedAt: Date): Date => {
+  if (!eventTimeMillis) return receivedAt;
+  const parsed = DateTime.make(Number(eventTimeMillis));
+  if (Option.isNone(parsed)) return receivedAt;
+  return DateTime.toDateUtc(parsed.value);
+};
+
+/**
+ * For a voided notification the refund is against the voided order, not the
+ * subscription's latest order — override the order id so the refund idempotency
+ * key anchors correctly.
+ */
+const resolveAnchoredPurchase = (
+  decoded: DecodedNotification,
+  purchase: GooglePlayNormalizedPurchase,
+): GooglePlayNormalizedPurchase => {
+  if (decoded.type === "voidedPurchase" && decoded.orderId) {
+    return { ...purchase, orderId: Option.some(decoded.orderId) };
+  }
+  return purchase;
 };
 
 export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayWebhookHandlerService>()(
@@ -140,8 +186,8 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               ),
             ),
             Effect.match({
-              onFailure: (error) => ({ error, ok: false as const }),
-              onSuccess: (value) => ({ ok: true as const, value }),
+              onFailure: (error) => ({ error, ok: constant(false) }),
+              onSuccess: (value) => ({ ok: constant(true), value }),
             }),
           );
 
@@ -161,19 +207,8 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
 
           const decoded = decodeResult.value.decoded;
           const notificationUUID = deriveNotificationUuid(decodeResult.value.messageId, decoded);
-          const notificationType =
-            decoded.type === "test"
-              ? "TEST"
-              : decoded.type === "voidedPurchase"
-                ? `VOIDED:${decoded.refundType ?? 1}`
-                : decoded.notificationTypeName;
-          const parsedEventTime = decoded.eventTimeMillis
-            ? new Date(Number(decoded.eventTimeMillis))
-            : undefined;
-          const eventTime =
-            parsedEventTime && !Number.isNaN(parsedEventTime.getTime())
-              ? parsedEventTime
-              : input.receivedAt;
+          const notificationType = resolveNotificationType(decoded);
+          const eventTime = resolveEventTime(decoded.eventTimeMillis, input.receivedAt);
           yield* Effect.annotateCurrentSpan(
             "voidhash.payment_provider.event_type",
             notificationType,
@@ -257,10 +292,10 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
           // For a voided purchase, the refund is against the voided order, not
           // the subscription's latest order — override the order id so the
           // refund idempotency key anchors correctly.
-          const purchase: GooglePlayNormalizedPurchase =
-            decoded.type === "voidedPurchase" && decoded.orderId
-              ? { ...fetched.value.purchase, orderId: Option.some(decoded.orderId) }
-              : fetched.value.purchase;
+          const purchase: GooglePlayNormalizedPurchase = resolveAnchoredPurchase(
+            decoded,
+            fetched.value.purchase,
+          );
 
           const recordInput = {
             configuration,
@@ -270,7 +305,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
             providerEnvironment: fetched.value.providerEnvironment,
             purchase,
             receivedAt: input.receivedAt,
-            source: "webhook" as const,
+            source: constant("webhook"),
           };
 
           const markTerminalRecordFailure = (reason: string) =>
@@ -342,7 +377,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               ),
             );
 
-          const matchResult = (yield* Match.value(decoded).pipe(
+          const matchResult: AcceptRtdnNotificationResult = yield* Match.value(decoded).pipe(
             Match.when({ type: "subscription" }, (subscription) =>
               Match.value(subscription.notificationType).pipe(
                 // PURCHASED → new subscription.
@@ -385,18 +420,24 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
                 ),
               ),
             ),
-            Match.when({ type: "oneTimeProduct" }, (oneTime) =>
-              oneTime.notificationType === 1
-                ? handled(googlePlayPaymentProvider.recordPurchase(recordInput))
-                : handled(googlePlayPaymentProvider.recordRefund(recordInput)),
-            ),
-            Match.when({ type: "voidedPurchase" }, (voided) =>
-              voided.refundType === 2
-                ? handled(googlePlayPaymentProvider.recordEntitlementRevoked(recordInput))
-                : handled(googlePlayPaymentProvider.recordRefund(recordInput)),
-            ),
+            Match.when({ type: "oneTimeProduct" }, (oneTime) => {
+              // PURCHASED (1) → new purchase; anything else is a refund.
+              if (oneTime.notificationType === 1) {
+                return handled(googlePlayPaymentProvider.recordPurchase(recordInput));
+              }
+              return handled(googlePlayPaymentProvider.recordRefund(recordInput));
+            }),
+            Match.when({ type: "voidedPurchase" }, (voided) => {
+              // refundType 2 = revoke (entitlement pulled), otherwise a refund.
+              if (voided.refundType === 2) {
+                return handled(googlePlayPaymentProvider.recordEntitlementRevoked(recordInput));
+              }
+              return handled(googlePlayPaymentProvider.recordRefund(recordInput));
+            }),
             Match.orElse(() => Effect.succeed(ack(false))),
-          )) as AcceptRtdnNotificationResult;
+          );
+
+          const ledgerResult = terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored");
 
           // Wire-level dedup ledger: one row per notificationUUID. The
           // park-write above (when it fires) wins the UNIQUE and this insert is
@@ -405,14 +446,11 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
             configurationId: input.paymentProviderConfigurationId,
             notificationType,
             notificationUUID,
-            result: terminalLedgerResult ?? (matchResult.handled ? "applied" : "ignored"),
+            result: ledgerResult,
             resultNote: terminalLedgerResultNote,
           });
 
-          yield* Effect.annotateCurrentSpan({
-            "google_play.webhook_result":
-              terminalLedgerResult ?? (matchResult.handled ? "applied" : "ignored"),
-          });
+          yield* Effect.annotateCurrentSpan({ "google_play.webhook_result": ledgerResult });
           return matchResult;
         },
         (effect) =>
@@ -455,15 +493,16 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
           });
         }
         // Voided purchase: productType 1 = subscription, 2 = one-time.
-        return decoded.productType === 2
-          ? googlePlayPaymentProvider.fetchAndNormalizeProduct(sdkContext, {
-              purchaseToken: decoded.purchaseToken,
-              sku: "",
-            })
-          : googlePlayPaymentProvider.fetchAndNormalizeSubscription(sdkContext, {
-              purchaseToken: decoded.purchaseToken,
-              subscriptionId: "",
-            });
+        if (decoded.productType === 2) {
+          return googlePlayPaymentProvider.fetchAndNormalizeProduct(sdkContext, {
+            purchaseToken: decoded.purchaseToken,
+            sku: "",
+          });
+        }
+        return googlePlayPaymentProvider.fetchAndNormalizeSubscription(sdkContext, {
+          purchaseToken: decoded.purchaseToken,
+          subscriptionId: "",
+        });
       }
 
       function writeLedgerRow(input: {
@@ -519,15 +558,16 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
             failedCount++;
             continue;
           }
+          const receivedAt = yield* DateTime.nowAsDate;
           const replayed = yield* acceptRtdnNotification({
             isReplay: true,
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             pubsubBody: rawPayload,
-            receivedAt: new Date(),
+            receivedAt,
           }).pipe(
             Effect.match({
-              onFailure: (error) => ({ error: String(error), ok: false as const }),
-              onSuccess: () => ({ ok: true as const }),
+              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+              onSuccess: () => ({ ok: constant(true) }),
             }),
           );
           if (replayed.ok) {
@@ -549,10 +589,10 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
         return { appliedCount, failedCount, totalParked: parked.length };
       });
 
-      return {
+      return constant({
         acceptRtdnNotification,
         replayParkedNotificationsForProductMapping,
-      } as const;
+      });
     }),
   },
 ) {

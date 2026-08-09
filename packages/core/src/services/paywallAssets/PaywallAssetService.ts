@@ -1,10 +1,10 @@
+import { constant } from "@voidhash/lib/lang";
 import { Cause, Context, Effect, Layer, Schema } from "effect";
 
 import { Db, desc, eq, paywallAsset } from "@voidhash/db";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
-  PaywallAssetValidationError,
   derivePaywallAssetKey,
   isOwnedPaywallAssetUrl,
   paywallAssetKeyFromUrl,
@@ -237,7 +237,7 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
           ),
       );
 
-      return { upload, list, rename, delete: remove } as const;
+      return constant({ upload, list, rename, delete: remove });
     }),
   },
 ) {

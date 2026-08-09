@@ -11,6 +11,7 @@
  *
  * Tests / non-worker hosts get {@link AnalyticsDispatchService.noop}.
  */
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer } from "effect";
 import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 
@@ -47,15 +48,18 @@ export interface AnalyticsDispatchServiceShape {
  */
 export const stampSdkIdentityClaim = (envelope: CapturedEventV1Type): CapturedEventV1Type => {
   const inner = extractInnerProperties(envelope.properties);
-  const previousDistinctId =
-    typeof inner.$previous_distinct_id === "string" && inner.$previous_distinct_id.length > 0
-      ? inner.$previous_distinct_id
-      : undefined;
-  const identityClaim: CapturedIdentityClaim =
-    envelope.event === "$identify" && previousDistinctId !== undefined
-      ? { _tag: "Stitch", distinctId: envelope.distinctId, previousDistinctId }
-      : { _tag: "Anonymous", distinctId: envelope.distinctId };
-  return { ...envelope, identityClaim, trustClass: "untrusted-sdk" };
+  const identityClaim = (): CapturedIdentityClaim => {
+    const previousDistinctId = inner.$previous_distinct_id;
+    if (
+      envelope.event === "$identify" &&
+      typeof previousDistinctId === "string" &&
+      previousDistinctId.length > 0
+    ) {
+      return { _tag: "Stitch", distinctId: envelope.distinctId, previousDistinctId };
+    }
+    return { _tag: "Anonymous", distinctId: envelope.distinctId };
+  };
+  return { ...envelope, identityClaim: identityClaim(), trustClass: "untrusted-sdk" };
 };
 
 export class AnalyticsDispatchService extends Context.Service<
@@ -65,27 +69,27 @@ export class AnalyticsDispatchService extends Context.Service<
   make: Effect.gen(function* () {
     const ingress = yield* CaptureIngress;
 
-    const dispatchCaptured = (events: ReadonlyArray<PublishableCaptureEvent>) =>
-      events.length === 0
-        ? Effect.void
-        : ingress.enqueueBatch(
-            events.map((event) => ({
-              envelope: stampSdkIdentityClaim(event.envelope),
-              routeClass: event.routeClass,
-            })),
-          );
+    const dispatchCaptured = (events: ReadonlyArray<PublishableCaptureEvent>) => {
+      if (events.length === 0) return Effect.void;
+      return ingress.enqueueBatch(
+        events.map((event) => ({
+          envelope: stampSdkIdentityClaim(event.envelope),
+          routeClass: event.routeClass,
+        })),
+      );
+    };
 
-    const dispatchTrusted = (events: ReadonlyArray<InternalAnalyticsEvent>) =>
-      events.length === 0
-        ? Effect.void
-        : ingress.enqueueBatch(
-            events.map((event) => ({
-              envelope: makeCapturedEventFromInternalAnalyticsEvent(event),
-              // Revenue is server-trusted and always lands on the main lane; the
-              // route never depends on quota (revenue never enters capture).
-              routeClass: "main" as const,
-            })),
-          );
+    const dispatchTrusted = (events: ReadonlyArray<InternalAnalyticsEvent>) => {
+      if (events.length === 0) return Effect.void;
+      return ingress.enqueueBatch(
+        events.map((event) => ({
+          envelope: makeCapturedEventFromInternalAnalyticsEvent(event),
+          // Revenue is server-trusted and always lands on the main lane; the
+          // route never depends on quota (revenue never enters capture).
+          routeClass: constant("main"),
+        })),
+      );
+    };
 
     return { dispatchCaptured, dispatchTrusted } satisfies AnalyticsDispatchServiceShape;
   }),

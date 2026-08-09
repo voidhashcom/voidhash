@@ -12,6 +12,18 @@ import { assertFileCanBeCreated } from "../../utils/fs";
 import { selectOrganization } from "../../utils/organizations/select-organization";
 import { selectProject } from "../../utils/projects/select-project";
 
+/** The config file name matching the project's source language. */
+const configFileNameFor = (language: "ts" | "js"): string => {
+  if (language === "ts") return "voidhash.config.ts";
+  return "voidhash.config.js";
+};
+
+/** The scaffolded SDK client file name matching the project's source language. */
+const clientFileNameFor = (language: "ts" | "js"): string => {
+  if (language === "ts") return "voidhash.ts";
+  return "voidhash.js";
+};
+
 /**
  * `voidhash-cli init`
  *
@@ -90,12 +102,7 @@ export const initCommand = Command.make("init", {}, () =>
     // Sanity-check that a publishable key exists for this project; we don't
     // need to write it anywhere (the user puts it in their app code), but a
     // missing key is a configuration problem we should surface now.
-    const apiKeys = (yield* apiClient.apiKeysListApiKeys()) as readonly {
-      id: string;
-      isPublic: boolean;
-      projectId: string;
-      rawKey?: string;
-    }[];
+    const apiKeys = yield* apiClient.apiKeysListApiKeys();
     const publishableApiKey = apiKeys.find(
       (apiKey) => apiKey.isPublic && apiKey.projectId === project.id,
     );
@@ -109,7 +116,7 @@ export const initCommand = Command.make("init", {}, () =>
     // Decide where the generated `.d.ts` lives. We default to the project
     // root since module augmentation works from anywhere in `tsconfig.include`.
     const language = yield* sourceCode.detectSrcLanguage();
-    const configFileName = language === "ts" ? "voidhash.config.ts" : "voidhash.config.js";
+    const configFileName = configFileNameFor(language);
 
     const configFilePath = path.resolve(configFileName);
     const typesOutputPath = path.resolve(DEFAULT_TYPES_OUTPUT);
@@ -117,7 +124,7 @@ export const initCommand = Command.make("init", {}, () =>
     // Scaffold the SDK client into `src/lib` (or `lib` when there's no `src`),
     // matching the project's `src` layout and language.
     const srcDir = yield* sourceCode.retrieveSrcDir();
-    const clientFileName = language === "ts" ? "voidhash.ts" : "voidhash.js";
+    const clientFileName = clientFileNameFor(language);
     const clientFilePath = path.join(srcDir, "lib", clientFileName);
 
     yield* assertFileCanBeCreated(configFileName, configFilePath);

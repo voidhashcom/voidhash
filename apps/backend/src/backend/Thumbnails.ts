@@ -12,10 +12,7 @@ import {
 } from "@voidhash/core/services/paywallThumbnails/SnapshotImageRenderer";
 import { PublicFileStore } from "@voidhash/core/services/storage/PublicFileStore";
 import { ComponentManifestCacheService } from "@voidhash/core/services/paywallWorkspace/ComponentManifestCacheService";
-import type {
-  PreviewTree,
-  SnapshotNode,
-} from "@voidhash/paywall-renderer-web-core";
+import { causeMessage } from "@voidhash/lib/lang";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import { QueueDriver } from "@voidhash/platform/Queue";
 import { Screenshot } from "@voidhash/platform/Screenshot";
@@ -27,6 +24,32 @@ import { SelfhostPlatformRuntimeLive } from "@voidhash/platform-selfhost/Platfor
 import { Cause, Effect, Layer } from "effect";
 
 import { mimicDocumentIdleQueueName } from "../mimic/MimicDocumentIdleQueue.ts";
+
+/** Lazily loads Preact so the React compatibility global can be primed first. */
+const loadPreact = () => import("preact");
+
+/** Lazily loads the Preact paywall renderer once the React global is primed. */
+const loadPaywallRenderer = () => import("@voidhash/paywall-renderer-preact");
+
+/**
+ * Structural view of the Preact renderer entry point. `renderPaywallToHtml` is
+ * declared as a *method* so its parameters are compared bivariantly, which lets
+ * the deliberately `unknown`-typed {@link SnapshotImageRenderInput} fields (core
+ * must not depend on the renderer packages) flow through without an assertion.
+ */
+interface PaywallHtmlRenderer {
+  renderPaywallToHtml(
+    this: void,
+    snapshot: unknown,
+    options?: {
+      readonly componentArtifacts?: {
+        readonly trees?: Record<string, Record<string, unknown>>;
+        readonly localTrees?: Record<string, Record<string, unknown>>;
+      };
+      readonly hydrate?: boolean;
+    },
+  ): { readonly html: string };
+}
 
 /** Bridges the generic Node screenshot adapter to the thumbnail-domain port. */
 export const SelfhostHtmlScreenshotLive = Layer.effect(
@@ -61,17 +84,16 @@ export const SelfhostSnapshotImageRendererLive = Layer.effect(
   Effect.gen(function* () {
     const htmlScreenshot = yield* HtmlScreenshot;
     const publicFileStore = yield* PublicFileStore;
-    const { renderPaywallToHtml } = yield* Effect.promise(async () => {
-      const preact = await import("preact");
-      const runtimeGlobals = globalThis as unknown as {
-        React?: typeof preact;
-      };
-      // The production Node entry executes workspace TSX through `tsx`, whose
-      // classic transform references the React global. Point that compatibility
-      // hook at Preact before the renderer evaluates any JSX.
-      runtimeGlobals.React ??= preact;
-      return import("@voidhash/paywall-renderer-preact");
-    });
+    const preact = yield* Effect.promise(loadPreact);
+    // The production Node entry executes workspace TSX through `tsx`, whose
+    // classic transform references the React global. Point that compatibility
+    // hook at Preact before the renderer evaluates any JSX.
+    const existingReact = Reflect.get(globalThis, "React");
+    if (existingReact === undefined || existingReact === null) {
+      Reflect.set(globalThis, "React", preact);
+    }
+    const renderer: PaywallHtmlRenderer = yield* Effect.promise(loadPaywallRenderer);
+    const { renderPaywallToHtml } = renderer;
 
     return {
       render: ({
@@ -85,22 +107,16 @@ export const SelfhostSnapshotImageRendererLive = Layer.effect(
         Effect.gen(function* () {
           const html = yield* Effect.try({
             try: () =>
-              renderPaywallToHtml(snapshot as SnapshotNode, {
+              renderPaywallToHtml(snapshot, {
                 componentArtifacts: {
-                  trees: componentTrees as Record<
-                    string,
-                    Record<string, PreviewTree>
-                  >,
-                  localTrees: localComponentTrees as Record<
-                    string,
-                    Record<string, PreviewTree>
-                  >,
+                  trees: componentTrees,
+                  localTrees: localComponentTrees,
                 },
                 hydrate: false,
               }).html,
             catch: (cause) =>
               new SnapshotImageRenderError({
-                cause: cause instanceof Error ? cause.message : String(cause),
+                cause: causeMessage(cause),
                 message: "rendering the paywall snapshot to HTML failed",
               }),
           });

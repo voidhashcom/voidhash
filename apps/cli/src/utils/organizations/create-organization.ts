@@ -1,8 +1,6 @@
 import { Prompt } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
-import { NoSignedInUserError } from "../../domain/errors/auth";
-import { CliConfig } from "../../domain/services/cli-config";
 import { ApiClient } from "../api-client";
 
 const validateOrganizationName = (value: string) => {

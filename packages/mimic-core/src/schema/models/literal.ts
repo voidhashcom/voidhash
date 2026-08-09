@@ -1,3 +1,10 @@
+import type {
+  BooleanValue,
+  NumberValue,
+  Path,
+  StringValue,
+  Value,
+} from "../../core/types.ts";
 import { cloneValue } from "../../core/types.ts";
 import { makeSchemaError, SchemaErrorCodes } from "../errors.ts";
 import type { SchemaModel } from "../model.ts";
@@ -10,6 +17,31 @@ import {
   expectStringValue,
 } from "../shared.ts";
 import type { LiteralSchema } from "../types.ts";
+import type { Mutable } from "../../internal/lang.ts";
+
+type LiteralKind = "string" | "number" | "boolean";
+
+const literalValueKind = (value: string | number | boolean): LiteralKind => {
+  if (typeof value === "string") return "string";
+  if (typeof value === "number") return "number";
+  return "boolean";
+};
+
+const expectLiteralValue = (
+  expectedKind: LiteralKind,
+  schemaKind: LiteralSchema["kind"],
+  value: Value,
+  valuePath: Path,
+  schemaPath: readonly (string | number)[],
+): StringValue | NumberValue | BooleanValue => {
+  if (expectedKind === "string") {
+    return expectStringValue(schemaKind, value, valuePath, schemaPath);
+  }
+  if (expectedKind === "number") {
+    return expectNumberValue(schemaKind, value, valuePath, schemaPath);
+  }
+  return expectBooleanValue(schemaKind, value, valuePath, schemaPath);
+};
 
 export const literalSchemaModel: SchemaModel<LiteralSchema> = {
   kind: "literal",
@@ -30,27 +62,28 @@ export const literalSchemaModel: SchemaModel<LiteralSchema> = {
       },
       input["default"],
       schemaPath,
-    ) as LiteralSchema;
+    );
   },
-  serialize: (schema) => ({
-    kind: "literal",
-    value: schema.value,
-    ...serializeRequired(schema.required),
-    ...(schema.default !== undefined ? { default: cloneSchemaDefault(schema.default) } : {}),
-  }),
+  serialize: (schema) => {
+    const serialized: Mutable<LiteralSchema> = {
+      kind: "literal",
+      value: schema.value,
+      ...serializeRequired(schema.required),
+    };
+    if (schema.default !== undefined) {
+      serialized.default = cloneSchemaDefault(schema.default);
+    }
+    return serialized;
+  },
   validate: (schema, value, _context, valuePath, schemaPath) => {
-    const expectedKind =
-      typeof schema.value === "string"
-        ? "string"
-        : typeof schema.value === "number"
-          ? "number"
-          : "boolean";
-    const literalValue =
-      expectedKind === "string"
-        ? expectStringValue(schema.kind, value, valuePath, schemaPath)
-        : expectedKind === "number"
-          ? expectNumberValue(schema.kind, value, valuePath, schemaPath)
-          : expectBooleanValue(schema.kind, value, valuePath, schemaPath);
+    const expectedKind = literalValueKind(schema.value);
+    const literalValue = expectLiteralValue(
+      expectedKind,
+      schema.kind,
+      value,
+      valuePath,
+      schemaPath,
+    );
 
     if (literalValue.value !== schema.value) {
       throw makeSchemaError(

@@ -1,7 +1,26 @@
 import { Button } from "components/button";
+import { Schema, SchemaGetter, SchemaTransformation } from "effect";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { voidhash } from "utils/voidhash/client";
+
+const IndentedJson = Schema.Unknown.pipe(
+  Schema.encodeTo(
+    Schema.String,
+    new SchemaTransformation.Transformation<unknown, string>(
+      SchemaGetter.parseJson(),
+      SchemaGetter.stringifyJson({ space: 2 }),
+    ),
+  ),
+);
+
+const encodeIndentedJson = Schema.encodeSync(IndentedJson);
+
+/** Renders any debug value as indented JSON text; absent values render as nothing. */
+const formatJson = (value: unknown): string => {
+  if (value === undefined) return "";
+  return encodeIndentedJson(value);
+};
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -29,8 +48,8 @@ export default function HomeScreen() {
     <View style={containerStyle}>
       <View>
         <Text style={styles.title}>Person</Text>
-        <Text style={styles.jsonText}>{JSON.stringify(person, null, 2)}</Text>
-        <Text style={styles.jsonText}>{JSON.stringify(personError, null, 2)}</Text>
+        <Text style={styles.jsonText}>{formatJson(person)}</Text>
+        <Text style={styles.jsonText}>{formatJson(personError)}</Text>
 
         {Platform.OS === "ios" && (
           <View style={styles.actions}>

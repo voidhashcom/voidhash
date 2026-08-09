@@ -8,6 +8,7 @@
  * The resulting bundle is inlined into the paywall HTML output.
  */
 
+import { Effect } from "effect";
 import { render } from "preact";
 
 import { Paywall } from "../components/paywall";
@@ -31,13 +32,11 @@ interface HydrationPayload {
  * legacy flat payloads, since `type` stays at the node's top level in both.
  */
 function parsePaywallData(raw: string): HydrationPayload | undefined {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    // Malformed paywall data — leave the SSR'd HTML in place
-    return undefined;
-  }
+  // Malformed paywall data falls through as `undefined` — leaving the SSR'd
+  // HTML in place.
+  const parsed = Effect.runSync(
+    Effect.try((): unknown => JSON.parse(raw)).pipe(Effect.orElseSucceed(() => undefined)),
+  );
   if (typeof parsed !== "object" || parsed === null) {
     return undefined;
   }

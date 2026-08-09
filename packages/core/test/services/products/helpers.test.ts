@@ -1,14 +1,23 @@
+import { constant } from "@voidhash/lib/lang";
 import { describe, expect, it } from "vite-plus/test";
 import { ProductType, type ProductTypeValue } from "@voidhash/lib";
 
 import { dbProductTypeToLabel } from "../../../src/services/products/helpers.ts";
 
+/**
+ * Simulates a corrupt/unknown DB value reaching the exhaustiveness guard: the
+ * numbers below are deliberately outside the `ProductType` union.
+ */
+const corruptProductType = (value: any): ProductTypeValue => value;
+
 describe("dbProductTypeToLabel", () => {
-  it.each([
-    [ProductType.Subscription, "subscription"],
-    [ProductType.OneTime, "one-time"],
-    [ProductType.OneTimeConsumable, "one-time-consumable"],
-  ] as const)("maps ProductType %d to its public label %s", (type, label) => {
+  it.each(
+    constant([
+      [ProductType.Subscription, "subscription"],
+      [ProductType.OneTime, "one-time"],
+      [ProductType.OneTimeConsumable, "one-time-consumable"],
+    ]),
+  )("maps ProductType %d to its public label %s", (type, label) => {
     expect(dbProductTypeToLabel(type)).toBe(label);
   });
 
@@ -25,12 +34,10 @@ describe("dbProductTypeToLabel", () => {
   });
 
   it("throws for an out-of-range product type value", () => {
-    // 99 is not a member of the ProductType union; the cast simulates a
-    // corrupt/unknown DB value reaching the exhaustiveness guard.
-    expect(() => dbProductTypeToLabel(99 as ProductTypeValue)).toThrow("Invalid product type: 99");
+    expect(() => dbProductTypeToLabel(corruptProductType(99))).toThrow("Invalid product type: 99");
   });
 
   it("throws for a zero product type value", () => {
-    expect(() => dbProductTypeToLabel(0 as ProductTypeValue)).toThrow("Invalid product type: 0");
+    expect(() => dbProductTypeToLabel(corruptProductType(0))).toThrow("Invalid product type: 0");
   });
 });

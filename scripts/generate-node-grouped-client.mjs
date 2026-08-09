@@ -1,22 +1,12 @@
 #!/usr/bin/env node
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
-import process from "node:process";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { Data, Effect, FileSystem, Path, Schema, Stdio } from "effect";
 
-const [specPathArg, outputPathArg] = process.argv.slice(2);
+class UsageError extends Data.TaggedError("UsageError") {}
 
-if (!specPathArg || !outputPathArg) {
-  console.error(
-    "Usage: node ./scripts/generate-node-grouped-client.mjs <core-openapi.json> <output-file>",
-  );
-  process.exit(1);
-}
-
-const specPath = path.resolve(specPathArg);
-const outputPath = path.resolve(outputPathArg);
-mkdirSync(path.dirname(outputPath), { recursive: true });
-const spec = JSON.parse(readFileSync(specPath, "utf8"));
+const jsonLiteral = Schema.encodeSync(Schema.UnknownFromJsonString);
+const decodeSpec = Schema.decodeUnknownEffect(Schema.UnknownFromJsonString);
 
 const camelCase = (value) => value.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
 
@@ -33,7 +23,7 @@ const toTypeLiteral = (schema) => {
   }
 
   if (schema.enum?.length) {
-    return schema.enum.map((entry) => JSON.stringify(entry)).join(" | ");
+    return schema.enum.map((entry) => jsonLiteral(entry)).join(" | ");
   }
 
   if (Array.isArray(schema.type)) {
@@ -58,8 +48,11 @@ const toTypeLiteral = (schema) => {
       if (schema.properties) {
         const required = new Set(schema.required ?? []);
         const entries = Object.entries(schema.properties).map(([key, value]) => {
-          const optional = required.has(key) ? "" : "?";
-          return `readonly ${JSON.stringify(key)}${optional}: ${toTypeLiteral(value)}`;
+          if (required.has(key)) {
+            return `readonly ${jsonLiteral(key)}: ${toTypeLiteral(value)}`;
+          }
+
+          return `readonly ${jsonLiteral(key)}?: ${toTypeLiteral(value)}`;
         });
         return `{ ${entries.join("; ")} }`;
       }
@@ -70,27 +63,41 @@ const toTypeLiteral = (schema) => {
   }
 };
 
+const formatParamsType = ({ methodName, parameterNames, parameterTypes }) => {
+  if (parameterNames.length === 1) {
+    const members = parameterNames
+      .map((name, index) => `readonly ${jsonLiteral(name)}: ${parameterTypes[index]}`)
+      .join("; ");
+    return `{ ${members} }`;
+  }
+
+  return `Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[0]`;
+};
+
 const formatRequestType = ({ methodName, parameterNames, parameterTypes, hasBody, hasParams }) => {
   if (!hasBody && !hasParams) {
     return null;
   }
 
   if (hasBody && !hasParams) {
-    return `{ payload: Parameters<VoidhashCoreClient[${JSON.stringify(methodName)}]>[0] }`;
+    return `{ payload: Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[0] }`;
   }
 
-  const paramsType =
-    parameterNames.length === 1
-      ? `{ ${parameterNames
-          .map((name, index) => `readonly ${JSON.stringify(name)}: ${parameterTypes[index]}`)
-          .join("; ")} }`
-      : `Parameters<VoidhashCoreClient[${JSON.stringify(methodName)}]>[0]`;
+  const paramsType = formatParamsType({ methodName, parameterNames, parameterTypes });
 
   if (!hasBody) {
     return `{ params: ${paramsType} }`;
   }
 
-  return `{ params: ${paramsType}; payload: Parameters<VoidhashCoreClient[${JSON.stringify(methodName)}]>[1] }`;
+  return `{ params: ${paramsType}; payload: Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[1] }`;
+};
+
+const formatParamsExpression = (parameterNames) => {
+  if (parameterNames.length === 1) {
+    return `request.params[${jsonLiteral(parameterNames[0])}]`;
+  }
+
+  return `request.params`;
 };
 
 const formatCall = ({ methodName, parameterNames, hasBody, hasParams }) => {
@@ -102,10 +109,7 @@ const formatCall = ({ methodName, parameterNames, hasBody, hasParams }) => {
     return `client.${methodName}(request.payload)`;
   }
 
-  const paramsExpression =
-    parameterNames.length === 1
-      ? `request.params[${JSON.stringify(parameterNames[0])}]`
-      : `request.params`;
+  const paramsExpression = formatParamsExpression(parameterNames);
 
   if (!hasBody) {
     return `client.${methodName}(${paramsExpression})`;
@@ -114,78 +118,102 @@ const formatCall = ({ methodName, parameterNames, hasBody, hasParams }) => {
   return `client.${methodName}(${paramsExpression}, request.payload)`;
 };
 
-const groups = new Map();
+const collectGroups = (spec) => {
+  const groups = new Map();
 
-for (const [routePath, pathItem] of Object.entries(spec.paths)) {
-  for (const [httpMethod, operation] of Object.entries(pathItem)) {
-    if (!["get", "post", "patch", "delete", "put"].includes(httpMethod)) {
-      continue;
+  for (const pathItem of Object.values(spec.paths)) {
+    for (const [httpMethod, operation] of Object.entries(pathItem)) {
+      if (!["get", "post", "patch", "delete", "put"].includes(httpMethod)) {
+        continue;
+      }
+
+      const operationId = operation.operationId;
+
+      if (!operationId || !operationId.includes(".")) {
+        continue;
+      }
+
+      const [groupName, memberName] = operationId.split(".");
+
+      if (groupName === "sdk") {
+        continue;
+      }
+
+      const methodName = toMethodName(groupName, memberName);
+      const parameters = [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].filter(
+        (parameter) => parameter.in !== "header",
+      );
+      const parameterNames = parameters.map((parameter) => parameter.name);
+      const parameterTypes = parameters.map((parameter) => toTypeLiteral(parameter.schema));
+      const hasBody = Boolean(operation.requestBody);
+      const hasParams = parameterNames.length > 0;
+      const requestType = formatRequestType({
+        hasBody,
+        hasParams,
+        methodName,
+        parameterNames,
+        parameterTypes,
+      });
+      const callExpression = formatCall({
+        hasBody,
+        hasParams,
+        methodName,
+        parameterNames,
+      });
+
+      const groupKey = camelCase(groupName);
+      const existing = groups.get(groupKey) ?? [];
+      existing.push({
+        callExpression,
+        memberName,
+        requestType,
+      });
+      groups.set(groupKey, existing);
     }
-
-    const operationId = operation.operationId;
-
-    if (!operationId || !operationId.includes(".")) {
-      continue;
-    }
-
-    const [groupName, memberName] = operationId.split(".");
-
-    if (groupName === "sdk") {
-      continue;
-    }
-
-    const methodName = toMethodName(groupName, memberName);
-    const parameters = [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].filter(
-      (parameter) => parameter.in !== "header",
-    );
-    const parameterNames = parameters.map((parameter) => parameter.name);
-    const parameterTypes = parameters.map((parameter) => toTypeLiteral(parameter.schema));
-    const hasBody = Boolean(operation.requestBody);
-    const hasParams = parameterNames.length > 0;
-    const requestType = formatRequestType({
-      hasBody,
-      hasParams,
-      methodName,
-      parameterNames,
-      parameterTypes,
-    });
-    const callExpression = formatCall({
-      hasBody,
-      hasParams,
-      methodName,
-      parameterNames,
-    });
-
-    const groupKey = camelCase(groupName);
-    const existing = groups.get(groupKey) ?? [];
-    existing.push({
-      callExpression,
-      memberName,
-      requestType,
-    });
-    groups.set(groupKey, existing);
   }
-}
 
-const groupEntries = [...groups.entries()]
-  .sort(([left], [right]) => left.localeCompare(right))
-  .map(([groupName, operations]) => {
-    const members = operations
-      .sort((left, right) => left.memberName.localeCompare(right.memberName))
-      .map((operation) => {
-        if (!operation.requestType) {
-          return `    ${operation.memberName}: () => ${operation.callExpression},`;
-        }
+  return groups;
+};
 
-        return `    ${operation.memberName}: (request: ${operation.requestType}) => ${operation.callExpression},`;
-      })
-      .join("\n");
+const formatGroupEntries = (groups) =>
+  [...groups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([groupName, operations]) => {
+      const members = operations
+        .sort((left, right) => left.memberName.localeCompare(right.memberName))
+        .map((operation) => {
+          if (!operation.requestType) {
+            return `    ${operation.memberName}: () => ${operation.callExpression},`;
+          }
 
-    return `  ${groupName}: {\n${members}\n  },`;
-  })
-  .join("\n");
+          return `    ${operation.memberName}: (request: ${operation.requestType}) => ${operation.callExpression},`;
+        })
+        .join("\n");
 
-const output = `import type { VoidhashCoreClient } from "@voidhash/generated-clients";
+      return `  ${groupName}: {\n${members}\n  },`;
+    })
+    .join("\n");
+
+const program = Effect.gen(function* () {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const pathService = yield* Path.Path;
+  const stdio = yield* Stdio.Stdio;
+  const [specPathArg, outputPathArg] = yield* stdio.args;
+
+  if (!specPathArg || !outputPathArg) {
+    return yield* new UsageError({
+      message: "Usage: node ./scripts/generate-node-grouped-client.mjs <core-openapi.json> <output-file>",
+    });
+  }
+
+  const specPath = pathService.resolve(specPathArg);
+  const outputPath = pathService.resolve(outputPathArg);
+  yield* fileSystem.makeDirectory(pathService.dirname(outputPath), { recursive: true });
+
+  const spec = yield* decodeSpec(yield* fileSystem.readFileString(specPath));
+  const groupEntries = formatGroupEntries(collectGroups(spec));
+
+  const output = `import type { VoidhashCoreClient } from "@voidhash/generated-clients";
 
 export const groupCoreClient = (client: VoidhashCoreClient) => ({
 ${groupEntries}
@@ -194,4 +222,7 @@ ${groupEntries}
 export type GroupedVoidhashNodeEffectClient = ReturnType<typeof groupCoreClient>;
 `;
 
-writeFileSync(outputPath, output, "utf8");
+  yield* fileSystem.writeFileString(outputPath, output);
+});
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)));

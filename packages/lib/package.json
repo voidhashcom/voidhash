@@ -11,7 +11,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./constants": "./src/constants/index.ts"
+    "./constants": "./src/constants/index.ts",
+    "./lang": "./src/lang/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -14,7 +14,7 @@
  * compiled statement parses, resolves, and binds its parameters.
  */
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 import { describe } from "vitest";
 
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
@@ -24,6 +24,12 @@ import { toStatement } from "../../../src/services/voidql/ir.ts";
 import { CAPABILITIES, SCOPE, SUPPORTED_QUERIES } from "./corpus.ts";
 
 const { test } = CoreIntegrationTestHarness.make();
+
+/** Local-only failure: never crosses an RPC/queue boundary. */
+class VoidQlCompatibilityError extends Data.TaggedError("VoidQlCompatibilityError")<{
+  readonly message: string;
+  readonly cause: unknown;
+}> {}
 
 describe("VoidQL live ClickHouse compatibility", () => {
   test(
@@ -36,8 +42,9 @@ describe("VoidQL live ClickHouse compatibility", () => {
         yield* toStatement(ch, compiled.pieces).pipe(
           Effect.mapError(
             (cause) =>
-              new Error(`ClickHouse rejected compatibility case '${testCase.name}'.`, {
+              new VoidQlCompatibilityError({
                 cause,
+                message: `ClickHouse rejected compatibility case '${testCase.name}'.`,
               }),
           ),
         );

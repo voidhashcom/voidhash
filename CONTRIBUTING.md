@@ -28,7 +28,7 @@ for reporting guidance.
 
 ## Development
 
-Voidhash uses Node.js 22 and pnpm 11. From the repository root:
+Voidhash uses Node.js 24 and pnpm 11. From the repository root:
 
 ```sh
 corepack enable
@@ -44,6 +44,29 @@ local Compose environment and its smoke tests.
 
 Linting and formatting go through vite-plus: `pnpm lint` (`vp check`) and
 `pnpm format` (`vp check --fix`).
+
+`pnpm dev` starts every browser-facing development surface and the services
+used by the Mimic example through Portless. The first run creates and trusts a
+local certificate authority for the named HTTPS routes:
+
+Run `pnpm dev` as your normal user, never through `sudo`. Portless elevates only
+its HTTPS proxy when necessary, while the application processes remain owned by
+your user. Startup also prunes orphaned Portless children left by crashed dev
+sessions before checking the fixed ports. Use `pnpm dev:status` to inspect active
+routes and `pnpm dev:doctor` to diagnose the proxy, certificate, or DNS setup.
+
+| Surface            | URL                                            | App port |
+| ------------------ | ---------------------------------------------- | -------- |
+| Dashboard and docs | `https://voidhash.localhost`                   | `3000`   |
+| Mimic example API  | `https://mimic-example-api.voidhash.localhost` | `3001`   |
+| Mimic admin        | `https://mimic-admin.voidhash.localhost`       | `3003`   |
+| Email previews     | `https://emails.voidhash.localhost`            | `3010`   |
+| Studio             | `https://studio.voidhash.localhost`            | `4830`   |
+| Mimic database     | `https://mimic.voidhash.localhost`             | `5001`   |
+| Mimic example      | `https://mimic-example.voidhash.localhost`     | `5173`   |
+
+The ports are strict: if another process is using one, startup fails instead of
+silently moving an app and breaking its local links.
 
 The steps above describe a **standalone clone** of this repository, which installs
 its own `node_modules` from this repository's lockfile. This repository is also

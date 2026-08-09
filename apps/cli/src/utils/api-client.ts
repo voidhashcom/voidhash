@@ -1,14 +1,20 @@
-import { make as makeCoreClient, type VoidhashCoreClient } from "@voidhash/generated-clients";
+import { make as makeCoreClient } from "@voidhash/generated-clients";
 import { Effect, Layer, Context } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CliConfig } from "../domain/services/cli-config";
 
+/** Builds the API key header set, empty when no key is configured. */
+const apiKeyHeaders = (apiKey: string | null | undefined): Record<string, string> => {
+  if (apiKey) return { "x-api-key": apiKey };
+  return {};
+};
+
 const make = Effect.gen(function* effect() {
   yield* Effect.logDebug("Initializing API client");
   const cliConfig = yield* CliConfig;
   const httpClient = yield* HttpClient.HttpClient;
-  return makeCoreClient(httpClient as VoidhashCoreClient["httpClient"], {
+  return makeCoreClient(httpClient, {
     transformClient: (client) =>
       Effect.succeed(
         client.pipe(
@@ -22,7 +28,7 @@ const make = Effect.gen(function* effect() {
 
               return HttpClientRequest.setHeaders(
                 HttpClientRequest.prependUrl(request, config.api_url),
-                config.api_key ? { "x-api-key": config.api_key } : {},
+                apiKeyHeaders(config.api_key),
               );
             }).pipe(Effect.withSpan("ApiClient.transformRequest")),
           ),

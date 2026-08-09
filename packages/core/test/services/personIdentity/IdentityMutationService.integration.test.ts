@@ -29,7 +29,7 @@
  * only a backstop). There is no permission-forbidden case: these helpers never
  * consult `AuthSession`.
  */
-import { Effect } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import {
@@ -37,7 +37,7 @@ import {
   type MutationContext,
 } from "@voidhash/core/services/personIdentity/IdentityMutationService";
 import { isAnonymousDistinctId, mergeTraits } from "@voidhash/core/domain/person/Person";
-import { firstDefinedString } from "@voidhash/core/utils";
+import { firstDefinedString, generateId } from "@voidhash/core/utils";
 import {
   type DbError,
   type DbTransaction,
@@ -83,12 +83,23 @@ const ANON_PREFIX = "vh:anon:";
 
 /** Monotonic counter so distinctIds stay unique even within one millisecond. */
 let seq = 0;
-const uniqueDistinctId = (label: string) => `it-did-${label}-${Date.now()}-${seq++}`;
+/**
+ * Unique per file run (a cuid2), so ids never collide with a concurrent run
+ * against the same shared database.
+ */
+const runToken = generateId("test");
+const uniqueDistinctId = (label: string) => `it-did-${label}-${runToken}-${seq++}`;
 const anonDistinctId = (label: string) => `${ANON_PREFIX}${uniqueDistinctId(label)}`;
 
+/** A fixed UTC instant as a `Date`, without reaching for the `Date` constructor. */
+const at = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
+/** Read a persisted JSON `traits` column as a plain record. */
+const readTraits = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.Unknown));
+
 const baseContext = (overrides?: Partial<MutationContext>): MutationContext => ({
-  eventId: `it-evt-${Date.now()}-${seq++}`,
-  eventTimestamp: new Date("2026-01-01T00:00:00.000Z"),
+  eventId: `it-evt-${runToken}-${seq++}`,
+  eventTimestamp: at("2026-01-01T00:00:00.000Z"),
   origin: PersonOrigin.API,
   projectId,
   ...overrides,
@@ -134,21 +145,22 @@ const seedPerson = (
     const db = yield* Db;
     const row: DbPerson = {
       archivedAt: null,
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: at("2026-01-01T00:00:00.000Z"),
       deletedAt: null,
       deletionReason: null,
       email: null,
-      firstSeenAt: new Date("2026-01-01T00:00:00.000Z"),
-      lastSeenAt: new Date("2026-01-01T00:00:00.000Z"),
+      firstSeenAt: at("2026-01-01T00:00:00.000Z"),
+      lastSeenAt: at("2026-01-01T00:00:00.000Z"),
       mergedIntoPersonId: null,
       name: null,
       origin: PersonOrigin.API,
       primaryDistinctId: null,
       projectId,
       traits: {},
-      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      traitsMeta: null,
+      updatedAt: at("2026-01-01T00:00:00.000Z"),
       ...values,
-    } as DbPerson;
+    };
     yield* db.insert(persons).values({
       archivedAt: row.archivedAt,
       createdAt: row.createdAt ?? undefined,
@@ -426,8 +438,8 @@ describe("findDistinctIdMapping", () => {
         const distinctId = uniqueDistinctId("mapping-merged");
         track.distinctId(distinctId);
 
-        const canonicalId = `person_it_canon_${Date.now()}_${seq++}`;
-        const mergedSourceId = `person_it_src_${Date.now()}_${seq++}`;
+        const canonicalId = `person_it_canon_${runToken}_${seq++}`;
+        const mergedSourceId = `person_it_src_${runToken}_${seq++}`;
         track.person(canonicalId);
         track.person(mergedSourceId);
 
@@ -436,11 +448,12 @@ describe("findDistinctIdMapping", () => {
         yield* seedPerson({ id: mergedSourceId, mergedIntoPersonId: canonicalId });
 
         // Map the distinctId to the *merged* source row.
-        const identityId = `person_dist_it_${Date.now()}_${seq++}`;
+        const identityId = `person_dist_it_${runToken}_${seq++}`;
         track.identity(identityId);
+        const changedAt = yield* DateTime.nowAsDate;
         yield* inTransaction((tx, m) =>
           m.upsertPersonIdentity(tx, {
-            changedAt: new Date(),
+            changedAt,
             personId: mergedSourceId,
             distinctId,
             identityId,
@@ -521,8 +534,8 @@ describe("ensureCanonicalPersonForDistinctId", () => {
         expect(personRow?.name).toBe("Ensure Person");
         expect(personRow?.origin).toBe(PersonOrigin.API);
         // Traits persisted as JSON: set + setOnce merged in.
-        expect((personRow?.traits as Record<string, unknown>)?.plan).toBe("pro");
-        expect((personRow?.traits as Record<string, unknown>)?.source).toBe("import");
+        expect(readTraits(personRow?.traits).plan).toBe("pro");
+        expect(readTraits(personRow?.traits).source).toBe("import");
 
         const identityRow = yield* findIdentityByDistinctId(distinctId);
         expect(identityRow).toBeDefined();
@@ -617,16 +630,16 @@ describe("upsertPersonIdentity", () => {
         const distinctId = uniqueDistinctId("upsert");
         track.distinctId(distinctId);
 
-        const personId = `person_it_upsert_${Date.now()}_${seq++}`;
+        const personId = `person_it_upsert_${runToken}_${seq++}`;
         track.person(personId);
         yield* seedPerson({ id: personId });
 
-        const identityId = `person_dist_it_${Date.now()}_${seq++}`;
+        const identityId = `person_dist_it_${runToken}_${seq++}`;
         track.identity(identityId);
 
         const event = yield* inTransaction((tx, m) =>
           m.upsertPersonIdentity(tx, {
-            changedAt: new Date("2026-02-02T00:00:00.000Z"),
+            changedAt: at("2026-02-02T00:00:00.000Z"),
             personId,
             distinctId,
             identityId,
@@ -637,7 +650,7 @@ describe("upsertPersonIdentity", () => {
         expect(event.kind).toBe(PersonIdentityKind.Identified);
         expect(event.version).toBe(3);
         expect(event.distinctId).toBe(distinctId);
-        expect(event.changedAt).toBe(new Date("2026-02-02T00:00:00.000Z").toISOString());
+        expect(event.changedAt).toBe(at("2026-02-02T00:00:00.000Z").toISOString());
 
         const row = yield* findIdentityRow(identityId);
         expect(row?.distinctId).toBe(distinctId);
@@ -645,13 +658,14 @@ describe("upsertPersonIdentity", () => {
         expect(row?.version).toBe(3);
 
         // Re-point the same (project, distinctId) at a different person + version.
-        const otherPersonId = `person_it_upsert2_${Date.now()}_${seq++}`;
+        const otherPersonId = `person_it_upsert2_${runToken}_${seq++}`;
         track.person(otherPersonId);
         yield* seedPerson({ id: otherPersonId });
 
+        const changedAt = yield* DateTime.nowAsDate;
         yield* inTransaction((tx, m) =>
           m.upsertPersonIdentity(tx, {
-            changedAt: new Date(),
+            changedAt,
             personId: otherPersonId,
             distinctId,
             identityId,
@@ -688,23 +702,23 @@ describe("updatePersonProfile", () => {
     "merges traits, sets name/email, keeps earlier firstSeenAt, advances lastSeenAt",
     withIdentityCleanup((track) =>
       Effect.gen(function* () {
-        const personId = `person_it_profile_${Date.now()}_${seq++}`;
+        const personId = `person_it_profile_${runToken}_${seq++}`;
         track.person(personId);
         const seeded = yield* seedPerson({
           id: personId,
           email: "old@voidhash.test",
           name: "Old Name",
-          firstSeenAt: new Date("2026-01-01T00:00:00.000Z"),
-          lastSeenAt: new Date("2026-01-01T00:00:00.000Z"),
+          firstSeenAt: at("2026-01-01T00:00:00.000Z"),
+          lastSeenAt: at("2026-01-01T00:00:00.000Z"),
           traits: { plan: "free", existing: "keep" },
         });
 
-        const eventTimestamp = new Date("2026-03-03T00:00:00.000Z");
+        const eventTimestamp = at("2026-03-03T00:00:00.000Z");
         const updated = yield* inTransaction((tx, m) =>
           m.updatePersonProfile(tx, {
             person: seeded,
             email: "new@voidhash.test",
-            eventId: `it-evt-${Date.now()}-${seq++}`,
+            eventId: `it-evt-${runToken}-${seq++}`,
             eventTimestamp,
             name: "New Name",
             setAttributes: { plan: "pro" },
@@ -715,17 +729,17 @@ describe("updatePersonProfile", () => {
         expect(updated.email).toBe("new@voidhash.test");
         expect(updated.name).toBe("New Name");
         // firstSeenAt preserved (earlier), lastSeenAt advanced (later).
-        expect(updated.firstSeenAt?.getTime()).toBe(new Date("2026-01-01T00:00:00.000Z").getTime());
+        expect(updated.firstSeenAt?.getTime()).toBe(at("2026-01-01T00:00:00.000Z").getTime());
         expect(updated.lastSeenAt?.getTime()).toBe(eventTimestamp.getTime());
 
         const row = yield* findPersonRow(personId);
         expect(row?.email).toBe("new@voidhash.test");
         expect(row?.name).toBe("New Name");
-        const traits = row?.traits as Record<string, unknown>;
+        const traits = readTraits(row?.traits);
         expect(traits.plan).toBe("pro"); // setAttributes overrode
         expect(traits.existing).toBe("keep"); // untouched
         expect(traits.referral).toBe("ad"); // setOnce added
-        expect(row?.firstSeenAt?.getTime()).toBe(new Date("2026-01-01T00:00:00.000Z").getTime());
+        expect(row?.firstSeenAt?.getTime()).toBe(at("2026-01-01T00:00:00.000Z").getTime());
         expect(row?.lastSeenAt?.getTime()).toBe(eventTimestamp.getTime());
       }),
     ).pipe(CoreAuthSession.authenticate()),
@@ -735,22 +749,22 @@ describe("updatePersonProfile", () => {
     "leaves name/email untouched for undefined fields but still advances lastSeenAt",
     withIdentityCleanup((track) =>
       Effect.gen(function* () {
-        const personId = `person_it_profile_noop_${Date.now()}_${seq++}`;
+        const personId = `person_it_profile_noop_${runToken}_${seq++}`;
         track.person(personId);
         const seeded = yield* seedPerson({
           id: personId,
           email: "keep@voidhash.test",
           name: "Keep Name",
-          firstSeenAt: new Date("2026-01-01T00:00:00.000Z"),
-          lastSeenAt: new Date("2026-01-01T00:00:00.000Z"),
+          firstSeenAt: at("2026-01-01T00:00:00.000Z"),
+          lastSeenAt: at("2026-01-01T00:00:00.000Z"),
           traits: { a: 1 },
         });
 
-        const eventTimestamp = new Date("2026-04-04T00:00:00.000Z");
+        const eventTimestamp = at("2026-04-04T00:00:00.000Z");
         yield* inTransaction((tx, m) =>
           m.updatePersonProfile(tx, {
             person: seeded,
-            eventId: `it-evt-${Date.now()}-${seq++}`,
+            eventId: `it-evt-${runToken}-${seq++}`,
             eventTimestamp,
             setAttributes: {},
             setOnceAttributes: {},
@@ -760,7 +774,7 @@ describe("updatePersonProfile", () => {
         const row = yield* findPersonRow(personId);
         expect(row?.email).toBe("keep@voidhash.test");
         expect(row?.name).toBe("Keep Name");
-        expect((row?.traits as Record<string, unknown>).a).toBe(1);
+        expect(readTraits(row?.traits).a).toBe(1);
         expect(row?.lastSeenAt?.getTime()).toBe(eventTimestamp.getTime());
       }),
     ).pipe(CoreAuthSession.authenticate()),
@@ -776,15 +790,15 @@ describe("archivePerson", () => {
     "sets archivedAt and mergedIntoPersonId on a non-archived person",
     withIdentityCleanup((track) =>
       Effect.gen(function* () {
-        const personId = `person_it_archive_${Date.now()}_${seq++}`;
-        const targetId = `person_it_archive_tgt_${Date.now()}_${seq++}`;
+        const personId = `person_it_archive_${runToken}_${seq++}`;
+        const targetId = `person_it_archive_tgt_${runToken}_${seq++}`;
         track.person(personId);
         track.person(targetId);
 
         yield* seedPerson({ id: targetId });
         const seeded = yield* seedPerson({ id: personId });
 
-        const eventTimestamp = new Date("2026-05-05T00:00:00.000Z");
+        const eventTimestamp = at("2026-05-05T00:00:00.000Z");
         const result = yield* inTransaction((tx, m) =>
           m.archivePerson(tx, {
             person: seeded,
@@ -807,13 +821,13 @@ describe("archivePerson", () => {
     "is a no-op (no write) when already archived into the same target",
     withIdentityCleanup((track) =>
       Effect.gen(function* () {
-        const personId = `person_it_archive_idem_${Date.now()}_${seq++}`;
-        const targetId = `person_it_archive_idem_tgt_${Date.now()}_${seq++}`;
+        const personId = `person_it_archive_idem_${runToken}_${seq++}`;
+        const targetId = `person_it_archive_idem_tgt_${runToken}_${seq++}`;
         track.person(personId);
         track.person(targetId);
 
         yield* seedPerson({ id: targetId });
-        const archivedAt = new Date("2026-06-06T00:00:00.000Z");
+        const archivedAt = at("2026-06-06T00:00:00.000Z");
         const seeded = yield* seedPerson({
           id: personId,
           archivedAt,
@@ -825,7 +839,7 @@ describe("archivePerson", () => {
             person: seeded,
             // A different timestamp that must NOT be written because the row is
             // already archived into this target.
-            eventTimestamp: new Date("2026-07-07T00:00:00.000Z"),
+            eventTimestamp: at("2026-07-07T00:00:00.000Z"),
             mergedIntoPersonId: targetId,
           }),
         );

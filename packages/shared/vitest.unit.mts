@@ -1,9 +1,12 @@
-import path from "node:path";
 import { loadEnv } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
-const envDir = path.join(process.cwd(), "../../apps/api");
+// Resolved through the WHATWG URL parser rather than `node:path`. `pathname` is
+// percent-encoded, so it is decoded back into a real filesystem path — otherwise a
+// checkout under a directory containing a space would resolve to a nonexistent dir
+// and `loadEnv` would silently return nothing.
+const envDir = decodeURIComponent(new URL("../../apps/api", `file://${process.cwd()}/`).pathname);
 
 export default defineConfig({
   plugins: [tsconfigPaths()],

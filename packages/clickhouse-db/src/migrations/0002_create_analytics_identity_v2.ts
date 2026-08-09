@@ -1,6 +1,8 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
+import { constant } from "@voidhash/lib/lang";
+
 import {
   CLICKHOUSE_EVENTS_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE,
@@ -11,7 +13,7 @@ import { ClickhouseWebClient } from "../clickhouse-client-web/index.ts";
 
 const KAFKA_BROKER_LIST = "redpanda:9092";
 
-export const migration0002Statements = [
+export const migration0002Statements = constant([
   `DROP TABLE IF EXISTS event_processed_v2_mv`,
   `DROP TABLE IF EXISTS event_processed_v2_kafka`,
   `DROP TABLE IF EXISTS ${CLICKHOUSE_EVENTS_TABLE}`,
@@ -187,7 +189,7 @@ export const migration0002Statements = [
 	WHERE
 		toUInt64(JSONExtractInt(raw, 'version')) > 0
 		AND nullIf(JSONExtractString(raw, 'previousDistinctId'), '') IS NOT NULL`,
-] as const;
+]);
 
 export default Effect.gen(function* () {
   const ch = yield* ClickhouseWebClient.ClickhouseWebClient;

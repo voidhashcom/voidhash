@@ -16,11 +16,14 @@ const configuredLive = (authorizationServer: string) =>
     }),
   );
 
+const oauthLayer = (authorizationServer?: string) => {
+  if (authorizationServer) return configuredLive(authorizationServer);
+  return McpOAuthUnconfiguredLive;
+};
+
 const serve = (path: string, authorizationServer?: string) =>
   Effect.gen(function* () {
-    const oauth = authorizationServer
-      ? configuredLive(authorizationServer)
-      : McpOAuthUnconfiguredLive;
+    const oauth = oauthLayer(authorizationServer);
     const handler = yield* HttpRouter.toHttpEffect(
       McpOAuthRouteLayer.pipe(HttpRouter.provideRequest(oauth)),
     );
@@ -31,26 +34,32 @@ const serve = (path: string, authorizationServer?: string) =>
       ),
     );
     return HttpServerResponse.toWeb(response);
-  }).pipe(Effect.scoped, Effect.runPromise);
+  }).pipe(Effect.scoped);
 
 describe("MCP OAuth metadata", () => {
-  it("points the protected resource at the configured issuer", async () => {
-    const response = await serve(
-      "/.well-known/oauth-protected-resource/api/mcp",
-      "https://example.authkit.app",
-    );
+  it("points the protected resource at the configured issuer", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve(
+          "/.well-known/oauth-protected-resource/api/mcp",
+          "https://example.authkit.app",
+        );
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      authorization_servers: ["https://example.authkit.app"],
-      bearer_methods_supported: ["header"],
-      resource: "https://api.example.com/api/mcp",
-    });
-  });
+        expect(response.status).toBe(200);
+        expect(yield* Effect.promise(() => response.json())).toEqual({
+          authorization_servers: ["https://example.authkit.app"],
+          bearer_methods_supported: ["header"],
+          resource: "https://api.example.com/api/mcp",
+        });
+      }),
+    ));
 
-  it("fails closed when the deployment runs no authorization server", async () => {
-    const response = await serve("/.well-known/oauth-protected-resource");
+  it("fails closed when the deployment runs no authorization server", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const response = yield* serve("/.well-known/oauth-protected-resource");
 
-    expect(response.status).toBe(503);
-  });
+        expect(response.status).toBe(503);
+      }),
+    ));
 });

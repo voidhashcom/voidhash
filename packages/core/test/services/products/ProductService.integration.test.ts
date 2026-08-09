@@ -31,9 +31,10 @@
  * service wraps into {@link ProductServiceError}. The test asserts that tag and
  * proves the target row was left unchanged.
  */
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
+import { generateId } from "@voidhash/core/utils";
 import { ProductService, ProjectSchemaCache } from "@voidhash/core/services";
 import { ProductServiceError } from "@voidhash/core/services/products/ProductService";
 import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
@@ -61,9 +62,11 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
-/** Monotonic counter so slugs stay unique even within the same millisecond. */
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
+/** Monotonic counter so slugs stay unique within one run; the cuid2 keeps them unique across runs. */
 let slugSeq = 0;
-const uniqueSlug = (label: string) => `it-product-${label}-${Date.now()}-${slugSeq++}`;
+const uniqueSlug = (label: string) => `it-product-${label}-${generateId("test")}-${slugSeq++}`;
 
 /** Read a product row straight from the database, bypassing the service. */
 const findProductRow = (id: string) =>
@@ -141,14 +144,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -304,7 +307,7 @@ describe("ProductService.getProductById", () => {
     Effect.gen(function* () {
       const productService = yield* ProductService;
       const error = yield* Effect.flip(
-        productService.getProductById(`product_missing_${Date.now()}`),
+        productService.getProductById(`product_missing_${generateId("test")}`),
       );
       expect(error).toBeInstanceOf(ProductNotFoundError);
     }).pipe(Effect.provide(ProductService.layer), CoreAuthSession.authenticate()),
@@ -415,7 +418,7 @@ describe("ProductService.updateProduct", () => {
     Effect.gen(function* () {
       const productService = yield* ProductService;
       const error = yield* Effect.flip(
-        productService.updateProduct({ id: `product_missing_${Date.now()}`, name: "Ghost" }),
+        productService.updateProduct({ id: `product_missing_${generateId("test")}`, name: "Ghost" }),
       );
       expect(error).toBeInstanceOf(ProductNotFoundError);
     }).pipe(Effect.provide(ProductService.layer), CoreAuthSession.authenticate()),
@@ -484,7 +487,7 @@ describe("ProductService.deleteProduct", () => {
     Effect.gen(function* () {
       const productService = yield* ProductService;
       const error = yield* Effect.flip(
-        productService.deleteProduct({ id: `product_missing_${Date.now()}` }),
+        productService.deleteProduct({ id: `product_missing_${generateId("test")}` }),
       );
       expect(error).toBeInstanceOf(ProductNotFoundError);
     }).pipe(Effect.provide(ProductService.layer), CoreAuthSession.authenticate()),

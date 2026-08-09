@@ -52,7 +52,7 @@ export const makeMemoryDurableEntityHost = (): DurableEntityHostShape => {
           alarm: {
             get: Effect.sync(() => state.alarm),
             set: (scheduledTime) => Effect.sync(() => void (state.alarm = scheduledTime)),
-            delete: Effect.sync(() => void (state.alarm = undefined)),
+            delete: Effect.sync(() =>  (state.alarm = undefined)),
           },
           sessions: {
             get: (sessionId) => Effect.sync(() => state.sessions.get(sessionId)),

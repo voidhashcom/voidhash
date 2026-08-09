@@ -25,7 +25,7 @@ import { Db } from "@voidhash/db";
 import { KeyValueStore } from "@voidhash/platform/KeyValueStore";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import { QueueDriver } from "@voidhash/platform/Queue";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";
 import { makeSelfhostPlatformLive } from "./PlatformProfile.ts";
@@ -36,11 +36,27 @@ const analyticsDeadLetterQueueName = "analytics-ingest-dlq";
 const minuteBucket = (value: Date): string => value.toISOString().slice(0, 16);
 const dayBucket = (value: Date): string => value.toISOString().slice(0, 10);
 
+const minuteMillis = 60_000;
+
+/**
+ * Milliseconds left until the next UTC minute boundary. UTC minutes are aligned
+ * to the epoch, so this is exact modular arithmetic over the instant.
+ */
 const millisecondsUntilNextMinute = (value: Date): number => {
-  const nextMinute = new Date(value);
-  nextMinute.setUTCSeconds(0, 0);
-  nextMinute.setUTCMinutes(nextMinute.getUTCMinutes() + 1);
-  return Math.max(nextMinute.getTime() - value.getTime(), 0);
+  const remainder = value.getTime() % minuteMillis;
+  if (remainder === 0) return minuteMillis;
+  return minuteMillis - remainder;
+};
+
+/** JSON text of an ingest envelope as stored on the processed record. */
+const encodeEnvelopeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+/** Best-effort human text for an unknown queue/driver error. */
+const errorCauseText = (error: unknown): string => {
+  if (typeof error === "object" && error !== null && "cause" in error) {
+    return String(error.cause);
+  }
+  return String(error);
 };
 
 const makePolicyCounterStoreLive = Layer.effect(
@@ -60,25 +76,23 @@ const makePolicyCounterStoreLive = Layer.effect(
         ),
       );
     return PolicyCounterStore.of({
-      checkEventQuota: ({ now, projectId, quota }) =>
-        typeof quota !== "number" || quota < 1
-          ? Effect.succeed(true)
-          : increment(`events:${projectId}:${dayBucket(now)}`, 172_800_000).pipe(
-              Effect.map((count) => count <= quota),
-            ),
-      checkRequestLimit: ({ now, projectId, requestsPerMinute }) =>
-        typeof requestsPerMinute !== "number" || requestsPerMinute < 1
-          ? Effect.succeed({ allowed: true })
-          : increment(`requests:${projectId}:${minuteBucket(now)}`, 120_000).pipe(
-              Effect.map((count) =>
-                count <= requestsPerMinute
-                  ? { allowed: true }
-                  : {
-                      allowed: false,
-                      retryAfterMs: millisecondsUntilNextMinute(now),
-                    },
-              ),
-            ),
+      checkEventQuota: ({ now, projectId, quota }) => {
+        if (typeof quota !== "number" || quota < 1) return Effect.succeed(true);
+        return increment(`events:${projectId}:${dayBucket(now)}`, 172_800_000).pipe(
+          Effect.map((count) => count <= quota),
+        );
+      },
+      checkRequestLimit: ({ now, projectId, requestsPerMinute }) => {
+        if (typeof requestsPerMinute !== "number" || requestsPerMinute < 1) {
+          return Effect.succeed({ allowed: true });
+        }
+        return increment(`requests:${projectId}:${minuteBucket(now)}`, 120_000).pipe(
+          Effect.map((count) => {
+            if (count <= requestsPerMinute) return { allowed: true };
+            return { allowed: false, retryAfterMs: millisecondsUntilNextMinute(now) };
+          }),
+        );
+      },
     });
   }),
 );
@@ -125,10 +139,7 @@ const makeCaptureIngressLive = Layer.effect(
         Effect.mapError(
           (error) =>
             new CaptureIngressError({
-              cause:
-                typeof error === "object" && error !== null && "cause" in error
-                  ? String(error.cause)
-                  : String(error),
+              cause: errorCauseText(error),
               message: "failed to enqueue captured analytics events",
             }),
         ),
@@ -186,20 +197,24 @@ export const runSelfhostAnalyticsConsumers = (
       ),
       Layer.provide(database),
     );
-    const writerContext = clickhouse
-      ? yield* Effect.gen(function* () {
-          const clickhouseContext = yield* Layer.build(clickhouse);
-          const client = Context.get(
-            clickhouseContext,
-            ClickhouseWebClient.ClickhouseWebClient,
-          );
-          return yield* Layer.build(
-            AnalyticsWriterService.layerWithClickhouse(client).pipe(
-              Layer.provide(database),
-            ),
-          );
-        })
-      : yield* Layer.build(AnalyticsWriterService.layer.pipe(Layer.provide(database)));
+    const buildWriterContext = () => {
+      if (clickhouse === undefined) {
+        return Layer.build(AnalyticsWriterService.layer.pipe(Layer.provide(database)));
+      }
+      return Effect.gen(function* () {
+        const clickhouseContext = yield* Layer.build(clickhouse);
+        const client = Context.get(
+          clickhouseContext,
+          ClickhouseWebClient.ClickhouseWebClient,
+        );
+        return yield* Layer.build(
+          AnalyticsWriterService.layerWithClickhouse(client).pipe(
+            Layer.provide(database),
+          ),
+        );
+      });
+    };
+    const writerContext = yield* buildWriterContext();
     const analyticsWriter = Context.get(writerContext, AnalyticsWriterService);
 
     const consumeAnalytics = queues.consumeBatch(
@@ -214,7 +229,7 @@ export const runSelfhostAnalyticsConsumers = (
               capturedEvent: message.envelope,
               headers: {},
               lane: message.lane,
-              rawValue: JSON.stringify(message.envelope),
+              rawValue: encodeEnvelopeJson(message.envelope),
               sourceOffset: message.envelope.captureId,
               sourcePartition: 0,
               sourceTopic: message.envelope.routing.targetTopic,

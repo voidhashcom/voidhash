@@ -13,71 +13,90 @@ const makeBrowserCacheAdapter = () => {
 
   return {
     get: (key: string) =>
-      Effect.sync(() => {
+      Effect.suspend(() => {
         const memoryValue = memoryStore.get(key);
         if (memoryValue !== undefined) {
-          return memoryValue;
+          return Effect.succeed(memoryValue);
         }
 
-        if (localStorage) {
-          try {
-            const persistedValue = localStorage.getItem(key);
-            if (persistedValue !== null) {
-              memoryStore.set(key, persistedValue);
-              return persistedValue;
+        if (!localStorage) {
+          return Effect.succeed(null);
+        }
+
+        return Effect.try({
+          try: () => localStorage.getItem(key),
+          catch: () => null,
+        }).pipe(
+          // Graceful degradation
+          Effect.orElseSucceed(() => null),
+          Effect.map((persistedValue) => {
+            if (persistedValue === null) {
+              return null;
             }
-          } catch {
-            // Graceful degradation
-          }
-        }
 
-        return null;
+            memoryStore.set(key, persistedValue);
+            return persistedValue;
+          }),
+        );
       }),
 
     set: (key: string, value: string) =>
-      Effect.sync(() => {
+      Effect.suspend(() => {
         memoryStore.set(key, value);
 
-        if (localStorage) {
-          try {
-            localStorage.setItem(key, value);
-          } catch {
-            // Graceful degradation — storage may be full or unavailable
-          }
+        if (!localStorage) {
+          return Effect.void;
         }
+
+        // Graceful degradation — storage may be full or unavailable
+        return Effect.ignore(
+          Effect.try({
+            try: () => localStorage.setItem(key, value),
+            catch: () => null,
+          }),
+        );
       }),
 
     delete: (key: string) =>
-      Effect.sync(() => {
+      Effect.suspend(() => {
         memoryStore.delete(key);
 
-        if (localStorage) {
-          try {
-            localStorage.removeItem(key);
-          } catch {
-            // Graceful degradation
-          }
+        if (!localStorage) {
+          return Effect.void;
         }
+
+        // Graceful degradation
+        return Effect.ignore(
+          Effect.try({
+            try: () => localStorage.removeItem(key),
+            catch: () => null,
+          }),
+        );
       }),
 
     keys: () =>
-      Effect.sync(() => {
+      Effect.suspend(() => {
         const keySet = new Set<string>(memoryStore.keys());
 
-        if (localStorage) {
-          try {
+        if (!localStorage) {
+          return Effect.succeed<ReadonlyArray<string>>([...keySet]);
+        }
+
+        return Effect.try({
+          try: () => {
             for (let i = 0; i < localStorage.length; i++) {
               const key = localStorage.key(i);
               if (key !== null) {
                 keySet.add(key);
               }
             }
-          } catch {
-            // Graceful degradation
-          }
-        }
-
-        return [...keySet] as ReadonlyArray<string>;
+          },
+          catch: () => null,
+        }).pipe(
+          // Graceful degradation
+          Effect.ignore,
+          Effect.map((): ReadonlyArray<string> => [...keySet]),
+        );
       }),
   };
 };
@@ -87,14 +106,17 @@ const detectLocalStorage = (): Storage | null => {
     return null;
   }
 
-  try {
-    const probeKey = "__voidhash_probe__";
-    window.localStorage.setItem(probeKey, "1");
-    window.localStorage.removeItem(probeKey);
-    return window.localStorage;
-  } catch {
-    return null;
-  }
+  return Effect.runSync(
+    Effect.try({
+      try: () => {
+        const probeKey = "__voidhash_probe__";
+        window.localStorage.setItem(probeKey, "1");
+        window.localStorage.removeItem(probeKey);
+        return window.localStorage;
+      },
+      catch: () => null,
+    }).pipe(Effect.orElseSucceed((): Storage | null => null)),
+  );
 };
 
 export const createBrowserCacheAdapterLayer = () =>

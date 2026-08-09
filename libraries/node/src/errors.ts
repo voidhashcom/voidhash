@@ -3,7 +3,7 @@ export class VoidhashNodeConfigurationError extends Error {
     super(message);
     this.name = new.target.name;
     if (options?.cause) {
-      (this as Error & { cause?: unknown }).cause = options.cause;
+      this.cause = options.cause;
     }
   }
 }

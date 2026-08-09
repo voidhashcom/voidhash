@@ -1,3 +1,4 @@
+import { pick } from "@voidhash/lib/lang";
 import {
   compareArrayItems,
   compareTreeSiblings,
@@ -178,7 +179,10 @@ function computePlacements(
     const anchorIds = longestIncreasingSubsequence(stayedSameParent);
 
     // Next-anchor position lookahead for gap filling.
-    const nextAnchorPos: (string | undefined)[] = new Array(kids.length);
+    const nextAnchorPos: (string | undefined)[] = Array.from(
+      { length: kids.length },
+      () => undefined,
+    );
     let upcoming: string | undefined;
     for (let i = kids.length - 1; i >= 0; i -= 1) {
       nextAnchorPos[i] = upcoming;
@@ -209,7 +213,7 @@ function computePlacements(
         pos = generator.between(pos, upper);
       }
       takenPositions.add(pos);
-      placement.set(kid.id, { kind: liveById.has(kid.id) ? "move" : "insert", pos });
+      placement.set(kid.id, { kind: pick(liveById.has(kid.id), "move", "insert"), pos });
       prevPos = pos;
     }
   }
@@ -260,46 +264,45 @@ function valuesEqual(a: Value, b: Value): boolean {
   if (a.kind !== b.kind) {
     return false;
   }
-  switch (a.kind) {
-    case "string":
-      return a.value === (b as typeof a).value;
-    case "number":
-      return a.value === (b as typeof a).value;
-    case "boolean":
-      return a.value === (b as typeof a).value;
-    case "object": {
-      const bObj = b as ObjectValue;
-      const aKeys = Object.keys(a.fields);
-      if (aKeys.length !== Object.keys(bObj.fields).length) {
-        return false;
-      }
-      return aKeys.every(
-        (key) => bObj.fields[key] !== undefined && valuesEqual(a.fields[key]!, bObj.fields[key]!),
-      );
-    }
-    case "array": {
-      const bArr = b as typeof a;
-      if (a.items.length !== bArr.items.length) {
-        return false;
-      }
-      const aOrdered = orderedItems(a.items);
-      const bOrdered = orderedItems(bArr.items);
-      return aOrdered.every((item, index) => valuesEqual(item.value, bOrdered[index]!.value));
-    }
-    case "tree": {
-      // Node data never nests a tree; compare defensively by ordered structure.
-      const bTree = b as typeof a;
-      if (a.nodes.length !== bTree.nodes.length) {
-        return false;
-      }
-      const key = (node: TreeNode): string => `${node.parent} ${node.id}`;
-      const bByKey = new Map(bTree.nodes.map((node) => [key(node), node]));
-      return a.nodes.every((node) => {
-        const other = bByKey.get(key(node));
-        return other !== undefined && valuesEqual(node.value, other.value);
-      });
-    }
+  if (a.kind === "string" && b.kind === "string") {
+    return a.value === b.value;
   }
+  if (a.kind === "number" && b.kind === "number") {
+    return a.value === b.value;
+  }
+  if (a.kind === "boolean" && b.kind === "boolean") {
+    return a.value === b.value;
+  }
+  if (a.kind === "object" && b.kind === "object") {
+    const aKeys = Object.keys(a.fields);
+    if (aKeys.length !== Object.keys(b.fields).length) {
+      return false;
+    }
+    return aKeys.every(
+      (key) => b.fields[key] !== undefined && valuesEqual(a.fields[key]!, b.fields[key]!),
+    );
+  }
+  if (a.kind === "array" && b.kind === "array") {
+    if (a.items.length !== b.items.length) {
+      return false;
+    }
+    const aOrdered = orderedItems(a.items);
+    const bOrdered = orderedItems(b.items);
+    return aOrdered.every((item, index) => valuesEqual(item.value, bOrdered[index]!.value));
+  }
+  if (a.kind === "tree" && b.kind === "tree") {
+    // Node data never nests a tree; compare defensively by ordered structure.
+    if (a.nodes.length !== b.nodes.length) {
+      return false;
+    }
+    const key = (node: TreeNode): string => `${node.parent} ${node.id}`;
+    const bByKey = new Map(b.nodes.map((node) => [key(node), node]));
+    return a.nodes.every((node) => {
+      const other = bByKey.get(key(node));
+      return other !== undefined && valuesEqual(node.value, other.value);
+    });
+  }
+  return false;
 }
 
 const orderedItems = (items: readonly ArrayItem[]): ArrayItem[] =>
@@ -353,7 +356,7 @@ function longestIncreasingSubsequence(items: readonly { id: string; key: number 
     return result;
   }
   const tails: number[] = [];
-  const prev: number[] = new Array(items.length).fill(-1);
+  const prev: number[] = Array.from({ length: items.length }, () => -1);
   for (let i = 0; i < items.length; i += 1) {
     const key = items[i]!.key;
     let lo = 0;

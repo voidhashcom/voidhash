@@ -6,17 +6,29 @@ import {
   RpcPaymentProviderProductServiceError,
   RpcPaymentProviderProductValidationError,
 } from "@voidhash/rpc";
+import { constant } from "@voidhash/lib/lang";
 import { Effect } from "effect";
+
+/** Structural view of the service errors these RPCs re-map onto wire errors. */
+interface TaggedErrorLike {
+  readonly _tag?: string;
+  readonly cause?: unknown;
+  readonly message?: string;
+}
+
+const isTaggedErrorLike = (error: unknown): error is TaggedErrorLike =>
+  typeof error === "object" && error !== null;
+
+const taggedErrorFields = (error: unknown): TaggedErrorLike => {
+  if (isTaggedErrorLike(error)) return error;
+  return {};
+};
 
 export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLayer(
   Effect.gen(function* PaymentProviderProductRpcsLive() {
     const paymentProviderProductService = yield* PaymentProviderProductService;
     const mapCreateError = (error: unknown) => {
-      const tagged = error as {
-        readonly _tag?: string;
-        readonly cause?: unknown;
-        readonly message?: string;
-      };
+      const tagged = taggedErrorFields(error);
       switch (tagged._tag) {
         case "ActionForbiddenError":
           return new RpcActionForbiddenError({ message: tagged.message ?? "" });
@@ -29,11 +41,7 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
       }
     };
     const mapUpdateError = (error: unknown) => {
-      const tagged = error as {
-        readonly _tag?: string;
-        readonly cause?: unknown;
-        readonly message?: string;
-      };
+      const tagged = taggedErrorFields(error);
       switch (tagged._tag) {
         case "ActionForbiddenError":
           return new RpcActionForbiddenError({ message: tagged.message ?? "" });
@@ -50,7 +58,7 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
     return {
       CreatePaymentProviderProduct: (input) =>
         paymentProviderProductService.createPaymentProviderProduct(input).pipe(
-          Effect.map((result) => ({ id: (result as { readonly id: string }).id }) as const),
+          Effect.map((result) => constant({ id: result.id })),
           Effect.mapError(mapCreateError),
         ),
       DeletePaymentProviderProduct: (input) =>

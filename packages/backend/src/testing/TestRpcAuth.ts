@@ -1,5 +1,6 @@
 import { LocalUserSessionService } from "@voidhash/core/services";
 import { Db } from "@voidhash/db";
+import { pick } from "@voidhash/lib/lang";
 import {
   AuthMiddleware,
   AuthSession,
@@ -48,7 +49,7 @@ const loadSession = (
   Effect.gen(function* () {
     const { role, runId } = yield* readSmokeHeaders(headers);
     const ids = makeSmokeIds(runId);
-    const userId = role === "admin" ? ids.adminUserId : ids.normalUserId;
+    const userId = pick(role === "admin", ids.adminUserId, ids.normalUserId);
 
     const dbUser = yield* localUserSessions.getLocalUser(userId).pipe(
       Effect.catchTag("EffectDrizzleQueryError", (error) =>

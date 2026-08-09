@@ -12,7 +12,7 @@ import { STYLE_GROUP_FLAG_BY_FIELD } from "./style-group-flags.ts";
  */
 
 const STYLED_NODE_TYPES: readonly NodeType[] = ["screen", "view", "text", "shape", "path"];
-const GROUP_PREFIXES = ["background", "border", "shadow", "fill", "stroke"] as const;
+const GROUP_PREFIXES: readonly string[] = ["background", "border", "shadow", "fill", "stroke"];
 
 /**
  * The four border radius fields are ungated in the renderer, so they must NOT be

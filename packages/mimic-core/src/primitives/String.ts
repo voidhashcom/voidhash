@@ -1,4 +1,5 @@
 import { stringValue, type Path, type Value } from "../core/types.ts";
+import type { Mutable } from "../internal/lang.ts";
 import type { StringSchema, StringValidator } from "../schema/types.ts";
 import { getValueAtPath } from "./path.ts";
 import {
@@ -49,14 +50,17 @@ export class StringPrimitive<
   }
 
   get schema(): StringSchema {
-    return {
-      kind: "string" as const,
-      ...(this.state.required ? { required: true } : {}),
-      ...(this.state.defaultValue !== undefined
-        ? { default: stringValue(this.state.defaultValue) }
-        : {}),
-      ...(this.state.validators.length > 0 ? { validators: this.state.validators } : {}),
-    };
+    const schema: Mutable<StringSchema> = { kind: "string" };
+    if (this.state.required) {
+      schema.required = true;
+    }
+    if (this.state.defaultValue !== undefined) {
+      schema.default = stringValue(this.state.defaultValue);
+    }
+    if (this.state.validators.length > 0) {
+      schema.validators = this.state.validators;
+    }
+    return schema;
   }
 
   required(): StringPrimitive<true, THasDefault> {
@@ -74,10 +78,16 @@ export class StringPrimitive<
   }
 
   optional(stripDefaults: boolean): StringPrimitive<false, false> {
+    if (stripDefaults) {
+      return new StringPrimitive({
+        ...this.state,
+        required: false,
+        defaultValue: undefined,
+      });
+    }
     return new StringPrimitive({
       ...this.state,
       required: false,
-      defaultValue: stripDefaults ? undefined : this.state.defaultValue,
     });
   }
 

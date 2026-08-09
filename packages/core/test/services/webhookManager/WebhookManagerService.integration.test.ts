@@ -29,7 +29,7 @@
  * call so a leftover row from a crashed run can't collide, and assertions stay
  * membership-based (never exact `getEndpoints`/`getDeliveries` counts).
  */
-import { Deferred, Effect, Layer } from "effect";
+import { Clock, DateTime, Deferred, Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
 
 import { WebhookManagerService } from "@voidhash/core/services/webhookManager/WebhookManagerService";
@@ -68,7 +68,15 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so slugs/ids stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueSlug = (label: string) => `it-wh-${label}-${Date.now()}-${seq++}`;
+const uniqueSlug = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-wh-${label}-${now}-${seq++}`);
+
+/**
+ * The recorder only ever observes `DeliverWebhook` dispatches; this narrows the
+ * generic workflow payload without an assertion.
+ */
+const isDeliverWebhookInput = (input: unknown): input is DeliverWebhookInput =>
+  typeof input === "object" && input !== null && "deliveryId" in input && "endpointId" in input;
 
 // ---------------------------------------------------------------------------
 // Recording workflow runner. The layer records each dispatch and completes a
@@ -91,9 +99,10 @@ const makeRecorder = (): Recorder => {
       ...runner,
       dispatch: (workflow, input) =>
         Effect.gen(function* () {
-          const delivery = input as DeliverWebhookInput;
-          calls.push(delivery);
-          yield* Deferred.succeed(firstDispatch, delivery);
+          if (isDeliverWebhookInput(input)) {
+            calls.push(input);
+            yield* Deferred.succeed(firstDispatch, input);
+          }
           return yield* runner.dispatch(workflow, input);
         }),
     }),
@@ -160,12 +169,12 @@ const insertEndpoint = (overrides?: {
 }) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = uniqueSlug("ep");
-    const secret = `whsec_${uniqueSlug("secret")}`;
+    const id = yield* uniqueSlug("ep");
+    const secret = `whsec_${yield* uniqueSlug("secret")}`;
     const url = overrides?.url ?? "https://example.test/hook";
     yield* db.insert(webhookEndpoints).values({
       consecutiveFailures: 0,
-      createdAt: new Date(),
+      createdAt: yield* DateTime.nowAsDate,
       events: ["person.created"],
       id,
       name: "Seed Endpoint",
@@ -185,15 +194,15 @@ const insertDelivery = (input: {
 }) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = uniqueSlug("del");
+    const id = yield* uniqueSlug("del");
     yield* db.insert(webhookDeliveries).values({
       attemptCount: input.attemptCount ?? 0,
-      completedAt: new Date(),
-      createdAt: new Date(),
-      eventOccurredAt: new Date(),
+      completedAt: yield* DateTime.nowAsDate,
+      createdAt: yield* DateTime.nowAsDate,
+      eventOccurredAt: yield* DateTime.nowAsDate,
       eventType: "person.created",
       id,
-      nextAttemptAt: new Date(),
+      nextAttemptAt: yield* DateTime.nowAsDate,
       payload: { hello: "world" },
       projectId: input.projectId ?? projectId,
       status: input.status ?? WebhookDeliveryStatus.Failed,
@@ -205,10 +214,10 @@ const insertDelivery = (input: {
 const insertAttempt = (input: { readonly deliveryId: string; readonly attemptNumber: number }) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = uniqueSlug("att");
+    const id = yield* uniqueSlug("att");
     yield* db.insert(webhookDeliveryAttempts).values({
       attemptNumber: input.attemptNumber,
-      createdAt: new Date(),
+      createdAt: yield* DateTime.nowAsDate,
       durationMs: 42,
       errorMessage: `attempt ${input.attemptNumber}`,
       id,
@@ -489,7 +498,7 @@ describe("WebhookManagerService.updateEndpoint", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookManagerService;
       const error = yield* Effect.flip(
-        svc.updateEndpoint({ endpointId: uniqueSlug("missing"), name: "x", projectId }),
+        svc.updateEndpoint({ endpointId: yield* uniqueSlug("missing"), name: "x", projectId }),
       );
       expect(error).toBeInstanceOf(WebhookEndpointNotFoundError);
     }).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
@@ -552,7 +561,7 @@ describe("WebhookManagerService.deleteEndpoint", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookManagerService;
       const error = yield* Effect.flip(
-        svc.deleteEndpoint({ endpointId: uniqueSlug("missing"), projectId }),
+        svc.deleteEndpoint({ endpointId: yield* uniqueSlug("missing"), projectId }),
       );
       expect(error).toBeInstanceOf(WebhookEndpointNotFoundError);
     }).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
@@ -611,7 +620,7 @@ describe("WebhookManagerService.getEndpointById", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookManagerService;
       const error = yield* Effect.flip(
-        svc.getEndpointById({ endpointId: uniqueSlug("missing"), projectId }),
+        svc.getEndpointById({ endpointId: yield* uniqueSlug("missing"), projectId }),
       );
       expect(error).toBeInstanceOf(WebhookEndpointNotFoundError);
     }).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
@@ -697,7 +706,7 @@ describe("WebhookManagerService.rotateSecret", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookManagerService;
       const error = yield* Effect.flip(
-        svc.rotateSecret({ endpointId: uniqueSlug("missing"), projectId }),
+        svc.rotateSecret({ endpointId: yield* uniqueSlug("missing"), projectId }),
       );
       expect(error).toBeInstanceOf(WebhookEndpointNotFoundError);
     }).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
@@ -811,7 +820,7 @@ describe("WebhookManagerService.getDeliveryById", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookManagerService;
       const error = yield* Effect.flip(
-        svc.getDeliveryById({ deliveryId: uniqueSlug("missing"), projectId }),
+        svc.getDeliveryById({ deliveryId: yield* uniqueSlug("missing"), projectId }),
       );
       expect(error).toBeInstanceOf(WebhookDeliveryNotFoundError);
     }).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
@@ -908,7 +917,7 @@ describe("WebhookManagerService.retryDelivery", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookManagerService;
       const error = yield* Effect.flip(
-        svc.retryDelivery({ deliveryId: uniqueSlug("missing"), projectId }),
+        svc.retryDelivery({ deliveryId: yield* uniqueSlug("missing"), projectId }),
       );
       expect(error).toBeInstanceOf(WebhookDeliveryNotFoundError);
     }).pipe(
@@ -996,7 +1005,7 @@ describe("WebhookManagerService.testEndpoint", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookManagerService;
       const error = yield* Effect.flip(
-        svc.testEndpoint({ endpointId: uniqueSlug("missing"), projectId }),
+        svc.testEndpoint({ endpointId: yield* uniqueSlug("missing"), projectId }),
       );
       expect(error).toBeInstanceOf(WebhookEndpointNotFoundError);
     }).pipe(

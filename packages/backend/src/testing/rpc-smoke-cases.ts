@@ -1,3 +1,6 @@
+import { constant } from "@voidhash/lib/lang";
+import { Effect } from "effect";
+
 import { BackendRpcGroups as RpcGroups } from "../BackendRpcGroups.ts";
 
 import type { SmokeIds } from "./smoke-ids.ts";
@@ -36,27 +39,39 @@ export interface RpcSmokeCase {
   readonly afterSuccess?: (context: RpcSmokeContext, result: unknown) => void;
 }
 
-const success = { success: true } as const;
-const error = (errorTag: string) => ({ errorTag }) as const;
+const success = constant({ success: true });
+const error = (errorTag: string) => constant({ errorTag });
+
+/**
+ * Aborts the smoke run with a defect. The manifest's assertion helpers are
+ * plain synchronous callbacks invoked by the runner, so a broken expectation is
+ * raised as an Effect defect rather than modelled as a recoverable failure.
+ */
+const dieWith = (message: string): never => Effect.runSync(Effect.die(new Error(message)));
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || Array.isArray(value)) return false;
+  return typeof value === "object";
+};
 
 const expectObject = (result: unknown, tag: string): Record<string, unknown> => {
-  if (typeof result !== "object" || result === null || Array.isArray(result)) {
-    throw new Error(`${tag} returned a non-object result`);
+  if (!isRecord(result)) {
+    return dieWith(`${tag} returned a non-object result`);
   }
-  return result as Record<string, unknown>;
+  return result;
 };
 
 const expectStringField = (result: unknown, tag: string, field: string): string => {
   const value = expectObject(result, tag)[field];
   if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${tag} did not return a string ${field}`);
+    return dieWith(`${tag} did not return a string ${field}`);
   }
   return value;
 };
 
 const expectArray = (result: unknown, tag: string): ReadonlyArray<unknown> => {
   if (!Array.isArray(result)) {
-    throw new Error(`${tag} returned a non-array result`);
+    return dieWith(`${tag} returned a non-array result`);
   }
   return result;
 };
@@ -599,7 +614,7 @@ export const rpcSmokeCases = [
       expectStringField(result, "RequestPaywallEditToken", "url");
       const expiresAt = expectObject(result, "RequestPaywallEditToken").expiresAt;
       if (!(expiresAt instanceof Date)) {
-        throw new Error("RequestPaywallEditToken did not return a Date expiresAt");
+        return dieWith("RequestPaywallEditToken did not return a Date expiresAt");
       }
     },
     expected: success,
@@ -621,7 +636,7 @@ export const rpcSmokeCases = [
     afterSuccess: (context, result) => {
       const releaseId = expectStringField(result, "GetPaywallDraftRelease", "releaseId");
       if (releaseId !== context.paywallReleaseId) {
-        throw new Error("GetPaywallDraftRelease returned a different release");
+        return dieWith("GetPaywallDraftRelease returned a different release");
       }
     },
     expected: success,
@@ -855,19 +870,17 @@ export const assertRpcSmokeManifestCoverage = () => {
   const resolvedBaseline = [...knownMissingRpcSmokeTags].filter((tag) => !missing.includes(tag));
   const stale = [...manifestTags].filter((tag) => !rpcTags.has(tag));
 
-  if (unexpectedMissing.length || resolvedBaseline.length || stale.length) {
-    throw new Error(
-      [
-        unexpectedMissing.length
-          ? `Unexpected missing smoke RPC cases: ${unexpectedMissing.join(", ")}`
-          : undefined,
-        resolvedBaseline.length
-          ? `Resolved smoke baseline entries must be removed: ${resolvedBaseline.join(", ")}`
-          : undefined,
-        stale.length ? `Stale smoke RPC cases: ${stale.join(", ")}` : undefined,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
+  const problems: string[] = [];
+  if (unexpectedMissing.length) {
+    problems.push(`Unexpected missing smoke RPC cases: ${unexpectedMissing.join(", ")}`);
+  }
+  if (resolvedBaseline.length) {
+    problems.push(`Resolved smoke baseline entries must be removed: ${resolvedBaseline.join(", ")}`);
+  }
+  if (stale.length) {
+    problems.push(`Stale smoke RPC cases: ${stale.join(", ")}`);
+  }
+  if (problems.length) {
+    return dieWith(problems.join("\n"));
   }
 };

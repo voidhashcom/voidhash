@@ -10,7 +10,9 @@ import {
   PersonIdentityMigrationJobStatus,
   PersonUnlockedPerkStatus,
 } from "@voidhash/db";
-import { describe, expect, it } from "vite-plus/test";
+import { DateTime } from "effect";
+
+import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 
 import type { PersonIdentityResult } from "../../../src/services/personIdentity/PersonIdentityService.ts";
 import type { PersonSnapshotEventV1 } from "../../../src/domain/person/Person.ts";
@@ -44,14 +46,16 @@ import {
 
 // ---------------------------------------------------------------------------
 // Fixture builders. Each returns a fresh object so no test mutates another's
-// state. The builders type-cast a minimal field set to the full DB row type —
-// `snapshot-builder` only reads the columns set here, so the cast is safe and
-// keeps the fixtures readable rather than spelling out ~20 nullable columns.
+// state. Every column of the DB row type is spelled out (mostly as `null`) so
+// the fixtures are structurally the real row type.
 // ---------------------------------------------------------------------------
 
-const NOW = new Date("2026-06-06T00:00:00.000Z");
-const PAST = new Date("2026-01-01T00:00:00.000Z");
-const FUTURE = new Date("2026-12-31T00:00:00.000Z");
+/** Builds a fixed UTC `Date` from an ISO string or epoch millis. */
+const at = (input: string | number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(input));
+
+const NOW = at("2026-06-06T00:00:00.000Z");
+const PAST = at("2026-01-01T00:00:00.000Z");
+const FUTURE = at("2026-12-31T00:00:00.000Z");
 
 const product = (
   overrides: Partial<DbPaymentProviderConfigurationProduct> = {},
@@ -66,7 +70,7 @@ const product = (
     providerProductKey: "com.app.product",
     updatedAt: PAST,
     ...overrides,
-  }) as DbPaymentProviderConfigurationProduct;
+  });
 
 const subscription = (overrides: Partial<SubscriptionWithProduct> = {}): SubscriptionWithProduct =>
   ({
@@ -92,11 +96,14 @@ const subscription = (overrides: Partial<SubscriptionWithProduct> = {}): Subscri
     pendingPriceAmount: null,
     pendingPriceCurrency: null,
     pendingPriceEffectiveAt: null,
+    pendingProductChangeId: null,
+    redeemedOfferId: null,
+    redeemedOfferAt: null,
     createdAt: PAST,
     updatedAt: PAST,
     paymentProviderConfigurationProduct: product(),
     ...overrides,
-  }) as SubscriptionWithProduct;
+  });
 
 const purchase = (overrides: Partial<DbPurchase> = {}): DbPurchase =>
   ({
@@ -114,7 +121,7 @@ const purchase = (overrides: Partial<DbPurchase> = {}): DbPurchase =>
     createdAt: PAST,
     updatedAt: PAST,
     ...overrides,
-  }) as DbPurchase;
+  });
 
 const grant = (overrides: Partial<DbPersonUnlockedPerk> = {}): DbPersonUnlockedPerk =>
   ({
@@ -128,7 +135,7 @@ const grant = (overrides: Partial<DbPersonUnlockedPerk> = {}): DbPersonUnlockedP
     createdAt: PAST,
     updatedAt: PAST,
     ...overrides,
-  }) as DbPersonUnlockedPerk;
+  });
 
 const person = (overrides: Partial<DbPerson> = {}): DbPerson =>
   ({
@@ -136,6 +143,7 @@ const person = (overrides: Partial<DbPerson> = {}): DbPerson =>
     name: "Person Row Name",
     email: "row@example.com",
     traits: null,
+    traitsMeta: null,
     origin: 1,
     projectId: "project-1",
     mergedIntoPersonId: null,
@@ -148,7 +156,7 @@ const person = (overrides: Partial<DbPerson> = {}): DbPerson =>
     createdAt: PAST,
     updatedAt: PAST,
     ...overrides,
-  }) as DbPerson;
+  });
 
 const personIdentity = (overrides: Partial<DbPersonIdentity> = {}): DbPersonIdentity =>
   ({
@@ -161,7 +169,7 @@ const personIdentity = (overrides: Partial<DbPersonIdentity> = {}): DbPersonIden
     createdAt: PAST,
     updatedAt: PAST,
     ...overrides,
-  }) as DbPersonIdentity;
+  });
 
 const migrationJob = (
   overrides: Partial<SnapshotMigrationJobRow> = {},
@@ -357,7 +365,7 @@ describe("compareSubscriptionsForCurrent", () => {
   });
 
   it("prefers the later expiresAt when status is equal (positive when left expires first)", () => {
-    const sooner = subscription({ id: "sooner", expiresAt: new Date("2026-07-01") });
+    const sooner = subscription({ id: "sooner", expiresAt: at("2026-07-01") });
     const later = subscription({ id: "later", expiresAt: FUTURE });
     expect(compareSubscriptionsForCurrent(sooner, later, NOW)).toBeGreaterThan(0);
   });
@@ -366,12 +374,12 @@ describe("compareSubscriptionsForCurrent", () => {
     const early = subscription({
       id: "early",
       expiresAt: FUTURE,
-      startsAt: new Date("2026-01-01"),
+      startsAt: at("2026-01-01"),
     });
     const late = subscription({
       id: "late",
       expiresAt: FUTURE,
-      startsAt: new Date("2026-03-01"),
+      startsAt: at("2026-03-01"),
     });
     expect(compareSubscriptionsForCurrent(early, late, NOW)).toBeGreaterThan(0);
   });
@@ -381,13 +389,13 @@ describe("compareSubscriptionsForCurrent", () => {
       id: "older",
       expiresAt: FUTURE,
       startsAt: PAST,
-      updatedAt: new Date("2026-02-01"),
+      updatedAt: at("2026-02-01"),
     });
     const newer = subscription({
       id: "newer",
       expiresAt: FUTURE,
       startsAt: PAST,
-      updatedAt: new Date("2026-05-01"),
+      updatedAt: at("2026-05-01"),
     });
     expect(compareSubscriptionsForCurrent(older, newer, NOW)).toBeGreaterThan(0);
   });
@@ -423,7 +431,7 @@ describe("selectCurrentSubscription", () => {
     const current = selectCurrentSubscription(
       [
         subscription({ id: "trial", isTrial: true, expiresAt: FUTURE }),
-        subscription({ id: "active", isTrial: false, expiresAt: new Date("2026-08-01") }),
+        subscription({ id: "active", isTrial: false, expiresAt: at("2026-08-01") }),
       ],
       NOW,
     );
@@ -452,7 +460,7 @@ describe("mapSubscriptionHistory", () => {
   });
 
   it("includes canceledAt for a canceled subscription", () => {
-    const canceledAt = new Date("2026-05-01");
+    const canceledAt = at("2026-05-01");
     const history = mapSubscriptionHistory(
       subscription({ status: SubscriptionStatus.Canceled, canceledAt }),
       NOW,
@@ -492,7 +500,10 @@ describe("mapPurchaseHistory", () => {
 
   it("maps a non-one-time purchase type to 'subscription'", () => {
     // type 99 is neither OneTime nor OneTimeConsumable → falls through to subscription.
-    const history = mapPurchaseHistory(purchase({ type: 99 as never }), lookup);
+    // Object.assign widens the enum-typed column to an out-of-range value without
+    // an assertion, which is exactly the row shape this branch must tolerate.
+    const unknownTypePurchase = Object.assign(purchase(), { type: 99 });
+    const history = mapPurchaseHistory(unknownTypePurchase, lookup);
     expect(history.type).toBe("subscription");
   });
 
@@ -506,7 +517,7 @@ describe("mapPurchaseHistory", () => {
 
   it("falls back to epoch when createdAt is null", () => {
     const history = mapPurchaseHistory(purchase({ createdAt: null }), lookup);
-    expect(history.createdAt).toEqual(new Date(0));
+    expect(history.createdAt).toEqual(at(0));
   });
 });
 
@@ -570,12 +581,12 @@ describe("dedupeSubscriptions", () => {
     const stale = subscription({
       id: "stale",
       storeSubscriptionId: "store-shared",
-      updatedAt: new Date("2026-01-01"),
+      updatedAt: at("2026-01-01"),
     });
     const fresh = subscription({
       id: "fresh",
       storeSubscriptionId: "store-shared",
-      updatedAt: new Date("2026-05-01"),
+      updatedAt: at("2026-05-01"),
     });
     const result = dedupeSubscriptions([stale, fresh]);
     expect(result).toHaveLength(1);
@@ -609,12 +620,12 @@ describe("dedupePurchases", () => {
     const stale = purchase({
       id: "stale",
       providerKey: "key-shared",
-      createdAt: new Date("2026-01-01"),
+      createdAt: at("2026-01-01"),
     });
     const fresh = purchase({
       id: "fresh",
       providerKey: "key-shared",
-      createdAt: new Date("2026-05-01"),
+      createdAt: at("2026-05-01"),
     });
     const result = dedupePurchases([stale, fresh]);
     expect(result).toHaveLength(1);
@@ -683,8 +694,8 @@ const subHistory = (
 
 describe("sortSubscriptionHistory", () => {
   it("sorts by startsAt descending, then expiresAt descending", () => {
-    const earlyStart = subHistory({ subscriptionId: "early", startsAt: new Date("2026-01-01") });
-    const lateStart = subHistory({ subscriptionId: "late", startsAt: new Date("2026-05-01") });
+    const earlyStart = subHistory({ subscriptionId: "early", startsAt: at("2026-01-01") });
+    const lateStart = subHistory({ subscriptionId: "late", startsAt: at("2026-05-01") });
     const sorted = sortSubscriptionHistory([earlyStart, lateStart]);
     expect(sorted.map((s) => s.subscriptionId)).toEqual(["late", "early"]);
   });
@@ -693,7 +704,7 @@ describe("sortSubscriptionHistory", () => {
     const expiresSoon = subHistory({
       subscriptionId: "soon",
       startsAt: PAST,
-      expiresAt: new Date("2026-07-01"),
+      expiresAt: at("2026-07-01"),
     });
     const expiresLate = subHistory({
       subscriptionId: "later",
@@ -724,8 +735,8 @@ const purchaseHistory = (
 
 describe("sortPurchaseHistory", () => {
   it("sorts by createdAt descending (newest first)", () => {
-    const old = purchaseHistory({ purchaseId: "old", createdAt: new Date("2026-01-01") });
-    const recent = purchaseHistory({ purchaseId: "recent", createdAt: new Date("2026-05-01") });
+    const old = purchaseHistory({ purchaseId: "old", createdAt: at("2026-01-01") });
+    const recent = purchaseHistory({ purchaseId: "recent", createdAt: at("2026-05-01") });
     const sorted = sortPurchaseHistory([old, recent]);
     expect(sorted.map((p) => p.purchaseId)).toEqual(["recent", "old"]);
   });
@@ -757,7 +768,7 @@ describe("sortGrants", () => {
   });
 
   it("orders same-status grants by expiresAt ascending (expiring soon first)", () => {
-    const soon = snapshotGrant({ perkId: "soon", expiresAt: new Date("2026-07-01") });
+    const soon = snapshotGrant({ perkId: "soon", expiresAt: at("2026-07-01") });
     const late = snapshotGrant({ perkId: "late", expiresAt: FUTURE });
     const sorted = sortGrants([late, soon]);
     expect(sorted.map((g) => g.perkId)).toEqual(["soon", "late"]);
@@ -859,8 +870,8 @@ describe("composeSnapshot", () => {
       personId: "person-target",
       purchaseProductIdLookup: new Map([["ppcp-1", "prod-1"]]),
       purchases: [
-        purchase({ id: "p-old", providerKey: "k-1", createdAt: new Date("2026-01-01") }),
-        purchase({ id: "p-new", providerKey: "k-2", createdAt: new Date("2026-05-01") }),
+        purchase({ id: "p-old", providerKey: "k-1", createdAt: at("2026-01-01") }),
+        purchase({ id: "p-new", providerKey: "k-2", createdAt: at("2026-05-01") }),
       ],
       scope,
       subscriptions: [

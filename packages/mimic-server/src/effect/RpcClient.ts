@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import { Encoding, Layer } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 
@@ -11,32 +11,28 @@ export interface MimicClientConfig {
 
 /**
  * Cross-runtime Basic auth encoder. The SDK runs in browsers (admin app
- * via Vite), Node, and Bun, so we deliberately avoid importing
- * `node:buffer` directly. We detect `Buffer` as an optional global and
- * fall back to `btoa` (which is available in browsers and modern Node).
+ * via Vite), Node, and Bun, so we rely on Effect's `Encoding` module, which
+ * base64-encodes the UTF-8 bytes of the credential pair without touching a
+ * runtime-specific global such as `Buffer` or `btoa`.
  */
-const encodeBasicAuth = (username: string, password: string): string => {
-  const value = `${username}:${password}`;
-  const maybeBuffer = (
-    globalThis as {
-      Buffer?: { from(input: string, encoding: string): { toString(encoding: string): string } };
-    }
-  ).Buffer;
-  if (maybeBuffer) {
-    return `Basic ${maybeBuffer.from(value, "utf8").toString("base64")}`;
-  }
-  if (typeof globalThis.btoa === "function") {
-    const bytes = new TextEncoder().encode(value);
-    let binary = "";
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte);
-    }
-    return `Basic ${globalThis.btoa(binary)}`;
-  }
-  throw new Error("No base64 encoder is available in this runtime");
-};
+const encodeBasicAuth = (username: string, password: string): string =>
+  `Basic ${Encoding.encodeBase64(`${username}:${password}`)}`;
 
 const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, "");
+
+/**
+ * Underlying `HttpClient` layer: `FetchHttpClient.layer`, with the
+ * `FetchHttpClient.Fetch` reference overridden when the caller supplied a
+ * custom `fetch` implementation.
+ */
+const makeHttpClientLayer = (customFetch: typeof globalThis.fetch | undefined) => {
+  if (customFetch) {
+    return FetchHttpClient.layer.pipe(
+      Layer.provide(Layer.succeed(FetchHttpClient.Fetch)(customFetch)),
+    );
+  }
+  return FetchHttpClient.layer;
+};
 
 /**
  * Build the Effect Layer that satisfies `RpcClient.Protocol`. This is what
@@ -57,9 +53,7 @@ export const makeMimicProtocolLayer = (config: MimicClientConfig) => {
   const baseUrl = `${trimTrailingSlashes(config.url)}/rpc/v1`;
   const authorization = encodeBasicAuth(config.username, config.password);
 
-  const httpClientLayer = config.fetch
-    ? FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch)(config.fetch)))
-    : FetchHttpClient.layer;
+  const httpClientLayer = makeHttpClientLayer(config.fetch);
 
   return RpcClient.layerProtocolHttp({
     url: baseUrl,

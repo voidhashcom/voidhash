@@ -23,9 +23,7 @@ import {
 } from "./path.ts";
 import {
   PrimitiveError,
-  type AnyPrimitive,
   type CommandSession,
-  type InferInput,
   type InferProxy,
   type InferSnapshot,
   type MaybeUndefined,
@@ -40,7 +38,6 @@ import {
   type InferTreeNodeType,
   type TreeChildInsertInput,
   type TreeNodeInput,
-  type TreeNodePrimitive,
 } from "./TreeNode.ts";
 
 export interface TreeNodeSnapshot<TNode extends AnyTreeNodePrimitive = AnyTreeNodePrimitive> {
@@ -166,16 +163,23 @@ export class TreePrimitive<
 
   get schema(): TreeSchema {
     const variants = buildTreeVariants(this.state.root);
-    return {
-      kind: "tree" as const,
+    const base: TreeSchema = {
+      kind: "tree",
       discriminator: "type",
       roots: [this.state.root.type],
       variants,
-      ...(this.state.required ? { required: true } : {}),
-      ...(this.state.encodedDefault !== undefined
-        ? { default: cloneValue(this.state.encodedDefault) as TreeValue }
-        : {}),
     };
+    const encodedDefault = this.state.encodedDefault;
+    if (this.state.required && encodedDefault !== undefined) {
+      return { ...base, required: true, default: cloneTreeValue(encodedDefault) };
+    }
+    if (this.state.required) {
+      return { ...base, required: true };
+    }
+    if (encodedDefault !== undefined) {
+      return { ...base, default: cloneTreeValue(encodedDefault) };
+    }
+    return base;
   }
 
   required(): TreePrimitive<TRoot, true, THasDefault> {
@@ -214,7 +218,7 @@ export class TreePrimitive<
     if (!Array.isArray(input)) {
       throw new PrimitiveError("Expected tree root input array");
     }
-    return this.encodeRoots(input as RootInput<TRoot>);
+    return this.encodeRoots(input);
   }
 
   private encodeRoots(input: RootInput<TRoot>): TreeValue {
@@ -251,23 +255,13 @@ export class TreePrimitive<
       });
       let childLower: string | undefined;
       for (const child of nodeInput.children ?? []) {
-        childLower = visit(
-          child as TreeNodeInput<AnyTreeNodePrimitive>,
-          id,
-          primitive.children,
-          childLower,
-        );
+        childLower = visit(child, id, primitive.children, childLower);
       }
       return pos;
     };
 
     for (const rootNode of input) {
-      lowerRootPos = visit(
-        rootNode as TreeNodeInput<AnyTreeNodePrimitive>,
-        HiddenTreeRootId,
-        [this.state.root],
-        lowerRootPos,
-      );
+      lowerRootPos = visit(rootNode, HiddenTreeRootId, [this.state.root], lowerRootPos);
     }
 
     return treeValue(nodes);
@@ -278,7 +272,7 @@ export class TreePrimitive<
       return undefined;
     }
     const index = collectTreeNodeIndex(this.state.root);
-    return buildTreeSnapshots(value, HiddenTreeRootId, index) as readonly TreeNodeSnapshot<TRoot>[];
+    return buildTreeSnapshots(value, HiddenTreeRootId, index);
   }
 
   createProxy(session: CommandSession, path: Path): TreeProxy<TRoot> {
@@ -295,19 +289,31 @@ export class TreePrimitive<
           return undefined;
         }
         const typeValue = node.value.fields["type"];
-        const primitive = index.get(typeValue?.kind === "string" ? typeValue.value : "");
-        return primitive ? createTypedNodeProxy(session, path, index, primitive, id) : undefined;
+        if (typeValue?.kind !== "string") {
+          return undefined;
+        }
+        const primitive = index.get(typeValue.value);
+        if (!primitive) {
+          return undefined;
+        }
+        return createTypedNodeProxy(session, path, index, primitive, id);
       },
       children: createTreeChildrenProxy(session, path, index, HiddenTreeRootId, [this.state.root]),
     };
   }
 
   optional(stripDefaults: boolean): TreePrimitive<TRoot, false, false> {
+    if (stripDefaults) {
+      return new TreePrimitive({
+        ...this.state,
+        required: false,
+        defaultValue: undefined,
+        encodedDefault: undefined,
+      });
+    }
     return new TreePrimitive({
       ...this.state,
       required: false,
-      defaultValue: stripDefaults ? undefined : this.state.defaultValue,
-      encodedDefault: stripDefaults ? undefined : this.state.encodedDefault,
     });
   }
 }
@@ -322,18 +328,17 @@ const createTreeChildrenProxy = <TAllowed extends AnyTreeNodePrimitive>(
   const createHandles = (): TypedNodeProxy<TAllowed>[] =>
     getOrderedTreeChildren(getTreeAtPath(session.current(), treePath), parentId)
       .filter((node) => allowed.some((candidate) => candidate.type === readNodeType(node)))
-      .map(
-        (node) =>
-          createTypedNodeProxy(
-            session,
-            treePath,
-            index,
-            index.get(readNodeType(node))!,
-            node.id,
-          ) as TypedNodeProxy<TAllowed>,
+      .map((node) =>
+        createTypedNodeProxy<TAllowed>(
+          session,
+          treePath,
+          index,
+          index.get(readNodeType(node))!,
+          node.id,
+        ),
       );
 
-  const proxy = {
+  const proxy: TreeChildrenProxy<TAllowed> & { readonly __parentId: string } = {
     __parentId: parentId,
     get length() {
       return createHandles().length;
@@ -344,16 +349,20 @@ const createTreeChildrenProxy = <TAllowed extends AnyTreeNodePrimitive>(
         parentId,
       ).filter((node) => allowed.some((candidate) => candidate.type === readNodeType(node)));
       const normalized = normalizeIndex(indexValue, ordered.length);
-      const node = normalized === undefined ? undefined : ordered[normalized];
-      return node
-        ? (createTypedNodeProxy(
-            session,
-            treePath,
-            index,
-            index.get(readNodeType(node))!,
-            node.id,
-          ) as TypedNodeProxy<TAllowed>)
-        : undefined;
+      if (normalized === undefined) {
+        return undefined;
+      }
+      const node = ordered[normalized];
+      if (!node) {
+        return undefined;
+      }
+      return createTypedNodeProxy<TAllowed>(
+        session,
+        treePath,
+        index,
+        index.get(readNodeType(node))!,
+        node.id,
+      );
     },
     first: () => proxy.at(0),
     last: () => {
@@ -369,15 +378,10 @@ const createTreeChildrenProxy = <TAllowed extends AnyTreeNodePrimitive>(
         return undefined;
       }
       const primitive = index.get(readNodeType(node));
-      return primitive
-        ? (createTypedNodeProxy(
-            session,
-            treePath,
-            index,
-            primitive,
-            node.id,
-          ) as TypedNodeProxy<TAllowed>)
-        : undefined;
+      if (!primitive) {
+        return undefined;
+      }
+      return createTypedNodeProxy<TAllowed>(session, treePath, index, primitive, node.id);
     },
     insertAt: (indexValue: number, nodeInput: TreeChildInsertInput<TAllowed>) => {
       const tree = getTreeAtPath(session.current(), treePath);
@@ -395,16 +399,10 @@ const createTreeChildrenProxy = <TAllowed extends AnyTreeNodePrimitive>(
         id,
         parent: parentId,
         pos,
-        value: encodeTreeNodeObject(primitive, nodeInput as TreeNodeInput<AnyTreeNodePrimitive>),
+        value: encodeTreeNodeObject(primitive, nodeInput),
       };
       session.emit([{ kind: "tree.insert", path: treePath, node }]);
-      return createTypedNodeProxy(
-        session,
-        treePath,
-        index,
-        primitive,
-        id,
-      ) as TypedNodeProxy<TAllowed>;
+      return createTypedNodeProxy<TAllowed>(session, treePath, index, primitive, id);
     },
     insertLast: (nodeInput: TreeChildInsertInput<TAllowed>) => {
       const siblings = getOrderedTreeChildren(
@@ -420,16 +418,10 @@ const createTreeChildrenProxy = <TAllowed extends AnyTreeNodePrimitive>(
         id,
         parent: parentId,
         pos,
-        value: encodeTreeNodeObject(primitive, nodeInput as TreeNodeInput<AnyTreeNodePrimitive>),
+        value: encodeTreeNodeObject(primitive, nodeInput),
       };
       session.emit([{ kind: "tree.insert", path: treePath, node }]);
-      return createTypedNodeProxy(
-        session,
-        treePath,
-        index,
-        primitive,
-        id,
-      ) as TypedNodeProxy<TAllowed>;
+      return createTypedNodeProxy<TAllowed>(session, treePath, index, primitive, id);
     },
     find: (predicate: any) => {
       const handles = createHandles();
@@ -462,7 +454,38 @@ const createTreeChildrenProxy = <TAllowed extends AnyTreeNodePrimitive>(
     [Symbol.iterator]: () => createHandles()[Symbol.iterator](),
   };
 
-  return proxy as TreeChildrenProxy<TAllowed>;
+  return proxy;
+};
+
+/**
+ * A tree node primitive resolved from the runtime `type` discriminator.
+ *
+ * The concrete primitive behind a node id is only known at runtime, so its data, children, and type
+ * cannot be tied statically to the node type a caller expects. This alias is the single place that
+ * expresses that dynamic relationship, keeping it out of every read site.
+ */
+type DynamicNodePrimitive = AnyTreeNodePrimitive & {
+  readonly type: any;
+  readonly data: any;
+  readonly children: any;
+};
+
+const toParentId = (parent: string): string | null => {
+  if (parent === HiddenTreeRootId) {
+    return null;
+  }
+  return parent;
+};
+
+const readParentIdMarker = (target: unknown): string | undefined => {
+  if (typeof target !== "object" || target === null || !("__parentId" in target)) {
+    return undefined;
+  }
+  const marker = target.__parentId;
+  if (typeof marker !== "string") {
+    return undefined;
+  }
+  return marker;
 };
 
 const createTypedNodeProxy = <TNode extends AnyTreeNodePrimitive>(
@@ -475,7 +498,7 @@ const createTypedNodeProxy = <TNode extends AnyTreeNodePrimitive>(
   const getNode = (): TreeNode | undefined =>
     getTreeNodeById(getTreeAtPath(session.current(), treePath), id);
 
-  const getPrimitive = (): AnyTreeNodePrimitive => {
+  const getPrimitive = (): DynamicNodePrimitive => {
     const node = getNode();
     if (!node) {
       return primitive;
@@ -488,50 +511,39 @@ const createTypedNodeProxy = <TNode extends AnyTreeNodePrimitive>(
       return id;
     },
     get type() {
-      return getPrimitive().type as InferTreeNodeType<TNode>;
+      return getPrimitive().type;
     },
     get pos() {
       return getNode()?.pos ?? "";
     },
     get parentId() {
       const parent = getNode()?.parent;
-      return parent === HiddenTreeRootId ? null : (parent ?? null);
+      if (parent === undefined) {
+        return null;
+      }
+      return toParentId(parent);
     },
     get data() {
-      return getPrimitive().data.createProxy(session, treeNodePath(treePath, id)) as InferProxy<
-        InferTreeNodeData<TNode>
-      >;
+      return getPrimitive().data.createProxy(session, treeNodePath(treePath, id));
     },
     get children() {
-      return createTreeChildrenProxy(
-        session,
-        treePath,
-        index,
-        id,
-        getPrimitive().children,
-      ) as TreeChildrenProxy<InferTreeNodeChildren<TNode>>;
+      return createTreeChildrenProxy(session, treePath, index, id, getPrimitive().children);
     },
     get: () => {
       const node = getNode();
       if (!node) {
         return undefined;
       }
-      return buildTreeSnapshot(
-        node,
-        getTreeAtPath(session.current(), treePath)!,
-        index,
-      ) as TreeNodeSnapshot<TNode>;
+      return buildTreeSnapshot(node, getTreeAtPath(session.current(), treePath)!, index);
     },
     update: (value) => {
-      getPrimitive()
-        .data.createProxy(session, treeNodePath(treePath, id))
-        .update(value as any);
+      getPrimitive().data.createProxy(session, treeNodePath(treePath, id)).update(value);
     },
     remove: () => {
       session.emit([{ kind: "tree.delete", path: treePath, id }]);
     },
     moveTo: (target, indexValue) => {
-      const targetParentId = (target as { __parentId?: string }).__parentId;
+      const targetParentId = readParentIdMarker(target);
       if (!targetParentId) {
         throw new PrimitiveError("Target children collection is not movable");
       }
@@ -562,16 +574,28 @@ const createTypedNodeProxy = <TNode extends AnyTreeNodePrimitive>(
           `Expected node type "${nodePrimitive.type}", got "${getPrimitive().type}"`,
         );
       }
-      return createTypedNodeProxy(
-        session,
-        treePath,
-        index,
-        nodePrimitive,
-        id,
-      ) as TypedNodeProxy<TExpected>;
+      return createTypedNodeProxy<TExpected>(session, treePath, index, nodePrimitive, id);
     },
   };
 };
+
+const cloneObjectValue = (value: ObjectValue): ObjectValue => {
+  const fields: Record<string, Value> = {};
+  for (const [key, field] of Object.entries(value.fields)) {
+    fields[key] = cloneValue(field);
+  }
+  return objectValue(fields);
+};
+
+const cloneTreeValue = (value: TreeValue): TreeValue =>
+  treeValue(
+    value.nodes.map((node) => ({
+      id: node.id,
+      parent: node.parent,
+      pos: node.pos,
+      value: cloneObjectValue(node.value),
+    })),
+  );
 
 const buildTreeVariants = (
   root: AnyTreeNodePrimitive,
@@ -617,10 +641,10 @@ const collectTreeNodeIndex = (root: AnyTreeNodePrimitive): Map<string, AnyTreeNo
 };
 
 const encodeTreeNodeObject = (
-  primitive: AnyTreeNodePrimitive,
+  primitive: DynamicNodePrimitive,
   input: TreeNodeInput<AnyTreeNodePrimitive>,
 ): ObjectValue => {
-  const encoded = primitive.data.encode(input as InferInput<typeof primitive.data>);
+  const encoded = primitive.data.encode(input);
   if (encoded.kind !== "object") {
     throw new PrimitiveError("Tree node data must encode to an object");
   }
@@ -657,7 +681,7 @@ const buildTreeSnapshot = (
   return {
     id: node.id,
     type: primitive.type,
-    parentId: node.parent === HiddenTreeRootId ? null : node.parent,
+    parentId: toParentId(node.parent),
     pos: node.pos,
     data: primitive.data.decode(node.value),
     children: buildTreeSnapshots(tree, node.id, index),

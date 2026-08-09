@@ -16,7 +16,7 @@
  * `test.todo` — minting an OAuth2 token + fetching a purchase needs real
  * service-account credentials that aren't available offline.
  */
-import { Effect, Layer, Option } from "effect";
+import { DateTime, Effect, Layer, Option } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import {
@@ -27,7 +27,10 @@ import {
   PersonIdentityService,
   PurchaseProcessingService,
 } from "@voidhash/core/services";
-import { GooglePlayPaymentProvider } from "@voidhash/core/services/paymentProviders/googlePlay/payment-provider";
+import {
+  type GooglePlayRecordInput,
+  GooglePlayPaymentProvider,
+} from "@voidhash/core/services/paymentProviders/googlePlay/payment-provider";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import {
   ACCOUNT_TOKEN_SERVICE_ID,
@@ -41,7 +44,6 @@ import {
 } from "../../../../src/services/paymentProviders/googlePlay/errors.ts";
 import type { GooglePlayNormalizedPurchase } from "../../../../src/services/paymentProviders/googlePlay/helpers.ts";
 import {
-  type PaymentProviderConfiguration as DbPaymentProviderConfiguration,
   type Project as DbProject,
   Db,
   PersonOrigin,
@@ -69,8 +71,14 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
+/** Wall-clock "now" as a `Date`, read through Effect's clock. */
+const nowDate = (): Date => Effect.runSync(DateTime.nowAsDate);
+
+/** Builds a `Date` from epoch milliseconds without touching the `Date` constructor. */
+const dateFromMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
 let seq = 0;
-const uniq = (label: string) => `it-gp-${label}-${Date.now()}-${seq++}`;
+const uniq = (label: string) => `it-gp-${label}-${nowDate().getTime()}-${seq++}`;
 
 /**
  * Full dependency graph for the Google Play record engine. Everything is either
@@ -145,7 +153,7 @@ const baseFields = (): Omit<GooglePlayNormalizedPurchase, "kind" | "productId"> 
   autoRenewEnabled: true,
   basePlanId: Option.none(),
   currency: Option.none(),
-  expiryTime: Option.some(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+  expiryTime: Option.some(dateFromMillis(nowDate().getTime() + 30 * 24 * 60 * 60 * 1000)),
   isTrial: false,
   linkedPurchaseToken: Option.none(),
   obfuscatedExternalAccountId: Option.none(),
@@ -153,7 +161,7 @@ const baseFields = (): Omit<GooglePlayNormalizedPurchase, "kind" | "productId"> 
   orderId: Option.some(uniq("order")),
   priceMinorUnits: Option.none(),
   purchaseToken: uniq("token"),
-  startTime: Option.some(new Date()),
+  startTime: Option.some(nowDate()),
   storefront: Option.some("US"),
   subscriptionState: Option.some("SUBSCRIPTION_STATE_ACTIVE"),
 });
@@ -246,8 +254,11 @@ const seedConfig = (track: CleanupTrack, label: string) =>
     });
 
     const configuration = yield* findConfiguration(configId);
+    if (configuration === undefined) {
+      return yield* Effect.die(new Error(`seeded payment provider configuration ${configId} not found`));
+    }
     return {
-      configuration: configuration as DbPaymentProviderConfiguration,
+      configuration,
       packageName,
       productKey,
       providerProductId,
@@ -328,7 +339,7 @@ const cleanup = (track: CleanupTrack) =>
             inArray(personExternalIdentifiers.identifier, track.externalIdentifiers),
           ),
         )
-        .pipe(Effect.orElseSucceed(() => [] as { id: string; personId: string }[]));
+        .pipe(Effect.orElseSucceed((): { id: string; personId: string }[] => []));
       const personIds = [...new Set(extRows.map((r) => r.personId))];
       yield* ignore(
         db
@@ -349,6 +360,13 @@ const cleanup = (track: CleanupTrack) =>
     }
   });
 
+/**
+ * Unchecked predicate used by the "SDK source without a distinctId" test to hand
+ * the engine an input the discriminated union forbids at the type level. It always
+ * holds; it exists only so the type-boundary crossing is confined to one place.
+ */
+const isRecordInput = (value: object): value is GooglePlayRecordInput => value !== null;
+
 const withEngine = <E, R>(
   body: (args: {
     readonly project: DbProject;
@@ -358,9 +376,12 @@ const withEngine = <E, R>(
   const track = newTrack();
   return Effect.gen(function* () {
     const db = yield* Db;
-    const project = (yield* db.query.projects
+    const project = yield* db.query.projects
       .findFirst({ where: { id: projectId } })
-      .pipe(Effect.orDie)) as DbProject;
+      .pipe(Effect.orDie);
+    if (project === undefined) {
+      return yield* Effect.die(new Error(`fixture project ${projectId} not found`));
+    }
     return yield* body({ project, track });
   }).pipe(Effect.ensuring(cleanup(track)));
 };
@@ -384,11 +405,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
           distinctId: uniq("distinct"),
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "sdk",
         });
 
@@ -429,11 +450,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
           distinctId,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "sdk",
         });
 
@@ -469,11 +490,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         yield* engine.recordPurchase({
           configuration: seeded.configuration,
           distinctId: uniq("distinct"),
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "sdk",
         });
 
@@ -508,11 +529,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
           distinctId: uniq("distinct"),
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "sdk",
         });
 
@@ -553,11 +574,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
 
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase: withOrder,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "webhook",
         });
 
@@ -584,11 +605,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
 
         const result = yield* engine.recordPurchase({
           configuration: seeded.configuration,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "webhook",
         });
 
@@ -619,11 +640,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         const error = yield* Effect.flip(
           engine.recordPurchase({
             configuration: seeded.configuration,
-            eventTime: new Date(),
+            eventTime: nowDate(),
             project,
             providerEnvironment: ProviderEnvironment.Production,
             purchase,
-            receivedAt: new Date(),
+            receivedAt: nowDate(),
             source: "webhook",
           }),
         );
@@ -650,13 +671,19 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         const input = {
           configuration: seeded.configuration,
           distinctId: undefined,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "sdk",
-        } as unknown as Parameters<typeof engine.recordPurchase>[0];
+        };
+        // The `sdk` branch of `GooglePlayRecordInput` demands a `distinctId` at the
+        // type level; this test exercises the runtime guard behind it, so the value
+        // crosses the type boundary through a single unchecked predicate.
+        if (!isRecordInput(input)) {
+          return yield* Effect.die(new Error("unreachable: isRecordInput always holds"));
+        }
 
         const error = yield* Effect.flip(engine.recordPurchase(input));
         expect(error).toBeInstanceOf(GooglePlayPaymentProviderSdkTransactionMissingDistinctIdError);
@@ -678,11 +705,11 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         const error = yield* Effect.flip(
           engine.recordPurchase({
             configuration: seeded.configuration,
-            eventTime: new Date(),
+            eventTime: nowDate(),
             project,
             providerEnvironment: ProviderEnvironment.Production,
             purchase,
-            receivedAt: new Date(),
+            receivedAt: nowDate(),
             source: "webhook",
           }),
         );
@@ -711,15 +738,15 @@ describe("GooglePlayPaymentProvider.recordPurchase", () => {
         track.externalIdentifiers.push(Option.getOrThrow(purchase.obfuscatedExternalAccountId));
         track.ledgerKeys.push(`google:${Option.getOrThrow(purchase.orderId)}:purchase`);
 
-        const input = {
+        const input: GooglePlayRecordInput = {
           configuration: seeded.configuration,
           distinctId: uniq("distinct"),
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
-          source: "sdk" as const,
+          receivedAt: nowDate(),
+          source: "sdk",
         };
 
         const first = yield* engine.recordPurchase(input);
@@ -751,11 +778,11 @@ describe("GooglePlayPaymentProvider lifecycle record* routing", () => {
       yield* engine.recordPurchase({
         configuration: seeded.configuration,
         distinctId: uniq("distinct"),
-        eventTime: new Date(Date.now() - 60 * 60 * 1000),
+        eventTime: dateFromMillis(nowDate().getTime() - 60 * 60 * 1000),
         project,
         providerEnvironment: ProviderEnvironment.Production,
         purchase,
-        receivedAt: new Date(),
+        receivedAt: nowDate(),
         source: "sdk",
       });
       const expiryMs = Option.getOrThrow(purchase.expiryTime).getTime();
@@ -772,11 +799,11 @@ describe("GooglePlayPaymentProvider lifecycle record* routing", () => {
 
         const result = yield* engine.recordSubscriptionExpired({
           configuration: active.seeded.configuration,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase: active.purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "webhook",
         });
         expect(Option.isSome(result.subscriptionId)).toBe(true);
@@ -801,11 +828,11 @@ describe("GooglePlayPaymentProvider lifecycle record* routing", () => {
 
         yield* engine.recordSubscriptionCanceled({
           configuration: active.seeded.configuration,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase: active.purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "webhook",
         });
 
@@ -825,11 +852,11 @@ describe("GooglePlayPaymentProvider lifecycle record* routing", () => {
 
         const result = yield* engine.recordEntitlementRevoked({
           configuration: active.seeded.configuration,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase: active.purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "webhook",
         });
         expect(Option.isSome(result.subscriptionId)).toBe(true);
@@ -852,11 +879,11 @@ describe("GooglePlayPaymentProvider lifecycle record* routing", () => {
 
         yield* engine.recordBillingRetry({
           configuration: active.seeded.configuration,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase: active.purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "webhook",
         });
 
@@ -877,11 +904,11 @@ describe("GooglePlayPaymentProvider lifecycle record* routing", () => {
 
         const result = yield* engine.recordInformationalNotification({
           configuration: seeded.configuration,
-          eventTime: new Date(),
+          eventTime: nowDate(),
           project,
           providerEnvironment: ProviderEnvironment.Production,
           purchase,
-          receivedAt: new Date(),
+          receivedAt: nowDate(),
           source: "webhook",
         });
 

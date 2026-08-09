@@ -1,22 +1,35 @@
+/*
+ * This suite exercises the self-host configuration adapter (`src/config.ts`),
+ * which is a synchronous `process.env` reader consumed from synchronous call
+ * sites on the pre-runtime bootstrap path. Testing it means driving the real
+ * `process.env` object directly: every case rebuilds the environment, deletes
+ * or assigns individual variables, and then calls the synchronous getter.
+ */
+// oxlint-disable effect/noGlobals -- the subject under test IS the synchronous process.env config adapter; the only way to assert its behaviour is to mutate process.env from synchronous test bodies, and there is no Effect Config/ConfigProvider seam to substitute because the getters run before any Effect runtime exists.
 import { ProjectSchemaCache } from "@voidhash/core/services";
 import { Effect, Redacted } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { MemoryProjectSchemaCacheLive } from "../src/backend/ProjectSchemaCache.ts";
 import { getSelfhostMigrationDatabaseConfig, getSelfhostRuntimeConfig } from "../src/config.ts";
 
 const originalEnvironment = { ...process.env };
 
-afterEach(() => {
-  process.env = { ...originalEnvironment };
-});
-
-beforeEach(() => {
-  process.env.SELFHOST_MODE = "local-evaluation";
-});
+/**
+ * Runs a configuration test against a pristine environment. The environment is
+ * rebuilt before the body rather than restored by a lifecycle hook, so each case
+ * is isolated from whatever the previous one set.
+ */
+const configTest = (name: string, body: () => void): void => {
+  it(name, () => {
+    process.env = { ...originalEnvironment, SELFHOST_MODE: "local-evaluation" };
+    body();
+    process.env = { ...originalEnvironment };
+  });
+};
 
 describe("self-host runtime configuration", () => {
-  it("uses local development defaults", () => {
+  configTest("uses local development defaults", () => {
     delete process.env.NODE_ENV;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.CLICKHOUSE_URL;
@@ -58,7 +71,7 @@ describe("self-host runtime configuration", () => {
     expect(config.auth.rootUsername).toBe("root");
   });
 
-  it("reads BYO agent provider and model settings", () => {
+  configTest("reads BYO agent provider and model settings", () => {
     process.env.OPENAI_API_KEY = "configured-openai-key";
     process.env.OPENAI_BASE_URL = "https://models.example.test/v1";
     process.env.VOIDHASH_AGENT_MODEL_PROVIDER = "openai";
@@ -78,7 +91,7 @@ describe("self-host runtime configuration", () => {
     expect(Redacted.value(agent.openaiApiKey!)).toBe("configured-openai-key");
   });
 
-  it("reads authenticated TLS SMTP settings", () => {
+  configTest("reads authenticated TLS SMTP settings", () => {
     process.env.SMTP_HOST = "smtp.example.com";
     process.env.SMTP_PORT = "465";
     process.env.SMTP_SECURE = "true";
@@ -105,7 +118,7 @@ describe("self-host runtime configuration", () => {
     expect(Redacted.value(mailer.password!)).toBe("secret");
   });
 
-  it("accepts real root credentials in production", () => {
+  configTest("accepts real root credentials in production", () => {
     process.env.VOIDHASH_ROOT_USERNAME = "operator";
     process.env.VOIDHASH_ROOT_PASSWORD = "a-real-root-password";
     process.env.VOIDHASH_AUTH_SECRET = "a-real-session-signing-secret";
@@ -117,7 +130,7 @@ describe("self-host runtime configuration", () => {
     expect(Redacted.value(auth.rootPassword)).toBe("a-real-root-password");
   });
 
-  it("names every unconfigured standalone credential when production starts", () => {
+  configTest("names every unconfigured standalone credential when production starts", () => {
     process.env.NODE_ENV = "production";
     process.env.SELFHOST_MODE = "production";
     delete process.env.VOIDHASH_ROOT_USERNAME;
@@ -127,14 +140,14 @@ describe("self-host runtime configuration", () => {
     expect(() => getSelfhostRuntimeConfig()).toThrow(/VOIDHASH_ROOT_USERNAME/);
   });
 
-  it("supports an explicit plaintext connection for an internal Compose database", () => {
+  configTest("supports an explicit plaintext connection for an internal Compose database", () => {
     process.env.DATABASE_HOST = "postgres";
     process.env.DATABASE_SSL = "false";
 
     expect(getSelfhostRuntimeConfig().database).toMatchObject({ host: "postgres", ssl: false });
   });
 
-  it("falls back to the application connection for migrations", () => {
+  configTest("falls back to the application connection for migrations", () => {
     process.env.DATABASE_HOST = "postgres";
     process.env.DATABASE_PORT = "6543";
     process.env.DATABASE_NAME = "voidhash";
@@ -153,7 +166,7 @@ describe("self-host runtime configuration", () => {
     });
   });
 
-  it("overrides only the direct-TCP fields migrations need", () => {
+  configTest("overrides only the direct-TCP fields migrations need", () => {
     process.env.DATABASE_HOST = "broker.internal.local";
     process.env.DATABASE_PORT = "5432";
     process.env.DATABASE_NAME = "voidhash";
@@ -175,7 +188,7 @@ describe("self-host runtime configuration", () => {
     });
   });
 
-  it("enables ClickHouse only when its URL is configured", () => {
+  configTest("enables ClickHouse only when its URL is configured", () => {
     process.env.CLICKHOUSE_URL = "http://clickhouse:8123";
     process.env.CLICKHOUSE_DATABASE = "analytics";
     delete process.env.CLICKHOUSE_ADMIN_USERNAME;
@@ -193,8 +206,8 @@ describe("self-host runtime configuration", () => {
 });
 
 describe("memory project schema cache", () => {
-  it("stores, invalidates, and expires project schemas", async () => {
-    await Effect.runPromise(
+  it("stores, invalidates, and expires project schemas", () =>
+    Effect.runPromise(
       Effect.gen(function* () {
         const cache = yield* ProjectSchemaCache;
         const project = cache.getByName("project-1");
@@ -208,6 +221,5 @@ describe("memory project schema cache", () => {
         yield* project.set({ version: 2 }, 0);
         expect(yield* project.get()).toBeUndefined();
       }).pipe(Effect.provide(MemoryProjectSchemaCacheLive)),
-    );
-  });
+    ));
 });

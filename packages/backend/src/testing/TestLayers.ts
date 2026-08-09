@@ -20,8 +20,11 @@ import {
   WebhookServiceError,
   OrgDirectoryPort,
 } from "@voidhash/core/services";
+import { generateId } from "@voidhash/core/utils";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Random from "effect/Random";
 
 import {
   BackendComponentCompilerStubLive,
@@ -36,16 +39,23 @@ import {
 import { smokeIdsFromEmail } from "./smoke-ids.ts";
 
 // The webhook path that consumes this stub never calls ClickHouse, so a Proxy
-// that throws on any access is a safe placeholder that satisfies the
-// requirement without standing up a real client.
-const clickhouseStub = new Proxy(
-  {},
-  {
-    get() {
-      throw new Error("ClickhouseWebClient must not be used in this test");
+// that dies on any access is a safe placeholder that satisfies the requirement
+// without standing up a real client. `ClickhouseWebClient` extends the whole
+// `SqlClient` surface, so no hand-written object can inhabit it — the single
+// unsafe conversion lives here, in one narrow helper.
+const unusableStub = (message: string): any =>
+  new Proxy(
+    {},
+    {
+      get() {
+        return Effect.runSync(Effect.die(new Error(message)));
+      },
     },
-  },
-) as unknown as ClickhouseWebClient.ClickhouseWebClient;
+  );
+
+const clickhouseStub: ClickhouseWebClient.ClickhouseWebClient = unusableStub(
+  "ClickhouseWebClient must not be used in this test",
+);
 
 export const TestClickhouseLive = Layer.succeed(
   ClickhouseWebClient.ClickhouseWebClient,
@@ -65,10 +75,33 @@ export const TestProjectSchemaCacheLive = Layer.succeed(ProjectSchemaCache, {
   }),
 });
 
+// The WorkOS user id (`user_xxx`) the resolver matches against our
+// `workos_user_id` column — not the local primary key.
+const smokeWorkosUserId = (email: string, ids: NonNullable<ReturnType<typeof smokeIdsFromEmail>>) => {
+  if (email === ids.adminEmail) return ids.workosAdminUserId;
+  if (email === ids.invitedEmail) return ids.workosInvitedUserId;
+  return ids.workosNormalUserId;
+};
+
+/** The directory user the smoke suite's seeded emails resolve to. */
+const smokeUser = (email: string) => {
+  const ids = smokeIdsFromEmail(email);
+  if (!ids) return null;
+  return {
+    email,
+    emailVerified: true,
+    externalId: null,
+    firstName: null,
+    id: smokeWorkosUserId(email, ids),
+    lastName: null,
+    profilePictureUrl: null,
+  };
+};
+
 export const TestOrgDirectoryLive = Layer.succeed(OrgDirectoryPort, {
   createMembership: (input) =>
     Effect.succeed({
-      id: `workos_mem_${crypto.randomUUID()}`,
+      id: `workos_mem_${generateId("member")}`,
       organizationId: input.workosOrganizationId,
       role: input.roleSlug ?? "member",
       userId: input.workosUserId,
@@ -81,30 +114,7 @@ export const TestOrgDirectoryLive = Layer.succeed(OrgDirectoryPort, {
     }),
   deleteMembership: () => Effect.void,
   deleteOrganization: () => Effect.void,
-  findUserByEmail: (email) =>
-    Effect.succeed(
-      (() => {
-        const ids = smokeIdsFromEmail(email);
-        if (!ids) return null;
-        const isAdmin = email === ids.adminEmail;
-        const isInvited = email === ids.invitedEmail;
-        return {
-          email,
-          emailVerified: true,
-          externalId: null,
-          firstName: null,
-          // The WorkOS user id (`user_xxx`), which the resolver matches against
-          // our `workos_user_id` column — not the local primary key.
-          id: isAdmin
-            ? ids.workosAdminUserId
-            : isInvited
-              ? ids.workosInvitedUserId
-              : ids.workosNormalUserId,
-          lastName: null,
-          profilePictureUrl: null,
-        };
-      })(),
-    ),
+  findUserByEmail: (email) => Effect.succeed(smokeUser(email)),
   getOrganization: (workosOrganizationId) =>
     Effect.succeed({
       externalId: null,
@@ -133,25 +143,32 @@ export const TestOrgDirectoryLive = Layer.succeed(OrgDirectoryPort, {
     }),
 });
 
-const webhookSecret = () => `whsec_${crypto.randomUUID().replaceAll("-", "").padEnd(64, "0")}`;
+/** A `whsec_<64 hex chars>` secret, matching the production secret shape. */
+const webhookSecret = Effect.gen(function* () {
+  const digits = yield* Effect.forEach(Array.from({ length: 64 }), () =>
+    Random.nextIntBetween(0, 16),
+  );
+  return `whsec_${digits.map((digit) => digit.toString(16)).join("")}`;
+});
 
-const webhookEndpointStatus = (status: number) =>
-  status === WebhookEndpointStatus.Active
-    ? "active"
-    : status === WebhookEndpointStatus.Failed
-      ? "failed"
-      : "disabled";
+const webhookEndpointStatus = (status: number) => {
+  if (status === WebhookEndpointStatus.Active) return "active";
+  if (status === WebhookEndpointStatus.Failed) return "failed";
+  return "disabled";
+};
 
-const webhookDeliveryStatus = (status: number) =>
-  status === WebhookDeliveryStatus.InProgress
-    ? "in_progress"
-    : status === WebhookDeliveryStatus.Succeeded
-      ? "succeeded"
-      : status === WebhookDeliveryStatus.Failed
-        ? "failed"
-        : status === WebhookDeliveryStatus.Exhausted
-          ? "exhausted"
-          : "pending";
+const endpointStatusValue = (status: string) => {
+  if (status === "active") return WebhookEndpointStatus.Active;
+  return WebhookEndpointStatus.Disabled;
+};
+
+const webhookDeliveryStatus = (status: number) => {
+  if (status === WebhookDeliveryStatus.InProgress) return "in_progress";
+  if (status === WebhookDeliveryStatus.Succeeded) return "succeeded";
+  if (status === WebhookDeliveryStatus.Failed) return "failed";
+  if (status === WebhookDeliveryStatus.Exhausted) return "exhausted";
+  return "pending";
+};
 
 const mapEndpoint = (endpoint: typeof webhookEndpoints.$inferSelect) => ({
   consecutiveFailures: endpoint.consecutiveFailures,
@@ -182,42 +199,71 @@ const mapDelivery = (delivery: typeof webhookDeliveries.$inferSelect) => ({
   webhookEndpointId: delivery.webhookEndpointId,
 });
 
+const parseUrl = (url: string): URL | null => {
+  if (!URL.canParse(url)) return null;
+  return new URL(url);
+};
+
+const isDrizzleQueryError = (error: unknown): error is { readonly cause?: unknown } => {
+  if (error === null || typeof error !== "object") return false;
+  return "_tag" in error && error._tag === "EffectDrizzleQueryError";
+};
+
+const toWebhookServiceError = (error: unknown) => {
+  if (isDrizzleQueryError(error)) return new WebhookServiceError({ cause: String(error.cause) });
+  return error;
+};
+
 const wrapWebhookDb = (effect: Effect.Effect<any, any, any>) =>
-  effect.pipe(
-    Effect.mapError((error) =>
-      error &&
-      typeof error === "object" &&
-      "_tag" in error &&
-      error._tag === "EffectDrizzleQueryError"
-        ? new WebhookServiceError({ cause: String((error as { cause?: unknown }).cause) })
-        : error,
-    ),
-  );
+  effect.pipe(Effect.mapError(toWebhookServiceError));
+
+// The stub reimplements the manager's handlers over the smoke database rather
+// than inhabiting its full generated signature (RPC payload/result schemas,
+// span-annotated `Effect.fn` wrappers). The single loosening lives here.
+
+const webhookManagerStub = (handlers: Record<string, unknown>): any => handlers;
 
 export const TestWebhookManagerServiceLive = Layer.effect(
   WebhookManagerService,
   Effect.gen(function* () {
     const db = yield* Db;
 
-    const findEndpoint = (input: { readonly endpointId: string; readonly projectId?: string }) =>
-      db.query.webhookEndpoints.findFirst({
-        where: input.projectId
-          ? { id: input.endpointId, projectId: input.projectId }
-          : { id: input.endpointId },
-      });
+    const findEndpoint = (input: { readonly endpointId: string; readonly projectId?: string }) => {
+      if (input.projectId) {
+        return db.query.webhookEndpoints.findFirst({
+          where: { id: input.endpointId, projectId: input.projectId },
+        });
+      }
+      return db.query.webhookEndpoints.findFirst({ where: { id: input.endpointId } });
+    };
 
-    const findDelivery = (input: { readonly deliveryId: string; readonly projectId?: string }) =>
-      db.query.webhookDeliveries.findFirst({
-        where: input.projectId
-          ? { id: input.deliveryId, projectId: input.projectId }
-          : { id: input.deliveryId },
-      });
+    const findDelivery = (input: { readonly deliveryId: string; readonly projectId?: string }) => {
+      if (input.projectId) {
+        return db.query.webhookDeliveries.findFirst({
+          where: { id: input.deliveryId, projectId: input.projectId },
+        });
+      }
+      return db.query.webhookDeliveries.findFirst({ where: { id: input.deliveryId } });
+    };
 
-    return {
+    const findDeliveries = (input: { readonly endpointId?: string; readonly projectId: string }) => {
+      if (input.endpointId) {
+        return db.query.webhookDeliveries.findMany({
+          orderBy: { createdAt: "desc" },
+          where: { webhookEndpointId: input.endpointId },
+        });
+      }
+      return db.query.webhookDeliveries.findMany({
+        orderBy: { createdAt: "desc" },
+        where: { projectId: input.projectId },
+      });
+    };
+
+    return webhookManagerStub({
       createEndpoint: (input: any) =>
         wrapWebhookDb(
           Effect.gen(function* () {
-            const parsedUrl = URL.canParse(input.url) ? new URL(input.url) : null;
+            const parsedUrl = parseUrl(input.url);
             if (!parsedUrl || !["http:", "https:"].includes(parsedUrl.protocol)) {
               return yield* Effect.fail(new WebhookValidationError({ message: "Invalid URL" }));
             }
@@ -227,17 +273,18 @@ export const TestWebhookManagerServiceLive = Layer.effect(
               );
             }
 
-            const now = new Date();
+            const now = yield* DateTime.nowAsDate;
+            const secret = yield* webhookSecret;
             const endpoint = {
               consecutiveFailures: 0,
               createdAt: now,
               description: input.description ?? null,
               events: [...input.events],
-              id: `webhookEndpoint_${crypto.randomUUID()}`,
+              id: generateId("webhookEndpoint"),
               lastSuccessAt: null,
               name: input.name,
               projectId: input.projectId,
-              secret: webhookSecret(),
+              secret,
               status: WebhookEndpointStatus.Active,
               updatedAt: now,
               url: input.url,
@@ -260,14 +307,7 @@ export const TestWebhookManagerServiceLive = Layer.effect(
         ),
       getDeliveries: (input: any) =>
         wrapWebhookDb(
-          db.query.webhookDeliveries
-            .findMany({
-              orderBy: { createdAt: "desc" },
-              where: input.endpointId
-                ? { webhookEndpointId: input.endpointId }
-                : { projectId: input.projectId },
-            })
-            .pipe(Effect.map((deliveries) => deliveries.map(mapDelivery))),
+          findDeliveries(input).pipe(Effect.map((deliveries) => deliveries.map(mapDelivery))),
         ),
       getDeliveryById: (input: any) =>
         wrapWebhookDb(
@@ -342,7 +382,7 @@ export const TestWebhookManagerServiceLive = Layer.effect(
                 new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
               );
             }
-            const secret = webhookSecret();
+            const secret = yield* webhookSecret;
             yield* db
               .update(webhookEndpoints)
               .set({ secret })
@@ -359,14 +399,14 @@ export const TestWebhookManagerServiceLive = Layer.effect(
                 new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
               );
             }
-            const now = new Date();
+            const now = yield* DateTime.nowAsDate;
             const delivery = {
               attemptCount: 0,
               completedAt: null,
               createdAt: now,
               eventOccurredAt: now,
               eventType: "test.ping",
-              id: `webhookDelivery_${crypto.randomUUID()}`,
+              id: generateId("webhookDelivery"),
               maxAttempts: 5,
               nextAttemptAt: null,
               payload: { message: "RPC smoke webhook delivery" },
@@ -392,10 +432,7 @@ export const TestWebhookManagerServiceLive = Layer.effect(
             if (input.events !== undefined) updates.events = [...input.events];
             if (input.name !== undefined) updates.name = input.name;
             if (input.status !== undefined) {
-              updates.status =
-                input.status === "active"
-                  ? WebhookEndpointStatus.Active
-                  : WebhookEndpointStatus.Disabled;
+              updates.status = endpointStatusValue(input.status);
             }
             if (input.url !== undefined) updates.url = input.url;
             yield* db
@@ -405,7 +442,7 @@ export const TestWebhookManagerServiceLive = Layer.effect(
             return mapEndpoint({ ...endpoint, ...updates });
           }),
         ),
-    } as any;
+    });
   }),
 );
 

@@ -19,27 +19,32 @@ import { cleanupFixture, seedFixture } from "./CoreTestSeed.ts";
  * same `coreStackOutput` shape. Provisioning is the composition's
  * responsibility; the suite only consumes the contract.
  */
-export default async function setup({
+export default function setup({
   provide,
 }: {
   readonly provide: (key: "coreStackOutput", value: CoreStackOutput) => void;
 }) {
-  const testConnections = coreTestConnectionsFromEnv();
-  const database = Db.layer(testConnections.db);
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const testConnections = coreTestConnectionsFromEnv();
+      const database = Db.layer(testConnections.db);
 
-  try {
-    await Effect.runPromise(seedFixture.pipe(Effect.provide(database)));
-  } catch (cause) {
-    throw new Error(
-      "Core integration setup could not seed the fixture. Is the self-host stack running? " +
-        "Start it with `pnpm stack:up` (see selfhost/README.md) or point DATABASE_* at a migrated database.",
-      { cause },
-    );
-  }
+      yield* seedFixture.pipe(
+        Effect.provide(database),
+        Effect.catchCause((cause) =>
+          Effect.die(
+            new Error(
+              "Core integration setup could not seed the fixture. Is the self-host stack running? " +
+                "Start it with `pnpm stack:up` (see selfhost/README.md) or point DATABASE_* at a migrated database.",
+              { cause },
+            ),
+          ),
+        ),
+      );
 
-  provide("coreStackOutput", { testConnections });
+      provide("coreStackOutput", { testConnections });
 
-  return async () => {
-    await Effect.runPromise(cleanupFixture.pipe(Effect.provide(database)));
-  };
+      return () => Effect.runPromise(cleanupFixture.pipe(Effect.provide(database)));
+    }),
+  );
 }

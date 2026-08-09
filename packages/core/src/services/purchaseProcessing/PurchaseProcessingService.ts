@@ -18,7 +18,8 @@
  */
 
 import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
-import { Context, Effect, Layer, Option, Predicate, Schema } from "effect";
+import { constant, pick } from "@voidhash/lib/lang";
+import { Brand, Context, DateTime, Effect, Layer, Option, Predicate, Schema } from "effect";
 
 import type { InternalAnalyticsEvent } from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
 import type { PaymentProviderId } from "../../domain/paymentProvider/PaymentProviderConfiguration.ts";
@@ -39,13 +40,10 @@ import {
   Db,
   type DbTransaction,
   and,
-  apiKeys,
   eq,
   isNull,
   lte,
   or,
-  paymentProviderConfigurationProducts,
-  persons,
   purchaseLedger,
   purchases,
   sql,
@@ -305,7 +303,7 @@ export interface TransferPurchaseInput {
 }
 
 const purchaseTypeFor = (variant: "one-time" | "consumable") =>
-  variant === "consumable" ? PurchaseType.OneTimeConsumable : PurchaseType.OneTime;
+  pick(variant === "consumable", PurchaseType.OneTimeConsumable, PurchaseType.OneTime);
 
 /**
  * Structural shape of the stored money columns on a `transaction` row. Defined
@@ -345,29 +343,41 @@ interface StoredTransactionMoneyFields {
  * the branded domain types are an in-memory invariant we trust at this
  * boundary (the DB columns enforce the same shape via CHECK constraints).
  */
-const minor = (n: number) => n as MinorAmount;
-const usdRate = (n: number) => n as ExchangeRate;
-const currency = (s: string) => s as CurrencyCode;
+const minor = Brand.nominal<MinorAmount>();
+const usdRate = Brand.nominal<ExchangeRate>();
+const currency = Brand.nominal<CurrencyCode>();
+
+/**
+ * The USD mirror is only reconstructable when every USD column plus the
+ * exchange rate survived on the row; a partial mirror is treated as absent.
+ */
+const usdFromStoredTransaction = (
+  row: StoredTransactionMoneyFields,
+): Option.Option<PurchaseProcessingMoneyUsd> => {
+  if (
+    row.exchangeRate === null ||
+    row.grossAmountUsd === null ||
+    row.storeCommissionAmountUsd === null ||
+    row.taxAmountUsd === null ||
+    row.proceedsAmountUsd === null ||
+    row.proceedsAfterTaxAmountUsd === null
+  ) {
+    return Option.none();
+  }
+  return Option.some(
+    new PurchaseProcessingMoneyUsd({
+      exchangeRate: usdRate(row.exchangeRate),
+      grossAmount: minor(row.grossAmountUsd),
+      proceedsAfterTaxAmount: minor(row.proceedsAfterTaxAmountUsd),
+      proceedsAmount: minor(row.proceedsAmountUsd),
+      storeCommissionAmount: minor(row.storeCommissionAmountUsd),
+      taxAmount: minor(row.taxAmountUsd),
+    }),
+  );
+};
 
 const moneyFromStoredTransaction = (row: StoredTransactionMoneyFields): PurchaseProcessingMoney => {
-  const usd =
-    row.exchangeRate !== null &&
-    row.grossAmountUsd !== null &&
-    row.storeCommissionAmountUsd !== null &&
-    row.taxAmountUsd !== null &&
-    row.proceedsAmountUsd !== null &&
-    row.proceedsAfterTaxAmountUsd !== null
-      ? Option.some(
-          new PurchaseProcessingMoneyUsd({
-            exchangeRate: usdRate(row.exchangeRate),
-            grossAmount: minor(row.grossAmountUsd),
-            proceedsAfterTaxAmount: minor(row.proceedsAfterTaxAmountUsd),
-            proceedsAmount: minor(row.proceedsAmountUsd),
-            storeCommissionAmount: minor(row.storeCommissionAmountUsd),
-            taxAmount: minor(row.taxAmountUsd),
-          }),
-        )
-      : Option.none();
+  const usd = usdFromStoredTransaction(row);
   return new PurchaseProcessingMoney({
     currency: currency(row.currency),
     grossAmount: minor(row.grossAmount),
@@ -380,23 +390,37 @@ const moneyFromStoredTransaction = (row: StoredTransactionMoneyFields): Purchase
   });
 };
 
-const compactSpanAttributes = (attributes: Record<string, unknown | undefined>) =>
+const compactSpanAttributes = (attributes: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(attributes).filter(([, value]) => value !== undefined));
 
 const optionSpanAttribute = <A>(
   value: Option.Option<A>,
   map: (value: A) => unknown = (some) => some,
-): unknown | undefined => (Option.isSome(value) ? map(value.value) : undefined);
+): unknown =>
+  Option.match(value, { onNone: () => undefined, onSome: (some) => map(some) });
 
-const purchaseProcessingResultKind = (result: PurchaseProcessingResult) =>
-  result.idempotent
-    ? "idempotent"
-    : result.analyticsEventIds.length === 0 &&
-        Option.isNone(result.purchaseId) &&
-        Option.isNone(result.subscriptionId) &&
-        Option.isNone(result.transactionId)
-      ? "ignored"
-      : "applied";
+/** Reads an error's `cause` when present, else stringifies the error itself. */
+const describeErrorCause = (error: unknown): string => {
+  if (Predicate.hasProperty(error, "cause")) {
+    return String(error.cause);
+  }
+  return String(error);
+};
+
+const purchaseProcessingResultKind = (result: PurchaseProcessingResult) => {
+  if (result.idempotent) {
+    return "idempotent";
+  }
+  if (
+    result.analyticsEventIds.length === 0 &&
+    Option.isNone(result.purchaseId) &&
+    Option.isNone(result.subscriptionId) &&
+    Option.isNone(result.transactionId)
+  ) {
+    return "ignored";
+  }
+  return "applied";
+};
 
 const purchaseActionSpanAttributes = (input: PurchaseActionContext) =>
   compactSpanAttributes({
@@ -418,6 +442,14 @@ const purchaseProcessingResultSpanAttributes = (result: PurchaseProcessingResult
     "purchase.transaction_id": optionSpanAttribute(result.transactionId),
   });
 
+/** The transferred resource id — a purchase id or a subscription id. */
+const transferResourceId = (input: TransferSubscriptionInput | TransferPurchaseInput): string => {
+  if ("purchaseId" in input) {
+    return input.purchaseId;
+  }
+  return input.subscriptionId;
+};
+
 const transferSpanAttributes = (input: TransferSubscriptionInput | TransferPurchaseInput) =>
   compactSpanAttributes({
     "purchase.payment_provider_configuration_id": input.paymentProviderConfigurationId,
@@ -425,8 +457,7 @@ const transferSpanAttributes = (input: TransferSubscriptionInput | TransferPurch
     "purchase.source": input.source,
     "purchase.transfer.from_person_id": input.fromPersonId,
     "purchase.transfer.mode": input.transferMode,
-    "purchase.transfer.resource_id":
-      "purchaseId" in input ? input.purchaseId : input.subscriptionId,
+    "purchase.transfer.resource_id": transferResourceId(input),
     "purchase.transfer.to_person_id": input.toPersonId,
   });
 
@@ -647,7 +678,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           yield* Effect.annotateCurrentSpan("voidhash.transfer.mode", input.transferMode);
           yield* Effect.annotateCurrentSpan(
             "voidhash.transfer.resource_id",
-            "purchaseId" in input ? input.purchaseId : input.subscriptionId,
+            transferResourceId(input),
           );
           yield* Effect.annotateCurrentSpan("voidhash.person.from_id", input.fromPersonId);
           yield* Effect.annotateCurrentSpan("voidhash.person.to_id", input.toPersonId);
@@ -716,6 +747,15 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
         return yield* perkGrantService.syncUnlockedPerks(tx, personId);
       });
 
+      /** Syncs unlocked perks only when `condition` holds; otherwise no-ops. */
+      const _syncPurchasePerksWhen = (condition: boolean, tx: DbTransaction, personId: string) =>
+        Effect.gen(function* () {
+          if (!condition) {
+            return [];
+          }
+          return yield* _syncPurchasePerks(tx, personId);
+        });
+
       const _resolveDistinctId = Effect.fn("_resolveDistinctId")(function* (
         tx: DbTransaction,
         personId: string,
@@ -769,7 +809,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             "purchase.ledger_id": id,
           });
           yield* Effect.annotateCurrentSpan("voidhash.purchase_ledger.id", id);
-          return { _tag: "reserved", reservation: { id } } as const;
+          return constant({ _tag: "reserved", reservation: { id } });
         }
 
         const priorRow = yield* tx.query.purchaseLedger.findFirst({
@@ -782,10 +822,10 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             "purchase.ledger_id": prior.value.id,
           });
           yield* Effect.annotateCurrentSpan("voidhash.purchase_ledger.id", prior.value.id);
-          return {
+          return constant({
             _tag: "duplicate",
             result: decodePurchaseProcessingResult(prior.value.resultPayload),
-          } as const;
+          });
         }
 
         return yield* new PurchaseProcessingServiceError({
@@ -845,7 +885,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             columns: { key: true },
             where: { projectId: input.projectId, isPublic: true },
           });
-          const token = apiKeyRow ? Option.some(apiKeyRow.key) : Option.none<string>();
+          const token = Option.map(Option.fromNullishOr(apiKeyRow), (row) => row.key);
           const resolvedToken = Option.getOrElse(
             token,
             () => `vh_server_revenue_${input.projectId}`,
@@ -862,6 +902,9 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             projectId: input.projectId,
             token: resolvedToken,
           });
+          // The ledger column stores the raw event objects; widening here keeps
+          // the JSON column's declared shape without an assertion.
+          const eventsPayload: ReadonlyArray<object> = events;
           const analyticsEventIds = events.map((e) => e.eventId);
           const result = input.buildResult(analyticsEventIds);
           const resultPayload = encodePurchaseProcessingResult(result);
@@ -888,7 +931,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             yield* tx
               .update(purchaseLedger)
               .set({
-                eventsPayload: events as ReadonlyArray<object>,
+                eventsPayload,
                 resultPayload,
               })
               .where(eq(purchaseLedger.id, input.reservation.id))
@@ -898,7 +941,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
 
           if (events.length > 0) {
             yield* insertPurchaseLedgerRowIfAbsent(tx, {
-              eventsPayload: events as ReadonlyArray<object>,
+              eventsPayload,
               id: generateId("purchaseLedger"),
               idempotencyKey: input.idempotencyKey,
               organizationId: input.organizationId,
@@ -952,7 +995,9 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           return { id: Option.some(existing.value.id), alreadyExisted: true };
         }
         const money = Option.getOrUndefined(input.money);
-        const usd = money ? Option.getOrUndefined(money.usd) : undefined;
+        const usd = Option.getOrUndefined(
+          Option.flatMap(input.money, (value) => value.usd),
+        );
         const transaction: InsertTransaction = {
           amount: money?.grossAmount ?? 0,
           amountUsd: usd?.grossAmount,
@@ -973,7 +1018,9 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           storeCommissionAmount: money?.storeCommissionAmount ?? 0,
           storeCommissionAmountUsd: usd?.storeCommissionAmount,
           storeTransactionId: providerTransactionId,
-          storefront: money ? Option.getOrNull(money.storefront) : null,
+          storefront: Option.getOrNull(
+            Option.flatMap(input.money, (value) => value.storefront),
+          ),
           taxAmount: money?.taxAmount ?? 0,
           taxAmountUsd: usd?.taxAmount,
         };
@@ -1158,16 +1205,18 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   paymentProviderConfigurationProductId: productId,
                 },
               });
-              const existing = currentProductMatch
-                ? Option.some(currentProductMatch)
-                : Option.fromNullishOr(
-                    yield* db.query.subscriptions.findFirst({
-                      where: {
-                        storeSubscriptionId,
-                        pendingProductChangeId: productId,
-                      },
-                    }),
-                  );
+              const existing = yield* Effect.gen(function* () {
+                if (currentProductMatch) {
+                  return Option.some(currentProductMatch);
+                }
+                const pendingProductMatch = yield* db.query.subscriptions.findFirst({
+                  where: {
+                    storeSubscriptionId,
+                    pendingProductChangeId: productId,
+                  },
+                });
+                return Option.fromNullishOr(pendingProductMatch);
+              });
               let subscriptionId: string;
               if (Option.isNone(existing)) {
                 const subscription: InsertSubscription = {
@@ -1198,6 +1247,19 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
               } else {
                 const completesPendingProductChange =
                   existing.value.pendingProductChangeId === productId;
+                /**
+                 * The renewal moves the subscription onto the pending product
+                 * only when this renewal is the one that completes the change.
+                 */
+                const pendingProductChangeFields = (): Partial<DbSubscription> => {
+                  if (completesPendingProductChange) {
+                    return {
+                      paymentProviderConfigurationProductId: productId,
+                      pendingProductChangeId: null,
+                    };
+                  }
+                  return {};
+                };
                 const updated = yield* updateSubscriptionIfFresher(tx, {
                   cancelAtPeriodEnd: false,
                   canceledAt: null,
@@ -1209,15 +1271,10 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                     () => storeSubscriptionId,
                   ),
                   occurredAt: input.occurredAt,
-                  ...(completesPendingProductChange
-                    ? {
-                        paymentProviderConfigurationProductId: productId,
-                        pendingProductChangeId: null,
-                      }
-                    : {}),
+                  ...pendingProductChangeFields(),
                   startsAt: input.startsAt,
                   status: SubscriptionStatus.Active,
-                  updatedAt: new Date(),
+                  updatedAt: yield* DateTime.nowAsDate,
                 });
                 if (updated.affectedRows === 0) {
                   yield* Effect.logInfo(
@@ -1309,10 +1366,12 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 cancellationReason: Option.getOrNull(input.cancellationReason),
                 id: existing.value.id,
                 occurredAt: input.occurredAt,
-                status: input.cancelAtPeriodEnd
-                  ? existing.value.status
-                  : subscriptionStatusForInactiveEvent(),
-                updatedAt: new Date(),
+                status: pick(
+                  input.cancelAtPeriodEnd,
+                  existing.value.status,
+                  subscriptionStatusForInactiveEvent(),
+                ),
+                updatedAt: yield* DateTime.nowAsDate,
               });
               if (updated.affectedRows === 0) {
                 yield* Effect.logInfo(
@@ -1405,7 +1464,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 id: existing.value.id,
                 occurredAt: input.occurredAt,
                 status: subscriptionStatusForInactiveEvent(),
-                updatedAt: new Date(),
+                updatedAt: yield* DateTime.nowAsDate,
               });
               if (updated.affectedRows === 0) {
                 yield* Effect.logInfo(
@@ -1500,7 +1559,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 id: existing.value.id,
                 occurredAt: input.occurredAt,
                 status: subscriptionStatusForInactiveEvent(),
-                updatedAt: new Date(),
+                updatedAt: yield* DateTime.nowAsDate,
               });
               if (subscriptionUpdate.affectedRows === 0) {
                 yield* Effect.logInfo(
@@ -1797,9 +1856,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }
                 }
               }
-              const changedGrantIds = purchaseUpdated
-                ? yield* _syncPurchasePerks(tx, personId)
-                : [];
+              const changedGrantIds = yield* _syncPurchasePerksWhen(purchaseUpdated, tx, personId);
 
               return yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
@@ -1951,8 +2008,11 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   `revokePurchase: purchase row watermark rejected (providerKey=${providerKey}, occurredAt=${input.occurredAt.toISOString()})`,
                 );
               }
-              const changedGrantIds =
-                purchaseUpdate.affectedRows > 0 ? yield* _syncPurchasePerks(tx, personId) : [];
+              const changedGrantIds = yield* _syncPurchasePerksWhen(
+                purchaseUpdate.affectedRows > 0,
+                tx,
+                personId,
+              );
 
               return yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
@@ -2023,9 +2083,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             (error) =>
               Effect.fail(
                 new PurchaseProcessingServiceError({
-                  cause: Predicate.hasProperty(error, "cause")
-                    ? String(error.cause)
-                    : String(error),
+                  cause: describeErrorCause(error),
                 }),
               ),
           ),
@@ -2096,16 +2154,18 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 ...patch,
                 id: existing.value.id,
                 occurredAt: input.action.occurredAt,
-                updatedAt: new Date(),
+                updatedAt: yield* DateTime.nowAsDate,
               });
               if (updated.affectedRows === 0) {
                 yield* Effect.logInfo(
                   `${input.methodName}: stale event; watermark guard rejected projection update (subscriptionId=${existing.value.id}, occurredAt=${input.action.occurredAt.toISOString()})`,
                 );
               }
-              const changedGrantIds = input.syncPerksOnApply
-                ? yield* _syncPurchasePerks(tx, personId)
-                : [];
+              const changedGrantIds = yield* _syncPurchasePerksWhen(
+                input.syncPerksOnApply,
+                tx,
+                personId,
+              );
               return yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
                   input.buildEvents(
@@ -2371,9 +2431,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }
                 }
               }
-              const changedGrantIds = purchaseUpdated
-                ? yield* _syncPurchasePerks(tx, personId)
-                : [];
+              const changedGrantIds = yield* _syncPurchasePerksWhen(purchaseUpdated, tx, personId);
 
               return yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
@@ -2752,7 +2810,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           ),
       );
 
-      return {
+      return constant({
         cancelSubscription,
         changeRenewalPreference,
         completeOneTimePurchase,
@@ -2770,7 +2828,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
         startSubscription,
         transferPurchase,
         transferSubscription,
-      } as const;
+      });
     }),
   },
 ) {

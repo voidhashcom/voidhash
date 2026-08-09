@@ -4,6 +4,7 @@
  * that the service executes. No ClickHouse, no Db, no Auth here — trivially
  * unit-testable and fuzzable.
  */
+import { createId } from "@paralleldrive/cuid2";
 import { Effect } from "effect";
 
 import type { Capability, ColumnSpec } from "./catalog/types.ts";
@@ -22,9 +23,7 @@ export interface CompiledQuery {
   readonly queryId: string;
 }
 
-const makeQueryId = (): string =>
-  globalThis.crypto?.randomUUID?.() ??
-  `voidql-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const makeQueryId = (): string => globalThis.crypto?.randomUUID?.() ?? `voidql-${createId()}`;
 
 /**
  * Pure `parse → resolve+print` (no verify). Throws the typed compile errors.
@@ -60,11 +59,14 @@ export const compileVoidQl = (
   scope: AuthorizedScope,
   capabilities: ReadonlySet<Capability>,
 ): Effect.Effect<CompiledQuery, VoidQlCompileError> =>
-  Effect.suspend(() => {
-    try {
-      return Effect.succeed(compilePure(text, scope, capabilities));
-    } catch (error) {
-      if (isVoidQlCompileError(error)) return Effect.fail(error);
-      throw error;
-    }
-  });
+  Effect.suspend(() =>
+    Effect.try({
+      try: () => compilePure(text, scope, capabilities),
+      catch: (error) => error,
+    }).pipe(
+      Effect.catch((error) => {
+        if (isVoidQlCompileError(error)) return Effect.fail(error);
+        return Effect.die(error);
+      }),
+    ),
+  );

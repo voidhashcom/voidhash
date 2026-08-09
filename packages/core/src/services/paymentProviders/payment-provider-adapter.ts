@@ -1,8 +1,5 @@
 import { Effect } from "effect";
 
-import { PaymentProviderConfigurationValidationError } from "../../domain/paymentProvider/PaymentProviderConfiguration.ts";
-import { PaymentProviderProductValidationError } from "../../domain/paymentProvider/PaymentProviderProduct.ts";
-
 export type PaymentProviderKind = "stripe" | "apple-app-store" | "google-play";
 
 /**
@@ -32,13 +29,13 @@ export interface PaymentProvider<
       readonly parsedConfiguration: TGlobalConfiguration;
       readonly paymentProviderKey: string;
     },
-    PaymentProviderConfigurationValidationError | unknown
+    unknown
   >;
   readonly validateProductConfiguration: (configuration: Record<string, unknown>) => Effect.Effect<
     {
       readonly parsedConfiguration: TProductConfiguration;
       readonly productKey: string;
     },
-    PaymentProviderProductValidationError | unknown
+    unknown
   >;
 }

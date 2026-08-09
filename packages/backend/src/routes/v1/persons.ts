@@ -61,7 +61,10 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
               .getPersons({ projectId })
               .pipe(
                 Effect.map((persons) =>
-                  (persons ?? []).flatMap((person) => (person ? [toApiPerson(person)] : [])),
+                  (persons ?? []).flatMap((person) => {
+                    if (!person) return [];
+                    return [toApiPerson(person)];
+                  }),
                 ),
               );
           }),

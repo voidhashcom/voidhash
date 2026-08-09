@@ -50,8 +50,16 @@ import {
 } from "../src/schemas/index.ts";
 import { readFile } from "./util.ts";
 
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+const parseJsonRecord = Schema.decodeUnknownSync(
+  Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+);
+
+/** JSON round-trip that drops `Option` wrappers, mirroring the on-the-wire form. */
+const serialize = (value: unknown) => parseJsonRecord(encodeJson(value));
+
 const decode = <S extends Schema.Top>(schema: S, path: string): S["Type"] =>
-  unwrapOptionsDeep(Schema.decodeUnknownSync(schema)(JSON.parse(readFile(path))));
+  unwrapOptionsDeep(Schema.decodeUnknownSync(schema)(parseJsonRecord(readFile(path))));
 
 describe("AdvancedCommerce enums", () => {
   it("exposes AdvancedCommercePeriod values", () => {
@@ -504,42 +512,42 @@ describe("AdvancedCommerce JSON model decoding", () => {
 
   it("preserves OneTimeChargeCreateRequest operation and version", () => {
     const request = Schema.decodeUnknownSync(AdvancedCommerceOneTimeChargeCreateRequestSchema)({
-      ...JSON.parse(
+      ...parseJsonRecord(
         readFile("tests/resources/models/advancedCommerceOneTimeChargeCreateRequest.json"),
       ),
       operation: "CREATE_ONE_TIME_CHARGE",
       version: "1",
     });
 
-    const serialized = JSON.parse(JSON.stringify(unwrapOptionsDeep(request)));
+    const serialized = serialize(unwrapOptionsDeep(request));
     expect(serialized.operation).toBe("CREATE_ONE_TIME_CHARGE");
     expect(serialized.version).toBe("1");
   });
 
   it("preserves SubscriptionCreateRequest operation and version", () => {
     const request = Schema.decodeUnknownSync(AdvancedCommerceSubscriptionCreateRequestSchema)({
-      ...JSON.parse(
+      ...parseJsonRecord(
         readFile("tests/resources/models/advancedCommerceSubscriptionCreateRequest.json"),
       ),
       operation: "CREATE_SUBSCRIPTION",
       version: "1",
     });
 
-    const serialized = JSON.parse(JSON.stringify(unwrapOptionsDeep(request)));
+    const serialized = serialize(unwrapOptionsDeep(request));
     expect(serialized.operation).toBe("CREATE_SUBSCRIPTION");
     expect(serialized.version).toBe("1");
   });
 
   it("preserves SubscriptionModifyInAppRequest operation and version", () => {
     const request = Schema.decodeUnknownSync(AdvancedCommerceSubscriptionModifyInAppRequestSchema)({
-      ...JSON.parse(
+      ...parseJsonRecord(
         readFile("tests/resources/models/advancedCommerceSubscriptionModifyInAppRequest.json"),
       ),
       operation: "MODIFY_SUBSCRIPTION",
       version: "1",
     });
 
-    const serialized = JSON.parse(JSON.stringify(unwrapOptionsDeep(request)));
+    const serialized = serialize(unwrapOptionsDeep(request));
     expect(serialized.operation).toBe("MODIFY_SUBSCRIPTION");
     expect(serialized.version).toBe("1");
   });
@@ -548,14 +556,14 @@ describe("AdvancedCommerce JSON model decoding", () => {
     const request = Schema.decodeUnknownSync(
       AdvancedCommerceSubscriptionReactivateInAppRequestSchema,
     )({
-      ...JSON.parse(
+      ...parseJsonRecord(
         readFile("tests/resources/models/advancedCommerceSubscriptionReactivateInAppRequest.json"),
       ),
       operation: "REACTIVATE_SUBSCRIPTION",
       version: "1",
     });
 
-    const serialized = JSON.parse(JSON.stringify(unwrapOptionsDeep(request)));
+    const serialized = serialize(unwrapOptionsDeep(request));
     expect(serialized.operation).toBe("REACTIVATE_SUBSCRIPTION");
     expect(serialized.version).toBe("1");
   });

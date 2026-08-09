@@ -29,6 +29,11 @@ export const schemaModels: SchemaModels = {
 export const isSchemaKind = (value: string): value is SchemaKind =>
   Object.hasOwn(schemaModels, value);
 
-export const getSchemaModel = <TSchema extends Schema>(
-  kind: TSchema["kind"],
-): SchemaModel<TSchema> => schemaModels[kind] as unknown as SchemaModel<TSchema>;
+/**
+ * Looks up the model for a runtime schema kind.
+ *
+ * The result is widened to `SchemaModel<Schema>` so callers can pass the union
+ * they hold; that widening is sound to write because {@link SchemaModel}
+ * declares its members with method syntax (bivariant parameters).
+ */
+export const getSchemaModel = (kind: SchemaKind): SchemaModel<Schema> => schemaModels[kind];

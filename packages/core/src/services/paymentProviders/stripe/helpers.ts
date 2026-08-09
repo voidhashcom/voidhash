@@ -5,6 +5,7 @@
  */
 import { type ProviderEnvironmentValue, ProviderEnvironment } from "@voidhash/db";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
+import { pick } from "@voidhash/lib/lang";
 import { Effect } from "effect";
 
 import { StripePurchaseProcessingIdempotencyKeyDerivationError } from "./errors.ts";
@@ -68,7 +69,7 @@ export const getStripeIdempotencyKey = (input: {
 export const stripeProviderEnvironment = (
   livemode: boolean | undefined,
 ): ProviderEnvironmentValue =>
-  livemode === false ? ProviderEnvironment.Sandbox : ProviderEnvironment.Production;
+  pick(livemode === false, ProviderEnvironment.Sandbox, ProviderEnvironment.Production);
 
 const metadataDistinctId = (
   metadata: Readonly<Record<string, string>> | null | undefined,
@@ -103,8 +104,11 @@ export const buildStripeWebhookAnonymousDistinctId = (input: {
   readonly providerEnvironment: ProviderEnvironmentValue;
   readonly customerId: string;
 }): string => {
-  const environmentLabel =
-    input.providerEnvironment === ProviderEnvironment.Sandbox ? "sandbox" : "production";
+  const environmentLabel = pick(
+    input.providerEnvironment === ProviderEnvironment.Sandbox,
+    "sandbox",
+    "production",
+  );
   return `${ANONYMOUS_USER_ID_PREFIX}provider:stripe:${environmentLabel}:${input.customerId}`;
 };
 
@@ -130,8 +134,10 @@ export const subscriptionPrimaryPriceProduct = (
 export const stripeProviderProductKey = (input: {
   readonly priceId?: string;
   readonly productId?: string;
-}): string | undefined =>
-  input.productId && input.priceId ? `${input.productId}:${input.priceId}` : undefined;
+}): string | undefined => {
+  if (input.productId && input.priceId) return `${input.productId}:${input.priceId}`;
+  return undefined;
+};
 
 /**
  * Canonical per-charge transaction id, stable between the paying event and the

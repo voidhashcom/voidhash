@@ -19,9 +19,8 @@ const storeLayer = (objects: Record<string, { body: string; contentType: string 
     getObject: (key) =>
       Effect.sync(() => {
         const object = objects[key];
-        return object
-          ? { body: new TextEncoder().encode(object.body), contentType: object.contentType }
-          : null;
+        if (object === undefined) return null;
+        return { body: new TextEncoder().encode(object.body), contentType: object.contentType };
       }),
     putObject: () => Effect.void,
     deleteObject: () => Effect.void,
@@ -52,52 +51,56 @@ const serve = (path: string, store: Layer.Layer<PublicFileStore>) =>
   }).pipe(Effect.scoped, Effect.runPromise);
 
 describe("GET /files/*", () => {
-  it("serves a stored object with its Content-Type, immutable caching, CORS, and nosniff", async () => {
+  it("serves a stored object with its Content-Type, immutable caching, CORS, and nosniff", () => {
     const store = storeLayer({
       "avatars/organization/org_1/abc.webp": { body: "webp-bytes", contentType: "image/webp" },
     });
 
-    const response = await serve("/files/avatars/organization/org_1/abc.webp", store);
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/webp");
-    expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(await response.text()).toBe("webp-bytes");
+    return serve("/files/avatars/organization/org_1/abc.webp", store).then((response) => {
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("image/webp");
+      expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      return response.text().then((text) => {
+        expect(text).toBe("webp-bytes");
+      });
+    });
   });
 
-  it("does NOT stamp a CSP sandbox (images load cross-origin as <img>, unlike paywall HTML)", async () => {
+  it("does NOT stamp a CSP sandbox (images load cross-origin as <img>, unlike paywall HTML)", () => {
     const store = storeLayer({ "avatars/x.webp": { body: "x", contentType: "image/webp" } });
 
-    const response = await serve("/files/avatars/x.webp", store);
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-security-policy")).toBeNull();
+    return serve("/files/avatars/x.webp", store).then((response) => {
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-security-policy")).toBeNull();
+    });
   });
 
-  it("falls back to application/octet-stream when no Content-Type is stored", async () => {
+  it("falls back to application/octet-stream when no Content-Type is stored", () => {
     const store = storeLayer({ "avatars/x": { body: "x", contentType: null } });
 
-    const response = await serve("/files/avatars/x", store);
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("application/octet-stream");
+    return serve("/files/avatars/x", store).then((response) => {
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("application/octet-stream");
+    });
   });
 
-  it("returns 404 JSON for a missing object, with readable CORS", async () => {
-    const response = await serve("/files/avatars/missing.webp", storeLayer({}));
+  it("returns 404 JSON for a missing object, with readable CORS", () =>
+    serve("/files/avatars/missing.webp", storeLayer({})).then((response) => {
+      expect(response.status).toBe(404);
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+      return response.json().then((payload) => {
+        expect(payload).toEqual({ error: "Not found" });
+      });
+    }));
 
-    expect(response.status).toBe(404);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await response.json()).toEqual({ error: "Not found" });
-  });
-
-  it("returns 502 when the store fails, with readable CORS", async () => {
-    const response = await serve("/files/avatars/x.webp", failingStoreLayer);
-
-    expect(response.status).toBe(502);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await response.json()).toEqual({ error: "Failed to load file" });
-  });
+  it("returns 502 when the store fails, with readable CORS", () =>
+    serve("/files/avatars/x.webp", failingStoreLayer).then((response) => {
+      expect(response.status).toBe(502);
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+      return response.json().then((payload) => {
+        expect(payload).toEqual({ error: "Failed to load file" });
+      });
+    }));
 });

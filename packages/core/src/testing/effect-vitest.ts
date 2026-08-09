@@ -15,8 +15,10 @@ import { describe, expect, it as baseIt, test, vi } from "vite-plus/test";
 
 // TestAPI types differ slightly between
 // @effect/vitest's vendored vitest and vite-plus/test, but the runtime shape (`it`,
-// `it.skip`, `it.only`, `it.each`, etc.) is identical. Casting through any keeps the
-// shim a one-liner.
-const it = makeMethods(baseIt as any);
+// `it.skip`, `it.only`, `it.each`, etc.) is identical. This one narrow bridge is the
+// only place the two nominally-distinct TestAPI types are reconciled.
+const toTestApi = (api: any): Parameters<typeof makeMethods>[0] => api;
+
+const it = makeMethods(toTestApi(baseIt));
 
 export { describe, expect, it, test, vi };

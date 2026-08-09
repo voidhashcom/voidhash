@@ -5,14 +5,17 @@ import { backendWorkflows } from "@voidhash/core/workflows/registry";
 import { CronJob, CronScheduler } from "@voidhash/platform/CronScheduler";
 import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import type { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
-import { Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer } from "effect";
 
 /** Builds the persisted jobs enabled by the current self-host configuration. */
 export const makeSelfhostCronJobs = (
   clickhouse?: Layer.Layer<ClickhouseWebClient.ClickhouseWebClient>,
 ) =>
   Effect.gen(function* () {
-    const exchangeRateApiKey = process.env.EXCHANGE_RATE_API_KEY?.trim();
+    const exchangeRateApiKey = (yield* Config.string("EXCHANGE_RATE_API_KEY").pipe(
+      Config.withDefault(""),
+      Effect.orDie,
+    )).trim();
     const jobs: Array<CronJob<PlatformRuntime | WorkflowRunner>> = backendWorkflows.flatMap(
       (registration) => {
         if (registration.cron === undefined) return [];

@@ -14,7 +14,7 @@
  * deployed over a table that still holds plaintext rows: reads keep working,
  * and rows become ciphertext as they are next written (or by a backfill).
  */
-import { Effect, Schema } from "effect";
+import { Effect, Encoding, Schema } from "effect";
 
 const VERSION_PREFIX = "v1.aesgcm:";
 const IV_BYTES = 12;
@@ -31,38 +31,31 @@ export class SecretKeyError extends Schema.TaggedErrorClass<SecretKeyError>("Sec
   { message: Schema.String },
 ) {}
 
-const base64ToBytes = (base64: string): Uint8Array => {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-};
-
-const bytesToBase64 = (bytes: Uint8Array): string => {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i] as number);
-  }
-  return btoa(binary);
+/**
+ * Copies `bytes` into a view backed by a plain `ArrayBuffer`, the shape
+ * WebCrypto's `BufferSource` parameters require.
+ */
+const bufferSource = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy;
 };
 
 const importKey = (rawKey: Uint8Array, usage: "encrypt" | "decrypt") =>
   Effect.tryPromise({
     try: () =>
-      crypto.subtle.importKey("raw", rawKey as BufferSource, { name: "AES-GCM" }, false, [usage]),
+      crypto.subtle.importKey("raw", bufferSource(rawKey), { name: "AES-GCM" }, false, [usage]),
     catch: (cause) =>
       new SecretKeyError({ message: `Failed to import AES-GCM key: ${String(cause)}` }),
   });
 
 /** Decode a base64-encoded 32-byte AES-256 key, validating its length. */
 export const decodeEncryptionKey = (base64Key: string): Effect.Effect<Uint8Array, SecretKeyError> =>
-  Effect.try({
-    try: () => base64ToBytes(base64Key),
-    catch: (cause) =>
-      new SecretKeyError({ message: `Encryption key is not valid base64: ${String(cause)}` }),
-  }).pipe(
+  Effect.fromResult(Encoding.decodeBase64(base64Key)).pipe(
+    Effect.mapError(
+      (cause) =>
+        new SecretKeyError({ message: `Encryption key is not valid base64: ${cause.message}` }),
+    ),
     Effect.filterOrFail(
       (bytes) => bytes.length === KEY_BYTES,
       (bytes) =>
@@ -85,21 +78,18 @@ export const encryptSecret = (
 ): Effect.Effect<string, SecretKeyError> =>
   Effect.gen(function* () {
     const key = yield* importKey(rawKey, "encrypt");
+    // oxlint-disable-next-line effect/noGlobals -- WebCrypto by design (see module header: no Node crypto, so this runs unchanged on Cloudflare Workers); Effect v4's Crypto service ships no platform-neutral layer, only Node/Browser/Bun ones.
     const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
     const ciphertext = yield* Effect.tryPromise({
       try: () =>
-        crypto.subtle.encrypt(
-          { name: "AES-GCM", iv: iv as BufferSource },
-          key,
-          new TextEncoder().encode(plaintext) as BufferSource,
-        ),
+        crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext)),
       catch: (cause) =>
         new SecretKeyError({ message: `AES-GCM encryption failed: ${String(cause)}` }),
     });
     const combined = new Uint8Array(iv.length + ciphertext.byteLength);
     combined.set(iv, 0);
     combined.set(new Uint8Array(ciphertext), iv.length);
-    return VERSION_PREFIX + bytesToBase64(combined);
+    return VERSION_PREFIX + Encoding.encodeBase64(combined);
   });
 
 /**
@@ -115,11 +105,13 @@ export const decryptSecret = (
     if (!isEncrypted(value)) {
       return value;
     }
-    const combined = yield* Effect.try({
-      try: () => base64ToBytes(value.slice(VERSION_PREFIX.length)),
-      catch: (cause) =>
-        new SecretDecryptionError({ message: `Malformed ciphertext: ${String(cause)}` }),
-    });
+    const combined = yield* Effect.fromResult(
+      Encoding.decodeBase64(value.slice(VERSION_PREFIX.length)),
+    ).pipe(
+      Effect.mapError(
+        (cause) => new SecretDecryptionError({ message: `Malformed ciphertext: ${cause.message}` }),
+      ),
+    );
     if (combined.length <= IV_BYTES) {
       return yield* Effect.fail(new SecretDecryptionError({ message: "Ciphertext too short" }));
     }
@@ -127,12 +119,7 @@ export const decryptSecret = (
     const ciphertext = combined.slice(IV_BYTES);
     const key = yield* importKey(rawKey, "decrypt");
     const plaintext = yield* Effect.tryPromise({
-      try: () =>
-        crypto.subtle.decrypt(
-          { name: "AES-GCM", iv: iv as BufferSource },
-          key,
-          ciphertext as BufferSource,
-        ),
+      try: () => crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, bufferSource(ciphertext)),
       catch: (cause) =>
         new SecretDecryptionError({
           message: `AES-GCM decryption failed (wrong key or tampered value): ${String(cause)}`,

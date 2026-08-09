@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { PaywallNotFoundError } from "../../domain/paywall/Paywall.ts";
@@ -26,10 +27,10 @@ import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
 import { ExperimentService } from "../experiments/ExperimentService.ts";
 import { SchemaCacheInvalidationService } from "../schema/SchemaCacheInvalidationService.ts";
 import {
+  type ExperimentExposureContext,
   type PaywallLocationShowingTypeLabel,
   type PaywallLocationShowingView,
   type PaywallLocationWithActiveShowing,
-  type ResolvedLocationShowingForSdk,
   type ResolvedLocationShowingForSdkWithExposure,
   type ShowingWithRelations,
   toDbShowingType,
@@ -44,6 +45,24 @@ import {
 export class PaywallLocationServiceError extends Schema.TaggedErrorClass<PaywallLocationServiceError>(
   "PaywallLocationServiceError",
 )("PaywallLocationServiceError", { cause: Schema.String }) {}
+
+/** One location's entry inside a compiled experiment payload. */
+const ExperimentPaywallEntrySchema = Schema.Struct({
+  paywallId: Schema.optional(Schema.String),
+  paywallReleaseId: Schema.optional(Schema.String),
+});
+
+type ExperimentPaywallEntry = typeof ExperimentPaywallEntrySchema.Type;
+
+/**
+ * Compiled experiment payload as the paywall serve path reads it: a map from
+ * location id to the paywall (or pinned release) that variant serves there.
+ */
+const ExperimentPayloadSchema = Schema.Struct({
+  byLocation: Schema.optional(Schema.Record(Schema.String, ExperimentPaywallEntrySchema)),
+});
+
+const decodeExperimentPayload = Schema.decodeUnknownOption(ExperimentPayloadSchema);
 
 /**
  * `PaywallLocationService` orchestrates the named "slot" through which an
@@ -190,12 +209,17 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             return { id: location.id };
           }
 
+          const changes: { description?: string | null; name?: string } = {};
+          if (input.description !== undefined) {
+            changes.description = input.description;
+          }
+          if (input.name !== undefined) {
+            changes.name = input.name;
+          }
+
           yield* db
             .update(paywallLocations)
-            .set({
-              ...(input.description !== undefined ? { description: input.description } : {}),
-              ...(input.name !== undefined ? { name: input.name } : {}),
-            })
+            .set(changes)
             .where(eq(paywallLocations.id, location.id));
 
           yield* auditLog
@@ -258,7 +282,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             `User ${session?.user?.id} is not authorized to archive paywall location ${input.locationId}`,
           );
 
-          const now = new Date();
+          const now = yield* DateTime.nowAsDate;
           yield* db.transaction((tx) =>
             Effect.gen(function* () {
               yield* tx
@@ -325,29 +349,32 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             `User ${session?.user?.id} is not authorized to list paywall locations for project ${input.projectId}`,
           );
 
+          const archivedFilter: { archivedAt?: { readonly isNull: true } } = {};
+          if (!input.includeArchived) {
+            archivedFilter.archivedAt = { isNull: true };
+          }
           const locations = yield* db.query.paywallLocations.findMany({
             where: {
               projectId: input.projectId,
-              ...(input.includeArchived ? {} : { archivedAt: { isNull: true } }),
+              ...archivedFilter,
             },
             orderBy: { createdAt: "desc" },
           });
           yield* Effect.annotateCurrentSpan("voidhash.paywall_location.count", locations.length);
+          const empty: PaywallLocationWithActiveShowing[] = [];
           if (locations.length === 0) {
-            return [] as PaywallLocationWithActiveShowing[];
+            return empty;
           }
 
           const locationIds = locations.map((location) => location.id);
-          const activeShowings =
-            locationIds.length === 0
-              ? ([] as ShowingWithRelations[])
-              : ((yield* db.query.paywallLocationShowings.findMany({
-                  where: {
-                    paywallLocationId: { in: locationIds },
-                    endedAt: { isNull: true },
-                  },
-                  with: { paywall: true, paywallRelease: true },
-                })) as ShowingWithRelations[]);
+          const activeShowings: ShowingWithRelations[] =
+            yield* db.query.paywallLocationShowings.findMany({
+              where: {
+                paywallLocationId: { in: locationIds },
+                endedAt: { isNull: true },
+              },
+              with: { paywall: true, paywallRelease: true },
+            });
 
           const activeShowingMap = new Map<string, PaywallLocationShowingView>();
           for (const showing of activeShowings) {
@@ -415,11 +442,12 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             `User ${session?.user?.id} is not authorized to list paywall showings for location ${input.locationId}`,
           );
 
-          const showings = (yield* db.query.paywallLocationShowings.findMany({
-            where: { paywallLocationId: location.id },
-            orderBy: { startedAt: "desc" },
-            with: { paywall: true, paywallRelease: true },
-          })) as ShowingWithRelations[];
+          const showings: ShowingWithRelations[] =
+            yield* db.query.paywallLocationShowings.findMany({
+              where: { paywallLocationId: location.id },
+              orderBy: { startedAt: "desc" },
+              with: { paywall: true, paywallRelease: true },
+            });
           return showings.map((showing) => toShowingView(showing, assetConfig));
         },
         (effect) =>
@@ -525,7 +553,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
 
           const showingId = generateId("paywallLocationShowing");
           yield* Effect.annotateCurrentSpan("voidhash.paywall_location_showing.id", showingId);
-          const now = new Date();
+          const now = yield* DateTime.nowAsDate;
 
           yield* db.transaction((tx) =>
             Effect.gen(function* () {
@@ -613,9 +641,10 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             `User ${session?.user?.id} is not authorized to clear paywall showing for location ${input.locationId}`,
           );
 
+          const clearedAt = yield* DateTime.nowAsDate;
           yield* db
             .update(paywallLocationShowings)
-            .set({ endedAt: new Date() })
+            .set({ endedAt: clearedAt })
             .where(
               and(
                 eq(paywallLocationShowings.paywallLocationId, location.id),
@@ -662,13 +691,14 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             return null;
           }
           yield* Effect.annotateCurrentSpan("voidhash.paywall_location.id", location.id);
-          const activeShowing = (yield* db.query.paywallLocationShowings.findFirst({
-            where: {
-              paywallLocationId: location.id,
-              endedAt: { isNull: true },
-            },
-            with: { paywall: true, paywallRelease: true },
-          })) as ShowingWithRelations | undefined;
+          const activeShowing: ShowingWithRelations | undefined =
+            yield* db.query.paywallLocationShowings.findFirst({
+              where: {
+                paywallLocationId: location.id,
+                endedAt: { isNull: true },
+              },
+              with: { paywall: true, paywallRelease: true },
+            });
           if (!activeShowing) {
             return null;
           }
@@ -699,36 +729,30 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             if (!assignment) {
               return null;
             }
-            const entryFrom = (
-              payload: unknown,
-            ): { readonly paywallId?: string; readonly paywallReleaseId?: string } | undefined => {
-              const byLocation = (
-                payload as
-                  | {
-                      readonly byLocation?: Record<
-                        string,
-                        { readonly paywallId?: string; readonly paywallReleaseId?: string }
-                      >;
-                    }
-                  | null
-                  | undefined
-              )?.byLocation;
-              return byLocation?.[location.id];
+            const entryFrom = (payload: unknown): ExperimentPaywallEntry | undefined => {
+              const decoded = decodeExperimentPayload(payload);
+              if (Option.isNone(decoded)) {
+                return undefined;
+              }
+              return decoded.value.byLocation?.[location.id];
             };
 
             const enrolled = assignment.assigned && assignment.variantKey !== null;
-            let entry = enrolled ? entryFrom(assignment.payload) : undefined;
+            let entry = undefined;
+            if (enrolled) {
+              entry = entryFrom(assignment.payload);
+            }
             // Only count a real assignment (control or treatment) as an exposure;
             // an unenrolled subject served the control fallback is NOT exposed.
-            const exposure =
-              entry && enrolled
-                ? {
-                    experimentId: assignment.experimentId,
-                    variantKey: assignment.variantKey as string,
-                    personId: input.personId ?? null,
-                    distinctId: input.distinctId ?? null,
-                  }
-                : null;
+            let exposure: ExperimentExposureContext | null = null;
+            if (entry && enrolled && assignment.variantKey !== null) {
+              exposure = {
+                experimentId: assignment.experimentId,
+                variantKey: assignment.variantKey,
+                personId: input.personId ?? null,
+                distinctId: input.distinctId ?? null,
+              };
+            }
             if (!entry) {
               entry = entryFrom(assignment.controlPayload);
             }
@@ -740,21 +764,22 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             // published release, so shipping a new version updates a running
             // test too. `paywallReleaseId` appears only in payloads compiled
             // before that change and stays pinned.
-            const release = entry.paywallReleaseId
-              ? yield* db.query.paywallReleases.findFirst({
-                  where: { id: entry.paywallReleaseId },
-                  with: { paywall: true },
-                })
-              : entry.paywallId
-                ? yield* db.query.paywallReleases.findFirst({
-                    where: {
-                      paywallId: entry.paywallId,
-                      isActive: true,
-                      status: ReleaseStatus.released,
-                    },
-                    with: { paywall: true },
-                  })
-                : undefined;
+            let release = undefined;
+            if (entry.paywallReleaseId) {
+              release = yield* db.query.paywallReleases.findFirst({
+                where: { id: entry.paywallReleaseId },
+                with: { paywall: true },
+              });
+            } else if (entry.paywallId) {
+              release = yield* db.query.paywallReleases.findFirst({
+                where: {
+                  paywallId: entry.paywallId,
+                  isActive: true,
+                  status: ReleaseStatus.released,
+                },
+                with: { paywall: true },
+              });
+            }
             if (!release || !release.paywall || release.paywall.projectId !== input.projectId) {
               return null;
             }
@@ -823,7 +848,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
           ),
       );
 
-      return {
+      return constant({
         archiveLocation,
         assignLocationShowing,
         clearLocationShowing,
@@ -832,7 +857,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
         listLocations,
         resolveLocationShowingForSdk,
         updateLocation,
-      } as const;
+      });
     }),
   },
 ) {

@@ -92,6 +92,7 @@ describeBuilt("sandbox IIFE (node integration, mirrors the studio sandbox path)"
     };
     const moduleObj = { exports: {} as Record<string, unknown> };
     // executing our own compiled fixture
+    // oxlint-disable-next-line typescript/no-implied-eval -- the assertion under test IS that the sandbox's require shim can execute the bundle: `compiled.code` is the esbuild output of an in-repo fixture, evaluated with the shim as its only ambient. Replacing this reproduces nothing.
     new Function("require", "module", "exports", compiled.code)(
       requireShim,
       moduleObj,

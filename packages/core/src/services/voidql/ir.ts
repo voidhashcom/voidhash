@@ -67,10 +67,9 @@ export const toStatement = <Row extends object = Record<string, unknown>>(
   ch: ClickhouseWebClient.ClickhouseWebClient,
   pieces: readonly SqlPiece[],
 ): Statement<Row> =>
-  pieces.reduce<Statement<Row>>(
-    (frag, piece) =>
-      piece.kind === "sql"
-        ? ch<Row>`${frag}${ch.literal(piece.text)}`
-        : ch<Row>`${frag}${ch.param(piece.chType, piece.value)}`,
-    ch<Row>``,
-  );
+  pieces.reduce<Statement<Row>>((frag, piece) => {
+    if (piece.kind === "sql") {
+      return ch<Row>`${frag}${ch.literal(piece.text)}`;
+    }
+    return ch<Row>`${frag}${ch.param(piece.chType, piece.value)}`;
+  }, ch<Row>``);

@@ -8,17 +8,29 @@ import {
   RpcPaymentProviderConfigurationServiceError,
   RpcPaymentProviderConfigurationValidationError,
 } from "@voidhash/rpc";
+import { constant } from "@voidhash/lib/lang";
 import { Effect } from "effect";
+
+/** Structural view of the service errors these RPCs re-map onto wire errors. */
+interface TaggedErrorLike {
+  readonly _tag?: string;
+  readonly cause?: unknown;
+  readonly message?: string;
+}
+
+const isTaggedErrorLike = (error: unknown): error is TaggedErrorLike =>
+  typeof error === "object" && error !== null;
+
+const taggedErrorFields = (error: unknown): TaggedErrorLike => {
+  if (isTaggedErrorLike(error)) return error;
+  return {};
+};
 
 export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfigurationRpcsDef.toLayer(
   Effect.gen(function* PaymentProviderConfigurationRpcsLive() {
     const paymentProviderConfigurationService = yield* PaymentProviderConfigurationService;
     const mapUpdateError = (error: unknown) => {
-      const tagged = error as {
-        readonly _tag?: string;
-        readonly cause?: unknown;
-        readonly message?: string;
-      };
+      const tagged = taggedErrorFields(error);
       switch (tagged._tag) {
         case "ActionForbiddenError":
           return new RpcActionForbiddenError({ message: tagged.message ?? "" });
@@ -93,7 +105,7 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
         ),
       UpdatePaymentProviderConfiguration: (input) =>
         paymentProviderConfigurationService.updatePaymentProviderConfiguration(input).pipe(
-          Effect.map((result) => ({ id: (result as { readonly id: string }).id }) as const),
+          Effect.map((result) => constant({ id: result.id })),
           Effect.mapError(mapUpdateError),
         ),
     };

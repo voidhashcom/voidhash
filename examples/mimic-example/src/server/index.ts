@@ -1,18 +1,15 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the created server value is handed to the `@effect/platform-node` HTTP adapter, which requires a real `node:http` Server instance.
 import { createServer } from "node:http";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { Layer } from "effect";
+import { Config, Effect, Layer } from "effect";
 import { AppLive } from "./app";
 
 // Specify the port
-const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3001;
-
-NodeRuntime.runMain(
-  AppLive.pipe(
-    Layer.provide(
-      NodeHttpServer.layer(() => createServer(), {
-        port,
-      }),
-    ),
-    Layer.launch,
-  ) as never,
+const ServerLive = Layer.unwrap(
+  Effect.gen(function* () {
+    const port = yield* Config.int("PORT").pipe(Config.withDefault(3001));
+    return NodeHttpServer.layer(() => createServer(), { port });
+  }),
 );
+
+NodeRuntime.runMain(AppLive.pipe(Layer.provide(ServerLive), Layer.launch));

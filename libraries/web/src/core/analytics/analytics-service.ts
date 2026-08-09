@@ -1,4 +1,5 @@
-import { Effect, Layer, Context } from "effect";
+import { Clock, Context, DateTime, Effect, Fiber, Layer, Schema } from "effect";
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import type { CaptureAcceptedResponse } from "@voidhash/generated-clients/event-capture";
 
 import type { AnalyticsFlushResult } from "../../types";
@@ -15,24 +16,47 @@ const MAX_INGEST_BATCH_SIZE = 100;
 const RETRYABLE_ERROR_CODES = new Set(["rate_limited", "dependency_unavailable", "internal_error"]);
 const getBackoffMs = (attempts: number) => Math.min(1000 * 2 ** Math.max(attempts - 1, 0), 30_000);
 
+const ANALYTICS_SEND_FAILURE: { readonly _tag: "AnalyticsSendFailure" } = {
+  _tag: "AnalyticsSendFailure",
+};
+const KEEPALIVE_SEND_FAILURE: { readonly _tag: "KeepaliveSendFailure" } = {
+  _tag: "KeepaliveSendFailure",
+};
+
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 const estimateEventBytes = (event: QueuedAnalyticsEvent) =>
-  new TextEncoder().encode(JSON.stringify(event.payload)).byteLength;
+  new TextEncoder().encode(encodeJson(event.payload)).byteLength;
 
 const buildIdSet = (events: ReadonlyArray<QueuedAnalyticsEvent>) =>
   new Set(events.map((event) => event.id));
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const optionalNumber = (value: unknown) => {
+  if (typeof value === "number") {
+    return value;
+  }
+  return undefined;
+};
+
+const isCaptureAcceptedResponse = (value: unknown): value is CaptureAcceptedResponse => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.accepted === "number" && typeof value.rejected === "number";
+};
 
 const extractCaptureError = (input: {
   data?: unknown;
   status: number;
 }): { code: string; retry_after_ms?: number } | null => {
-  if (input.data && typeof input.data === "object") {
-    const err = input.data as Record<string, unknown>;
-    if (typeof err.code === "string") {
-      return {
-        code: err.code,
-        retry_after_ms: typeof err.retry_after_ms === "number" ? err.retry_after_ms : undefined,
-      };
-    }
+  if (isRecord(input.data) && typeof input.data.code === "string") {
+    return {
+      code: input.data.code,
+      retry_after_ms: optionalNumber(input.data.retry_after_ms),
+    };
   }
 
   switch (input.status) {
@@ -57,13 +81,14 @@ const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
   const config = yield* SdkConfiguration;
   const eventBus = yield* EventBusProvider;
+  const httpClient = yield* HttpClient.HttpClient;
   const identityManager = yield* IdentityManager;
   const platform = yield* PlatformProvider;
 
   // Mutable queue state
   let events: QueuedAnalyticsEvent[] = [];
   let isLoaded = false;
-  let flushIntervalId: ReturnType<typeof setInterval> | null = null;
+  let flushTickerFiber: Fiber.Fiber<never, never> | null = null;
 
   // Queue persistence
   const loadQueue = () =>
@@ -82,16 +107,14 @@ const make = Effect.gen(function* effect() {
   };
 
   const postponeEvents = (ids: ReadonlySet<string>, nextAvailableAt: number) => {
-    events = events.map((event) =>
-      ids.has(event.id)
-        ? { ...event, attempts: event.attempts + 1, availableAt: nextAvailableAt }
-        : event,
-    );
+    events = events.map((event) => {
+      if (!ids.has(event.id)) return event;
+      return { ...event, attempts: event.attempts + 1, availableAt: nextAvailableAt };
+    });
   };
 
-  const peekBatch = (input: { maxBatchBytes: number; maxBatchSize: number }) => {
-    const now = Date.now();
-    const dueEvents = events.filter((event) => event.availableAt <= now);
+  const peekBatch = (input: { maxBatchBytes: number; maxBatchSize: number; now: number }) => {
+    const dueEvents = events.filter((event) => event.availableAt <= input.now);
     if (dueEvents.length === 0) return [];
 
     const firstDistinctId = dueEvents[0]?.payload.distinct_id;
@@ -110,50 +133,41 @@ const make = Effect.gen(function* effect() {
     return selected;
   };
 
-  const sendBatchViaClient = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
-    Effect.tryPromise({
-      try: async () => {
-        const response = await fetch(new URL("/batch", config.analytics.baseUrl), {
-          body: JSON.stringify({
-            events: batchEvents,
-            sent_at: new Date().toISOString(),
-            token: config.publishableKey,
-          }),
-          headers: { "content-type": "application/json" },
-          method: "POST",
-        });
-
-        let data: unknown;
-        try {
-          data = await response.json();
-        } catch {
-          data = undefined;
-        }
-
-        return {
-          data,
-          status: response.status,
-        };
-      },
-      catch: () => ({ _tag: "AnalyticsSendFailure" as const }),
-    });
-
-  // Raw fetch fallback — only used for keepalive on pagehide
-  const sendBatchKeepalive = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
-    Effect.tryPromise({
-      try: () =>
-        fetch(new URL("/batch", config.analytics.baseUrl), {
-          body: JSON.stringify({
-            events: batchEvents,
-            sent_at: new Date().toISOString(),
-            token: config.publishableKey,
-          }),
-          headers: { "content-type": "application/json" },
-          keepalive: true,
-          method: "POST",
+  const buildBatchRequest = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
+    Effect.gen(function* buildBatchRequest() {
+      const sentAt = yield* DateTime.nowAsDate;
+      return HttpClientRequest.post(new URL("/batch", config.analytics.baseUrl)).pipe(
+        HttpClientRequest.bodyJsonUnsafe({
+          events: batchEvents,
+          sent_at: sentAt.toISOString(),
+          token: config.publishableKey,
         }),
-      catch: () => ({ _tag: "KeepaliveSendFailure" as const }),
+      );
     });
+
+  const sendBatchViaClient = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
+    Effect.gen(function* sendBatchViaClient() {
+      const request = yield* buildBatchRequest(batchEvents);
+      const response = yield* httpClient.execute(request);
+      const data = yield* response.json.pipe(Effect.orElseSucceed(() => undefined));
+
+      return {
+        data,
+        status: response.status,
+      };
+    }).pipe(Effect.mapError(() => ANALYTICS_SEND_FAILURE));
+
+  // Best-effort delivery on pagehide: `keepalive` lets the browser finish the
+  // request after the document is gone, so it is supplied as a fetch-level
+  // option rather than as part of the request itself.
+  const sendBatchKeepalive = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
+    Effect.gen(function* sendBatchKeepalive() {
+      const request = yield* buildBatchRequest(batchEvents);
+      return yield* httpClient.execute(request);
+    }).pipe(
+      Effect.provideService(FetchHttpClient.RequestInit, { keepalive: true }),
+      Effect.mapError(() => KEEPALIVE_SEND_FAILURE),
+    );
 
   // Core flush logic
   const sendBatch = (
@@ -169,7 +183,7 @@ const make = Effect.gen(function* effect() {
       const batchPayloads = batch.map((entry) => entry.payload);
       const ids = buildIdSet(batch);
 
-      // keepalive sends use raw fetch (best-effort, fire-and-forget)
+      // keepalive sends are best-effort and fire-and-forget
       if (options?.keepalive) {
         const result = yield* Effect.exit(sendBatchKeepalive(batchPayloads));
         if (result._tag === "Success") {
@@ -183,23 +197,19 @@ const make = Effect.gen(function* effect() {
 
       if (result._tag === "Success") {
         if (result.value.status === 202) {
-          if (
-            !result.value.data ||
-            typeof result.value.data !== "object" ||
-            typeof (result.value.data as CaptureAcceptedResponse).accepted !== "number" ||
-            typeof (result.value.data as CaptureAcceptedResponse).rejected !== "number"
-          ) {
-            postponeEvents(ids, Date.now() + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
+          const capture = result.value.data;
+          if (!isCaptureAcceptedResponse(capture)) {
+            const retryAt = yield* Clock.currentTimeMillis;
+            postponeEvents(ids, retryAt + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
             yield* persistQueue();
             return null;
           }
 
           dropEvents(ids);
           yield* persistQueue();
-          const response = result.value.data as CaptureAcceptedResponse;
           const flushResult: AnalyticsFlushResult = {
-            accepted: response.accepted,
-            rejected: response.rejected,
+            accepted: capture.accepted,
+            rejected: capture.rejected,
           };
           eventBus.emit("analytics-flushed", flushResult);
           if (flushResult.rejected > 0) {
@@ -215,9 +225,10 @@ const make = Effect.gen(function* effect() {
         }
 
         if (error && RETRYABLE_ERROR_CODES.has(error.code)) {
+          const retryAt = yield* Clock.currentTimeMillis;
           postponeEvents(
             ids,
-            Date.now() + (error.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1)),
+            retryAt + (error.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1)),
           );
           yield* persistQueue();
           return null;
@@ -234,7 +245,8 @@ const make = Effect.gen(function* effect() {
         }
       }
 
-      postponeEvents(ids, Date.now() + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
+      const retryAt = yield* Clock.currentTimeMillis;
+      postponeEvents(ids, retryAt + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
       yield* persistQueue();
       return null;
     });
@@ -251,7 +263,8 @@ const make = Effect.gen(function* effect() {
           message: "Dropping analytics event after 413 response.",
           source: "analytics",
         });
-        return { accepted: 0, rejected: 1 } as AnalyticsFlushResult;
+        const dropped: AnalyticsFlushResult = { accepted: 0, rejected: 1 };
+        return dropped;
       }
 
       const midpoint = Math.ceil(batch.length / 2);
@@ -260,11 +273,12 @@ const make = Effect.gen(function* effect() {
 
       if (!first && !second) return null;
 
-      return {
+      const merged: AnalyticsFlushResult = {
         accepted: (first?.accepted ?? 0) + (second?.accepted ?? 0),
         rejected: (first?.rejected ?? 0) + (second?.rejected ?? 0),
         requestId: second?.requestId ?? first?.requestId,
-      } as AnalyticsFlushResult;
+      };
+      return merged;
     });
 
   // Public API
@@ -284,10 +298,11 @@ const make = Effect.gen(function* effect() {
       if (!distinctId) return;
 
       const event = createAnalyticsEvent(platform, distinctId, eventName, properties, options);
+      const availableAt = yield* Clock.currentTimeMillis;
 
       events.push({
         attempts: 0,
-        availableAt: Date.now(),
+        availableAt,
         id: event.uuid,
         payload: event,
       });
@@ -308,28 +323,34 @@ const make = Effect.gen(function* effect() {
   const flush = (options?: { keepalive?: boolean }): Effect.Effect<AnalyticsFlushResult | null> =>
     Effect.gen(function* flushEffect() {
       yield* loadQueue();
+      const now = yield* Clock.currentTimeMillis;
       const batch = peekBatch({
         maxBatchBytes: config.analytics.maxBatchBytes,
         maxBatchSize: Math.min(config.analytics.maxBatchSize, MAX_INGEST_BATCH_SIZE),
+        now,
       });
       if (batch.length === 0) return null;
       return yield* sendBatch(batch, options);
     });
 
-  const start = () => {
-    if (flushIntervalId) return;
-    flushIntervalId = setInterval(() => {
-      // Scheduled flushes need to be run through the runtime externally.
-      // The eventBus signals that a flush is needed; the client handles execution.
+  // Scheduled flushes need to be run through the runtime externally.
+  // The eventBus signals that a flush is needed; the client handles execution.
+  const flushTicker = Effect.forever(
+    Effect.gen(function* flushTick() {
+      yield* Effect.sleep(config.analytics.flushIntervalMs);
       eventBus.emit("analytics-flush-needed", undefined);
-    }, config.analytics.flushIntervalMs);
+    }),
+  );
+
+  const start = () => {
+    if (flushTickerFiber) return;
+    flushTickerFiber = Effect.runFork(flushTicker);
   };
 
   const stop = () => {
-    if (flushIntervalId) {
-      clearInterval(flushIntervalId);
-      flushIntervalId = null;
-    }
+    if (!flushTickerFiber) return;
+    Effect.runFork(Fiber.interrupt(flushTickerFiber));
+    flushTickerFiber = null;
   };
 
   const getQueueLength = () =>
@@ -344,7 +365,7 @@ const make = Effect.gen(function* effect() {
     getQueueLength,
     start,
     stop,
-  } as const;
+  };
 });
 
 export class AnalyticsService extends Context.Service<

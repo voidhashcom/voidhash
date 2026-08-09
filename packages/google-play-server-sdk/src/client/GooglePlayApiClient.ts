@@ -19,6 +19,72 @@ const GOOGLE_PLAY_API_BASE = "https://androidpublisher.googleapis.com";
 const redactPurchaseTokens = (path: string): string =>
   path.replace(/(\/tokens\/)[^/:?]+/g, "$1[redacted]");
 
+/**
+ * Appends the encoded query string to `path`, omitting the `?` entirely when
+ * no parameters were set.
+ */
+const withQuery = (path: string, params: URLSearchParams): string => {
+  const queryString = params.toString();
+  if (!queryString) {
+    return path;
+  }
+  return `${path}?${queryString}`;
+};
+
+/** Builds the acknowledge/consume request body, omitted when no payload is set. */
+const developerPayloadBody = (developerPayload?: string) => {
+  if (!developerPayload) {
+    return undefined;
+  }
+  return { developerPayload };
+};
+
+/** Parses a `Retry-After` header value, ignoring absent or unparsable values. */
+const parseRetryAfterSeconds = (retryAfter: string | null) => {
+  if (!retryAfter) {
+    return undefined;
+  }
+  return Number.parseInt(retryAfter);
+};
+
+/** Tolerant shape of a Google Play API error payload. */
+const ApiErrorBody = Schema.Struct({
+  error: Schema.optional(
+    Schema.Struct({
+      message: Schema.optional(Schema.String),
+      code: Schema.optional(Schema.Number),
+    }),
+  ),
+});
+
+type ApiErrorBodyType = typeof ApiErrorBody.Type;
+
+/** Response body of the legacy subscription defer endpoint. */
+const SubscriptionDeferResponse = Schema.Struct({
+  newExpiryTimeMillis: Schema.String,
+});
+
+/**
+ * Serializes an optional request body to JSON text, keeping `undefined` when
+ * the request carries no body at all.
+ */
+const encodeRequestBody = (
+  body: unknown,
+): Effect.Effect<string | undefined, GooglePlayGeneralError> => {
+  if (!body) {
+    return Effect.succeed(undefined);
+  }
+  return Schema.encodeUnknownEffect(Schema.UnknownFromJsonString)(body).pipe(
+    Effect.mapError(
+      (cause) =>
+        new GooglePlayGeneralError({
+          message: "Failed to encode Google Play API request body",
+          cause,
+        }),
+    ),
+  );
+};
+
 // ============================================================================
 // Result Types
 // ============================================================================
@@ -55,7 +121,93 @@ interface ApiRequestOptions {
   packageName: string;
 }
 
-const makeApiRequest = <T>(options: ApiRequestOptions) =>
+/**
+ * Maps a non-2xx Google Play response onto the matching tagged error. The
+ * status, the raw response text and the tolerantly decoded error payload are
+ * all the classification needs.
+ */
+const classifyApiFailure = (options: ApiRequestOptions, response: Response, responseText: string) =>
+  Effect.gen(function* () {
+    const rawBody = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(
+      responseText,
+    ).pipe(Effect.orElseSucceed(() => undefined));
+    const body = yield* Schema.decodeUnknownEffect(ApiErrorBody)(rawBody).pipe(
+      Effect.orElseSucceed((): ApiErrorBodyType => ({})),
+    );
+    const errorMessage = body.error?.message ?? "Google Play API request failed";
+
+    if (response.status === 404) {
+      // Extract purchase token from path if available
+      const tokenMatch = options.path.match(/\/tokens\/([^/:]+)/);
+      const purchaseToken = tokenMatch?.[1] ?? "";
+
+      // Check if it's a subscription or product not found
+      if (options.path.includes("/subscriptions/")) {
+        const productMatch = options.path.match(/\/subscriptions\/([^/]+)/);
+        if (productMatch?.[1] && !options.path.includes("/purchases/subscriptions")) {
+          return yield* new GooglePlaySubscriptionNotFoundError({
+            productId: productMatch[1],
+            packageName: options.packageName,
+          });
+        }
+      }
+
+      if (options.path.includes("/oneTimeProducts/") || options.path.includes("/onetimeproducts/")) {
+        const productMatch = options.path.match(/\/(?:oneTimeProducts|onetimeproducts)\/([^/]+)/);
+        if (productMatch?.[1]) {
+          return yield* new GooglePlayProductNotFoundError({
+            productId: productMatch[1],
+            packageName: options.packageName,
+          });
+        }
+      }
+
+      return yield* new GooglePlayPurchaseNotFoundError({
+        purchaseToken,
+        packageName: options.packageName,
+      });
+    }
+
+    if (response.status === 401) {
+      return yield* new GooglePlayUnauthorizedError({
+        message: errorMessage,
+      });
+    }
+
+    if (response.status === 403) {
+      return yield* new GooglePlayForbiddenError({
+        message: errorMessage,
+      });
+    }
+
+    if (response.status === 429) {
+      return yield* new GooglePlayRateLimitExceededError({
+        message: errorMessage,
+        retryAfterSeconds: parseRetryAfterSeconds(response.headers.get("Retry-After")),
+      });
+    }
+
+    if (response.status === 400) {
+      return yield* new GooglePlayInvalidRequestError({
+        message: errorMessage,
+        details: rawBody,
+      });
+    }
+
+    return yield* new GooglePlayGeneralError({
+      message: errorMessage,
+      cause: responseText,
+    });
+  });
+
+/**
+ * Performs one authenticated Android Publisher request and returns the decoded
+ * JSON payload as `unknown`; callers narrow it with the matching schema.
+ *
+ * Uses the global `fetch` rather than `HttpClient` on purpose so the SDK stays
+ * free of service requirements on Cloudflare Workers.
+ */
+const makeApiRequest = (options: ApiRequestOptions) =>
   Effect.gen(function* () {
     const accessToken = yield* getAccessToken(options.auth);
     const headers = createAuthHeaders(accessToken);
@@ -66,118 +218,50 @@ const makeApiRequest = <T>(options: ApiRequestOptions) =>
       path: redactPurchaseTokens(options.path),
     });
 
-    return yield* Effect.tryPromise({
-      try: async () => {
-        const response = await fetch(url, {
+    const transportFailure = (cause: unknown) =>
+      new GooglePlayGeneralError({
+        message: "Google Play API request failed",
+        cause,
+      });
+
+    const body = yield* encodeRequestBody(options.body);
+
+    const response = yield* Effect.tryPromise({
+      try: () =>
+        // oxlint-disable-next-line effect/noGlobals -- deliberate raw fetch so this module runs on Cloudflare Workers without pulling in an HttpClient dependency.
+        fetch(url, {
           method: options.method,
           headers,
-          body: options.body ? JSON.stringify(options.body) : undefined,
-        });
-
-        // Handle empty responses (204, etc.)
-        if (response.status === 204 || response.headers.get("content-length") === "0") {
-          return {} as T;
-        }
-
-        const responseBody = await response.json();
-
-        if (!response.ok) {
-          throw {
-            status: response.status,
-            body: responseBody,
-            headers: response.headers,
-          };
-        }
-
-        return responseBody as T;
-      },
-      catch: (cause: unknown) => {
-        const error = cause as {
-          status?: number;
-          body?: { error?: { message?: string; code?: number } };
-          headers?: Headers;
-        };
-
-        const errorMessage = error.body?.error?.message ?? "Google Play API request failed";
-
-        if (error.status === 404) {
-          // Extract purchase token from path if available
-          const tokenMatch = options.path.match(/\/tokens\/([^/:]+)/);
-          const purchaseToken = tokenMatch?.[1] ?? "";
-
-          // Check if it's a subscription or product not found
-          if (options.path.includes("/subscriptions/")) {
-            const productMatch = options.path.match(/\/subscriptions\/([^/]+)/);
-            if (productMatch?.[1] && !options.path.includes("/purchases/subscriptions")) {
-              return new GooglePlaySubscriptionNotFoundError({
-                productId: productMatch[1],
-                packageName: options.packageName,
-              });
-            }
-          }
-
-          if (
-            options.path.includes("/oneTimeProducts/") ||
-            options.path.includes("/onetimeproducts/")
-          ) {
-            const productMatch = options.path.match(
-              /\/(?:oneTimeProducts|onetimeproducts)\/([^/]+)/,
-            );
-            if (productMatch?.[1]) {
-              return new GooglePlayProductNotFoundError({
-                productId: productMatch[1],
-                packageName: options.packageName,
-              });
-            }
-          }
-
-          return new GooglePlayPurchaseNotFoundError({
-            purchaseToken,
-            packageName: options.packageName,
-          });
-        }
-
-        if (error.status === 401) {
-          return new GooglePlayUnauthorizedError({
-            message: errorMessage,
-          });
-        }
-
-        if (error.status === 403) {
-          return new GooglePlayForbiddenError({
-            message: errorMessage,
-          });
-        }
-
-        if (error.status === 429) {
-          const retryAfter = error.headers?.get("Retry-After");
-          return new GooglePlayRateLimitExceededError({
-            message: errorMessage,
-            retryAfterSeconds: retryAfter ? Number.parseInt(retryAfter) : undefined,
-          });
-        }
-
-        if (error.status === 400) {
-          return new GooglePlayInvalidRequestError({
-            message: errorMessage,
-            details: error.body,
-          });
-        }
-
-        return new GooglePlayGeneralError({
-          message: errorMessage,
-          cause,
-        });
-      },
+          body,
+        }),
+      catch: transportFailure,
     });
+
+    // Handle empty responses (204, etc.)
+    if (response.status === 204 || response.headers.get("content-length") === "0") {
+      return {};
+    }
+
+    const responseText = yield* Effect.tryPromise({
+      try: () => response.text(),
+      catch: transportFailure,
+    });
+
+    if (!response.ok) {
+      return yield* classifyApiFailure(options, response, responseText);
+    }
+
+    return yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(responseText).pipe(
+      Effect.mapError(transportFailure),
+    );
   });
 
 // ============================================================================
 // Initialize SDK
 // ============================================================================
 
-export const initializeSdk = Effect.gen(function* initializeSdk() {
-  return Effect.fn("initializeSdk")(function* initializeSdk(input: {
+export const initializeSdk = Effect.sync(() =>
+  Effect.fn("initializeSdk")(function* initializeSdk(input: {
     serviceAccountKey: string;
     packageName: string;
   }) {
@@ -200,7 +284,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
         Effect.gen(function* () {
           yield* Effect.logDebug("Getting subscription V2");
 
-          const result = yield* makeApiRequest<Schemas.SubscriptionPurchaseV2Type>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path: `${basePath}/purchases/subscriptionsv2/tokens/${purchaseToken}`,
             auth,
@@ -223,24 +307,24 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        * @param purchaseToken - The purchase token
        */
       cancelSubscription: (purchaseToken: string) =>
-        makeApiRequest<void>({
+        makeApiRequest({
           method: "POST",
           path: `${basePath}/purchases/subscriptionsv2/tokens/${purchaseToken}:cancel`,
           auth,
           packageName: input.packageName,
-        }),
+        }).pipe(Effect.asVoid),
 
       /**
        * Revokes a subscription immediately
        * @param purchaseToken - The purchase token
        */
       revokeSubscription: (purchaseToken: string) =>
-        makeApiRequest<void>({
+        makeApiRequest({
           method: "POST",
           path: `${basePath}/purchases/subscriptionsv2/tokens/${purchaseToken}:revoke`,
           auth,
           packageName: input.packageName,
-        }),
+        }).pipe(Effect.asVoid),
 
       // ======================================================================
       // Subscriptions V1 - Legacy Operations
@@ -257,13 +341,13 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
         purchaseToken: string,
         developerPayload?: string,
       ) =>
-        makeApiRequest<void>({
+        makeApiRequest({
           method: "POST",
           path: `${basePath}/purchases/subscriptions/${subscriptionId}/tokens/${purchaseToken}:acknowledge`,
-          body: developerPayload ? { developerPayload } : undefined,
+          body: developerPayloadBody(developerPayload),
           auth,
           packageName: input.packageName,
-        }),
+        }).pipe(Effect.asVoid),
 
       /**
        * Defers subscription renewal to a later date
@@ -278,17 +362,29 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
         expectedExpiryTimeMillis: string,
         desiredExpiryTimeMillis: string,
       ) =>
-        makeApiRequest<SubscriptionDeferResult>({
-          method: "POST",
-          path: `${basePath}/purchases/subscriptions/${subscriptionId}/tokens/${purchaseToken}:defer`,
-          body: {
-            deferralInfo: {
-              expectedExpiryTimeMillis,
-              desiredExpiryTimeMillis,
+        Effect.gen(function* () {
+          const result = yield* makeApiRequest({
+            method: "POST",
+            path: `${basePath}/purchases/subscriptions/${subscriptionId}/tokens/${purchaseToken}:defer`,
+            body: {
+              deferralInfo: {
+                expectedExpiryTimeMillis,
+                desiredExpiryTimeMillis,
+              },
             },
-          },
-          auth,
-          packageName: input.packageName,
+            auth,
+            packageName: input.packageName,
+          });
+
+          return yield* Schema.decodeUnknownEffect(SubscriptionDeferResponse)(result).pipe(
+            Effect.mapError(
+              (parseError) =>
+                new GooglePlayGeneralError({
+                  message: "Failed to parse subscription defer response",
+                  cause: parseError,
+                }),
+            ),
+          );
         }),
 
       // ======================================================================
@@ -303,7 +399,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
         Effect.gen(function* () {
           yield* Effect.logDebug("Getting product V2");
 
-          const result = yield* makeApiRequest<Schemas.ProductPurchaseV2Type>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path: `${basePath}/purchases/productsv2/tokens/${purchaseToken}`,
             auth,
@@ -336,7 +432,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
             productId,
           });
 
-          const result = yield* makeApiRequest<Schemas.ProductPurchaseType>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path: `${basePath}/purchases/products/${productId}/tokens/${purchaseToken}`,
             auth,
@@ -361,13 +457,13 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        * @param developerPayload - Optional payload to attach
        */
       acknowledgeProduct: (productId: string, purchaseToken: string, developerPayload?: string) =>
-        makeApiRequest<void>({
+        makeApiRequest({
           method: "POST",
           path: `${basePath}/purchases/products/${productId}/tokens/${purchaseToken}:acknowledge`,
-          body: developerPayload ? { developerPayload } : undefined,
+          body: developerPayloadBody(developerPayload),
           auth,
           packageName: input.packageName,
-        }),
+        }).pipe(Effect.asVoid),
 
       /**
        * Consumes a product purchase (for consumable products)
@@ -375,12 +471,12 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        * @param purchaseToken - The purchase token
        */
       consumeProduct: (productId: string, purchaseToken: string) =>
-        makeApiRequest<void>({
+        makeApiRequest({
           method: "POST",
           path: `${basePath}/purchases/products/${productId}/tokens/${purchaseToken}:consume`,
           auth,
           packageName: input.packageName,
-        }),
+        }).pipe(Effect.asVoid),
 
       // ======================================================================
       // Voided Purchases
@@ -405,10 +501,9 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
           if (options?.token) params.append("token", options.token);
           if (options?.type !== undefined) params.append("type", String(options.type));
 
-          const queryString = params.toString();
-          const path = `${basePath}/purchases/voidedpurchases${queryString ? `?${queryString}` : ""}`;
+          const path = withQuery(`${basePath}/purchases/voidedpurchases`, params);
 
-          const result = yield* makeApiRequest<Schemas.VoidedPurchasesListResponseType>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path,
             auth,
@@ -438,7 +533,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       createSubscription: (subscription: Schemas.SubscriptionType) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.SubscriptionType>({
+          const result = yield* makeApiRequest({
             method: "POST",
             path: `${basePath}/subscriptions?productId=${subscription.productId}`,
             body: subscription,
@@ -463,7 +558,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       getSubscription: (productId: string) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.SubscriptionType>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path: `${basePath}/subscriptions/${productId}`,
             auth,
@@ -492,10 +587,9 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
           if (pageToken) params.append("pageToken", pageToken);
           if (pageSize) params.append("pageSize", String(pageSize));
 
-          const queryString = params.toString();
-          const path = `${basePath}/subscriptions${queryString ? `?${queryString}` : ""}`;
+          const path = withQuery(`${basePath}/subscriptions`, params);
 
-          const result = yield* makeApiRequest<Schemas.ListSubscriptionsResponseType>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path,
             auth,
@@ -528,10 +622,9 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
           const params = new URLSearchParams();
           if (updateMask) params.append("updateMask", updateMask);
 
-          const queryString = params.toString();
-          const path = `${basePath}/subscriptions/${productId}${queryString ? `?${queryString}` : ""}`;
+          const path = withQuery(`${basePath}/subscriptions/${productId}`, params);
 
-          const result = yield* makeApiRequest<Schemas.SubscriptionType>({
+          const result = yield* makeApiRequest({
             method: "PATCH",
             path,
             body: subscription,
@@ -555,12 +648,12 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        * @param productId - The subscription product ID
        */
       deleteSubscription: (productId: string) =>
-        makeApiRequest<void>({
+        makeApiRequest({
           method: "DELETE",
           path: `${basePath}/subscriptions/${productId}`,
           auth,
           packageName: input.packageName,
-        }),
+        }).pipe(Effect.asVoid),
 
       // ======================================================================
       // Monetization - Base Plans
@@ -573,7 +666,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       activateBasePlan: (productId: string, basePlanId: string) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.SubscriptionType>({
+          const result = yield* makeApiRequest({
             method: "POST",
             path: `${basePath}/subscriptions/${productId}/basePlans/${basePlanId}:activate`,
             auth,
@@ -598,7 +691,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       deactivateBasePlan: (productId: string, basePlanId: string) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.SubscriptionType>({
+          const result = yield* makeApiRequest({
             method: "POST",
             path: `${basePath}/subscriptions/${productId}/basePlans/${basePlanId}:deactivate`,
             auth,
@@ -632,7 +725,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
         offer: Schemas.SubscriptionOfferType,
       ) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.SubscriptionOfferType>({
+          const result = yield* makeApiRequest({
             method: "POST",
             path: `${basePath}/subscriptions/${productId}/basePlans/${basePlanId}/offers?offerId=${offer.offerId}`,
             body: offer,
@@ -659,7 +752,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       activateSubscriptionOffer: (productId: string, basePlanId: string, offerId: string) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.SubscriptionOfferType>({
+          const result = yield* makeApiRequest({
             method: "POST",
             path: `${basePath}/subscriptions/${productId}/basePlans/${basePlanId}/offers/${offerId}:activate`,
             auth,
@@ -685,7 +778,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       deactivateSubscriptionOffer: (productId: string, basePlanId: string, offerId: string) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.SubscriptionOfferType>({
+          const result = yield* makeApiRequest({
             method: "POST",
             path: `${basePath}/subscriptions/${productId}/basePlans/${basePlanId}/offers/${offerId}:deactivate`,
             auth,
@@ -714,7 +807,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       createOneTimeProduct: (productId: string, product: Schemas.OneTimeProductType) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.OneTimeProductType>({
+          const result = yield* makeApiRequest({
             method: "PATCH",
             path: `${basePath}/oneTimeProducts/${productId}`,
             body: product,
@@ -739,7 +832,7 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        */
       getOneTimeProduct: (productId: string) =>
         Effect.gen(function* () {
-          const result = yield* makeApiRequest<Schemas.OneTimeProductType>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path: `${basePath}/oneTimeProducts/${productId}`,
             auth,
@@ -768,10 +861,9 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
           if (pageToken) params.append("pageToken", pageToken);
           if (pageSize) params.append("pageSize", String(pageSize));
 
-          const queryString = params.toString();
-          const path = `${basePath}/oneTimeProducts${queryString ? `?${queryString}` : ""}`;
+          const path = withQuery(`${basePath}/oneTimeProducts`, params);
 
-          const result = yield* makeApiRequest<Schemas.ListOneTimeProductsResponseType>({
+          const result = yield* makeApiRequest({
             method: "GET",
             path,
             auth,
@@ -796,12 +888,12 @@ export const initializeSdk = Effect.gen(function* initializeSdk() {
        * @param productId - The product ID
        */
       deleteOneTimeProduct: (productId: string) =>
-        makeApiRequest<void>({
+        makeApiRequest({
           method: "DELETE",
           path: `${basePath}/oneTimeProducts/${productId}`,
           auth,
           packageName: input.packageName,
-        }),
+        }).pipe(Effect.asVoid),
     };
-  });
-});
+  }),
+);

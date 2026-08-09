@@ -1,5 +1,5 @@
 import type { Db } from "@voidhash/db";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type {
   EventProcessorDlqV1,
@@ -15,6 +15,8 @@ export class DlqProducerError extends Schema.TaggedErrorClass<DlqProducerError>(
   },
 ) {}
 
+const decodeRawValue = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
+
 export interface DlqProducerShape {
   readonly publishBatch: (
     events: ReadonlyArray<EventProcessorDlqV1>,
@@ -29,22 +31,22 @@ export class DlqProducer extends Context.Service<DlqProducer, DlqProducerShape>(
     Effect.gen(function* () {
       const dlq = yield* AnalyticsIngestDlqService;
 
-      const toRouteClass = (lane: EventProcessorDlqV1["lane"]): RouteClass =>
-        lane === "overflow" || lane === "historical" ? lane : "main";
+      const toRouteClass = (lane: EventProcessorDlqV1["lane"]): RouteClass => {
+        if (lane === "overflow" || lane === "historical") return lane;
+        return "main";
+      };
 
       const sourceSequence = (event: EventProcessorDlqV1): number => {
         const suffix = event.sourceOffset.split(":").at(-1);
-        const parsed = suffix ? Number.parseInt(suffix, 10) : Number.NaN;
-        return Number.isFinite(parsed) ? parsed : 0;
+        if (!suffix) return 0;
+        const parsed = Number.parseInt(suffix, 10);
+        if (!Number.isFinite(parsed)) return 0;
+        return parsed;
       };
 
       const payloadJson = (event: EventProcessorDlqV1): unknown => {
         if (!event.rawValue) return event;
-        try {
-          return JSON.parse(event.rawValue) as unknown;
-        } catch {
-          return event;
-        }
+        return Option.getOrElse(decodeRawValue(event.rawValue), () => event);
       };
 
       return {

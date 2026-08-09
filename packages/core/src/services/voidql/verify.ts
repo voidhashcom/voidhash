@@ -15,6 +15,8 @@
  * lock-step with every newly enabled construct (UNION arms, lambdas, windows) —
  * a blind spot is a direct leak, not a caught one (§11 G1, §20).
  */
+import { Effect } from "effect";
+
 import type { InjectedScope } from "./catalog/types.ts";
 import { VoidQlIsolationError } from "./errors.ts";
 import { renderDebugSql, type SqlPiece } from "./ir.ts";
@@ -40,9 +42,10 @@ const countOccurrences = (haystack: string, needle: string): number =>
 const arrayEqual = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((v, i) => v === b[i]);
 
-const fail = (message: string): never => {
-  throw new VoidQlIsolationError({ message: `isolation verifier: ${message}` });
-};
+const fail = (message: string): never =>
+  // `Effect.runSync` on a died effect rethrows the defect verbatim, so callers
+  // still observe the tagged `VoidQlIsolationError` itself.
+  Effect.runSync(Effect.die(new VoidQlIsolationError({ message: `isolation verifier: ${message}` })));
 
 /**
  * Verify the compiled IR against the authorized scope. Throws

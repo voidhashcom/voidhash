@@ -67,7 +67,7 @@ export const createCharset = (options: CharsetOptions): Charset => {
   if (options.chars.length < 7) {
     throw new Error("charSet must be at least 7 characters long");
   }
-  const sorted = [...options.chars].sort().join("");
+  const sorted = options.chars.split("").sort().join("");
   if (sorted !== options.chars) {
     throw new Error("charSet must be sorted");
   }
@@ -260,7 +260,7 @@ export const incrementInteger = (integer: string, charset: Charset): string => {
   validateInteger(integer, charset);
   const [head, digits] = splitInteger(integer, charset);
   const maxChar = charset.byCode[charset.length - 1]!;
-  if ([...digits].some((char) => char !== maxChar)) {
+  if (digits !== maxChar.repeat(digits.length)) {
     return `${head}${addOne(digits, charset)}`;
   }
   return startOnNewHead(incrementIntegerHead(head, charset), "lower", charset);
@@ -270,7 +270,7 @@ export const decrementInteger = (integer: string, charset: Charset): string => {
   validateInteger(integer, charset);
   const [head, digits] = splitInteger(integer, charset);
   const minChar = charset.byCode[0]!;
-  if ([...digits].some((char) => char !== minChar)) {
+  if (digits !== minChar.repeat(digits.length)) {
     return `${head}${subtractOne(digits, charset, false)}`;
   }
   return startOnNewHead(decrementIntegerHead(head, charset), "upper", charset);
@@ -447,9 +447,16 @@ const decrementIntegerHead = (head: string, charset: Charset): string => {
   return subtractOne(head, charset, false);
 };
 
+const fillCharForLimit = (limit: "lower" | "upper", charset: Charset): string => {
+  if (limit === "upper") {
+    return charset.last;
+  }
+  return charset.first;
+};
+
 const startOnNewHead = (head: string, limit: "lower" | "upper", charset: Charset): string => {
   const newLength = integerLength(head, charset);
-  const fillChar = limit === "upper" ? charset.last : charset.first;
+  const fillChar = fillCharForLimit(limit, charset);
   return `${head}${fillChar.repeat(newLength - head.length)}`;
 };
 
@@ -542,9 +549,16 @@ const addOne = (key: string, charset: Charset): string =>
 const subtractOne = (key: string, charset: Charset, stripLeadingZeros: boolean): string =>
   subtractCharsetKeys(key, charset.byCode[1]!, charset, stripLeadingZeros);
 
+const orderPair = (a: string, b: string): [string, string] => {
+  if (a > b) {
+    return [b, a];
+  }
+  return [a, b];
+};
+
 const lexicalDistance = (a: string, b: string, charset: Charset): number => {
   const [paddedA, paddedB] = makeSameLength(a, b, "end", charset.first);
-  const [lower, upper] = paddedA > paddedB ? [paddedB, paddedA] : [paddedA, paddedB];
+  const [lower, upper] = orderPair(paddedA, paddedB);
   return decodeCharsetToNumber(subtractCharsetKeys(upper, lower, charset, true), charset);
 };
 

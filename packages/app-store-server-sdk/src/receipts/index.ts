@@ -1,4 +1,5 @@
 import { Effect, Option, Schema } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
 import { base64ToBytes, bytesToHex, bytesToUtf8, hexToBytes } from "../internal/bytes.ts";
 
 /**
@@ -162,6 +163,16 @@ const forEachAttribute = <T>(
 };
 
 /**
+ * Unwraps the OCTET STRING an in-app attribute value is wrapped in, falling
+ * back to the value itself when it is not wrapped.
+ */
+const unwrapInnerSet = (inAppValue: string): string => {
+  const parsed = parseAsn1(inAppValue, 0);
+  if (Option.isSome(parsed)) return parsed.value.value;
+  return inAppValue;
+};
+
+/**
  * Loads the inner ReceiptAttribute SET from a base64-encoded app receipt.
  * Returns the hex-encoded concatenation of receipt attribute SEQUENCEs (the
  * SET's value), ready to be iterated directly.
@@ -178,9 +189,8 @@ const loadReceiptInfo = (appReceipt: string): Option.Option<string> => {
   }
   // Descend one more level to get the contents of the SET (its child sequences).
   const setParsed = parseAsn1(receiptInfoValue, 0);
-  return Option.isSome(setParsed)
-    ? Option.some(setParsed.value.value)
-    : Option.some(receiptInfoValue);
+  if (Option.isSome(setParsed)) return Option.some(setParsed.value.value);
+  return Option.some(receiptInfoValue);
 };
 
 /**
@@ -201,8 +211,7 @@ export const extractTransactionIdFromAppReceipt = (
 
       return forEachAttribute(receiptInfo.value, IN_APP_TYPE_ID, (inAppValue) => {
         // The in-app value itself is an OCTET STRING wrapping another SET.
-        const parsedInnerSet = parseAsn1(inAppValue, 0);
-        const innerSet = Option.isSome(parsedInnerSet) ? parsedInnerSet.value.value : inAppValue;
+        const innerSet = unwrapInnerSet(inAppValue);
         const idValue = Option.orElse(findAttribute(innerSet, TRANSACTION_IDENTIFIER_TYPE_ID), () =>
           findAttribute(innerSet, ORIGINAL_TRANSACTION_IDENTIFIER_TYPE_ID),
         );
@@ -212,7 +221,7 @@ export const extractTransactionIdFromAppReceipt = (
     },
     catch: (error) =>
       new ReceiptParseError({
-        message: `Failed to parse app receipt: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to parse app receipt: ${causeMessage(error)}`,
         cause: Option.some(error),
       }),
   });
@@ -248,7 +257,7 @@ export const extractTransactionIdFromTransactionReceipt = (
     },
     catch: (error) =>
       new ReceiptParseError({
-        message: `Failed to parse transaction receipt: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to parse transaction receipt: ${causeMessage(error)}`,
         cause: Option.some(error),
       }),
   });
@@ -293,10 +302,7 @@ export const extractAllTransactionIdsFromReceipt = (
           if (Option.isSome(versionNode)) {
             const valueNode = parseAsn1(seq.value.value, versionNode.value.end);
             if (Option.isSome(valueNode)) {
-              const parsedInnerSet = parseAsn1(valueNode.value.value, 0);
-              const innerSet = Option.isSome(parsedInnerSet)
-                ? parsedInnerSet.value.value
-                : valueNode.value.value;
+              const innerSet = unwrapInnerSet(valueNode.value.value);
               const idValue = Option.orElse(
                 findAttribute(innerSet, TRANSACTION_IDENTIFIER_TYPE_ID),
                 () => findAttribute(innerSet, ORIGINAL_TRANSACTION_IDENTIFIER_TYPE_ID),

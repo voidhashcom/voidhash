@@ -4,12 +4,37 @@ import type { FeatureFlagEntry, FeatureFlagsResult } from "../../types";
 import { CacheManager } from "../caching/cache-manager";
 import { EventBusProvider } from "../event-bus";
 import { IdentityManager } from "../identity/identity-manager";
-import { ApiClient } from "../networking/api-client";
+import { ApiClient, type WebSdkHeaders } from "../networking/api-client";
 import { PlatformProvider } from "../platform/platform-provider";
 import { SdkConfiguration } from "../sdk-configuration";
 
-const serializeKeys = (keys?: ReadonlyArray<string>) =>
-  keys && keys.length > 0 ? [...keys].sort().join(",") : "all";
+const ALL_KEYS = "all";
+
+const serializeKeys = (keys?: ReadonlyArray<string>) => {
+  if (keys && keys.length > 0) {
+    return [...keys].sort().join(",");
+  }
+
+  return ALL_KEYS;
+};
+
+const deserializeKeys = (serializedKeys: string) => {
+  if (serializedKeys === ALL_KEYS) {
+    return undefined;
+  }
+
+  return serializedKeys.split(",");
+};
+
+const emptyFlags = (): FeatureFlagsResult => ({ flags: [] });
+
+const buildEvaluatePayload = (keys?: ReadonlyArray<string>) => {
+  if (!keys) {
+    return {};
+  }
+
+  return { flagKeys: [...keys] };
+};
 
 const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
@@ -22,15 +47,13 @@ const make = Effect.gen(function* effect() {
   const latestFlags = new Map<string, FeatureFlagEntry>();
   const trackedKeySets = new Set<string>();
 
-  // SDK headers match the schema shape at runtime
-  const buildHeaders = (distinctId: string) =>
-    ({
-      ...platform.getSdkHeaders({
-        observerMode: config.observerMode,
-        publishableKey: config.publishableKey,
-      }),
-      "x-distinct-id": distinctId,
-    }) as any;
+  const buildHeaders = (distinctId: string): WebSdkHeaders => ({
+    ...platform.getSdkHeaders({
+      observerMode: config.observerMode,
+      publishableKey: config.publishableKey,
+    }),
+    "x-distinct-id": distinctId,
+  });
 
   const buildCacheKey = (distinctId: string, keys?: ReadonlyArray<string>) =>
     `feature-flags:${distinctId}:${serializeKeys(keys)}`;
@@ -53,7 +76,7 @@ const make = Effect.gen(function* effect() {
     Effect.gen(function* getOrRefreshFeatureFlags() {
       const distinctId = identityManager.getDistinctId();
       if (!distinctId) {
-        return { flags: [] } as FeatureFlagsResult;
+        return emptyFlags();
       }
 
       const cacheKey = buildCacheKey(distinctId, keys);
@@ -68,10 +91,9 @@ const make = Effect.gen(function* effect() {
         }
       }
 
-      const payload = keys ? { flagKeys: [...keys] as string[] } : {};
       const result = yield* apiClient.sdk.evaluateFeatureFlags({
         headers: buildHeaders(distinctId),
-        payload,
+        payload: buildEvaluatePayload(keys),
       });
 
       rememberFlags(result.flags);
@@ -93,7 +115,7 @@ const make = Effect.gen(function* effect() {
 
       yield* Effect.all(
         [...trackedKeySets].map((serializedKeys) =>
-          refreshFeatureFlags(serializedKeys === "all" ? undefined : serializedKeys.split(",")),
+          refreshFeatureFlags(deserializeKeys(serializedKeys)),
         ),
         { concurrency: "unbounded" },
       );
@@ -112,7 +134,7 @@ const make = Effect.gen(function* effect() {
     isEnabled,
     refreshFeatureFlags,
     refreshTrackedKeySets,
-  } as const;
+  };
 });
 
 export class FeatureFlagService extends Context.Service<

@@ -19,7 +19,7 @@ import {
   StripePaymentProviderService,
   StripePaymentProviderServiceError,
 } from "@voidhash/core/services";
-import { Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 const StripeWebhookPathParamsSchema = Schema.Struct({
@@ -30,6 +30,13 @@ const invalidPayloadResponse = HttpServerResponse.json(
   { error: "Invalid Stripe webhook request" },
   { status: 400 },
 );
+
+/** Maps the service failure kind onto the HTTP status Stripe should observe. */
+const webhookErrorStatus = (kind: StripePaymentProviderServiceError["kind"]): number => {
+  if (kind === "signature") return 400;
+  if (kind === "not_found") return 404;
+  return 500;
+};
 
 const registerStripeWebhookRoute = Effect.gen(function* () {
   const router = yield* HttpRouter.HttpRouter;
@@ -58,11 +65,12 @@ const registerStripeWebhookRoute = Effect.gen(function* () {
       // must NOT parse/re-serialize before verification.
       const rawBody = yield* request.text;
 
+      const receivedAt = yield* DateTime.nowAsDate;
       const stripePaymentProviderService = yield* StripePaymentProviderService;
       const result = yield* stripePaymentProviderService.acceptWebhookEvent({
         paymentProviderConfigurationId: pathParamsResult.success.paymentProviderConfigurationId,
         rawBody,
-        receivedAt: new Date(),
+        receivedAt,
         signatureHeader,
       });
 
@@ -79,8 +87,7 @@ const registerStripeWebhookRoute = Effect.gen(function* () {
         "StripePaymentProviderServiceError",
         (error: StripePaymentProviderServiceError) =>
           Effect.gen(function* () {
-            const status =
-              error.kind === "signature" ? 400 : error.kind === "not_found" ? 404 : 500;
+            const status = webhookErrorStatus(error.kind);
             yield* Effect.logWarning("Stripe webhook processing failed", {
               cause: error.cause,
               kind: error.kind ?? "transient",

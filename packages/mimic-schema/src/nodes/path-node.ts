@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import { createStateSchemaWithStyleOverrides } from "../states/index.ts";
@@ -43,7 +44,7 @@ const pathNodeStates = Primitive.Array(pathNodeStateSchema).default([]);
 
 /** PathNode tree node schema - represents an SVG path element */
 export const PathNode = Primitive.TreeNode("path", {
-  children: [] as const,
+  children: constant([]),
   data: Primitive.Struct({
     linkedVariables,
     localVariables,

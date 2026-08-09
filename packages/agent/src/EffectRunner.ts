@@ -23,6 +23,13 @@ export const bindEffectRunner =
   (effect, signal) =>
     runner(connectionData, effect, signal);
 
+const runOptions = (
+  signal: AbortSignal | undefined,
+): { readonly signal: AbortSignal } | undefined => {
+  if (signal === undefined) return undefined;
+  return { signal };
+};
+
 /**
  * Builds a fresh scoped Layer for every execution and releases it only after
  * the supplied Effect completes.
@@ -32,7 +39,4 @@ export const makeLayerEffectRunner =
     layerFor: (connectionData: ConnectionData) => Layer.Layer<R>,
   ): EffectRunner<ConnectionData, R> =>
   (connectionData, effect, signal) =>
-    Effect.runPromise(
-      effect.pipe(Effect.provide(layerFor(connectionData))),
-      signal === undefined ? undefined : { signal },
-    );
+    Effect.runPromise(effect.pipe(Effect.provide(layerFor(connectionData))), runOptions(signal));

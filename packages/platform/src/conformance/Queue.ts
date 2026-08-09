@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from "effect";
+import { Clock, Effect, Layer, Random, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import type { PlatformRuntime } from "../PlatformRuntime.ts";
@@ -10,7 +10,13 @@ const Message = Schema.Struct({ id: Schema.String });
  * Durable stores keep undelivered rows between runs, so queue names are
  * per-run to stop one run's leftovers from leaking into the next.
  */
-const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const runId = Effect.runSync(
+  Effect.gen(function* () {
+    const millis = yield* Clock.currentTimeMillis;
+    const entropy = yield* Random.nextIntBetween(0, 0xff_ff_ff);
+    return `${millis.toString(36)}-${entropy.toString(36)}`;
+  }),
+);
 type Message = typeof Message.Type;
 
 /** Wiring one adapter must supply for the queue conformance suite. */
@@ -26,6 +32,12 @@ export interface QueueConformanceOptions {
   readonly maxBatchSize?: number;
 }
 
+/** The outcome a retry-probing handler reports for one delivery. */
+const handlerOutcome = (shouldFail: boolean): Effect.Effect<void, string> => {
+  if (shouldFail) return Effect.fail("boom");
+  return Effect.void;
+};
+
 /**
  * Behaviour every queue driver must exhibit, regardless of backend.
  *
@@ -36,14 +48,14 @@ export interface QueueConformanceOptions {
  */
 export const queueDriverConformance = (options: QueueConformanceOptions): void => {
   const run = <A, E>(effect: Effect.Effect<A, E, QueueDriver | PlatformRuntime>): Promise<A> =>
-    Effect.runPromise(Effect.scoped(effect.pipe(Effect.provide(options.layer()))) as Effect.Effect<A, E>);
+    Effect.runPromise(Effect.scoped(effect.pipe(Effect.provide(options.layer()))));
 
   describe(`${options.name}: queue driver conformance`, () => {
-    it("delivers a published message to a consumer", async () => {
-      const seen: Array<string> = [];
-
-      await run(
+    it("delivers a published message to a consumer", () =>
+      run(
         Effect.gen(function* () {
+          const seen: Array<string> = [];
+
           const driver = yield* QueueDriver;
           yield* driver.producer(`conformance-basic-${runId}`, Message).publish({ id: "first" });
 
@@ -55,30 +67,30 @@ export const queueDriverConformance = (options: QueueConformanceOptions): void =
           );
 
           expect(claimed).toBeGreaterThan(0);
+          expect(seen).toEqual(["first"]);
         }),
-      );
+      ));
 
-      expect(seen).toEqual(["first"]);
-    });
-
-    it("reports an empty queue instead of blocking", async () => {
-      const claimed = await run(
+    it("reports an empty queue instead of blocking", () =>
+      run(
         Effect.gen(function* () {
           const driver = yield* QueueDriver;
-          return yield* driver.processBatch(`conformance-empty-${runId}`, Message, () => Effect.void, {
-            pollIntervalMillis: 50,
-          });
+          const claimed = yield* driver.processBatch(
+            `conformance-empty-${runId}`,
+            Message,
+            () => Effect.void,
+            { pollIntervalMillis: 50 },
+          );
+
+          expect(claimed).toBe(0);
         }),
-      );
+      ));
 
-      expect(claimed).toBe(0);
-    });
-
-    it("redelivers a message after the handler fails", async () => {
-      const attempts: Array<string> = [];
-
-      await run(
+    it("redelivers a message after the handler fails", () =>
+      run(
         Effect.gen(function* () {
+          const attempts: Array<string> = [];
+
           const driver = yield* QueueDriver;
           yield* driver.producer(`conformance-retry-${runId}`, Message).publish({ id: "retry-me" });
 
@@ -88,24 +100,23 @@ export const queueDriverConformance = (options: QueueConformanceOptions): void =
               Message,
               (messages: ReadonlyArray<Message>) =>
                 Effect.sync(() => void attempts.push(...messages.map((m) => m.id))).pipe(
-                  Effect.andThen(shouldFail ? Effect.fail("boom") : Effect.void),
+                  Effect.andThen(handlerOutcome(shouldFail)),
                 ),
               { maxRetries: 2, pollIntervalMillis: 100, retryDelayMillis: 1 },
             );
 
           yield* consume(true);
           yield* consume(false);
+
+          expect(attempts).toEqual(["retry-me", "retry-me"]);
         }),
-      );
+      ));
 
-      expect(attempts).toEqual(["retry-me", "retry-me"]);
-    });
-
-    it("dead-letters a message once retries are exhausted", async () => {
-      const dead: Array<string> = [];
-
-      await run(
+    it("dead-letters a message once retries are exhausted", () =>
+      run(
         Effect.gen(function* () {
+          const dead: Array<string> = [];
+
           const driver = yield* QueueDriver;
           yield* driver.producer(`conformance-dlq-${runId}`, Message).publish({ id: "doomed" });
 
@@ -124,18 +135,17 @@ export const queueDriverConformance = (options: QueueConformanceOptions): void =
               Effect.sync(() => void dead.push(...messages.map((m) => m.id))),
             { pollIntervalMillis: 200 },
           );
+
           expect(claimed).toBeGreaterThan(0);
+          expect(dead).toEqual(["doomed"]);
         }),
-      );
+      ));
 
-      expect(dead).toEqual(["doomed"]);
-    });
-
-    it("acknowledges an undecodable payload instead of redelivering it forever", async () => {
-      const seen: Array<string> = [];
-
-      await run(
+    it("acknowledges an undecodable payload instead of redelivering it forever", () =>
+      run(
         Effect.gen(function* () {
+          const seen: Array<string> = [];
+
           const driver = yield* QueueDriver;
           // Publish through a schema the consumer cannot decode.
           yield* driver
@@ -157,11 +167,10 @@ export const queueDriverConformance = (options: QueueConformanceOptions): void =
               Effect.sync(() => void seen.push(...messages.map((m) => m.id))),
             { pollIntervalMillis: 100 },
           );
-        }),
-      );
 
-      // The poison payload is dropped; the healthy message still arrives.
-      expect(seen).toEqual(["good"]);
-    });
+          // The poison payload is dropped; the healthy message still arrives.
+          expect(seen).toEqual(["good"]);
+        }),
+      ));
   });
 };

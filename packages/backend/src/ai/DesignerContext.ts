@@ -1,7 +1,13 @@
 import { PaywallService, PaywallWorkspaceService } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
 import { fileNameFromDocRelative, readComponentDefinitions } from "@voidhash/paywall-workspace";
+import { pick } from "@voidhash/lib/lang";
 import { Effect } from "effect";
+
+type DocumentSnapshotNode = Parameters<typeof readComponentDefinitions>[0][number];
+
+const isSnapshotNode = (value: unknown): value is DocumentSnapshotNode =>
+  typeof value === "object" && value !== null;
 
 /** Server-resolved facts about the user's current designer workspace. */
 export interface DesignerContext {
@@ -27,10 +33,8 @@ export interface DesignerContextInput {
 }
 
 const componentFileNamesFromDocument = (root: unknown): ReadonlyArray<string> => {
-  const snapshot = (root != null ? [root] : []) as unknown as Parameters<
-    typeof readComponentDefinitions
-  >[0];
-  return readComponentDefinitions(snapshot).map((definition) =>
+  if (!isSnapshotNode(root)) return [];
+  return readComponentDefinitions([root]).map((definition) =>
     fileNameFromDocRelative(definition.path),
   );
 };
@@ -72,26 +76,27 @@ export const buildDesignerContext = (
       { concurrency: 8 },
     );
     const openRow = rows.find((row) => row.id === input.paywallId);
+    if (openRow === undefined) {
+      return { paywalls, selectedNodeIds: input.selectedNodeIds };
+    }
     return {
       paywalls,
-      ...(openRow === undefined
-        ? {}
-        : {
-            openPaywall: {
-              paywallId: openRow.id,
-              slug: openRow.slug,
-              name: openRow.name,
-            },
-          }),
+      openPaywall: {
+        paywallId: openRow.id,
+        slug: openRow.slug,
+        name: openRow.name,
+      },
       selectedNodeIds: input.selectedNodeIds,
     };
   }).pipe(Effect.catchCause(() => Effect.succeed(undefined)));
 
+const formatComponents = (componentFileNames: ReadonlyArray<string>): string => {
+  if (componentFileNames.length === 0) return "no code components";
+  return `components: ${componentFileNames.map((fileName) => `components/${fileName}`).join(", ")}`;
+};
+
 const formatPaywallEntry = (paywall: DesignerContext["paywalls"][number]): string => {
-  const components =
-    paywall.componentFileNames.length > 0
-      ? `components: ${paywall.componentFileNames.map((fileName) => `components/${fileName}`).join(", ")}`
-      : "no code components";
+  const components = formatComponents(paywall.componentFileNames);
   return `- ${paywall.paywallId} ("${paywall.name}", slug "${paywall.slug}"): ${components}`;
 };
 
@@ -109,7 +114,7 @@ export const renderDesignerContext = (context: DesignerContext): string => {
       `The user currently has the "${name}" paywall (id "${paywallId}", slug "${slug}") open in the designer. Unqualified references like "this paywall", "the current screen", or "here" mean this one — open it with \`begin_paywall_edit({ paywallId: "${paywallId}" })\`, then pass the returned \`editSessionId\` to every scoped tool.`,
     ];
     if (context.selectedNodeIds.length > 0) {
-      const plural = context.selectedNodeIds.length === 1 ? "node" : "nodes";
+      const plural = pick(context.selectedNodeIds.length === 1, "node", "nodes");
       lines.push(
         `The user currently has ${plural} with id ${context.selectedNodeIds.join(", ")} selected in the open paywall — these are document node ids you can target directly in \`edit_paywall\` ops (no need to re-locate them).`,
       );
@@ -120,5 +125,6 @@ export const renderDesignerContext = (context: DesignerContext): string => {
       "The user does not have a specific paywall open in the designer right now, so treat requests as project-wide unless they name a paywall.",
     );
   }
-  return sections.length === 0 ? "" : `\n\nCurrent context:\n${sections.join("\n\n")}`;
+  if (sections.length === 0) return "";
+  return `\n\nCurrent context:\n${sections.join("\n\n")}`;
 };

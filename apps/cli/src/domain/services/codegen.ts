@@ -1,4 +1,5 @@
-import { Effect, FileSystem, Layer, Path, Context } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { DateTime, Effect, FileSystem, Layer, Path, Schema, Context } from "effect";
 
 import {
   VOIDHASH_FETCHED_AT_COMMENT_PREFIX,
@@ -9,11 +10,14 @@ import type { Writable } from "../../utils/types";
 import type { NormalizedSchema } from "../schema/normalized-schema";
 import type { VoidhashConfigSchema } from "../schema/voidhash-config";
 
+/** Encodes a slug as a quoted TypeScript string literal. */
+const toStringLiteral = Schema.encodeSync(Schema.fromJsonString(Schema.String));
+
 function toUnionType(slugs: string[]): string {
   if (slugs.length === 0) {
     return "never";
   }
-  return slugs.map((slug) => JSON.stringify(slug)).join(" | ");
+  return slugs.map((slug) => toStringLiteral(slug)).join(" | ");
 }
 
 /**
@@ -33,9 +37,9 @@ function toUnionType(slugs: string[]): string {
 export function generateTypesDeclaration(
   schema: NormalizedSchema,
   version: string,
-  options: { fetchedAt?: Date } = {},
+  options: { fetchedAt: Date },
 ): string {
-  const fetchedAt = (options.fetchedAt ?? new Date()).toISOString();
+  const fetchedAt = options.fetchedAt.toISOString();
 
   const productSlugs = [...schema.products.keys()].sort();
   const locationSlugs = [...schema.locations.keys()].sort();
@@ -126,7 +130,8 @@ const make = Effect.gen(function* effect() {
     version: string,
   ) =>
     Effect.gen(function* generateTypesDeclarationFile() {
-      const content = generateTypesDeclaration(schema, version);
+      const fetchedAt = yield* DateTime.nowAsDate;
+      const content = generateTypesDeclaration(schema, version, { fetchedAt });
       yield* fileSystem.writeFileString(filePath, content);
       return version;
     });
@@ -137,12 +142,12 @@ const make = Effect.gen(function* effect() {
       return parseVersionFromDeclaration(content);
     });
 
-  return {
+  return constant({
     generateClientFile,
     generateTypesDeclarationFile,
     generateVoidhashConfigFile,
     readDeclarationVersion,
-  } as const;
+  });
 });
 
 type CodegenShape = Effect.Success<typeof make>;

@@ -15,7 +15,7 @@ import { LocalUserSessionService } from "@voidhash/core/services/auth/LocalUserS
 import { IdentityLinkBackfillService } from "@voidhash/core/services/auth/IdentityLinkBackfillService";
 import { AuthSession } from "@voidhash/rpc";
 import { Db, type DbError } from "@voidhash/db";
-import { Effect, Layer, Option, pipe } from "effect";
+import { Config, Effect, Layer, Option, pipe } from "effect";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import { HttpServerRequest } from "effect/unstable/http";
 
@@ -113,7 +113,8 @@ export const AuthMiddlewareLive = Layer.effect(
     // is sealed by the framework (`Provided`/`Scope` only), so `Db` is supplied
     // here rather than leaking out of the handler.
     const db = yield* Db;
-    const shouldBackfillWorkosLocalState = process.env.APP_ENV === "development";
+    const appEnv = yield* Config.string("APP_ENV").pipe(Config.withDefault(""), Effect.orDie);
+    const shouldBackfillWorkosLocalState = appEnv === "development";
 
     const authenticateApiKey = (rawApiKey: string) =>
       pipe(
@@ -146,11 +147,15 @@ export const AuthMiddlewareLive = Layer.effect(
             );
           }
 
-          const localUser = yield* shouldBackfillWorkosLocalState
-            ? workosLocalSync
+          const resolveUser = () => {
+            if (shouldBackfillWorkosLocalState) {
+              return workosLocalSync
                 .syncAuthenticatedUser(identity)
-                .pipe(Effect.map((synced) => synced.localUser))
-            : localUserSessions.resolveLocalUser(identity);
+                .pipe(Effect.map((synced) => synced.localUser));
+            }
+            return localUserSessions.resolveLocalUser(identity);
+          };
+          const localUser = yield* resolveUser();
           const access = yield* localUserSessions.loadUserAccess(localUser.id);
           return localUserSessions.toUserSession(
             localUser,

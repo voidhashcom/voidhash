@@ -13,6 +13,9 @@ import type {
 
 declare const producer: QueueProducer<string>;
 
+/** Type-level fixture: this file is typechecked, never executed. */
+declare const epoch: Date;
+
 const queuePublishRuntime: Effect.Effect<void, QueueProducerError, PlatformRuntime> =
   producer.publish("message");
 const queueBatchRuntime: Effect.Effect<void, QueueProducerError, PlatformRuntime> =
@@ -31,14 +34,14 @@ declare const policyStore: PolicyCounterStoreShape;
 
 const requestLimitRuntime: Effect.Effect<RequestLimitCheck, PolicyStoreError, PlatformRuntime> =
   policyStore.checkRequestLimit({
-    now: new Date(0),
+    now: epoch,
     projectId: "project",
     requestsPerMinute: 1,
   });
 
 const eventQuotaRuntime: Effect.Effect<boolean, PolicyStoreError, PlatformRuntime> =
   policyStore.checkEventQuota({
-    now: new Date(0),
+    now: epoch,
     projectId: "project",
     quota: 1,
   });
@@ -46,7 +49,7 @@ const eventQuotaRuntime: Effect.Effect<boolean, PolicyStoreError, PlatformRuntim
 // @ts-expect-error Policy counters backed by runtime resources must stay runtime-colored.
 const requestLimitNeutral: Effect.Effect<RequestLimitCheck, PolicyStoreError, never> =
   policyStore.checkRequestLimit({
-    now: new Date(0),
+    now: epoch,
     projectId: "project",
     requestsPerMinute: 1,
   });
@@ -54,7 +57,7 @@ const requestLimitNeutral: Effect.Effect<RequestLimitCheck, PolicyStoreError, ne
 // @ts-expect-error Policy counters backed by runtime resources must stay runtime-colored.
 const eventQuotaNeutral: Effect.Effect<boolean, PolicyStoreError, never> =
   policyStore.checkEventQuota({
-    now: new Date(0),
+    now: epoch,
     projectId: "project",
     quota: 1,
   });

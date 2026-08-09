@@ -59,6 +59,7 @@ export interface StandaloneAuthConfig {
  * {@link standaloneAuthConfigIssues} first.
  */
 export const resolveStandaloneAuthConfig = (
+  // oxlint-disable-next-line effect/noGlobals -- synchronous config adapter: the env bag is the default argument read from synchronous call sites (self-host bootstrap and TanStack Start server routes) before any Effect runtime exists.
   env: StandaloneAuthEnv = process.env,
 ): StandaloneAuthConfig => ({
   rootEmail: normalizeEmail(env.VOIDHASH_ROOT_EMAIL?.trim() || DEFAULT_ROOT_EMAIL),
@@ -72,6 +73,7 @@ export const resolveStandaloneAuthConfig = (
  * default. Empty when the deployment is safe to expose beyond loopback.
  */
 export const standaloneAuthConfigIssues = (
+  // oxlint-disable-next-line effect/noGlobals -- synchronous config adapter: the env bag is the default argument read from synchronous call sites (self-host bootstrap and TanStack Start server routes) before any Effect runtime exists.
   env: StandaloneAuthEnv = process.env,
 ): ReadonlyArray<string> => {
   const issues: Array<string> = [];

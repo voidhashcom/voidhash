@@ -1,6 +1,8 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
+import { constant } from "@voidhash/lib/lang";
+
 import {
   CLICKHOUSE_EVENTS_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE,
@@ -15,15 +17,15 @@ import { ClickhouseWebClient } from "../clickhouse-client-web/index.ts";
  * `organization_id` so the readonly analytics user's per-tenant row policies
  * can isolate them (events_v2 already carries `organization_id`).
  */
-const IDENTITY_TABLES = [
+const IDENTITY_TABLES = constant([
   CLICKHOUSE_PERSONS_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_TABLE,
-] as const;
+]);
 
 /** Transient `project_id -> organization_id` lookup used only during backfill. */
-const ORG_BACKFILL_JOIN = "person_org_backfill_join_0007" as const;
+const ORG_BACKFILL_JOIN = "person_org_backfill_join_0007";
 
 const execute = (statement: string) =>
   Effect.gen(function* () {

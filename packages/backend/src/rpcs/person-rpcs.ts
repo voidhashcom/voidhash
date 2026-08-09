@@ -73,7 +73,10 @@ export const PersonRpcsLive = PersonRpcsDef.toLayer(
       ListPersons: ({ projectId }) =>
         personService.getPersons({ projectId }).pipe(
           Effect.map((persons) =>
-            persons.flatMap((person) => (person ? [toRpcPerson(person)] : [])),
+            persons.flatMap((person) => {
+              if (!person) return [];
+              return [toRpcPerson(person)];
+            }),
           ),
           Effect.catchTags({
             ActionForbiddenError: (error) =>

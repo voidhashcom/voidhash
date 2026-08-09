@@ -79,9 +79,10 @@ export function formatComponentPath(paywallSlug: string, fileName: string): stri
 
 /** Formats a parsed {@link WorkspacePath} back to its string form. */
 export function formatWorkspacePath(path: WorkspacePath): string {
-  return path.kind === "composition"
-    ? formatCompositionPath(path.paywallSlug)
-    : formatComponentPath(path.paywallSlug, path.fileName);
+  if (path.kind === "composition") {
+    return formatCompositionPath(path.paywallSlug);
+  }
+  return formatComponentPath(path.paywallSlug, path.fileName);
 }
 
 /**
@@ -116,7 +117,10 @@ export function docRelativeFromFileName(fileName: string): string {
  */
 export function fileNameFromDocRelative(docRelativePath: string): string {
   const prefix = `${COMPONENTS_SEGMENT}/`;
-  return docRelativePath.startsWith(prefix) ? docRelativePath.slice(prefix.length) : docRelativePath;
+  if (docRelativePath.startsWith(prefix)) {
+    return docRelativePath.slice(prefix.length);
+  }
+  return docRelativePath;
 }
 
 /**

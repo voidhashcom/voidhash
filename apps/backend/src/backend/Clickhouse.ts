@@ -8,32 +8,38 @@ import {
   CLICKHOUSE_PERSONS_TABLE,
 } from "@voidhash/clickhouse-db/analytics/schema";
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
 import type { SelfhostClickhouseConfig } from "../config.ts";
 
-const tenantTables = [
+const tenantTables = constant([
   CLICKHOUSE_EVENTS_TABLE,
   CLICKHOUSE_PERSONS_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_TABLE,
-] as const;
+]);
 
-const queryTables = [
+const queryTables = constant([
   CLICKHOUSE_EVENTS_TABLE,
   CLICKHOUSE_PERSONS_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_TABLE,
-] as const;
+]);
 
 const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-const assertIdentifier = (name: string, value: string): string => {
+/**
+ * Guards a configured ClickHouse identifier before it is interpolated into DDL.
+ * A bad identifier is a deployment misconfiguration, not a recoverable failure,
+ * so it is raised as a defect exactly as the previous `throw` was.
+ */
+const assertIdentifier = (name: string, value: string): Effect.Effect<string> => {
   if (!identifierPattern.test(value)) {
-    throw new Error(`${name} must be a ClickHouse identifier`);
+    return Effect.die(new Error(`${name} must be a ClickHouse identifier`));
   }
-  return value;
+  return Effect.succeed(value);
 };
 
 const makeClientLive = (config: SelfhostClickhouseConfig["readWrite"]) =>
@@ -50,11 +56,20 @@ const provisionSelfhostClickhouseAccess = (config: SelfhostClickhouseConfig) =>
   Effect.gen(function* () {
     const ch = yield* ClickhouseWebClient.ClickhouseWebClient;
     const sql = yield* SqlClient.SqlClient;
-    const database = assertIdentifier("CLICKHOUSE_DATABASE", config.admin.database);
-    const adminUser = assertIdentifier("CLICKHOUSE_ADMIN_USERNAME", config.admin.username);
-    const readWriteUser = assertIdentifier("CLICKHOUSE_USERNAME", config.readWrite.username);
-    const readOnlyUser = assertIdentifier("CLICKHOUSE_RO_USERNAME", config.readOnly.username);
-    const queryUser = assertIdentifier(
+    const database = yield* assertIdentifier("CLICKHOUSE_DATABASE", config.admin.database);
+    const adminUser = yield* assertIdentifier(
+      "CLICKHOUSE_ADMIN_USERNAME",
+      config.admin.username,
+    );
+    const readWriteUser = yield* assertIdentifier(
+      "CLICKHOUSE_USERNAME",
+      config.readWrite.username,
+    );
+    const readOnlyUser = yield* assertIdentifier(
+      "CLICKHOUSE_RO_USERNAME",
+      config.readOnly.username,
+    );
+    const queryUser = yield* assertIdentifier(
       "CLICKHOUSE_ANALYTICS_QUERY_USERNAME",
       config.analyticsQuery.username,
     );
@@ -62,11 +77,11 @@ const provisionSelfhostClickhouseAccess = (config: SelfhostClickhouseConfig) =>
     const readOnlyRole = `${database}_ro_role`;
     const queryRole = `${database}_query_role`;
 
-    for (const [user, password] of [
+    for (const [user, password] of constant([
       [readWriteUser, config.readWrite.password],
       [readOnlyUser, config.readOnly.password],
       [queryUser, config.analyticsQuery.password],
-    ] as const) {
+    ])) {
       yield* ch.asCommand(sql`
         CREATE USER IF NOT EXISTS ${sql(user)} IDENTIFIED WITH sha256_password BY ${password}
       `);

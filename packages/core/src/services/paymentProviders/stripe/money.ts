@@ -19,6 +19,7 @@
  */
 import { parseISO4217CurrencyCode } from "@voidhash/lib/constants";
 import type { DbError } from "@voidhash/db";
+import { pick } from "@voidhash/lib/lang";
 import { Effect, Option } from "effect";
 
 import {
@@ -68,7 +69,10 @@ export interface FxRateLookupShape {
   }) => Effect.Effect<Option.Option<FxRateLookup>, FxRateServiceError | DbError>;
 }
 
-const nonNegative = (n: number): number => (n > 0 ? Math.round(n) : 0);
+const nonNegative = (n: number): number => {
+  if (n > 0) return Math.round(n);
+  return 0;
+};
 
 /**
  * Builds the platform-neutral money record for a Stripe money-bearing event.
@@ -101,8 +105,11 @@ export const buildStripeMoney = (input: {
 
     const grossAmount = nonNegative(input.grossMinor);
     const taxAmount = nonNegative(input.taxMinor);
-    const storeCommissionAmount =
-      input.feeMinor === undefined ? 0 : Math.min(nonNegative(input.feeMinor), grossAmount);
+    const storeCommissionAmount = pick(
+      input.feeMinor === undefined,
+      0,
+      Math.min(nonNegative(input.feeMinor ?? 0), grossAmount),
+    );
     const proceedsAmount = nonNegative(grossAmount - storeCommissionAmount);
     const proceedsAfterTaxAmount = nonNegative(proceedsAmount - taxAmount);
 

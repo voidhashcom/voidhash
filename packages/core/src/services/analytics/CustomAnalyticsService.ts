@@ -15,7 +15,9 @@ import {
   isNull,
   persons,
 } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
 import type {
+  AnalyticsActorType,
   AnalyticsCohortType,
   AnalyticsDashboardItemLayoutType,
   AnalyticsDashboardType,
@@ -27,7 +29,7 @@ import type {
   SavedAnalyticsInsightType,
   SavedVoidQlInsightType,
 } from "@voidhash/rpc";
-import { Context, Effect, Layer, Option } from "effect";
+import { Context, DateTime, Effect, Layer, Option } from "effect";
 
 import { InvalidAnalyticsQueryError, resolveTimeRange } from "../../domain/analytics/Analytics.ts";
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -54,21 +56,55 @@ type AnalyticsDashboardRow = typeof analyticsDashboards.$inferSelect;
 type AnalyticsCohortRow = typeof analyticsCohorts.$inferSelect;
 type AnalyticsSavedQueryRow = typeof analyticsSavedQuery.$inferSelect;
 
-const toSavedInsight = (row: AnalyticsInsightRow): SavedAnalyticsInsightType => {
-  const definition = row.definition as CustomAnalyticsInsightQueryType;
-  return {
-    createdAt: row.createdAt,
-    createdBy: row.createdBy,
-    definition,
-    description: row.description,
-    id: row.id,
-    kind: definition.kind,
-    name: row.name,
-    organizationId: row.organizationId,
-    projectId: row.projectId,
-    updatedAt: row.updatedAt,
-  };
-};
+/** Builds a `Date` without the ambient constructor, from epoch millis or another date. */
+const dateFrom = (input: Date | number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(input));
+
+/** Wall-clock timestamp used for row bookkeeping columns. */
+const currentTimestamp = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe());
+
+const CUSTOM_INSIGHT_KINDS = new Set([
+  "trends",
+  "funnels",
+  "retention",
+  "paths",
+  "stickiness",
+  "lifecycle",
+]);
+
+/**
+ * Narrows the untyped `jsonb` definition column to the saved insight query union.
+ *
+ * Rows are only ever written from an already validated RPC payload, so the tag
+ * check is enough to trust the stored shape.
+ */
+const isCustomAnalyticsInsightQuery = (
+  value: unknown,
+): value is CustomAnalyticsInsightQueryType =>
+  typeof value === "object" &&
+  value !== null &&
+  "kind" in value &&
+  typeof value.kind === "string" &&
+  CUSTOM_INSIGHT_KINDS.has(value.kind);
+
+const toSavedInsight = (row: AnalyticsInsightRow): Effect.Effect<SavedAnalyticsInsightType> =>
+  Effect.gen(function* () {
+    if (!isCustomAnalyticsInsightQuery(row.definition)) {
+      return yield* Effect.die(`Analytics insight ${row.id} has a malformed definition`);
+    }
+    const definition = row.definition;
+    return {
+      createdAt: row.createdAt,
+      createdBy: row.createdBy,
+      definition,
+      description: row.description,
+      id: row.id,
+      kind: definition.kind,
+      name: row.name,
+      organizationId: row.organizationId,
+      projectId: row.projectId,
+      updatedAt: row.updatedAt,
+    };
+  });
 
 const toSavedVoidQlInsight = (row: AnalyticsSavedQueryRow): SavedVoidQlInsightType => ({
   createdAt: row.createdAt,
@@ -114,8 +150,8 @@ type ResolvedTrendsTimeRange = TrendsInsightResult["resolvedTimeRange"];
 
 const shiftUtcYear = (value: Date, years: number): Date => {
   const targetYear = value.getUTCFullYear() + years;
-  const lastDay = new Date(Date.UTC(targetYear, value.getUTCMonth() + 1, 0)).getUTCDate();
-  return new Date(
+  const lastDay = dateFrom(Date.UTC(targetYear, value.getUTCMonth() + 1, 0)).getUTCDate();
+  return dateFrom(
     Date.UTC(
       targetYear,
       value.getUTCMonth(),
@@ -138,16 +174,77 @@ export const resolveTrendsComparisonTimeRange = (
 
   const duration = current.end.getTime() - current.start.getTime();
   return {
-    end: new Date(current.start.getTime() - 1_000),
-    start: new Date(current.start.getTime() - duration),
+    end: dateFrom(current.start.getTime() - 1_000),
+    start: dateFrom(current.start.getTime() - duration),
   };
+};
+
+/** Resolve a Trends comparison window when the definition asks for one. */
+const resolveOptionalTrendsComparisonTimeRange = (
+  comparison: AnalyticsTrendsComparisonType | undefined,
+  current: ResolvedTrendsTimeRange,
+): ResolvedTrendsTimeRange | undefined => {
+  if (comparison === undefined) return undefined;
+  return resolveTrendsComparisonTimeRange(comparison, current);
+};
+
+/** Key suffix that distinguishes a comparison period's series from the current one. */
+const trendsComparisonKeySuffix = (
+  comparison: "current" | AnalyticsTrendsComparisonType,
+): string => {
+  if (comparison === "current") return "";
+  return `:comparison:${comparison}`;
+};
+
+/** Human-readable name for a Trends comparison period. */
+const trendsComparisonLabel = (
+  comparison: "current" | AnalyticsTrendsComparisonType,
+): string | undefined => {
+  if (comparison === "previous_period") return "previous period";
+  if (comparison === "previous_year") return "previous year";
+  return undefined;
+};
+
+const labelWithComparison = (
+  label: string,
+  comparison: "current" | AnalyticsTrendsComparisonType,
+): string => {
+  const suffix = trendsComparisonLabel(comparison);
+  if (suffix === undefined) return label;
+  return `${label} (${suffix})`;
+};
+
+const keyWithBreakdown = (key: string, breakdownValue: string | undefined): string => {
+  if (breakdownValue === undefined) return key;
+  return `${key}:${breakdownValue}`;
+};
+
+const labelWithBreakdown = (label: string, breakdownValue: string | undefined): string => {
+  if (breakdownValue === undefined) return label;
+  return `${label} · ${breakdownValue || "(empty)"}`;
+};
+
+const stripSuffix = (key: string, suffix: string): string => {
+  if (suffix.length === 0) return key;
+  return key.slice(0, -suffix.length);
+};
+
+const breakdownValueFromKey = (sourceKey: string, seriesKey: string): string | undefined => {
+  if (sourceKey === seriesKey) return undefined;
+  return sourceKey.slice(seriesKey.length + 1);
+};
+
+/** Divide while treating an empty denominator as a zero rate. */
+const safeRatio = (numerator: number, denominator: number): number => {
+  if (denominator === 0) return 0;
+  return numerator / denominator;
 };
 
 const startOfTrendsBucket = (
   value: Date,
   granularity: ExecutableTrendsDefinition["granularity"],
 ): Date => {
-  const bucket = new Date(value);
+  const bucket = dateFrom(value);
   bucket.setUTCMilliseconds(0);
   if (granularity === "hour") bucket.setUTCMinutes(0, 0, 0);
   else {
@@ -166,7 +263,7 @@ const nextTrendsBucket = (
   value: Date,
   granularity: ExecutableTrendsDefinition["granularity"],
 ): Date => {
-  const next = new Date(value);
+  const next = dateFrom(value);
   if (granularity === "hour") next.setUTCHours(next.getUTCHours() + 1);
   else if (granularity === "day") next.setUTCDate(next.getUTCDate() + 1);
   else if (granularity === "week") next.setUTCDate(next.getUTCDate() + 7);
@@ -203,7 +300,8 @@ export const alignTrendsComparisonPoints = (
   );
   return points.flatMap((point) => {
     const timestamp = currentByComparisonTimestamp.get(point.timestamp.getTime());
-    return timestamp ? [{ ...point, timestamp }] : [];
+    if (timestamp === undefined) return [];
+    return [{ ...point, timestamp }];
   });
 };
 
@@ -245,9 +343,10 @@ export const applyTrendsPresentation = (
       return { ...point, value: total };
     });
   }
-  return options.hideWeekends
-    ? presented.filter((point) => ![0, 6].includes(point.timestamp.getUTCDay()))
-    : presented;
+  if (options.hideWeekends) {
+    return presented.filter((point) => ![0, 6].includes(point.timestamp.getUTCDay()));
+  }
+  return presented;
 };
 
 type TrendsFormulaNode =
@@ -271,35 +370,46 @@ type TrendsFormulaToken =
   | { readonly kind: "operator"; readonly value: "+" | "-" | "*" | "/" | "%" | "**" }
   | { readonly kind: "left_parenthesis" | "right_parenthesis" };
 
-const tokenizeTrendsFormula = (source: string): TrendsFormulaToken[] => {
-  const tokens: TrendsFormulaToken[] = [];
-  let offset = 0;
-  while (offset < source.length) {
-    const character = source[offset];
-    if (character && /\s/u.test(character)) {
-      offset += 1;
-      continue;
-    }
-    const remainder = source.slice(offset);
-    const number = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/iu.exec(remainder)?.[0];
-    if (number) {
-      const value = Number(number);
-      if (!Number.isFinite(value)) throw new Error("Formula numbers must be finite");
-      tokens.push({ kind: "number", value });
-      offset += number.length;
-    } else {
+const TRENDS_FORMULA_OPERATORS = constant(["+", "-", "*", "/", "%"]);
+
+const arithmeticOperator = (
+  character: string | undefined,
+): (typeof TRENDS_FORMULA_OPERATORS)[number] | undefined =>
+  TRENDS_FORMULA_OPERATORS.find((operator) => operator === character);
+
+const tokenizeTrendsFormula = (
+  source: string,
+): Effect.Effect<TrendsFormulaToken[], InvalidAnalyticsQueryError> =>
+  Effect.gen(function* () {
+    const tokens: TrendsFormulaToken[] = [];
+    let offset = 0;
+    while (offset < source.length) {
+      const character = source[offset];
+      if (character && /\s/u.test(character)) {
+        offset += 1;
+        continue;
+      }
+      const remainder = source.slice(offset);
+      const number = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/iu.exec(remainder)?.[0];
       const identifier = /^[a-z][a-z0-9_]*/iu.exec(remainder)?.[0];
-      if (identifier) {
+      const operator = arithmeticOperator(character);
+      if (number) {
+        const value = Number(number);
+        if (!Number.isFinite(value)) {
+          return yield* Effect.fail(
+            new InvalidAnalyticsQueryError({ message: "Formula numbers must be finite" }),
+          );
+        }
+        tokens.push({ kind: "number", value });
+        offset += number.length;
+      } else if (identifier) {
         tokens.push({ kind: "identifier", value: identifier.toLowerCase() });
         offset += identifier.length;
       } else if (remainder.startsWith("**")) {
         tokens.push({ kind: "operator", value: "**" });
         offset += 2;
-      } else if (character && "+-*/%".includes(character)) {
-        tokens.push({
-          kind: "operator",
-          value: character as "+" | "-" | "*" | "/" | "%",
-        });
+      } else if (operator !== undefined) {
+        tokens.push({ kind: "operator", value: operator });
         offset += 1;
       } else if (character === "(") {
         tokens.push({ kind: "left_parenthesis" });
@@ -308,114 +418,143 @@ const tokenizeTrendsFormula = (source: string): TrendsFormulaToken[] => {
         tokens.push({ kind: "right_parenthesis" });
         offset += 1;
       } else {
-        throw new Error(`Unexpected character at position ${offset + 1}`);
+        return yield* Effect.fail(
+          new InvalidAnalyticsQueryError({
+            message: `Unexpected character at position ${offset + 1}`,
+          }),
+        );
+      }
+      if (tokens.length > 128) {
+        return yield* Effect.fail(
+          new InvalidAnalyticsQueryError({ message: "Formula is too complex" }),
+        );
       }
     }
-    if (tokens.length > 128) throw new Error("Formula is too complex");
-  }
-  return tokens;
-};
+    return tokens;
+  });
 
-class TrendsFormulaParser {
-  private offset = 0;
-  private readonly tokens: ReadonlyArray<TrendsFormulaToken>;
+/** Recursive-descent parser over the tokenized Trends formula grammar. */
+const parseTrendsFormulaTokens = (
+  tokens: ReadonlyArray<TrendsFormulaToken>,
+): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> => {
+  let offset = 0;
 
-  constructor(tokens: ReadonlyArray<TrendsFormulaToken>) {
-    this.tokens = tokens;
-  }
+  const current = (): TrendsFormulaToken | undefined => tokens[offset];
 
-  parse(): TrendsFormulaNode {
-    if (this.tokens.length === 0) throw new Error("Formula cannot be empty");
-    const expression = this.parseAdditive();
-    if (this.current()) throw new Error("Unexpected token after formula");
+  const consume = (): Effect.Effect<TrendsFormulaToken, InvalidAnalyticsQueryError> => {
+    const token = current();
+    if (!token) {
+      return Effect.fail(
+        new InvalidAnalyticsQueryError({ message: "Formula ended unexpectedly" }),
+      );
+    }
+    offset += 1;
+    return Effect.succeed(token);
+  };
+
+  const parsePrimary = (): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
+    Effect.gen(function* () {
+      const token = yield* consume();
+      if (token.kind === "number") return { kind: "number", value: token.value };
+      if (token.kind === "identifier") return { key: token.value, kind: "series" };
+      if (token.kind === "left_parenthesis") {
+        const expression = yield* parseAdditive();
+        const closing = yield* consume();
+        if (closing.kind !== "right_parenthesis") {
+          return yield* Effect.fail(
+            new InvalidAnalyticsQueryError({
+              message: "Formula has an unmatched parenthesis",
+            }),
+          );
+        }
+        return expression;
+      }
+      return yield* Effect.fail(
+        new InvalidAnalyticsQueryError({
+          message: "Expected a number, series, or parenthesized expression",
+        }),
+      );
+    });
+
+  const parsePower = (): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
+    Effect.gen(function* () {
+      const left = yield* parsePrimary();
+      const token = current();
+      if (token?.kind === "operator" && token.value === "**") {
+        yield* consume();
+        return { kind: "binary", left, operator: "**", right: yield* parseUnary() };
+      }
+      return left;
+    });
+
+  const parseUnary = (): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
+    Effect.gen(function* () {
+      const token = current();
+      if (token?.kind === "operator" && (token.value === "+" || token.value === "-")) {
+        yield* consume();
+        return { kind: "unary", operand: yield* parseUnary(), operator: token.value };
+      }
+      return yield* parsePower();
+    });
+
+  const parseMultiplicative = (): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
+    Effect.gen(function* () {
+      let left = yield* parseUnary();
+      while (true) {
+        const operator = current();
+        if (
+          operator?.kind !== "operator" ||
+          (operator.value !== "*" && operator.value !== "/" && operator.value !== "%")
+        ) {
+          break;
+        }
+        yield* consume();
+        const right = yield* parseUnary();
+        left = {
+          kind: "binary",
+          left,
+          operator: operator.value,
+          right,
+        };
+      }
+      return left;
+    });
+
+  const parseAdditive = (): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
+    Effect.gen(function* () {
+      let left = yield* parseMultiplicative();
+      while (true) {
+        const operator = current();
+        if (operator?.kind !== "operator" || (operator.value !== "+" && operator.value !== "-")) {
+          break;
+        }
+        yield* consume();
+        const right = yield* parseMultiplicative();
+        left = {
+          kind: "binary",
+          left,
+          operator: operator.value,
+          right,
+        };
+      }
+      return left;
+    });
+
+  return Effect.gen(function* () {
+    if (tokens.length === 0) {
+      return yield* Effect.fail(
+        new InvalidAnalyticsQueryError({ message: "Formula cannot be empty" }),
+      );
+    }
+    const expression = yield* parseAdditive();
+    if (current()) {
+      return yield* Effect.fail(
+        new InvalidAnalyticsQueryError({ message: "Unexpected token after formula" }),
+      );
+    }
     return expression;
-  }
-
-  private current(): TrendsFormulaToken | undefined {
-    return this.tokens[this.offset];
-  }
-
-  private consume(): TrendsFormulaToken {
-    const token = this.current();
-    if (!token) throw new Error("Formula ended unexpectedly");
-    this.offset += 1;
-    return token;
-  }
-
-  private parseAdditive(): TrendsFormulaNode {
-    let left = this.parseMultiplicative();
-    while (true) {
-      const operator = this.current();
-      if (operator?.kind !== "operator" || (operator.value !== "+" && operator.value !== "-")) {
-        break;
-      }
-      this.consume();
-      const right = this.parseMultiplicative();
-      left = {
-        kind: "binary",
-        left,
-        operator: operator.value,
-        right,
-      };
-    }
-    return left;
-  }
-
-  private parseMultiplicative(): TrendsFormulaNode {
-    let left = this.parseUnary();
-    while (true) {
-      const operator = this.current();
-      if (
-        operator?.kind !== "operator" ||
-        (operator.value !== "*" && operator.value !== "/" && operator.value !== "%")
-      ) {
-        break;
-      }
-      this.consume();
-      const right = this.parseUnary();
-      left = {
-        kind: "binary",
-        left,
-        operator: operator.value,
-        right,
-      };
-    }
-    return left;
-  }
-
-  private parseUnary(): TrendsFormulaNode {
-    const token = this.current();
-    if (token?.kind === "operator" && (token.value === "+" || token.value === "-")) {
-      this.consume();
-      return { kind: "unary", operand: this.parseUnary(), operator: token.value };
-    }
-    return this.parsePower();
-  }
-
-  private parsePower(): TrendsFormulaNode {
-    const left = this.parsePrimary();
-    const token = this.current();
-    if (token?.kind === "operator" && token.value === "**") {
-      this.consume();
-      return { kind: "binary", left, operator: "**", right: this.parseUnary() };
-    }
-    return left;
-  }
-
-  private parsePrimary(): TrendsFormulaNode {
-    const token = this.consume();
-    if (token.kind === "number") return { kind: "number", value: token.value };
-    if (token.kind === "identifier") return { key: token.value, kind: "series" };
-    if (token.kind === "left_parenthesis") {
-      const expression = this.parseAdditive();
-      if (this.consume().kind !== "right_parenthesis") {
-        throw new Error("Formula has an unmatched parenthesis");
-      }
-      return expression;
-    }
-    throw new Error("Expected a number, series, or parenthesized expression");
-  }
-}
+  });
+};
 
 const collectTrendsFormulaReferences = (node: TrendsFormulaNode, references: Set<string>): void => {
   if (node.kind === "series") references.add(node.key);
@@ -426,6 +565,25 @@ const collectTrendsFormulaReferences = (node: TrendsFormulaNode, references: Set
   }
 };
 
+const applyTrendsFormulaOperator = (
+  operator: Extract<TrendsFormulaNode, { readonly kind: "binary" }>["operator"],
+  left: number,
+  right: number,
+): number => {
+  if (operator === "+") return left + right;
+  if (operator === "-") return left - right;
+  if (operator === "*") return left * right;
+  if (operator === "/") {
+    if (right === 0) return 0;
+    return left / right;
+  }
+  if (operator === "%") {
+    if (right === 0) return 0;
+    return left % right;
+  }
+  return left ** right;
+};
+
 const evaluateTrendsFormulaNode = (
   node: TrendsFormulaNode,
   values: ReadonlyMap<string, number>,
@@ -434,18 +592,14 @@ const evaluateTrendsFormulaNode = (
   if (node.kind === "series") return values.get(node.key) ?? 0;
   if (node.kind === "unary") {
     const value = evaluateTrendsFormulaNode(node.operand, values);
-    return node.operator === "-" ? -value : value;
+    if (node.operator === "-") return -value;
+    return value;
   }
   const left = evaluateTrendsFormulaNode(node.left, values);
   const right = evaluateTrendsFormulaNode(node.right, values);
-  let result: number;
-  if (node.operator === "+") result = left + right;
-  else if (node.operator === "-") result = left - right;
-  else if (node.operator === "*") result = left * right;
-  else if (node.operator === "/") result = right === 0 ? 0 : left / right;
-  else if (node.operator === "%") result = right === 0 ? 0 : left % right;
-  else result = left ** right;
-  return Number.isFinite(result) ? result : 0;
+  const result = applyTrendsFormulaOperator(node.operator, left, right);
+  if (Number.isFinite(result)) return result;
+  return 0;
 };
 
 const compileTrendsFormula = (
@@ -453,13 +607,15 @@ const compileTrendsFormula = (
   allowedSeries: ReadonlySet<string>,
 ): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
   Effect.gen(function* () {
-    const node = yield* Effect.try({
-      catch: (cause) =>
-        new InvalidAnalyticsQueryError({
-          message: `Invalid Trends formula ${formula.key}: ${cause instanceof Error ? cause.message : String(cause)}`,
-        }),
-      try: () => new TrendsFormulaParser(tokenizeTrendsFormula(formula.expression)).parse(),
-    });
+    const node = yield* tokenizeTrendsFormula(formula.expression).pipe(
+      Effect.flatMap(parseTrendsFormulaTokens),
+      Effect.mapError(
+        (error) =>
+          new InvalidAnalyticsQueryError({
+            message: `Invalid Trends formula ${formula.key}: ${error.message}`,
+          }),
+      ),
+    );
     const references = new Set<string>();
     collectTrendsFormulaReferences(node, references);
     const missing = [...references].filter((reference) => !allowedSeries.has(reference));
@@ -518,7 +674,10 @@ const validateCustomEventFilter = (
         }),
       );
     }
-    if (filter.type === "and" || filter.type === "or") {
+    if (filter.type === "not") return yield* validateCustomEventFilter(filter.filter, depth + 1);
+    // The `and`/`or` group shares one union member, so it is narrowed by excluding
+    // the other tags rather than by testing its own tag.
+    if (filter.type !== "predicate") {
       if (filter.filters.length === 0) {
         return yield* Effect.fail(
           new InvalidAnalyticsQueryError({
@@ -531,9 +690,8 @@ const validateCustomEventFilter = (
       );
       return counts.reduce((total, count) => total + count, 0);
     }
-    if (filter.type === "not") return yield* validateCustomEventFilter(filter.filter, depth + 1);
 
-    const predicate = filter as Extract<AnalyticsFilterType, { readonly type: "predicate" }>;
+    const predicate = filter;
     yield* validateCustomEventField(predicate.field);
     if (["gt", "gte", "lt", "lte"].includes(predicate.op)) {
       return yield* Effect.fail(
@@ -677,21 +835,17 @@ export const buildTrendsFormulaSeries = (
 
     for (const source of sourceSeries) {
       const comparison = source.comparison ?? "current";
-      const comparisonSuffix = comparison === "current" ? "" : `:comparison:${comparison}`;
-      const sourceKey = comparisonSuffix
-        ? source.key.slice(0, -comparisonSuffix.length)
-        : source.key;
+      const sourceKey = stripSuffix(source.key, trendsComparisonKeySuffix(comparison));
       const definitionSeries = definitionsBySpecificity.find(
         (candidate) => sourceKey === candidate.key || sourceKey.startsWith(`${candidate.key}:`),
       );
       if (!definitionSeries) continue;
-      const breakdownValue =
-        sourceKey === definitionSeries.key
-          ? undefined
-          : sourceKey.slice(definitionSeries.key.length + 1);
+      const breakdownValue = breakdownValueFromKey(sourceKey, definitionSeries.key);
       const groupKey = `${comparison}\u0000${breakdownValue ?? ""}`;
+      const breakdownFields: { breakdownValue?: string } = {};
+      if (breakdownValue !== undefined) breakdownFields.breakdownValue = breakdownValue;
       const group = groups.get(groupKey) ?? {
-        ...(breakdownValue === undefined ? {} : { breakdownValue }),
+        ...breakdownFields,
         comparison,
         series: new Map<string, Map<number, number>>(),
       };
@@ -712,27 +866,21 @@ export const buildTrendsFormulaSeries = (
       for (const [index, formula] of definition.formulas.entries()) {
         const node = compiled[index];
         if (!node) continue;
-        const comparisonLabel =
-          group.comparison === "previous_period"
-            ? "previous period"
-            : group.comparison === "previous_year"
-              ? "previous year"
-              : undefined;
-        const breakdownSuffix =
-          group.breakdownValue === undefined ? "" : ` · ${group.breakdownValue || "(empty)"}`;
-        const comparisonKeySuffix =
-          group.comparison === "current" ? "" : `:comparison:${group.comparison}`;
+        const formulaLabel = formula.label ?? `Formula (${formula.expression})`;
         result.push({
           comparison: group.comparison,
-          key: `${formula.key}${group.breakdownValue === undefined ? "" : `:${group.breakdownValue}`}${comparisonKeySuffix}`,
-          label: `${formula.label ?? `Formula (${formula.expression})`}${breakdownSuffix}${comparisonLabel ? ` (${comparisonLabel})` : ""}`,
+          key: `${keyWithBreakdown(formula.key, group.breakdownValue)}${trendsComparisonKeySuffix(group.comparison)}`,
+          label: labelWithComparison(
+            labelWithBreakdown(formulaLabel, group.breakdownValue),
+            group.comparison,
+          ),
           points: sortedTimestamps.map((timestamp) => {
             const values = new Map<string, number>();
             for (const seriesKey of allowedSeries) {
               values.set(seriesKey, group.series.get(seriesKey)?.get(timestamp) ?? 0);
             }
             return {
-              timestamp: new Date(timestamp),
+              timestamp: dateFrom(timestamp),
               value: evaluateTrendsFormulaNode(node, values),
             };
           }),
@@ -813,18 +961,24 @@ export const buildFunnelStepResults = (
   return definition.steps.map((step, index) => {
     const count = counts[index] ?? 0;
     const previousCount = counts[index - 1] ?? count;
-    const dropoffCount = index === 0 ? 0 : Math.max(0, previousCount - count);
+    const dropoffCount = Math.max(0, previousCount - count);
     return {
-      conversionRate: entryCount === 0 ? 0 : count / entryCount,
+      conversionRate: safeRatio(count, entryCount),
       count,
       dropoffCount,
-      dropoffRate: index === 0 || previousCount === 0 ? 0 : dropoffCount / previousCount,
+      dropoffRate: safeRatio(dropoffCount, previousCount),
       key: step.key,
       label: step.label ?? step.eventNames.join(" or "),
       step: index + 1,
     };
   });
 };
+
+/** Overall conversion from the funnel entry step to its final step. */
+const funnelTotalConversionRate = (
+  steps: FunnelsInsightResult["steps"],
+  entryCount: number,
+): number => safeRatio(steps.at(-1)?.count ?? 0, entryCount);
 
 /** Validate a retention definition before lowering it to ClickHouse. */
 export const validateExecutableRetentionDefinition = (
@@ -866,6 +1020,15 @@ type RetentionInsightResult = Extract<
   { readonly kind: "retention" }
 >;
 
+const retentionDenominator = (
+  definition: ExecutableRetentionDefinition,
+  cohort: EventRetentionCohort,
+  interval: number,
+): number => {
+  if (definition.reference === "previous" && interval > 0) return cohort.counts[interval - 1] ?? 0;
+  return cohort.cohortSize;
+};
+
 /** Convert retention counts into cohort- or previous-period-relative cells. */
 export const buildRetentionCohortResults = (
   definition: ExecutableRetentionDefinition,
@@ -873,14 +1036,11 @@ export const buildRetentionCohortResults = (
 ): RetentionInsightResult["cohorts"] =>
   cohorts.map((cohort) => ({
     cells: cohort.counts.map((count, interval) => {
-      const denominator =
-        definition.reference === "previous" && interval > 0
-          ? (cohort.counts[interval - 1] ?? 0)
-          : cohort.cohortSize;
+      const denominator = retentionDenominator(definition, cohort, interval);
       return {
         count,
         interval,
-        rate: denominator === 0 ? 0 : count / denominator,
+        rate: safeRatio(count, denominator),
       };
     }),
     cohortSize: cohort.cohortSize,
@@ -1034,7 +1194,7 @@ const startOfStickinessInterval = (
   date: Date,
   interval: ExecutableStickinessDefinition["interval"],
 ): Date => {
-  const value = new Date(date);
+  const value = dateFrom(date);
   value.setUTCMinutes(0, 0, 0);
   if (interval === "hour") return value;
   value.setUTCHours(0);
@@ -1045,6 +1205,14 @@ const startOfStickinessInterval = (
   }
   value.setUTCDate(1);
   return value;
+};
+
+const stickinessIntervalMillis = (
+  interval: ExecutableStickinessDefinition["interval"],
+): number => {
+  if (interval === "hour") return 3_600_000;
+  if (interval === "week") return 604_800_000;
+  return 86_400_000;
 };
 
 /** Count inclusive activity intervals represented by a resolved time range. */
@@ -1060,9 +1228,20 @@ export const countStickinessIntervals = (
       (to.getUTCFullYear() - from.getUTCFullYear()) * 12 + to.getUTCMonth() - from.getUTCMonth() + 1
     );
   }
-  const milliseconds =
-    interval === "hour" ? 3_600_000 : interval === "week" ? 604_800_000 : 86_400_000;
-  return Math.floor((to.getTime() - from.getTime()) / milliseconds) + 1;
+  return Math.floor((to.getTime() - from.getTime()) / stickinessIntervalMillis(interval)) + 1;
+};
+
+const stickinessBucketCount = (
+  raw: ReadonlyArray<EventStickinessBucket>,
+  counts: ReadonlyMap<number, number>,
+  computation: "cumulative" | "exact",
+  intervals: number,
+): number => {
+  if (computation !== "cumulative") return counts.get(intervals) ?? 0;
+  return raw.reduce((total, bucket) => {
+    if (bucket.intervals >= intervals) return total + bucket.count;
+    return total;
+  }, 0);
 };
 
 /** Fill sparse frequency counts and optionally convert them to at-least-N counts. */
@@ -1075,13 +1254,7 @@ export const buildStickinessBuckets = (
   return Array.from({ length: maximumIntervals }, (_, offset) => {
     const intervals = offset + 1;
     return {
-      count:
-        computation === "cumulative"
-          ? raw.reduce(
-              (total, bucket) => total + (bucket.intervals >= intervals ? bucket.count : 0),
-              0,
-            )
-          : (counts.get(intervals) ?? 0),
+      count: stickinessBucketCount(raw, counts, computation, intervals),
       intervals,
     };
   });
@@ -1129,7 +1302,7 @@ const nextLifecycleInterval = (
   value: Date,
   granularity: ExecutableLifecycleDefinition["granularity"],
 ): Date => {
-  const next = new Date(value);
+  const next = dateFrom(value);
   if (granularity === "hour") next.setUTCHours(next.getUTCHours() + 1);
   else if (granularity === "day") next.setUTCDate(next.getUTCDate() + 1);
   else if (granularity === "week") next.setUTCDate(next.getUTCDate() + 7);
@@ -1172,6 +1345,17 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
         yield* Effect.serviceOption(ClickhouseWebClient.ClickhouseWebClient),
       );
       const db = yield* Db;
+
+      /**
+       * Run a ClickHouse-backed insight query, or yield no rows at all when the
+       * deployment has no analytics storage bound.
+       */
+      const queryClickhouseRows = <A, E>(
+        effect: Effect.Effect<ReadonlyArray<A>, E, ClickhouseWebClient.ClickhouseWebClient>,
+      ): Effect.Effect<ReadonlyArray<A>, E> => {
+        if (ch === undefined) return Effect.succeed([]);
+        return effect.pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
+      };
 
       const getProject = Effect.fn("customAnalytics.getProject")(function* (projectId: string) {
         yield* checkProjectPermission(
@@ -1330,7 +1514,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             if (insight) {
               items.push({
                 id: item.id,
-                insight: toSavedInsight(insight),
+                insight: yield* toSavedInsight(insight),
                 kind: "insight",
                 layout: item.layout,
                 position: item.position,
@@ -1405,16 +1589,31 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             input.projectId,
             input.definition.cohortIds,
           );
-          const actorScope = {
-            ...(input.definition.actor ? { actor: input.definition.actor } : {}),
-            ...(cohortPersonIds === undefined ? {} : { cohortPersonIds }),
-          };
+          const actorScope: {
+            actor?: AnalyticsActorType;
+            cohortPersonIds?: ReadonlyArray<string>;
+          } = {};
+          if (input.definition.actor) actorScope.actor = input.definition.actor;
+          if (cohortPersonIds !== undefined) actorScope.cohortPersonIds = cohortPersonIds;
           if (input.definition.kind === "trends") {
             const definition = yield* validateExecutableTrendsDefinition(input.definition);
             const resolvedTimeRange = yield* resolveTimeRange(definition.timeRange);
-            const comparisonTimeRange = definition.comparison
-              ? resolveTrendsComparisonTimeRange(definition.comparison, resolvedTimeRange)
-              : undefined;
+            const comparisonTimeRange = resolveOptionalTrendsComparisonTimeRange(
+              definition.comparison,
+              resolvedTimeRange,
+            );
+            const alignedPoints = (
+              points: TrendsInsightResult["series"][number]["points"],
+              comparison: "current" | AnalyticsTrendsComparisonType,
+            ): TrendsInsightResult["series"][number]["points"] => {
+              if (comparisonTimeRange === undefined || comparison === "current") return points;
+              return alignTrendsComparisonPoints(
+                points,
+                resolvedTimeRange,
+                comparisonTimeRange,
+                definition.granularity,
+              );
+            };
             const queryPeriod = (
               range: ResolvedTrendsTimeRange,
               comparison: "current" | AnalyticsTrendsComparisonType,
@@ -1422,95 +1621,73 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
               Effect.all(
                 definition.series.map((seriesDefinition) =>
                   Effect.gen(function* () {
-                    const groups =
-                      ch === undefined
-                        ? []
-                        : yield* getEventTrendSeries({
-                            ...actorScope,
-                            aggregation: seriesDefinition.aggregation,
-                            aggregateOverRange: definition.display === "number",
-                            breakdown: definition.breakdown,
-                            eventNames: seriesDefinition.eventNames,
-                            filters: { projectIds: [input.projectId] },
-                            mathProperty: seriesDefinition.mathProperty,
-                            organizationId: project.organizationId,
-                            params: {
-                              endDate: range.end,
-                              granularity: definition.granularity,
-                              startDate: range.start,
-                            },
-                            propertyFilter: seriesDefinition.filters,
-                          }).pipe(
-                            Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch),
-                          );
+                    const groups = yield* queryClickhouseRows(
+                      getEventTrendSeries({
+                        ...actorScope,
+                        aggregation: seriesDefinition.aggregation,
+                        aggregateOverRange: definition.display === "number",
+                        breakdown: definition.breakdown,
+                        eventNames: seriesDefinition.eventNames,
+                        filters: { projectIds: [input.projectId] },
+                        mathProperty: seriesDefinition.mathProperty,
+                        organizationId: project.organizationId,
+                        params: {
+                          endDate: range.end,
+                          granularity: definition.granularity,
+                          startDate: range.start,
+                        },
+                        propertyFilter: seriesDefinition.filters,
+                      }),
+                    );
                     const baseLabel =
                       seriesDefinition.label ?? seriesDefinition.eventNames.join(" or ");
-                    const effectiveGroups =
-                      groups.length === 0 && !definition.breakdown ? [{ points: [] }] : groups;
-                    return effectiveGroups.map((group) => {
-                      const breakdownKey =
-                        group.breakdownValue === undefined
-                          ? seriesDefinition.key
-                          : `${seriesDefinition.key}:${group.breakdownValue}`;
-                      const breakdownLabel =
-                        group.breakdownValue === undefined
-                          ? baseLabel
-                          : `${baseLabel} · ${group.breakdownValue || "(empty)"}`;
-                      const suffix =
-                        comparison === "previous_period"
-                          ? "previous period"
-                          : comparison === "previous_year"
-                            ? "previous year"
-                            : undefined;
-                      return {
+                    const effectiveGroups = [...groups];
+                    if (effectiveGroups.length === 0 && !definition.breakdown) {
+                      effectiveGroups.push({ points: [] });
+                    }
+                    return effectiveGroups.map((group) => ({
+                      comparison,
+                      key: `${keyWithBreakdown(seriesDefinition.key, group.breakdownValue)}${trendsComparisonKeySuffix(comparison)}`,
+                      label: labelWithComparison(
+                        labelWithBreakdown(baseLabel, group.breakdownValue),
                         comparison,
-                        key: suffix ? `${breakdownKey}:comparison:${comparison}` : breakdownKey,
-                        label: suffix ? `${breakdownLabel} (${suffix})` : breakdownLabel,
-                        points:
-                          comparisonTimeRange && comparison !== "current"
-                            ? alignTrendsComparisonPoints(
-                                group.points,
-                                resolvedTimeRange,
-                                comparisonTimeRange,
-                                definition.granularity,
-                              )
-                            : group.points,
-                      };
-                    });
+                      ),
+                      points: alignedPoints(group.points, comparison),
+                    }));
                   }),
                 ),
                 { concurrency: 4 },
               );
-            const periodSeries = yield* Effect.all(
-              [
-                queryPeriod(resolvedTimeRange, "current"),
-                ...(comparisonTimeRange && definition.comparison
-                  ? [queryPeriod(comparisonTimeRange, definition.comparison)]
-                  : []),
-              ],
-              { concurrency: 2 },
-            );
+            const periodEffects = [queryPeriod(resolvedTimeRange, "current")];
+            if (comparisonTimeRange !== undefined && definition.comparison !== undefined) {
+              periodEffects.push(queryPeriod(comparisonTimeRange, definition.comparison));
+            }
+            const periodSeries = yield* Effect.all(periodEffects, { concurrency: 2 });
+            const presentPoints = (
+              points: TrendsInsightResult["series"][number]["points"],
+            ): TrendsInsightResult["series"][number]["points"] => {
+              if (definition.display === "number") return points;
+              return fillTrendsSeriesPoints(points, resolvedTimeRange, definition.granularity);
+            };
             const queriedSeries = periodSeries.flat(2).map((series) => ({
               ...series,
-              points:
-                definition.display === "number"
-                  ? series.points
-                  : fillTrendsSeriesPoints(
-                      series.points,
-                      resolvedTimeRange,
-                      definition.granularity,
-                    ),
+              points: presentPoints(series.points),
             }));
-            const resultSeries = definition.formulas?.length
-              ? yield* buildTrendsFormulaSeries(definition, queriedSeries)
-              : queriedSeries;
+            const resultSeries: TrendsInsightResult["series"] = yield* Effect.gen(function* () {
+              if (!definition.formulas?.length) return queriedSeries;
+              return yield* buildTrendsFormulaSeries(definition, queriedSeries);
+            });
             const presentedSeries = resultSeries.map((series) => ({
               ...series,
               points: applyTrendsPresentation(series.points, definition),
             }));
+            const comparisonFields: { comparisonTimeRange?: ResolvedTrendsTimeRange } = {};
+            if (comparisonTimeRange !== undefined) {
+              comparisonFields.comparisonTimeRange = comparisonTimeRange;
+            }
             return {
-              ...(comparisonTimeRange ? { comparisonTimeRange } : {}),
-              kind: "trends" as const,
+              ...comparisonFields,
+              kind: constant("trends"),
               resolvedTimeRange,
               series: presentedSeries,
             };
@@ -1518,14 +1695,17 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           if (input.definition.kind === "funnels") {
             const definition = yield* validateExecutableFunnelsDefinition(input.definition);
             const resolvedTimeRange = yield* resolveTimeRange(definition.timeRange);
+            const breakdownFields: {
+              breakdown?: ExecutableFunnelsDefinition["breakdown"];
+              breakdownAttributionStep?: number;
+            } = {};
+            if (definition.breakdown) {
+              breakdownFields.breakdown = definition.breakdown;
+              breakdownFields.breakdownAttributionStep = definition.breakdownAttributionStep ?? 1;
+            }
             const funnelInput = {
               ...actorScope,
-              ...(definition.breakdown
-                ? {
-                    breakdown: definition.breakdown,
-                    breakdownAttributionStep: definition.breakdownAttributionStep ?? 1,
-                  }
-                : {}),
+              ...breakdownFields,
               conversionWindowSeconds: definition.conversionWindowSeconds,
               filters: { projectIds: [input.projectId] },
               order: definition.order,
@@ -1536,62 +1716,66 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
               },
               steps: definition.steps,
             };
-            const [counts, breakdownCounts] =
-              ch === undefined
-                ? ([definition.steps.map(() => 0), []] as const)
-                : yield* Effect.all(
-                    [getEventFunnelCounts(funnelInput), getEventFunnelBreakdownCounts(funnelInput)],
-                    { concurrency: 2 },
-                  ).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
+            const [counts, breakdownCounts] = yield* Effect.all(
+              [
+                queryClickhouseRows(getEventFunnelCounts(funnelInput)),
+                queryClickhouseRows(getEventFunnelBreakdownCounts(funnelInput)),
+              ],
+              { concurrency: 2 },
+            );
             const steps = buildFunnelStepResults(definition, counts);
             const entryCount = steps[0]?.count ?? 0;
+            const breakdownResults: {
+              breakdowns?: ReadonlyArray<{
+                readonly breakdownValue: string;
+                readonly steps: FunnelsInsightResult["steps"];
+                readonly totalConversionRate: number;
+              }>;
+            } = {};
+            if (definition.breakdown) {
+              breakdownResults.breakdowns = breakdownCounts.map((group) => {
+                const groupSteps = buildFunnelStepResults(definition, group.counts);
+                return {
+                  breakdownValue: group.breakdownValue,
+                  steps: groupSteps,
+                  totalConversionRate: funnelTotalConversionRate(
+                    groupSteps,
+                    groupSteps[0]?.count ?? 0,
+                  ),
+                };
+              });
+            }
             return {
-              ...(definition.breakdown
-                ? {
-                    breakdowns: breakdownCounts.map((group) => {
-                      const groupSteps = buildFunnelStepResults(definition, group.counts);
-                      const groupEntryCount = groupSteps[0]?.count ?? 0;
-                      return {
-                        breakdownValue: group.breakdownValue,
-                        steps: groupSteps,
-                        totalConversionRate:
-                          groupEntryCount === 0
-                            ? 0
-                            : (groupSteps.at(-1)?.count ?? 0) / groupEntryCount,
-                      };
-                    }),
-                  }
-                : {}),
-              kind: "funnels" as const,
+              ...breakdownResults,
+              kind: constant("funnels"),
               resolvedTimeRange,
               steps,
-              totalConversionRate: entryCount === 0 ? 0 : (steps.at(-1)?.count ?? 0) / entryCount,
+              totalConversionRate: funnelTotalConversionRate(steps, entryCount),
             };
           }
           if (input.definition.kind === "retention") {
             const definition = yield* validateExecutableRetentionDefinition(input.definition);
             const resolvedTimeRange = yield* resolveTimeRange(definition.timeRange);
-            const cohorts =
-              ch === undefined
-                ? []
-                : yield* getEventRetentionCohorts({
-                    ...actorScope,
-                    cumulative: definition.cumulative ?? false,
-                    filters: { projectIds: [input.projectId] },
-                    intervals: definition.intervals ?? 11,
-                    organizationId: project.organizationId,
-                    params: {
-                      endDate: resolvedTimeRange.end,
-                      startDate: resolvedTimeRange.start,
-                    },
-                    period: definition.period,
-                    retentionType: definition.retentionType ?? "recurring",
-                    returning: definition.returning,
-                    start: definition.start,
-                  }).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
+            const cohorts = yield* queryClickhouseRows(
+              getEventRetentionCohorts({
+                ...actorScope,
+                cumulative: definition.cumulative ?? false,
+                filters: { projectIds: [input.projectId] },
+                intervals: definition.intervals ?? 11,
+                organizationId: project.organizationId,
+                params: {
+                  endDate: resolvedTimeRange.end,
+                  startDate: resolvedTimeRange.start,
+                },
+                period: definition.period,
+                retentionType: definition.retentionType ?? "recurring",
+                returning: definition.returning,
+                start: definition.start,
+              }),
+            );
             return {
               cohorts: buildRetentionCohortResults(definition, cohorts),
-              kind: "retention" as const,
+              kind: constant("retention"),
               period: definition.period,
               resolvedTimeRange,
             };
@@ -1600,21 +1784,20 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             const definition = yield* validateExecutablePathsDefinition(input.definition);
             const resolvedTimeRange = yield* resolveTimeRange(definition.timeRange);
             const sessionGapSeconds = definition.sessionGapSeconds ?? 1_800;
-            const links =
-              ch === undefined
-                ? []
-                : yield* getEventPathLinks({
-                    ...actorScope,
-                    definition,
-                    filters: { projectIds: [input.projectId] },
-                    organizationId: project.organizationId,
-                    params: {
-                      endDate: resolvedTimeRange.end,
-                      startDate: resolvedTimeRange.start,
-                    },
-                  }).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
+            const links = yield* queryClickhouseRows(
+              getEventPathLinks({
+                ...actorScope,
+                definition,
+                filters: { projectIds: [input.projectId] },
+                organizationId: project.organizationId,
+                params: {
+                  endDate: resolvedTimeRange.end,
+                  startDate: resolvedTimeRange.start,
+                },
+              }),
+            );
             return {
-              kind: "paths" as const,
+              kind: constant("paths"),
               links: buildPathsLinkResults(links),
               maxDepth: definition.maxDepth,
               resolvedTimeRange,
@@ -1625,10 +1808,8 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             const definition = yield* validateExecutableStickinessDefinition(input.definition);
             const resolvedTimeRange = yield* resolveTimeRange(definition.timeRange);
             const computation = definition.computation ?? "exact";
-            const occurrenceCriteria = definition.occurrenceCriteria ?? {
-              operator: "gte" as const,
-              value: 1,
-            };
+            const occurrenceCriteria =
+              definition.occurrenceCriteria ?? constant({ operator: "gte", value: 1 });
             const maximumIntervals = countStickinessIntervals(
               resolvedTimeRange.start,
               resolvedTimeRange.end,
@@ -1644,21 +1825,20 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             const series = yield* Effect.all(
               definition.series.map((seriesDefinition) =>
                 Effect.gen(function* () {
-                  const raw =
-                    ch === undefined
-                      ? []
-                      : yield* getEventStickinessBuckets({
-                          ...actorScope,
-                          filters: { projectIds: [input.projectId] },
-                          interval: definition.interval,
-                          occurrenceCriteria,
-                          organizationId: project.organizationId,
-                          params: {
-                            endDate: resolvedTimeRange.end,
-                            startDate: resolvedTimeRange.start,
-                          },
-                          series: seriesDefinition,
-                        }).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
+                  const raw = yield* queryClickhouseRows(
+                    getEventStickinessBuckets({
+                      ...actorScope,
+                      filters: { projectIds: [input.projectId] },
+                      interval: definition.interval,
+                      occurrenceCriteria,
+                      organizationId: project.organizationId,
+                      params: {
+                        endDate: resolvedTimeRange.end,
+                        startDate: resolvedTimeRange.start,
+                      },
+                      series: seriesDefinition,
+                    }),
+                  );
                   return {
                     buckets: buildStickinessBuckets(raw, computation, maximumIntervals),
                     key: seriesDefinition.key,
@@ -1671,7 +1851,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             return {
               computation,
               interval: definition.interval,
-              kind: "stickiness" as const,
+              kind: constant("stickiness"),
               resolvedTimeRange,
               series,
             };
@@ -1679,29 +1859,25 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           if (input.definition.kind === "lifecycle") {
             const definition = yield* validateExecutableLifecycleDefinition(input.definition);
             const resolvedTimeRange = yield* resolveTimeRange(definition.timeRange);
-            const points =
-              ch === undefined
-                ? []
-                : yield* getEventLifecyclePoints({
-                    ...actorScope,
-                    filters: { projectIds: [input.projectId] },
-                    granularity: definition.granularity,
-                    organizationId: project.organizationId,
-                    params: {
-                      endDate: resolvedTimeRange.end,
-                      startDate: resolvedTimeRange.start,
-                    },
-                    series: definition.series,
-                  }).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
-            const statuses = definition.statuses ?? [
-              "new" as const,
-              "returning" as const,
-              "resurrecting" as const,
-              "dormant" as const,
-            ];
+            const points = yield* queryClickhouseRows(
+              getEventLifecyclePoints({
+                ...actorScope,
+                filters: { projectIds: [input.projectId] },
+                granularity: definition.granularity,
+                organizationId: project.organizationId,
+                params: {
+                  endDate: resolvedTimeRange.end,
+                  startDate: resolvedTimeRange.start,
+                },
+                series: definition.series,
+              }),
+            );
+            const statuses =
+              definition.statuses ??
+              constant(["new", "returning", "resurrecting", "dormant"]);
             return {
               granularity: definition.granularity,
-              kind: "lifecycle" as const,
+              kind: constant("lifecycle"),
               resolvedTimeRange,
               series: buildLifecycleSeries(
                 points,
@@ -1763,22 +1939,27 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           }
           const resolvedTimeRange = yield* resolveTimeRange(input.timeRange);
           const cohortPersonIds = yield* resolveCohortPersonIds(input.projectId, input.cohortIds);
-          const rows =
-            ch === undefined
-              ? []
-              : yield* getEventPersonDrilldown({
-                  ...(cohortPersonIds === undefined ? {} : { cohortPersonIds }),
-                  eventNames,
-                  ...(input.filters ? { filters: input.filters } : {}),
-                  ...(input.group ? { group: input.group } : {}),
-                  limit: Math.min(Math.max(input.limit ?? 50, 1), 100),
-                  organizationId: project.organizationId,
-                  params: {
-                    endDate: resolvedTimeRange.end,
-                    startDate: resolvedTimeRange.start,
-                  },
-                  projectId: project.id,
-                }).pipe(Effect.provideService(ClickhouseWebClient.ClickhouseWebClient, ch));
+          const drilldownScope: {
+            cohortPersonIds?: ReadonlyArray<string>;
+            filters?: AnalyticsFilterType;
+            group?: { readonly property: string; readonly value: string };
+          } = {};
+          if (cohortPersonIds !== undefined) drilldownScope.cohortPersonIds = cohortPersonIds;
+          if (input.filters) drilldownScope.filters = input.filters;
+          if (input.group) drilldownScope.group = input.group;
+          const rows = yield* queryClickhouseRows(
+            getEventPersonDrilldown({
+              ...drilldownScope,
+              eventNames,
+              limit: Math.min(Math.max(input.limit ?? 50, 1), 100),
+              organizationId: project.organizationId,
+              params: {
+                endDate: resolvedTimeRange.end,
+                startDate: resolvedTimeRange.start,
+              },
+              projectId: project.id,
+            }),
+          );
           if (rows.length === 0) return { people: [], resolvedTimeRange };
           const personRows = yield* db
             .select({ email: persons.email, id: persons.id, name: persons.name })
@@ -1799,17 +1980,16 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           return {
             people: rows.flatMap((row) => {
               const person = personById.get(row.personId);
-              return person
-                ? [
-                    {
-                      email: person.email,
-                      eventCount: row.eventCount,
-                      lastSeenAt: row.lastSeenAt,
-                      name: person.name,
-                      personId: row.personId,
-                    },
-                  ]
-                : [];
+              if (!person) return [];
+              return [
+                {
+                  email: person.email,
+                  eventCount: row.eventCount,
+                  lastSeenAt: row.lastSeenAt,
+                  name: person.name,
+                  personId: row.personId,
+                },
+              ];
             }),
             resolvedTimeRange,
           };
@@ -1849,7 +2029,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
               ),
             )
             .orderBy(desc(analyticsInsights.updatedAt));
-          return { insights: rows.map(toSavedInsight) };
+          return { insights: yield* Effect.forEach(rows, toSavedInsight) };
         },
         (effect) =>
           effect.pipe(
@@ -1885,7 +2065,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             organizationId: project.organizationId,
             projectId: project.id,
           });
-          return toSavedInsight(yield* loadInsightRow(id));
+          return yield* toSavedInsight(yield* loadInsightRow(id));
         },
         (effect) =>
           effect.pipe(
@@ -1909,21 +2089,26 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           readonly name?: string;
         }) {
           yield* loadInsightRow(input.id);
+          const changes: {
+            definition?: CustomAnalyticsInsightQueryType;
+            description?: string | null;
+            kind?: CustomAnalyticsInsightQueryType["kind"];
+            name?: string;
+          } = {};
+          if (input.definition !== undefined) {
+            changes.definition = input.definition;
+            changes.kind = input.definition.kind;
+          }
+          if (input.description !== undefined) changes.description = input.description;
+          if (input.name !== undefined) changes.name = input.name;
           yield* db
             .update(analyticsInsights)
             .set({
-              ...(input.definition === undefined
-                ? {}
-                : {
-                    definition: input.definition,
-                    kind: input.definition.kind,
-                  }),
-              ...(input.description === undefined ? {} : { description: input.description }),
-              ...(input.name === undefined ? {} : { name: input.name }),
-              updatedAt: new Date(),
+              ...changes,
+              updatedAt: currentTimestamp(),
             })
             .where(eq(analyticsInsights.id, input.id));
-          return toSavedInsight(yield* loadInsightRow(input.id));
+          return yield* toSavedInsight(yield* loadInsightRow(input.id));
         },
         (effect) =>
           effect.pipe(
@@ -1946,7 +2131,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             Effect.gen(function* () {
               yield* tx
                 .update(analyticsInsights)
-                .set({ deletedAt: new Date(), updatedAt: new Date() })
+                .set({ deletedAt: currentTimestamp(), updatedAt: currentTimestamp() })
                 .where(eq(analyticsInsights.id, input.id));
               yield* tx
                 .delete(analyticsDashboardItems)
@@ -2075,18 +2260,20 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           readonly name?: string;
         }) {
           const cohort = yield* loadCohortRow(input.id);
-          const memberPersonIds =
-            input.memberPersonIds === undefined
-              ? undefined
-              : yield* validateCohortMembers(cohort.projectId, input.memberPersonIds);
+          const memberPersonIds = yield* Effect.gen(function* () {
+            if (input.memberPersonIds === undefined) return undefined;
+            return yield* validateCohortMembers(cohort.projectId, input.memberPersonIds);
+          });
+          const changes: { description?: string | null; name?: string } = {};
+          if (input.description !== undefined) changes.description = input.description;
+          if (input.name !== undefined) changes.name = input.name;
           yield* db.transaction((tx) =>
             Effect.gen(function* () {
               yield* tx
                 .update(analyticsCohorts)
                 .set({
-                  ...(input.description === undefined ? {} : { description: input.description }),
-                  ...(input.name === undefined ? {} : { name: input.name }),
-                  updatedAt: new Date(),
+                  ...changes,
+                  updatedAt: currentTimestamp(),
                 })
                 .where(eq(analyticsCohorts.id, cohort.id));
               if (memberPersonIds !== undefined) {
@@ -2136,7 +2323,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             Effect.gen(function* () {
               yield* tx
                 .update(analyticsCohorts)
-                .set({ deletedAt: new Date(), updatedAt: new Date() })
+                .set({ deletedAt: currentTimestamp(), updatedAt: currentTimestamp() })
                 .where(eq(analyticsCohorts.id, cohort.id));
               yield* tx
                 .delete(analyticsCohortMembers)
@@ -2294,12 +2481,14 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           readonly name?: string;
         }) {
           yield* loadDashboardRow(input.id);
+          const changes: { description?: string | null; name?: string } = {};
+          if (input.description !== undefined) changes.description = input.description;
+          if (input.name !== undefined) changes.name = input.name;
           yield* db
             .update(analyticsDashboards)
             .set({
-              ...(input.description === undefined ? {} : { description: input.description }),
-              ...(input.name === undefined ? {} : { name: input.name }),
-              updatedAt: new Date(),
+              ...changes,
+              updatedAt: currentTimestamp(),
             })
             .where(eq(analyticsDashboards.id, input.id));
           return yield* hydrateDashboard(yield* loadDashboardRow(input.id));
@@ -2325,7 +2514,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
             Effect.gen(function* () {
               yield* tx
                 .update(analyticsDashboards)
-                .set({ deletedAt: new Date(), updatedAt: new Date() })
+                .set({ deletedAt: currentTimestamp(), updatedAt: currentTimestamp() })
                 .where(eq(analyticsDashboards.id, input.id));
               yield* tx
                 .delete(analyticsDashboardItems)
@@ -2408,7 +2597,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
               .set({
                 layout: input.layout,
                 position: input.position,
-                updatedAt: new Date(),
+                updatedAt: currentTimestamp(),
               })
               .where(eq(analyticsDashboardItems.id, existing.id));
           } else {
@@ -2467,7 +2656,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
               (id, position) =>
                 tx
                   .update(analyticsDashboardItems)
-                  .set({ position, updatedAt: new Date() })
+                  .set({ position, updatedAt: currentTimestamp() })
                   .where(
                     and(
                       eq(analyticsDashboardItems.dashboardId, input.dashboardId),
@@ -2527,7 +2716,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
           ),
       );
 
-      return {
+      return constant({
         createCohort,
         createDashboard,
         createInsight,
@@ -2546,7 +2735,7 @@ export class CustomAnalyticsService extends Context.Service<CustomAnalyticsServi
         updateDashboard,
         updateCohort,
         updateInsight,
-      } as const;
+      });
     }),
   },
 ) {

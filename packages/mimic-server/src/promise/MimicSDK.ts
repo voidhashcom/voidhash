@@ -57,7 +57,7 @@ export class MimicSDK {
   }
 
   deleteDatabase(id: string): Promise<void> {
-    return this.effect.runtime.runPromise(this.effect.deleteDatabase(id)) as Promise<void>;
+    return this.effect.runtime.runPromise(this.effect.deleteDatabase(id));
   }
 
   database(id: string, name = "", description = ""): DatabaseHandle {
@@ -80,7 +80,7 @@ export class MimicSDK {
   }
 
   deleteUser(id: string): Promise<void> {
-    return this.effect.runtime.runPromise(this.effect.deleteUser(id)) as Promise<void>;
+    return this.effect.runtime.runPromise(this.effect.deleteUser(id));
   }
 
   // ---------------------------------------------------------------------
@@ -96,14 +96,14 @@ export class MimicSDK {
     readonly databaseId: string;
     readonly permission: DatabasePermission;
   }): Promise<void> {
-    return this.effect.runtime.runPromise(this.effect.grantPermission(payload)) as Promise<void>;
+    return this.effect.runtime.runPromise(this.effect.grantPermission(payload));
   }
 
   revokePermission(payload: {
     readonly userId: string;
     readonly databaseId: string;
   }): Promise<void> {
-    return this.effect.runtime.runPromise(this.effect.revokePermission(payload)) as Promise<void>;
+    return this.effect.runtime.runPromise(this.effect.revokePermission(payload));
   }
 
   // ---------------------------------------------------------------------
@@ -121,8 +121,8 @@ export class MimicSDK {
   }
 
   /** Dispose the underlying runtime — releases any held resources. */
-  async dispose(): Promise<void> {
-    await this.effect.dispose();
+  dispose(): Promise<void> {
+    return this.effect.dispose();
   }
 }
 
@@ -157,9 +157,7 @@ export class DatabaseHandle {
   }
 
   deleteCollection(collectionId: string): Promise<void> {
-    return this.effect.sdk.runtime.runPromise(
-      this.effect.deleteCollection(collectionId),
-    ) as Promise<void>;
+    return this.effect.sdk.runtime.runPromise(this.effect.deleteCollection(collectionId));
   }
 
   collection<TPrimitive extends Primitive.AnyPrimitive>(
@@ -212,7 +210,7 @@ export class CollectionHandle<TPrimitive extends Primitive.AnyPrimitive> {
   }
 
   delete(documentId: string): Promise<void> {
-    return this.effect.sdk.runtime.runPromise(this.effect.delete(documentId)) as Promise<void>;
+    return this.effect.sdk.runtime.runPromise(this.effect.delete(documentId));
   }
 
   setupDocumentAuthentication(
@@ -252,9 +250,7 @@ export class RawCollectionHandle {
   }
 
   deleteDocument(documentId: string): Promise<void> {
-    return this.effect.sdk.runtime.runPromise(
-      this.effect.deleteDocument(documentId),
-    ) as Promise<void>;
+    return this.effect.sdk.runtime.runPromise(this.effect.deleteDocument(documentId));
   }
 
   setDocumentRaw(

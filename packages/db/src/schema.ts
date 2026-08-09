@@ -1,4 +1,5 @@
 import { ProductType, PurchaseType, SubscriptionStatus } from "@voidhash/lib";
+import { constant } from "@voidhash/lib/lang";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -13,6 +14,15 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
+import { DateTime } from "effect";
+
+/**
+ * Wall-clock timestamp for drizzle's synchronous `$onUpdate` callbacks.
+ *
+ * Drizzle calls these hooks outside any Effect, so the effectful `DateTime.now`
+ * is unavailable here; `DateTime.nowUnsafe` is the sanctioned synchronous read.
+ */
+const currentTimestamp = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe());
 
 export const user = pgTable(
   "user",
@@ -36,7 +46,7 @@ export const user = pgTable(
     role: text("role"),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
     /**
      * Stable WorkOS user id (`user_xxx`) this row mirrors. Our own `id` is the
@@ -150,7 +160,7 @@ export const projects = pgTable(
     organizationId: varchar("organization_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -185,7 +195,7 @@ export const captureProjectPolicies = pgTable(
       .default(48),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [index("capture_project_policy_force_route_idx").on(table.forceRoute)],
@@ -221,16 +231,16 @@ export const apiKeys = pgTable(
     projectId: varchar("project_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [index("api_key_key_idx").on(table.key)],
 );
 
-export const PersonIdentityKind = {
+export const PersonIdentityKind = constant({
   Anonymous: 1,
   Identified: 2,
-} as const;
+});
 
 export type PersonIdentityKindValue = (typeof PersonIdentityKind)[keyof typeof PersonIdentityKind];
 
@@ -238,7 +248,7 @@ export const PersonType = PersonIdentityKind;
 
 export type PersonTypeValue = PersonIdentityKindValue;
 
-export const PersonOrigin = {
+export const PersonOrigin = constant({
   API: 5,
   Android: 3,
   /**
@@ -257,7 +267,7 @@ export const PersonOrigin = {
   GooglePlayWebhook: 7,
   IOS: 2,
   Stripe: 4,
-} as const;
+});
 
 export type PersonOriginValue = (typeof PersonOrigin)[keyof typeof PersonOrigin];
 
@@ -321,7 +331,7 @@ export const persons = pgTable(
     deletionReason: varchar("deletion_reason", { length: 64 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [index("person_merged_into_person_id_idx").on(table.mergedIntoPersonId)],
@@ -342,7 +352,7 @@ export const personIdentities = pgTable(
     version: integer("version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -361,7 +371,7 @@ export const personPersonlessIdentities = pgTable(
     isMerged: boolean("is_merged").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -405,13 +415,13 @@ export const identityAssertions = pgTable(
   ],
 );
 
-export const PersonIdentityMigrationJobStatus = {
+export const PersonIdentityMigrationJobStatus = constant({
   Pending: 1,
   InProgress: 2,
   Succeeded: 3,
   Failed: 4,
   Exhausted: 5,
-} as const;
+});
 
 export type PersonIdentityMigrationJobStatusValue =
   (typeof PersonIdentityMigrationJobStatus)[keyof typeof PersonIdentityMigrationJobStatus];
@@ -437,7 +447,7 @@ export const personIdentityMigrationJobs = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -454,10 +464,10 @@ export const personIdentityMigrationJobs = pgTable(
   ],
 );
 
-export const PersonUnlockedPerkStatus = {
+export const PersonUnlockedPerkStatus = constant({
   Active: 1,
   Expired: 2,
-} as const;
+});
 
 export type PersonUnlockedPerkStatusValue =
   (typeof PersonUnlockedPerkStatus)[keyof typeof PersonUnlockedPerkStatus];
@@ -479,7 +489,7 @@ export const personUnlockedPerks = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("person_id_perk_id_idx").on(table.personId, table.perkId)],
@@ -500,7 +510,7 @@ export const personExternalIdentifiers = pgTable(
     identifier: varchar("identifier", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -511,12 +521,12 @@ export const personExternalIdentifiers = pgTable(
     ),
   ],
 );
-export const PersonDeletionRequestStatus = {
+export const PersonDeletionRequestStatus = constant({
   Queued: 1,
   InProgress: 2,
   Completed: 3,
   Failed: 4,
-} as const;
+});
 
 export type PersonDeletionRequestStatusValue =
   (typeof PersonDeletionRequestStatus)[keyof typeof PersonDeletionRequestStatus];
@@ -540,7 +550,7 @@ export const personDeletionRequests = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -564,7 +574,7 @@ export const paymentProviderConfigurations = pgTable(
     configuration: jsonb("configuration").$type<object>(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
     activeProviderId: varchar("active_provider_id", { length: 255 }).generatedAlwaysAs(
@@ -591,7 +601,7 @@ export const perks = pgTable(
     projectId: varchar("project_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("perk_slug_project_id_idx").on(table.slug, table.projectId)],
@@ -607,7 +617,7 @@ export const products = pgTable(
     slug: varchar("slug", { length: 255 }).notNull(),
     type: smallint("type").notNull().default(ProductType.Subscription),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("product_slug_project_id_idx").on(table.slug, table.projectId)],
@@ -621,7 +631,7 @@ export const productPerks = pgTable(
     perkId: varchar("perk_id", { length: 255 }).notNull(),
     productId: varchar("product_id", { length: 255 }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("product_id_perk_id_idx").on(table.productId, table.perkId)],
@@ -642,7 +652,7 @@ export const paymentProviderConfigurationProducts = pgTable(
       length: 255,
     }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -678,15 +688,15 @@ export const checkoutSessions = pgTable("checkout_session", {
     .notNull()
     .default("LEGACY"),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-    () => new Date(),
+    () => currentTimestamp(),
   ),
 });
 
 // App Store
-export const ProviderEnvironment = {
+export const ProviderEnvironment = constant({
   Production: 1,
   Sandbox: 2,
-} as const;
+});
 
 export type ProviderEnvironmentValue =
   (typeof ProviderEnvironment)[keyof typeof ProviderEnvironment];
@@ -723,7 +733,7 @@ export const purchases = pgTable(
 
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -829,7 +839,7 @@ export const subscriptions = pgTable(
 
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -948,7 +958,7 @@ export const transactions = pgTable(
     lastEventOccurredAt: timestamp("last_event_occurred_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -1000,12 +1010,12 @@ export const fxRates = pgTable(
  * This status describes analytics dispatch only — the ledger row itself is
  * append-only and is never deleted.
  */
-export const PurchaseLedgerStatus = {
+export const PurchaseLedgerStatus = constant({
   Pending: 1,
   InProgress: 2,
   Published: 3,
   DeadLetter: 4,
-} as const;
+});
 
 export type PurchaseLedgerStatusValue =
   (typeof PurchaseLedgerStatus)[keyof typeof PurchaseLedgerStatus];
@@ -1073,7 +1083,7 @@ export const purchaseLedger = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -1083,11 +1093,11 @@ export const purchaseLedger = pgTable(
   ],
 );
 
-export const AnalyticsIngestDlqReplayStatus = {
+export const AnalyticsIngestDlqReplayStatus = constant({
   Pending: "pending",
   Requeued: "requeued",
   Failed: "failed",
-} as const;
+});
 
 export type AnalyticsIngestDlqReplayStatusValue =
   (typeof AnalyticsIngestDlqReplayStatus)[keyof typeof AnalyticsIngestDlqReplayStatus];
@@ -1112,7 +1122,7 @@ export const analyticsIngestDlq = pgTable(
       .default(AnalyticsIngestDlqReplayStatus.Pending),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -1192,50 +1202,50 @@ export const paymentProviderNotificationProcessed = pgTable(
   ],
 );
 
-export const InAppOwnershipType = {
+export const InAppOwnershipType = constant({
   FamilyShared: 1,
   Purchased: 2,
-} as const;
+});
 
 export type InAppOwnershipTypeValue = (typeof InAppOwnershipType)[keyof typeof InAppOwnershipType];
 
-export const OfferDiscountType = {
+export const OfferDiscountType = constant({
   FreeTrial: 1,
   PayAsYouGo: 2,
   PayUpFront: 3,
-} as const;
+});
 
 export type OfferDiscountTypeValue = (typeof OfferDiscountType)[keyof typeof OfferDiscountType];
 
-export const OfferType = {
+export const OfferType = constant({
   IntroductoryOffer: 1,
   OfferWithSubscriptionOfferCode: 3,
   PromotionalOffer: 2,
   WinBackOffer: 4,
-} as const;
+});
 
 export type OfferTypeValue = (typeof OfferType)[keyof typeof OfferType];
 
-export const RevocationReason = {
+export const RevocationReason = constant({
   OtherReason: 1,
   PerceivedIssue: 2,
-} as const;
+});
 
 export type RevocationReasonValue = (typeof RevocationReason)[keyof typeof RevocationReason];
 
-export const TransactionReason = {
+export const TransactionReason = constant({
   Purchase: 1,
   Renewal: 2,
-} as const;
+});
 
 export type TransactionReasonValue = (typeof TransactionReason)[keyof typeof TransactionReason];
 
-export const TransactionType = {
+export const TransactionType = constant({
   AutoRenewableSubscription: 1,
   Consumable: 3,
   NonConsumable: 2,
   NonRenewingSubscription: 4,
-} as const;
+});
 
 export type TransactionTypeValue = (typeof TransactionType)[keyof typeof TransactionType];
 
@@ -1296,10 +1306,10 @@ export interface DesignFileMetadata {}
 
 // Paywall source enum — how the paywall is authored.
 // 1 = visual editor, 2 = code (CLI deploy, see docs/specs/paywall-deploy-contract.md)
-export const PaywallSource = {
+export const PaywallSource = constant({
   editor: 1,
   code: 2,
-} as const;
+});
 
 export type PaywallSourceValue = (typeof PaywallSource)[keyof typeof PaywallSource];
 
@@ -1322,17 +1332,17 @@ export const paywalls = pgTable(
     thumbnailUrl: text("thumbnail_url"),
     thumbnailSeq: bigint("thumbnail_seq", { mode: "number" }),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("paywall_slug_project_id_idx").on(table.slug, table.projectId)],
 );
 
-export const PaywallEditSessionStatus = {
+export const PaywallEditSessionStatus = constant({
   active: "active",
   finished: "finished",
   reverted: "reverted",
-} as const;
+});
 
 export type PaywallEditSessionStatusValue =
   (typeof PaywallEditSessionStatus)[keyof typeof PaywallEditSessionStatus];
@@ -1361,7 +1371,7 @@ export const paywallEditSessions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
     finishedAt: timestamp("finished_at", { withTimezone: true, precision: 3 }),
   },
@@ -1376,10 +1386,10 @@ export const paywallEditSessions = pgTable(
  * Status of a cached component compile: `ready` carries a validated manifest,
  * `error` carries diagnostics (and a null manifest).
  */
-export const PaywallComponentManifestStatus = {
+export const PaywallComponentManifestStatus = constant({
   ready: "ready",
   error: "error",
-} as const;
+});
 
 export type PaywallComponentManifestStatusValue =
   (typeof PaywallComponentManifestStatus)[keyof typeof PaywallComponentManifestStatus];
@@ -1428,14 +1438,14 @@ export const paywallComponentManifests = pgTable("paywall_component_manifest", {
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
     .defaultNow()
     .notNull()
-    .$onUpdate(() => new Date()),
+    .$onUpdate(() => currentTimestamp()),
 });
 
 // Release Status enum
-export const ReleaseStatus = {
+export const ReleaseStatus = constant({
   draft: 1,
   released: 2,
-} as const;
+});
 
 export type ReleaseStatusValue = (typeof ReleaseStatus)[keyof typeof ReleaseStatus];
 
@@ -1492,10 +1502,10 @@ export const paywallReleases = pgTable(
   ],
 );
 
-export const PaywallLocationShowingType = {
+export const PaywallLocationShowingType = constant({
   paywallRelease: 1,
   featureFlag: 2,
-} as const;
+});
 
 export type PaywallLocationShowingTypeValue =
   (typeof PaywallLocationShowingType)[keyof typeof PaywallLocationShowingType];
@@ -1511,7 +1521,7 @@ export const paywallLocations = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -1538,7 +1548,7 @@ export const paywallLocationShowings = pgTable(
     createdByUserId: varchar("created_by_user_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -1563,10 +1573,10 @@ export const paywallLocationShowings = pgTable(
 
 // Paywall deploy status enum: 1 = pending (created, blobs uploading),
 // 2 = ready (finalized — the immutable commit point).
-export const PaywallDeployStatus = {
+export const PaywallDeployStatus = constant({
   pending: 1,
   ready: 2,
-} as const;
+});
 
 export type PaywallDeployStatusValue =
   (typeof PaywallDeployStatus)[keyof typeof PaywallDeployStatus];
@@ -1591,7 +1601,7 @@ export const paywallDeploys = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
   },
   (table) => [
@@ -1625,7 +1635,7 @@ export const paywallDeployBlobs = pgTable(
 );
 
 // Role a manifest-listed file plays within a deploy (contract §1).
-export const PaywallDeployFileRole = {
+export const PaywallDeployFileRole = constant({
   paywallHtml: 1,
   paywallJs: 2,
   asset: 3,
@@ -1635,7 +1645,7 @@ export const PaywallDeployFileRole = {
   componentPreview: 7,
   componentRuntime: 8,
   componentPanel: 9,
-} as const;
+});
 
 export type PaywallDeployFileRoleValue =
   (typeof PaywallDeployFileRole)[keyof typeof PaywallDeployFileRole];
@@ -1668,7 +1678,7 @@ export const paywallComponents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
   },
   (table) => [uniqueIndex("paywall_component_project_id_slug_idx").on(table.projectId, table.slug)],
@@ -1740,11 +1750,11 @@ export const workosWebhookEvents = pgTable(
 // WEBHOOK TABLES
 // ============================================
 
-export const WebhookEndpointStatus = {
+export const WebhookEndpointStatus = constant({
   Active: 1,
   Disabled: 2,
   Failed: 3,
-} as const;
+});
 
 export type WebhookEndpointStatusValue =
   (typeof WebhookEndpointStatus)[keyof typeof WebhookEndpointStatus];
@@ -1784,19 +1794,19 @@ export const webhookEndpoints = pgTable(
 
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [index("webhook_endpoint_project_status_idx").on(table.projectId, table.status)],
 );
 
-export const WebhookDeliveryStatus = {
+export const WebhookDeliveryStatus = constant({
   Pending: 1,
   InProgress: 2,
   Succeeded: 3,
   Failed: 4,
   Exhausted: 5,
-} as const;
+});
 
 export type WebhookDeliveryStatusValue =
   (typeof WebhookDeliveryStatus)[keyof typeof WebhookDeliveryStatus];
@@ -1883,7 +1893,7 @@ export const webhookDeliveryAttempts = pgTable(
 // AUDIT LOG TABLE
 // ============================================
 
-export const AuditLogEntityType = {
+export const AuditLogEntityType = constant({
   ApiKey: "api_key",
   Person: "person",
   Experiment: "experiment",
@@ -1908,11 +1918,11 @@ export const AuditLogEntityType = {
   PushDeviceToken: "push_device_token",
   PushNotificationConfiguration: "push_notification_configuration",
   WebhookEndpoint: "webhook_endpoint",
-} as const;
+});
 
 export type AuditLogEntityTypeValue = (typeof AuditLogEntityType)[keyof typeof AuditLogEntityType];
 
-export const AuditLogAction = {
+export const AuditLogAction = constant({
   Archived: "archived",
   Completed: "completed",
   Created: "created",
@@ -1928,15 +1938,15 @@ export const AuditLogAction = {
   TargetAdded: "target_added",
   TargetRemoved: "target_removed",
   Updated: "updated",
-} as const;
+});
 
 export type AuditLogActionValue = (typeof AuditLogAction)[keyof typeof AuditLogAction];
 
-export const AuditLogActorType = {
+export const AuditLogActorType = constant({
   ApiKey: 2,
   System: 3,
   User: 1,
-} as const;
+});
 
 export type AuditLogActorTypeValue = (typeof AuditLogActorType)[keyof typeof AuditLogActorType];
 
@@ -1971,30 +1981,30 @@ export const auditLogs = pgTable(
 // FEATURE FLAG TABLES
 // ============================================
 
-export const FeatureFlagTargetListType = {
+export const FeatureFlagTargetListType = constant({
   Allow: 1,
   Deny: 2,
-} as const;
+});
 
 export type FeatureFlagTargetListTypeValue =
   (typeof FeatureFlagTargetListType)[keyof typeof FeatureFlagTargetListType];
 
-export const FeatureFlagIdentityType = {
+export const FeatureFlagIdentityType = constant({
   PersonId: 1,
   DistinctId: 2,
   Email: 3,
   ExternalId: 4,
-} as const;
+});
 
 export type FeatureFlagIdentityTypeValue =
   (typeof FeatureFlagIdentityType)[keyof typeof FeatureFlagIdentityType];
 
-export const FeatureFlagType = {
+export const FeatureFlagType = constant({
   Boolean: "boolean",
   Json: "json",
   Number: "number",
   String: "string",
-} as const;
+});
 
 export type FeatureFlagTypeValue = (typeof FeatureFlagType)[keyof typeof FeatureFlagType];
 
@@ -2021,7 +2031,7 @@ export const featureFlags = pgTable(
     updatedByUserId: varchar("updated_by_user_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
     version: integer("version").notNull().default(1),
   },
@@ -2042,7 +2052,7 @@ export const featureFlagTargets = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -2073,7 +2083,7 @@ export const featureFlagOverrides = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -2098,7 +2108,7 @@ export const featureFlagVariants = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -2128,7 +2138,7 @@ export const internalFeatureFlagOverrides = pgTable(
     enabled: boolean("enabled").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -2169,7 +2179,7 @@ export const paywallAsset = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
   },
   (table) => [
@@ -2202,7 +2212,7 @@ export const voidhashAiChat = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
   },
   (table) => [
@@ -2268,7 +2278,7 @@ export const voidhashAgentSession = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },
@@ -2287,12 +2297,12 @@ export const voidhashAgentSession = pgTable(
 // EXPERIMENT (A/B TESTING) TABLES
 // ============================================
 
-export const ExperimentStatus = {
+export const ExperimentStatus = constant({
   draft: 1,
   running: 2,
   paused: 3,
   concluded: 4,
-} as const;
+});
 
 export type ExperimentStatusValue = (typeof ExperimentStatus)[keyof typeof ExperimentStatus];
 
@@ -2330,7 +2340,7 @@ export const experiments = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
     version: integer("version").notNull().default(1),
   },
@@ -2358,7 +2368,7 @@ export const experimentVariants = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [index("experiment_variant_experiment_id_idx").on(table.experimentId)],
@@ -2401,7 +2411,7 @@ export const experimentTreatments = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
   },
   (table) => [
@@ -2430,7 +2440,7 @@ export const voidhashFeedback = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
     /** A `FeedbackTopic` product-area slug (see `@voidhash/lib`). */
     topic: varchar("topic", { length: 32 }).notNull(),
@@ -2485,7 +2495,7 @@ export const analyticsSavedQuery = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
   },
   (table) => [index("analytics_saved_query_org_idx").on(table.organizationId)],
@@ -2506,7 +2516,7 @@ export const analyticsInsights = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },
@@ -2529,7 +2539,7 @@ export const analyticsCohorts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },
@@ -2567,7 +2577,7 @@ export const analyticsDashboards = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },
@@ -2597,7 +2607,7 @@ export const analyticsDashboardItems = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
       .defaultNow()
-      .$onUpdate(() => new Date())
+      .$onUpdate(() => currentTimestamp())
       .notNull(),
   },
   (table) => [
@@ -2640,7 +2650,7 @@ export const pushNotificationConfigs = pgTable(
     configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
     activeProviderId: varchar("active_provider_id", { length: 50 }).generatedAlwaysAs(
@@ -2679,7 +2689,7 @@ export const pushDeviceTokens = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     // Freshness clock for invalidation gating — see NotificationTokenService.invalidate.
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },
@@ -2709,7 +2719,7 @@ export const pushPersonDeviceTokens = pgTable(
     pushDeviceTokenId: varchar("push_device_token_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => new Date(),
+      () => currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },
@@ -2721,14 +2731,14 @@ export const pushPersonDeviceTokens = pgTable(
 );
 
 /** Parent send roll-up status (a pure aggregate of the child deliveries). */
-export const PushNotificationSendStatus = {
+export const PushNotificationSendStatus = constant({
   Pending: 1,
   InProgress: 2,
   Succeeded: 3,
   PartialFailed: 4,
   Failed: 5,
   NoRecipients: 6,
-} as const;
+});
 
 export type PushNotificationSendStatusValue =
   (typeof PushNotificationSendStatus)[keyof typeof PushNotificationSendStatus];
@@ -2770,13 +2780,13 @@ export const pushNotificationSends = pgTable(
 );
 
 /** Per-device delivery status — mirrors `webhook_delivery`, incl. `Exhausted`. */
-export const PushNotificationDeliveryStatus = {
+export const PushNotificationDeliveryStatus = constant({
   Pending: 1,
   InProgress: 2,
   Succeeded: 3,
   Failed: 4,
   Exhausted: 5,
-} as const;
+});
 
 export type PushNotificationDeliveryStatusValue =
   (typeof PushNotificationDeliveryStatus)[keyof typeof PushNotificationDeliveryStatus];

@@ -31,12 +31,28 @@
 // The Docker image (docker-compose.yml) creates `voidhash` as a superuser that
 // owns the `voidhash` database, so the app user has full DDL locally.
 
-import { readdirSync, readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { Config, Console, Data, Effect, FileSystem, Path, Stdio } from "effect";
 import { Client } from "pg";
 
 const MIGRATIONS_DIR = "packages/db/src/alchemy-migrations";
 const MIGRATIONS_TABLE = "__alchemy_migrations";
+
+/**
+ * Any failure that should print one line and exit non-zero, like the old
+ * `throw new Error`. `silent` marks a failure whose guidance was already written
+ * to stderr in full, so the top-level reporter must not print it a second time.
+ */
+class MigrateError extends Data.TaggedError("MigrateError") {}
+
+/** Renders an unknown rejection/defect as a message, mirroring `error.message`. */
+const messageOf = (cause) => {
+  if (cause instanceof Error) return cause.message;
+  return String(cause);
+};
+
+/** Wraps a thrown/rejected value as the script's single failure type. */
+const toMigrateError = (cause) => new MigrateError({ message: messageOf(cause) });
 
 // Hosts we consider safe to bootstrap + migrate without `--force` (mirrors the
 // allowlist in packages/db/src/db.ts). Guards against pointing this at a remote
@@ -55,44 +71,72 @@ const isLocalHost = (host) => {
   return LOCAL_HOSTS.has(h) || h.endsWith(".localhost");
 };
 
+/**
+ * Reads `DATABASE_DIRECT_<name>`, falling back to `DATABASE_<name>` and then to
+ * the local Docker default.
+ *
+ * @param {string} name
+ * @param {string} fallback
+ */
 const direct = (name, fallback) =>
-  process.env[`DATABASE_DIRECT_${name}`] ?? process.env[`DATABASE_${name}`] ?? fallback;
-
-const config = {
-  host: direct("HOST", "127.0.0.1"),
-  port: Number.parseInt(direct("PORT", "5432"), 10),
-  database: direct("NAME", "voidhash"),
-  user: direct("USERNAME", "voidhash"),
-  password: direct("PASSWORD", "password"),
-};
-
-const force = process.argv.includes("--force");
-
-if (!isLocalHost(config.host) && !force) {
-  console.error(
-    `Refusing to migrate non-local host "${config.host}". This script is for ` +
-      `the local Docker Postgres only; remote branches are migrated by Alchemy. ` +
-      `Pass --force to override.`,
+  Config.string(`DATABASE_DIRECT_${name}`).pipe(
+    Config.orElse(() => Config.string(`DATABASE_${name}`)),
+    Config.withDefault(fallback),
   );
-  process.exit(1);
-}
 
-// `config.database` / `MIGRATIONS_TABLE` are interpolated as SQL identifiers
-// (which can't be parameterized). Both are fixed local defaults, not external
-// input, so this is safe.
-const dbIdent = `"${config.database.replaceAll('"', '""')}"`;
-const tableIdent = `"${MIGRATIONS_TABLE}"`;
+/** Connection settings, read from env with the local Docker defaults. */
+const readConfig = Effect.gen(function* () {
+  const host = yield* direct("HOST", "127.0.0.1");
+  const port = yield* direct("PORT", "5432");
+  const database = yield* direct("NAME", "voidhash");
+  const user = yield* direct("USERNAME", "voidhash");
+  const password = yield* direct("PASSWORD", "password");
+  return { host, port: Number.parseInt(port, 10), database, user, password };
+}).pipe(Effect.mapError(toMigrateError));
+
+/** Folder names carry a generation timestamp, so lexicographic order is apply order. */
+const byName = (a, b) => {
+  if (a.name < b.name) return -1;
+  if (a.name > b.name) return 1;
+  return 0;
+};
 
 /** Migration directories sorted by their timestamp-prefixed name. */
-const collectMigrations = () => {
-  if (!existsSync(MIGRATIONS_DIR)) return [];
-  return readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
-    .map((name) => ({ name, file: join(MIGRATIONS_DIR, name, "migration.sql") }))
-    .filter((m) => existsSync(m.file));
-};
+const collectMigrations = Effect.gen(function* () {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+
+  if (!(yield* fileSystem.exists(MIGRATIONS_DIR))) return [];
+
+  const migrations = [];
+  for (const entry of yield* fileSystem.readDirectory(MIGRATIONS_DIR)) {
+    // A non-directory entry can never hold a `migration.sql`, so the file check
+    // subsumes the old `isDirectory()` filter.
+    const file = path.join(MIGRATIONS_DIR, entry, "migration.sql");
+    if (!(yield* fileSystem.exists(file))) continue;
+    migrations.push({ name: entry, file });
+  }
+  return migrations.sort(byName);
+}).pipe(Effect.mapError(toMigrateError));
+
+/** Runs one query on an open client, mapping a rejection to the script's failure type. */
+const query = (client, sql, values) =>
+  Effect.tryPromise({ try: () => client.query(sql, values), catch: toMigrateError });
+
+/**
+ * Opens a connection, hands it to `use`, and always closes it — the Effect
+ * equivalent of the `try { … } finally { await conn.end() }` bracket.
+ */
+const withClient = (options, use) =>
+  Effect.acquireUseRelease(
+    Effect.gen(function* () {
+      const client = new Client(options);
+      yield* Effect.tryPromise({ try: () => client.connect(), catch: toMigrateError });
+      return client;
+    }),
+    use,
+    (client) => Effect.promise(() => client.end()),
+  );
 
 /**
  * Ensure the dev database exists. The Docker image normally creates it via
@@ -100,103 +144,148 @@ const collectMigrations = () => {
  * inside a transaction or against the target database itself, so we connect to
  * the always-present `postgres` maintenance database.
  */
-const bootstrap = async () => {
-  const conn = new Client({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: "postgres",
-  });
-  await conn.connect();
-  try {
-    const exists = await conn.query("SELECT 1 FROM pg_database WHERE datname = $1", [
-      config.database,
-    ]);
-    if (exists.rowCount === 0) {
-      await conn.query(`CREATE DATABASE ${dbIdent}`);
-      console.log(`created database "${config.database}"`);
-    }
-  } finally {
-    await conn.end();
-  }
+const bootstrap = (config, dbIdent) =>
+  withClient(
+    {
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      database: "postgres",
+    },
+    (conn) =>
+      Effect.gen(function* () {
+        const exists = yield* query(conn, "SELECT 1 FROM pg_database WHERE datname = $1", [
+          config.database,
+        ]);
+        if (exists.rowCount !== 0) return;
+        yield* query(conn, `CREATE DATABASE ${dbIdent}`);
+        yield* Console.log(`created database "${config.database}"`);
+      }),
+  );
+
+/** Highest numeric migration id seen so far; non-numeric ids are ignored. */
+const highestSeq = (max, { id }) => {
+  const n = Number.parseInt(String(id), 10);
+  if (Number.isNaN(n)) return max;
+  return Math.max(max, n);
 };
 
-const migrate = async () => {
-  const migrations = collectMigrations();
-  if (migrations.length === 0) {
-    console.log(`db-migrate-local: no migrations found in ${MIGRATIONS_DIR}`);
-    return;
-  }
+/** Applies one migration in its own transaction, rolling back on failure. */
+const applyMigration = (conn, tableIdent, name, sql, migrationId) =>
+  Effect.gen(function* () {
+    yield* query(conn, "BEGIN");
+    yield* query(conn, sql);
+    yield* query(conn, `INSERT INTO ${tableIdent} (id, name) VALUES ($1, $2);`, [
+      migrationId,
+      name,
+    ]);
+    yield* query(conn, "COMMIT");
+  }).pipe(
+    Effect.catch((error) =>
+      Effect.gen(function* () {
+        yield* query(conn, "ROLLBACK").pipe(Effect.ignore);
+        return yield* new MigrateError({
+          message: `Failed to apply migration "${name}": ${error.message}`,
+          cause: error,
+        });
+      }),
+    ),
+  );
 
-  const conn = new Client({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: config.database,
-  });
-  await conn.connect();
+/** Final one-line report, matching the previous wording exactly. */
+const summary = (appliedCount) => {
+  if (appliedCount === 0) return "db-migrate-local: database already up to date";
+  return `db-migrate-local: applied ${appliedCount} migration(s)`;
+};
 
-  try {
-    await conn.query(
-      `CREATE TABLE IF NOT EXISTS ${tableIdent} (
+const migrate = (config, tableIdent) =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem.FileSystem;
+    const migrations = yield* collectMigrations;
+    if (migrations.length === 0) {
+      return yield* Console.log(`db-migrate-local: no migrations found in ${MIGRATIONS_DIR}`);
+    }
+
+    return yield* withClient(
+      {
+        host: config.host,
+        port: config.port,
+        user: config.user,
+        password: config.password,
+        database: config.database,
+      },
+      (conn) =>
+        Effect.gen(function* () {
+          yield* query(
+            conn,
+            `CREATE TABLE IF NOT EXISTS ${tableIdent} (
          id TEXT PRIMARY KEY,
          name TEXT NOT NULL,
          applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
        );`,
+          );
+
+          const appliedRows = yield* query(conn, `SELECT name FROM ${tableIdent};`);
+          const applied = new Set(appliedRows.rows.map((row) => row.name));
+
+          const idRows = yield* query(conn, `SELECT id FROM ${tableIdent};`);
+          let nextSeq = idRows.rows.reduce(highestSeq, 0) + 1;
+
+          let appliedCount = 0;
+          for (const { name, file } of migrations) {
+            if (applied.has(name)) continue;
+
+            const sql = yield* fileSystem.readFileString(file).pipe(Effect.mapError(toMigrateError));
+            const migrationId = String(nextSeq).padStart(5, "0");
+            nextSeq += 1;
+
+            yield* applyMigration(conn, tableIdent, name, sql, migrationId);
+            appliedCount += 1;
+            yield* Console.log(`applied: ${name}`);
+          }
+
+          yield* Console.log(summary(appliedCount));
+        }),
     );
+  });
 
-    const appliedRows = await conn.query(`SELECT name FROM ${tableIdent};`);
-    const applied = new Set(appliedRows.rows.map((row) => row.name));
+const program = Effect.gen(function* () {
+  const stdio = yield* Stdio.Stdio;
+  const args = yield* stdio.args;
 
-    const idRows = await conn.query(`SELECT id FROM ${tableIdent};`);
-    let nextSeq =
-      idRows.rows.reduce((max, { id }) => {
-        const n = Number.parseInt(String(id), 10);
-        return Number.isNaN(n) ? max : Math.max(max, n);
-      }, 0) + 1;
+  const config = yield* readConfig;
+  const force = args.includes("--force");
 
-    let appliedCount = 0;
-    for (const { name, file } of migrations) {
-      if (applied.has(name)) continue;
-
-      const sql = readFileSync(file, "utf8");
-      const migrationId = String(nextSeq).padStart(5, "0");
-      nextSeq += 1;
-
-      await conn.query("BEGIN");
-      try {
-        await conn.query(sql);
-        await conn.query(`INSERT INTO ${tableIdent} (id, name) VALUES ($1, $2);`, [
-          migrationId,
-          name,
-        ]);
-        await conn.query("COMMIT");
-      } catch (error) {
-        await conn.query("ROLLBACK").catch(() => {});
-        throw new Error(`Failed to apply migration "${name}": ${error.message}`, {
-          cause: error,
-        });
-      }
-      appliedCount += 1;
-      console.log(`applied: ${name}`);
-    }
-
-    console.log(
-      appliedCount === 0
-        ? "db-migrate-local: database already up to date"
-        : `db-migrate-local: applied ${appliedCount} migration(s)`,
+  if (!isLocalHost(config.host) && !force) {
+    yield* Console.error(
+      `Refusing to migrate non-local host "${config.host}". This script is for ` +
+        `the local Docker Postgres only; remote branches are migrated by Alchemy. ` +
+        `Pass --force to override.`,
     );
-  } finally {
-    await conn.end();
+    return yield* new MigrateError({ message: `non-local host "${config.host}"`, silent: true });
   }
-};
 
-try {
-  await bootstrap();
-  await migrate();
-} catch (error) {
-  console.error(`db-migrate-local: ${error.message}`);
-  process.exit(1);
-}
+  // `config.database` / `MIGRATIONS_TABLE` are interpolated as SQL identifiers
+  // (which can't be parameterized). Both are fixed local defaults, not external
+  // input, so this is safe.
+  const dbIdent = `"${config.database.replaceAll('"', '""')}"`;
+  const tableIdent = `"${MIGRATIONS_TABLE}"`;
+
+  yield* bootstrap(config, dbIdent);
+  yield* migrate(config, tableIdent);
+});
+
+/** Prints the failure exactly like the old top-level catch, then exits non-zero. */
+const reportFailure = (error) =>
+  Effect.gen(function* () {
+    if (!error.silent) yield* Console.error(`db-migrate-local: ${error.message}`);
+    return yield* Effect.fail(error);
+  });
+
+// Error reporting stays off so a failure prints only the single line above, and
+// `runMain` still exits non-zero on the tagged failure.
+NodeRuntime.runMain(
+  program.pipe(Effect.catch(reportFailure), Effect.provide(NodeServices.layer)),
+  { disableErrorReporting: true },
+);

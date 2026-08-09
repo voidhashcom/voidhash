@@ -1,43 +1,67 @@
-import { type ChildProcess, spawn } from "node:child_process";
-import { dirname, join } from "node:path";
 import { Console, Effect, FileSystem, Path } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
+import { ChildProcess } from "effect/unstable/process";
 
 import { userError } from "../../utils/error-formatter";
 
 const DEFAULT_PORT = 4830;
 
 /** Resolves the installed Studio app directory and the Vite CLI entry point. */
-const resolveStudioPaths = () =>
-  Effect.try({
+const resolveStudioPaths = Effect.gen(function* resolveStudioPaths() {
+  const path = yield* Path.Path;
+  return yield* Effect.try({
     try: () => {
       // `require.resolve` works both in the bundled CJS binary and under tsx in
       // development. We resolve the package manifest to get the app root, and
       // Vite's own CLI entry so we can launch it without depending on bin
       // shims being hoisted in any particular way.
-      const studioDir = dirname(require.resolve("@voidhash/studio/package.json"));
+      const studioDir = path.dirname(require.resolve("@voidhash/studio/package.json"));
       // Resolve Vite via its package.json (an exported subpath) from the Studio
       // package, then join the CLI entry — `vite/bin/vite.js` is not an exported
       // subpath, so it can't be resolved directly under Node's exports rules.
-      const viteDir = dirname(require.resolve("vite/package.json", { paths: [studioDir] }));
-      const viteBin = join(viteDir, "bin", "vite.js");
+      const viteDir = path.dirname(require.resolve("vite/package.json", { paths: [studioDir] }));
+      const viteBin = path.join(viteDir, "bin", "vite.js");
       return { studioDir, viteBin };
     },
     catch: () =>
       userError("Could not locate the Voidhash Studio app. Reinstall the CLI and try again."),
   });
+});
+
+/** The platform-specific command that hands a URL to the default browser. */
+const browserOpenCommand = (url: string) => {
+  if (process.platform === "darwin") {
+    return ChildProcess.make("open", [url], {
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+  }
+  if (process.platform === "win32") {
+    return ChildProcess.make("cmd", ["/c", "start", "", url], {
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+  }
+  return ChildProcess.make("xdg-open", [url], {
+    stdin: "ignore",
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+};
 
 /** Best-effort: open the given URL in the user's default browser. */
-const openBrowser = (url: string): void => {
-  const command =
-    process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
-  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
-  try {
-    spawn(command, args, { stdio: "ignore", detached: true }).unref();
-  } catch {
+const openBrowser = (url: string) =>
+  Effect.gen(function* openBrowser() {
+    const child = yield* browserOpenCommand(url);
+    // Detach the opener so it outlives this command, mirroring `unref()`.
+    yield* child.unref;
+  }).pipe(
+    Effect.scoped,
     // Opening the browser is a convenience; never fail the command over it.
-  }
-};
+    Effect.ignore,
+  );
 
 /**
  * `voidhash-cli studio [--port] [--no-open]`
@@ -77,7 +101,7 @@ export const studioCommand = Command.make(
         );
       }
 
-      const { studioDir, viteBin } = yield* resolveStudioPaths();
+      const { studioDir, viteBin } = yield* resolveStudioPaths;
       const url = `http://localhost:${port}`;
 
       yield* Console.log("\n  Voidhash Studio");
@@ -85,31 +109,33 @@ export const studioCommand = Command.make(
       yield* Console.log(`  Preview:  ${url}\n`);
 
       // Spawn Vite, keep the command alive until the child exits, and ensure the
-      // child is terminated if the fiber is interrupted (Ctrl+C).
-      yield* Effect.acquireUseRelease(
-        Effect.sync(() =>
-          spawn(process.execPath, [viteBin, "--port", String(port), "--strictPort"], {
-            cwd: studioDir,
-            env: { ...process.env, VOIDHASH_PROJECT_ROOT: projectRoot },
-            stdio: "inherit",
-          }),
-        ),
-        (child: ChildProcess) => {
+      // child is terminated if the fiber is interrupted (Ctrl+C) — the scope
+      // finalizer installed by the spawner sends SIGTERM.
+      yield* Effect.scoped(
+        Effect.gen(function* runStudio() {
+          const child = yield* ChildProcess.make(
+            process.execPath,
+            [viteBin, "--port", String(port), "--strictPort"],
+            {
+              cwd: studioDir,
+              detached: false,
+              env: { VOIDHASH_PROJECT_ROOT: projectRoot },
+              extendEnv: true,
+              stdin: "inherit",
+              stdout: "inherit",
+              stderr: "inherit",
+            },
+          );
+
           if (open) {
             // Give Vite a moment to bind the port before opening the browser.
-            setTimeout(() => openBrowser(url), 1500);
+            yield* Effect.forkScoped(
+              Effect.sleep("1500 millis").pipe(Effect.andThen(openBrowser(url))),
+            );
           }
-          return Effect.callback<void>((resume) => {
-            child.on("exit", () => resume(Effect.void));
-            child.on("error", (error) => resume(Effect.die(error)));
-          });
-        },
-        (child: ChildProcess) =>
-          Effect.sync(() => {
-            if (child.exitCode === null && !child.killed) {
-              child.kill("SIGTERM");
-            }
-          }),
+
+          yield* child.exitCode;
+        }),
       );
     }),
 ).pipe(Command.withDescription("Launch the paywall preview Studio for this project."));

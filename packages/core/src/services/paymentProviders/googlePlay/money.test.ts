@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 
 import { describe, expect, it } from "../../../testing/effect-vitest.ts";
 import type { FxRateLookupShape } from "../appStore/money.ts";
@@ -25,7 +25,7 @@ const fxNone: FxRateLookupShape = {
   getUsdRate: () => Effect.succeed(Option.none()),
 };
 
-const OCCURRED_AT = new Date("2024-02-15T12:00:00Z");
+const OCCURRED_AT = DateTime.toDateUtc(DateTime.makeUnsafe("2024-02-15T12:00:00Z"));
 
 describe("googleMoneyToMinorUnits", () => {
   it("converts units + nanos into 2-decimal minor units", () => {

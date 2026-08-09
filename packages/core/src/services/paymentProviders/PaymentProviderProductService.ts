@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -16,7 +17,6 @@ import {
   AuditLogEntityType,
   Db,
   type Product as DbProduct,
-  type PaymentProviderConfigurationProduct as DbPaymentProviderConfigurationProduct,
   and,
   asc,
   eq,
@@ -43,10 +43,6 @@ import {
 export class PaymentProviderProductServiceError extends Schema.TaggedErrorClass<PaymentProviderProductServiceError>(
   "PaymentProviderProductServiceError",
 )("PaymentProviderProductServiceError", { cause: Schema.String }) {}
-
-type DbProviderProductWithProduct = DbPaymentProviderConfigurationProduct & {
-  readonly product: DbProduct;
-};
 
 /**
  * `PaymentProviderProductService` orchestrates the per-product, per-provider
@@ -80,13 +76,12 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         providerId: string,
       ): Effect.Effect<AnyPaymentProviderShape, PaymentProviderProductValidationError> => {
         const provider = paymentProviders.find((candidate) => candidate.id === providerId);
-        return provider
-          ? Effect.succeed(provider)
-          : Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: `Payment provider ${providerId} not found`,
-              }),
-            );
+        if (provider) return Effect.succeed(provider);
+        return Effect.fail(
+          new PaymentProviderProductValidationError({
+            message: `Payment provider ${providerId} not found`,
+          }),
+        );
       };
 
       /**
@@ -99,17 +94,19 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         readonly paymentProviderConfigurationId: string;
         readonly paymentProviderProductId: string;
         readonly providerProductKey: string;
-      }) => {
-        if (input.providerId !== "apple-app-store") {
-          return Effect.void;
-        }
-        return Workflow.dispatchAndForget(AppStoreReplayParkedNotifications, {
-          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-          paymentProviderProductId: input.paymentProviderProductId,
-          providerProductKey: input.providerProductKey,
-          requestedAt: new Date().toISOString(),
+      }) =>
+        Effect.gen(function* () {
+          if (input.providerId !== "apple-app-store") {
+            return;
+          }
+          const requestedAt = DateTime.formatIso(yield* DateTime.now);
+          yield* Workflow.dispatchAndForget(AppStoreReplayParkedNotifications, {
+            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+            paymentProviderProductId: input.paymentProviderProductId,
+            providerProductKey: input.providerProductKey,
+            requestedAt,
+          });
         });
-      };
 
       /**
        * Background-schedules the Google Play parked-notification replay
@@ -123,17 +120,19 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         readonly paymentProviderConfigurationId: string;
         readonly paymentProviderProductId: string;
         readonly providerProductKey: string;
-      }) => {
-        if (input.providerId !== "google-play") {
-          return Effect.void;
-        }
-        return Workflow.dispatchAndForget(GooglePlayReplayParkedNotifications, {
-          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-          paymentProviderProductId: input.paymentProviderProductId,
-          providerProductKey: input.providerProductKey,
-          requestedAt: new Date().toISOString(),
+      }) =>
+        Effect.gen(function* () {
+          if (input.providerId !== "google-play") {
+            return;
+          }
+          const requestedAt = DateTime.formatIso(yield* DateTime.now);
+          yield* Workflow.dispatchAndForget(GooglePlayReplayParkedNotifications, {
+            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+            paymentProviderProductId: input.paymentProviderProductId,
+            providerProductKey: input.providerProductKey,
+            requestedAt,
+          });
         });
-      };
 
       /**
        * Background-schedules the Stripe parked-event replay workflow when a new
@@ -145,17 +144,19 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         readonly paymentProviderConfigurationId: string;
         readonly paymentProviderProductId: string;
         readonly providerProductKey: string;
-      }) => {
-        if (input.providerId !== "stripe") {
-          return Effect.void;
-        }
-        return Workflow.dispatchAndForget(StripeReplayParkedNotifications, {
-          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-          paymentProviderProductId: input.paymentProviderProductId,
-          providerProductKey: input.providerProductKey,
-          requestedAt: new Date().toISOString(),
+      }) =>
+        Effect.gen(function* () {
+          if (input.providerId !== "stripe") {
+            return;
+          }
+          const requestedAt = DateTime.formatIso(yield* DateTime.now);
+          yield* Workflow.dispatchAndForget(StripeReplayParkedNotifications, {
+            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+            paymentProviderProductId: input.paymentProviderProductId,
+            providerProductKey: input.providerProductKey,
+            requestedAt,
+          });
         });
-      };
 
       const getProviderProductsByProjectId = Effect.fn("getProviderProductsByProjectId")(
         function* (projectId: string) {
@@ -656,10 +657,10 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
           if (session?.user?.id) {
             yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
           }
-          const providerProduct = (yield* db.query.paymentProviderConfigurationProducts.findFirst({
+          const providerProduct = yield* db.query.paymentProviderConfigurationProducts.findFirst({
             where: { id: input.id },
             with: { product: true },
-          })) as DbProviderProductWithProduct | undefined;
+          });
           if (!providerProduct) {
             return yield* Effect.fail(
               new PaymentProviderProductValidationError({
@@ -667,15 +668,20 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
               }),
             );
           }
+          // The `product_id` foreign key makes the joined row non-null; a
+          // missing one is a broken invariant, not an expected failure.
+          const product: DbProduct | null = providerProduct.product;
+          if (!product) {
+            return yield* Effect.die(
+              new Error(`Payment provider product ${input.id} has no catalog product`),
+            );
+          }
           yield* Effect.annotateCurrentSpan("voidhash.product.id", providerProduct.productId);
-          yield* Effect.annotateCurrentSpan(
-            "voidhash.project.id",
-            providerProduct.product.projectId,
-          );
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", product.projectId);
           yield* checkProjectPermission(
-            providerProduct.product.projectId,
+            product.projectId,
             "project:all",
-            `User ${session?.user?.id} is not authorized to delete payment provider products for project ${providerProduct.product.projectId}`,
+            `User ${session?.user?.id} is not authorized to delete payment provider products for project ${product.projectId}`,
           );
 
           yield* db
@@ -684,7 +690,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
 
           yield* auditLog
             .append({
-              projectId: providerProduct.product.projectId,
+              projectId: product.projectId,
               entityType: AuditLogEntityType.PaymentProviderProduct,
               entityId: input.id,
               parentEntityId: providerProduct.productId,
@@ -692,7 +698,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             })
             .pipe(Effect.ignore);
 
-          yield* schemaCache.invalidate(providerProduct.product.projectId);
+          yield* schemaCache.invalidate(product.projectId);
         },
         (effect) =>
           effect.pipe(
@@ -703,7 +709,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
           ),
       );
 
-      return {
+      return constant({
         createPaymentProviderProduct,
         deletePaymentProviderProduct,
         getProviderProductById,
@@ -711,7 +717,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         getProviderProductsByProjectId,
         setActivePaymentProviderProduct,
         updatePaymentProviderProduct,
-      } as const;
+      });
     }),
   },
 ) {

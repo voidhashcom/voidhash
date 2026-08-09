@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Schema } from "effect";
 import { toast } from "sonner";
 
 import { useMimicSdk } from "@/components/sdk-context";
@@ -50,6 +51,14 @@ export const Route = createFileRoute("/_app/_layout/users")({
   component: UsersPage,
 });
 
+const decodePermission = Schema.decodeUnknownSync(Schema.Literals(["read", "write", "admin"]));
+
+/** Label for the create-user submit button. */
+function createLabel(isPending: boolean): string {
+  if (isPending) return "Creating...";
+  return "Create";
+}
+
 function UsersPage() {
   const sdk = useMimicSdk();
   const queryClient = useQueryClient();
@@ -62,7 +71,7 @@ function UsersPage() {
   const createMutation = useMutation({
     mutationFn: () => sdk.createUser({ username, password }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
       setUsername("");
       setPassword("");
       setOpen(false);
@@ -74,11 +83,40 @@ function UsersPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => sdk.deleteUser(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success("User deleted");
     },
     onError: (err) => toast.error(`Failed to delete user: ${err.message}`),
   });
+
+  let content = <p className="text-muted-foreground">Loading...</p>;
+  if (!isLoading) {
+    content = (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-8" />
+            <TableHead>Username</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>ID</TableHead>
+            <TableHead className="w-16" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {users?.map((user) => (
+            <UserRow key={user.id} user={user} onDelete={() => deleteMutation.mutate(user.id)} />
+          ))}
+          {users?.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground">
+                No users yet.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -126,7 +164,7 @@ function UsersPage() {
                   <Button variant="outline">Cancel</Button>
                 </DialogClose>
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creating..." : "Create"}
+                  {createLabel(createMutation.isPending)}
                 </Button>
               </DialogFooter>
             </form>
@@ -134,33 +172,7 @@ function UsersPage() {
         </Dialog>
       </div>
 
-      {isLoading ? (
-        <p className="text-muted-foreground">Loading...</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8" />
-              <TableHead>Username</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead className="w-16" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users?.map((user) => (
-              <UserRow key={user.id} user={user} onDelete={() => deleteMutation.mutate(user.id)} />
-            ))}
-            {users?.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No users yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
+      {content}
     </div>
   );
 }
@@ -195,7 +207,7 @@ function UserRow({
         permission: grantPerm,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grants", user.id] });
+      void queryClient.invalidateQueries({ queryKey: ["grants", user.id] });
       setGrantDbId("");
       toast.success("Permission granted");
     },
@@ -205,24 +217,53 @@ function UserRow({
   const revokeMutation = useMutation({
     mutationFn: (databaseId: string) => sdk.revokePermission({ userId: user.id, databaseId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grants", user.id] });
+      void queryClient.invalidateQueries({ queryKey: ["grants", user.id] });
       toast.success("Permission revoked");
     },
     onError: (err) => toast.error(`Failed to revoke: ${err.message}`),
   });
+
+  let expandIcon = <ChevronRight className="h-4 w-4" />;
+  if (expanded) {
+    expandIcon = <ChevronDown className="h-4 w-4" />;
+  }
+
+  let roleBadge = <Badge variant="secondary">User</Badge>;
+  if (user.isSuperuser) {
+    roleBadge = <Badge>Superuser</Badge>;
+  }
+
+  let grantList = <p className="text-sm text-muted-foreground">No grants.</p>;
+  if (grants && grants.length > 0) {
+    grantList = (
+      <div className="space-y-2">
+        {grants.map((g) => (
+          <div key={g.id} className="flex items-center gap-4 text-sm">
+            <span className="font-mono text-xs">{g.databaseId}</span>
+            <Badge variant="outline">{g.permission}</Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => revokeMutation.mutate(g.databaseId)}
+            >
+              Revoke
+            </Button>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <>
       <TableRow>
         <TableCell>
           <Button variant="ghost" size="icon" onClick={() => setExpanded(!expanded)}>
-            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            {expandIcon}
           </Button>
         </TableCell>
         <TableCell className="font-medium">{user.username}</TableCell>
-        <TableCell>
-          {user.isSuperuser ? <Badge>Superuser</Badge> : <Badge variant="secondary">User</Badge>}
-        </TableCell>
+        <TableCell>{roleBadge}</TableCell>
         <TableCell className="font-mono text-xs text-muted-foreground">{user.id}</TableCell>
         <TableCell>
           <AlertDialog>
@@ -251,25 +292,7 @@ function UserRow({
           <TableCell colSpan={5} className="bg-muted/30 px-8 py-4">
             <div className="space-y-4">
               <h4 className="text-sm font-semibold">Grants</h4>
-              {grants && grants.length > 0 ? (
-                <div className="space-y-2">
-                  {grants.map((g) => (
-                    <div key={g.id} className="flex items-center gap-4 text-sm">
-                      <span className="font-mono text-xs">{g.databaseId}</span>
-                      <Badge variant="outline">{g.permission}</Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => revokeMutation.mutate(g.databaseId)}
-                      >
-                        Revoke
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No grants.</p>
-              )}
+              {grantList}
 
               <div className="flex items-end gap-2">
                 <div className="grid gap-1">
@@ -291,7 +314,7 @@ function UserRow({
                   <Label className="text-xs">Permission</Label>
                   <Select
                     value={grantPerm}
-                    onValueChange={(v) => setGrantPerm(v as "read" | "write" | "admin")}
+                    onValueChange={(v) => setGrantPerm(decodePermission(v))}
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />

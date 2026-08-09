@@ -1,5 +1,6 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
+import { constant } from "@voidhash/lib/lang";
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
   NotificationConfigKeyUnavailableError,
@@ -66,16 +67,28 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
 
     const findProvider = (
       providerId: string,
-    ): Effect.Effect<AnyPushDeliveryProviderShape, NotificationConfigNotFoundError> =>
-      isPushProviderKind(providerId)
-        ? Effect.succeed(providers[providerId])
-        : Effect.fail(
-            new NotificationConfigNotFoundError({ message: `Unknown push provider ${providerId}` }),
-          );
+    ): Effect.Effect<AnyPushDeliveryProviderShape, NotificationConfigNotFoundError> => {
+      if (isPushProviderKind(providerId)) return Effect.succeed(providers[providerId]);
+      return Effect.fail(
+        new NotificationConfigNotFoundError({ message: `Unknown push provider ${providerId}` }),
+      );
+    };
+
+    const readConfigurationDto = (
+      providerId: string,
+      configuration: typeof pushNotificationConfigs.$inferSelect.configuration,
+    ) => {
+      if (isPushProviderKind(providerId)) return providers[providerId].toReadDto(configuration);
+      return {};
+    };
+
+    const namePatch = (name: string | undefined): { name?: string } => {
+      if (name === undefined) return {};
+      return { name };
+    };
 
     /** Secret-OMITTING read DTO (DEVIATION 1). */
     const toReadDto = (row: typeof pushNotificationConfigs.$inferSelect) => {
-      const provider = isPushProviderKind(row.providerId) ? providers[row.providerId] : undefined;
       return {
         id: row.id,
         projectId: row.projectId,
@@ -87,7 +100,7 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         deletedAt: row.deletedAt,
-        configuration: provider ? provider.toReadDto(row.configuration) : {},
+        configuration: readConfigurationDto(row.providerId, row.configuration),
       };
     };
 
@@ -269,8 +282,8 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
             .set({
               configuration: mergedConfiguration,
               enabled: false,
-              ...(input.name !== undefined ? { name: input.name } : {}),
-              updatedAt: new Date(),
+              ...namePatch(input.name),
+              updatedAt: yield* DateTime.nowAsDate,
             })
             .where(eq(pushNotificationConfigs.id, input.id));
 
@@ -325,9 +338,9 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
           .set({
             configuration: validation.parsedConfiguration,
             enabled: input.enabled,
-            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...namePatch(input.name),
             pushProviderKey: validation.pushProviderKey,
-            updatedAt: new Date(),
+            updatedAt: yield* DateTime.nowAsDate,
           })
           .where(eq(pushNotificationConfigs.id, input.id));
 
@@ -381,9 +394,10 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
           `User ${session?.user?.id} is not authorized to delete push notification configuration ${input.pushNotificationConfigurationId}`,
         );
 
+        const deletedAt = yield* DateTime.nowAsDate;
         yield* db
           .update(pushNotificationConfigs)
-          .set({ deletedAt: new Date(), updatedAt: new Date() })
+          .set({ deletedAt, updatedAt: deletedAt })
           .where(eq(pushNotificationConfigs.id, input.pushNotificationConfigurationId));
 
         yield* auditLog
@@ -407,13 +421,13 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
         ),
     );
 
-    return {
+    return constant({
       createPushNotificationConfiguration,
       deletePushNotificationConfiguration,
       getPushNotificationConfigurationById,
       getPushNotificationConfigurations,
       updatePushNotificationConfiguration,
-    } as const;
+    });
   });
 
 /**

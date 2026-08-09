@@ -257,7 +257,7 @@ const validateNode = (node: unknown, path: string, errors: string[]): void => {
       }
       if (node.resizeMode !== undefined && !RESIZE_MODES.has(node.resizeMode as string)) {
         errors.push(
-          `${path}.resizeMode "${String(node.resizeMode)}" must be one of cover, contain, stretch, center`,
+          `${path}.resizeMode ${JSON.stringify(node.resizeMode)} must be one of cover, contain, stretch, center`,
         );
       }
       return;

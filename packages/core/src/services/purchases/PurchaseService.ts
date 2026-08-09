@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -73,7 +74,7 @@ export class PurchaseService extends Context.Service<PurchaseService>()("Purchas
         ),
     );
 
-    return { getPersonPurchases } as const;
+    return constant({ getPersonPurchases });
   }),
 }) {
   static layer = Layer.effect(PurchaseService)(PurchaseService.make);

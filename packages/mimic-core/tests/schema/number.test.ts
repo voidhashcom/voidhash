@@ -7,7 +7,7 @@ import {
   serializeSchema,
   validate,
 } from "../../src/index.js";
-import { expectSchemaErrorCode } from "./helpers.js";
+import { constant, expectSchemaErrorCode } from "./helpers.js";
 
 describe("schema number model", () => {
   it("parses and serializes validators and defaults", () => {
@@ -26,13 +26,13 @@ describe("schema number model", () => {
     });
   });
 
-  it.each([
+  it.each(constant([
     [{ kind: "min", value: 2 }, numberValue(1)],
     [{ kind: "max", value: 2 }, numberValue(3)],
     [{ kind: "positive" }, numberValue(0)],
     [{ kind: "negative" }, numberValue(0)],
     [{ kind: "int" }, numberValue(1.5)],
-  ] as const)("rejects invalid number for validator %o", (validator, value) => {
+  ]))("rejects invalid number for validator %o", (validator, value) => {
     const schema = parseSchema({
       kind: "number",
       validators: [validator],

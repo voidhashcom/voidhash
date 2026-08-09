@@ -26,7 +26,13 @@ flowchart TD
 
 - `libraries/` contains MIT SDKs embedded in customer applications.
 - `apps/backend`, `apps/www`, and `apps/mimic-db` are the AGPL service entry
-  points; `packages/backend` is the backend library they compose.
+  points. `packages/backend` is the backend library, while
+  `@voidhash/web-app` is the shared web source package they compose.
+- `@voidhash/web-app` owns shared web features and separate shared and
+  Community route sets. `apps/www` is the thin Community entrypoint that selects
+  those routes and supplies standalone auth and edition behavior. Another
+  edition can add its own pages and composition modules without mirroring or
+  patching Community source.
 - `@voidhash/platform` defines provider-neutral Effect services and application
   primitives for durable entities, queues, workflows, scheduled jobs, key-value
   storage, object storage, screenshots, and mail.

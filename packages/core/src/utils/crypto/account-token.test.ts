@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vite-plus/test";
 import { Effect } from "effect";
 
+import { describe, expect, it } from "../../testing/effect-vitest.ts";
 import { deriveAccountToken, uuidV5, VOIDHASH_ACCOUNT_TOKEN_NAMESPACE } from "./account-token.ts";
 
 const DNS_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
@@ -20,28 +20,32 @@ const SHARED_VECTORS: ReadonlyArray<readonly [distinctId: string, token: string]
 ];
 
 describe("account-token (VOIDHASH_ACCOUNT_TOKEN_DERIVATION v1)", () => {
-  it("reproduces the RFC 4122 UUIDv5 sanity anchor", async () => {
-    expect(await Effect.runPromise(uuidV5(DNS_NAMESPACE, "www.example.com"))).toBe(
-      "2ed6657d-e927-568b-95e1-2665a8aea6a2",
-    );
-  });
+  it.effect("reproduces the RFC 4122 UUIDv5 sanity anchor", () =>
+    Effect.gen(function* () {
+      expect(yield* uuidV5(DNS_NAMESPACE, "www.example.com")).toBe("2ed6657d-e927-568b-95e1-2665a8aea6a2");
+    }),
+  );
 
-  it("pins the namespace to its documented provenance", async () => {
-    expect(await Effect.runPromise(uuidV5(DNS_NAMESPACE, "appaccounttoken.voidhash.com"))).toBe(
-      VOIDHASH_ACCOUNT_TOKEN_NAMESPACE,
-    );
-  });
+  it.effect("pins the namespace to its documented provenance", () =>
+    Effect.gen(function* () {
+      expect(yield* uuidV5(DNS_NAMESPACE, "appaccounttoken.voidhash.com")).toBe(VOIDHASH_ACCOUNT_TOKEN_NAMESPACE);
+    }),
+  );
 
-  it.each(SHARED_VECTORS)("derives the shared vector for %j", async (distinctId, token) => {
-    expect(await Effect.runPromise(deriveAccountToken(distinctId))).toBe(token);
-  });
+  it.effect.each(SHARED_VECTORS)("derives the shared vector for %j", ([distinctId, token]) =>
+    Effect.gen(function* () {
+      expect(yield* deriveAccountToken(distinctId)).toBe(token);
+    }),
+  );
 
-  it("is deterministic and lowercase for long inputs", async () => {
-    const longDistinctId = "x".repeat(1000);
-    const first = await Effect.runPromise(deriveAccountToken(longDistinctId));
-    const second = await Effect.runPromise(deriveAccountToken(longDistinctId));
-    expect(first).toBe(second);
-    expect(first).toBe(first.toLowerCase());
-    expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  });
+  it.effect("is deterministic and lowercase for long inputs", () =>
+    Effect.gen(function* () {
+      const longDistinctId = "x".repeat(1000);
+      const first = yield* deriveAccountToken(longDistinctId);
+      const second = yield* deriveAccountToken(longDistinctId);
+      expect(first).toBe(second);
+      expect(first).toBe(first.toLowerCase());
+      expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    }),
+  );
 });

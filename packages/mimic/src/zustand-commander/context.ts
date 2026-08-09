@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand";
 import type { Command, Primitive } from "@voidhash/mimic-core";
 
-import type { DraftHandle, ClientDocument } from "../client/types.js";
+import type { ClientDocument } from "../client/types.js";
 import type { CommandContext, CommandDispatch, CommanderSlice } from "./types.js";
 
 const MUTATING_METHODS = new Set([

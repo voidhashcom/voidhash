@@ -26,7 +26,7 @@
  *    narrowing the swapped error with `instanceof` before reading its fields,
  *    paired with a DB-state assertion that the failure path wrote nothing.
  */
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { ProjectService } from "@voidhash/core/services";
@@ -61,6 +61,10 @@ const organizationSlug = CoreTestFixture.organizationSlug;
 const fixtureProjectId = CoreTestFixture.projectId;
 const fixtureProjectSlug = CoreTestFixture.projectSlug;
 
+/** Wall-clock helpers — `DateTime` equivalents of `nowMillis()` / `new Date(...)`. */
+const nowMillis = (): number => DateTime.toEpochMillis(DateTime.nowUnsafe());
+const instant = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
 /** Monotonic counter so names stay unique even within the same millisecond. */
 let nameSeq = 0;
 /**
@@ -68,7 +72,7 @@ let nameSeq = 0;
  * the `(slug, organization_id)` unique index across runs. `createSlug` lowercases
  * and dashes, so the resulting slug looks like `it-project-<label>-<n>`.
  */
-const uniqueName = (label: string) => `it project ${label} ${Date.now()} ${nameSeq++}`;
+const uniqueName = (label: string) => `it project ${label} ${nowMillis()} ${nameSeq++}`;
 
 /** Read a project row straight from the database, bypassing the service. */
 const findProjectRow = (id: string) =>
@@ -144,14 +148,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: instant(0),
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: instant(0),
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -214,14 +218,14 @@ const sessionWithProjectAccess = (projectId: string): UserSession => ({
     },
   ],
   user: {
-    createdAt: new Date(0),
+    createdAt: instant(0),
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: instant(0),
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -258,7 +262,7 @@ describe("ProjectService.getProjectById", () => {
     "returns null for an unknown id (before any permission check)",
     Effect.gen(function* () {
       const projectService = yield* ProjectService;
-      const project = yield* projectService.getProjectById(`proj_missing_${Date.now()}`);
+      const project = yield* projectService.getProjectById(`proj_missing_${nowMillis()}`);
       expect(project).toBeNull();
     }).pipe(Effect.provide(ProjectService.layer), CoreAuthSession.authenticate()),
   );
@@ -295,7 +299,7 @@ describe("ProjectService.getProjectBySlug", () => {
       const projectService = yield* ProjectService;
       const project = yield* projectService.getProjectBySlug({
         organizationId,
-        slug: `it-project-missing-${Date.now()}`,
+        slug: `it-project-missing-${nowMillis()}`,
       });
       expect(project).toBeNull();
     }).pipe(Effect.provide(ProjectService.layer), CoreAuthSession.authenticate()),
@@ -334,7 +338,7 @@ describe("ProjectService.getProjectBySlugAndOrganizationSlug", () => {
     Effect.gen(function* () {
       const projectService = yield* ProjectService;
       const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-        organizationSlug: `it-org-missing-${Date.now()}`,
+        organizationSlug: `it-org-missing-${nowMillis()}`,
         projectSlug: fixtureProjectSlug,
       });
       expect(project).toBeNull();
@@ -347,7 +351,7 @@ describe("ProjectService.getProjectBySlugAndOrganizationSlug", () => {
       const projectService = yield* ProjectService;
       const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
         organizationSlug,
-        projectSlug: `it-project-missing-${Date.now()}`,
+        projectSlug: `it-project-missing-${nowMillis()}`,
       });
       expect(project).toBeNull();
     }).pipe(Effect.provide(ProjectService.layer), CoreAuthSession.authenticate()),
@@ -385,7 +389,7 @@ describe("ProjectService.getProjects", () => {
         const list = yield* projectService.getProjects(organizationId);
         expect(list.some((project) => project.id === created.id)).toBe(true);
         expect(list.some((project) => project.id === fixtureProjectId)).toBe(true);
-        expect(list.some((project) => project.id === `proj_absent_${Date.now()}`)).toBe(false);
+        expect(list.some((project) => project.id === `proj_absent_${nowMillis()}`)).toBe(false);
       }),
     ).pipe(Effect.provide(ProjectService.layer), CoreAuthSession.authenticate()),
   );
@@ -425,7 +429,7 @@ describe("ProjectService.getProjectsByOrganizationSlug", () => {
     Effect.gen(function* () {
       const projectService = yield* ProjectService;
       const list = yield* projectService.getProjectsByOrganizationSlug(
-        `it-org-missing-${Date.now()}`,
+        `it-org-missing-${nowMillis()}`,
       );
       expect(list).toBeNull();
     }).pipe(Effect.provide(ProjectService.layer), CoreAuthSession.authenticate()),
@@ -618,7 +622,7 @@ describe("ProjectService.updateProject", () => {
     "fails with ProjectNotFoundError when the project does not exist",
     Effect.gen(function* () {
       const projectService = yield* ProjectService;
-      const id = `proj_missing_${Date.now()}`;
+      const id = `proj_missing_${nowMillis()}`;
       const error = yield* Effect.flip(projectService.updateProject({ id, name: "Nope" }));
       expect(error).toBeInstanceOf(ProjectNotFoundError);
       if (error instanceof ProjectNotFoundError) {
@@ -684,7 +688,7 @@ describe("ProjectService.deleteProject", () => {
     "fails with ProjectNotFoundError when the project does not exist",
     Effect.gen(function* () {
       const projectService = yield* ProjectService;
-      const id = `proj_missing_${Date.now()}`;
+      const id = `proj_missing_${nowMillis()}`;
       const error = yield* Effect.flip(projectService.deleteProject({ id }));
       expect(error).toBeInstanceOf(ProjectNotFoundError);
       if (error instanceof ProjectNotFoundError) {

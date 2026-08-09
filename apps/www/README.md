@@ -1,19 +1,12 @@
-# www
+# Community web entrypoint
 
-TanStack Start app deployed as a Cloudflare Worker through Alchemy.
+This application composes the shared Voidhash web package with the Community
+route set and standalone runtime adapters.
 
-## Development
-
-Run the full Cloudflare-backed stack from the repository root:
-
-```bash
-pnpm dev
-```
-
-For an app-only build check:
+Shared features and routes live in `packages/web-app`; this directory only owns
+the Community entrypoint, generated route tree, source configuration, and local
+development command.
 
 ```bash
 pnpm --filter @voidhash/www build
 ```
-
-`alchemy.run.ts` owns the Cloudflare deployment with `Cloudflare.Vite`; the app Vite config only contains the TanStack/React app plugins.

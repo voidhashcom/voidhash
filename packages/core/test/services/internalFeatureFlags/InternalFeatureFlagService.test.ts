@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { describe, expect, it } from "vite-plus/test";
 
 import { INTERNAL_FEATURE_FLAG_LIST } from "@voidhash/rpc";
@@ -25,12 +26,12 @@ describe("enabledKeysFromOverrides", () => {
   });
 
   it("enables every flag when each is overridden to true", () => {
-    const overrides = new Map(allKeys.map((key) => [key, true] as const));
+    const overrides = new Map(allKeys.map((key) => constant([key, true])));
     expect(enabledKeysFromOverrides(overrides).sort()).toEqual([...allKeys].sort());
   });
 
   it("disables every flag when each is overridden to false", () => {
-    const overrides = new Map(allKeys.map((key) => [key, false] as const));
+    const overrides = new Map(allKeys.map((key) => constant([key, false])));
     expect(enabledKeysFromOverrides(overrides)).toEqual([]);
   });
 

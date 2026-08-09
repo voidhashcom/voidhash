@@ -1,8 +1,6 @@
 import { Effect, Layer, Context } from "effect";
 
-const make = Effect.gen(function* scoped() {
-  return {} as const;
-});
+const make = Effect.sync(() => ({}));
 
 type CliConfigServiceShape = Effect.Success<typeof make>;
 

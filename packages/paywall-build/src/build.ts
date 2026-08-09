@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { compileComponents } from "./compile.ts";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error, hasErrors, info } from "./diagnostics.ts";
@@ -5,6 +6,7 @@ import { extractManifests, type ExtractedComponent } from "./extract.ts";
 import type { BuildReadFs } from "./fs.ts";
 import { hashSource } from "./hash.ts";
 import { resolveImports } from "./imports.ts";
+import { comparePaths } from "./paths.ts";
 import { typecheck } from "./typecheck.ts";
 import type {
   BuildArtifacts,
@@ -32,58 +34,82 @@ import { validate } from "./validate.ts";
  * @param entryPath absolute POSIX path of the entry `paywall.tsx`
  * @param caps host build capabilities (compile/extract/typecheck/cache seams)
  */
-export async function buildPaywall(
+export function buildPaywall(
   fs: BuildReadFs,
   entryPath: string,
   caps: BuildCapabilities,
 ): Promise<BuildResult> {
-  const diagnostics: BuildDiagnostic[] = [];
+  return Effect.runPromise(buildPaywallEffect(fs, entryPath, caps));
+}
 
-  // Missing entry is the ONLY error and short-circuits everything.
-  if (!fs.exists(entryPath)) {
-    return {
-      ok: false,
-      diagnostics: [error(entryPath, "validate", `Entry file "${entryPath}" does not exist.`)],
+/** The build pipeline as an Effect; {@link buildPaywall} runs it. */
+function buildPaywallEffect(
+  fs: BuildReadFs,
+  entryPath: string,
+  caps: BuildCapabilities,
+): Effect.Effect<BuildResult> {
+  return Effect.gen(function* () {
+    const diagnostics: BuildDiagnostic[] = [];
+
+    // Missing entry is the ONLY error and short-circuits everything.
+    if (!fs.exists(entryPath)) {
+      return {
+        ok: false,
+        diagnostics: [error(entryPath, "validate", `Entry file "${entryPath}" does not exist.`)],
+      };
+    }
+
+    // Stage 1 — imports.
+    const imports = resolveImports(fs, entryPath);
+    diagnostics.push(...imports.diagnostics);
+
+    // Stage 2 — typecheck (capability-gated).
+    if (caps.typecheck) {
+      diagnostics.push(
+        ...typecheck(
+          entryPath,
+          imports.entrySource,
+          imports.components,
+          typecheckOptions(caps.typecheck),
+        ),
+      );
+    } else {
+      diagnostics.push(
+        info(entryPath, "types", "Typecheck capability not enabled — types are not checked."),
+      );
+    }
+
+    // Stage 3 — compile.
+    const compileResult = yield* Effect.promise(() =>
+      compileComponents(imports.components, caps),
+    );
+    diagnostics.push(...compileResult.diagnostics);
+
+    // Stage 4 — extract manifests.
+    const extractResult = yield* Effect.promise(() =>
+      extractManifests(compileResult.compiled, caps),
+    );
+    diagnostics.push(...extractResult.diagnostics);
+
+    // Stage 5 — cross-validate.
+    diagnostics.push(...validate(imports.components));
+
+    const ok = !hasErrors(diagnostics);
+    if (!ok) {
+      return { ok, diagnostics };
+    }
+
+    const artifacts: BuildArtifacts = {
+      components: toComponentArtifacts(imports.components, extractResult.extracted),
     };
-  }
+    return { ok, artifacts, diagnostics };
+  });
+}
 
-  // Stage 1 — imports.
-  const imports = resolveImports(fs, entryPath);
-  diagnostics.push(...imports.diagnostics);
-
-  // Stage 2 — typecheck (capability-gated).
-  if (caps.typecheck) {
-    const options: TypecheckOptions =
-      typeof caps.typecheck === "object" ? caps.typecheck : {};
-    diagnostics.push(
-      ...typecheck(entryPath, imports.entrySource, imports.components, options),
-    );
-  } else {
-    diagnostics.push(
-      info(entryPath, "types", "Typecheck capability not enabled — types are not checked."),
-    );
-  }
-
-  // Stage 3 — compile.
-  const compileResult = await compileComponents(imports.components, caps);
-  diagnostics.push(...compileResult.diagnostics);
-
-  // Stage 4 — extract manifests.
-  const extractResult = await extractManifests(compileResult.compiled, caps);
-  diagnostics.push(...extractResult.diagnostics);
-
-  // Stage 5 — cross-validate.
-  diagnostics.push(...validate(imports.components));
-
-  const ok = !hasErrors(diagnostics);
-  if (!ok) {
-    return { ok, diagnostics };
-  }
-
-  const artifacts: BuildArtifacts = {
-    components: toComponentArtifacts(imports.components, extractResult.extracted),
-  };
-  return { ok, artifacts, diagnostics };
+/** The typecheck options a `true`/options capability value resolves to. */
+function typecheckOptions(capability: NonNullable<BuildCapabilities["typecheck"]>): TypecheckOptions {
+  if (typeof capability === "object") return capability;
+  return {};
 }
 
 /**
@@ -107,5 +133,5 @@ function toComponentArtifacts(
         status: e?.status ?? "unknown",
       };
     })
-    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+    .sort((a, b) => comparePaths(a.path, b.path));
 }

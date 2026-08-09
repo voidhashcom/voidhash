@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer } from "effect";
 
 import { ProjectSchemaCache } from "./SchemaService.ts";
@@ -30,7 +31,7 @@ export class SchemaCacheInvalidationService extends Context.Service<SchemaCacheI
         yield* cache.getByName(projectId).invalidate();
       });
 
-      return { invalidate } as const;
+      return constant({ invalidate });
     }),
   },
 ) {

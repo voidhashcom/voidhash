@@ -7,7 +7,7 @@ import {
   PaywallReleaseService,
 } from "@voidhash/core/services";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
-import { Context, Effect, Layer } from "effect";
+import { Config, Console, Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import {
   makeBackendInfrastructureLive,
@@ -20,14 +20,22 @@ import { getMimicNodeConfig } from "./mimic/config.ts";
 
 const resultPrefix = "SELFHOST_RELEASE_RESULT ";
 
-const requiredEnv = (name: string): string => {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-};
+/** JSON text of the smoke result line consumed by the release pipeline. */
+const encodeResultJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
-const makeSession = (projectId: string, userId: string): AnyAuthSession => {
-  const now = new Date();
+/**
+ * Reads a required smoke-run environment variable. A missing value is a harness
+ * misconfiguration, so it is raised as a defect exactly as the previous `throw`.
+ */
+const requiredEnv = (name: string): Effect.Effect<string> =>
+  Effect.gen(function* () {
+    const raw = yield* Config.string(name).pipe(Config.withDefault(""), Effect.orDie);
+    const value = raw.trim();
+    if (!value) return yield* Effect.die(new Error(`${name} is required`));
+    return value;
+  });
+
+const makeSession = (projectId: string, userId: string, now: Date): AnyAuthSession => {
   return {
     cookie: null,
     method: "user",
@@ -61,9 +69,10 @@ const makeSession = (projectId: string, userId: string): AnyAuthSession => {
 NodeRuntime.runMain(
   Effect.scoped(
     Effect.gen(function* () {
-      const paywallId = requiredEnv("SELFHOST_RELEASE_PAYWALL_ID");
-      const projectId = requiredEnv("SELFHOST_RELEASE_PROJECT_ID");
-      const userId = requiredEnv("SELFHOST_RELEASE_USER_ID");
+      const paywallId = yield* requiredEnv("SELFHOST_RELEASE_PAYWALL_ID");
+      const projectId = yield* requiredEnv("SELFHOST_RELEASE_PROJECT_ID");
+      const userId = yield* requiredEnv("SELFHOST_RELEASE_USER_ID");
+      const now = yield* DateTime.nowAsDate;
       const config = getSelfhostRuntimeConfig();
       const hostContext = yield* Layer.build(
         makeMimicNodeHostLive(
@@ -99,12 +108,10 @@ NodeRuntime.runMain(
         return { draft, published };
       }).pipe(
         Effect.provide(releaseLayer),
-        Effect.provideService(AuthSession, makeSession(projectId, userId)),
+        Effect.provideService(AuthSession, makeSession(projectId, userId, now)),
       );
 
-      yield* Effect.sync(() => {
-        process.stdout.write(`${resultPrefix}${JSON.stringify(result)}\n`);
-      });
+      yield* Console.log(`${resultPrefix}${encodeResultJson(result)}`);
     }),
-  ) as never,
+  ),
 );

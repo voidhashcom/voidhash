@@ -31,8 +31,10 @@ export interface Diagnostic {
 }
 
 /** Render a span as a compact `line:col` prefix for flat error messages. */
-export const formatSpan = (span: Span | undefined): string =>
-  span ? `line ${span.start.line}, col ${span.start.col}: ` : "";
+export const formatSpan = (span: Span | undefined): string => {
+  if (span) return `line ${span.start.line}, col ${span.start.col}: `;
+  return "";
+};
 
 /** The query text could not be tokenised or parsed into a valid VoidQL AST. */
 export class VoidQlSyntaxError extends Schema.TaggedErrorClass<VoidQlSyntaxError>(
@@ -112,12 +114,18 @@ const COMPILE_TAGS = new Set([
 ]);
 
 /** Narrow an unknown thrown value to a VoidQL compile error instance. */
-export const isVoidQlCompileError = (u: unknown): u is VoidQlCompileError =>
-  typeof u === "object" &&
-  u !== null &&
-  "_tag" in u &&
-  typeof (u as { _tag: unknown })._tag === "string" &&
-  COMPILE_TAGS.has((u as { _tag: string })._tag);
+export const isVoidQlCompileError = (u: unknown): u is VoidQlCompileError => {
+  if (typeof u !== "object" || u === null) return false;
+  if (!("_tag" in u)) return false;
+  const tag = u._tag;
+  return typeof tag === "string" && COMPILE_TAGS.has(tag);
+};
+
+/** Renders the "did you mean" hint, or nothing when there is no suggestion. */
+const suggestionHint = (suggestion: string | undefined): string | undefined => {
+  if (suggestion) return `Did you mean '${suggestion}'?`;
+  return undefined;
+};
 
 /** Map a compile error to a public {@link Diagnostic} (used by `validateQuery`). */
 export const toDiagnostic = (error: VoidQlCompileError): Diagnostic => {
@@ -133,7 +141,7 @@ export const toDiagnostic = (error: VoidQlCompileError): Diagnostic => {
         stage: "resolve",
         code: "unknown_field",
         message: error.message,
-        hint: error.suggestion ? `Did you mean '${error.suggestion}'?` : undefined,
+        hint: suggestionHint(error.suggestion),
       };
     case "VoidQlPiiError":
       return { stage: "resolve", code: "pii", message: error.message };

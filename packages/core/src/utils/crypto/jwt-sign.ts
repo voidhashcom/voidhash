@@ -15,7 +15,7 @@
  * Both take a PKCS#8 PEM private key. Callers pass the DECRYPTED key material —
  * decryption happens upstream (the provider adapter owns its secret seam).
  */
-import { Effect, Schema } from "effect";
+import { Effect, Encoding, Schema } from "effect";
 
 /** Raised when JWT construction or signing fails (bad key, WebCrypto error). */
 export class JwtSigningError extends Schema.TaggedErrorClass<JwtSigningError>("JwtSigningError")(
@@ -26,38 +26,41 @@ export class JwtSigningError extends Schema.TaggedErrorClass<JwtSigningError>("J
 const encoder = new TextEncoder();
 
 /** URL-safe base64 without padding — the JOSE `base64url` alphabet. */
-const bytesToBase64Url = (bytes: Uint8Array): string => {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i] as number);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-};
+const bytesToBase64Url = (bytes: Uint8Array): string => Encoding.encodeBase64Url(bytes);
 
 const stringToBase64Url = (value: string): string => bytesToBase64Url(encoder.encode(value));
+
+/** JSON serialization for the JWT header and claim segments. */
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+/**
+ * Copies `bytes` into a view backed by a plain `ArrayBuffer`, the shape
+ * WebCrypto's `BufferSource` parameters require.
+ */
+const bufferSource = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy;
+};
 
 /**
  * Decode a PEM-wrapped PKCS#8 private key into its DER bytes. Tolerant of `\n`
  * or `\r\n` line endings and of a key handed in with the armor already stripped.
  */
 const pemToDer = (pem: string): Effect.Effect<Uint8Array, JwtSigningError> =>
-  Effect.try({
-    try: () => {
-      const body = pem
-        .replace(/-----BEGIN [^-]+-----/g, "")
-        .replace(/-----END [^-]+-----/g, "")
-        .replace(/\s+/g, "");
-      if (body.length === 0) {
-        throw new Error("empty PEM body");
-      }
-      const binary = atob(body);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes;
-    },
-    catch: (cause) => new JwtSigningError({ message: `invalid PKCS#8 PEM: ${String(cause)}` }),
+  Effect.gen(function* () {
+    const body = pem
+      .replace(/-----BEGIN [^-]+-----/g, "")
+      .replace(/-----END [^-]+-----/g, "")
+      .replace(/\s+/g, "");
+    if (body.length === 0) {
+      return yield* new JwtSigningError({ message: "invalid PKCS#8 PEM: empty PEM body" });
+    }
+    return yield* Effect.fromResult(Encoding.decodeBase64(body)).pipe(
+      Effect.mapError(
+        (cause) => new JwtSigningError({ message: `invalid PKCS#8 PEM: ${cause.message}` }),
+      ),
+    );
   });
 
 /** JWT header fields common to both algorithms (`kid` is APNs-only). */
@@ -79,16 +82,15 @@ const signWith = (
     const der = yield* pemToDer(privateKeyPem);
     const key = yield* Effect.tryPromise({
       try: () =>
-        crypto.subtle.importKey("pkcs8", der as BufferSource, importAlgorithm, false, ["sign"]),
+        crypto.subtle.importKey("pkcs8", bufferSource(der), importAlgorithm, false, ["sign"]),
       catch: (cause) =>
         new JwtSigningError({ message: `failed to import ${algorithm} key: ${String(cause)}` }),
     });
-    const signingInput = `${stringToBase64Url(JSON.stringify({ typ: "JWT", ...header }))}.${stringToBase64Url(
-      JSON.stringify(claims),
+    const signingInput = `${stringToBase64Url(encodeJson({ typ: "JWT", ...header }))}.${stringToBase64Url(
+      encodeJson(claims),
     )}`;
     const signature = yield* Effect.tryPromise({
-      try: () =>
-        crypto.subtle.sign(signAlgorithm, key, encoder.encode(signingInput) as BufferSource),
+      try: () => crypto.subtle.sign(signAlgorithm, key, encoder.encode(signingInput)),
       catch: (cause) =>
         new JwtSigningError({ message: `${algorithm} signing failed: ${String(cause)}` }),
     });

@@ -11,9 +11,10 @@
  * and serialized at the row level by the identity transaction's `FOR UPDATE`
  * locks — no application-level scheduler needed.
  */
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
+import { constant, pick } from "@voidhash/lib/lang";
 import { and, apiKeys, captureProjectPolicies, Db, eq, projects } from "@voidhash/db";
 
 import {
@@ -65,11 +66,15 @@ const DEFAULT_PROCESSOR_POLICY: ProcessorProjectPolicy = {
 
 const buildProcessedEventIdentity = (
   identity: ResolvedAnalyticsIdentity,
-): ProcessedEventIdentity => ({
-  ...(identity.personId ? { personId: identity.personId } : {}),
-  distinctId: identity.distinctId,
-  mode: identity.mode,
-});
+): ProcessedEventIdentity => {
+  const optional: { personId?: string } = {};
+  if (identity.personId) optional.personId = identity.personId;
+  return {
+    ...optional,
+    distinctId: identity.distinctId,
+    mode: identity.mode,
+  };
+};
 
 /** Builds the wire-stable {@link ProcessedEventV2} the writer consumes. */
 export const buildProcessedEvent = ({
@@ -86,34 +91,38 @@ export const buildProcessedEvent = ({
   readonly sourceOffset: string;
   readonly sourcePartition: number;
   readonly sourceTopic: string;
-}): ProcessedEventV2Type => ({
-  captureId: capturedEvent.captureId,
-  context: capturedEvent.context,
-  distinctId: capturedEvent.distinctId,
-  event: capturedEvent.event,
-  eventTimestamp: capturedEvent.eventTimestamp,
-  groups: [],
-  identity: buildProcessedEventIdentity(identity),
-  organizationId: capturedEvent.organizationId,
-  processedAt: new Date().toISOString(),
-  // The ClickHouse dedup key prefers the SDK's stable client uuid (reused across
-  // retries / offline redelivery) over the fresh per-request captureId, so an
-  // SDK-level resend collapses on read; falls back to captureId for non-SDK callers.
-  processedEventId: capturedEvent.clientEventId ?? capturedEvent.captureId,
-  projectId: capturedEvent.projectId,
-  properties: capturedEvent.properties,
-  request: capturedEvent.request,
-  routing: {
-    lane,
-    skipEnrichment: capturedEvent.routing.skipEnrichment,
-    sourceOffset,
-    sourcePartition,
-    sourceTopic,
-  },
-  schemaVersion: 2,
-  ...(capturedEvent.sessionId ? { sessionId: capturedEvent.sessionId } : {}),
-  token: capturedEvent.token,
-});
+}): ProcessedEventV2Type => {
+  const optional: { sessionId?: string } = {};
+  if (capturedEvent.sessionId) optional.sessionId = capturedEvent.sessionId;
+  return {
+    captureId: capturedEvent.captureId,
+    context: capturedEvent.context,
+    distinctId: capturedEvent.distinctId,
+    event: capturedEvent.event,
+    eventTimestamp: capturedEvent.eventTimestamp,
+    groups: [],
+    identity: buildProcessedEventIdentity(identity),
+    organizationId: capturedEvent.organizationId,
+    processedAt: DateTime.formatIso(DateTime.nowUnsafe()),
+    // The ClickHouse dedup key prefers the SDK's stable client uuid (reused across
+    // retries / offline redelivery) over the fresh per-request captureId, so an
+    // SDK-level resend collapses on read; falls back to captureId for non-SDK callers.
+    processedEventId: capturedEvent.clientEventId ?? capturedEvent.captureId,
+    projectId: capturedEvent.projectId,
+    properties: capturedEvent.properties,
+    request: capturedEvent.request,
+    routing: {
+      lane,
+      skipEnrichment: capturedEvent.routing.skipEnrichment,
+      sourceOffset,
+      sourcePartition,
+      sourceTopic,
+    },
+    schemaVersion: 2,
+    ...optional,
+    token: capturedEvent.token,
+  };
+};
 
 /**
  * Validate policy + lane preconditions for a captured record and, on success,
@@ -192,31 +201,45 @@ export const attachProjectPolicy = ({
   };
 };
 
-const parseProcessPersonProfile = (properties: Record<string, unknown>): boolean | undefined => {
-  const rawValue = properties.$process_person_profile;
-  if (typeof rawValue === "undefined") return undefined;
-  if (typeof rawValue !== "boolean") {
-    throw new Error("$process_person_profile must be a boolean");
+const parseProcessPersonProfile = (
+  properties: Record<string, unknown>,
+): Effect.Effect<boolean | undefined, EventProcessorServiceError> =>
+  Effect.gen(function* () {
+    const rawValue = properties.$process_person_profile;
+    if (typeof rawValue === "undefined") return undefined;
+    if (typeof rawValue !== "boolean") {
+      return yield* new EventProcessorServiceError({
+        cause: "invalid_process_person_profile",
+        message: "$process_person_profile must be a boolean",
+      });
+    }
+    return rawValue;
+  });
+
+const parseIdentifySourceDistinctId = (
+  properties: Record<string, unknown>,
+): Effect.Effect<string, EventProcessorServiceError> =>
+  Effect.gen(function* () {
+    const rawValue = properties.$previous_distinct_id;
+    if (typeof rawValue !== "string" || rawValue.length === 0) {
+      return yield* new EventProcessorServiceError({
+        cause: "missing_previous_distinct_id",
+        message: "$identify requires properties.$previous_distinct_id",
+      });
+    }
+    return rawValue;
+  });
+
+/** Returns the first candidate that is a string — the trait `set`/`setOnce` fallback chain. */
+const firstString = (...candidates: ReadonlyArray<unknown>): string | undefined => {
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") return candidate;
   }
-  return rawValue;
+  return undefined;
 };
 
-const parseIdentifySourceDistinctId = (properties: Record<string, unknown>): string => {
-  const rawValue = properties.$previous_distinct_id;
-  if (typeof rawValue !== "string" || rawValue.length === 0) {
-    throw new Error("$identify requires properties.$previous_distinct_id");
-  }
-  return rawValue;
-};
-
-/**
- * Computes the {@link PersonIdentityService} call (identify vs resolve) for a
- * processing event, extracting person traits and the stable identity `eventId`
- * (the SDK client uuid, falling back to captureId) used for assertion dedup.
- */
-export const buildPersonIdentityCall = (
-  processingEvent: ProcessingEvent,
-):
+/** The {@link PersonIdentityService} call computed for a processing event. */
+export type PersonIdentityCall =
   | {
       readonly kind: "identify";
       readonly input: {
@@ -244,89 +267,106 @@ export const buildPersonIdentityCall = (
         readonly setOnceAttributes: Record<string, unknown>;
         readonly shouldCreatePerson: boolean;
       };
-    } => {
-  const { capturedEvent } = processingEvent;
-  const innerProperties = extractInnerProperties(capturedEvent.properties);
-  const traits = parsePersonTraits(innerProperties);
-  if (!traits.ok) throw new Error(traits.message);
+    };
 
-  const name =
-    typeof traits.value.set.name === "string"
-      ? traits.value.set.name
-      : typeof traits.value.setOnce.name === "string"
-        ? traits.value.setOnce.name
-        : undefined;
-  const email =
-    typeof traits.value.set.email === "string"
-      ? traits.value.set.email
-      : typeof traits.value.setOnce.email === "string"
-        ? traits.value.setOnce.email
-        : undefined;
-  const setAttributes = Object.fromEntries(
-    Object.entries(traits.value.set).filter(([key]) => key !== "email" && key !== "name"),
-  );
-  const setOnceAttributes = Object.fromEntries(
-    Object.entries(traits.value.setOnce).filter(([key]) => key !== "email" && key !== "name"),
-  );
+/**
+ * Computes the {@link PersonIdentityService} call (identify vs resolve) for a
+ * processing event, extracting person traits and the stable identity `eventId`
+ * (the SDK client uuid, falling back to captureId) used for assertion dedup.
+ *
+ * Fails with {@link EventProcessorServiceError} when the event carries
+ * malformed person traits; the processor treats that as a defect.
+ */
+export const buildPersonIdentityCall = (
+  processingEvent: ProcessingEvent,
+): Effect.Effect<PersonIdentityCall, EventProcessorServiceError> =>
+  Effect.gen(function* () {
+    const { capturedEvent } = processingEvent;
+    const innerProperties = extractInnerProperties(capturedEvent.properties);
+    const traits = parsePersonTraits(innerProperties);
+    if (!traits.ok)
+      return yield* new EventProcessorServiceError({
+        cause: "invalid_person_traits",
+        message: traits.message,
+      });
 
-  const eventId = capturedEvent.clientEventId ?? capturedEvent.captureId;
+    const name = firstString(traits.value.set.name, traits.value.setOnce.name);
+    const email = firstString(traits.value.set.email, traits.value.setOnce.email);
+    const setAttributes = Object.fromEntries(
+      Object.entries(traits.value.set).filter(([key]) => key !== "email" && key !== "name"),
+    );
+    const setOnceAttributes = Object.fromEntries(
+      Object.entries(traits.value.setOnce).filter(([key]) => key !== "email" && key !== "name"),
+    );
 
-  if (capturedEvent.event === "$identify") {
+    const eventId = capturedEvent.clientEventId ?? capturedEvent.captureId;
+
+    if (capturedEvent.event === "$identify") {
+      const previousDistinctId = yield* parseIdentifySourceDistinctId(innerProperties);
+      return {
+        kind: "identify",
+        input: {
+          distinctId: capturedEvent.distinctId,
+          email,
+          eventId,
+          eventTimestamp: DateTime.toDateUtc(DateTime.makeUnsafe(capturedEvent.eventTimestamp)),
+          name,
+          previousDistinctId,
+          projectId: capturedEvent.projectId,
+          setAttributes,
+          setOnceAttributes,
+        },
+      };
+    }
+
+    const processPersonProfile = yield* parseProcessPersonProfile(capturedEvent.properties);
+    const shouldCreatePerson =
+      processPersonProfile ?? !capturedEvent.distinctId.startsWith(ANONYMOUS_USER_ID_PREFIX);
+
+    const enrichmentDisabled =
+      capturedEvent.routing.skipEnrichment ||
+      !processingEvent.projectPolicy.processorPersonProcessingEnabled;
+
     return {
-      kind: "identify",
+      kind: "resolve",
       input: {
         distinctId: capturedEvent.distinctId,
         email,
         eventId,
-        eventTimestamp: new Date(capturedEvent.eventTimestamp),
+        eventTimestamp: DateTime.toDateUtc(DateTime.makeUnsafe(capturedEvent.eventTimestamp)),
         name,
-        previousDistinctId: parseIdentifySourceDistinctId(innerProperties),
         projectId: capturedEvent.projectId,
-        setAttributes,
-        setOnceAttributes,
+        setAttributes: pick(enrichmentDisabled, {}, setAttributes),
+        setOnceAttributes: pick(enrichmentDisabled, {}, setOnceAttributes),
+        shouldCreatePerson,
       },
     };
-  }
-
-  const shouldCreatePerson =
-    parseProcessPersonProfile(capturedEvent.properties) ??
-    !capturedEvent.distinctId.startsWith(ANONYMOUS_USER_ID_PREFIX);
-
-  const enrichmentDisabled =
-    capturedEvent.routing.skipEnrichment ||
-    !processingEvent.projectPolicy.processorPersonProcessingEnabled;
-
-  return {
-    kind: "resolve",
-    input: {
-      distinctId: capturedEvent.distinctId,
-      email,
-      eventId,
-      eventTimestamp: new Date(capturedEvent.eventTimestamp),
-      name,
-      projectId: capturedEvent.projectId,
-      setAttributes: enrichmentDisabled ? {} : setAttributes,
-      setOnceAttributes: enrichmentDisabled ? {} : setOnceAttributes,
-      shouldCreatePerson,
-    },
-  };
-};
+  });
 
 export const toProcessorPersonEvent = (
   event: PersonSnapshotEventV1,
-): ProcessorPersonEventV1Type => ({
-  changedAt: event.changedAt,
-  personId: event.personId,
-  ...(event.email ? { email: event.email } : {}),
-  isArchived: event.isArchived,
-  ...(event.mergedIntoPersonId ? { mergedIntoPersonId: event.mergedIntoPersonId } : {}),
-  ...(event.name ? { name: event.name } : {}),
-  ...(event.primaryDistinctId ? { primaryDistinctId: event.primaryDistinctId } : {}),
-  projectId: event.projectId,
-  schemaVersion: event.schemaVersion,
-  traits: event.traits,
-  version: event.version,
-});
+): ProcessorPersonEventV1Type => {
+  const optional: {
+    email?: string;
+    mergedIntoPersonId?: string;
+    name?: string;
+    primaryDistinctId?: string;
+  } = {};
+  if (event.email) optional.email = event.email;
+  if (event.mergedIntoPersonId) optional.mergedIntoPersonId = event.mergedIntoPersonId;
+  if (event.name) optional.name = event.name;
+  if (event.primaryDistinctId) optional.primaryDistinctId = event.primaryDistinctId;
+  return {
+    changedAt: event.changedAt,
+    personId: event.personId,
+    ...optional,
+    isArchived: event.isArchived,
+    projectId: event.projectId,
+    schemaVersion: event.schemaVersion,
+    traits: event.traits,
+    version: event.version,
+  };
+};
 
 const toProcessorPersonIdentityEvent = ({
   identityDistinctId,
@@ -337,15 +377,19 @@ const toProcessorPersonIdentityEvent = ({
 }): ProcessorPersonIdentityEventV1Type => {
   // Prefer the explicit override direction from the synchronous merge; fall back
   // to inferring it from the identify target for legacy mapping events.
-  const previousDistinctId =
-    mappingEvent.previousDistinctId ??
-    (mappingEvent.distinctId === identityDistinctId ? undefined : mappingEvent.distinctId);
+  const inferPreviousDistinctId = (): string | undefined => {
+    if (mappingEvent.distinctId === identityDistinctId) return undefined;
+    return mappingEvent.distinctId;
+  };
+  const previousDistinctId = mappingEvent.previousDistinctId ?? inferPreviousDistinctId();
+  const optional: { previousDistinctId?: string } = {};
+  if (previousDistinctId) optional.previousDistinctId = previousDistinctId;
   return {
     changedAt: mappingEvent.changedAt,
     personId: mappingEvent.personId,
-    distinctId: previousDistinctId ? identityDistinctId : mappingEvent.distinctId,
+    distinctId: pick(Boolean(previousDistinctId), identityDistinctId, mappingEvent.distinctId),
     isDeleted: mappingEvent.isDeleted,
-    ...(previousDistinctId ? { previousDistinctId } : {}),
+    ...optional,
     projectId: mappingEvent.projectId,
     schemaVersion: mappingEvent.schemaVersion,
     version: mappingEvent.version,
@@ -378,7 +422,7 @@ export class EventProcessorService extends Context.Service<EventProcessorService
 
       const processRecordToOutputs = Effect.fn("processRecordToOutputs")(
         function* (transportRecord: CapturedTransportRecord) {
-          const now = new Date();
+          const now = yield* DateTime.nowAsDate;
 
           const capturedEvent = transportRecord.capturedEvent;
           if (capturedEvent.captureId)
@@ -405,24 +449,29 @@ export class EventProcessorService extends Context.Service<EventProcessorService
 
           const resolved = yield* Effect.result(
             Effect.gen(function* () {
-              const [projectRecord] = isTrustedRevenue
-                ? yield* db
+              const projectRecord = yield* Effect.gen(function* () {
+                if (isTrustedRevenue) {
+                  const [trustedRecord] = yield* db
                     .select({
                       organizationId: projects.organizationId,
                       projectId: projects.id,
                     })
                     .from(projects)
                     .where(eq(projects.id, capturedEvent.projectId))
-                    .limit(1)
-                : yield* db
-                    .select({
-                      organizationId: projects.organizationId,
-                      projectId: apiKeys.projectId,
-                    })
-                    .from(apiKeys)
-                    .innerJoin(projects, eq(projects.id, apiKeys.projectId))
-                    .where(and(eq(apiKeys.isPublic, true), eq(apiKeys.key, capturedEvent.token)))
                     .limit(1);
+                  return trustedRecord;
+                }
+                const [apiKeyRecord] = yield* db
+                  .select({
+                    organizationId: projects.organizationId,
+                    projectId: apiKeys.projectId,
+                  })
+                  .from(apiKeys)
+                  .innerJoin(projects, eq(projects.id, apiKeys.projectId))
+                  .where(and(eq(apiKeys.isPublic, true), eq(apiKeys.key, capturedEvent.token)))
+                  .limit(1);
+                return apiKeyRecord;
+              });
 
               if (!projectRecord) return null;
 
@@ -432,19 +481,21 @@ export class EventProcessorService extends Context.Service<EventProcessorService
                 .where(eq(captureProjectPolicies.projectId, projectRecord.projectId))
                 .limit(1);
 
+              let policy: ProcessorProjectPolicy = DEFAULT_PROCESSOR_POLICY;
+              if (policyRecord) {
+                policy = {
+                  processorAllowHistorical: policyRecord.processorAllowHistorical,
+                  processorAllowOverflow: policyRecord.processorAllowOverflow,
+                  processorEnabled: policyRecord.processorEnabled,
+                  processorHistoricalMinAgeHours: policyRecord.processorHistoricalMinAgeHours,
+                  processorPersonProcessingEnabled: policyRecord.processorPersonProcessingEnabled,
+                  processorSchemaMode: policyRecord.processorSchemaMode,
+                };
+              }
+
               return {
                 organizationId: projectRecord.organizationId,
-                policy: policyRecord
-                  ? {
-                      processorAllowHistorical: policyRecord.processorAllowHistorical,
-                      processorAllowOverflow: policyRecord.processorAllowOverflow,
-                      processorEnabled: policyRecord.processorEnabled,
-                      processorHistoricalMinAgeHours: policyRecord.processorHistoricalMinAgeHours,
-                      processorPersonProcessingEnabled:
-                        policyRecord.processorPersonProcessingEnabled,
-                      processorSchemaMode: policyRecord.processorSchemaMode,
-                    }
-                  : DEFAULT_PROCESSOR_POLICY,
+                policy,
                 projectId: projectRecord.projectId,
               };
             }),
@@ -538,10 +589,15 @@ export class EventProcessorService extends Context.Service<EventProcessorService
             } satisfies ProcessorOutputs;
           }
 
-          const call = buildPersonIdentityCall(attached.value);
-          const identityResult = yield* call.kind === "identify"
-            ? personIdentityService.identifyDistinctId(call.input)
-            : personIdentityService.resolveDistinctId(call.input);
+          // Malformed person traits stay a defect here, exactly as the
+          // previous synchronous `throw` did.
+          const call = yield* Effect.orDie(buildPersonIdentityCall(attached.value));
+          const identityResult = yield* Effect.gen(function* () {
+            if (call.kind === "identify") {
+              return yield* personIdentityService.identifyDistinctId(call.input);
+            }
+            return yield* personIdentityService.resolveDistinctId(call.input);
+          });
 
           if (identityResult.identity.personId)
             yield* Effect.annotateCurrentSpan(
@@ -588,7 +644,7 @@ export class EventProcessorService extends Context.Service<EventProcessorService
           ),
       );
 
-      return { processRecordToOutputs } as const;
+      return constant({ processRecordToOutputs });
     }),
   },
 ) {

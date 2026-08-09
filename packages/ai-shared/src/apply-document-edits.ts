@@ -174,8 +174,13 @@ function unregisterSubtree(index: TreeIndex, node: MutableNode): void {
 
 /** Insert `node` among `parent`'s children at `index` (clamped into range). */
 function insertChild(parent: MutableNode, node: MutableNode, at: number | undefined): void {
-  const position = at === undefined ? parent.children.length : clamp(at, parent.children.length);
-  parent.children.splice(position, 0, node);
+  parent.children.splice(insertPosition(parent.children.length, at), 0, node);
+}
+
+/** The resolved insertion position: appended when omitted, else clamped into range. */
+function insertPosition(childCount: number, at: number | undefined): number {
+  if (at === undefined) return childCount;
+  return clamp(at, childCount);
 }
 
 /** Remove the child with `childId` from `parent`'s children (no-op when absent). */
@@ -279,7 +284,7 @@ function toMutable(node: EditableDocumentNode): MutableNode {
   return {
     id: node.id,
     type: node.type,
-    data: { ...(node.data ?? {}) },
+    data: { ...node.data },
     children: (node.children ?? []).map(toMutable),
   };
 }

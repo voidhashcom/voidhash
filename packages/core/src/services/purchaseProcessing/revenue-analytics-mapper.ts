@@ -150,7 +150,12 @@ const signedMoneyProperties = (
     onSome: (m) => {
       const usd = Option.getOrUndefined(m.usd);
       const signed = (n: number) => sign * n;
-      const signedUsd = (n: number | undefined) => (n === undefined ? null : sign * n);
+      const signedUsd = (n: number | undefined) => {
+        if (n === undefined) {
+          return null;
+        }
+        return sign * n;
+      };
       return {
         amount: signed(m.grossAmount),
         amountUsd: signedUsd(usd?.grossAmount),

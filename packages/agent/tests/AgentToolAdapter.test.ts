@@ -6,6 +6,7 @@ import {
   effectAgentToolErrorOverride,
   makeEffectAgentTool,
   makeEffectAgentToolWithRunner,
+  type EffectAgentToolResult,
 } from "../src/AgentToolAdapter.ts";
 
 class PrefixService extends Context.Service<PrefixService, { readonly prefix: string }>()(
@@ -14,95 +15,105 @@ class PrefixService extends Context.Service<PrefixService, { readonly prefix: st
 const Parameters = Type.Object({ value: Type.String() });
 
 describe("makeEffectAgentTool", () => {
-  it("runs a handler against the captured Effect context", async () => {
-    const context = Context.make(PrefixService, { prefix: "captured:" });
-    const tool = makeEffectAgentTool<
-      { readonly value: string },
-      { readonly length: number },
-      never,
-      PrefixService
-    >(
-      {
-        name: "echo",
-        description: "Echo a value",
-        parameters: Parameters,
-        effectHandler: ({ value }) =>
-          Effect.gen(function* () {
-            const service = yield* PrefixService;
-            const text = `${service.prefix}${value}`;
-            return {
-              content: [{ type: "text", text }],
-              details: { length: text.length },
-            };
-          }),
-      },
-      context,
-    );
-
-    await expect(tool.execute("call-1", { value: "ok" })).resolves.toEqual({
-      content: [{ type: "text", text: "captured:ok" }],
-      details: { length: 11 },
-    });
-  });
-
-  it("preserves structured error details for Pi's after-tool hook", async () => {
-    const tool = makeEffectAgentTool<{ readonly value: string }, never, never, never>(
-      {
-        name: "fail",
-        description: "Fail",
-        parameters: Parameters,
-        effectHandler: () =>
-          Effect.succeed({
-            content: [{ type: "text", text: "workspace rejected the edit" }],
-            details: undefined as never,
-            isError: true,
-          }),
-      },
-      Context.empty(),
-    );
-
-    const result = await tool.execute("call-1", { value: "bad" });
-    expect(result).toEqual({
-      content: [{ type: "text", text: "workspace rejected the edit" }],
-      details: undefined,
-    });
-    expect(effectAgentToolErrorOverride(result)).toEqual({ isError: true });
-  });
-
-  it("acquires the Effect context lazily for each tool execution", async () => {
-    let execution = 0;
-    const tool = makeEffectAgentToolWithRunner<
-      { readonly value: string },
-      never,
-      never,
-      PrefixService
-    >(
-      {
-        name: "echo",
-        description: "Echo a value",
-        parameters: Parameters,
-        effectHandler: ({ value }) =>
-          Effect.gen(function* () {
-            const service = yield* PrefixService;
-            return {
-              content: [{ type: "text" as const, text: `${service.prefix}${value}` }],
-              details: undefined as never,
-            };
-          }),
-      },
-      (effect) => {
-        execution += 1;
-        return Effect.runPromise(
-          effect.pipe(Effect.provide(Context.make(PrefixService, { prefix: `${execution}:` }))),
+  it("runs a handler against the captured Effect context", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const context = Context.make(PrefixService, { prefix: "captured:" });
+        const tool = makeEffectAgentTool<
+          { readonly value: string },
+          { readonly length: number },
+          never,
+          PrefixService
+        >(
+          {
+            name: "echo",
+            description: "Echo a value",
+            parameters: Parameters,
+            effectHandler: ({ value }) =>
+              Effect.gen(function* () {
+                const service = yield* PrefixService;
+                const text = `${service.prefix}${value}`;
+                const result: EffectAgentToolResult<{ readonly length: number }> = {
+                  content: [{ type: "text", text }],
+                  details: { length: text.length },
+                };
+                return result;
+              }),
+          },
+          context,
         );
-      },
-    );
 
-    await expect(tool.execute("call-1", { value: "first" })).resolves.toMatchObject({
-      content: [{ type: "text", text: "1:first" }],
-    });
-    await expect(tool.execute("call-2", { value: "second" })).resolves.toMatchObject({
-      content: [{ type: "text", text: "2:second" }],
-    });
-  });
+        const result = yield* Effect.promise(() => tool.execute("call-1", { value: "ok" }));
+        expect(result).toEqual({
+          content: [{ type: "text", text: "captured:ok" }],
+          details: { length: 11 },
+        });
+      }),
+    ));
+
+  it("preserves structured error details for Pi's after-tool hook", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const tool = makeEffectAgentTool<{ readonly value: string }, undefined, never, never>(
+          {
+            name: "fail",
+            description: "Fail",
+            parameters: Parameters,
+            effectHandler: () =>
+              Effect.succeed({
+                content: [{ type: "text", text: "workspace rejected the edit" }],
+                details: undefined,
+                isError: true,
+              }),
+          },
+          Context.empty(),
+        );
+
+        const result = yield* Effect.promise(() => tool.execute("call-1", { value: "bad" }));
+        expect(result).toEqual({
+          content: [{ type: "text", text: "workspace rejected the edit" }],
+          details: undefined,
+        });
+        expect(effectAgentToolErrorOverride(result)).toEqual({ isError: true });
+      }),
+    ));
+
+  it("acquires the Effect context lazily for each tool execution", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        let execution = 0;
+        const tool = makeEffectAgentToolWithRunner<
+          { readonly value: string },
+          undefined,
+          never,
+          PrefixService
+        >(
+          {
+            name: "echo",
+            description: "Echo a value",
+            parameters: Parameters,
+            effectHandler: ({ value }) =>
+              Effect.gen(function* () {
+                const service = yield* PrefixService;
+                const result: EffectAgentToolResult<undefined> = {
+                  content: [{ type: "text", text: `${service.prefix}${value}` }],
+                  details: undefined,
+                };
+                return result;
+              }),
+          },
+          (effect) => {
+            execution += 1;
+            return Effect.runPromise(
+              effect.pipe(Effect.provide(Context.make(PrefixService, { prefix: `${execution}:` }))),
+            );
+          },
+        );
+
+        const first = yield* Effect.promise(() => tool.execute("call-1", { value: "first" }));
+        expect(first).toMatchObject({ content: [{ type: "text", text: "1:first" }] });
+        const second = yield* Effect.promise(() => tool.execute("call-2", { value: "second" }));
+        expect(second).toMatchObject({ content: [{ type: "text", text: "2:second" }] });
+      }),
+    ));
 });

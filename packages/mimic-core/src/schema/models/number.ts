@@ -9,6 +9,7 @@ import {
   validatorFailed,
 } from "../shared.ts";
 import type { NumberSchema } from "../types.ts";
+import type { Mutable } from "../../internal/lang.ts";
 
 export const numberSchemaModel: SchemaModel<NumberSchema> = {
   kind: "number",
@@ -21,15 +22,20 @@ export const numberSchemaModel: SchemaModel<NumberSchema> = {
       },
       input["default"],
       schemaPath,
-    ) as NumberSchema,
-  serialize: (schema) => ({
-    kind: "number",
-    ...serializeRequired(schema.required),
-    ...(schema.default !== undefined ? { default: cloneSchemaDefault(schema.default) } : {}),
-    ...(schema.validators && schema.validators.length > 0
-      ? { validators: schema.validators.map((validator) => ({ ...validator })) }
-      : {}),
-  }),
+    ),
+  serialize: (schema) => {
+    const serialized: Mutable<NumberSchema> = {
+      kind: "number",
+      ...serializeRequired(schema.required),
+    };
+    if (schema.default !== undefined) {
+      serialized.default = cloneSchemaDefault(schema.default);
+    }
+    if (schema.validators && schema.validators.length > 0) {
+      serialized.validators = schema.validators.map((validator) => ({ ...validator }));
+    }
+    return serialized;
+  },
   validate: (schema, value, _context, valuePath, schemaPath) => {
     const numberValue = expectNumberValue(schema.kind, value, valuePath, schemaPath);
 

@@ -1,16 +1,13 @@
-import {
-  make as makeEventCaptureClient,
-  type VoidhashEventCaptureClient,
-} from "@voidhash/generated-clients/event-capture";
+import { make as makeEventCaptureClient } from "@voidhash/generated-clients/event-capture";
 import { Effect, Layer, Context } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { SdkConfiguration } from "../sdk-configuration";
 
 const make = Effect.gen(function* effect() {
   const config = yield* SdkConfiguration;
   const httpClient = yield* HttpClient.HttpClient;
-  return makeEventCaptureClient(httpClient as VoidhashEventCaptureClient["httpClient"], {
+  return makeEventCaptureClient(httpClient, {
     transformClient: (client) =>
       Effect.succeed(
         client.pipe(

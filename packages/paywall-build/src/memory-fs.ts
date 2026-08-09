@@ -1,4 +1,10 @@
+import { Effect } from "effect";
+
 import type { BuildFileEntry, BuildFs } from "./fs.ts";
+import { comparePaths, withTrailingSlash } from "./paths.ts";
+
+/** Raises a defect from the synchronous `BuildFs` surface, which has no error channel. */
+const dieWith = (message: string): never => Effect.runSync(Effect.die(new Error(message)));
 
 /**
  * A hand-rolled in-memory {@link BuildFs} over a flat `Map<path, content>`.
@@ -20,7 +26,7 @@ export class MemoryFs implements BuildFs {
   read(path: string): string {
     const content = this.files.get(path);
     if (content === undefined) {
-      throw new Error(`MemoryFs: no such file: ${path}`);
+      return dieWith(`MemoryFs: no such file: ${path}`);
     }
     return content;
   }
@@ -30,7 +36,7 @@ export class MemoryFs implements BuildFs {
   }
 
   list(dir: string): readonly string[] {
-    const prefix = dir.endsWith("/") ? dir : `${dir}/`;
+    const prefix = withTrailingSlash(dir);
     const out: string[] = [];
     for (const path of this.files.keys()) {
       if (!path.startsWith(prefix)) continue;
@@ -53,7 +59,7 @@ export class MemoryFs implements BuildFs {
   rename(from: string, to: string): void {
     const content = this.files.get(from);
     if (content === undefined) {
-      throw new Error(`MemoryFs: no such file: ${from}`);
+      return dieWith(`MemoryFs: no such file: ${from}`);
     }
     this.files.delete(from);
     this.files.set(to, content);
@@ -62,7 +68,7 @@ export class MemoryFs implements BuildFs {
   /** Snapshot the current files as a sorted `{ path, content }[]`. */
   toFiles(): BuildFileEntry[] {
     return [...this.files.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .sort(([a], [b]) => comparePaths(a, b))
       .map(([path, content]) => ({ path, content }));
   }
 

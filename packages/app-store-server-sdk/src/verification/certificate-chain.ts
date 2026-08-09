@@ -3,7 +3,8 @@
 // guarantees that ordering. It is a pure-JS polyfill, safe on Cloudflare Workers.
 import "reflect-metadata";
 import * as x509 from "@peculiar/x509";
-import { Effect, Option } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { DateTime, Effect, Option } from "effect";
 import { CertificateError, VerificationError, VerificationStatus } from "../errors/index.ts";
 import { bytesToHex } from "../internal/bytes.ts";
 
@@ -33,8 +34,19 @@ export interface CertificateChainValidationConfig {
 const makeVerificationError = (status: VerificationStatus): VerificationError =>
   new VerificationError({ status, cause: Option.none() });
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> =>
-  Option.isOption(value) ? value : Option.fromNullishOr(value);
+const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+  if (Option.isOption(value)) return value;
+  return Option.fromNullishOr(value);
+};
+
+/** Builds the `catch` handler shared by the certificate operations below. */
+const certificateError =
+  (context: string) =>
+  (error: unknown): CertificateError =>
+    new CertificateError({
+      message: `${context}: ${causeMessage(error)}`,
+      cause: Option.some(error),
+    });
 
 /**
  * Parses a PEM-encoded certificate.
@@ -44,11 +56,7 @@ export const parseCertificate = (
 ): Effect.Effect<x509.X509Certificate, CertificateError> =>
   Effect.try({
     try: () => new x509.X509Certificate(pem),
-    catch: (error) =>
-      new CertificateError({
-        message: `Failed to parse certificate: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+    catch: certificateError("Failed to parse certificate"),
   });
 
 /**
@@ -75,13 +83,9 @@ const hasOid = (cert: x509.X509Certificate, oid: string): boolean =>
  */
 const getThumbprintHex = (cert: x509.X509Certificate): Effect.Effect<string, CertificateError> =>
   Effect.tryPromise({
-    try: async () => bytesToHex(new Uint8Array(await cert.getThumbprint("SHA-256"))),
-    catch: (error) =>
-      new CertificateError({
-        message: `Failed to compute certificate thumbprint: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
-  });
+    try: () => cert.getThumbprint("SHA-256"),
+    catch: certificateError("Failed to compute certificate thumbprint"),
+  }).pipe(Effect.map((thumbprint) => bytesToHex(new Uint8Array(thumbprint))));
 
 /**
  * Verifies that `cert` was signed by `issuer`'s public key (signature only;
@@ -95,7 +99,7 @@ const isSignedBy = (
 ): Effect.Effect<boolean> =>
   Effect.tryPromise({
     try: () => cert.verify({ publicKey: issuer, signatureOnly: true }),
-    catch: () => new Error("certificate signature verification failed"),
+    catch: certificateError("certificate signature verification failed"),
   }).pipe(Effect.orElseSucceed(() => false));
 
 /**
@@ -114,11 +118,17 @@ export const validateCertificateChain = (
       return yield* Effect.fail(makeVerificationError(VerificationStatus.INVALID_CHAIN_LENGTH));
     }
 
-    // We've already verified length is 3, so these are safe
-    const leaf = chain[0] as x509.X509Certificate;
-    const intermediate = chain[1] as x509.X509Certificate;
-    const root = chain[2] as x509.X509Certificate;
-    const now = Option.getOrElse(asOption(config.currentTime), () => new Date());
+    // Length is already known to be 3; the guard below narrows the tuple reads
+    // for the type checker without an assertion.
+    const [leaf, intermediate, root] = chain;
+    if (leaf === undefined || intermediate === undefined || root === undefined) {
+      return yield* Effect.fail(makeVerificationError(VerificationStatus.INVALID_CHAIN_LENGTH));
+    }
+
+    const now = yield* Option.match(asOption(config.currentTime), {
+      onSome: (date) => Effect.succeed(date),
+      onNone: () => DateTime.nowAsDate,
+    });
 
     // Validate certificate dates with clock skew
     for (const cert of chain) {
@@ -167,17 +177,19 @@ export const validateCertificateChain = (
 export const getPublicKeyFromChain = (
   chain: x509.X509Certificate[],
 ): Effect.Effect<CryptoKey, CertificateError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const leaf = chain[0];
-      if (leaf === undefined) {
-        throw new Error("Empty certificate chain");
-      }
-      return await leaf.publicKey.export();
-    },
-    catch: (error) =>
-      new CertificateError({
-        message: `Failed to get public key: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+  Effect.gen(function* () {
+    const toError = certificateError("Failed to get public key");
+    const leaf = chain[0];
+    if (leaf === undefined) {
+      return yield* Effect.fail(
+        new CertificateError({
+          message: "Failed to get public key: Empty certificate chain",
+          cause: Option.none(),
+        }),
+      );
+    }
+    return yield* Effect.tryPromise({
+      try: () => leaf.publicKey.export(),
+      catch: toError,
+    });
   });

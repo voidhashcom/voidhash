@@ -27,7 +27,7 @@
  *  - Typed failures are asserted with `Effect.flip` (project convention),
  *    narrowing the swapped error with `instanceof` before reading its fields.
  */
-import { Effect, Layer } from "effect";
+import { Clock, DateTime, Effect, Layer } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import { PersonService } from "@voidhash/core/services/persons/PersonService";
@@ -47,7 +47,8 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so distinct ids stay unique even within one millisecond. */
 let idSeq = 0;
-const uniqueDistinctId = (label: string) => `it-person-${label}-${Date.now()}-${idSeq++}`;
+const uniqueDistinctId = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-person-${label}-${now}-${idSeq++}`);
 
 /**
  * `PersonService` depends on `PersonIdentityService`, which itself needs an
@@ -92,13 +93,14 @@ const insertPersonRow = (input: {
 }) =>
   Effect.gen(function* () {
     const db = yield* Db;
+    const seenAt = input.createdAt ?? (yield* DateTime.nowAsDate);
     yield* db.insert(persons).values({
       id: input.id,
       archivedAt: input.archivedAt ?? null,
-      createdAt: input.createdAt ?? new Date(),
+      createdAt: seenAt,
       email: input.email ?? null,
-      firstSeenAt: input.createdAt ?? new Date(),
-      lastSeenAt: input.createdAt ?? new Date(),
+      firstSeenAt: seenAt,
+      lastSeenAt: seenAt,
       mergedIntoPersonId: input.mergedIntoPersonId ?? null,
       name: input.name ?? null,
       origin: PersonOrigin.Dashboard,
@@ -160,6 +162,9 @@ const withPersonCleanup = <E, R>(
   }).pipe(Effect.ensuring(cleanupCreatedPersons(createdIds)));
 };
 
+/** Fixed epoch timestamp for synthetic session rows — a constant, not a clock read. */
+const EPOCH_DATE = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
 /** A `user`-method session for the fixture principal carrying no project access. */
 const sessionWithoutProjectAccess = (): UserSession => ({
   cookie: null,
@@ -169,14 +174,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH_DATE,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH_DATE,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -196,7 +201,7 @@ describe("PersonService.getPersonById", () => {
       Effect.gen(function* () {
         const personService = yield* PersonService;
 
-        const distinctId = uniqueDistinctId("by-id");
+        const distinctId = yield* uniqueDistinctId("by-id");
         const created = yield* personService.createPerson({
           distinctId,
           email: "by-id@voidhash.test",
@@ -223,7 +228,8 @@ describe("PersonService.getPersonById", () => {
     "fails with PersonNotFoundError for an unknown id",
     Effect.gen(function* () {
       const personService = yield* PersonService;
-      const missingId = `person_missing_${Date.now()}`;
+      const now = yield* Clock.currentTimeMillis;
+      const missingId = `person_missing_${now}`;
       const error = yield* Effect.flip(personService.getPersonById(missingId));
       expect(error).toBeInstanceOf(PersonNotFoundError);
       if (error instanceof PersonNotFoundError) {
@@ -239,7 +245,7 @@ describe("PersonService.getPersonById", () => {
         const personService = yield* PersonService;
 
         const created = yield* personService.createPerson({
-          distinctId: uniqueDistinctId("by-id-forbidden"),
+          distinctId: yield* uniqueDistinctId("by-id-forbidden"),
           email: null,
           name: null,
           origin: PersonOrigin.Dashboard,
@@ -264,9 +270,10 @@ describe("PersonService.getPersonById", () => {
         // Canonical person with its own identity, then a merged source that
         // points at it via mergedIntoPersonId. Looking up the *source* id must
         // resolve to the canonical person + its identity/profile.
-        const canonicalId = `person_canon_${Date.now()}_${idSeq++}`;
-        const sourceId = `person_src_${Date.now()}_${idSeq++}`;
-        const canonicalDistinctId = uniqueDistinctId("chain-canon");
+        const now = yield* Clock.currentTimeMillis;
+        const canonicalId = `person_canon_${now}_${idSeq++}`;
+        const sourceId = `person_src_${now}_${idSeq++}`;
+        const canonicalDistinctId = yield* uniqueDistinctId("chain-canon");
 
         yield* insertPersonRow({ id: canonicalId, email: "canon@voidhash.test", name: "Canon" });
         track(canonicalId);
@@ -278,7 +285,7 @@ describe("PersonService.getPersonById", () => {
         yield* insertPersonRow({
           id: sourceId,
           mergedIntoPersonId: canonicalId,
-          archivedAt: new Date(),
+          archivedAt: yield* DateTime.nowAsDate,
         });
         track(sourceId);
 
@@ -299,7 +306,7 @@ describe("PersonService.getPersonByDistinctId", () => {
       Effect.gen(function* () {
         const personService = yield* PersonService;
 
-        const distinctId = uniqueDistinctId("by-distinct");
+        const distinctId = yield* uniqueDistinctId("by-distinct");
         const created = yield* personService.createPerson({
           distinctId,
           email: "by-distinct@voidhash.test",
@@ -322,7 +329,7 @@ describe("PersonService.getPersonByDistinctId", () => {
     "fails with PersonNotFoundError when no mapping exists",
     Effect.gen(function* () {
       const personService = yield* PersonService;
-      const missing = uniqueDistinctId("by-distinct-missing");
+      const missing = yield* uniqueDistinctId("by-distinct-missing");
       const error = yield* Effect.flip(personService.getPersonByDistinctId(missing, projectId));
       expect(error).toBeInstanceOf(PersonNotFoundError);
       if (error instanceof PersonNotFoundError) {
@@ -350,7 +357,7 @@ describe("PersonService.getPersonByDistinctId", () => {
       Effect.gen(function* () {
         const personService = yield* PersonService;
 
-        const distinctId = uniqueDistinctId("by-distinct-forbidden");
+        const distinctId = yield* uniqueDistinctId("by-distinct-forbidden");
         const created = yield* personService.createPerson({
           distinctId,
           email: null,
@@ -377,8 +384,8 @@ describe("PersonService.getPersons", () => {
         const personService = yield* PersonService;
 
         // Two ordinary persons created via the service.
-        const distinctA = uniqueDistinctId("list-a");
-        const distinctB = uniqueDistinctId("list-b");
+        const distinctA = yield* uniqueDistinctId("list-a");
+        const distinctB = yield* uniqueDistinctId("list-b");
         const a = yield* personService.createPerson({
           distinctId: distinctA,
           email: null,
@@ -397,9 +404,10 @@ describe("PersonService.getPersons", () => {
         track(b.personId);
 
         // A person with two identities — getPersons dedupes these to one entry.
-        const multiId = `person_multi_${Date.now()}_${idSeq++}`;
-        const multiPrimary = uniqueDistinctId("list-multi-primary");
-        const multiSecondary = uniqueDistinctId("list-multi-secondary");
+        const now = yield* Clock.currentTimeMillis;
+        const multiId = `person_multi_${now}_${idSeq++}`;
+        const multiPrimary = yield* uniqueDistinctId("list-multi-primary");
+        const multiSecondary = yield* uniqueDistinctId("list-multi-secondary");
         yield* insertPersonRow({ id: multiId, name: "Multi" });
         track(multiId);
         yield* insertIdentityRow({
@@ -414,12 +422,12 @@ describe("PersonService.getPersons", () => {
         });
 
         // A merged source that must NOT appear (mergedIntoPersonId is set).
-        const mergedSourceId = `person_merged_src_${Date.now()}_${idSeq++}`;
-        const mergedSourceDistinct = uniqueDistinctId("list-merged-src");
+        const mergedSourceId = `person_merged_src_${now}_${idSeq++}`;
+        const mergedSourceDistinct = yield* uniqueDistinctId("list-merged-src");
         yield* insertPersonRow({
           id: mergedSourceId,
           mergedIntoPersonId: a.personId,
-          archivedAt: new Date(),
+          archivedAt: yield* DateTime.nowAsDate,
         });
         track(mergedSourceId);
         yield* insertIdentityRow({
@@ -448,7 +456,8 @@ describe("PersonService.getPersons", () => {
       // A project id that exists in scope but never has persons under it: the
       // fixture project may carry rows from concurrent tests, so use a unique
       // synthetic project id and grant access to it via a custom session.
-      const emptyProjectId = `it_empty_project_${Date.now()}_${idSeq++}`;
+      const now = yield* Clock.currentTimeMillis;
+      const emptyProjectId = `it_empty_project_${now}_${idSeq++}`;
       const list = yield* personService.getPersons({ projectId: emptyProjectId }).pipe(
         CoreAuthSession.authenticate({
           cookie: null,
@@ -467,14 +476,14 @@ describe("PersonService.getPersons", () => {
             },
           ],
           user: {
-            createdAt: new Date(0),
+            createdAt: EPOCH_DATE,
             email: CoreTestFixture.userEmail,
             emailVerified: true,
             id: CoreTestFixture.userId,
             image: null,
             name: CoreTestFixture.userName,
             role: null,
-            updatedAt: new Date(0),
+            updatedAt: EPOCH_DATE,
             workosUserId: CoreTestFixture.workosUserId,
           },
         }),
@@ -500,7 +509,7 @@ describe("PersonService.createPerson", () => {
       Effect.gen(function* () {
         const personService = yield* PersonService;
 
-        const distinctId = uniqueDistinctId("create");
+        const distinctId = yield* uniqueDistinctId("create");
         const created = yield* personService.createPerson({
           distinctId,
           email: "create@voidhash.test",
@@ -541,7 +550,7 @@ describe("PersonService.createPerson", () => {
       Effect.gen(function* () {
         const personService = yield* PersonService;
 
-        const distinctId = uniqueDistinctId("create-idempotent");
+        const distinctId = yield* uniqueDistinctId("create-idempotent");
         const first = yield* personService.createPerson({
           distinctId,
           email: "first@voidhash.test",
@@ -575,16 +584,17 @@ describe("PersonService.mergePersons", () => {
       Effect.gen(function* () {
         const personService = yield* PersonService;
 
-        const fromId = `person_merge_from_${Date.now()}_${idSeq++}`;
-        const toId = `person_merge_to_${Date.now()}_${idSeq++}`;
+        const now = yield* Clock.currentTimeMillis;
+        const fromId = `person_merge_from_${now}_${idSeq++}`;
+        const toId = `person_merge_to_${now}_${idSeq++}`;
         yield* insertPersonRow({ id: fromId, name: "From" });
         track(fromId);
         yield* insertPersonRow({ id: toId, name: "To" });
         track(toId);
 
-        const before = new Date();
+        const before = yield* DateTime.nowAsDate;
         const result = yield* personService.mergePersons(fromId, toId);
-        const after = new Date();
+        const after = yield* DateTime.nowAsDate;
         expect(result.id).toBe(fromId);
 
         const fromRow = yield* findPersonRow(fromId);

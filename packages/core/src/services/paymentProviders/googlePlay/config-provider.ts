@@ -6,6 +6,8 @@
  */
 import { Effect, Layer, Schema } from "effect";
 
+import { stringOr } from "@voidhash/lib/lang";
+
 import { PaymentProviderConfigurationValidationError } from "../../../domain/paymentProvider/PaymentProviderConfiguration.ts";
 import { PaymentProviderProductValidationError } from "../../../domain/paymentProvider/PaymentProviderProduct.ts";
 import { PaymentConfigSecretCrypto } from "../../../utils/crypto/PaymentConfigSecretCrypto.ts";
@@ -68,13 +70,13 @@ const validatePlainServiceAccountKey = (serviceAccountKey: string) => {
     return Effect.void;
   }
 
-  return Effect.try({
-    try: () => JSON.parse(serviceAccountKey) as unknown,
-    catch: (cause) =>
-      new PaymentProviderConfigurationValidationError({
-        cause: `Service account key file must be valid JSON: ${String(cause)}`,
-      }),
-  }).pipe(
+  return Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(serviceAccountKey).pipe(
+    Effect.mapError(
+      (error) =>
+        new PaymentProviderConfigurationValidationError({
+          cause: `Service account key file must be valid JSON: ${error.message}`,
+        }),
+    ),
     Effect.flatMap((parsedJson) =>
       Schema.decodeUnknownEffect(serviceAccountKeySchema)(parsedJson).pipe(
         Effect.mapError(
@@ -129,19 +131,25 @@ const validateOptionalRtdnTopicName = (topicName: string) => {
   );
 };
 
+/**
+ * Google Play product key: the product id, suffixed with the base plan id when
+ * the configuration carries one.
+ */
+const productKeyFrom = (productId: unknown, basePlanId: unknown): string => {
+  const product = stringOr(productId, "");
+  const basePlan = stringOr(basePlanId, "");
+  if (basePlan.length === 0) {
+    return product;
+  }
+  return `${product}:${basePlan}`;
+};
+
 export const makeGooglePlayConfigProvider = (
   secretCrypto: typeof PaymentConfigSecretCrypto.Service,
 ): GooglePlayConfigProvider => ({
-  createGlobalKey: (configuration) =>
-    Effect.succeed(`${(configuration as { packageName?: unknown }).packageName ?? ""}`),
+  createGlobalKey: (configuration) => Effect.succeed(stringOr(configuration.packageName, "")),
   createProductKey: (configuration) =>
-    Effect.succeed(
-      `${(configuration as { productId?: unknown }).productId ?? ""}${
-        (configuration as { basePlanId?: unknown }).basePlanId
-          ? `:${(configuration as { basePlanId?: unknown }).basePlanId}`
-          : ""
-      }`,
-    ),
+    Effect.succeed(productKeyFrom(configuration.productId, configuration.basePlanId)),
   defaultGlobalConfiguration: () =>
     Effect.succeed({
       googleRealTimeDeveloperNotificationForwardingUrl: "",
@@ -194,9 +202,7 @@ export const makeGooglePlayConfigProvider = (
       ),
       Effect.map((parsedConfiguration) => ({
         parsedConfiguration,
-        productKey: parsedConfiguration.basePlanId
-          ? `${parsedConfiguration.productId}:${parsedConfiguration.basePlanId}`
-          : `${parsedConfiguration.productId}`,
+        productKey: productKeyFrom(parsedConfiguration.productId, parsedConfiguration.basePlanId),
       })),
     ),
 });

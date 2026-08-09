@@ -12,6 +12,7 @@
  * caller omits money rather than guessing.
  */
 import { type MoneyType, initializeSdk } from "@voidhash/google-play-server-sdk";
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Option } from "effect";
 
 /**
@@ -24,7 +25,7 @@ export class GooglePlayServerApi extends Context.Service<GooglePlayServerApi>()(
   {
     make: Effect.gen(function* () {
       const buildClient = yield* initializeSdk;
-      return { buildClient } as const;
+      return constant({ buildClient });
     }),
   },
 ) {
@@ -108,13 +109,13 @@ export const buildGooglePlaySdkContext = (
         return Option.fromNullishOr(regionalConfig?.price);
       });
 
-    return {
+    return constant({
       getProductV2,
       getSubscriptionV2,
       getVoidedPurchases,
       packageName: config.packageName,
       resolveSubscriptionRegionalPrice,
-    } as const;
+    });
   });
 
 export type GooglePlaySdkContext = Effect.Success<ReturnType<typeof buildGooglePlaySdkContext>>;

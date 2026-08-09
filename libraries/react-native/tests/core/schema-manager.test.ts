@@ -14,6 +14,14 @@ import {
 import { describe, expect, it } from "../helpers/effect-vitest";
 import { createTestSchema } from "../helpers/test-schema";
 
+/** Runs a test body and always performs its cleanup, mirroring try/finally. */
+const withCleanup = <T>(body: () => Promise<T>, cleanup: () => Promise<void>): Promise<T> =>
+  Effect.runPromise(
+    Effect.tryPromise({ try: body, catch: (error) => error }).pipe(
+      Effect.ensuring(Effect.promise(cleanup)),
+    ),
+  );
+
 /**
  * Poll `predicate` until it returns true (or `timeoutMs` elapses) without
  * relying on `vi.waitFor`, which isn't available under the project's bun
@@ -28,9 +36,9 @@ const waitFor = async (
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (predicate()) return;
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    await Effect.runPromise(Effect.sleep(intervalMs));
   }
-  throw new Error(`waitFor timed out after ${timeoutMs}ms`);
+  return Effect.runSync(Effect.die(new Error(`waitFor timed out after ${timeoutMs}ms`)));
 };
 
 const resolveSchemaEffect = (args: { distinctId: string; internalSchema?: RuntimeSchema }) =>
@@ -55,25 +63,28 @@ describe("SchemaManager", () => {
     });
     const internalSchema = createTestSchema();
 
-    try {
-      const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({
-          distinctId: "user-1",
-          internalSchema,
-        }),
-      );
+    await withCleanup(
+      async () => {
+        const result = await harness.runtime.runPromise(
+          resolveSchemaEffect({
+            distinctId: "user-1",
+            internalSchema,
+          }),
+        );
 
-      expect(result).toEqual(internalSchema);
-      expect(apiDouble.state.getSchemaCalls).toHaveLength(0);
-      expect(harness.atomRegistry.get(schemaAtom)).toEqual(internalSchema);
-      // Cache should still be empty because we bypassed it entirely.
-      const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
-      );
-      expect(cached).toBeNull();
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(result).toEqual(internalSchema);
+        expect(apiDouble.state.getSchemaCalls).toHaveLength(0);
+        expect(harness.atomRegistry.get(schemaAtom)).toEqual(internalSchema);
+        // Cache should still be empty because we bypassed it entirely.
+        const cached = await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
+        );
+        expect(cached).toBeNull();
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("cache miss fetches from server, caches under appVersion key, and publishes to atom", async () => {
@@ -87,22 +98,25 @@ describe("SchemaManager", () => {
       paymentAdapter: paymentDouble.paymentAdapter,
     });
 
-    try {
-      const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" }),
-      );
+    await withCleanup(
+      async () => {
+        const result = await harness.runtime.runPromise(
+          resolveSchemaEffect({ distinctId: "user-1" }),
+        );
 
-      expect(result).toEqual(remoteSchema);
-      expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
-      expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
+        expect(result).toEqual(remoteSchema);
+        expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
+        expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
 
-      const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
-      );
-      expect(cached?.value).toEqual(remoteSchema);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        const cached = await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
+        );
+        expect(cached?.value).toEqual(remoteSchema);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("cache hit returns cached value immediately and schedules a background refresh", async () => {
@@ -119,44 +133,47 @@ describe("SchemaManager", () => {
       paymentAdapter: paymentDouble.paymentAdapter,
     });
 
-    try {
-      // Prime the cache with a different schema so we can tell which one
-      // is being returned.
-      await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.set("schema:1.0.0", cachedSchema, {
-            ttl: 1000 * 60 * 60 * 24 * 30,
-          }),
-        ),
-      );
+    await withCleanup(
+      async () => {
+        // Prime the cache with a different schema so we can tell which one
+        // is being returned.
+        await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) =>
+            manager.set("schema:1.0.0", cachedSchema, {
+              ttl: 1000 * 60 * 60 * 24 * 30,
+            }),
+          ),
+        );
 
-      const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" }),
-      );
+        const result = await harness.runtime.runPromise(
+          resolveSchemaEffect({ distinctId: "user-1" }),
+        );
 
-      // The synchronous return value is the cached schema — what the
-      // caller actually receives. (The atom transitions cached → refreshed
-      // back-to-back in this test because every Effect is synchronous, so
-      // we don't assert the intermediate atom state here.)
-      expect(result).toEqual(cachedSchema);
+        // The synchronous return value is the cached schema — what the
+        // caller actually receives. (The atom transitions cached → refreshed
+        // back-to-back in this test because every Effect is synchronous, so
+        // we don't assert the intermediate atom state here.)
+        expect(result).toEqual(cachedSchema);
 
-      // The background refresh eventually lands the refreshed schema in
-      // both the atom and the cache.
-      await waitFor(
-        () =>
-          apiDouble.state.getSchemaCalls.length === 1 &&
-          harness.atomRegistry.get(schemaAtom) === refreshedSchema,
-      );
-      expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
-      expect(harness.atomRegistry.get(schemaAtom)).toEqual(refreshedSchema);
+        // The background refresh eventually lands the refreshed schema in
+        // both the atom and the cache.
+        await waitFor(
+          () =>
+            apiDouble.state.getSchemaCalls.length === 1 &&
+            harness.atomRegistry.get(schemaAtom) === refreshedSchema,
+        );
+        expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
+        expect(harness.atomRegistry.get(schemaAtom)).toEqual(refreshedSchema);
 
-      const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
-      );
-      expect(cached?.value).toEqual(refreshedSchema);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        const cached = await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
+        );
+        expect(cached?.value).toEqual(refreshedSchema);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("cache miss with failing fetch surfaces FailedToFetchSchemaError and leaves schemaAtom null", async () => {
@@ -172,20 +189,23 @@ describe("SchemaManager", () => {
     // have left it populated.
     harness.atomRegistry.set(schemaAtom, null);
 
-    try {
-      const exit = await harness.runtime.runPromiseExit(
-        resolveSchemaEffect({ distinctId: "user-1" }),
-      );
+    await withCleanup(
+      async () => {
+        const exit = await harness.runtime.runPromiseExit(
+          resolveSchemaEffect({ distinctId: "user-1" }),
+        );
 
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const error = Cause.squash(exit.cause);
-        expect(error).toBeInstanceOf(FailedToFetchSchemaError);
-      }
-      expect(harness.atomRegistry.get(schemaAtom)).toBeNull();
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit)) {
+          const error = Cause.squash(exit.cause);
+          expect(error).toBeInstanceOf(FailedToFetchSchemaError);
+        }
+        expect(harness.atomRegistry.get(schemaAtom)).toBeNull();
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("changing app version misses the cache and fetches fresh", async () => {
@@ -201,31 +221,34 @@ describe("SchemaManager", () => {
       platform: { appVersion: "2.0.0" },
     });
 
-    try {
-      // Cache a schema under the OLD app version key — should not be used
-      // when the harness is configured for "2.0.0".
-      await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.set("schema:1.0.0", previousVersionSchema, {
-            ttl: 1000 * 60 * 60 * 24 * 30,
-          }),
-        ),
-      );
+    await withCleanup(
+      async () => {
+        // Cache a schema under the OLD app version key — should not be used
+        // when the harness is configured for "2.0.0".
+        await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) =>
+            manager.set("schema:1.0.0", previousVersionSchema, {
+              ttl: 1000 * 60 * 60 * 24 * 30,
+            }),
+          ),
+        );
 
-      const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" }),
-      );
+        const result = await harness.runtime.runPromise(
+          resolveSchemaEffect({ distinctId: "user-1" }),
+        );
 
-      expect(result).toEqual(remoteSchema);
-      expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
+        expect(result).toEqual(remoteSchema);
+        expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
 
-      const cachedForNewVersion = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:2.0.0")),
-      );
-      expect(cachedForNewVersion?.value).toEqual(remoteSchema);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        const cachedForNewVersion = await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:2.0.0")),
+        );
+        expect(cachedForNewVersion?.value).toEqual(remoteSchema);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("missing appVersion skips the cache and fetches synchronously", async () => {
@@ -240,23 +263,26 @@ describe("SchemaManager", () => {
       platform: { appVersion: undefined },
     });
 
-    try {
-      const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" }),
-      );
+    await withCleanup(
+      async () => {
+        const result = await harness.runtime.runPromise(
+          resolveSchemaEffect({ distinctId: "user-1" }),
+        );
 
-      expect(result).toEqual(remoteSchema);
-      expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
-      expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
+        expect(result).toEqual(remoteSchema);
+        expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
+        expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
 
-      // No cache key should have been written.
-      const cacheKeys = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys()),
-      );
-      expect(cacheKeys.some((key) => key.startsWith("schema:"))).toBe(false);
-    } finally {
-      await harness.runtime.dispose();
-    }
+        // No cache key should have been written.
+        const cacheKeys = await harness.runtime.runPromise(
+          Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys()),
+        );
+        expect(cacheKeys.some((key) => key.startsWith("schema:"))).toBe(false);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 
   it("missing appVersion with failing fetch surfaces FailedToFetchSchemaError", async () => {
@@ -271,18 +297,21 @@ describe("SchemaManager", () => {
     });
     harness.atomRegistry.set(schemaAtom, null);
 
-    try {
-      const exit = await harness.runtime.runPromiseExit(
-        resolveSchemaEffect({ distinctId: "user-1" }),
-      );
+    await withCleanup(
+      async () => {
+        const exit = await harness.runtime.runPromiseExit(
+          resolveSchemaEffect({ distinctId: "user-1" }),
+        );
 
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        const error = Cause.squash(exit.cause);
-        expect(error).toBeInstanceOf(FailedToFetchSchemaError);
-      }
-    } finally {
-      await harness.runtime.dispose();
-    }
+        expect(Exit.isFailure(exit)).toBe(true);
+        if (Exit.isFailure(exit)) {
+          const error = Cause.squash(exit.cause);
+          expect(error).toBeInstanceOf(FailedToFetchSchemaError);
+        }
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
   });
 });

@@ -1,3 +1,14 @@
+/*
+ * This whole module is mimic-db's synchronous `process.env` configuration
+ * adapter: `getConfig()` / `getCorsAllowedOrigins()` are plain functions called
+ * from synchronous platform entry points (including the pre-runtime bootstrap
+ * path) before any Effect runtime exists, so `Config` is not reachable here.
+ * Every `process.env` read in the file is that one deliberate choice, hence a
+ * single file-scoped directive rather than eight identical line directives.
+ */
+// oxlint-disable effect/noGlobals -- synchronous process.env config adapter; callers read it from synchronous positions before any Effect runtime exists (see block comment above).
+import { constant } from "@voidhash/lib/lang";
+
 /**
  * Runtime configuration for mimic-db.
  *
@@ -33,15 +44,18 @@ export interface MimicConfig {
 const positiveInt = (value: string | undefined, fallback: number): number => {
   if (!value || value.trim() === "") return fallback;
   const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
 };
 
-const DEFAULT_CORS_ORIGINS = [
+const DEFAULT_CORS_ORIGINS = constant([
+  "https://mimic-admin.voidhash.localhost",
+  "https://mimic-example.voidhash.localhost",
   "http://localhost:5173",
   "http://localhost:4173",
   "http://localhost:4460",
   "http://localhost:3003",
-] as const;
+]);
 
 export const getCorsAllowedOrigins = (): readonly string[] => {
   const env = process.env.CORS_ORIGINS?.trim();

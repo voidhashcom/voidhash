@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { type Credentials, clearCredentials, getCredentials } from "@/lib/auth";
+import { Effect } from "effect";
+import { type Credentials, clearCredentials } from "@/lib/auth";
 
 interface AuthContextValue {
   credentials: Credentials;
@@ -19,7 +20,7 @@ export function AuthProvider({
   const navigate = useNavigate();
   const logout = useCallback(() => {
     clearCredentials();
-    navigate({ to: "/login" });
+    void navigate({ to: "/login" });
   }, [navigate]);
 
   return <AuthContext.Provider value={{ credentials, logout }}>{children}</AuthContext.Provider>;
@@ -28,7 +29,9 @@ export function AuthProvider({
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    // Missing provider is a programmer error, not a recoverable failure:
+    // `runSync` on a defect rethrows the Error verbatim to the React tree.
+    return Effect.runSync(Effect.die(new Error("useAuth must be used within an AuthProvider")));
   }
   return ctx;
 }

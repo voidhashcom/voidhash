@@ -1,3 +1,5 @@
+import { constant } from "@voidhash/lib/lang";
+import { DateTime } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -14,16 +16,18 @@ import {
 
 /** Every wire-stable revenue event name, sourced from the schema literals so a
  * future addition to the union forces these tests to consider it. */
-const ALL_REVENUE_EVENT_NAMES =
-  RevenueAnalyticsEventNameSchema.literals as ReadonlyArray<RevenueAnalyticsEventName>;
+const ALL_REVENUE_EVENT_NAMES: ReadonlyArray<RevenueAnalyticsEventName> =
+  RevenueAnalyticsEventNameSchema.literals;
 
 /** The fields every variant shares; `sourceTopicForInternalAnalyticsEvent`
  * only reads `eventName`, so a minimal-but-valid base is sufficient. */
+const FIXED_OCCURRED_AT = DateTime.toDateUtc(DateTime.makeUnsafe("2026-01-01T00:00:00.000Z"));
+
 const baseEvent = () => ({
   context: undefined,
   distinctId: "person_distinct",
   eventId: "evt_1",
-  occurredAt: new Date("2026-01-01T00:00:00.000Z"),
+  occurredAt: FIXED_OCCURRED_AT,
   organizationId: "org_1",
   personId: "person_1",
   projectId: "project_1",
@@ -54,9 +58,9 @@ const transferPropertiesBase = () => ({
   fromPersonId: "from_person",
   toDistinctId: "to_distinct",
   toPersonId: "to_person",
-  transferMode: "transfer_to_new_owner" as const,
+  transferMode: constant("transfer_to_new_owner"),
   transferReason: "restore",
-  transferredAt: new Date("2026-01-01T00:00:00.000Z"),
+  transferredAt: FIXED_OCCURRED_AT,
 });
 
 const purchaseCompleted = (): InternalAnalyticsEvent => ({
@@ -82,6 +86,125 @@ const purchaseTransferredOut = (): InternalAnalyticsEvent => ({
   eventName: "$purchase.transferred_out",
   properties: { ...transferPropertiesBase() },
 });
+
+/** Every variant's property fields merged — a superset each variant accepts. */
+const allProperties = () => ({
+  ...transferPropertiesBase(),
+  ...revenuePropertiesBase(),
+  effectiveAt: FIXED_OCCURRED_AT,
+  extendedTo: FIXED_OCCURRED_AT,
+  gracePeriodExpiresAt: null,
+  newProviderProductKey: "prod_new",
+  offerId: null,
+  isTrial: false,
+  refundReason: null,
+  revocationReason: null,
+});
+
+/**
+ * One builder per reserved event name. Keyed by the literal union so adding a
+ * name to {@link RevenueAnalyticsEventNameSchema} fails to compile until it is
+ * covered here, which is what drives the exhaustiveness assertion below.
+ */
+const EVENT_BUILDER_BY_NAME: {
+  readonly [N in RevenueAnalyticsEventName]: () => InternalAnalyticsEvent;
+} = {
+  "$purchase.completed": () => ({
+    ...baseEvent(),
+    eventName: "$purchase.completed",
+    properties: allProperties(),
+  }),
+  "$purchase.refunded": () => ({
+    ...baseEvent(),
+    eventName: "$purchase.refunded",
+    properties: allProperties(),
+  }),
+  "$purchase.revoked": () => ({
+    ...baseEvent(),
+    eventName: "$purchase.revoked",
+    properties: allProperties(),
+  }),
+  "$purchase.transferred_out": () => ({
+    ...baseEvent(),
+    eventName: "$purchase.transferred_out",
+    properties: allProperties(),
+  }),
+  "$purchase.transferred_in": () => ({
+    ...baseEvent(),
+    eventName: "$purchase.transferred_in",
+    properties: allProperties(),
+  }),
+  "$subscription.created": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.created",
+    properties: allProperties(),
+  }),
+  "$subscription.renewed": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.renewed",
+    properties: allProperties(),
+  }),
+  "$subscription.canceled": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.canceled",
+    properties: allProperties(),
+  }),
+  "$subscription.expired": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.expired",
+    properties: allProperties(),
+  }),
+  "$subscription.active": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.active",
+    properties: allProperties(),
+  }),
+  "$subscription.refund_reversed": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.refund_reversed",
+    properties: allProperties(),
+  }),
+  "$subscription.billing_retry": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.billing_retry",
+    properties: allProperties(),
+  }),
+  "$subscription.extended": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.extended",
+    properties: allProperties(),
+  }),
+  "$subscription.product_changed": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.product_changed",
+    properties: allProperties(),
+  }),
+  "$subscription.offer_redeemed": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.offer_redeemed",
+    properties: allProperties(),
+  }),
+  "$subscription.price_increase_pending": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.price_increase_pending",
+    properties: allProperties(),
+  }),
+  "$subscription.auto_renew_resumed": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.auto_renew_resumed",
+    properties: allProperties(),
+  }),
+  "$subscription.transferred_out": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.transferred_out",
+    properties: allProperties(),
+  }),
+  "$subscription.transferred_in": () => ({
+    ...baseEvent(),
+    eventName: "$subscription.transferred_in",
+    properties: allProperties(),
+  }),
+};
 
 describe("isReservedRevenueEventName", () => {
   it("returns true for '$purchase.completed'", () => {
@@ -150,11 +273,7 @@ describe("sourceTopicForInternalAnalyticsEvent", () => {
     // Drive the mapper by eventName alone (the only field it reads) across the
     // full union so a new variant that forgets a `case` is caught here.
     for (const name of ALL_REVENUE_EVENT_NAMES) {
-      const event = {
-        ...baseEvent(),
-        eventName: name,
-        properties: { ...transferPropertiesBase(), ...revenuePropertiesBase() },
-      } as unknown as InternalAnalyticsEvent;
+      const event = EVENT_BUILDER_BY_NAME[name]();
       expect(sourceTopicForInternalAnalyticsEvent(event)).toBe(REVENUE_TRUSTED_SOURCE_TOPIC);
     }
   });

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Copy, Trash2 } from "lucide-react";
+import { Option, Schema, SchemaGetter, SchemaTransformation } from "effect";
+import { pick } from "@voidhash/lib/lang";
 import { toast } from "sonner";
 
 import { useMimicSdk } from "@/components/sdk-context";
@@ -41,6 +43,34 @@ export const Route = createFileRoute(
 	component: DocumentPage,
 });
 
+/** Codec between an arbitrary JSON value and its indented text form. */
+const PrettyJsonText = Schema.String.pipe(
+	Schema.decodeTo(
+		Schema.Unknown,
+		new SchemaTransformation.Transformation<unknown, string>(
+			SchemaGetter.parseJson(),
+			SchemaGetter.stringifyJson({ space: 2 }),
+		),
+	),
+);
+
+const formatJson = Schema.encodeSync(PrettyJsonText);
+const decodeJson = Schema.decodeSync(PrettyJsonText);
+const decodeJsonOption = Schema.decodeOption(PrettyJsonText);
+const decodePermission = Schema.decodeUnknownSync(Schema.Literals(["read", "write"]));
+
+/** Label for the replace-value button. */
+function replaceLabel(isPending: boolean): string {
+	if (isPending) return "Replacing...";
+	return "Replace Value";
+}
+
+/** Label for the generate-connection button. */
+function generateLabel(isPending: boolean): string {
+	if (isPending) return "Generating...";
+	return "Generate Connection";
+}
+
 function DocumentPage() {
 	const { collectionId, documentId } = Route.useParams();
 	const sdk = useMimicSdk();
@@ -56,7 +86,7 @@ function DocumentPage() {
 		"read",
 	);
 	const [tokenExpiry, setTokenExpiry] = useState("");
-	const [tokenOrigins, setTokenOrigins] = useState("http://localhost:3003");
+	const [tokenOrigins, setTokenOrigins] = useState("https://mimic-admin.voidhash.localhost");
 	const [generatedAuth, setGeneratedAuth] = useState<{
 		token: string;
 		url: string;
@@ -64,14 +94,14 @@ function DocumentPage() {
 
 	const setMutation = useMutation({
 		mutationFn: () => {
-			const data = JSON.parse(editJson);
+			const data = decodeJson(editJson);
 			return sdk
 				.database("")
 				.collectionRaw(collectionId)
 				.setDocumentRaw(documentId, data);
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: ["document", collectionId, documentId],
 			});
 			toast.success("Document replaced");
@@ -83,11 +113,11 @@ function DocumentPage() {
 		mutationFn: () =>
 			sdk.database("").collectionRaw(collectionId).deleteDocument(documentId),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: ["documents", collectionId],
 			});
 			toast.success("Document deleted");
-			navigate({
+			void navigate({
 				to: "/collections/$collectionId",
 				params: { collectionId },
 			});
@@ -105,7 +135,7 @@ function DocumentPage() {
 					.split(/[\n,]/)
 					.map((origin) => origin.trim())
 					.filter(Boolean),
-				expiresInSeconds: tokenExpiry ? Number(tokenExpiry) : undefined,
+				expiresInSeconds: pick(tokenExpiry.length > 0, Number(tokenExpiry), undefined),
 			}),
 		onSuccess: (result) => {
 			setGeneratedAuth(result);
@@ -118,7 +148,7 @@ function DocumentPage() {
 		if (!document) {
 			return;
 		}
-		setEditJson(JSON.stringify(document.flat, null, 2));
+		setEditJson(formatJson(document.flat));
 	}, [document]);
 
 	if (isLoading) {
@@ -168,7 +198,7 @@ function DocumentPage() {
 				</CardHeader>
 				<CardContent>
 					<pre className="overflow-auto rounded-md bg-muted p-4 text-sm">
-						{JSON.stringify(document.flat, null, 2)}
+						{formatJson(document.flat)}
 					</pre>
 				</CardContent>
 			</Card>
@@ -186,17 +216,15 @@ function DocumentPage() {
 						/>
 						<Button
 							onClick={() => {
-								try {
-									JSON.parse(editJson);
-									setMutation.mutate();
-								} catch {
-									toast.error("Invalid JSON");
-								}
+								Option.match(decodeJsonOption(editJson), {
+									onSome: () => setMutation.mutate(),
+									onNone: () => toast.error("Invalid JSON"),
+								});
 							}}
 							disabled={setMutation.isPending}
 							variant="outline"
 						>
-							{setMutation.isPending ? "Replacing..." : "Replace Value"}
+							{replaceLabel(setMutation.isPending)}
 						</Button>
 					</div>
 				</CardContent>
@@ -212,9 +240,7 @@ function DocumentPage() {
 							<Label className="text-xs">Permission</Label>
 							<Select
 								value={tokenPermission}
-								onValueChange={(v) =>
-									setTokenPermission(v as "read" | "write")
-								}
+								onValueChange={(v) => setTokenPermission(decodePermission(v))}
 							>
 								<SelectTrigger className="w-28">
 									<SelectValue />
@@ -248,9 +274,7 @@ function DocumentPage() {
 							onClick={() => tokenMutation.mutate()}
 							disabled={tokenMutation.isPending}
 						>
-							{tokenMutation.isPending
-								? "Generating..."
-								: "Generate Connection"}
+							{generateLabel(tokenMutation.isPending)}
 						</Button>
 					</div>
 					{generatedAuth && (
@@ -263,7 +287,7 @@ function DocumentPage() {
 									variant="ghost"
 									size="icon"
 									onClick={() => {
-										navigator.clipboard.writeText(generatedAuth.url);
+										void navigator.clipboard.writeText(generatedAuth.url);
 										toast.success("Connection URL copied to clipboard");
 									}}
 								>
@@ -278,7 +302,7 @@ function DocumentPage() {
 									variant="ghost"
 									size="icon"
 									onClick={() => {
-										navigator.clipboard.writeText(generatedAuth.token);
+										void navigator.clipboard.writeText(generatedAuth.token);
 										toast.success("Token copied to clipboard");
 									}}
 								>

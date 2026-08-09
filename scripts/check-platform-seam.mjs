@@ -11,26 +11,13 @@
 // freely. Tests are also allowed to bind a concrete adapter — that is how a
 // port is exercised against something real — but only as a devDependency, so
 // the adapter never reaches a package's runtime dependency graph.
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { Cause, Console, Data, Effect, FileSystem, Path, Schema, Stream } from "effect";
+import { ChildProcess } from "effect/unstable/process";
 import { fileURLToPath } from "node:url";
 
 const adapter = "@voidhash/platform-selfhost";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const tracked = execFileSync(
-  "git",
-  ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-  {
-    cwd: repoRoot,
-    encoding: "utf8",
-  },
-)
-  .split("\0")
-  .filter((path) => path.length > 0 && existsSync(join(repoRoot, path)));
-
-const failures = [];
 const sourceLike = /\.[cm]?[jt]sx?$/;
 const isTestFile = (path) =>
   path.split("/").includes("tests") ||
@@ -38,37 +25,101 @@ const isTestFile = (path) =>
   /(^|\/)vitest\./.test(path);
 const importsAdapter = new RegExp(`["']${adapter}(?:/[^"']*)?["']`);
 
-for (const path of tracked.filter(
-  (path) =>
-    path.startsWith("packages/") &&
-    sourceLike.test(path) &&
-    !isTestFile(path) &&
-    !path.includes("/node_modules/"),
-)) {
-  if (importsAdapter.test(readFileSync(join(repoRoot, path), "utf8"))) {
-    failures.push(`${path} imports ${adapter}; depend on @voidhash/platform instead`);
-  }
-}
+// Only the runtime dependency map matters here; every other manifest field is
+// irrelevant to the seam and is discarded by the decoder.
+const Manifest = Schema.fromJsonString(
+  Schema.Struct({
+    dependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+  }),
+);
+const decodeManifest = Schema.decodeEffect(Manifest);
 
-for (const path of tracked.filter(
-  (path) => path.startsWith("packages/") && path.endsWith("/package.json"),
-)) {
-  const manifest = JSON.parse(readFileSync(join(repoRoot, path), "utf8"));
-  if (manifest.dependencies?.[adapter]) {
-    failures.push(
-      `${path} lists ${adapter} as a runtime dependency; tests may use it as a devDependency`,
+class PlatformSeamViolation extends Data.TaggedError("PlatformSeamViolation") {}
+
+/** Paths git knows about (tracked or untracked-but-not-ignored) that still exist on disk. */
+const listRepositoryFiles = (repoRoot) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+
+    const listed = yield* Effect.scoped(
+      Effect.gen(function* () {
+        const git = yield* ChildProcess.make(
+          "git",
+          ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+          { cwd: repoRoot },
+        );
+        const stdout = yield* git.stdout.pipe(Stream.decodeText(), Stream.mkString);
+        const exitCode = yield* git.exitCode;
+        if (exitCode !== 0) {
+          return yield* Effect.die(new Error(`git ls-files exited with ${exitCode}`));
+        }
+        return stdout;
+      }),
+    );
+
+    const files = [];
+    for (const candidate of listed.split("\0")) {
+      if (candidate.length === 0) continue;
+      if (yield* fs.exists(path.join(repoRoot, candidate))) files.push(candidate);
+    }
+    return files;
+  });
+
+const collectFailures = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const tracked = yield* listRepositoryFiles(repoRoot);
+  const failures = [];
+
+  for (const candidate of tracked.filter(
+    (entry) =>
+      entry.startsWith("packages/") &&
+      sourceLike.test(entry) &&
+      !isTestFile(entry) &&
+      !entry.includes("/node_modules/"),
+  )) {
+    const source = yield* fs.readFileString(path.join(repoRoot, candidate), "utf8");
+    if (importsAdapter.test(source)) {
+      failures.push(`${candidate} imports ${adapter}; depend on @voidhash/platform instead`);
+    }
+  }
+
+  for (const candidate of tracked.filter(
+    (entry) => entry.startsWith("packages/") && entry.endsWith("/package.json"),
+  )) {
+    const manifest = yield* decodeManifest(
+      yield* fs.readFileString(path.join(repoRoot, candidate), "utf8"),
+    );
+    if (manifest.dependencies?.[adapter]) {
+      failures.push(
+        `${candidate} lists ${adapter} as a runtime dependency; tests may use it as a devDependency`,
+      );
+    }
+  }
+
+  return failures;
+});
+
+const main = Effect.gen(function* () {
+  const failures = yield* Effect.tapCause(collectFailures, (cause) =>
+    Console.error(Cause.pretty(cause)),
+  );
+
+  if (failures.length === 0) {
+    return yield* Console.log(
+      `Platform seam OK — no package outside apps/ and selfhost/ binds ${adapter}.`,
     );
   }
-}
 
-if (failures.length > 0) {
-  process.stderr.write("Platform seam check failed:\n\n");
-  for (const failure of failures) {
-    process.stderr.write(`- ${failure}\n`);
-  }
-  process.exit(1);
-}
+  yield* Console.error(
+    ["Platform seam check failed:", "", ...failures.map((failure) => `- ${failure}`)].join("\n"),
+  );
+  // The report above is the whole diagnostic; the error only carries the
+  // non-zero exit code, so `runMain` is asked not to print it again.
+  return yield* new PlatformSeamViolation();
+}).pipe(Effect.provide(NodeServices.layer));
 
-process.stdout.write(
-  `Platform seam OK — no package outside apps/ and selfhost/ binds ${adapter}.\n`,
-);
+NodeRuntime.runMain(main, { disableErrorReporting: true });

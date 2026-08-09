@@ -1,4 +1,3 @@
-import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import tailwindcss from "@tailwindcss/vite";
@@ -7,8 +6,15 @@ import type { InlineConfig } from "vite";
 
 import { voidhashPaywallsPlugin } from "./virtual-paywalls-plugin";
 
-/** Absolute path to the Studio app root (the folder containing `index.html`). */
-export const STUDIO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+/**
+ * Absolute path to the Studio app root (the folder containing `index.html`).
+ * Resolved through `URL` rather than `node:path`; the trailing separator a
+ * directory URL carries is trimmed so the value stays a plain directory path.
+ */
+export const STUDIO_ROOT = fileURLToPath(new URL("../..", import.meta.url)).replace(/[/\\]$/, "");
+
+/** Fixed port used by both standalone and CLI-launched Studio dev servers. */
+export const STUDIO_DEV_PORT = 4830;
 
 export interface StudioViteConfigOptions {
   /** The user's project root (folder containing `.voidhash`). */
@@ -33,7 +39,7 @@ export interface StudioViteConfigOptions {
 export const createStudioViteConfig = ({
   projectRoot,
   studioRoot = STUDIO_ROOT,
-  port,
+  port = STUDIO_DEV_PORT,
 }: StudioViteConfigOptions): InlineConfig => ({
   configFile: false,
   root: studioRoot,
@@ -45,7 +51,9 @@ export const createStudioViteConfig = ({
     include: ["react", "react-dom", "react-dom/client"],
   },
   server: {
+    host: "127.0.0.1",
     port,
+    strictPort: true,
     fs: { allow: [studioRoot, projectRoot] },
   },
 });

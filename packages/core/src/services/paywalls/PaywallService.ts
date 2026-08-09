@@ -1,4 +1,5 @@
-import { Cause, Context, Effect, Layer, Schema } from "effect";
+import { constant, pick } from "@voidhash/lib/lang";
+import { Cause, Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -60,7 +61,7 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
         return yield* db.query.paywalls.findMany({
           where: {
             projectId,
-            ...(includeArchived ? {} : { archivedAt: { isNull: true } }),
+            ...pick(includeArchived, {}, { archivedAt: { isNull: true } }),
           },
           orderBy: { createdAt: "desc" },
         });
@@ -331,9 +332,10 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
       function* (input: { readonly paywallId: string }) {
         const paywall = yield* loadPaywallForWrite(input.paywallId, "archive");
 
+        const archivedAt = yield* DateTime.nowAsDate;
         yield* db
           .update(paywalls)
-          .set({ archivedAt: new Date() })
+          .set({ archivedAt })
           .where(eq(paywalls.id, input.paywallId));
 
         yield* auditLog.append({
@@ -382,7 +384,7 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
         ),
     );
 
-    return {
+    return constant({
       archivePaywall,
       createPaywall,
       deletePaywall,
@@ -390,7 +392,7 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
       getPaywalls,
       renamePaywall,
       restorePaywall,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(PaywallService)(PaywallService.make);

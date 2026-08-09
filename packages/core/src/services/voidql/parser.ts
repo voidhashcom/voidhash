@@ -1,3 +1,13 @@
+/*
+ * Recursive-descent parsers use exceptions as their non-local exit: a bad token
+ * anywhere in the descent must unwind straight out of the nested `parse*`
+ * frames. Throwing is therefore the control flow of this entire module, not an
+ * escape hatch at a few sites. `compile.ts` is the single Effect boundary that
+ * converts these tagged VoidQL errors back into typed failures; routing them
+ * through Effect here would surface every compile error as an opaque defect and
+ * force each of the ~60 mutually recursive methods to become an Effect.
+ */
+// oxlint-disable effect/noThrowStatement -- throw IS the parser's control flow (see block comment above); compile.ts is the single Effect boundary that converts it.
 /**
  * The VoidQL parser — hand-written recursive descent with a Pratt
  * (precedence-climbing) expression core. No `eval`, no Node deps; `workerd`-pure.
@@ -13,12 +23,15 @@
  * errors, never parse-then-reject, so the highest-risk surface never has a
  * validator to bypass.
  */
+import { constant, numberOr, stringOr } from "@voidhash/lib/lang";
+
 import type {
   Binary,
   BinaryOp,
   CaseWhen,
   Cte,
   Expr,
+  FnCall,
   Join,
   OrderItem,
   Pos,
@@ -35,12 +48,12 @@ import type {
 import { VoidQlComplexityError, VoidQlSyntaxError, VoidQlUnsupportedError } from "./errors.ts";
 import { isForbiddenKeyword, lex, type Token } from "./lexer.ts";
 
-const LIMITS = {
+const LIMITS = constant({
   maxDepth: 50,
   maxNodes: 20_000,
   maxJoins: 8,
   maxSubqueries: 16,
-} as const;
+});
 
 class Cursor {
   private index = 0;
@@ -148,13 +161,28 @@ class Cursor {
    * Reject deferred/denied keywords with a teachable message before they can be
    * mis-parsed as the start of an expression.
    */
+  private forbiddenHint(text: string): string {
+    if (text === "settings" || text === "set") {
+      return "VoidQL does not support a SETTINGS clause; tenant scope is applied automatically and cannot be set in a query.";
+    }
+    return `VoidQL is a read-only subset; '${text.toUpperCase()}' is not part of the dialect.`;
+  }
+
+  /**
+   * Runs `production` when `keyword` is the next token, otherwise yields
+   * `undefined` — the optional-clause shape shared by FROM/WHERE/HAVING/….
+   */
+  private after<A>(keyword: string, production: () => A): A | undefined {
+    if (this.eatKw(keyword)) {
+      return production();
+    }
+    return undefined;
+  }
+
   private guardForbidden(): void {
     const t = this.peek();
     if (t.kind === "kw" && isForbiddenKeyword(t.text)) {
-      const hint =
-        t.text === "settings" || t.text === "set"
-          ? "VoidQL does not support a SETTINGS clause; tenant scope is applied automatically and cannot be set in a query."
-          : `VoidQL is a read-only subset; '${t.text.toUpperCase()}' is not part of the dialect.`;
+      const hint = this.forbiddenHint(t.text);
       throw new VoidQlUnsupportedError({
         message: `line ${t.start.line}, col ${t.start.col}: Unsupported keyword '${t.text.toUpperCase()}'.`,
         hint,
@@ -177,37 +205,41 @@ class Cursor {
     return query;
   }
 
+  private parseSetOperator(): SetOperator {
+    if (this.eatKw("union")) {
+      if (this.eatKw("all")) return "UNION ALL";
+      if (this.eatKw("distinct")) return "UNION DISTINCT";
+      throw new VoidQlUnsupportedError({
+        message: `line ${this.peek().start.line}, col ${this.peek().start.col}: UNION requires ALL or DISTINCT.`,
+        hint: "Specify UNION ALL or UNION DISTINCT explicitly.",
+      });
+    }
+    if (this.eatKw("intersect")) {
+      this.eatKw("distinct");
+      return "INTERSECT";
+    }
+    this.expectKw("except");
+    this.eatKw("distinct");
+    return "EXCEPT";
+  }
+
   private parseQuery(): Query {
     const first = this.parseSelect();
-    const selects: Select[] = [first];
-    const operators: SetOperator[] = [];
+    // Operator/select pairs, so the non-empty tuple shapes SetQuery requires fall
+    // out of the parse instead of needing an assertion.
+    const tail: Array<{ readonly operator: SetOperator; readonly select: Select }> = [];
     while (this.isKw("union") || this.isKw("intersect") || this.isKw("except")) {
-      if (this.eatKw("union")) {
-        if (this.eatKw("all")) operators.push("UNION ALL");
-        else if (this.eatKw("distinct")) operators.push("UNION DISTINCT");
-        else {
-          throw new VoidQlUnsupportedError({
-            message: `line ${this.peek().start.line}, col ${this.peek().start.col}: UNION requires ALL or DISTINCT.`,
-            hint: "Specify UNION ALL or UNION DISTINCT explicitly.",
-          });
-        }
-      } else if (this.eatKw("intersect")) {
-        this.eatKw("distinct");
-        operators.push("INTERSECT");
-      } else {
-        this.expectKw("except");
-        this.eatKw("distinct");
-        operators.push("EXCEPT");
-      }
-      selects.push(this.parseSelect());
+      const operator = this.parseSetOperator();
+      tail.push({ operator, select: this.parseSelect() });
     }
-    if (selects.length === 1) return first;
+    const [head, ...rest] = tail;
+    if (head === undefined) return first;
     this.count();
     return {
       _tag: "SetQuery",
-      selects: selects as [Select, Select, ...Select[]],
-      operators: operators as [SetOperator, ...SetOperator[]],
-      span: { start: first.span.start, end: selects[selects.length - 1]!.span.end },
+      selects: [first, head.select, ...rest.map((entry) => entry.select)],
+      operators: [head.operator, ...rest.map((entry) => entry.operator)],
+      span: { start: first.span.start, end: tail[tail.length - 1]!.select.span.end },
     };
   }
 
@@ -243,10 +275,10 @@ class Cursor {
     }
     this.guardForbidden();
 
-    const columns: SelectItem[] = [this.parseSelectItem()];
+    const columns: [SelectItem, ...SelectItem[]] = [this.parseSelectItem()];
     while (this.eatOp(",")) columns.push(this.parseSelectItem());
 
-    const from = this.eatKw("from") ? this.parseTableSource() : undefined;
+    const from = this.after("from", () => this.parseTableSource());
 
     const joins: Join[] = [];
     if (from) {
@@ -260,8 +292,8 @@ class Cursor {
       }
     }
 
-    const prewhere = this.eatKw("prewhere") ? this.parseExpr(0) : undefined;
-    const where = this.eatKw("where") ? this.parseExpr(0) : undefined;
+    const prewhere = this.after("prewhere", () => this.parseExpr(0));
+    const where = this.after("where", () => this.parseExpr(0));
 
     const groupBy: Expr[] = [];
     if (this.eatKw("group")) {
@@ -280,8 +312,8 @@ class Cursor {
       }
     }
 
-    const having = this.eatKw("having") ? this.parseExpr(0) : undefined;
-    const qualify = this.eatKw("qualify") ? this.parseExpr(0) : undefined;
+    const having = this.after("having", () => this.parseExpr(0));
+    const qualify = this.after("qualify", () => this.parseExpr(0));
 
     const orderBy: OrderItem[] = [];
     if (this.eatKw("order")) {
@@ -296,16 +328,18 @@ class Cursor {
     let withTies = false;
     if (this.eatKw("limit")) {
       const first = this.parseUintLiteral("a LIMIT count");
-      const second = this.eatOp(",")
-        ? this.parseUintLiteral("a LIMIT count after the offset")
-        : undefined;
+      let second: number | undefined;
+      if (this.eatOp(",")) second = this.parseUintLiteral("a LIMIT count after the offset");
       if (this.eatKw("by")) {
-        const by: Expr[] = [this.parseExpr(0)];
+        const by: [Expr, ...Expr[]] = [this.parseExpr(0)];
         while (this.eatOp(",")) by.push(this.parseExpr(0));
+        // `LIMIT n, m BY …` puts the offset first; `LIMIT n BY …` has none.
+        let byOffset: number | undefined;
+        if (second !== undefined) byOffset = first;
         limitBy = {
           limit: second ?? first,
-          offset: second === undefined ? undefined : first,
-          by: by as [Expr, ...Expr[]],
+          offset: byOffset,
+          by,
         };
         if (this.eatKw("limit")) {
           const finalFirst = this.parseUintLiteral("a LIMIT count");
@@ -337,7 +371,7 @@ class Cursor {
       with: ctes,
       distinct,
       distinctOn,
-      columns: columns as [SelectItem, ...SelectItem[]],
+      columns,
       from,
       joins,
       prewhere,
@@ -358,11 +392,12 @@ class Cursor {
 
   private parseUintLiteral(what: string): number {
     const t = this.peek();
-    if (t.kind !== "number" || t.numType !== "Int64" || (t.value as number) < 0) {
+    const value = t.value;
+    if (t.kind !== "number" || t.numType !== "Int64" || typeof value !== "number" || value < 0) {
       this.fail(t, `Expected ${what} (a non-negative integer).`);
     }
     this.index += 1;
-    return t.value as number;
+    return value;
   }
 
   private parseSelectItem(): SelectItem {
@@ -428,7 +463,7 @@ class Cursor {
     const start = this.prev().start;
     const source = this.parseTableSource();
     let on: Expr | undefined;
-    let using: string[] | undefined;
+    let using: [string, ...string[]] | undefined;
     if (kind !== "cross") {
       if (this.eatKw("on")) {
         on = this.parseExpr(0);
@@ -447,7 +482,7 @@ class Cursor {
       kind,
       source,
       on,
-      using: using as [string, ...string[]] | undefined,
+      using,
       span: this.span(start),
     };
   }
@@ -573,14 +608,25 @@ class Cursor {
         this.next();
         return this.mkBinary(cmp[t.text]!, left, this.parseExpr(3), start);
       }
-      if ((t.text === "+" || t.text === "-") && 4 > minPrec) {
+      if (t.text === "+" && 4 > minPrec) {
         this.next();
-        return this.mkBinary(t.text === "+" ? "add" : "sub", left, this.parseExpr(4), start);
+        return this.mkBinary("add", left, this.parseExpr(4), start);
       }
-      if ((t.text === "*" || t.text === "/" || t.text === "%") && 5 > minPrec) {
+      if (t.text === "-" && 4 > minPrec) {
         this.next();
-        const op: BinaryOp = t.text === "*" ? "mul" : t.text === "/" ? "div" : "mod";
-        return this.mkBinary(op, left, this.parseExpr(5), start);
+        return this.mkBinary("sub", left, this.parseExpr(4), start);
+      }
+      if (t.text === "*" && 5 > minPrec) {
+        this.next();
+        return this.mkBinary("mul", left, this.parseExpr(5), start);
+      }
+      if (t.text === "/" && 5 > minPrec) {
+        this.next();
+        return this.mkBinary("div", left, this.parseExpr(5), start);
+      }
+      if (t.text === "%" && 5 > minPrec) {
+        this.next();
+        return this.mkBinary("mod", left, this.parseExpr(5), start);
       }
     }
 
@@ -595,14 +641,14 @@ class Cursor {
       this.count();
       return { _tag: "InExpr", expr: left, query, negated, span: this.span(start) };
     }
-    const list: Expr[] = [this.parseExpr(0)];
+    const list: [Expr, ...Expr[]] = [this.parseExpr(0)];
     while (this.eatOp(",")) list.push(this.parseExpr(0));
     this.expectOp(")");
     this.count();
     return {
       _tag: "InExpr",
       expr: left,
-      list: list as [Expr, ...Expr[]],
+      list,
       negated,
       span: this.span(start),
     };
@@ -691,7 +737,7 @@ class Cursor {
     if (t.kind === "string") {
       this.next();
       this.count();
-      return { _tag: "StringLit", value: t.value as string, span: this.span(start) };
+      return { _tag: "StringLit", value: stringOr(t.value, ""), span: this.span(start) };
     }
 
     if (t.kind === "number") {
@@ -699,7 +745,7 @@ class Cursor {
       this.count();
       return {
         _tag: "NumberLit",
-        value: t.value as number,
+        value: numberOr(t.value, 0),
         numType: t.numType ?? "Int64",
         span: this.span(start),
       };
@@ -727,7 +773,7 @@ class Cursor {
     }
     this.expectOp(")");
     this.count();
-    const fn = { _tag: "FnCall", name, args, span: this.span(start) } as const;
+    const fn: FnCall = { _tag: "FnCall", name, args, span: this.span(start) };
     if (!this.eatKw("over")) return fn;
 
     this.expectOp("(");
@@ -744,8 +790,8 @@ class Cursor {
       while (this.eatOp(",")) orderBy.push(this.parseOrderItem());
     }
     let frame: WindowFrame | undefined;
-    if (this.isKw("rows") || this.isKw("range")) {
-      const unit = this.next().text as WindowFrame["unit"];
+    const unit = this.tryParseWindowUnit();
+    if (unit !== undefined) {
       if (this.eatKw("between")) {
         const frameStart = this.parseWindowFrameBound();
         this.expectKw("and");
@@ -766,6 +812,12 @@ class Cursor {
     };
   }
 
+  private tryParseWindowUnit(): WindowFrame["unit"] | undefined {
+    if (this.eatKw("rows")) return "rows";
+    if (this.eatKw("range")) return "range";
+    return undefined;
+  }
+
   private parseWindowFrameBound(): WindowFrameBound {
     if (this.eatKw("current")) {
       this.expectKw("row");
@@ -783,7 +835,7 @@ class Cursor {
 
   private parseColumnRef(): Expr {
     const start = this.peek().start;
-    const chain: string[] = [this.next().text];
+    const chain: [string, ...string[]] = [this.next().text];
     while (this.isOp(".")) {
       this.next();
       if (this.eatOp("*")) {
@@ -796,28 +848,32 @@ class Cursor {
       chain.push(seg.text);
     }
     this.count();
-    return { _tag: "ColumnRef", chain: chain as [string, ...string[]], span: this.span(start) };
+    return { _tag: "ColumnRef", chain, span: this.span(start) };
+  }
+
+  private parseCaseWhenBranch(): CaseWhen {
+    const when = this.parseExpr(0);
+    this.expectKw("then");
+    const then = this.parseExpr(0);
+    // oxlint-disable-next-line unicorn/no-thenable -- `then` is the SQL CASE ... WHEN ... THEN branch of the frozen `CaseWhen` AST node; renaming the field would change the AST contract every consumer and the compiler match on.
+    return { when, then };
   }
 
   private parseCase(): Expr {
     const start = this.peek().start;
     this.expectKw("case");
-    const operand = this.isKw("when") ? undefined : this.parseExpr(0);
-    const whens: CaseWhen[] = [];
-    while (this.eatKw("when")) {
-      const when = this.parseExpr(0);
-      this.expectKw("then");
-      const then = this.parseExpr(0);
-      whens.push({ when, then });
-    }
-    if (whens.length === 0) this.fail(this.peek(), "CASE requires at least one WHEN branch.");
-    const elseExpr = this.eatKw("else") ? this.parseExpr(0) : undefined;
+    let operand: Expr | undefined;
+    if (!this.isKw("when")) operand = this.parseExpr(0);
+    if (!this.eatKw("when")) this.fail(this.peek(), "CASE requires at least one WHEN branch.");
+    const whens: [CaseWhen, ...CaseWhen[]] = [this.parseCaseWhenBranch()];
+    while (this.eatKw("when")) whens.push(this.parseCaseWhenBranch());
+    const elseExpr = this.after("else", () => this.parseExpr(0));
     this.expectKw("end");
     this.count();
     return {
       _tag: "CaseExpr",
       operand,
-      whens: whens as [CaseWhen, ...CaseWhen[]],
+      whens,
       else: elseExpr,
       span: this.span(start),
     };

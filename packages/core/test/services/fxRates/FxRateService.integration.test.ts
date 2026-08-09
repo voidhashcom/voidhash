@@ -33,8 +33,9 @@
  *  - Typed failures are asserted with `Effect.flip` (project convention),
  *    narrowing the swapped error with `instanceof` before reading its fields.
  */
-import { Effect, Option } from "effect";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createId } from "@paralleldrive/cuid2";
+import { Clock, DateTime, Effect, Option, Schema } from "effect";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   FxRateService,
@@ -83,7 +84,15 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
  * prior run. The salt is bounded so `base - offset` never underflows out of the
  * valid window for this file's call count.
  */
-const runSalt = Math.floor(Date.now() / 1000) % 2_000;
+const runSalt = createId()
+  .split("")
+  .reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) % 2_000, 7);
+
+/** A `Date` at `millis`, built without touching the `Date` global. */
+const dateAt = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
+/** Serializes a stubbed provider body the way `JSON.stringify` used to. */
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
  * A unique midnight-UTC `asOfDate` in the future-but-valid MySQL `TIMESTAMP`
@@ -93,15 +102,8 @@ const runSalt = Math.floor(Date.now() / 1000) % 2_000;
  */
 const uniqueDay = (): Date => {
   const base = Date.UTC(2037, 0, 1);
-  return new Date(base - (runSalt + seq++) * ONE_DAY_MS);
+  return dateAt(base - (runSalt + seq++) * ONE_DAY_MS);
 };
-
-/** Read a single `fx_rate` row straight from the DB, bypassing the service. */
-const findRow = (id: string) =>
-  Effect.gen(function* () {
-    const db = yield* Db;
-    return yield* db.query.fxRates.findFirst({ where: { id } });
-  });
 
 /** Read the `fx_rate` row for a `(currency, asOfDate)` pair. */
 const findByPair = (currency: string, asOfDate: Date) =>
@@ -165,12 +167,13 @@ const seedRow = (
 ) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = `fx_test_${Date.now()}_${seq++}`;
+    const id = `fx_test_${yield* Clock.currentTimeMillis}_${seq++}`;
     track(id);
+    const fetchedAt = yield* DateTime.nowAsDate;
     yield* db.insert(fxRates).values({
       asOfDate: input.asOfDate,
       currency: input.currency,
-      fetchedAt: new Date(),
+      fetchedAt,
       id,
       source: input.source,
       usdRate: input.usdRate,
@@ -194,7 +197,7 @@ describe("FxRateService.getUsdRate", () => {
     Effect.gen(function* () {
       const svc = yield* FxRateService;
       // A non-midnight timestamp proves asOf is truncated to the UTC day.
-      const asOf = new Date(Date.UTC(2024, 5, 15, 13, 37, 42, 500));
+      const asOf = dateAt(Date.UTC(2024, 5, 15, 13, 37, 42, 500));
 
       const result = yield* svc.getUsdRate({ asOf, currency: "usd" });
       expect(Option.isSome(result)).toBe(true);
@@ -239,7 +242,7 @@ describe("FxRateService.getUsdRate", () => {
         yield* seedRow(track, { asOfDate, currency, source: "stub", usdRate: 900_000 });
 
         // Pass a time well past midnight on the same UTC day; it must normalize.
-        const intraday = new Date(asOfDate.getTime() + 18 * 60 * 60 * 1000 + 123);
+        const intraday = dateAt(asOfDate.getTime() + 18 * 60 * 60 * 1000 + 123);
         const result = yield* svc.getUsdRate({ asOf: intraday, currency });
         expect(Option.isSome(result)).toBe(true);
         expect(Option.getOrThrow(result).rate).toBe(900_000);
@@ -291,7 +294,7 @@ describe("FxRateService.getUsdRate", () => {
         // Only an earlier day (within the carry-forward window) has a rate; the
         // exact query day has none — e.g. the purchase landed before the daily
         // sync, or on a provider holiday.
-        const seededDay = new Date(queryDay.getTime() - 2 * ONE_DAY_MS);
+        const seededDay = dateAt(queryDay.getTime() - 2 * ONE_DAY_MS);
         yield* seedRow(track, {
           asOfDate: seededDay,
           currency,
@@ -320,7 +323,7 @@ describe("FxRateService.getUsdRate", () => {
         const queryDay = uniqueDay();
         // 10 days earlier — beyond the 7-day carry-forward window, so the lookup
         // must fall through to none rather than reuse a too-stale rate.
-        const staleDay = new Date(queryDay.getTime() - 10 * ONE_DAY_MS);
+        const staleDay = dateAt(queryDay.getTime() - 10 * ONE_DAY_MS);
         yield* seedRow(track, { asOfDate: staleDay, currency, source: "stub", usdRate: 1_400_000 });
 
         const result = yield* svc.getUsdRate({ asOf: queryDay, currency });
@@ -503,11 +506,13 @@ describe("createExchangeRateApiFxRateFetcher", () => {
       "fetch",
       vi.fn((input: unknown) => {
         lastUrl = String(input);
-        return Promise.resolve(
-          new Response(JSON.stringify(body), {
-            headers: { "Content-Type": "application/json" },
-            status,
-          }),
+        return Effect.runPromise(
+          Effect.succeed(
+            new Response(encodeJson(body), {
+              headers: { "Content-Type": "application/json" },
+              status,
+            }),
+          ),
         );
       }),
     );
@@ -515,101 +520,116 @@ describe("createExchangeRateApiFxRateFetcher", () => {
 
   /** Install a `fetch` stub that rejects, simulating a network failure. */
   const stubFetchReject = (message: string) => {
+    lastUrl = undefined;
     vi.stubGlobal(
       "fetch",
-      vi.fn(() => Promise.reject(new Error(message))),
+      vi.fn(() => Effect.runPromise(Effect.die(new Error(message)))),
     );
   };
 
-  beforeEach(() => {
-    lastUrl = undefined;
-  });
-
+  // Each test installs one of the two stubs as its first statement, and both
+  // reset `lastUrl`, so no `beforeEach` is needed to clear it.
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- `vi.unstubAllGlobals()` restores vitest's global stubs, which live in the vitest lifecycle and have no Effect-scoped equivalent.
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("builds the /<apiKey>/latest/USD URL and inverts USD->X quotes to X->USD with FX precision", async () => {
-    stubFetchJson(200, {
-      base_code: "USD",
-      conversion_rates: { EUR: 0.5, USD: 1 },
-      result: "success",
-      time_last_update_unix: 1_700_000_000,
-    });
+  it("builds the /<apiKey>/latest/USD URL and inverts USD->X quotes to X->USD with FX precision", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        stubFetchJson(200, {
+          base_code: "USD",
+          conversion_rates: { EUR: 0.5, USD: 1 },
+          result: "success",
+          time_last_update_unix: 1_700_000_000,
+        });
 
-    const fetcher = createExchangeRateApiFxRateFetcher({
-      apiKey: "test/key",
-      // Trailing slash is intentional: the fetcher must trim it when building the URL.
-      baseUrl: "https://example.test/v6/",
-    });
-    const rates = await Effect.runPromise(fetcher.fetchLatestUsdRates());
+        const fetcher = createExchangeRateApiFxRateFetcher({
+          apiKey: "test/key",
+          // Trailing slash is intentional: the fetcher must trim it when building the URL.
+          baseUrl: "https://example.test/v6/",
+        });
+        const rates = yield* fetcher.fetchLatestUsdRates();
 
-    // URL: trailing slash trimmed, apiKey url-encoded, `/latest/USD` appended.
-    expect(lastUrl).toBe("https://example.test/v6/test%2Fkey/latest/USD");
+        // URL: trailing slash trimmed, apiKey url-encoded, `/latest/USD` appended.
+        expect(lastUrl).toBe("https://example.test/v6/test%2Fkey/latest/USD");
 
-    const eur = rates.find((rate) => rate.currency === "EUR");
-    const usd = rates.find((rate) => rate.currency === "USD");
-    // 1 USD buys 0.5 EUR per quote => EUR->USD = 1/0.5 = 2.0.
-    expect(eur?.rate).toBe(Math.round(2 * FX_RATE_PRECISION));
-    // USD maps to the identity rate, not 1/1 via inversion of its own quote.
-    expect(usd?.rate).toBe(FX_RATE_PRECISION);
-    // asOfDate is the upstream timestamp truncated to midnight UTC.
-    expect(eur?.asOfDate.getTime()).toBe(new Date(Date.UTC(2023, 10, 14)).getTime());
-    expect(eur?.source).toBe("exchange-rate-api:latest:1700000000");
-  });
+        const eur = rates.find((rate) => rate.currency === "EUR");
+        const usd = rates.find((rate) => rate.currency === "USD");
+        // 1 USD buys 0.5 EUR per quote => EUR->USD = 1/0.5 = 2.0.
+        expect(eur?.rate).toBe(Math.round(2 * FX_RATE_PRECISION));
+        // USD maps to the identity rate, not 1/1 via inversion of its own quote.
+        expect(usd?.rate).toBe(FX_RATE_PRECISION);
+        // asOfDate is the upstream timestamp truncated to midnight UTC.
+        expect(eur?.asOfDate.getTime()).toBe(Date.UTC(2023, 10, 14));
+        expect(eur?.source).toBe("exchange-rate-api:latest:1700000000");
+      }),
+    ));
 
-  it("skips zero, negative and non-number quotes so they never poison the cache", async () => {
-    stubFetchJson(200, {
-      base_code: "USD",
-      conversion_rates: { AAA: 0, BBB: -2, CCC: 4, DDD: "bad" },
-      result: "success",
-      time_last_update_unix: 1_700_000_000,
-    });
+  it("skips zero, negative and non-number quotes so they never poison the cache", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        stubFetchJson(200, {
+          base_code: "USD",
+          conversion_rates: { AAA: 0, BBB: -2, CCC: 4, DDD: "bad" },
+          result: "success",
+          time_last_update_unix: 1_700_000_000,
+        });
 
-    const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
-    const rates = await Effect.runPromise(fetcher.fetchLatestUsdRates());
-    const codes = rates.map((rate) => rate.currency);
+        const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
+        const rates = yield* fetcher.fetchLatestUsdRates();
+        const codes = rates.map((rate) => rate.currency);
 
-    expect(codes).toContain("CCC");
-    expect(codes).not.toContain("AAA"); // zero quote skipped
-    expect(codes).not.toContain("BBB"); // negative quote skipped
-    expect(codes).not.toContain("DDD"); // non-number quote skipped
-    expect(rates.find((rate) => rate.currency === "CCC")?.rate).toBe(
-      Math.round((1 / 4) * FX_RATE_PRECISION),
-    );
-  });
+        expect(codes).toContain("CCC");
+        expect(codes).not.toContain("AAA"); // zero quote skipped
+        expect(codes).not.toContain("BBB"); // negative quote skipped
+        expect(codes).not.toContain("DDD"); // non-number quote skipped
+        expect(rates.find((rate) => rate.currency === "CCC")?.rate).toBe(
+          Math.round((1 / 4) * FX_RATE_PRECISION),
+        );
+      }),
+    ));
 
-  it("maps an upstream error response to FxRateServiceError carrying the error type", async () => {
-    stubFetchJson(200, { "error-type": "invalid-key", result: "error" });
+  it("maps an upstream error response to FxRateServiceError carrying the error type", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        stubFetchJson(200, { "error-type": "invalid-key", result: "error" });
 
-    const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
-    const error = await Effect.runPromise(Effect.flip(fetcher.fetchLatestUsdRates()));
-    expect(error).toBeInstanceOf(FxRateServiceError);
-    if (error instanceof FxRateServiceError) {
-      expect(error.cause).toContain("invalid-key");
-    }
-  });
+        const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
+        const error = yield* Effect.flip(fetcher.fetchLatestUsdRates());
+        expect(error).toBeInstanceOf(FxRateServiceError);
+        if (error instanceof FxRateServiceError) {
+          expect(error.cause).toContain("invalid-key");
+        }
+      }),
+    ));
 
-  it("maps a non-200 HTTP response to FxRateServiceError", async () => {
-    stubFetchJson(503, { result: "error" });
+  it("maps a non-200 HTTP response to FxRateServiceError", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        stubFetchJson(503, { result: "error" });
 
-    const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
-    const error = await Effect.runPromise(Effect.flip(fetcher.fetchLatestUsdRates()));
-    expect(error).toBeInstanceOf(FxRateServiceError);
-    if (error instanceof FxRateServiceError) {
-      expect(error.cause).toContain("503");
-    }
-  });
+        const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
+        const error = yield* Effect.flip(fetcher.fetchLatestUsdRates());
+        expect(error).toBeInstanceOf(FxRateServiceError);
+        if (error instanceof FxRateServiceError) {
+          expect(error.cause).toContain("503");
+        }
+      }),
+    ));
 
-  it("maps a network/fetch failure to FxRateServiceError carrying the cause message", async () => {
-    stubFetchReject("connection refused");
+  it("maps a network/fetch failure to FxRateServiceError carrying the cause message", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        stubFetchReject("connection refused");
 
-    const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
-    const error = await Effect.runPromise(Effect.flip(fetcher.fetchLatestUsdRates()));
-    expect(error).toBeInstanceOf(FxRateServiceError);
-    if (error instanceof FxRateServiceError) {
-      expect(error.cause).toContain("ExchangeRate API fetch failed");
-      expect(error.cause).toContain("connection refused");
-    }
-  });
+        const fetcher = createExchangeRateApiFxRateFetcher({ apiKey: "k" });
+        const error = yield* Effect.flip(fetcher.fetchLatestUsdRates());
+        expect(error).toBeInstanceOf(FxRateServiceError);
+        if (error instanceof FxRateServiceError) {
+          expect(error.cause).toContain("ExchangeRate API fetch failed");
+          expect(error.cause).toContain("connection refused");
+        }
+      }),
+    ));
 });

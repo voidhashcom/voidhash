@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Primitive } from "@voidhash/mimic-core";
 
 import { interactionsSchema } from "../interactions/index.ts";
@@ -162,7 +163,7 @@ export const viewNodeLocalizedSchema = Primitive.Array(
 /** ViewNode tree node schema */
 export const ViewNode = Primitive.TreeNode("view", {
   children: () =>
-    [Primitive.TreeNodeSelf, ScrollViewNode, TextNode, ShapeNode, ComponentNode] as const,
+    constant([Primitive.TreeNodeSelf, ScrollViewNode, TextNode, ShapeNode, ComponentNode]),
   data: Primitive.Struct({
     interactions: interactionsSchema,
     linkedVariables,

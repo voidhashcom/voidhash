@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Encoding } from "effect";
 
 import type { PublicFileStoreError, PublicFileStoreShape } from "../storage/PublicFileStore.ts";
 
@@ -10,26 +10,18 @@ const DEFAULT_MAX_HTML_BYTES = 3_500_000;
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const toBase64 = (bytes: Uint8Array): string => {
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-  }
-  return btoa(binary);
-};
+const toBase64 = (bytes: Uint8Array): string => Encoding.encodeBase64(bytes);
 
-const keyFromUrl = (url: string, prefix: string): string | null => {
+const keyFromUrl = (url: string, prefix: string): Effect.Effect<string | null> => {
   const raw = url.slice(prefix.length).split(/[?#]/, 1)[0] ?? "";
   if (raw === "") {
-    return null;
+    return Effect.succeed(null);
   }
-  try {
-    // The renderer emits `encodeURI(url)`; recover the raw object key.
-    return decodeURIComponent(raw);
-  } catch {
-    return null;
-  }
+  // The renderer emits `encodeURI(url)`; recover the raw object key. A malformed
+  // percent-escape is treated as "not one of ours" and left untouched.
+  return Effect.try({ try: () => decodeURIComponent(raw), catch: () => null }).pipe(
+    Effect.catch(() => Effect.succeed(null)),
+  );
 };
 
 /**
@@ -77,12 +69,15 @@ export const inlinePublicFileImages = (
 
       let dataUri = dataUris.get(url);
       if (dataUri === undefined) {
-        const key = keyFromUrl(url, prefix);
-        const object = key === null ? null : yield* store.getObject(key);
-        dataUri =
-          object === null
-            ? null
-            : `data:${object.contentType ?? "image/png"};base64,${toBase64(object.body)}`;
+        const key = yield* keyFromUrl(url, prefix);
+        const object = yield* Effect.suspend(() => {
+          if (key === null) return Effect.succeed(null);
+          return store.getObject(key);
+        });
+        dataUri = null;
+        if (object !== null) {
+          dataUri = `data:${object.contentType ?? "image/png"};base64,${toBase64(object.body)}`;
+        }
         dataUris.set(url, dataUri);
       }
       if (dataUri === null) {

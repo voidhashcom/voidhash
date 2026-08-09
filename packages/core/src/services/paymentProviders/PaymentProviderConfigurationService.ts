@@ -1,4 +1,6 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
+
+import { constant } from "@voidhash/lib/lang";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -33,6 +35,14 @@ export class PaymentProviderConfigurationServiceError extends Schema.TaggedError
   "PaymentProviderConfigurationServiceError",
 )("PaymentProviderConfigurationServiceError", { cause: Schema.String }) {}
 
+/** Spreads a `name` column update only when the caller supplied a new name. */
+const nameUpdate = (name: string | undefined): { readonly name?: string } => {
+  if (name === undefined) {
+    return {};
+  }
+  return { name };
+};
+
 /**
  * `PaymentProviderConfigurationService` orchestrates the
  * payment-provider-configuration aggregate (one configuration per
@@ -63,13 +73,14 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
         providerId: string,
       ): Effect.Effect<AnyPaymentProviderShape, PaymentProviderConfigurationValidationError> => {
         const provider = paymentProviders.find((candidate) => candidate.id === providerId);
-        return provider
-          ? Effect.succeed(provider)
-          : Effect.fail(
-              new PaymentProviderConfigurationValidationError({
-                cause: `Provider ${providerId} not found`,
-              }),
-            );
+        if (!provider) {
+          return Effect.fail(
+            new PaymentProviderConfigurationValidationError({
+              cause: `Provider ${providerId} not found`,
+            }),
+          );
+        }
+        return Effect.succeed(provider);
       };
 
       const getPaymentProviderConfigurations = Effect.fn("getPaymentProviderConfigurations")(
@@ -250,8 +261,8 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
               .set({
                 configuration: input.configuration,
                 enabled: false,
-                ...(input.name !== undefined ? { name: input.name } : {}),
-                updatedAt: new Date(),
+                ...nameUpdate(input.name),
+                updatedAt: yield* DateTime.nowAsDate,
               })
               .where(eq(paymentProviderConfigurations.id, input.id));
 
@@ -296,9 +307,9 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
             .set({
               configuration: validation.parsedConfiguration,
               enabled: input.enabled,
-              ...(input.name !== undefined ? { name: input.name } : {}),
+              ...nameUpdate(input.name),
               paymentProviderKey: validation.paymentProviderKey,
-              updatedAt: new Date(),
+              updatedAt: yield* DateTime.nowAsDate,
             })
             .where(eq(paymentProviderConfigurations.id, input.id));
 
@@ -356,9 +367,10 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
             `User ${session?.user?.id} is not authorized to delete payment provider configuration ${input.paymentProviderConfigurationId}`,
           );
 
+          const deletedAt = yield* DateTime.nowAsDate;
           yield* db
             .update(paymentProviderConfigurations)
-            .set({ deletedAt: new Date(), updatedAt: new Date() })
+            .set({ deletedAt, updatedAt: deletedAt })
             .where(eq(paymentProviderConfigurations.id, input.paymentProviderConfigurationId));
 
           yield* auditLog
@@ -385,13 +397,13 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
           ),
       );
 
-      return {
+      return constant({
         createPaymentProviderConfiguration,
         deletePaymentProviderConfiguration,
         getPaymentProviderConfigurationById,
         getPaymentProviderConfigurations,
         updatePaymentProviderConfiguration,
-      } as const;
+      });
     }),
   },
 ) {

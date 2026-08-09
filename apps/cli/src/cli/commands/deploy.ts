@@ -1,6 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { Console, Effect, Path } from "effect";
+import { Config, Console, Effect, FileSystem, Path, Schema } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 import { type BuildPaywallsResult, buildPaywalls } from "../../domain/services/paywall-build";
 import {
@@ -10,8 +8,60 @@ import {
 import { SourceCode } from "../../domain/services/source-code";
 import { userError } from "../../utils/error-formatter";
 
-const formatBytes = (bytes: number): string =>
-  bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+const formatBytes = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+};
+
+/** `", N asset(s)"` for a paywall that ships assets, empty otherwise. */
+const assetsSuffix = (count: number): string => {
+  if (count > 0) return `, ${count} asset(s)`;
+  return "";
+};
+
+/** `", custom panel"` for a component that emitted a panel bundle. */
+const panelSuffix = (panel: unknown): string => {
+  if (panel) return ", custom panel";
+  return "";
+};
+
+/** The fields of the resolved `@voidhash/paywalls` package.json we stamp. */
+const PackageJsonSchema = Schema.Struct({
+  name: Schema.optional(Schema.String),
+  version: Schema.optional(Schema.String),
+});
+
+/**
+ * Best-effort: the `@voidhash/paywalls` version the bundle was built against,
+ * resolved from the user's project. The package's exports map does not expose
+ * ./package.json, so walk up from the resolved entry. Falls back to
+ * `"unknown"` whenever the package cannot be resolved or read.
+ */
+const resolveRuntimeVersion = (
+  projectRoot: string,
+): Effect.Effect<string, never, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* resolveRuntimeVersion() {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+
+    const entry = yield* Effect.try({
+      try: () => require.resolve("@voidhash/paywalls", { paths: [projectRoot] }),
+      catch: (cause) => cause,
+    });
+
+    for (let dir = path.dirname(entry); dir !== path.dirname(dir); dir = path.dirname(dir)) {
+      const pkgPath = path.join(dir, "package.json");
+      const exists = yield* fs.exists(pkgPath);
+      if (!exists) continue;
+      const pkg = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(PackageJsonSchema))(
+        yield* fs.readFileString(pkgPath),
+      );
+      if (pkg.name === "@voidhash/paywalls" && pkg.version !== undefined) {
+        return pkg.version;
+      }
+    }
+    return "unknown";
+  }).pipe(Effect.orElseSucceed(() => "unknown"));
 
 const reportBuild = ({ manifest, outDir, manifestPath }: BuildPaywallsResult) =>
   Effect.gen(function* reportBuild() {
@@ -26,7 +76,7 @@ const reportBuild = ({ manifest, outDir, manifestPath }: BuildPaywallsResult) =>
         `  • ${paywall.title} (${paywall.id})\n` +
           `      hash    ${paywall.contentHash.slice(0, 12)}\n` +
           `      bundle  ${formatBytes(size)}` +
-          (paywall.assets.length ? `, ${paywall.assets.length} asset(s)` : ""),
+          assetsSuffix(paywall.assets.length),
       );
     }
     for (const component of manifest.components) {
@@ -35,7 +85,7 @@ const reportBuild = ({ manifest, outDir, manifestPath }: BuildPaywallsResult) =>
           `      hash     ${component.contentHash.slice(0, 12)}\n` +
           `      runtime  ${formatBytes(component.artifacts.runtime.bytes)}, ` +
           `${component.previews.length} preview(s)` +
-          (component.artifacts.panel ? ", custom panel" : ""),
+          panelSuffix(component.artifacts.panel),
       );
     }
     yield* Console.log(`\n  ${manifest.assets.length} asset(s)`);
@@ -95,32 +145,12 @@ export const deployCommand = Command.make(
         );
 
       const projectRoot = path.resolve(".");
-      const cliVersion = process.env.VOIDHASH_CLI_VERSION ?? "0.0.0";
+      const cliVersion = yield* Config.string("VOIDHASH_CLI_VERSION").pipe(
+        Config.withDefault("0.0.0"),
+        Effect.orDie,
+      );
 
-      // Best-effort: stamp the @voidhash/paywalls version the bundle was built
-      // against, resolved from the user's project. The package's exports map
-      // does not expose ./package.json, so walk up from the resolved entry.
-      const runtimeVersion = yield* Effect.try({
-        try: () => {
-          const entry = require.resolve("@voidhash/paywalls", {
-            paths: [projectRoot],
-          });
-          for (let dir = dirname(entry); dir !== dirname(dir); dir = dirname(dir)) {
-            const pkgPath = join(dir, "package.json");
-            if (existsSync(pkgPath)) {
-              const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
-                name?: string;
-                version?: string;
-              };
-              if (pkg.name === "@voidhash/paywalls" && typeof pkg.version === "string") {
-                return pkg.version;
-              }
-            }
-          }
-          throw new Error("@voidhash/paywalls package.json not found");
-        },
-        catch: (cause) => cause,
-      }).pipe(Effect.orElseSucceed(() => "unknown"));
+      const runtimeVersion = yield* resolveRuntimeVersion(projectRoot);
 
       yield* Console.log("Building paywalls…");
 

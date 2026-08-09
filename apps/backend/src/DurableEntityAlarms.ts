@@ -2,7 +2,7 @@ import type {
   DurableEntityAddress,
   DurableEntityAlarmControlShape,
 } from "@voidhash/platform/DurableEntity";
-import { Effect } from "effect";
+import { Clock, Effect } from "effect";
 
 /** Handler for one durable-entity alarm type. */
 export type DurableEntityAlarmHandler = (
@@ -19,18 +19,12 @@ export const dispatchDurableEntityAlarms = (
   handlers: Readonly<Record<string, DurableEntityAlarmHandler>>,
   now?: number,
 ): Effect.Effect<void, unknown> =>
-  Effect.suspend(() => {
-    const dispatchTime = now ?? Date.now();
-    return control
-      .listDueAlarms(dispatchTime, 100)
-      .pipe(
-        Effect.flatMap((due) =>
-          Effect.forEach(
-            due,
-            ({ address }) =>
-              handlers[address.type]?.(address, dispatchTime) ?? Effect.void,
-            { discard: true },
-          ),
-        ),
-      );
+  Effect.gen(function* () {
+    const dispatchTime = now ?? (yield* Clock.currentTimeMillis);
+    const due = yield* control.listDueAlarms(dispatchTime, 100);
+    yield* Effect.forEach(
+      due,
+      ({ address }) => handlers[address.type]?.(address, dispatchTime) ?? Effect.void,
+      { discard: true },
+    );
   });

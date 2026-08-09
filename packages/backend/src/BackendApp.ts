@@ -87,6 +87,9 @@ import {
 import { AnalyticsWriterService } from "@voidhash/core/services/analyticsIngest/AnalyticsWriterService";
 import { createInitialPaywallDocumentInput, PaywallDesignerDocument } from "@voidhash/mimic-schema";
 import { AuthMiddleware } from "@voidhash/rpc";
+import { constant } from "@voidhash/lib/lang";
+import * as Config from "effect/Config";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
@@ -236,6 +239,13 @@ export interface BackendRuntimeLayers<
 }
 
 /**
+ * Reads an optional string env binding when the surrounding layer is built (not
+ * at module load), defaulting to `fallback` when the binding is unset.
+ */
+const envString = (name: string, fallback = "") =>
+  Config.string(name).pipe(Config.withDefault(fallback), Effect.orDie);
+
+/**
  * Live App Store config-write provider registered under the public
  * `AppStorePaymentProvider` tag, consumed by `PaymentProviderConfigurationService`
  * and `PaymentProviderProductService` when an operator creates or updates an App
@@ -248,7 +258,7 @@ export interface BackendRuntimeLayers<
 export const BackendAppStorePaymentProviderConfigLive = AppStorePaymentProviderConfigLive.pipe(
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
-      key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+      key: envString("ENCRYPTION_KEY"),
     }),
   ),
 );
@@ -262,7 +272,7 @@ export const BackendAppStorePaymentProviderConfigLive = AppStorePaymentProviderC
 export const BackendGooglePlayPaymentProviderConfigLive = GooglePlayPaymentProviderConfigLive.pipe(
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
-      key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+      key: envString("ENCRYPTION_KEY"),
     }),
   ),
 );
@@ -276,7 +286,7 @@ export const BackendGooglePlayPaymentProviderConfigLive = GooglePlayPaymentProvi
 export const BackendStripePaymentProviderConfigLive = StripePaymentProviderConfigLive.pipe(
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
-      key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+      key: envString("ENCRYPTION_KEY"),
     }),
   ),
 );
@@ -297,7 +307,7 @@ export const BackendFirebaseCloudMessagingServiceLive =
   FirebaseCloudMessagingServiceConfigLive.pipe(
     Layer.provide(
       PaymentConfigSecretCrypto.layer({
-        key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+        key: envString("ENCRYPTION_KEY"),
       }),
     ),
   );
@@ -305,7 +315,7 @@ export const BackendFirebaseCloudMessagingServiceLive =
 export const BackendApplePushNotificationServiceLive = ApplePushNotificationServiceConfigLive.pipe(
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
-      key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+      key: envString("ENCRYPTION_KEY"),
     }),
   ),
 );
@@ -323,8 +333,8 @@ export const BackendPushProvidersLive = Layer.mergeAll(
  * tests) boot — feedback is still persisted, the Slack relay simply no-ops.
  */
 export const BackendFeedbackServiceLive = FeedbackServiceLive({
-  botToken: Effect.sync(() => process.env.SLACK_BOT_TOKEN ?? ""),
-  defaultChannel: Effect.sync(() => process.env.SLACK_FEEDBACK_CHANNEL_ID ?? ""),
+  botToken: envString("SLACK_BOT_TOKEN"),
+  defaultChannel: envString("SLACK_FEEDBACK_CHANNEL_ID"),
 });
 
 /**
@@ -348,13 +358,13 @@ export const BackendAppStorePaymentProviderServiceLive = AppStorePaymentProvider
   Layer.provide(AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer))),
   Layer.provide(
     FxRateService.layer({
-      apiKey: Effect.sync(() => process.env.EXCHANGE_RATE_API_KEY ?? ""),
+      apiKey: envString("EXCHANGE_RATE_API_KEY"),
     }),
   ),
   Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
-      key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+      key: envString("ENCRYPTION_KEY"),
     }),
   ),
 );
@@ -377,13 +387,13 @@ export const BackendGooglePlayPaymentProviderServiceLive =
     Layer.provide(GooglePlayServerApi.layer.pipe(Layer.provide(FetchHttpClient.layer))),
     Layer.provide(
       FxRateService.layer({
-        apiKey: Effect.sync(() => process.env.EXCHANGE_RATE_API_KEY ?? ""),
+        apiKey: envString("EXCHANGE_RATE_API_KEY"),
       }),
     ),
     Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
     Layer.provide(
       PaymentConfigSecretCrypto.layer({
-        key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+        key: envString("ENCRYPTION_KEY"),
       }),
     ),
   );
@@ -402,13 +412,13 @@ export const BackendStripePaymentProviderServiceLive = StripePaymentProviderServ
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(
     FxRateService.layer({
-      apiKey: Effect.sync(() => process.env.EXCHANGE_RATE_API_KEY ?? ""),
+      apiKey: envString("EXCHANGE_RATE_API_KEY"),
     }),
   ),
   Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
-      key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+      key: envString("ENCRYPTION_KEY"),
     }),
   ),
 );
@@ -423,13 +433,19 @@ export const BackendStripePaymentProviderServiceLive = StripePaymentProviderServ
  *   worker env by `stacks/backend/workers/BackendWorker.ts` (custom domain on
  *   production/preview, pinned dev port elsewhere, overridable to front it
  *   with a CDN exposing the same layout).
- * Lazy (`Layer.sync`) so `process.env` is read at worker boot, not module
+ * Lazy (`Layer.effect`) so the env binding is read at worker boot, not module
  * load.
  */
-export const BackendPaywallAssetConfigLive = Layer.sync(PaywallAssetConfig, () => ({
-  cdnUrl: "https://assets.voidha.sh",
-  publicBaseUrl: process.env.PAYWALL_PUBLIC_BASE_URL ?? "https://api.voidhash.com",
-}));
+export const BackendPaywallAssetConfigLive = Layer.effect(
+  PaywallAssetConfig,
+  Effect.gen(function* () {
+    const publicBaseUrl = yield* envString("PAYWALL_PUBLIC_BASE_URL", "https://api.voidhash.com");
+    return {
+      cdnUrl: "https://assets.voidha.sh",
+      publicBaseUrl,
+    };
+  }),
+);
 
 /**
  * Placeholder {@link PaywallArtifactStore} for harnesses that run the backend
@@ -513,11 +529,14 @@ export const BackendPublicFileStoreStubLive = Layer.succeed(PublicFileStore, {
 export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
   closePaywallConnection: () => Effect.void,
   createPaywallEditToken: () =>
-    Effect.sync(() => ({
-      expiresAt: new Date(Date.now() + 300_000),
-      token: "stub-token",
-      url: "wss://stub.invalid/ws",
-    })),
+    Effect.gen(function* () {
+      const now = yield* DateTime.now;
+      return {
+        expiresAt: DateTime.toDateUtc(DateTime.addDuration(now, "5 minutes")),
+        token: "stub-token",
+        url: "wss://stub.invalid/ws",
+      };
+    }),
   ensurePaywallDocument: () => Effect.void,
   getPaywallSnapshot: () =>
     Effect.succeed(
@@ -571,8 +590,8 @@ export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
  * implementation when executable code checks are available.
  */
 export const BackendComponentCompilerStubLive = Layer.succeed(ComponentCompiler, {
-  compileCheck: () => Effect.succeed({ status: "unavailable" as const }),
-  compileAndExtract: () => Effect.succeed({ status: "unavailable" as const }),
+  compileCheck: () => Effect.succeed(constant({ status: "unavailable" })),
+  compileAndExtract: () => Effect.succeed(constant({ status: "unavailable" })),
 });
 
 /** Renderer stub for backend harnesses without a headless browser binding. */
@@ -589,32 +608,40 @@ export const BackendSnapshotImageRendererStubLive = Layer.succeed(SnapshotImageR
 export const BackendNoopIdentityProjectionPublisherLive = IdentityProjectionPublisher.noop;
 
 const isAllowedCorsOrigin = (origin: string): boolean => {
-  try {
-    const url = new URL(origin);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return false;
-    }
-
-    return (
-      url.hostname === "localhost" ||
-      url.hostname === "127.0.0.1" ||
-      url.hostname.endsWith(".localhost") ||
-      url.hostname === "voidhash.com" ||
-      url.hostname.endsWith(".voidhash.com")
-    );
-  } catch {
+  if (!URL.canParse(origin)) {
     return false;
   }
+  const url = new URL(origin);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return false;
+  }
+
+  return (
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.hostname.endsWith(".localhost") ||
+    url.hostname === "voidhash.com" ||
+    url.hostname.endsWith(".voidhash.com")
+  );
 };
 
-const corsHeaders = (origin: string | undefined): Record<string, string> =>
-  origin && isAllowedCorsOrigin(origin)
-    ? {
-        "access-control-allow-credentials": "true",
-        "access-control-allow-origin": origin,
-        vary: "Origin",
-      }
-    : {};
+const corsHeaders = (origin: string | undefined): Record<string, string> => {
+  if (!origin || !isAllowedCorsOrigin(origin)) {
+    return {};
+  }
+  return {
+    "access-control-allow-credentials": "true",
+    "access-control-allow-origin": origin,
+    vary: "Origin",
+  };
+};
+
+const preflightVary = (accessControlRequestHeaders: string | undefined): string => {
+  if (accessControlRequestHeaders) {
+    return "Origin, Access-Control-Request-Headers";
+  }
+  return "Origin";
+};
 
 const preflightCorsHeaders = (
   origin: string | undefined,
@@ -624,7 +651,7 @@ const preflightCorsHeaders = (
   "access-control-allow-headers": accessControlRequestHeaders ?? "",
   "access-control-allow-methods": "GET, HEAD, PUT, PATCH, POST, DELETE",
   "access-control-max-age": "600",
-  vary: accessControlRequestHeaders ? "Origin, Access-Control-Request-Headers" : "Origin",
+  vary: preflightVary(accessControlRequestHeaders),
 });
 
 const CorsLayer = HttpRouter.middleware(
@@ -773,9 +800,14 @@ const buildBackendServiceGraph = <
   // caller wires that client (Layer.provide satisfies its ClickhouseWebClient
   // before the ambient RLS readonly client is merged in); without it, it resolves
   // the ambient readonly client and fail-closes to empty rows.
-  const VoidQlServiceLive = layers.analyticsQueryClient
-    ? VoidQlService.layer.pipe(Layer.provide(layers.analyticsQueryClient))
-    : VoidQlService.layer;
+  const voidQlServiceLayer = () => {
+    const analyticsQueryClient = layers.analyticsQueryClient;
+    if (analyticsQueryClient) {
+      return VoidQlService.layer.pipe(Layer.provide(analyticsQueryClient));
+    }
+    return VoidQlService.layer;
+  };
+  const VoidQlServiceLive = voidQlServiceLayer();
 
   const PaywallWorkspaceServiceLive = PaywallWorkspaceService.layer.pipe(
     Layer.provide(PaywallService.layer),
@@ -805,7 +837,9 @@ const buildBackendServiceGraph = <
     // two delivery-provider tags (supplied by BackendPushProvidersLive below)
     // and reads PUSH_REQUIRE_ENCRYPTION so prod fails closed on plaintext secrets.
     NotificationsConfigurationService.layer({
-      requireEncryption: Effect.sync(() => process.env.PUSH_REQUIRE_ENCRYPTION === "true"),
+      requireEncryption: envString("PUSH_REQUIRE_ENCRYPTION").pipe(
+        Effect.map((value) => value === "true"),
+      ),
     }),
     // Read-only send-history surface backing the "sent notifications" activity page.
     PushNotificationSendService.layer,

@@ -34,7 +34,7 @@ describe("MimicRpcGroup", () => {
 
   it("applies AuthMiddleware to every procedure", () => {
     for (const rpc of MimicRpcGroup.requests.values()) {
-      const middlewares = (rpc as { readonly middlewares: ReadonlySet<unknown> }).middlewares;
+      const middlewares = rpc.middlewares;
       expect(middlewares.size).toBe(1);
       expect(middlewares.has(AuthMiddleware)).toBe(true);
     }

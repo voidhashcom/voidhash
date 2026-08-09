@@ -1,4 +1,5 @@
 import type { PaywallBridge, PaywallOutboundEnvelope } from "@voidhash/paywalls";
+import { Clock, Effect } from "effect";
 
 import { DEFAULT_PREVIEW_DEVICE_PROFILE, previewConfigForDevice } from "./preview-devices";
 
@@ -33,7 +34,7 @@ let eventCounter = 0;
 export const createStudioBridge = (onEvent: (event: PreviewEvent) => void): PaywallBridge => ({
   post: (envelope) => {
     eventCounter += 1;
-    onEvent({ at: Date.now(), envelope, key: eventCounter });
+    onEvent({ at: Effect.runSync(Clock.currentTimeMillis), envelope, key: eventCounter });
   },
   subscribe: () => () => {},
 });

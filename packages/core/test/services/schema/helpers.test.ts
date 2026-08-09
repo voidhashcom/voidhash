@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vite-plus/test";
 import { Effect } from "effect";
+
+import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 
 import {
   type SchemaProjection,
@@ -78,27 +79,33 @@ describe("mapDbProviderIdToSchemaProviderId", () => {
 });
 
 describe("computeSchemaVersion", () => {
-  it("returns a sha256:<hex> hash matching the canonical empty-projection vector", async () => {
-    const version = await Effect.runPromise(computeSchemaVersion(empty()));
-    expect(version).toBe(EMPTY_HASH);
-    expect(version).toMatch(/^sha256:[0-9a-f]{64}$/);
-  });
+  it.effect("returns a sha256:<hex> hash matching the canonical empty-projection vector", () =>
+    Effect.gen(function* () {
+      const version = yield* computeSchemaVersion(empty());
+      expect(version).toBe(EMPTY_HASH);
+      expect(version).toMatch(/^sha256:[0-9a-f]{64}$/);
+    }),
+  );
 
-  it("returns the canonical vector for a populated projection (CLI byte-for-byte)", async () => {
-    const version = await Effect.runPromise(computeSchemaVersion(projection()));
-    expect(version).toBe(POPULATED_HASH);
-  });
+  it.effect("returns the canonical vector for a populated projection (CLI byte-for-byte)", () =>
+    Effect.gen(function* () {
+      const version = yield* computeSchemaVersion(projection());
+      expect(version).toBe(POPULATED_HASH);
+    }),
+  );
 
-  it("is deterministic: same projection → same hash", async () => {
-    const a = await Effect.runPromise(computeSchemaVersion(projection()));
-    const b = await Effect.runPromise(computeSchemaVersion(projection()));
-    expect(a).toBe(b);
-  });
+  it.effect("is deterministic: same projection → same hash", () =>
+    Effect.gen(function* () {
+      const a = yield* computeSchemaVersion(projection());
+      const b = yield* computeSchemaVersion(projection());
+      expect(a).toBe(b);
+    }),
+  );
 
-  it("changes when products change", async () => {
-    const base = await Effect.runPromise(computeSchemaVersion(projection()));
-    const changed = await Effect.runPromise(
-      computeSchemaVersion(
+  it.effect("changes when products change", () =>
+    Effect.gen(function* () {
+      const base = yield* computeSchemaVersion(projection());
+      const changed = yield* computeSchemaVersion(
         projection({
           products: [
             {
@@ -110,86 +117,92 @@ describe("computeSchemaVersion", () => {
             },
           ],
         }),
-      ),
-    );
-    expect(changed).not.toBe(base);
-  });
+      );
+      expect(changed).not.toBe(base);
+    }),
+  );
 
-  it("changes when perks change", async () => {
-    const base = await Effect.runPromise(computeSchemaVersion(projection()));
-    const changed = await Effect.runPromise(
-      computeSchemaVersion(
+  it.effect("changes when perks change", () =>
+    Effect.gen(function* () {
+      const base = yield* computeSchemaVersion(projection());
+      const changed = yield* computeSchemaVersion(
         projection({
           perks: [
             { slug: "a-perk", name: "A Perk" },
             { slug: "z-perk", name: "Z Perk Renamed" },
           ],
         }),
-      ),
-    );
-    expect(changed).not.toBe(base);
-  });
+      );
+      expect(changed).not.toBe(base);
+    }),
+  );
 
-  it("changes when locations change", async () => {
-    const base = await Effect.runPromise(computeSchemaVersion(projection()));
-    const changed = await Effect.runPromise(
-      computeSchemaVersion(
+  it.effect("changes when locations change", () =>
+    Effect.gen(function* () {
+      const base = yield* computeSchemaVersion(projection());
+      const changed = yield* computeSchemaVersion(
         projection({
           locations: [{ slug: "a-loc", name: "A Loc Renamed", description: null }],
         }),
-      ),
-    );
-    expect(changed).not.toBe(base);
-  });
+      );
+      expect(changed).not.toBe(base);
+    }),
+  );
 
-  it("is order-independent: products, perks, locations, perk slugs and providers are sorted before hashing", async () => {
-    const ordered = projection({
-      perks: [
-        { slug: "a-perk", name: "A Perk" },
-        { slug: "z-perk", name: "Z Perk" },
-      ],
-      locations: [
-        { slug: "a-loc", name: "A Loc", description: null },
-        { slug: "b-loc", name: "B Loc", description: "desc-b" },
-      ],
-      products: [
-        {
-          slug: "basic",
-          name: "Basic",
-          type: "subscription",
-          perks: ["a-perk"],
-          providers: [],
-        },
-        {
-          slug: "pro",
-          name: "Pro",
-          type: "subscription",
-          perks: ["a-perk", "z-perk"],
-          providers: [
-            { providerId: "appleAppStore", configuration: { sku: "a" } },
-            { providerId: "googlePlay", configuration: { sku: "g" } },
-          ],
-        },
-      ],
-    });
-    // `projection()` supplies the same content but with products, perks,
-    // locations, perk slugs and providers all in the opposite order.
-    const shuffled = await Effect.runPromise(computeSchemaVersion(projection()));
-    const sorted = await Effect.runPromise(computeSchemaVersion(ordered));
-    expect(shuffled).toBe(sorted);
-    expect(sorted).toBe(POPULATED_HASH);
-  });
+  it.effect("is order-independent: products, perks, locations, perk slugs and providers are sorted before hashing", () =>
+    Effect.gen(function* () {
+      const ordered = projection({
+        perks: [
+          { slug: "a-perk", name: "A Perk" },
+          { slug: "z-perk", name: "Z Perk" },
+        ],
+        locations: [
+          { slug: "a-loc", name: "A Loc", description: null },
+          { slug: "b-loc", name: "B Loc", description: "desc-b" },
+        ],
+        products: [
+          {
+            slug: "basic",
+            name: "Basic",
+            type: "subscription",
+            perks: ["a-perk"],
+            providers: [],
+          },
+          {
+            slug: "pro",
+            name: "Pro",
+            type: "subscription",
+            perks: ["a-perk", "z-perk"],
+            providers: [
+              { providerId: "appleAppStore", configuration: { sku: "a" } },
+              { providerId: "googlePlay", configuration: { sku: "g" } },
+            ],
+          },
+        ],
+      });
+      // `projection()` supplies the same content but with products, perks,
+      // locations, perk slugs and providers all in the opposite order.
+      const shuffled = yield* computeSchemaVersion(projection());
+      const sorted = yield* computeSchemaVersion(ordered);
+      expect(shuffled).toBe(sorted);
+      expect(sorted).toBe(POPULATED_HASH);
+    }),
+  );
 
-  it("ignores enabledProviders — it is not part of the hashed payload", async () => {
-    const withProviders = await Effect.runPromise(computeSchemaVersion(projection()));
-    const withoutProviders = await Effect.runPromise(
-      computeSchemaVersion(projection({ enabledProviders: [] })),
-    );
-    expect(withoutProviders).toBe(withProviders);
-  });
+  it.effect("ignores enabledProviders — it is not part of the hashed payload", () =>
+    Effect.gen(function* () {
+      const withProviders = yield* computeSchemaVersion(projection());
+      const withoutProviders = yield* computeSchemaVersion(
+        projection({ enabledProviders: [] }),
+      );
+      expect(withoutProviders).toBe(withProviders);
+    }),
+  );
 
-  it("handles empty product/perk/location/provider arrays", async () => {
-    const version = await Effect.runPromise(computeSchemaVersion(empty()));
-    expect(version).toBe(EMPTY_HASH);
-  });
+  it.effect("handles empty product/perk/location/provider arrays", () =>
+    Effect.gen(function* () {
+      const version = yield* computeSchemaVersion(empty());
+      expect(version).toBe(EMPTY_HASH);
+    }),
+  );
 });

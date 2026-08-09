@@ -33,10 +33,21 @@ const mailbox = ({ address, name }: MailAddress) => ({ address, name });
 const resultAddress = (value: unknown): string => {
   if (typeof value === "string") return value;
   if (typeof value === "object" && value !== null && "address" in value) {
-    const address = (value as { readonly address?: unknown }).address;
+    const { address } = value;
     if (typeof address === "string") return address;
   }
   return String(value);
+};
+
+const optionalMailbox = (address: MailAddress | undefined) => {
+  if (address === undefined) return undefined;
+  return mailbox(address);
+};
+
+/** SMTP auth block, or `undefined` when the transport is unauthenticated. */
+const smtpAuth = (config: SmtpMailerConfig) => {
+  if (!config.username || !config.password) return undefined;
+  return { user: config.username, pass: Redacted.value(config.password) };
 };
 
 const validateMessage = (
@@ -69,7 +80,7 @@ const send = (
             to: message.to.map(mailbox),
             cc: message.cc?.map(mailbox),
             bcc: message.bcc?.map(mailbox),
-            replyTo: message.replyTo ? mailbox(message.replyTo) : undefined,
+            replyTo: optionalMailbox(message.replyTo),
             subject: message.subject,
             text: message.text,
             html: message.html,
@@ -80,8 +91,8 @@ const send = (
     ),
     Effect.map((info) => ({
       messageId: info.messageId,
-      accepted: (info.accepted as ReadonlyArray<unknown>).map(resultAddress),
-      rejected: (info.rejected as ReadonlyArray<unknown>).map(resultAddress),
+      accepted: info.accepted.map(resultAddress),
+      rejected: info.rejected.map(resultAddress),
     })),
   );
 
@@ -106,13 +117,7 @@ const makeTransporter = (
       port: config.port,
       secure: config.secure ?? false,
       requireTLS: config.requireTls ?? false,
-      auth:
-        config.username && config.password
-          ? {
-              user: config.username,
-              pass: Redacted.value(config.password),
-            }
-          : undefined,
+      auth: smtpAuth(config),
       connectionTimeout: config.connectionTimeoutMillis ?? 10_000,
       greetingTimeout: config.greetingTimeoutMillis ?? 10_000,
       tls: {
@@ -130,14 +135,13 @@ export const SmtpMailerLive = (
     Mailer,
     Effect.acquireRelease(
       makeTransporter(config).pipe(
-        Effect.tap((transporter) =>
-          config.verifyOnStart
-            ? Effect.tryPromise({
-                try: () => transporter.verify(),
-                catch: (cause) => mailerError("verify", cause),
-              }).pipe(Effect.asVoid)
-            : Effect.void,
-        ),
+        Effect.tap((transporter) => {
+          if (!config.verifyOnStart) return Effect.void;
+          return Effect.tryPromise({
+            try: () => transporter.verify(),
+            catch: (cause) => mailerError("verify", cause),
+          }).pipe(Effect.asVoid);
+        }),
       ),
       (transporter) => Effect.sync(() => transporter.close()),
     ).pipe(Effect.map((transporter) => makeMailer(transporter, config))),

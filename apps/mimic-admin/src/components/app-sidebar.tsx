@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useMatchRoute } from "@tanstack/react-router";
 import { Activity, Database, FileText, LogOut, Users } from "lucide-react";
+import { constant } from "@voidhash/lib/lang";
 
 import { useAuth } from "@/components/auth-context";
 import { useDatabase } from "@/components/database-context";
@@ -16,6 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { collectionsQuery, databasesQuery } from "@/lib/queries";
+import { cn } from "@/lib/utils";
+
+const NAV_ITEMS = constant([
+  { to: "/databases", label: "Databases", icon: Database },
+  { to: "/users", label: "Users", icon: Users },
+  { to: "/observability", label: "Observability", icon: Activity },
+]);
 
 export function AppSidebar() {
   const { credentials, logout } = useAuth();
@@ -25,12 +33,6 @@ export function AppSidebar() {
 
   const { data: databases } = useQuery(databasesQuery(sdk));
   const { data: collections } = useQuery(collectionsQuery(sdk, selectedDatabaseId ?? ""));
-
-  const navItems = [
-    { to: "/databases" as const, label: "Databases", icon: Database },
-    { to: "/users" as const, label: "Users", icon: Users },
-    { to: "/observability" as const, label: "Observability", icon: Activity },
-  ];
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -62,17 +64,17 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex flex-col gap-1 px-2">
-        {navItems.map(({ to, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
           const isActive = !!matchRoute({ to });
           return (
             <Link
               key={to}
               to={to}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70"
-              }`}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+                !isActive && "text-sidebar-foreground/70",
+              )}
             >
               <Icon className="h-4 w-4" />
               {label}
@@ -99,11 +101,11 @@ export function AppSidebar() {
                     key={col.id}
                     to="/collections/$collectionId"
                     params={{ collectionId: col.id }}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                      isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/70"
-                    }`}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+                      !isActive && "text-sidebar-foreground/70",
+                    )}
                   >
                     <FileText className="h-4 w-4" />
                     {col.name}

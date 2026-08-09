@@ -56,10 +56,75 @@ import {
   hashSource,
   validateComponentFileName,
 } from "@voidhash/paywall-workspace";
-import { Cause, Effect, Exit, Option } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import {
+  Cause,
+  Data,
+  Effect,
+  Encoding,
+  Exit,
+  Option,
+  Schema,
+  SchemaGetter,
+  SchemaTransformation,
+} from "effect";
 
 import { runWorkspaceBash, truncateBashOutput } from "./vfs/bash-tool.ts";
 import { paywallVfsFiles, type WorkspaceVfsSources } from "./vfs/workspace-vfs.ts";
+
+/** JSON text codec for the compact payloads the tools emit. */
+const toJsonText = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+/**
+ * JSON text codec for the model-facing payloads. `space: 2` keeps the printed
+ * document/manifest blocks readable, as they were before.
+ */
+const PrettyJsonText = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Unknown,
+    new SchemaTransformation.Transformation<unknown, string>(
+      SchemaGetter.parseJson(),
+      SchemaGetter.stringifyJson({ space: 2 }),
+    ),
+  ),
+);
+const toPrettyJsonText = Schema.encodeSync(PrettyJsonText);
+
+/**
+ * A workspace-tool failure raised by the tool core itself (a missing paywall, a
+ * preview that raced a concurrent edit). It never crosses an RPC boundary — the
+ * tool folds it into a client-facing message.
+ */
+class WorkspaceToolError extends Data.TaggedError("WorkspaceToolError")<{
+  readonly message: string;
+}> {}
+
+/** A non-null object, the shape every untyped failure/data probe expects. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object";
+
+/**
+ * Narrow an untyped mimic document root to the snapshot shape these tools read
+ * (`null` when the paywall has no document yet). Only the addressing fields are
+ * checked — the serializer and the validator tolerate everything below them.
+ */
+const isSnapshotNode = (value: unknown): value is SnapshotDocumentNode =>
+  isRecord(value) && typeof value.id === "string" && typeof value.type === "string";
+
+const snapshotRoot = (root: unknown): SnapshotDocumentNode | null => {
+  if (isSnapshotNode(root)) {
+    return root;
+  }
+  return null;
+};
+
+/** `""` for one command, `"s"` otherwise — the plural suffix in tool output. */
+const commandPlural = (count: number): string => {
+  if (count === 1) {
+    return "";
+  }
+  return "s";
+};
 
 /** The context (services) every workspace tool closes over when it runs. */
 export type WorkspaceToolDeps =
@@ -102,11 +167,12 @@ export interface WorkspaceToolScope {
 const okResult = (
   output: string,
   content?: ReadonlyArray<WorkspaceToolContent>,
-): WorkspaceToolResult => ({
-  output,
-  isError: false,
-  ...(content === undefined ? {} : { content }),
-});
+): WorkspaceToolResult => {
+  if (content === undefined) {
+    return { output, isError: false };
+  }
+  return { output, isError: false, content };
+};
 const errResult = (output: string): WorkspaceToolResult => ({ output, isError: true });
 
 /**
@@ -116,17 +182,67 @@ const errResult = (output: string): WorkspaceToolResult => ({ output, isError: t
  * react.
  */
 const failureDiagnosticLines = (error: unknown): string[] => {
-  const diagnostics = (error as { diagnostics?: unknown }).diagnostics;
+  if (!isRecord(error)) {
+    return [];
+  }
+  const diagnostics = error.diagnostics;
   if (!Array.isArray(diagnostics)) {
     return [];
   }
-  return diagnostics.flatMap((entry) => {
-    if (entry === null || typeof entry !== "object") {
+  return diagnostics.flatMap((entry: unknown) => {
+    if (!isRecord(entry)) {
       return [];
     }
-    const message = (entry as { message?: unknown }).message;
-    return typeof message === "string" && message.length > 0 ? [`- ${message}`] : [];
+    const message = entry.message;
+    if (typeof message === "string" && message.length > 0) {
+      return [`- ${message}`];
+    }
+    return [];
   });
+};
+
+/** The readable payload an error carries in `cause`, when it carries one. */
+const failureCauseText = (cause: unknown): string | undefined => {
+  if (typeof cause === "string" && cause.length > 0) {
+    return cause;
+  }
+  if (cause instanceof Error && cause.message.length > 0) {
+    return cause.message;
+  }
+  return undefined;
+};
+
+const failureTag = (error: Record<string, unknown>): string | undefined => {
+  const tag = error._tag;
+  if (typeof tag === "string") {
+    return tag;
+  }
+  return undefined;
+};
+
+const failureBaseMessage = (error: unknown): string => {
+  if (isRecord(error)) {
+    const message = error.message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+    const tag = failureTag(error);
+    const causeText = failureCauseText(error.cause);
+    if (causeText !== undefined) {
+      if (tag !== undefined) {
+        return `${tag}: ${causeText}`;
+      }
+      return causeText;
+    }
+    if (tag !== undefined) {
+      return tag;
+    }
+  }
+  const text = String(error);
+  if (text.length > 0) {
+    return text;
+  }
+  return "unknown error (no message)";
 };
 
 /**
@@ -138,36 +254,18 @@ const failureDiagnosticLines = (error: unknown): string[] => {
  * empty string; any `diagnostics` the error carries are appended as `- ` lines.
  */
 const failureMessage = (error: unknown): string => {
-  const base = (() => {
-    if (error !== null && typeof error === "object") {
-      const { message, cause, _tag } = error as {
-        message?: unknown;
-        cause?: unknown;
-        _tag?: unknown;
-      };
-      if (typeof message === "string" && message.length > 0) {
-        return message;
-      }
-      const tag = typeof _tag === "string" ? _tag : undefined;
-      const causeText =
-        typeof cause === "string" && cause.length > 0
-          ? cause
-          : cause instanceof Error && cause.message.length > 0
-            ? cause.message
-            : undefined;
-      if (causeText !== undefined) {
-        return tag !== undefined ? `${tag}: ${causeText}` : causeText;
-      }
-      if (tag !== undefined) {
-        return tag;
-      }
-    }
-    const text = String(error);
-    return text.length > 0 ? text : "unknown error (no message)";
-  })();
+  const base = failureBaseMessage(error);
   const diagnosticLines = failureDiagnosticLines(error);
-  return diagnosticLines.length > 0 ? `${base}\n${diagnosticLines.join("\n")}` : base;
+  if (diagnosticLines.length === 0) {
+    return base;
+  }
+  return `${base}\n${diagnosticLines.join("\n")}`;
 };
+
+/** The folded outcome of a workspace effect: its value, or a readable message. */
+type FoldedOutcome<A> =
+  | { readonly ok: true; readonly value: A }
+  | { readonly ok: false; readonly message: string };
 
 /**
  * Run a workspace effect and fold its exit into `{ ok, value | message }`. The
@@ -178,25 +276,22 @@ const failureMessage = (error: unknown): string => {
  */
 const runFolded = <A>(
   effect: Effect.Effect<A, unknown, WorkspaceToolDeps>,
-): Effect.Effect<
-  { ok: true; value: A } | { ok: false; message: string },
-  never,
-  WorkspaceToolDeps
-> =>
+): Effect.Effect<FoldedOutcome<A>, never, WorkspaceToolDeps> =>
   effect.pipe(
     Effect.exit,
-    Effect.map((exit) => {
+    Effect.map((exit): FoldedOutcome<A> => {
       if (Exit.isSuccess(exit)) {
-        return { ok: true as const, value: exit.value };
+        return { ok: true, value: exit.value };
       }
       // Extract the first typed failure (`Fail` reason's `error`) from the
       // cause; a die/interrupt has no `Fail` reason, so it pretty-prints the
       // whole cause instead.
       const failure = Cause.findErrorOption(exit.cause);
-      const message = Option.isSome(failure)
-        ? failureMessage(failure.value)
-        : Cause.pretty(exit.cause);
-      return { ok: false as const, message };
+      const message = Option.match(failure, {
+        onSome: (error) => failureMessage(error),
+        onNone: () => Cause.pretty(exit.cause),
+      });
+      return { ok: false, message };
     }),
   );
 
@@ -277,9 +372,9 @@ const resolvePaywallTarget = (
     const paywalls = yield* ws.listPaywalls(scope.projectId);
     const target = paywalls.find((candidate) => candidate.paywallId === input.paywallId);
     if (target === undefined) {
-      return yield* Effect.fail(
-        new Error(`No paywall with id "${input.paywallId}" exists in this project.`),
-      );
+      return yield* new WorkspaceToolError({
+        message: `No paywall with id "${input.paywallId}" exists in this project.`,
+      });
     }
     return target;
   });
@@ -307,18 +402,20 @@ const recordSessionMutation = (
   scope: WorkspaceToolScope,
   target: ResolvedEditSession,
   result: { readonly version: number; readonly commandCount: number },
-) =>
-  result.commandCount === 0
-    ? Effect.void
-    : Effect.gen(function* () {
-        const editSessions = yield* PaywallEditSessionService;
-        yield* editSessions.recordMutation({
-          projectId: scope.projectId,
-          editSessionId: target.editSessionId,
-          agentSessionId: scope.agentSessionId,
-          documentVersion: result.version,
-        });
-      }).pipe(Effect.ignore);
+): Effect.Effect<void, never, WorkspaceToolDeps> => {
+  if (result.commandCount === 0) {
+    return Effect.void;
+  }
+  return Effect.gen(function* () {
+    const editSessions = yield* PaywallEditSessionService;
+    yield* editSessions.recordMutation({
+      projectId: scope.projectId,
+      editSessionId: target.editSessionId,
+      agentSessionId: scope.agentSessionId,
+      documentVersion: result.version,
+    });
+  }).pipe(Effect.ignore);
+};
 
 /** `begin_paywall_edit` — capture the revert baseline and mint the write capability. */
 export const beginPaywallEdit = (
@@ -330,29 +427,31 @@ export const beginPaywallEdit = (
       Effect.gen(function* () {
         const target = yield* resolvePaywallTarget(scope, input);
         const editSessions = yield* PaywallEditSessionService;
-        return yield* scope.agentSessionId === undefined
-          ? editSessions.begin({
-              projectId: scope.projectId,
-              paywallId: target.paywallId,
-              source: "mcp",
-            })
-          : editSessions.begin({
-              projectId: scope.projectId,
-              paywallId: target.paywallId,
-              source: "built_in",
-              agentSessionId: scope.agentSessionId,
-            });
+        if (scope.agentSessionId === undefined) {
+          return yield* editSessions.begin({
+            projectId: scope.projectId,
+            paywallId: target.paywallId,
+            source: "mcp",
+          });
+        }
+        return yield* editSessions.begin({
+          projectId: scope.projectId,
+          paywallId: target.paywallId,
+          source: "built_in",
+          agentSessionId: scope.agentSessionId,
+        });
       }),
     );
-    return result.ok
-      ? okResult(
-          JSON.stringify({
-            editSessionId: result.value.editSessionId,
-            paywallId: result.value.paywallId,
-            baselineVersion: result.value.baselineVersion,
-          }),
-        )
-      : errResult(`begin_paywall_edit failed: ${result.message}`);
+    if (!result.ok) {
+      return errResult(`begin_paywall_edit failed: ${result.message}`);
+    }
+    return okResult(
+      toJsonText({
+        editSessionId: result.value.editSessionId,
+        paywallId: result.value.paywallId,
+        baselineVersion: result.value.baselineVersion,
+      }),
+    );
   });
 
 /**
@@ -408,16 +507,16 @@ export const runBash = (
           return folded.value;
         }
         serviceFailure ??= folded.message;
-        throw new Error(folded.message);
+        // The shell consumes a rejected promise, so the typed failure is
+        // re-raised as a rejection carrying the same message.
+        return Effect.runPromise(Effect.fail(new WorkspaceToolError({ message: folded.message })));
       });
     const sources: WorkspaceVfsSources = {
       listPaywalls: () => runSource(ws.listPaywalls(scope.projectId)),
       readPaywall: (paywallId) =>
         runSource(
           ws.readDocumentTree(paywallId).pipe(
-            Effect.map((document) =>
-              paywallVfsFiles((document.root as SnapshotDocumentNode | null) ?? null),
-            ),
+            Effect.map((document) => paywallVfsFiles(snapshotRoot(document.root))),
             Effect.catchTag("PaywallNotFoundError", () => Effect.succeed(null)),
           ),
         ),
@@ -444,7 +543,10 @@ export const runBash = (
     if (result.value.exitCode !== 0) {
       sections.push(`[exit code ${result.value.exitCode}]`);
     }
-    return okResult(sections.length > 0 ? sections.join("\n") : "(no output)");
+    if (sections.length === 0) {
+      return okResult("(no output)");
+    }
+    return okResult(sections.join("\n"));
   });
 
 /**
@@ -452,12 +554,13 @@ export const runBash = (
  * {@link EditableDocumentNode} the validator reads (`data` verbatim — the
  * validator only touches scalar/enum leaves).
  */
-const toEditableNode = (node: SnapshotDocumentNode): EditableDocumentNode => ({
-  id: node.id,
-  type: node.type,
-  data: node.data as Record<string, unknown>,
-  children: (node.children ?? []).map(toEditableNode),
-});
+const toEditableNode = (node: SnapshotDocumentNode): EditableDocumentNode => {
+  const children = (node.children ?? []).map(toEditableNode);
+  if (node.data === undefined) {
+    return { id: node.id, type: node.type, children };
+  }
+  return { id: node.id, type: node.type, data: node.data, children };
+};
 
 /** Resolve the target and read its decoded document root. */
 const readDocumentRoot = (scope: WorkspaceToolScope, input: EditSessionInput) =>
@@ -488,23 +591,27 @@ export const getPaywall = (
     if (!result.ok) {
       return errResult(`get_paywall failed: ${result.message}`);
     }
-    const roots =
-      result.value.document.root != null
-        ? [result.value.document.root as SnapshotDocumentNode]
-        : [];
-    const cleaned = serializeDocument(roots, {
-      ...(input.nodeId !== undefined ? { nodeId: input.nodeId } : {}),
-      ...(input.depth !== undefined ? { depth: input.depth } : {}),
-    });
+    const root = snapshotRoot(result.value.document.root);
+    const roots: SnapshotDocumentNode[] = [];
+    if (root !== null) {
+      roots.push(root);
+    }
+    const serializeOptions: { nodeId?: string; depth?: number } = {};
+    if (input.nodeId !== undefined) {
+      serializeOptions.nodeId = input.nodeId;
+    }
+    if (input.depth !== undefined) {
+      serializeOptions.depth = input.depth;
+    }
+    const cleaned = serializeDocument(roots, serializeOptions);
     if (cleaned === null) {
       const label = `${result.value.target.paywallId} (${result.value.target.slug})`;
-      return errResult(
-        input.nodeId !== undefined
-          ? `get_paywall: no node "${input.nodeId}" in paywall ${label}.`
-          : `get_paywall: paywall ${label} has no document.`,
-      );
+      if (input.nodeId !== undefined) {
+        return errResult(`get_paywall: no node "${input.nodeId}" in paywall ${label}.`);
+      }
+      return errResult(`get_paywall: paywall ${label} has no document.`);
     }
-    return okResult(JSON.stringify(cleaned, null, 2));
+    return okResult(toPrettyJsonText(cleaned));
   });
 
 /**
@@ -525,10 +632,11 @@ const localComponentsOf = (
     if (node.type !== "codeComponent") {
       return [];
     }
-    const data = (node.data ?? {}) as { path?: unknown; source?: unknown };
-    return typeof data.path === "string" && typeof data.source === "string"
-      ? [{ path: data.path, source: data.source }]
-      : [];
+    const data = node.data ?? {};
+    if (typeof data.path === "string" && typeof data.source === "string") {
+      return [{ path: data.path, source: data.source }];
+    }
+    return [];
   });
 };
 
@@ -558,12 +666,12 @@ export const getComponents = (
           paywallId: target.paywallId,
           connectionId: target.editSessionId,
         });
-        const locals = localComponentsOf((document.root as SnapshotDocumentNode | null) ?? null);
+        const locals = localComponentsOf(snapshotRoot(document.root));
         const cached = yield* manifestCache.getMany(
           locals.map((local) => hashSource(local.source)),
         );
 
-        return {
+        return constant({
           catalog: catalog.map((component) => ({
             slug: component.slug,
             title: component.title,
@@ -573,10 +681,10 @@ export const getComponents = (
           })),
           locals: locals.map((local) => {
             const row = cached.get(hashSource(local.source));
-            return {
-              path: local.path,
-              manifest: row?.status === "ready" ? row.manifest : undefined,
-            };
+            if (row?.status === "ready") {
+              return { path: local.path, manifest: row.manifest };
+            }
+            return { path: local.path, manifest: undefined };
           }),
           builtins: listBuiltinComponents()
             .filter((builtin) => builtin.manifest.slot !== true)
@@ -590,37 +698,47 @@ export const getComponents = (
               slot: builtin.manifest.slot ?? false,
               insertAs: { componentSource: "builtin", componentSlug: builtin.slug },
             })),
-        } as const;
+        });
       }),
     );
     if (!result.ok) {
       return errResult(`get_components failed: ${result.message}`);
     }
     const { catalog, locals, builtins } = result.value;
+    const localLine = (local: { readonly path: string; readonly manifest: unknown }): string => {
+      if (local.manifest !== undefined) {
+        return `- ${local.path}:\n${toPrettyJsonText(local.manifest)}`;
+      }
+      return `- ${local.path}: manifest unavailable (component not yet compiled in a session — read_component to see its source).`;
+    };
     const sections: string[] = [];
-    sections.push(
-      catalog.length === 0
-        ? "Catalog components: none."
-        : `Catalog components (${catalog.length}):\n${JSON.stringify(catalog, null, 2)}`,
-    );
-    sections.push(
-      locals.length === 0
-        ? "Local code components: none."
-        : `Local code components (${locals.length}):\n${locals
-            .map((local) =>
-              local.manifest !== undefined
-                ? `- ${local.path}:\n${JSON.stringify(local.manifest, null, 2)}`
-                : `- ${local.path}: manifest unavailable (component not yet compiled in a session — read_component to see its source).`,
-            )
-            .join("\n")}`,
-    );
-    sections.push(
-      builtins.length === 0
-        ? "Builtin components: none."
-        : `Builtin components (${builtins.length}):\n${JSON.stringify(builtins, null, 2)}`,
-    );
+    if (catalog.length === 0) {
+      sections.push("Catalog components: none.");
+    } else {
+      sections.push(`Catalog components (${catalog.length}):\n${toPrettyJsonText(catalog)}`);
+    }
+    if (locals.length === 0) {
+      sections.push("Local code components: none.");
+    } else {
+      sections.push(
+        `Local code components (${locals.length}):\n${locals.map(localLine).join("\n")}`,
+      );
+    }
+    if (builtins.length === 0) {
+      sections.push("Builtin components: none.");
+    } else {
+      sections.push(`Builtin components (${builtins.length}):\n${toPrettyJsonText(builtins)}`);
+    }
     return okResult(sections.join("\n\n"));
   });
+
+/** ` Available: [...]` when the paywall has local components, otherwise nothing. */
+const availableComponentsNote = (available: ReadonlyArray<string>): string => {
+  if (available.length === 0) {
+    return "";
+  }
+  return ` Available: [${available.join(", ")}].`;
+};
 
 /** `read_component` — a local code component's TSX source by its `components/<name>.tsx` path. */
 export const readComponent = (
@@ -632,20 +750,27 @@ export const readComponent = (
     if (!result.ok) {
       return errResult(`read_component failed: ${result.message}`);
     }
-    const locals = localComponentsOf(
-      (result.value.document.root as SnapshotDocumentNode | null) ?? null,
-    );
+    const locals = localComponentsOf(snapshotRoot(result.value.document.root));
     const component = locals.find((local) => local.path === input.path);
     if (component === undefined) {
       const available = locals.map((local) => local.path);
+      const label = `${result.value.target.paywallId} (${result.value.target.slug})`;
+      const availableNote = availableComponentsNote(available);
       return errResult(
-        `read_component: no local component at "${input.path}" in paywall ${result.value.target.paywallId} (${result.value.target.slug}).${
-          available.length > 0 ? ` Available: [${available.join(", ")}].` : ""
-        }`,
+        `read_component: no local component at "${input.path}" in paywall ${label}.${availableNote}`,
       );
     }
     return okResult(component.source);
   });
+
+/** The trailing `Minted ids (by op index): …` line, empty when nothing was minted. */
+const mintedIdsNote = (mintedEntries: ReadonlyArray<[string, ReadonlyArray<string>]>): string => {
+  if (mintedEntries.length === 0) {
+    return "";
+  }
+  const rendered = mintedEntries.map(([index, ids]) => `${index}=[${ids.join(", ")}]`).join("; ");
+  return `\nMinted ids (by op index): ${rendered}`;
+};
 
 /**
  * `edit_paywall` — an ATOMIC batch of document ops against the LIVE document. The
@@ -671,7 +796,7 @@ export const editPaywall = (
     if (!read.ok) {
       return errResult(`edit_paywall failed: ${read.message}`);
     }
-    const root = read.value.document.root as SnapshotDocumentNode | null;
+    const root = snapshotRoot(read.value.document.root);
     if (root === null) {
       return errResult(
         `edit_paywall: paywall ${target.paywallId} (${target.slug}) has no document to edit.`,
@@ -702,15 +827,9 @@ export const editPaywall = (
       return errResult(`edit_paywall rejected: ${applied.message}`);
     }
     const { version, commandCount, mintedIds } = applied.value;
-    const mintedEntries = Object.entries(mintedIds);
-    const mintedNote =
-      mintedEntries.length > 0
-        ? `\nMinted ids (by op index): ${mintedEntries
-            .map(([index, ids]) => `${index}=[${ids.join(", ")}]`)
-            .join("; ")}`
-        : "";
+    const mintedNote = mintedIdsNote(Object.entries(mintedIds));
     return okResult(
-      `Applied ${validation.edits.length} edit(s) to ${target.paywallId} (${target.slug}) at version ${version} (${commandCount} command${commandCount === 1 ? "" : "s"}).${mintedNote}`,
+      `Applied ${validation.edits.length} edit(s) to ${target.paywallId} (${target.slug}) at version ${version} (${commandCount} command${commandPlural(commandCount)}).${mintedNote}`,
     );
   });
 
@@ -720,11 +839,14 @@ const isVisualNode = (node: SnapshotDocumentNode): boolean =>
 /** Convert a visual snapshot subtree into an id-free document insert payload. */
 const cloneNodeInput = (node: SnapshotDocumentNode): NodeInput => {
   const children = (node.children ?? []).filter(isVisualNode).map(cloneNodeInput);
-  return {
-    type: node.type,
-    ...structuredClone((node.data ?? {}) as Record<string, unknown>),
-    ...(children.length === 0 ? {} : { children }),
-  } as NodeInput;
+  const clone: NodeInput = { type: node.type };
+  for (const [field, value] of Object.entries(structuredClone(node.data ?? {}))) {
+    clone[field] = value;
+  }
+  if (children.length > 0) {
+    clone.children = children;
+  }
+  return clone;
 };
 
 const findSnapshotNode = (
@@ -754,7 +876,7 @@ export const duplicateSubtree = (
       return errResult(`duplicate_subtree failed: ${read.message}`);
     }
     const { target, document } = read.value;
-    const root = document.root as SnapshotDocumentNode | null;
+    const root = snapshotRoot(document.root);
     if (root === null) {
       return errResult(
         `duplicate_subtree: paywall ${target.paywallId} (${target.slug}) has no document.`,
@@ -773,31 +895,38 @@ export const duplicateSubtree = (
     if (input.nextName !== undefined) {
       node.name = input.nextName;
     }
+    if (input.index === undefined) {
+      return yield* editPaywall(scope, {
+        editSessionId: input.editSessionId,
+        edits: [{ op: "insert", parentId: input.parentId, node }],
+      });
+    }
     return yield* editPaywall(scope, {
       editSessionId: input.editSessionId,
-      edits: [
-        {
-          op: "insert",
-          parentId: input.parentId,
-          ...(input.index === undefined ? {} : { index: input.index }),
-          node,
-        },
-      ],
+      edits: [{ op: "insert", parentId: input.parentId, index: input.index, node }],
     });
   });
+
+/** ` (line 3, col 7)` / ` (line 3)` / `""` — whatever the diagnostic locates. */
+const diagnosticPosition = (diagnostic: {
+  readonly line?: number;
+  readonly column?: number;
+}): string => {
+  if (diagnostic.line === undefined) {
+    return "";
+  }
+  if (diagnostic.column === undefined) {
+    return ` (line ${diagnostic.line})`;
+  }
+  return ` (line ${diagnostic.line}, col ${diagnostic.column})`;
+};
 
 /** Render a compile/extract failure's diagnostics as `- ` lines. */
 const formatExtractDiagnostics = (
   result: Extract<CompileExtractResult, { status: "error" }>,
 ): string =>
   `[${result.phase}] compile failed:\n${result.diagnostics
-    .map((d) => {
-      const position =
-        d.line !== undefined
-          ? ` (line ${d.line}${d.column !== undefined ? `, col ${d.column}` : ""})`
-          : "";
-      return `- ${d.message}${position}`;
-    })
+    .map((d) => `- ${d.message}${diagnosticPosition(d)}`)
     .join("\n")}`;
 
 /**
@@ -902,11 +1031,12 @@ export const renameComponent = (
         return result;
       }),
     );
-    return result.ok
-      ? okResult(
-          `Renamed ${input.fromPath} → ${input.toPath} in ${target.paywallId} (${target.slug}) at version ${result.value.version}.`,
-        )
-      : errResult(`rename_component rejected: ${result.message}`);
+    if (!result.ok) {
+      return errResult(`rename_component rejected: ${result.message}`);
+    }
+    return okResult(
+      `Renamed ${input.fromPath} → ${input.toPath} in ${target.paywallId} (${target.slug}) at version ${result.value.version}.`,
+    );
   });
 
 /**
@@ -936,22 +1066,15 @@ export const deleteComponent = (
         return result;
       }),
     );
-    return result.ok
-      ? okResult(
-          `Deleted ${input.path} from ${target.paywallId} (${target.slug}) at version ${result.value.version}. Any instances of it now render as placeholders — replace or remove them.`,
-        )
-      : errResult(`delete_component rejected: ${result.message}`);
+    if (!result.ok) {
+      return errResult(`delete_component rejected: ${result.message}`);
+    }
+    return okResult(
+      `Deleted ${input.path} from ${target.paywallId} (${target.slug}) at version ${result.value.version}. Any instances of it now render as placeholders — replace or remove them.`,
+    );
   });
 
-const documentSignature = (root: unknown): string => `doc-${hashSource(JSON.stringify(root))}`;
-
-const pngBase64 = (png: Uint8Array): string => {
-  const chunks: string[] = [];
-  for (let offset = 0; offset < png.length; offset += 0x8000) {
-    chunks.push(String.fromCharCode(...png.subarray(offset, offset + 0x8000)));
-  }
-  return btoa(chunks.join(""));
-};
+const documentSignature = (root: unknown): string => `doc-${hashSource(toJsonText(root))}`;
 
 const deployedComponentPreviewStates = (
   root: SnapshotDocumentNode | null,
@@ -959,7 +1082,7 @@ const deployedComponentPreviewStates = (
   const statesByHash = new Map<string, Set<string>>();
   const visit = (node: SnapshotDocumentNode): void => {
     if (node.type === "component") {
-      const data = (node.data ?? {}) as Record<string, unknown>;
+      const data = node.data ?? {};
       const contentHash = data.contentHash;
       if (data.componentSource !== "local" && typeof contentHash === "string" && contentHash) {
         const states = statesByHash.get(contentHash) ?? new Set<string>();
@@ -990,10 +1113,9 @@ const fetchPreviewComponentTrees = (root: SnapshotDocumentNode | null) =>
         if (object === null) {
           continue;
         }
-        const tree = yield* Effect.try({
-          try: () => JSON.parse(new TextDecoder().decode(object.body)) as unknown,
-          catch: () => null,
-        }).pipe(Effect.orElseSucceed(() => null));
+        const tree = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(
+          new TextDecoder().decode(object.body),
+        ).pipe(Effect.orElseSucceed(() => null));
         if (tree !== null) {
           (trees[contentHash] ??= {})[state] = tree;
         }
@@ -1009,18 +1131,14 @@ const compileLocalPreviewTrees = (root: SnapshotDocumentNode | null) =>
     for (const local of localComponentsOf(root)) {
       const result = yield* compiler.compileAndExtract(local.source);
       if (result.status === "unavailable") {
-        return yield* Effect.fail(
-          new Error(
-            `Headless compilation is unavailable for local component ${local.path}; preview was not rendered.`,
-          ),
-        );
+        return yield* new WorkspaceToolError({
+          message: `Headless compilation is unavailable for local component ${local.path}; preview was not rendered.`,
+        });
       }
       if (result.status === "error") {
-        return yield* Effect.fail(
-          new Error(
-            `Local component ${local.path} cannot be previewed. ${formatExtractDiagnostics(result)}`,
-          ),
-        );
+        return yield* new WorkspaceToolError({
+          message: `Local component ${local.path} cannot be previewed. ${formatExtractDiagnostics(result)}`,
+        });
       }
       trees[local.path] = { ...result.previewTrees };
     }
@@ -1047,7 +1165,7 @@ export const getPaywallPreview = (
         };
         const before = yield* workspace.readConnectedDocumentTree(scope.projectId, connection);
         const signature = documentSignature(before.root);
-        const root = (before.root as SnapshotDocumentNode | null) ?? null;
+        const root = snapshotRoot(before.root);
         const componentTrees = yield* fetchPreviewComponentTrees(root);
         const localComponentTrees = yield* compileLocalPreviewTrees(root);
         const renderer = yield* SnapshotImageRenderer;
@@ -1061,11 +1179,10 @@ export const getPaywallPreview = (
         });
         const after = yield* workspace.readConnectedDocumentTree(scope.projectId, connection);
         if (after.version !== before.version || documentSignature(after.root) !== signature) {
-          return yield* Effect.fail(
-            new Error(
+          return yield* new WorkspaceToolError({
+            message:
               "The paywall changed while its preview was rendering. Request a fresh preview.",
-            ),
-          );
+          });
         }
         yield* editSessions.recordPreview({
           projectId: scope.projectId,
@@ -1080,8 +1197,8 @@ export const getPaywallPreview = (
     if (!result.ok) {
       return errResult(`get_paywall_preview failed: ${result.message}`);
     }
-    const data = pngBase64(result.value.png);
-    const metadata = JSON.stringify({
+    const data = Encoding.encodeBase64(result.value.png);
+    const metadata = toJsonText({
       kind: "paywall-preview",
       mediaType: "image/png",
       width,
@@ -1128,11 +1245,12 @@ export const finishPaywallEdit = (
         });
       }),
     );
-    return result.ok
-      ? okResult(
-          `Finished edit session ${input.editSessionId} after visual review. Verdict: ${input.verdict}`,
-        )
-      : errResult(`finish_paywall_edit rejected: ${result.message}`);
+    if (!result.ok) {
+      return errResult(`finish_paywall_edit rejected: ${result.message}`);
+    }
+    return okResult(
+      `Finished edit session ${input.editSessionId} after visual review. Verdict: ${input.verdict}`,
+    );
   });
 
 /** `revert_paywall_edit` — reconcile the live document to the captured baseline. */
@@ -1144,18 +1262,21 @@ export const revertPaywallEdit = (
     const result = yield* runFolded(
       Effect.gen(function* () {
         const editSessions = yield* PaywallEditSessionService;
-        return yield* scope.agentSessionId === undefined
-          ? editSessions.revert(scope.projectId, input.editSessionId)
-          : editSessions.revertForAgentSession(
-              scope.projectId,
-              input.editSessionId,
-              scope.agentSessionId,
-            );
+        if (scope.agentSessionId === undefined) {
+          return yield* editSessions.revert(scope.projectId, input.editSessionId);
+        }
+        return yield* editSessions.revertForAgentSession(
+          scope.projectId,
+          input.editSessionId,
+          scope.agentSessionId,
+        );
       }),
     );
-    return result.ok
-      ? okResult(
-          `Reverted edit session ${input.editSessionId} for "${result.value.paywallSlug}" at version ${result.value.version} (${result.value.commandCount} command${result.value.commandCount === 1 ? "" : "s"}).`,
-        )
-      : errResult(`revert_paywall_edit failed: ${result.message}`);
+    if (!result.ok) {
+      return errResult(`revert_paywall_edit failed: ${result.message}`);
+    }
+    const { commandCount } = result.value;
+    return okResult(
+      `Reverted edit session ${input.editSessionId} for "${result.value.paywallSlug}" at version ${result.value.version} (${commandCount} command${commandPlural(commandCount)}).`,
+    );
   });

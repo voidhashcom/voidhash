@@ -10,4 +10,4 @@ import {
 export type VoidhashNodeEffectClient = FilterSdkGroup<GeneratedVoidhashNodeEffectClient>;
 
 export const createVoidhashSdk = (options: VoidhashNodeClientOptions): VoidhashNodeEffectClient =>
-  filterSdkGroup(Effect.runSync(makeGeneratedClient(options))) as VoidhashNodeEffectClient;
+  filterSdkGroup(Effect.runSync(makeGeneratedClient(options)));

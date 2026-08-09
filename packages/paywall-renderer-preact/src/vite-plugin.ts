@@ -14,13 +14,13 @@
  */
 
 import * as esbuild from "esbuild";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Plugin } from "vite";
 
-const packageRoot = fileURLToPath(new URL("..", import.meta.url));
-const entryPoint = path.join(packageRoot, "src/runtime/hydrate.tsx");
-const placeholderModule = path.join(packageRoot, "src/templates/runtime-bundle.ts");
+const packageRootUrl = new URL("..", import.meta.url);
+const packageRoot = fileURLToPath(packageRootUrl);
+const entryPoint = fileURLToPath(new URL("src/runtime/hydrate.tsx", packageRootUrl));
+const placeholderModule = fileURLToPath(new URL("src/templates/runtime-bundle.ts", packageRootUrl));
 
 interface RuntimeBundle {
   code: string;
@@ -49,7 +49,7 @@ async function buildRuntimeBundle(): Promise<RuntimeBundle> {
   const bundle = result.outputFiles[0].text;
   const watchFiles = Object.keys(result.metafile.inputs)
     .filter((input) => !input.includes("node_modules"))
-    .map((input) => path.resolve(packageRoot, input));
+    .map((input) => fileURLToPath(new URL(input, packageRootUrl)));
 
   return {
     code: `export function getRuntimeBundle() {\n  return ${JSON.stringify(bundle)};\n}\n`,
@@ -67,7 +67,7 @@ export function paywallRuntimeBundlePlugin(): Plugin {
     enforce: "pre",
     async transform(_code, id) {
       const [file] = id.split("?");
-      if (path.normalize(file) !== placeholderModule) {
+      if (fileURLToPath(pathToFileURL(file)) !== placeholderModule) {
         return null;
       }
       const { code, watchFiles } = await buildRuntimeBundle();

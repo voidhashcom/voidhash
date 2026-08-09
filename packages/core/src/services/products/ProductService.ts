@@ -1,5 +1,6 @@
 import type { ProductTypeValue } from "@voidhash/lib";
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -21,6 +22,9 @@ import { type ProductView, dbProductTypeToLabel } from "./helpers.ts";
 export class ProductServiceError extends Schema.TaggedErrorClass<ProductServiceError>(
   "ProductServiceError",
 )("ProductServiceError", { cause: Schema.String }) {}
+
+/** `products.type` is a plain smallint column mirroring the `ProductType` enum. */
+const asProductType = (type: any): ProductTypeValue => type;
 
 /**
  * `ProductService` orchestrates the product catalog aggregate. Five
@@ -72,7 +76,7 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
               name: product.name,
               projectId: product.projectId,
               slug: product.slug,
-              type: dbProductTypeToLabel(product.type as ProductTypeValue),
+              type: dbProductTypeToLabel(asProductType(product.type)),
             }) satisfies ProductView,
         );
       },
@@ -119,7 +123,7 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
           name: product.name,
           projectId: product.projectId,
           slug: product.slug,
-          type: dbProductTypeToLabel(product.type as ProductTypeValue),
+          type: dbProductTypeToLabel(asProductType(product.type)),
         } satisfies ProductView;
       },
       (effect) =>
@@ -237,9 +241,10 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
           `User ${session?.user?.id} is not authorized to update product ${input.id} for project ${existing.projectId}`,
         );
 
+        const updatedAt = yield* DateTime.nowAsDate;
         yield* db
           .update(products)
-          .set({ name: input.name, slug: input.slug, updatedAt: new Date() })
+          .set({ name: input.name, slug: input.slug, updatedAt })
           .where(eq(products.id, input.id));
 
         yield* auditLog
@@ -318,13 +323,13 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
         ),
     );
 
-    return {
+    return constant({
       getProducts,
       getProductById,
       createProduct,
       updateProduct,
       deleteProduct,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(ProductService)(ProductService.make);

@@ -27,7 +27,7 @@
  *    with the default fixture session purely to satisfy the harness shape (the
  *    primitives never read `AuthSession`).
  */
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 import { describe, expect } from "vitest";
 
 import { AppStorePaymentProviderServiceQueries } from "@voidhash/core/services/paymentProviders/appStore/payment-provider-service-queries";
@@ -54,9 +54,14 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
+/** Wall-clock helpers — `DateTime` equivalents of `nowMillis()` / `new Date(...)`. */
+const nowMillis = (): number => DateTime.toEpochMillis(DateTime.nowUnsafe());
+const nowDate = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe());
+const instant = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
+
 /** Monotonic counter so ids stay unique even within the same millisecond. */
 let idSeq = 0;
-const uniqueId = (label: string) => `it-appstore-${label}-${Date.now()}-${idSeq++}`;
+const uniqueId = (label: string) => `it-appstore-${label}-${nowMillis()}-${idSeq++}`;
 
 /**
  * Raw-insert builders for the parent rows the fixture does not seed. Each
@@ -135,7 +140,7 @@ const insertSubscription = (input: {
 }) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const now = new Date();
+    const now = nowDate();
     yield* db.insert(subscriptions).values({
       id: input.id,
       initialTransactionId: `${input.id}-init`,
@@ -162,7 +167,7 @@ const insertTransaction = (input: {
       amount: 999,
       currency: "USD",
       id: input.id,
-      occurredAt: new Date(),
+      occurredAt: nowDate(),
       paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
       personId: input.personId,
       storeTransactionId: input.storeTransactionId,
@@ -210,7 +215,7 @@ const insertNotificationRow = (input: {
       parkedUntilOriginalTransactionId: input.parkedUntilOriginalTransactionId ?? null,
       parkedUntilProviderProductKey: input.parkedUntilProviderProductKey ?? null,
       paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-      processedAt: input.processedAt ?? new Date(),
+      processedAt: input.processedAt ?? nowDate(),
       providerId: "app_store",
       result: input.result,
       source: "webhook",
@@ -349,7 +354,7 @@ describe("AppStorePaymentProviderServiceQueries.findPaymentProviderConfiguration
       Effect.gen(function* () {
         const queries = yield* AppStorePaymentProviderServiceQueries;
         const id = uniqueId("cfg-deleted");
-        t.configs.push(yield* insertProviderConfig({ deletedAt: new Date(), id }));
+        t.configs.push(yield* insertProviderConfig({ deletedAt: nowDate(), id }));
 
         const found = yield* queries.findPaymentProviderConfigurationById(id);
         expect(found).toBeUndefined();
@@ -382,7 +387,7 @@ describe("AppStorePaymentProviderServiceQueries.findPaymentProviderConfiguration
         const activeId = uniqueId("cfgs-active");
         const deletedId = uniqueId("cfgs-deleted");
         t.configs.push(yield* insertProviderConfig({ id: activeId }));
-        t.configs.push(yield* insertProviderConfig({ deletedAt: new Date(), id: deletedId }));
+        t.configs.push(yield* insertProviderConfig({ deletedAt: nowDate(), id: deletedId }));
 
         const list = yield* queries.findPaymentProviderConfigurationsByProjectId(projectId);
         expect(list.some((c) => c.id === activeId)).toBe(true);
@@ -887,7 +892,7 @@ describe("AppStorePaymentProviderServiceQueries.findParkedNotificationsByOrigina
             notificationUuid: uniqueId("fpnoti-later-uuid"),
             parkedUntilOriginalTransactionId: originalTransactionId,
             paymentProviderConfigurationId: configId,
-            processedAt: new Date("2025-01-02T00:00:00Z"),
+            processedAt: instant("2025-01-02T00:00:00Z"),
             result: "parked_pending_sdk_confirmation",
           }),
         );
@@ -897,7 +902,7 @@ describe("AppStorePaymentProviderServiceQueries.findParkedNotificationsByOrigina
             notificationUuid: uniqueId("fpnoti-earlier-uuid"),
             parkedUntilOriginalTransactionId: originalTransactionId,
             paymentProviderConfigurationId: configId,
-            processedAt: new Date("2025-01-01T00:00:00Z"),
+            processedAt: instant("2025-01-01T00:00:00Z"),
             result: "parked_pending_sdk_confirmation",
           }),
         );
@@ -1076,7 +1081,7 @@ describe("AppStorePaymentProviderServiceQueries.markParkedNotificationResolved",
         const queries = yield* AppStorePaymentProviderServiceQueries;
         const configId = uniqueId("mpnr-cfg");
         const rowId = uniqueId("mpnr-row");
-        const oldProcessedAt = new Date("2024-01-01T00:00:00Z");
+        const oldProcessedAt = instant("2024-01-01T00:00:00Z");
         t.configs.push(yield* insertProviderConfig({ id: configId }));
         t.notifications.push(
           yield* insertNotificationRow({
@@ -1293,7 +1298,7 @@ describe("AppStorePaymentProviderServiceQueries.expireStaleParkedSdkConfirmation
         const staleId = uniqueId("expire-stale");
         const freshId = uniqueId("expire-fresh");
         const otherResultId = uniqueId("expire-other");
-        const threshold = new Date("2025-06-01T00:00:00Z");
+        const threshold = instant("2025-06-01T00:00:00Z");
         t.configs.push(yield* insertProviderConfig({ id: configId }));
 
         // Stale: parked_pending_sdk_confirmation with processedAt before threshold.
@@ -1304,7 +1309,7 @@ describe("AppStorePaymentProviderServiceQueries.expireStaleParkedSdkConfirmation
             parkedRawPayload: { stale: true },
             parkedUntilOriginalTransactionId: uniqueId("expire-stale-otx"),
             paymentProviderConfigurationId: configId,
-            processedAt: new Date("2025-01-01T00:00:00Z"),
+            processedAt: instant("2025-01-01T00:00:00Z"),
             result: "parked_pending_sdk_confirmation",
           }),
         );
@@ -1315,7 +1320,7 @@ describe("AppStorePaymentProviderServiceQueries.expireStaleParkedSdkConfirmation
             notificationUuid: uniqueId("expire-fresh-uuid"),
             parkedUntilOriginalTransactionId: uniqueId("expire-fresh-otx"),
             paymentProviderConfigurationId: configId,
-            processedAt: new Date("2025-12-01T00:00:00Z"),
+            processedAt: instant("2025-12-01T00:00:00Z"),
             result: "parked_pending_sdk_confirmation",
           }),
         );
@@ -1325,7 +1330,7 @@ describe("AppStorePaymentProviderServiceQueries.expireStaleParkedSdkConfirmation
             id: otherResultId,
             notificationUuid: uniqueId("expire-other-uuid"),
             paymentProviderConfigurationId: configId,
-            processedAt: new Date("2025-01-01T00:00:00Z"),
+            processedAt: instant("2025-01-01T00:00:00Z"),
             result: "applied",
           }),
         );

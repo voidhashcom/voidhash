@@ -10,17 +10,30 @@ export type { AssistantMessageEventStream, Model } from "@earendil-works/pi-ai";
 export { Type } from "typebox";
 export type { TSchema } from "typebox";
 
+const providerCatalog = (provider: string): Record<string, unknown> | undefined => {
+  if (provider === "openai") return OPENAI_MODELS;
+  if (provider === "anthropic") return ANTHROPIC_MODELS;
+  if (provider === "cloudflare-workers-ai") return CLOUDFLARE_WORKERS_AI_MODELS;
+  return undefined;
+};
+
+/**
+ * Pi's generated catalogs are plain literal objects whose `compat` field is
+ * narrower than `Model<string>` allows, so entries are recognised structurally
+ * rather than asserted.
+ */
+const isCatalogModel = (value: unknown): value is Model<string> =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  "api" in value &&
+  "provider" in value;
+
 /** Looks up a model in Pi's built-in catalog from runtime provider settings. */
 export const getCatalogModel = (provider: string, modelId: string): Model<string> | undefined => {
-  const catalog =
-    provider === "openai"
-      ? OPENAI_MODELS
-      : provider === "anthropic"
-        ? ANTHROPIC_MODELS
-        : provider === "cloudflare-workers-ai"
-          ? CLOUDFLARE_WORKERS_AI_MODELS
-          : undefined;
-  return catalog?.[modelId as keyof typeof catalog] as Model<string> | undefined;
+  const entry = providerCatalog(provider)?.[modelId];
+  if (isCatalogModel(entry)) return entry;
+  return undefined;
 };
 
 export * from "./AgentSessionCore.ts";

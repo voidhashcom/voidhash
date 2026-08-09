@@ -1,6 +1,8 @@
-import { Effect, Layer, Option } from "effect";
+import { Data, DateTime, Effect, Exit, Layer, Option } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 import { describe, expect } from "vitest";
+
+import { constant } from "@voidhash/lib/lang";
 
 import {
   AppStorePaymentProviderService,
@@ -48,8 +50,17 @@ import { makePurchaseSdkHttpHandler } from "../../../../../backend/src/testing/P
 
 const { test } = PurchaseIntegrationTestHarness.make();
 const projectId = CoreTestFixture.projectId;
+/** Wall-clock helpers — `DateTime` equivalents of `Date.now()` / `new Date(...)`. */
+const nowMillis = (): number => DateTime.toEpochMillis(DateTime.nowUnsafe());
+const nowDate = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe());
+
+/** Simulated native-side failures the harness surfaces to the SDK under test. */
+class SimulatedNativeFailure extends Data.TaggedError("SimulatedNativeFailure")<{
+  readonly message: string;
+}> {}
+
 let sequence = 0;
-const unique = (label: string) => `it-gp-sdk-${label}-${Date.now()}-${sequence++}`;
+const unique = (label: string) => `it-gp-sdk-${label}-${nowMillis()}-${sequence++}`;
 
 const appStoreStub = Layer.succeed(AppStorePaymentProviderService, {
   acceptServerNotification: () => Effect.die("App Store webhook must not run"),
@@ -112,7 +123,7 @@ describe("GooglePlayPaymentProviderService.processSdkTransaction", () => {
       const configurationId = generateId("paymentProviderConfiguration");
       const providerProductId = generateId("paymentProviderProduct");
       const productId = generateId("product");
-      const receivedAt = new Date();
+      const receivedAt = nowDate();
       let personId: string | undefined;
       let disposeHttp: (() => Promise<void>) | undefined;
       const disposeReactNative: Array<() => Promise<void>> = [];
@@ -209,7 +220,7 @@ describe("GooglePlayPaymentProviderService.processSdkTransaction", () => {
                 currency: Option.none(),
                 expiryTime: Option.none(),
                 isTrial: false,
-                kind: "product" as const,
+                kind: constant("product"),
                 linkedPurchaseToken: Option.none(),
                 obfuscatedExternalAccountId: Option.some(accountToken),
                 offerId: Option.none(),
@@ -307,36 +318,40 @@ describe("GooglePlayPaymentProviderService.processSdkTransaction", () => {
               yield* assertPersistedBeforeAcknowledge();
               if (remainingNativeFailures > 0) {
                 remainingNativeFailures -= 1;
-                return yield* Effect.fail(new Error("Simulated Google acknowledgement failure"));
+                return yield* new SimulatedNativeFailure({
+                  message: "Simulated Google acknowledgement failure",
+                });
               }
             }),
           platform: { bundleId: packageName, platform: "android" },
           syncTransactionShouldFailTimes: 1,
         });
         disposeReactNative.push(purchaseHarness.dispose);
-        yield* Effect.promise(async () => {
-          await purchaseHarness.initialize;
-          await expect(purchaseHarness.process(transaction, schema)).rejects.toThrow(
+        yield* Effect.promise(() => purchaseHarness.initialize);
+        yield* Effect.promise(() =>
+          expect(purchaseHarness.process(transaction, schema)).rejects.toThrow(
             "Simulated SDK transport failure",
-          );
-          expect(purchaseHarness.state.syncTransactionAttempts).toBe(1);
-          expect(purchaseHarness.acknowledgedTransactions).toHaveLength(0);
-          expect(verifierCalls).toHaveLength(0);
+          ),
+        );
+        expect(purchaseHarness.state.syncTransactionAttempts).toBe(1);
+        expect(purchaseHarness.acknowledgedTransactions).toHaveLength(0);
+        expect(verifierCalls).toHaveLength(0);
 
-          const finalizationAttempts = await Promise.allSettled([
-            purchaseHarness.process(transaction, schema),
-            purchaseHarness.process(transaction, schema),
-          ]);
-          expect(finalizationAttempts.map((result) => result.status)).toEqual([
-            "rejected",
-            "rejected",
-          ]);
-          expect(purchaseHarness.state.syncTransactionAttempts).toBe(2);
-          expect(purchaseHarness.acknowledgedTransactions).toHaveLength(1);
-          expect(verifierCalls).toHaveLength(1);
+        // Both finalization attempts run concurrently, and both are expected to
+        // reject (`Effect.promise` surfaces a rejection as a defect).
+        const finalizationAttempts = yield* Effect.all(
+          [
+            Effect.exit(Effect.promise(() => purchaseHarness.process(transaction, schema))),
+            Effect.exit(Effect.promise(() => purchaseHarness.process(transaction, schema))),
+          ],
+          { concurrency: "unbounded" },
+        );
+        expect(finalizationAttempts.map(Exit.isFailure)).toEqual([true, true]);
+        expect(purchaseHarness.state.syncTransactionAttempts).toBe(2);
+        expect(purchaseHarness.acknowledgedTransactions).toHaveLength(1);
+        expect(verifierCalls).toHaveLength(1);
 
-          await purchaseHarness.process(transaction, schema);
-        });
+        yield* Effect.promise(() => purchaseHarness.process(transaction, schema));
         expect(purchaseHarness.state.syncTransactionAttempts).toBe(2);
         expect(purchaseHarness.state.personRefreshAttempts).toBe(1);
         expect(purchaseHarness.acknowledgedTransactions).toHaveLength(2);
@@ -354,10 +369,8 @@ describe("GooglePlayPaymentProviderService.processSdkTransaction", () => {
           purchaseHistory: [transaction],
         });
         disposeReactNative.push(restoreHarness.dispose);
-        yield* Effect.promise(async () => {
-          await restoreHarness.initialize;
-          await restoreHarness.restore(schema);
-        });
+        yield* Effect.promise(() => restoreHarness.initialize);
+        yield* Effect.promise(() => restoreHarness.restore(schema));
         expect(restoreHarness.acknowledgedTransactions).toHaveLength(1);
         expect(restoreHarness.state.personRefreshAttempts).toBe(1);
         expect(verifierCalls).toEqual([

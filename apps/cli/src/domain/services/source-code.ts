@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Effect, FileSystem, Layer, Path, Schema, Context } from "effect";
 
 import { safeRegister } from "../../utils/js-loading/js-file-loading";
@@ -14,6 +15,9 @@ import {
 } from "../errors/source-code";
 import { PackageJsonSchema } from "../schema/package-json";
 import { VoidhashConfigSchema } from "../schema/voidhash-config";
+
+/** Decodes the raw `package.json` text into the validated manifest. */
+const PackageJsonJson = Schema.fromJsonString(PackageJsonSchema);
 
 const make = Effect.gen(function* effect() {
   const fs = yield* FileSystem.FileSystem;
@@ -109,7 +113,7 @@ const make = Effect.gen(function* effect() {
       }
 
       const packageJson = yield* fs.readFileString(packageJsonPath);
-      return yield* Schema.decodeUnknownEffect(PackageJsonSchema)(JSON.parse(packageJson)).pipe(
+      return yield* Schema.decodeUnknownEffect(PackageJsonJson)(packageJson).pipe(
         Effect.catchTag("SchemaError", (e) =>
           Effect.fail(
             new InvalidPackageJsonError({
@@ -244,6 +248,7 @@ const make = Effect.gen(function* effect() {
 
       const absolutePath = path.resolve(existingPath);
       const { unregister } = yield* safeRegister();
+      // oxlint-disable-next-line effect/noDynamicImports -- loads the user's `voidhash.config` from a path only known at runtime; a static import cannot name a caller-supplied absolute path.
       const required = require(absolutePath);
       unregister();
       const content = required.default ?? required;
@@ -280,7 +285,7 @@ const make = Effect.gen(function* effect() {
       yield* fs.remove(voidhashConfigPath);
     });
 
-  return {
+  return constant({
     deleteVoidhashConfig,
     detectMonorepoRootPath,
     detectPackageManager,
@@ -288,7 +293,7 @@ const make = Effect.gen(function* effect() {
     loadPackageJson,
     loadVoidhashConfig,
     retrieveSrcDir,
-  } as const;
+  });
 });
 
 type SourceCodeShape = Effect.Success<typeof make>;

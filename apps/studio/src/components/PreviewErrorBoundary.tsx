@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 export interface PreviewErrorBoundaryProps {
@@ -27,7 +28,7 @@ export class PreviewErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     // surface author errors in the dev console.
-    console.error("[voidhash-studio] preview render error", error, info);
+    Effect.runSync(Effect.logError("[voidhash-studio] preview render error", error, info));
   }
 
   render(): ReactNode {

@@ -16,9 +16,9 @@ export function MenuItem({
       onPress={onPress}
       style={[
         styles.container,
-        isFirst ? styles.firstItem : null,
-        isLast ? styles.lastItem : null,
-        isLast ? null : styles.withBottomBorder,
+        isFirst && styles.firstItem,
+        isLast && styles.lastItem,
+        !isLast && styles.withBottomBorder,
       ]}
     >
       <Text style={styles.title}>{title}</Text>

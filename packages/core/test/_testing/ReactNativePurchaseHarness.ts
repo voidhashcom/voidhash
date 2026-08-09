@@ -1,5 +1,5 @@
 import type { VoidhashCoreClient } from "@voidhash/generated-clients";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { CacheManager } from "../../../../libraries/react-native/src/core/caching/cache-manager.ts";
 import type { Transaction } from "../../../../libraries/react-native/src/core/entities/transaction.ts";
@@ -17,6 +17,11 @@ import {
 
 export { Transaction } from "../../../../libraries/react-native/src/core/entities/transaction.ts";
 export type { RuntimeSchema } from "../../../../libraries/react-native/src/core/schema/runtime.ts";
+
+/** The transport failure {@link makeReactNativePurchaseHarness} injects on demand. */
+class SimulatedSdkTransportError extends Data.TaggedError("SimulatedSdkTransportError")<{
+  readonly message: string;
+}> {}
 
 interface ReactNativePurchaseHarnessOptions {
   readonly client: VoidhashCoreClient;
@@ -68,7 +73,9 @@ export const makeReactNativePurchaseHarness = (options: ReactNativePurchaseHarne
         state.syncTransactionAttempts += 1;
         if (remainingSyncFailures > 0) {
           remainingSyncFailures -= 1;
-          return Effect.fail(new Error("Simulated SDK transport failure"));
+          return Effect.fail(
+            new SimulatedSdkTransportError({ message: "Simulated SDK transport failure" }),
+          );
         }
         return boundClient.sdk.syncTransaction(request);
       },

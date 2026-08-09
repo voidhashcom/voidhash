@@ -14,7 +14,8 @@ import {
   ProviderEnvironment,
 } from "@voidhash/db";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
-import { Effect, Option } from "effect";
+import { pick } from "@voidhash/lib/lang";
+import { DateTime, Effect, Option } from "effect";
 
 import { PurchaseProcessingResult } from "../../../domain/purchaseProcessing/PurchaseProcessing.ts";
 import {
@@ -65,8 +66,7 @@ export interface GooglePlayNormalizedPurchase {
 /** Parses an RFC-3339 timestamp string (Play V2 dates) into an `Option<Date>`. */
 const parseRfc3339 = (value: string | undefined): Option.Option<Date> => {
   if (!value) return Option.none();
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? Option.none() : Option.some(date);
+  return Option.map(DateTime.make(value), DateTime.toDateUtc);
 };
 
 /**
@@ -125,8 +125,11 @@ export const buildGooglePlayWebhookAnonymousDistinctId = (input: {
   readonly providerEnvironment: ProviderEnvironmentValue;
   readonly personIdentifier: string;
 }): string => {
-  const environmentLabel =
-    input.providerEnvironment === ProviderEnvironment.Sandbox ? "sandbox" : "production";
+  const environmentLabel = pick(
+    input.providerEnvironment === ProviderEnvironment.Sandbox,
+    "sandbox",
+    "production",
+  );
   return `${ANONYMOUS_USER_ID_PREFIX}provider:google-play:${environmentLabel}:${input.personIdentifier}`;
 };
 

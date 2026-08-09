@@ -128,7 +128,7 @@ const validateNode = (
     }
     if (key === "icon" && value !== undefined && value !== null) {
       if (typeof value !== "string" || !PANEL_ICON_NAMES.has(value)) {
-        return `${path}.props.icon "${String(value)}" is not a known icon token`;
+        return `${path}.props.icon ${JSON.stringify(value)} is not a known icon token`;
       }
     }
     const capError = checkValueCaps(value, `${path}.props.${key}`, key);

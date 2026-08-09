@@ -40,7 +40,10 @@ export const encodeScalar = (value: string | number | boolean): Value => {
 
 export const decodeObjectToRecord = (
   value: ObjectValue | undefined,
-): Record<string, Value> | undefined => (value ? { ...value.fields } : undefined);
+): Record<string, Value> | undefined => {
+  if (value) return { ...value.fields };
+  return undefined;
+};
 
 export const buildObjectValue = (fields: Record<string, Value>): ObjectValue => objectValue(fields);
 

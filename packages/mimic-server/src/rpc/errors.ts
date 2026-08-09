@@ -1,8 +1,9 @@
 import { Schema } from "effect";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 
-const detailsField = {
+const detailsField = constant({
   details: Schema.optional(Schema.Unknown),
-} as const;
+});
 
 export class UnauthorizedError extends Schema.ErrorClass<UnauthorizedError>(
   "@voidhash/mimic-rpc/UnauthorizedError",
@@ -94,7 +95,7 @@ export class InternalError extends Schema.ErrorClass<InternalError>(
   ...detailsField,
 }) {}
 
-export const ApiErrorSchemas = [
+export const ApiErrorSchemas = constant([
   UnauthorizedError,
   ForbiddenError,
   NotFoundError,
@@ -105,12 +106,12 @@ export const ApiErrorSchemas = [
   InvalidValueError,
   MigrationFailedError,
   InternalError,
-] as const;
+]);
 
-export const toUnknownError = (error: unknown): InternalError =>
-  error instanceof InternalError
-    ? error
-    : new InternalError({
-        code: "internal_error",
-        message: error instanceof Error ? error.message : String(error),
-      });
+export const toUnknownError = (error: unknown): InternalError => {
+  if (error instanceof InternalError) return error;
+  return new InternalError({
+    code: "internal_error",
+    message: causeMessage(error),
+  });
+};

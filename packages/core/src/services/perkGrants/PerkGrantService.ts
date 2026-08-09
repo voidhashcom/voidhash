@@ -1,5 +1,7 @@
 import { SubscriptionStatus } from "@voidhash/lib";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
+
+import { constant } from "@voidhash/lib/lang";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { PersonNotFoundError } from "../../domain/person/Person.ts";
@@ -102,7 +104,7 @@ const sameDate = (left: Date | null, right: Date | null) =>
  * `AuthSession` and `Db` are provided by the application root.
  */
 export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkGrantService", {
-  make: Effect.gen(function* () {
+  make: Effect.sync(() => {
     const syncUnlockedPerks = Effect.fn("syncUnlockedPerks")(
       function* (tx: DbTransaction, personId: string) {
         yield* Effect.annotateCurrentSpan("voidhash.person.id", personId);
@@ -117,7 +119,15 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               where: { personId },
               with: { paymentProviderConfigurationProduct: true },
             });
-            return rows as unknown as ReadonlyArray<SubscriptionWithProduct>;
+            // The product foreign key is non-null, so the relation always
+            // resolves; narrowing it here is what keeps the row type precise.
+            return rows.flatMap((row): ReadonlyArray<SubscriptionWithProduct> => {
+              const product = row.paymentProviderConfigurationProduct;
+              if (!product) {
+                return [];
+              }
+              return [{ ...row, paymentProviderConfigurationProduct: product }];
+            });
           }),
           Effect.gen(function* () {
             const rows = yield* tx
@@ -161,21 +171,18 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
           configurationProductIds.slice(0, 20).join(","),
         );
 
-        const unlockablePerks =
-          configurationProductIds.length === 0
-            ? []
-            : yield* Effect.gen(function* () {
-                const rows = yield* tx
-                  .select()
-                  .from(paymentProviderConfigurationProducts)
-                  .innerJoin(
-                    products,
-                    eq(paymentProviderConfigurationProducts.productId, products.id),
-                  )
-                  .innerJoin(productPerks, eq(productPerks.productId, products.id))
-                  .where(inArray(paymentProviderConfigurationProducts.id, configurationProductIds));
-                return rows.map((row) => row.product_perk);
-              });
+        const unlockablePerks = yield* Effect.gen(function* () {
+          if (configurationProductIds.length === 0) {
+            return [];
+          }
+          const rows = yield* tx
+            .select()
+            .from(paymentProviderConfigurationProducts)
+            .innerJoin(products, eq(paymentProviderConfigurationProducts.productId, products.id))
+            .innerJoin(productPerks, eq(productPerks.productId, products.id))
+            .where(inArray(paymentProviderConfigurationProducts.id, configurationProductIds));
+          return rows.map((row) => row.product_perk);
+        });
 
         const desiredByPerkId = new Map<string, DesiredPerkEntitlement>();
 
@@ -293,11 +300,13 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                 unlockedPerk.unlockedBySubscriptionId !== null) &&
               !desiredByPerkId.has(unlockedPerk.perkId),
           )
-          .map((unlockedPerk) => ({
-            id: unlockedPerk.id,
-            perkId: unlockedPerk.perkId,
-            status: "expire" as const,
-          }));
+          .map(
+            (unlockedPerk): SyncPerkOperation => ({
+              id: unlockedPerk.id,
+              perkId: unlockedPerk.perkId,
+              status: "expire",
+            }),
+          );
 
         const operations: ReadonlyArray<SyncPerkOperation> = [
           ...desiredOperations,
@@ -323,6 +332,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
         yield* Effect.annotateCurrentSpan("voidhash.perk_grant.updated_count", updatedCount);
         yield* Effect.annotateCurrentSpan("voidhash.perk_grant.expired_count", expiredCount);
 
+        const now = yield* DateTime.nowAsDate;
         const writtenIds = yield* Effect.all(
           operations.map((operation) => {
             switch (operation.status) {
@@ -345,7 +355,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                     status: PersonUnlockedPerkStatus.Active,
                     unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
                     unlockedByPurchaseId: null,
-                    updatedAt: new Date(),
+                    updatedAt: now,
                   })
                   .where(eq(personUnlockedPerks.id, operation.id))
                   .pipe(Effect.as(operation.id));
@@ -355,7 +365,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                   .update(personUnlockedPerks)
                   .set({
                     status: PersonUnlockedPerkStatus.Expired,
-                    updatedAt: new Date(),
+                    updatedAt: now,
                   })
                   .where(eq(personUnlockedPerks.id, operation.id))
                   .pipe(Effect.as(operation.id));
@@ -379,7 +389,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                     status: PersonUnlockedPerkStatus.Active,
                     unlockedByPurchaseId: operation.purchaseId,
                     unlockedBySubscriptionId: null,
-                    updatedAt: new Date(),
+                    updatedAt: now,
                   })
                   .where(eq(personUnlockedPerks.id, operation.id))
                   .pipe(Effect.as(operation.id));
@@ -443,10 +453,10 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
         ),
     );
 
-    return {
+    return constant({
       getPersonUnlockedPerks,
       syncUnlockedPerks,
-    } as const;
+    });
   }),
 }) {
   static layer = Layer.effect(PerkGrantService)(PerkGrantService.make);

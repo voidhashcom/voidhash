@@ -36,10 +36,12 @@
   "type": "module",
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo  dev",
+    "dev": "node scripts/check-dev-runtime.mjs && portless prune && node scripts/check-dev-ports.mjs && turbo dev dev:server",
+    "dev:doctor": "portless doctor",
+    "dev:status": "portless list",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "vp check --fix",
-    "lint": "vp check",
+    "lint": "vp lint",
     "bump": "bumpp",
     "openapi:generate": "node ./scripts/generate-openapi-clients.mjs",
     "openapi:generate:dev": "pnpm openapi:generate -- localhost:8787",
@@ -54,8 +56,8 @@
     "check:test-tiers": "node ./scripts/check-test-tiers.mjs",
     "stack:up": "SELFHOST_MODE=local-evaluation docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics --project-directory selfhost up -d --build",
     "stack:down": "SELFHOST_MODE=local-evaluation docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --profile analytics --project-directory selfhost down",
-    "verify": "pnpm verify:quick && pnpm test:integration && pnpm test:e2e",
-    "verify:quick": "pnpm check:publication && pnpm check:platform-seam && pnpm check:selfhost-runtime && pnpm check:test-tiers && pnpm typecheck && pnpm test",
+    "verify": "pnpm verify:quick && pnpm test:integration && pnpm test:e2e && pnpm test:e2e:release",
+    "verify:quick": "pnpm check:publication && pnpm check:platform-seam && pnpm check:selfhost-runtime && pnpm check:test-tiers && pnpm lint && pnpm typecheck && pnpm test",
     "test": "turbo test",
     "test:integration": "node ./scripts/run-local-integration.mjs",
     "test:e2e": "tsx selfhost/smoke.mts",
@@ -67,11 +69,13 @@
   },
   "dependencies": {
     "@effect/language-service": "catalog:",
+    "@effect/platform-node": "catalog:",
     "@types/node": "^24.0.12",
     "@typescript/native-preview": "7.0.0-dev.20260210.1",
     "bumpp": "^10.3.2",
     "cross-env": "^7.0.3",
     "drizzle-kit": "1.0.0-rc.4",
+    "effect": "catalog:",
     "simple-git-hooks": "^2.13.1",
     "taze": "^0.18.0",
     "tinyglobby": "^0.2.15",
@@ -81,13 +85,21 @@
   "devDependencies": {
     "@typescript/native-preview": "7.0.0-dev.20260302.1",
     "dotenv-cli": "^8.0.0",
+    "oxlint-plugin-effect": "^0.6.0",
+    "portless": "0.15.5",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "tslib": "2.8.1",
     "tsx": "^4.19.3",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "zustand": "^5.0.9"
   },
   "resolutions": {
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "packageManager": "pnpm@11.1.3"
 }

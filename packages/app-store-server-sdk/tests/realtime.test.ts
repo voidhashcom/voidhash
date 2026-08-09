@@ -18,28 +18,36 @@ import {
   unwrapOptionsDeep,
 } from "./util.ts";
 
+/** JSON text -> value, the Schema equivalent of `JSON.parse`. */
+const parseJson = Schema.decodeUnknownSync(Schema.UnknownFromJsonString);
+/** Value -> JSON text, the Schema equivalent of `JSON.stringify`. */
+const stringifyJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 describe("DecodedRealtimeRequestBody", () => {
-  it("decodes a realtime request through the verifier", async () => {
-    const signed = createSignedDataFromJson("tests/resources/models/decodedRealtimeRequest.json");
-    const verifier = getDefaultSignedPayloadVerifier();
+  it("decodes a realtime request through the verifier", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const signed = createSignedDataFromJson(
+          "tests/resources/models/decodedRealtimeRequest.json",
+        );
+        const verifier = getDefaultSignedPayloadVerifier();
 
-    const request = unwrapOptionsDeep(
-      await Effect.runPromise(verifier.verifyAndDecodeRealtimeRequest(signed)),
-    );
+        const request = unwrapOptionsDeep(yield* verifier.verifyAndDecodeRealtimeRequest(signed));
 
-    expect(request.originalTransactionId).toBe("99371282");
-    expect(request.appAppleId).toBe(531412);
-    expect(request.productId).toBe("com.example.product");
-    expect(request.userLocale).toBe("en-US");
-    expect(request.requestIdentifier).toBe("3db5c98d-8acf-4e29-831e-8e1f82f9f6e9");
-    expect(request.environment).toBe(Environment.LOCAL_TESTING);
-    expect(request.signedDate).toBe(1698148900000);
-  });
+        expect(request.originalTransactionId).toBe("99371282");
+        expect(request.appAppleId).toBe(531412);
+        expect(request.productId).toBe("com.example.product");
+        expect(request.userLocale).toBe("en-US");
+        expect(request.requestIdentifier).toBe("3db5c98d-8acf-4e29-831e-8e1f82f9f6e9");
+        expect(request.environment).toBe(Environment.LOCAL_TESTING);
+        expect(request.signedDate).toBe(1698148900000);
+      }),
+    ));
 });
 
 describe("AppData", () => {
   it("decodes an AppData payload", () => {
-    const json = JSON.parse(readFile("tests/resources/models/appData.json"));
+    const json = parseJson(readFile("tests/resources/models/appData.json"));
     const appData = unwrapOptionsDeep(Schema.decodeUnknownSync(AppDataSchema)(json));
     expect(appData.appAppleId).toBe(987654321);
     expect(appData.bundleId).toBe("com.example");
@@ -65,9 +73,7 @@ describe("RealtimeResponseBody", () => {
       message: { messageIdentifier: "a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890" },
     };
     const parsed = unwrapOptionsDeep(
-      Schema.decodeUnknownSync(RealtimeResponseBodySchema)(
-        JSON.parse(JSON.stringify(responseBody)),
-      ),
+      Schema.decodeUnknownSync(RealtimeResponseBodySchema)(parseJson(stringifyJson(responseBody))),
     );
     expect(parsed.message?.messageIdentifier).toBe("a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890");
     expect(parsed.alternateProduct).toBeUndefined();
@@ -83,9 +89,7 @@ describe("RealtimeResponseBody", () => {
       },
     };
     const parsed = unwrapOptionsDeep(
-      Schema.decodeUnknownSync(RealtimeResponseBodySchema)(
-        JSON.parse(JSON.stringify(responseBody)),
-      ),
+      Schema.decodeUnknownSync(RealtimeResponseBodySchema)(parseJson(stringifyJson(responseBody))),
     );
     expect(parsed.alternateProduct?.productId).toBe("com.example.alternate.product");
     expect(parsed.alternateProduct?.billingPlanType).toBe(BillingPlanType.MONTHLY);
@@ -155,7 +159,7 @@ describe("RealtimeResponseBody", () => {
   });
 
   it("preserves field name shape in JSON.stringify output", () => {
-    const json = JSON.stringify({
+    const json = stringifyJson({
       message: { messageIdentifier: "12345678-1234-1234-1234-123456789012" },
     } satisfies Schema.Schema.Type<typeof RealtimeResponseBodySchema>);
     expect(json).toContain('"message"');

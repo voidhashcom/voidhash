@@ -1,3 +1,5 @@
+import { Clock, Effect } from "effect";
+
 /** Timer seam so tests can drive the auth deadline deterministically. */
 export interface SessionRegistryTimers {
   readonly now: () => number;
@@ -44,11 +46,21 @@ export interface SessionRegistry<TSocket> {
 }
 
 const defaultTimers: SessionRegistryTimers = {
-  now: () => Date.now(),
+  now: () => Effect.runSync(Clock.currentTimeMillis),
   schedule: (fn, ms) => {
-    const handle = setTimeout(fn, ms);
-    return () => clearTimeout(handle);
+    const fiber = Effect.runFork(
+      Effect.gen(function* () {
+        yield* Effect.sleep(ms);
+        fn();
+      }),
+    );
+    return () => fiber.interruptUnsafe();
   },
+};
+
+const elapsedSince = (timers: SessionRegistryTimers, connectedAt: number | undefined): number => {
+  if (connectedAt === undefined) return 0;
+  return timers.now() - connectedAt;
 };
 
 export const makeSessionRegistry = <TSocket>(
@@ -80,8 +92,7 @@ export const makeSessionRegistry = <TSocket>(
         sessions.set(connectionId, socket);
         return;
       }
-      const elapsed = connectedAt === undefined ? 0 : timers.now() - connectedAt;
-      const remaining = options.authDeadlineMs - elapsed;
+      const remaining = options.authDeadlineMs - elapsedSince(timers, connectedAt);
       if (remaining <= 0) {
         options.close(socket);
         return;

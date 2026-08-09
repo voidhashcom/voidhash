@@ -26,7 +26,7 @@ import {
   makeInternalProjectAuthSession,
   type AnyAuthSession,
 } from "@voidhash/core/domain/auth/Auth";
-import { Cause, Effect, Layer, Result } from "effect";
+import { Cause, Effect, Layer, Option, Result, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 
@@ -41,15 +41,19 @@ import { findMcpTool } from "../mcp/tool-manifest.ts";
 import type { WorkspaceToolScope } from "../ai/workspace-tools.ts";
 import { McpOAuth } from "../McpOAuth.ts";
 
-const requestOrigin = (request: HttpServerRequest.HttpServerRequest): string => {
-  try {
-    return new URL(request.originalUrl).origin;
-  } catch {
-    const host = request.headers.host ?? "localhost";
-    const protocol = request.headers["x-forwarded-proto"] ?? "http";
-    return `${protocol}://${host}`;
-  }
+const forwardedOrigin = (request: HttpServerRequest.HttpServerRequest): string => {
+  const host = request.headers.host ?? "localhost";
+  const protocol = request.headers["x-forwarded-proto"] ?? "http";
+  return `${protocol}://${host}`;
 };
+
+const requestOrigin = (
+  request: HttpServerRequest.HttpServerRequest,
+): Effect.Effect<string> =>
+  Effect.try({
+    try: () => new URL(request.originalUrl).origin,
+    catch: (cause) => cause,
+  }).pipe(Effect.catch(() => Effect.succeed(forwardedOrigin(request))));
 
 /** AuthKit discovery challenge returned by the protected MCP resource. */
 export const mcpBearerChallenge = (origin: string): string =>
@@ -65,18 +69,27 @@ const jsonRpcErrorResponse = (status: number, code: number, message: string) =>
 
 /** Extract a `Bearer <token>` credential from the `authorization` header. */
 const bearerToken = (headers: HttpHeaders.Headers): string | undefined => {
-  const raw = HttpHeaders.get(headers, "authorization");
-  const value = raw._tag === "Some" ? raw.value : undefined;
+  const value = Option.getOrUndefined(HttpHeaders.get(headers, "authorization"));
   if (value === undefined) {
     return undefined;
   }
   const match = /^Bearer\s+(.+)$/i.exec(value.trim());
-  return match ? match[1].trim() : undefined;
+  if (match === null) {
+    return undefined;
+  }
+  return match[1].trim();
 };
 
 const headerValue = (headers: HttpHeaders.Headers, name: string): string | undefined => {
-  const value = HttpHeaders.get(headers, name);
-  return value._tag === "Some" && value.value.trim().length > 0 ? value.value.trim() : undefined;
+  const value = Option.getOrUndefined(HttpHeaders.get(headers, name));
+  if (value === undefined) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+  return trimmed;
 };
 
 /** Selects an authorized MCP project without allowing a user key to widen its session. */
@@ -90,13 +103,14 @@ export const selectMcpProject = <Project extends { readonly id: string; readonly
     const project = projects.find(
       (candidate) => candidate.id === selector || candidate.slug === selector,
     );
-    return project === undefined
-      ? {
-          ok: false,
-          status: 403,
-          message: `The authenticated user cannot access project "${selector}".`,
-        }
-      : { ok: true, project };
+    if (project === undefined) {
+      return {
+        ok: false,
+        status: 403,
+        message: `The authenticated user cannot access project "${selector}".`,
+      };
+    }
+    return { ok: true, project };
   }
   if (projects.length === 1) {
     return { ok: true, project: projects[0]! };
@@ -116,6 +130,16 @@ export const selectMcpProject = <Project extends { readonly id: string; readonly
   };
 };
 
+/** Maps an AuthKit access-token rejection to its HTTP status and client message. */
+const accessTokenRejection = (
+  kind: "invalid_token" | "misconfigured" | "upstream",
+): { readonly status: 503 | 401; readonly message: string } => {
+  if (kind === "misconfigured") {
+    return { status: 503, message: "MCP OAuth is not configured" };
+  }
+  return { status: 401, message: "Invalid or expired AuthKit access token" };
+};
+
 /**
  * The dispatcher passed to {@link handleMcpMessage}: look up the tool by name,
  * run it against the authenticated `scope` — an unknown tool folds to an
@@ -132,10 +156,13 @@ const makeCallTool =
     return tool.dispatch(scope, args);
   };
 
+/** Decodes the raw request body as JSON text; a parse failure is a typed error. */
+const decodeJsonBody = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
+
 /** Handle a single stateless `POST /api/mcp` JSON-RPC message. */
 const handlePost = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest;
-  const origin = requestOrigin(request);
+  const origin = yield* requestOrigin(request);
   const challenge = mcpBearerChallenge(origin);
   const resource = `${origin}/api/mcp`;
 
@@ -156,14 +183,12 @@ const handlePost = Effect.gen(function* () {
     const mcpOAuth = yield* McpOAuth;
     const validatedToken = yield* Effect.result(mcpOAuth.verifyAccessToken(token, resource));
     if (Result.isFailure(validatedToken)) {
-      const status = validatedToken.failure.kind === "misconfigured" ? 503 : 401;
+      const rejection = accessTokenRejection(validatedToken.failure.kind);
       return HttpServerResponse.setHeader(
         yield* jsonRpcErrorResponse(
-          status,
+          rejection.status,
           JsonRpcErrorCode.InvalidRequest,
-          status === 503
-            ? "MCP OAuth is not configured"
-            : "Invalid or expired AuthKit access token",
+          rejection.message,
         ),
         "www-authenticate",
         challenge,
@@ -206,7 +231,7 @@ const handlePost = Effect.gen(function* () {
       null,
       identity.id,
     );
-    session = userSession as unknown as AnyAuthSession;
+    session = userSession;
     scope = { projectId: selection.project.id };
   } else {
     const apiKeys = yield* ApiKeyService;
@@ -252,19 +277,14 @@ const handlePost = Effect.gen(function* () {
         null,
         null,
       );
-      session = { ...userSession, projects: [selection.project] } as unknown as AnyAuthSession;
+      session = { ...userSession, projects: [selection.project] };
       scope = { projectId: selection.project.id };
     }
   }
 
   // 2. Parse the JSON body → JSON-RPC message.
   const rawBody = yield* request.text;
-  const parsedJson = yield* Effect.result(
-    Effect.try({
-      try: () => JSON.parse(rawBody) as unknown,
-      catch: () => new Error("Invalid JSON"),
-    }),
-  );
+  const parsedJson = yield* Effect.result(decodeJsonBody(rawBody));
   if (Result.isFailure(parsedJson)) {
     return yield* jsonRpcErrorResponse(
       400,

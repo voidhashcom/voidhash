@@ -3,8 +3,8 @@
   "version": "1.0.0-beta.19",
   "private": true,
   "description": "Example React application and Node server for the Mimic collaboration SDK.",
-  "author": "Voidhash (https://voidhash.com)",
   "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
@@ -12,8 +12,10 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
-    "dev:server": "tsx watch src/server/index.ts",
+    "dev": "portless mimic-example.voidhash --app-port 5173 pnpm run dev:app",
+    "dev:app": "vp dev",
+    "dev:server": "portless mimic-example-api.voidhash --app-port 3001 pnpm run dev:server:app",
+    "dev:server:app": "tsx watch src/server/index.ts",
     "build": "vp build",
     "preview": "vp preview",
     "start:server": "tsx src/server/index.ts",

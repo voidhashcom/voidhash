@@ -1,5 +1,5 @@
 import { ProjectSchemaCache } from "@voidhash/core/services";
-import { Effect, Layer } from "effect";
+import { Clock, Effect, Layer } from "effect";
 
 interface CacheEntry {
   readonly expiresAt: number;
@@ -12,10 +12,11 @@ export const MemoryProjectSchemaCacheLive = Layer.sync(ProjectSchemaCache, () =>
   return {
     getByName: (projectId: string) => ({
       get: () =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
           const entry = entries.get(projectId);
           if (!entry) return undefined;
-          if (entry.expiresAt <= Date.now()) {
+          const now = yield* Clock.currentTimeMillis;
+          if (entry.expiresAt <= now) {
             entries.delete(projectId);
             return undefined;
           }
@@ -23,8 +24,9 @@ export const MemoryProjectSchemaCacheLive = Layer.sync(ProjectSchemaCache, () =>
         }),
       invalidate: () => Effect.sync(() => void entries.delete(projectId)),
       set: (schema: unknown, ttlMs: number) =>
-        Effect.sync(() => {
-          entries.set(projectId, { expiresAt: Date.now() + ttlMs, schema });
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          entries.set(projectId, { expiresAt: now + ttlMs, schema });
         }),
     }),
   };

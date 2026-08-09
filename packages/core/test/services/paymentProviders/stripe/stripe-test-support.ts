@@ -16,7 +16,7 @@
  *    records (the engine creates persons lazily).
  *  - Stripe event-object builders.
  */
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 
 import {
@@ -32,6 +32,7 @@ import { StripeWebhookHandlerService } from "@voidhash/core/services/paymentProv
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { generateId } from "@voidhash/core/utils";
 import { ProductType } from "@voidhash/lib/constants";
+import { pick } from "@voidhash/lib/lang";
 import {
   Db,
   eq,
@@ -59,34 +60,49 @@ export const TEST_TEST_SECRET_KEY = "sk_test_testkey";
 
 /** Monotonic counter so generated ids stay unique even within one millisecond. */
 let seq = 0;
-export const uniq = (label: string) => `it-stripe-${label}-${Date.now()}-${seq++}`;
+export const uniq = (label: string) =>
+  `it-stripe-${label}-${DateTime.toEpochMillis(DateTime.nowUnsafe())}-${seq++}`;
+
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+const previousAttributesPatch = (
+  previousAttributes: Record<string, unknown> | undefined,
+): { previous_attributes?: Record<string, unknown> } => {
+  if (!previousAttributes) return {};
+  return { previous_attributes: previousAttributes };
+};
+
+const distinctIdMetadata = (distinctId: string | undefined): Record<string, string> => {
+  if (!distinctId) return {};
+  return { voidhash_distinct_id: distinctId };
+};
+
+const taxPatch = (taxMinor: number | undefined): { tax?: number } => {
+  if (taxMinor === undefined) return {};
+  return { tax: taxMinor };
+};
 
 /**
  * Produces a valid `Stripe-Signature` header (`t=…,v1=…`) for `rawBody` using
  * the same HMAC-SHA256-over-`${t}.${rawBody}` scheme the handler verifies.
  */
-export const signStripePayload = async (
+export const signStripePayload = (
   rawBody: string,
   secret: string,
   timestampSeconds: number,
 ): Promise<string> => {
   const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { hash: "SHA-256", name: "HMAC" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(`${timestampSeconds}.${rawBody}`),
-  );
-  const hex = Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-  return `t=${timestampSeconds},v1=${hex}`;
+  return crypto.subtle
+    .importKey("raw", encoder.encode(secret), { hash: "SHA-256", name: "HMAC" }, false, ["sign"])
+    .then((key) =>
+      crypto.subtle.sign("HMAC", key, encoder.encode(`${timestampSeconds}.${rawBody}`)),
+    )
+    .then((signature) => {
+      const hex = Array.from(new Uint8Array(signature))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+      return `t=${timestampSeconds},v1=${hex}`;
+    });
 };
 
 /** A canned JSON response selected by a substring of the request path. */
@@ -107,7 +123,7 @@ export const stripeStubHttpClient = (
   HttpClient.make((request, url) =>
     Effect.sync(() => {
       const match = routes.find((route) => url.pathname.includes(route.path));
-      const webResponse = new Response(JSON.stringify(match?.body ?? {}), {
+      const webResponse = new Response(encodeJson(match?.body ?? {}), {
         headers: { "Content-Type": "application/json" },
         status: match?.status ?? 200,
       });
@@ -336,8 +352,9 @@ export const cleanupStripeScenario = (input: {
     // Resolve the lazily-created persons for the recorded customers; this lookup
     // is a cleanup backstop, so a read failure degrades to "no persons" rather
     // than failing the finalizer (`Effect.ensuring` requires an infallible effect).
+    const noPersonIds: string[] = [];
     const personIds = yield* Effect.gen(function* () {
-      if (customerIds.length === 0) return [] as string[];
+      if (customerIds.length === 0) return noPersonIds;
       const rows = yield* db.query.personExternalIdentifiers.findMany({
         columns: { personId: true },
         where: {
@@ -347,7 +364,7 @@ export const cleanupStripeScenario = (input: {
         },
       });
       return [...new Set(rows.map((row) => row.personId))];
-    }).pipe(Effect.catch(() => Effect.succeed([] as string[])));
+    }).pipe(Effect.catch(() => Effect.succeed(noPersonIds)));
 
     if (input.configProductId) {
       yield* db
@@ -415,11 +432,11 @@ export const makeStripeEvent = (input: {
   readonly previousAttributes?: Record<string, unknown>;
   readonly livemode?: boolean;
   readonly created?: number;
-}): Record<string, unknown> => ({
+}): Record<string, unknown> & { readonly id: string } => ({
   created: input.created ?? 1_700_000_000,
   data: {
     object: input.object,
-    ...(input.previousAttributes ? { previous_attributes: input.previousAttributes } : {}),
+    ...previousAttributesPatch(input.previousAttributes),
   },
   id: input.id ?? generateId("paymentProviderNotification").replace("ppn_", "evt_"),
   livemode: input.livemode ?? false,
@@ -461,12 +478,12 @@ export const makeStripeInvoice = (input: {
       },
     ],
   },
-  metadata: input.distinctId ? { voidhash_distinct_id: input.distinctId } : {},
+  metadata: distinctIdMetadata(input.distinctId),
   object: "invoice",
   payment_intent: input.paymentIntentId ?? null,
   subscription: input.subscriptionId,
   total: input.amountPaid,
-  ...(input.taxMinor !== undefined ? { tax: input.taxMinor } : {}),
+  ...taxPatch(input.taxMinor),
 });
 
 export const makeStripeSubscription = (input: {
@@ -488,7 +505,7 @@ export const makeStripeSubscription = (input: {
   ended_at: input.endedAt ?? null,
   id: input.id,
   items: { data: [{ price: { id: input.stripePriceId, product: input.stripeProductId } }] },
-  metadata: input.distinctId ? { voidhash_distinct_id: input.distinctId } : {},
+  metadata: distinctIdMetadata(input.distinctId),
   object: "subscription",
   status: input.status ?? "active",
 });
@@ -503,7 +520,7 @@ export const makeStripeCharge = (input: {
   readonly currency?: string;
 }): Record<string, unknown> => ({
   amount: input.amount,
-  amount_refunded: input.refunded ? input.amount : 0,
+  amount_refunded: pick(input.refunded === true, input.amount, 0),
   balance_transaction: `txn_${input.id}`,
   created: input.created ?? 1_700_000_000,
   currency: input.currency ?? "usd",

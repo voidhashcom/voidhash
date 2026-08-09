@@ -2,7 +2,10 @@ import { Effect } from "effect";
 import { CurrentUser, DocumentsRpcs } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag } from "../../app/hostService.ts";
-import type { TransactionEnvelope } from "../../document/transaction.ts";
+import {
+  decodeDocumentValue,
+  decodeTransactionEnvelope,
+} from "../../document/transaction.ts";
 
 export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
   Effect.gen(function* () {
@@ -34,14 +37,13 @@ export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
           const user = yield* CurrentUser;
           const databaseId = yield* host.databaseIdForCollection(collectionId);
           yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
-          // The wire schema treats commands as `Schema.Unknown[]`; the host
-          // service is typed against the structured `Command[]` shape from
-          // mimic-core. The host validates the command shape internally as
-          // it applies them, so casting here is safe.
+          // The wire schema treats commands as opaque JSON; the host service is
+          // typed against the structured `Command[]` shape from mimic-core and
+          // validates the command shape internally as it applies them.
           return yield* host.submitTransaction(
             collectionId,
             documentId,
-            transaction as TransactionEnvelope,
+            decodeTransactionEnvelope(transaction),
           );
         }),
       OpenDocumentConnection: ({ collectionId, documentId, connectionId, presence, leaseMs }) =>
@@ -55,7 +57,7 @@ export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
             connectionId,
             "write",
             user.userId,
-            presence as never,
+            decodeDocumentValue(presence),
             leaseMs,
           );
           return { id: documentId, collectionId, value: snapshot.value, version: snapshot.version };
@@ -96,7 +98,7 @@ export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
             collectionId,
             documentId,
             connectionId,
-            transaction as TransactionEnvelope,
+            decodeTransactionEnvelope(transaction),
             leaseMs,
           );
         }),

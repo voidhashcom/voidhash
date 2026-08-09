@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { Config, Effect, Path } from "effect";
 
 import { createStudioViteConfig } from "./src/server/config";
 
@@ -9,9 +9,13 @@ import { createStudioViteConfig } from "./src/server/config";
  * falls back to the bundled React Native example so Studio can be developed in
  * isolation.
  */
-const projectRoot =
-  process.env.VOIDHASH_PROJECT_ROOT ??
-  resolve(import.meta.dirname, "../../examples/react-native-example");
+const projectRoot = Effect.runSync(
+  Effect.gen(function* () {
+    const path = yield* Path.Path;
+    const fallback = path.resolve(import.meta.dirname, "../../examples/react-native-example");
+    return yield* Config.string("VOIDHASH_PROJECT_ROOT").pipe(Config.withDefault(fallback));
+  }).pipe(Effect.provide(Path.layer), Effect.orDie),
+);
 
 export default createStudioViteConfig({
   projectRoot,

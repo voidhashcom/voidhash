@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Layer, Context } from "effect";
 
 import { ApiClient } from "../../utils/api-client";
@@ -7,6 +8,15 @@ import {
   createEmptyNormalizedSchema,
   type NormalizedSchema,
 } from "../schema/normalized-schema";
+
+const SUPPORTED_PROVIDER_IDS: ReadonlySet<string> = new Set<string>([
+  "appleAppStore",
+  "googlePlay",
+] satisfies ReadonlyArray<ProviderId>);
+
+/** Narrows a provider id reported by the API to one the CLI understands. */
+const isSupportedProviderId = (providerId: string): providerId is ProviderId =>
+  SUPPORTED_PROVIDER_IDS.has(providerId);
 
 const make = Effect.gen(function* effect() {
   const apiClient = yield* ApiClient;
@@ -42,21 +52,20 @@ const make = Effect.gen(function* effect() {
         });
       }
 
-      const SUPPORTED_PROVIDER_IDS: ReadonlySet<string> = new Set<ProviderId>([
-        "appleAppStore",
-        "googlePlay",
-      ]);
 
       for (const product of response.products) {
         schema.products.set(product.slug, {
           name: product.name,
           perks: [...product.perks],
-          providers: product.providers
-            .filter((provider) => SUPPORTED_PROVIDER_IDS.has(provider.providerId as string))
-            .map((provider) => ({
-              configuration: provider.configuration,
-              providerId: provider.providerId as ProviderId,
-            })),
+          providers: product.providers.flatMap((provider) => {
+            if (!isSupportedProviderId(provider.providerId)) return [];
+            return [
+              {
+                configuration: provider.configuration,
+                providerId: provider.providerId,
+              },
+            ];
+          }),
           slug: product.slug,
           type: product.type,
         });
@@ -106,10 +115,10 @@ const make = Effect.gen(function* effect() {
       ),
     );
 
-  return {
+  return constant({
     fetchRemoteSchema,
     fetchSchemaVersion,
-  } as const;
+  });
 });
 
 type SchemaServiceShape = Effect.Success<typeof make>;

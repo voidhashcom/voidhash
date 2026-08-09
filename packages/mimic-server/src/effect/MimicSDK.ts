@@ -1,5 +1,5 @@
 import { Effect, Layer, ManagedRuntime } from "effect";
-import { RpcClient, type RpcGroup } from "effect/unstable/rpc";
+import { RpcClient, type RpcClientError, type RpcGroup } from "effect/unstable/rpc";
 import {
   type DatabasePermission,
   type DocumentAuthenticationSetup,
@@ -8,12 +8,34 @@ import {
   type User,
 } from "../rpc/index.ts";
 
-/** Convenience alias for the typed `RpcClient` over our shared group. */
-export type MimicRpcClient = RpcClient.RpcClient<RpcGroup.Rpcs<typeof MimicRpcGroup>>;
+/**
+ * Convenience alias for the typed `RpcClient` over our shared group. The
+ * error channel carries `RpcClientError` alongside each RPC's declared
+ * failures, matching what `RpcClient.make` produces.
+ */
+export type MimicRpcClient = RpcClient.RpcClient<
+  RpcGroup.Rpcs<typeof MimicRpcGroup>,
+  RpcClientError.RpcClientError
+>;
 
 import { DatabaseHandle } from "./DatabaseHandle.ts";
 import { makeMimicProtocolLayer, type MimicClientConfig } from "./RpcClient.ts";
 import type { CreateUserResult, DatabaseInfo, DocumentSnapshot } from "./types.ts";
+
+/**
+ * Alternative constructor input: an already-built protocol layer, used by
+ * {@link MimicSDK.fromProtocolLayer} to bypass HTTP transport construction.
+ */
+export interface MimicProtocolSource {
+  readonly protocolLayer: Layer.Layer<RpcClient.Protocol>;
+}
+
+const resolveProtocolLayer = (
+  config: MimicClientConfig | MimicProtocolSource,
+): Layer.Layer<RpcClient.Protocol> => {
+  if ("protocolLayer" in config) return config.protocolLayer;
+  return makeMimicProtocolLayer(config);
+};
 
 /**
  * Public entry point for the typed Effect SDK.
@@ -37,8 +59,8 @@ export class MimicSDK {
   readonly runtime: ManagedRuntime.ManagedRuntime<RpcClient.Protocol, never>;
   private readonly protocolLayer: Layer.Layer<RpcClient.Protocol>;
 
-  constructor(config: MimicClientConfig) {
-    this.protocolLayer = makeMimicProtocolLayer(config);
+  constructor(config: MimicClientConfig | MimicProtocolSource) {
+    this.protocolLayer = resolveProtocolLayer(config);
     this.runtime = ManagedRuntime.make(this.protocolLayer);
   }
 
@@ -51,12 +73,7 @@ export class MimicSDK {
    * this factory exists to make handle behavior testable end-to-end.
    */
   static fromProtocolLayer(protocolLayer: Layer.Layer<RpcClient.Protocol>): MimicSDK {
-    const sdk = Object.create(MimicSDK.prototype) as MimicSDK;
-    Object.defineProperties(sdk, {
-      protocolLayer: { value: protocolLayer, writable: false },
-      runtime: { value: ManagedRuntime.make(protocolLayer), writable: false },
-    });
-    return sdk;
+    return new MimicSDK({ protocolLayer });
   }
 
   /**
@@ -65,14 +82,10 @@ export class MimicSDK {
    * per-call scope, and providing this SDK's protocol layer.
    */
   runEffect<A, E>(fn: (client: MimicRpcClient) => Effect.Effect<A, E>): Effect.Effect<A, E> {
-    return Effect.flatMap(
-      RpcClient.make(MimicRpcGroup) as Effect.Effect<
-        MimicRpcClient,
-        never,
-        RpcClient.Protocol | import("effect").Scope.Scope
-      >,
-      fn,
-    ).pipe(Effect.scoped, Effect.provide(this.protocolLayer)) as Effect.Effect<A, E>;
+    return Effect.flatMap(RpcClient.make(MimicRpcGroup), fn).pipe(
+      Effect.scoped,
+      Effect.provide(this.protocolLayer),
+    );
   }
 
   // ---------------------------------------------------------------------
@@ -92,9 +105,7 @@ export class MimicSDK {
   }
 
   listDatabases(): Effect.Effect<readonly DatabaseInfo[], unknown> {
-    return this.runEffect(
-      (client) => client.ListDatabases() as Effect.Effect<readonly DatabaseInfo[], unknown>,
-    );
+    return this.runEffect((client) => client.ListDatabases());
   }
 
   deleteDatabase(id: string) {
@@ -113,21 +124,18 @@ export class MimicSDK {
   // ---------------------------------------------------------------------
 
   listUsers(): Effect.Effect<readonly User[], unknown> {
-    return this.runEffect(
-      (client) => client.ListUsers() as Effect.Effect<readonly User[], unknown>,
-    );
+    return this.runEffect((client) => client.ListUsers());
   }
 
   createUser(options: {
     readonly username: string;
     readonly password: string;
   }): Effect.Effect<CreateUserResult, unknown> {
-    return this.runEffect(
-      (client) =>
-        client.CreateUser({
-          username: options.username,
-          password: options.password,
-        }) as Effect.Effect<CreateUserResult, unknown>,
+    return this.runEffect((client) =>
+      client.CreateUser({
+        username: options.username,
+        password: options.password,
+      }),
     );
   }
 
@@ -140,9 +148,7 @@ export class MimicSDK {
   // ---------------------------------------------------------------------
 
   listGrants(userId?: string): Effect.Effect<readonly Grant[], unknown> {
-    return this.runEffect(
-      (client) => client.ListGrants({ userId }) as Effect.Effect<readonly Grant[], unknown>,
-    );
+    return this.runEffect((client) => client.ListGrants({ userId }));
   }
 
   grantPermission(payload: {
@@ -169,15 +175,14 @@ export class MimicSDK {
     readonly origins: readonly string[];
     readonly expiresInSeconds?: number;
   }): Effect.Effect<DocumentAuthenticationSetup, unknown> {
-    return this.runEffect(
-      (client) =>
-        client.SetupDocumentAuthentication({
-          collectionId: options.collectionId,
-          documentId: options.documentId,
-          permission: options.permission,
-          origins: options.origins,
-          expiresInSeconds: options.expiresInSeconds,
-        }) as Effect.Effect<DocumentAuthenticationSetup, unknown>,
+    return this.runEffect((client) =>
+      client.SetupDocumentAuthentication({
+        collectionId: options.collectionId,
+        documentId: options.documentId,
+        permission: options.permission,
+        origins: options.origins,
+        expiresInSeconds: options.expiresInSeconds,
+      }),
     );
   }
 

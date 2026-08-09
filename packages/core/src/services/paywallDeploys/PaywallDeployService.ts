@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Option, Predicate, Result, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Option, Predicate, Result, Schema } from "effect";
 import type { SqlError } from "effect/unstable/sql/SqlError";
 
 import { type AnyAuthSession, ActionForbiddenError, AuthSession } from "../../domain/auth/Auth.ts";
@@ -153,11 +154,14 @@ export const resolveSessionProject = (
       p.slug === project &&
       session.organizations.some((o) => o.id === p.organizationId && o.slug === team),
   );
-  return match ? { id: match.id, organizationId: match.organizationId } : null;
+  if (!match) return null;
+  return { id: match.id, organizationId: match.organizationId };
 };
 
-const deployStatusLabel = (status: number): "pending" | "ready" =>
-  status === PaywallDeployStatus.ready ? "ready" : "pending";
+const deployStatusLabel = (status: number): "pending" | "ready" => {
+  if (status === PaywallDeployStatus.ready) return "ready";
+  return "pending";
+};
 
 /**
  * True when `error` (or anything on its `cause` chain — drizzle wraps the
@@ -165,6 +169,19 @@ const deployStatusLabel = (status: number): "pending" | "ready" =>
  * violation raised when two concurrent identical create-deploy POSTs race
  * past the idempotency read.
  */
+/** Lexicographic slug comparator for stable component listing order. */
+const compareSlugs = (a: string, b: string): number => {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+};
+
+/** Next link on an error's `cause` chain, or `undefined` when there is none. */
+const causeOf = (value: unknown): unknown => {
+  if (Predicate.hasProperty(value, "cause")) return value.cause;
+  return undefined;
+};
+
 const isDuplicateKeyError = (error: unknown): boolean => {
   let current: unknown = error;
   for (let depth = 0; current !== undefined && current !== null && depth < 5; depth += 1) {
@@ -174,7 +191,7 @@ const isDuplicateKeyError = (error: unknown): boolean => {
     if (Predicate.hasProperty(current, "code") && current.code === "ER_DUP_ENTRY") {
       return true;
     }
-    current = Predicate.hasProperty(current, "cause") ? current.cause : undefined;
+    current = causeOf(current);
   }
   return false;
 };
@@ -219,15 +236,18 @@ export const makeBlobFetcher =
       return object;
     });
 
+const decodeJsonText = Schema.decodeUnknownEffect(Schema.UnknownFromJsonString);
+
 const parseJsonBlob = (body: Uint8Array, label: string) =>
-  Effect.try({
-    catch: () =>
-      new PaywallDeployValidationError({
-        message: `${label} is not valid JSON`,
-        violations: [`${label} is not valid JSON`],
-      }),
-    try: (): unknown => JSON.parse(new TextDecoder().decode(body)),
-  });
+  decodeJsonText(new TextDecoder().decode(body)).pipe(
+    Effect.mapError(
+      () =>
+        new PaywallDeployValidationError({
+          message: `${label} is not valid JSON`,
+          violations: [`${label} is not valid JSON`],
+        }),
+    ),
+  );
 
 /**
  * Builds the recomputed-hash + stored-artifact validation run ahead of the
@@ -533,9 +553,10 @@ export const makeComponentVersionDetailBuilder =
   }): Effect.Effect<PaywallComponentVersionDetail | null> =>
     Effect.gen(function* () {
       const deployManifest = input.deployManifests.get(input.row.deployId);
-      const metadata = deployManifest
-        ? componentServingMetadata(deployManifest, input.row.contentHash)
-        : null;
+      let metadata: ReturnType<typeof componentServingMetadata> | null = null;
+      if (deployManifest) {
+        metadata = componentServingMetadata(deployManifest, input.row.contentHash);
+      }
       if (!metadata) {
         yield* Effect.logWarning(
           "paywall component version no longer resolves against its minting deploy manifest; omitting from the catalog",
@@ -715,7 +736,10 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
           const peeked = yield* Schema.decodeUnknownEffect(
             Schema.Struct({ schemaVersion: Schema.Number }),
           )(input.manifest).pipe(Effect.option);
-          const peekedVersion = Option.isSome(peeked) ? peeked.value.schemaVersion : null;
+          const peekedVersion = Option.match(peeked, {
+            onNone: (): number | null => null,
+            onSome: (value) => value.schemaVersion,
+          });
           if (peekedVersion !== DEPLOY_MANIFEST_SCHEMA_VERSION) {
             return yield* Effect.fail(
               new UnsupportedDeploySchemaVersionError({
@@ -1197,12 +1221,12 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
 
           const allHashes = collectManifestHashes(manifest);
           const uniqueHashes = [...new Set(allHashes)];
-          const blobRows =
-            uniqueHashes.length === 0
-              ? []
-              : yield* db.query.paywallDeployBlobs.findMany({
-                  where: { projectId: deploy.projectId, sha256: { in: uniqueHashes } },
-                });
+          let blobRows: Array<{ readonly sha256: string; readonly bytes: number }> = [];
+          if (uniqueHashes.length > 0) {
+            blobRows = yield* db.query.paywallDeployBlobs.findMany({
+              where: { projectId: deploy.projectId, sha256: { in: uniqueHashes } },
+            });
+          }
           const present = new Set(blobRows.map((row) => row.sha256));
           const missing = allHashes.filter((hash) => !present.has(hash));
           if (missing.length > 0) {
@@ -1244,7 +1268,7 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
             );
           }
 
-          const now = new Date();
+          const now = yield* DateTime.nowAsDate;
           const committed = yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const paywallSummaries: FinalizedPaywallSummary[] = [];
@@ -1386,19 +1410,19 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
               componentSlugs.add(component.id);
             }
           }
-          const paywallRows =
-            paywallSlugs.size === 0
-              ? []
-              : yield* db.query.paywalls.findMany({
-                  where: { projectId: input.projectId, slug: { in: [...paywallSlugs] } },
-                });
+          let paywallRows: Array<{ readonly slug: string; readonly id: string }> = [];
+          if (paywallSlugs.size > 0) {
+            paywallRows = yield* db.query.paywalls.findMany({
+              where: { projectId: input.projectId, slug: { in: [...paywallSlugs] } },
+            });
+          }
           const paywallIdBySlug = new Map(paywallRows.map((row) => [row.slug, row.id]));
-          const componentRows =
-            componentSlugs.size === 0
-              ? []
-              : yield* db.query.paywallComponents.findMany({
-                  where: { projectId: input.projectId, slug: { in: [...componentSlugs] } },
-                });
+          let componentRows: Array<{ readonly slug: string; readonly id: string }> = [];
+          if (componentSlugs.size > 0) {
+            componentRows = yield* db.query.paywallComponents.findMany({
+              where: { projectId: input.projectId, slug: { in: [...componentSlugs] } },
+            });
+          }
           const componentIdBySlug = new Map(componentRows.map((row) => [row.slug, row.id]));
 
           const deployIds = deploys.map((deploy) => deploy.id);
@@ -1564,14 +1588,13 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
           const deployManifests = yield* loadDeployManifests(
             components.flatMap((component) => {
               const latest = versionsByComponentId.get(component.id)?.[0];
-              return latest ? [latest.deployId] : [];
+              if (!latest) return [];
+              return [latest.deployId];
             }),
           );
 
           const items: PaywallComponentListItem[] = [];
-          for (const component of [...components].sort((a, b) =>
-            a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0,
-          )) {
+          for (const component of [...components].sort((a, b) => compareSlugs(a.slug, b.slug))) {
             const versions = versionsByComponentId.get(component.id) ?? [];
             const latest = versions[0];
             if (!latest) {
@@ -1672,7 +1695,10 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
           }> = [];
           for (const ref of refs) {
             const component = componentBySlug.get(ref.slug);
-            const row = component ? rowByRef.get(`${component.id}@${ref.version}`) : undefined;
+            let row: (typeof versionRows)[number] | undefined;
+            if (component) {
+              row = rowByRef.get(`${component.id}@${ref.version}`);
+            }
             if (row) {
               matched.push({ row, slug: ref.slug });
             }
@@ -1769,7 +1795,7 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
                 yield* propagateActiveReleaseToOpenShowings(tx, {
                   createdByUserId: session.user?.id ?? null,
                   newReleaseId: release.id,
-                  now: new Date(),
+                  now: yield* DateTime.nowAsDate,
                   paywallId: release.paywallId,
                 });
               }
@@ -1798,7 +1824,7 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
           ),
       );
 
-      return {
+      return constant({
         createDeploy,
         finalizeDeploy,
         getComponentVersions,
@@ -1806,7 +1832,7 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
         listDeploys,
         setActivePaywallRelease,
         uploadBlob,
-      } as const;
+      });
     }),
   },
 ) {

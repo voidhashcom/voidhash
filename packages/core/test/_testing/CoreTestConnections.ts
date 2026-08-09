@@ -38,6 +38,7 @@ export interface CoreStackOutput {
  * already use. Defaults target the local docker-compose dev stack.
  */
 export const coreTestConnectionsFromEnv = (
+  // oxlint-disable-next-line effect/noGlobals -- synchronous config adapter: the default argument is evaluated at call sites that run before any Effect runtime exists (vitest globalSetup and the local integration runner).
   env: Record<string, string | undefined> = process.env,
 ): CoreTestConnections => ({
   db: {

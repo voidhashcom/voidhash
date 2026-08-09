@@ -1,5 +1,10 @@
 import { defineConfig } from "tsdown";
 
+const outExtensionsFor = (format: string): { dts: string; js: string } => {
+  if (format === "cjs") return { dts: ".d.cts", js: ".cjs" };
+  return { dts: ".d.mts", js: ".mjs" };
+};
+
 export default defineConfig({
   target: ["es2022"],
   entry: ["./src/index.ts"],
@@ -9,8 +14,5 @@ export default defineConfig({
   },
   unbundle: true,
   format: ["cjs", "esm"],
-  outExtensions: (ctx) => ({
-    dts: ctx.format === "cjs" ? ".d.cts" : ".d.mts",
-    js: ctx.format === "cjs" ? ".cjs" : ".mjs",
-  }),
+  outExtensions: (ctx) => outExtensionsFor(ctx.format),
 });

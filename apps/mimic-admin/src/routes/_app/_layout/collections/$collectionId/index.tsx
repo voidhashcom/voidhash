@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Plus, Trash2 } from "lucide-react";
+import { Option, Schema, SchemaGetter, SchemaTransformation } from "effect";
 import { toast } from "sonner";
 
 import { useMimicSdk } from "@/components/sdk-context";
@@ -45,6 +46,30 @@ export const Route = createFileRoute(
 	component: CollectionDocumentsPage,
 });
 
+/** Codec between an arbitrary JSON value and its indented text form. */
+const PrettyJsonText = Schema.String.pipe(
+	Schema.decodeTo(
+		Schema.Unknown,
+		new SchemaTransformation.Transformation<unknown, string>(
+			SchemaGetter.parseJson(),
+			SchemaGetter.stringifyJson({ space: 2 }),
+		),
+	),
+);
+
+const formatJson = Schema.encodeSync(PrettyJsonText);
+const compactJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+const decodeJson = Schema.decodeSync(PrettyJsonText);
+const decodeJsonOption = Schema.decodeOption(PrettyJsonText);
+
+const EMPTY_DOCUMENT = { kind: "object", fields: {} };
+
+/** Label for the create-document submit button. */
+function createLabel(isPending: boolean): string {
+	if (isPending) return "Creating...";
+	return "Create";
+}
+
 function CollectionDocumentsPage() {
 	const { collectionId } = Route.useParams();
 	const sdk = useMimicSdk();
@@ -54,40 +79,22 @@ function CollectionDocumentsPage() {
 		documentsQuery(sdk, collectionId),
 	);
 
-	const [dataJson, setDataJson] = useState(
-		JSON.stringify(
-			{
-				kind: "object",
-				fields: {},
-			},
-			null,
-			2,
-		),
-	);
+	const [dataJson, setDataJson] = useState(() => formatJson(EMPTY_DOCUMENT));
 	const [open, setOpen] = useState(false);
 
 	const createMutation = useMutation({
 		mutationFn: () => {
-			const data = JSON.parse(dataJson);
+			const data = decodeJson(dataJson);
 			return sdk
 				.database("")
 				.collectionRaw(collectionId)
 				.createDocumentRaw(data);
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: ["documents", collectionId],
 			});
-			setDataJson(
-				JSON.stringify(
-					{
-						kind: "object",
-						fields: {},
-					},
-					null,
-					2,
-				),
-			);
+			setDataJson(formatJson(EMPTY_DOCUMENT));
 			setOpen(false);
 			toast.success("Document created");
 		},
@@ -99,7 +106,7 @@ function CollectionDocumentsPage() {
 		mutationFn: (documentId: string) =>
 			sdk.database("").collectionRaw(collectionId).deleteDocument(documentId),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: ["documents", collectionId],
 			});
 			toast.success("Document deleted");
@@ -107,6 +114,83 @@ function CollectionDocumentsPage() {
 		onError: (err) =>
 			toast.error(`Failed to delete document: ${err.message}`),
 	});
+
+	let documentsView = <p className="text-muted-foreground">Loading...</p>;
+	if (!isLoading) {
+		documentsView = (
+			<Table>
+				<TableHeader>
+					<TableRow>
+						<TableHead>ID</TableHead>
+						<TableHead>Version</TableHead>
+						<TableHead>Value Preview</TableHead>
+						<TableHead className="w-16" />
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{documents?.map((doc) => (
+						<TableRow key={doc.id}>
+							<TableCell>
+								<Link
+									to="/collections/$collectionId/documents/$documentId"
+									params={{
+										collectionId,
+										documentId: doc.id,
+									}}
+									className="font-mono text-sm text-primary hover:underline"
+								>
+									{doc.id}
+								</Link>
+							</TableCell>
+							<TableCell>{doc.version}</TableCell>
+							<TableCell className="max-w-xs truncate font-mono text-xs text-muted-foreground">
+								{compactJson(doc.flat).slice(0, 100)}
+							</TableCell>
+							<TableCell>
+								<AlertDialog>
+									<AlertDialogTrigger asChild>
+										<Button variant="ghost" size="icon">
+											<Trash2 className="h-4 w-4 text-destructive-foreground" />
+										</Button>
+									</AlertDialogTrigger>
+									<AlertDialogContent>
+										<AlertDialogHeader>
+											<AlertDialogTitle>
+												Delete document?
+											</AlertDialogTitle>
+											<AlertDialogDescription>
+												This will permanently delete document "{doc.id}".
+											</AlertDialogDescription>
+										</AlertDialogHeader>
+										<AlertDialogFooter>
+											<AlertDialogCancel>Cancel</AlertDialogCancel>
+											<AlertDialogAction
+												onClick={() =>
+													deleteMutation.mutate(doc.id)
+												}
+											>
+												Delete
+											</AlertDialogAction>
+										</AlertDialogFooter>
+									</AlertDialogContent>
+								</AlertDialog>
+							</TableCell>
+						</TableRow>
+					))}
+					{documents?.length === 0 && (
+						<TableRow>
+							<TableCell
+								colSpan={4}
+								className="text-center text-muted-foreground"
+							>
+								No documents yet.
+							</TableCell>
+						</TableRow>
+					)}
+				</TableBody>
+			</Table>
+		);
+	}
 
 	return (
 		<div className="space-y-6">
@@ -138,12 +222,10 @@ function CollectionDocumentsPage() {
 							<form
 								onSubmit={(e) => {
 									e.preventDefault();
-									try {
-										JSON.parse(dataJson);
-										createMutation.mutate();
-									} catch {
-										toast.error("Invalid JSON");
-									}
+									Option.match(decodeJsonOption(dataJson), {
+										onSome: () => createMutation.mutate(),
+										onNone: () => toast.error("Invalid JSON"),
+									});
 								}}
 								className="grid gap-4"
 							>
@@ -163,7 +245,7 @@ function CollectionDocumentsPage() {
 										type="submit"
 										disabled={createMutation.isPending}
 									>
-										{createMutation.isPending ? "Creating..." : "Create"}
+										{createLabel(createMutation.isPending)}
 									</Button>
 								</DialogFooter>
 							</form>
@@ -176,83 +258,7 @@ function CollectionDocumentsPage() {
 				<TabsList>
 					<TabsTrigger value="list">List</TabsTrigger>
 				</TabsList>
-				<TabsContent value="list">
-					{isLoading ? (
-						<p className="text-muted-foreground">Loading...</p>
-					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>ID</TableHead>
-									<TableHead>Version</TableHead>
-									<TableHead>Value Preview</TableHead>
-									<TableHead className="w-16" />
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{documents?.map((doc) => (
-									<TableRow key={doc.id}>
-										<TableCell>
-											<Link
-												to="/collections/$collectionId/documents/$documentId"
-												params={{
-													collectionId,
-													documentId: doc.id,
-												}}
-												className="font-mono text-sm text-primary hover:underline"
-											>
-												{doc.id}
-											</Link>
-										</TableCell>
-										<TableCell>{doc.version}</TableCell>
-										<TableCell className="max-w-xs truncate font-mono text-xs text-muted-foreground">
-											{JSON.stringify(doc.flat).slice(0, 100)}
-										</TableCell>
-										<TableCell>
-											<AlertDialog>
-												<AlertDialogTrigger asChild>
-													<Button variant="ghost" size="icon">
-														<Trash2 className="h-4 w-4 text-destructive-foreground" />
-													</Button>
-												</AlertDialogTrigger>
-												<AlertDialogContent>
-													<AlertDialogHeader>
-														<AlertDialogTitle>
-															Delete document?
-														</AlertDialogTitle>
-														<AlertDialogDescription>
-															This will permanently delete document "{doc.id}".
-														</AlertDialogDescription>
-													</AlertDialogHeader>
-													<AlertDialogFooter>
-														<AlertDialogCancel>Cancel</AlertDialogCancel>
-														<AlertDialogAction
-															onClick={() =>
-																deleteMutation.mutate(doc.id)
-															}
-														>
-															Delete
-														</AlertDialogAction>
-													</AlertDialogFooter>
-												</AlertDialogContent>
-											</AlertDialog>
-										</TableCell>
-									</TableRow>
-								))}
-								{documents?.length === 0 && (
-									<TableRow>
-										<TableCell
-											colSpan={4}
-											className="text-center text-muted-foreground"
-										>
-											No documents yet.
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
-					)}
-				</TabsContent>
+				<TabsContent value="list">{documentsView}</TabsContent>
 			</Tabs>
 		</div>
 	);

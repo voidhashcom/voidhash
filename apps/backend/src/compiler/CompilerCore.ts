@@ -5,7 +5,8 @@ import {
   type CompileCheckResult,
   type CompileExtractResult,
 } from "@voidhash/core/services/paywallWorkspace/ComponentCompiler";
-import { Effect } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Data, Effect } from "effect";
 import { createContext, Script } from "node:vm";
 
 const manifestEvaluationTimeoutMs = 500;
@@ -24,9 +25,44 @@ interface SandboxSurface {
   readonly renderComponentToTree: (typeof import("@voidhash/paywalls/sandbox"))["renderComponentToTree"];
 }
 
+type ComponentDefinitionInput = Parameters<SandboxSurface["describeComponent"]>[0];
+
+/**
+ * A broken toolchain: esbuild could not be loaded or the transform itself blew
+ * up. `thrown` keeps the original value so esbuild's structured diagnostics can
+ * still be read off it.
+ */
+class CompilerToolchainError extends Data.TaggedError("CompilerToolchainError")<{
+  readonly message: string;
+  readonly thrown: unknown;
+}> {}
+
+/** A failure raised by the user's component while it is evaluated or rendered. */
+class ComponentEvaluationError extends Data.TaggedError("ComponentEvaluationError")<{
+  readonly message: string;
+}> {}
+
+const toToolchainError = (thrown: unknown): CompilerToolchainError =>
+  new CompilerToolchainError({ message: causeMessage(thrown), thrown });
+
+const toEvaluationError = (thrown: unknown): ComponentEvaluationError =>
+  new ComponentEvaluationError({ message: causeMessage(thrown) });
+
+const isEsbuildFailure = (error: unknown): error is EsbuildFailure => {
+  if (typeof error !== "object" || error === null) return false;
+  return "errors" in error;
+};
+
+const isComponentDefinition = (value: unknown): value is ComponentDefinitionInput => {
+  if (value === null || value === undefined) return false;
+  if (typeof value !== "object" && typeof value !== "function") return false;
+  if (!("render" in value)) return false;
+  return typeof value.render === "function";
+};
+
 const toCompileDiagnostics = (error: unknown): ComponentCompileDiagnostic[] => {
-  if (typeof error !== "object" || error === null || !("errors" in error)) return [];
-  const errors = (error as EsbuildFailure).errors;
+  if (!isEsbuildFailure(error)) return [];
+  const errors = error.errors;
   if (!Array.isArray(errors) || errors.length === 0) return [];
   return errors.map((message) => ({
     column: message.location?.column,
@@ -36,124 +72,184 @@ const toCompileDiagnostics = (error: unknown): ComponentCompileDiagnostic[] => {
   }));
 };
 
-const nodeTransform = async (source: string): Promise<string> => {
-  const esbuild = await import("esbuild");
-  const result = await esbuild.transform(source, {
-    format: "cjs",
-    jsx: "automatic",
-    jsxImportSource: "@voidhash/paywalls",
-    loader: "tsx",
-    target: "es2022",
-  });
-  return result.code;
-};
+const compileErrorResult = (
+  diagnostics: ReadonlyArray<ComponentCompileDiagnostic>,
+): CompileExtractResult => ({ diagnostics, phase: "compile", status: "error" });
 
-const evaluateAndExtractManifest = (compiledCode: string, sandbox: SandboxSurface) => {
-  const requireShim = (specifier: string): unknown => {
+const runtimeErrorResult = (message: string): CompileExtractResult => ({
+  diagnostics: [{ message }],
+  phase: "runtime",
+  status: "error",
+});
+
+/** Lazily loads esbuild so the toolchain is only pulled in when a compile runs. */
+const importEsbuildModule = () => import("esbuild");
+
+/** Lazily loads the paywall sandbox surface used to evaluate compiled components. */
+const importSandboxModule = () => import("@voidhash/paywalls/sandbox");
+
+const loadEsbuild = Effect.tryPromise({
+  try: importEsbuildModule,
+  catch: toToolchainError,
+});
+
+const loadSandbox = Effect.tryPromise({
+  try: importSandboxModule,
+  catch: toToolchainError,
+});
+
+const nodeTransform = (source: string): Effect.Effect<string, CompilerToolchainError> =>
+  Effect.gen(function* () {
+    const esbuild = yield* loadEsbuild;
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        esbuild.transform(source, {
+          format: "cjs",
+          jsx: "automatic",
+          jsxImportSource: "@voidhash/paywalls",
+          loader: "tsx",
+          target: "es2022",
+        }),
+      catch: toToolchainError,
+    });
+    return result.code;
+  });
+
+/**
+ * The vm `require` hook is a synchronous V8 callback, so a missing module has to
+ * leave as a thrown value. Running an already-failed Effect keeps the tagged
+ * error model without a bare `throw` statement.
+ */
+const makeRequireShim =
+  (sandbox: SandboxSurface) =>
+  (specifier: string): unknown => {
     const module = sandbox.modules[specifier];
-    if (module === undefined) throw new Error(`Cannot find module '${specifier}'`);
+    if (module === undefined) {
+      return Effect.runSync(
+        Effect.fail(
+          new ComponentEvaluationError({ message: `Cannot find module '${specifier}'` }),
+        ),
+      );
+    }
     return module;
   };
-  const moduleObject: { exports: Record<string, unknown> } = { exports: {} };
-  const context = createContext(
-    {
-      exports: moduleObject.exports,
-      module: moduleObject,
-      require: requireShim,
+
+const evaluateModule = (
+  compiledCode: string,
+  sandbox: SandboxSurface,
+): Effect.Effect<Record<string, unknown>, ComponentEvaluationError> =>
+  Effect.try({
+    try: () => {
+      const moduleObject: { exports: Record<string, unknown> } = { exports: {} };
+      const context = createContext(
+        {
+          exports: moduleObject.exports,
+          module: moduleObject,
+          require: makeRequireShim(sandbox),
+        },
+        {
+          codeGeneration: { strings: false, wasm: false },
+          microtaskMode: "afterEvaluate",
+          name: "voidhash-component-manifest",
+        },
+      );
+      new Script(compiledCode, { filename: "component.cjs" }).runInContext(context, {
+        timeout: manifestEvaluationTimeoutMs,
+      });
+      return moduleObject.exports;
     },
-    {
-      codeGeneration: { strings: false, wasm: false },
-      microtaskMode: "afterEvaluate",
-      name: "voidhash-component-manifest",
-    },
-  );
-  new Script(compiledCode, { filename: "component.cjs" }).runInContext(context, {
-    timeout: manifestEvaluationTimeoutMs,
+    catch: toEvaluationError,
   });
-  const definition = moduleObject.exports.default ?? moduleObject.exports.definition;
-  if (
-    definition === undefined ||
-    definition === null ||
-    typeof (definition as { render?: unknown }).render !== "function"
-  ) {
-    throw new Error("Component must export a default defineComponent({ ... })");
-  }
-  const typedDefinition = definition as Parameters<SandboxSurface["describeComponent"]>[0];
-  return {
-    definition: typedDefinition,
-    manifest: sandbox.describeComponent(typedDefinition).manifest,
-  };
-};
 
-const compileAndExtract = async (source: string): Promise<CompileExtractResult> => {
-  let compiledCode: string;
-  try {
-    compiledCode = await nodeTransform(source);
-  } catch (error) {
-    const diagnostics = toCompileDiagnostics(error);
-    if (diagnostics.length === 0) throw error;
-    return { diagnostics, phase: "compile", status: "error" };
-  }
+const evaluateAndExtractManifest = (compiledCode: string, sandbox: SandboxSurface) =>
+  Effect.gen(function* () {
+    const moduleExports = yield* evaluateModule(compiledCode, sandbox);
+    const definition = moduleExports.default ?? moduleExports.definition;
+    if (!isComponentDefinition(definition)) {
+      return yield* Effect.fail(
+        new ComponentEvaluationError({
+          message: "Component must export a default defineComponent({ ... })",
+        }),
+      );
+    }
+    const described = yield* Effect.try({
+      try: () => sandbox.describeComponent(definition),
+      catch: toEvaluationError,
+    });
+    return { definition, manifest: described.manifest };
+  });
 
-  const sandbox = await import("@voidhash/paywalls/sandbox");
-  try {
-    const { definition, manifest } = evaluateAndExtractManifest(compiledCode, sandbox);
+const renderPreviews = (
+  compiledCode: string,
+  sandbox: SandboxSurface,
+): Effect.Effect<CompileExtractResult, ComponentEvaluationError> =>
+  Effect.gen(function* () {
+    const { definition, manifest } = yield* evaluateAndExtractManifest(compiledCode, sandbox);
     const previewTrees: Record<string, unknown> = {};
-    const states = manifest.previewStates.length > 0 ? manifest.previewStates : ["default"];
+    let states: ReadonlyArray<string> = ["default"];
+    if (manifest.previewStates.length > 0) states = manifest.previewStates;
     for (const state of states) {
       const fixture = definition.previews?.[state] ?? {};
-      previewTrees[state] = await sandbox.renderComponentToTree(definition, {
-        state,
-        props: fixture.props,
-        hostData: { ...sandbox.defaultHostData(), ...fixture.data },
+      previewTrees[state] = yield* Effect.tryPromise({
+        try: () =>
+          sandbox.renderComponentToTree(definition, {
+            state,
+            props: fixture.props,
+            hostData: { ...sandbox.defaultHostData(), ...fixture.data },
+          }),
+        catch: toEvaluationError,
       });
     }
-    return {
-      manifest,
-      previewTrees,
-      status: "ready",
-    };
-  } catch (error) {
-    return {
-      diagnostics: [{ message: error instanceof Error ? error.message : String(error) }],
-      phase: "runtime",
-      status: "error",
-    };
-  }
-};
+    const ready: CompileExtractResult = { manifest, previewTrees, status: "ready" };
+    return ready;
+  });
+
+const compileAndExtract = (
+  source: string,
+): Effect.Effect<CompileExtractResult, CompilerToolchainError> =>
+  Effect.gen(function* () {
+    const compiled = yield* nodeTransform(source).pipe(
+      Effect.catch((error) =>
+        Effect.gen(function* () {
+          const diagnostics = toCompileDiagnostics(error.thrown);
+          if (diagnostics.length === 0) return yield* Effect.fail(error);
+          const failure: string | CompileExtractResult = compileErrorResult(diagnostics);
+          return failure;
+        }),
+      ),
+    );
+    if (typeof compiled !== "string") return compiled;
+
+    const sandbox = yield* loadSandbox;
+    return yield* renderPreviews(compiled, sandbox).pipe(
+      Effect.catch((error) => Effect.succeed(runtimeErrorResult(error.message))),
+    );
+  });
 
 /** Native compiler used exclusively inside the isolated self-host sidecar. */
 /** Builds the self-hosted compiler that validates source and renders preview trees. */
 export const makeNodeComponentCompiler = (): ComponentCompilerShape => ({
   compileCheck: (source) =>
-    Effect.tryPromise(async (): Promise<CompileCheckResult> => {
-      try {
-        await nodeTransform(source);
-        return { status: "ready" };
-      } catch (error) {
-        const diagnostics = toCompileDiagnostics(error);
-        if (diagnostics.length === 0) throw error;
-        return { diagnostics, status: "error" };
-      }
-    }).pipe(
+    nodeTransform(source).pipe(
+      Effect.map((): CompileCheckResult => ({ status: "ready" })),
+      Effect.catch((error) =>
+        Effect.gen(function* () {
+          const diagnostics = toCompileDiagnostics(error.thrown);
+          if (diagnostics.length === 0) return yield* Effect.fail(error);
+          const failure: CompileCheckResult = { diagnostics, status: "error" };
+          return failure;
+        }),
+      ),
       Effect.mapError(
         (error) =>
-          new ComponentCompilerError({
-            message: `esbuild transform failed: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          }),
+          new ComponentCompilerError({ message: `esbuild transform failed: ${error.message}` }),
       ),
     ),
   compileAndExtract: (source) =>
-    Effect.tryPromise(() => compileAndExtract(source)).pipe(
+    compileAndExtract(source).pipe(
       Effect.mapError(
         (error) =>
-          new ComponentCompilerError({
-            message: `component extraction failed: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          }),
+          new ComponentCompilerError({ message: `component extraction failed: ${error.message}` }),
       ),
     ),
 });

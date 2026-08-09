@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import React, { type ReactNode, createContext } from "react";
 
 import type { VoidhashClient } from "../../client";
@@ -19,7 +20,7 @@ export function voidhashProviderFactory(initialClient: VoidhashClient) {
     const [isInitialized, setIsInitialized] = React.useState(false);
 
     React.useEffect(() => {
-      client.current.init().then(() => {
+      void client.current.init().then(() => {
         setIsInitialized(true);
       });
     }, []);
@@ -39,7 +40,9 @@ export function voidhashProviderFactory(initialClient: VoidhashClient) {
   function useVoidhash() {
     const context = React.useContext(VoidhashContext);
     if (!context) {
-      throw new Error("useVoidhash must be used within a VoidhashProvider");
+      return Effect.runSync(
+        Effect.die(new Error("useVoidhash must be used within a VoidhashProvider")),
+      );
     }
     return context;
   }

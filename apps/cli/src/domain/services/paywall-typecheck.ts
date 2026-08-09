@@ -3,9 +3,8 @@
  * `.voidhash` sources are typechecked with the TypeScript compiler API using
  * the project's own `tsconfig.json`, and the build fails listing diagnostics.
  */
-import { dirname, join } from "node:path";
-
-import { Data, Effect } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Data, Effect, Path } from "effect";
 import ts from "typescript";
 
 export class PaywallTypecheckError extends Data.TaggedError("PaywallTypecheckError")<{
@@ -19,7 +18,7 @@ export class PaywallTypecheckError extends Data.TaggedError("PaywallTypecheckErr
  * `import hero from "./hero.png"` typechecks, and the bundler emits/inlines
  * the file.
  */
-export const PAYWALL_ASSET_EXTENSIONS = [
+export const PAYWALL_ASSET_EXTENSIONS = constant([
   "png",
   "jpg",
   "jpeg",
@@ -30,7 +29,7 @@ export const PAYWALL_ASSET_EXTENSIONS = [
   "otf",
   "woff",
   "woff2",
-] as const;
+]);
 
 /** Ambient `declare module "*.png" { … }` block per supported asset extension. */
 const ASSET_MODULE_DECLARATIONS = PAYWALL_ASSET_EXTENSIONS.map(
@@ -56,36 +55,66 @@ const FALLBACK_OPTIONS: ts.CompilerOptions = {
 
 const formatHost: ts.FormatDiagnosticsHost = {
   getCanonicalFileName: (fileName) => fileName,
+  // oxlint-disable-next-line typescript/unbound-method -- ts.sys is the TypeScript compiler's own host singleton: its members are standalone functions that never read `this`, and the compiler API contract is to hand them over by reference.
   getCurrentDirectory: ts.sys.getCurrentDirectory,
   getNewLine: () => ts.sys.newLine,
 };
 
-const loadCompilerOptions = (
-  projectRoot: string,
-): { options: ts.CompilerOptions; configPath: string | undefined } => {
-  const configPath = ts.findConfigFile(projectRoot, ts.sys.fileExists, "tsconfig.json");
-  if (!configPath) {
-    return { configPath: undefined, options: { ...FALLBACK_OPTIONS } };
-  }
-
-  const read = ts.readConfigFile(configPath, ts.sys.readFile);
-  if (read.error) {
-    throw new Error(ts.formatDiagnostics([read.error], formatHost));
-  }
-  const parsed = ts.parseJsonConfigFileContent(
-    read.config,
-    ts.sys,
-    dirname(configPath),
-    undefined,
-    configPath,
-  );
-  // "no inputs were found" (18003) is irrelevant — we supply our own roots.
-  const configErrors = parsed.errors.filter((e) => e.code !== 18_003);
-  if (configErrors.length > 0) {
-    throw new Error(ts.formatDiagnostics(configErrors, formatHost));
-  }
-  return { configPath, options: parsed.options };
+/** Message for an unknown failure raised by the TypeScript compiler API. */
+const typecheckFailureMessage = (cause: unknown): string => {
+  if (cause instanceof Error) return cause.message;
+  return "Failed to typecheck .voidhash sources.";
 };
+
+/** Runs a synchronous TypeScript compiler API call as a typed failure. */
+const attempt = <A>(thunk: () => A): Effect.Effect<A, PaywallTypecheckError> =>
+  Effect.try({
+    try: thunk,
+    catch: (cause) =>
+      new PaywallTypecheckError({ cause, message: typecheckFailureMessage(cause) }),
+  });
+
+const loadCompilerOptions = (
+  path: Path.Path,
+  projectRoot: string,
+): Effect.Effect<
+  { options: ts.CompilerOptions; configPath: string | undefined },
+  PaywallTypecheckError
+> =>
+  Effect.gen(function* loadCompilerOptions() {
+    const configPath = yield* attempt(() =>
+      // oxlint-disable-next-line typescript/unbound-method -- ts.findConfigFile takes ts.sys.fileExists as a callback; the ts.sys members are `this`-free functions on the compiler's host singleton and are meant to be passed by reference.
+      ts.findConfigFile(projectRoot, ts.sys.fileExists, "tsconfig.json"),
+    );
+    if (!configPath) {
+      return { configPath: undefined, options: { ...FALLBACK_OPTIONS } };
+    }
+
+    // oxlint-disable-next-line typescript/unbound-method -- ts.readConfigFile takes ts.sys.readFile as a callback; the ts.sys members are `this`-free functions on the compiler's host singleton and are meant to be passed by reference.
+    const read = yield* attempt(() => ts.readConfigFile(configPath, ts.sys.readFile));
+    if (read.error) {
+      return yield* new PaywallTypecheckError({
+        message: ts.formatDiagnostics([read.error], formatHost),
+      });
+    }
+    const parsed = yield* attempt(() =>
+      ts.parseJsonConfigFileContent(
+        read.config,
+        ts.sys,
+        path.dirname(configPath),
+        undefined,
+        configPath,
+      ),
+    );
+    // "no inputs were found" (18003) is irrelevant — we supply our own roots.
+    const configErrors = parsed.errors.filter((e) => e.code !== 18_003);
+    if (configErrors.length > 0) {
+      return yield* new PaywallTypecheckError({
+        message: ts.formatDiagnostics(configErrors, formatHost),
+      });
+    }
+    return { configPath, options: parsed.options };
+  });
 
 /**
  * Wraps a compiler host so the in-memory asset declaration file exists at
@@ -98,12 +127,21 @@ const withAssetDeclarations = (host: ts.CompilerHost, assetDeclPath: string): ts
   return {
     ...host,
     fileExists: (fileName) => fileName === assetDeclPath || fileExists(fileName),
-    getSourceFile: (fileName, languageVersionOrOptions, ...rest) =>
-      fileName === assetDeclPath
-        ? ts.createSourceFile(fileName, ASSET_MODULE_DECLARATIONS, languageVersionOrOptions, true)
-        : getSourceFile(fileName, languageVersionOrOptions, ...rest),
-    readFile: (fileName) =>
-      fileName === assetDeclPath ? ASSET_MODULE_DECLARATIONS : readFile(fileName),
+    getSourceFile: (fileName, languageVersionOrOptions, ...rest) => {
+      if (fileName === assetDeclPath) {
+        return ts.createSourceFile(
+          fileName,
+          ASSET_MODULE_DECLARATIONS,
+          languageVersionOrOptions,
+          true,
+        );
+      }
+      return getSourceFile(fileName, languageVersionOrOptions, ...rest);
+    },
+    readFile: (fileName) => {
+      if (fileName === assetDeclPath) return ASSET_MODULE_DECLARATIONS;
+      return readFile(fileName);
+    },
   };
 };
 
@@ -118,42 +156,38 @@ const withAssetDeclarations = (host: ts.CompilerHost, assetDeclPath: string): ts
 export const typecheckPaywallSources = (options: {
   readonly projectRoot: string;
   readonly files: ReadonlyArray<string>;
-}): Effect.Effect<void, PaywallTypecheckError> =>
-  Effect.try({
-    try: () => {
-      const { options: compilerOptions } = loadCompilerOptions(options.projectRoot);
+}): Effect.Effect<void, PaywallTypecheckError, Path.Path> =>
+  Effect.gen(function* typecheckPaywallSources() {
+    const path = yield* Path.Path;
+    const { options: compilerOptions } = yield* loadCompilerOptions(path, options.projectRoot);
 
-      const finalOptions: ts.CompilerOptions = {
-        ...compilerOptions,
-        // The gate only checks — never emit, and never stumble over
-        // third-party declaration files.
-        incremental: false,
-        jsx: compilerOptions.jsx ?? ts.JsxEmit.ReactJSX,
-        noEmit: true,
-        skipLibCheck: true,
-      };
+    const finalOptions: ts.CompilerOptions = {
+      ...compilerOptions,
+      // The gate only checks — never emit, and never stumble over
+      // third-party declaration files.
+      incremental: false,
+      jsx: compilerOptions.jsx ?? ts.JsxEmit.ReactJSX,
+      noEmit: true,
+      skipLibCheck: true,
+    };
 
-      const assetDeclPath = join(options.projectRoot, ASSET_DECLARATIONS_FILE_NAME);
+    const assetDeclPath = path.join(options.projectRoot, ASSET_DECLARATIONS_FILE_NAME);
+    const diagnostics = yield* attempt(() => {
       const program = ts.createProgram({
         host: withAssetDeclarations(ts.createCompilerHost(finalOptions), assetDeclPath),
         options: finalOptions,
         rootNames: [...options.files, assetDeclPath],
       });
-
-      const diagnostics = ts
+      return ts
         .getPreEmitDiagnostics(program)
         .filter((d) => d.category === ts.DiagnosticCategory.Error);
+    });
 
-      if (diagnostics.length > 0) {
-        throw new Error(
+    if (diagnostics.length > 0) {
+      return yield* new PaywallTypecheckError({
+        message:
           `TypeScript found ${diagnostics.length} error(s) in .voidhash sources:\n\n` +
-            ts.formatDiagnosticsWithColorAndContext(diagnostics, formatHost),
-        );
-      }
-    },
-    catch: (cause) =>
-      new PaywallTypecheckError({
-        cause,
-        message: cause instanceof Error ? cause.message : "Failed to typecheck .voidhash sources.",
-      }),
+          ts.formatDiagnosticsWithColorAndContext(diagnostics, formatHost),
+      });
+    }
   });

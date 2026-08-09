@@ -18,13 +18,24 @@
     "incremental": true,
     "types": ["node", "vite/client"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["../../packages/web-app/src/*"],
+      "virtual:voidhash-web/auth-browser": [
+        "../../packages/web-app/src/composition/community/auth-browser.ts"
+      ],
+      "virtual:voidhash-web/auth-server": [
+        "../../packages/web-app/src/composition/community/auth-server.ts"
+      ],
+      "virtual:voidhash-web/edition": [
+        "../../packages/web-app/src/composition/community/edition.ts"
+      ]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
-  "exclude": [
-    "node_modules",
-    "src/features/studio/.cache/**",
-    "src/features/studio/.turbo/**"
-  ]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
+    "../../packages/web-app/src/generated.d.ts",
+    "../../packages/web-app/src/composition.d.ts"
+  ],
+  "exclude": ["node_modules"]
 }

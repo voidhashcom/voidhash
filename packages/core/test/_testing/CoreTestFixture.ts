@@ -8,7 +8,9 @@
  * IDs are stable, human-readable, and prefixed `it_` so they are easy to spot
  * (and bulk-delete) in a shared database.
  */
-export const CoreTestFixture = {
+import { constant } from "@voidhash/lib/lang";
+
+export const CoreTestFixture = constant({
   userId: "it_user",
   userEmail: "integration@voidhash.test",
   userName: "Integration Test User",
@@ -25,4 +27,4 @@ export const CoreTestFixture = {
   projectId: "it_project",
   projectName: "Integration Test Project",
   projectSlug: "it-project",
-} as const;
+});

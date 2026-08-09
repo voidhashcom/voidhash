@@ -1,11 +1,11 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { NotificationConfigNotEnabledError } from "../../domain/notifications/PushNotificationConfiguration.ts";
 import {
   Db,
   PushNotificationSendStatus,
   PushNotificationDeliveryStatus,
-  pushNotificationConfigs,
   pushNotificationDeliveries,
   pushNotificationSends,
 } from "@voidhash/db";
@@ -30,6 +30,14 @@ export interface SendNotificationInput {
   /** Optional caller key collapsing retries into a single send (per project). */
   readonly idempotencyKey?: string;
 }
+
+/** A send with no deliverable device is terminal the moment it is written. */
+const initialSendStatus = (deviceCount: number) => {
+  if (deviceCount === 0) {
+    return PushNotificationSendStatus.NoRecipients;
+  }
+  return PushNotificationSendStatus.Pending;
+};
 
 export interface SendNotificationResult {
   readonly pushNotificationSendId: string;
@@ -108,7 +116,7 @@ export class NotificationSendingService extends Context.Service<NotificationSend
               projectId: input.projectId,
               distinctId,
               shouldCreatePerson: false,
-              eventTimestamp: new Date(),
+              eventTimestamp: yield* DateTime.nowAsDate,
               setAttributes: {},
               setOnceAttributes: {},
             });
@@ -151,10 +159,12 @@ export class NotificationSendingService extends Context.Service<NotificationSend
           const sendId = generateId("pushNotificationSend");
           yield* Effect.annotateCurrentSpan("voidhash.push.send_id", sendId);
           yield* Effect.annotateCurrentSpan("voidhash.push.device_count", deliverable.length);
-          const status =
-            deliverable.length === 0
-              ? PushNotificationSendStatus.NoRecipients
-              : PushNotificationSendStatus.Pending;
+          const status = initialSendStatus(deliverable.length);
+          const now = yield* DateTime.nowAsDate;
+          const completion: { completedAt?: Date } = {};
+          if (deliverable.length === 0) {
+            completion.completedAt = now;
+          }
 
           // Persist the trail; on a unique-violation from a CONCURRENT send with
           // the same idempotency key (the pre-check above races the insert), fall
@@ -168,7 +178,7 @@ export class NotificationSendingService extends Context.Service<NotificationSend
                   id: sendId,
                   projectId: input.projectId,
                   idempotencyKey: input.idempotencyKey ?? null,
-                  message: input.message as unknown as Record<string, unknown>,
+                  message: { ...input.message },
                   requestedPersonIds: [...(input.personIds ?? [])],
                   requestedDistinctIds: [...distinctIds],
                   unresolvedDistinctIds,
@@ -177,7 +187,7 @@ export class NotificationSendingService extends Context.Service<NotificationSend
                   succeededCount: 0,
                   failedCount: 0,
                   skippedCount,
-                  ...(deliverable.length === 0 ? { completedAt: new Date() } : {}),
+                  ...completion,
                 });
                 for (const delivery of deliveries) {
                   yield* tx.insert(pushNotificationDeliveries).values({
@@ -196,29 +206,26 @@ export class NotificationSendingService extends Context.Service<NotificationSend
             )
             .pipe(
               Effect.as<SendNotificationResult | null>(null),
-              Effect.catch((error) =>
-                input.idempotencyKey === undefined
-                  ? Effect.fail(error)
-                  : db.query.pushNotificationSends
-                      .findFirst({
-                        where: {
-                          projectId: input.projectId,
-                          idempotencyKey: input.idempotencyKey,
-                        },
-                      })
-                      .pipe(
-                        Effect.flatMap((existing) =>
-                          existing
-                            ? Effect.succeed<SendNotificationResult | null>({
-                                pushNotificationSendId: existing.id,
-                                deviceCount: existing.deviceCount,
-                                status: existing.status,
-                                unresolvedDistinctIds: existing.unresolvedDistinctIds,
-                              })
-                            : Effect.fail(error),
-                        ),
-                      ),
-              ),
+              Effect.catch((error) => {
+                const idempotencyKey = input.idempotencyKey;
+                if (idempotencyKey === undefined) {
+                  return Effect.fail(error);
+                }
+                return Effect.gen(function* () {
+                  const existing = yield* db.query.pushNotificationSends.findFirst({
+                    where: { projectId: input.projectId, idempotencyKey },
+                  });
+                  if (!existing) {
+                    return yield* Effect.fail(error);
+                  }
+                  return {
+                    pushNotificationSendId: existing.id,
+                    deviceCount: existing.deviceCount,
+                    status: existing.status,
+                    unresolvedDistinctIds: existing.unresolvedDistinctIds,
+                  } satisfies SendNotificationResult;
+                });
+              }),
             );
           if (idempotentReplay) {
             yield* Effect.annotateCurrentSpan("voidhash.push.idempotent_replay", true);
@@ -266,7 +273,7 @@ export class NotificationSendingService extends Context.Service<NotificationSend
           ),
       );
 
-      return { send } as const;
+      return constant({ send });
     }),
   },
 ) {

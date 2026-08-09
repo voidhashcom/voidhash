@@ -43,5 +43,8 @@ export const paywallThumbnailKeyFromUrl = (
     return null;
   }
   const key = url.slice(prefix.length).split(/[?#]/, 1)[0];
-  return key?.startsWith(`paywall-thumbnails/${projectId}/${paywallId}/`) ? key : null;
+  if (key?.startsWith(`paywall-thumbnails/${projectId}/${paywallId}/`)) {
+    return key;
+  }
+  return null;
 };

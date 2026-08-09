@@ -9,7 +9,6 @@ import { isMotionValue, motionValue } from "../motion/value";
 import type {
   MotionLayoutBox,
   MotionNodeHandle,
-  MotionScrollMetrics,
   MotionStyleKey,
   MotionStyleProp,
   MotionVisualProps,

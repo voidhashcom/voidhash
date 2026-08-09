@@ -1,5 +1,6 @@
 import { Effect, Result, Schema } from "effect";
-import { describe, expect, it } from "vite-plus/test";
+
+import { describe, expect, it } from "../../testing/effect-vitest.ts";
 
 import {
   ComponentManifestSchema,
@@ -38,6 +39,9 @@ import {
   validateRecordedBlobCaps,
   validateUploadedBlobSize,
 } from "./PaywallDeployManifest.ts";
+
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -350,7 +354,7 @@ describe("ComponentManifestSchema", () => {
       title: "Kitchen Sink",
     };
     const result = decodeComponentManifest(manifest);
-    expect(Result.isSuccess(result), JSON.stringify(result)).toBe(true);
+    expect(Result.isSuccess(result), encodeJson(result)).toBe(true);
   });
 
   it("round-trips a minimal manifest with empty actions and no slot", () => {
@@ -756,11 +760,13 @@ describe("validateManifestConstraints", () => {
 // ---------------------------------------------------------------------------
 
 describe("contentHash helpers", () => {
-  it("sha256Hex matches the NIST test vectors", async () => {
-    expect(await Effect.runPromise(sha256Hex("abc"))).toBe(SHA256_OF_ABC);
-    expect(await Effect.runPromise(sha256Hex(new TextEncoder().encode("abc")))).toBe(SHA256_OF_ABC);
-    expect(await Effect.runPromise(sha256Hex(""))).toBe(SHA256_OF_EMPTY);
-  });
+  it.effect("sha256Hex matches the NIST test vectors", () =>
+    Effect.gen(function* () {
+      expect(yield* sha256Hex("abc")).toBe(SHA256_OF_ABC);
+      expect(yield* sha256Hex(new TextEncoder().encode("abc"))).toBe(SHA256_OF_ABC);
+      expect(yield* sha256Hex("")).toBe(SHA256_OF_EMPTY);
+    }),
+  );
 
   it("builds the §1.2 paywall preimage with sorted asset hashes", () => {
     expect(
@@ -800,12 +806,14 @@ describe("contentHash helpers", () => {
     ).toBe(`${hex("f")}:${hex("a")}:${hex("9")}:`);
   });
 
-  it("computePaywallContentHash hashes the preimage", async () => {
-    const input = { assetSha256s: [hex("4")], htmlSha256: hex("b"), jsSha256: hex("c") };
-    expect(await Effect.runPromise(computePaywallContentHash(input))).toBe(
-      await Effect.runPromise(sha256Hex(paywallContentHashPreimage(input))),
-    );
-  });
+  it.effect("computePaywallContentHash hashes the preimage", () =>
+    Effect.gen(function* () {
+      const input = { assetSha256s: [hex("4")], htmlSha256: hex("b"), jsSha256: hex("c") };
+      expect(yield* computePaywallContentHash(input)).toBe(
+        yield* sha256Hex(paywallContentHashPreimage(input)),
+      );
+    }),
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -829,15 +837,17 @@ describe("canonicalJsonStringify / computeManifestHash", () => {
 
   it("round-trips to the same JSON value", () => {
     const manifest = baseManifest();
-    expect(JSON.parse(canonicalJsonStringify(manifest))).toEqual(manifest);
+    expect(decodeJson(canonicalJsonStringify(manifest))).toEqual(manifest);
   });
 
-  it("computeManifestHash is stable across decode round-trips", async () => {
-    const first = await Effect.runPromise(computeManifestHash(decodedBaseManifest()));
-    const second = await Effect.runPromise(computeManifestHash(decodedBaseManifest()));
-    expect(first).toBe(second);
-    expect(first).toMatch(/^[a-f0-9]{64}$/);
-  });
+  it.effect("computeManifestHash is stable across decode round-trips", () =>
+    Effect.gen(function* () {
+      const first = yield* computeManifestHash(decodedBaseManifest());
+      const second = yield* computeManifestHash(decodedBaseManifest());
+      expect(first).toBe(second);
+      expect(first).toMatch(/^[a-f0-9]{64}$/);
+    }),
+  );
 });
 
 // ---------------------------------------------------------------------------

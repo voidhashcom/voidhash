@@ -41,7 +41,7 @@ const fakeSdk = (
         };
       }),
   };
-  const sdk = Object.create(MimicSDK.prototype) as MimicSDK;
+  const sdk: MimicSDK = Object.create(MimicSDK.prototype);
   Object.defineProperty(sdk, "runEffect", {
     value: (fn: (c: typeof client) => Effect.Effect<unknown, unknown>) => fn(client),
   });
@@ -49,66 +49,81 @@ const fakeSdk = (
 };
 
 describe("RawCollectionHandle.submitTransaction", () => {
-  it("builds a granular envelope (no whole-value command) at the given baseVersion", async () => {
-    const calls: SubmitCall[] = [];
-    const handle = new RawCollectionHandle("col-1", "db-1", fakeSdk(calls, {
-      accepted: true,
-      version: 12,
-    }));
+  it("builds a granular envelope (no whole-value command) at the given baseVersion", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const calls: SubmitCall[] = [];
+        const handle = new RawCollectionHandle(
+          "col-1",
+          "db-1",
+          fakeSdk(calls, { accepted: true, version: 12 }),
+        );
 
-    const commands = [{ kind: "object.set", path: [], key: "source", value: { kind: "string", value: "x" } }];
-    const result = await Effect.runPromise(
-      handle.submitTransaction("doc-1", { baseVersion: 11, commands, id: "tx-1" }) as Effect.Effect<
-        { accepted: boolean; version: number },
-        never
-      >,
-    );
+        const commands = [
+          { kind: "object.set", path: [], key: "source", value: { kind: "string", value: "x" } },
+        ];
+        const result = yield* handle.submitTransaction("doc-1", {
+          baseVersion: 11,
+          commands,
+          id: "tx-1",
+        });
 
-    expect(result).toEqual({ accepted: true, version: 12, transactionId: "tx-1", reason: undefined });
-    expect(calls).toHaveLength(1);
-    const call = calls[0]!;
-    expect(call).toEqual({
-      collectionId: "col-1",
-      documentId: "doc-1",
-      transaction: { id: "tx-1", baseVersion: 11, commands },
-    });
-    // Crucially NOT a whole-value replace — the batch is exactly the caller's.
-    expect(call.transaction.commands).toBe(commands);
-  });
+        expect(result).toEqual({
+          accepted: true,
+          version: 12,
+          transactionId: "tx-1",
+          reason: undefined,
+        });
+        expect(calls).toHaveLength(1);
+        const call = calls[0]!;
+        expect(call).toEqual({
+          collectionId: "col-1",
+          documentId: "doc-1",
+          transaction: { id: "tx-1", baseVersion: 11, commands },
+        });
+        // Crucially NOT a whole-value replace — the batch is exactly the caller's.
+        expect(call.transaction.commands).toBe(commands);
+      }),
+    ));
 
-  it("returns a rejected result verbatim instead of dying (caller retries)", async () => {
-    const calls: SubmitCall[] = [];
-    const handle = new RawCollectionHandle("col-1", "db-1", fakeSdk(calls, {
-      accepted: false,
-      version: 20,
-      reason: "Version conflict: expected 20, received 11",
-    }));
+  it("returns a rejected result verbatim instead of dying (caller retries)", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const calls: SubmitCall[] = [];
+        const handle = new RawCollectionHandle(
+          "col-1",
+          "db-1",
+          fakeSdk(calls, {
+            accepted: false,
+            version: 20,
+            reason: "Version conflict: expected 20, received 11",
+          }),
+        );
 
-    const result = await Effect.runPromise(
-      handle.submitTransaction("doc-1", { baseVersion: 11, commands: [], id: "tx-2" }) as Effect.Effect<
-        { accepted: boolean; version: number; reason?: string },
-        never
-      >,
-    );
+        const result = yield* handle.submitTransaction("doc-1", {
+          baseVersion: 11,
+          commands: [],
+          id: "tx-2",
+        });
 
-    expect(result.accepted).toBe(false);
-    expect(result.version).toBe(20);
-    expect(result.reason).toContain("Version conflict");
-  });
+        expect(result.accepted).toBe(false);
+        expect(result.version).toBe(20);
+        expect(result.reason).toContain("Version conflict");
+      }),
+    ));
 
-  it("mints a transaction id when none is supplied", async () => {
-    const calls: SubmitCall[] = [];
-    const handle = new RawCollectionHandle("col-1", "db-1", fakeSdk(calls, {
-      accepted: true,
-      version: 2,
-    }));
+  it("mints a transaction id when none is supplied", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const calls: SubmitCall[] = [];
+        const handle = new RawCollectionHandle(
+          "col-1",
+          "db-1",
+          fakeSdk(calls, { accepted: true, version: 2 }),
+        );
 
-    await Effect.runPromise(
-      handle.submitTransaction("doc-1", { baseVersion: 1, commands: [] }) as Effect.Effect<
-        unknown,
-        never
-      >,
-    );
-    expect(calls[0]!.transaction.id.length).toBeGreaterThan(0);
-  });
+        yield* handle.submitTransaction("doc-1", { baseVersion: 1, commands: [] });
+        expect(calls[0]!.transaction.id.length).toBeGreaterThan(0);
+      }),
+    ));
 });

@@ -69,17 +69,19 @@ describe("spec fractional fixtures", () => {
       let got: string[];
       switch (testCase.mode) {
         case "plain":
-          got =
-            count === 1
-              ? [generateKeyBetween(lower, upper, charset)]
-              : generateNKeysBetween(lower, upper, count, charset);
+          if (count === 1) {
+            got = [generateKeyBetween(lower, upper, charset)];
+          } else {
+            got = generateNKeysBetween(lower, upper, count, charset);
+          }
           break;
         case "jittered": {
           const random = new FixedRandomSource(testCase.random ?? []);
-          got =
-            count === 1
-              ? [generateJitteredKeyBetween(lower, upper, charset, random)]
-              : generateNJitteredKeysBetween(lower, upper, count, charset, random);
+          if (count === 1) {
+            got = [generateJitteredKeyBetween(lower, upper, charset, random)];
+          } else {
+            got = generateNJitteredKeysBetween(lower, upper, count, charset, random);
+          }
           break;
         }
       }

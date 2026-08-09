@@ -14,10 +14,12 @@ import {
 } from "@voidhash/platform-selfhost/ObjectStore";
 import { Effect, Layer, Option } from "effect";
 
-const objectStoreCause = (cause: unknown): string =>
-  cause instanceof ObjectStoreError
-    ? `${cause.operation} ${cause.bucketName}/${cause.key}: ${cause.cause}`
-    : String(cause);
+const objectStoreCause = (cause: unknown): string => {
+  if (cause instanceof ObjectStoreError) {
+    return `${cause.operation} ${cause.bucketName}/${cause.key}: ${cause.cause}`;
+  }
+  return String(cause);
+};
 
 const artifactError = (operation: string, cause: unknown) =>
   new PaywallArtifactStoreError({

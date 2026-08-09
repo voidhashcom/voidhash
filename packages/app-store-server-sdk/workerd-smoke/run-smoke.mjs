@@ -1,3 +1,10 @@
+// This is a standalone Node CLI harness (run via `pnpm test:workers`, not vitest): it bundles a
+// worker with esbuild, boots a real workerd through miniflare, and reports pass/fail on stdout
+// with a process exit code. It is a test-runner entrypoint, so its async top-level flow and its
+// console/process reporting ARE the interface; there is no Effect runtime in this process.
+// oxlint-disable effect/noAsyncFunction -- Node CLI harness driven by top-level `await main()`; esbuild, miniflare's `dispatchFetch`, and `Response.json()` are promise APIs and the script's own control flow is plain async/await with no Effect runtime to yield into.
+// oxlint-disable effect/noGlobals -- this script's output IS the test report: `console.log`/`console.error` write the human-readable pass/fail lines and `process.exit(1)` is how it fails CI; `JSON.stringify` builds the raw HTTP body and diagnostic detail. Effect Console/Config would need a runtime this standalone harness deliberately does not create.
+
 // Real Cloudflare Workers (workerd) smoke test for the App Store SDK verifier.
 //
 // Bundles `worker.ts` (which imports the ported verifier) with esbuild for the
@@ -9,7 +16,9 @@
 // This is the proof that the SDK runs on Workers, complementing the static
 // `import-ban.test.ts` gate. Run with `pnpm test:workers`.
 
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- Node CLI harness: `existsSync` is called from an esbuild `onResolve` plugin hook that must return synchronously, so an Effect FileSystem cannot be used.
 import { existsSync, readFileSync } from "node:fs";
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- Node CLI harness resolving fixture paths relative to `import.meta.url` before any runtime exists to provide Path.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import esbuild from "esbuild";
@@ -36,6 +45,7 @@ const tsResolvePlugin = {
     build.onResolve({ filter: /\.js$/ }, (args) => {
       if (args.kind === "entry-point" || !args.path.startsWith(".")) return undefined;
       const tsPath = path.resolve(args.resolveDir, args.path).replace(/\.js$/, ".ts");
+      // oxlint-disable-next-line effect/noTernary -- esbuild's onResolve contract: return a path override or `undefined` to defer to default resolution; this plain .mjs harness has no Effect import to reach Option.match for.
       return existsSync(tsPath) ? { path: tsPath } : undefined;
     });
   },
@@ -43,6 +53,7 @@ const tsResolvePlugin = {
 
 const flipLastChar = (segment) => {
   const last = segment[segment.length - 1];
+  // oxlint-disable-next-line effect/noTernary -- flips one base64url character to corrupt the signature; picking the replacement char must not accidentally reproduce the original, and this plain .mjs harness has no Effect import to reach Match.value for.
   return segment.slice(0, -1) + (last === "A" ? "B" : "A");
 };
 
@@ -76,10 +87,12 @@ const main = async () => {
       console.log(`  ✓ ${label}`);
     } else {
       failures++;
+      // oxlint-disable-next-line effect/noTernary -- appends the optional failure detail to the printed report line; a two-branch string interpolation in a plain .mjs harness with no Effect import available.
       console.log(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
     }
   };
 
+  // oxlint-disable-next-line effect/noTryCatch -- try/finally guarantees the miniflare workerd instance is disposed even when a check throws; Effect.acquireUseRelease needs a runtime and a Scope, neither of which exists in this plain .mjs harness.
   try {
     const signedTransaction = readFileSync(
       path.join(pkgRoot, "tests/resources/mock_signed_data/transactionInfo"),

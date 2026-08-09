@@ -63,7 +63,7 @@ export const makeMemoryDurableEntity = (): MemoryDurableEntity => {
           alarm: {
             get: Effect.sync(() => state.alarm),
             set: (scheduledTime) => Effect.sync(() => void (state.alarm = scheduledTime)),
-            delete: Effect.sync(() => void (state.alarm = undefined)),
+            delete: Effect.sync(() =>  (state.alarm = undefined)),
           },
           sessions: {
             get: (sessionId) => Effect.sync(() => state.sessions.get(sessionId)),
@@ -81,11 +81,10 @@ export const makeMemoryDurableEntity = (): MemoryDurableEntity => {
     listDueAlarms: (now, limit) =>
       Effect.sync(() =>
         [...states.values()]
-          .flatMap((state) =>
-            state.alarm !== undefined && state.alarm <= now
-              ? [{ address: state.address, scheduledTime: state.alarm }]
-              : [],
-          )
+          .flatMap((state) => {
+            if (state.alarm === undefined || state.alarm > now) return [];
+            return [{ address: state.address, scheduledTime: state.alarm }];
+          })
           .sort((left, right) => left.scheduledTime - right.scheduledTime)
           .slice(0, Math.max(0, Math.floor(limit))),
       ),

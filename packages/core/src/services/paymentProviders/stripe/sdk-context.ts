@@ -15,7 +15,7 @@
  * in here, so the REST requirement never leaks into each `record*` method's
  * `R` channel (mirrors how `appStore/sdk-context.ts` + FX capture work).
  */
-import { Effect, Layer, Redacted, Schema } from "effect";
+import { Clock, Effect, Layer, Redacted, Schema } from "effect";
 import type { HttpClient } from "effect/unstable/http/HttpClient";
 import { HttpClient as HttpClientTag } from "effect/unstable/http/HttpClient";
 import { Credentials, DEFAULT_API_BASE_URL } from "@distilled.cloud/stripe/Credentials";
@@ -25,6 +25,8 @@ import {
   GetCheckoutSessionsSessionLineItems,
   GetPaymentIntentsIntent,
 } from "@distilled.cloud/stripe/Operations";
+
+import { constant } from "@voidhash/lib/lang";
 
 import { StripePaymentProviderServiceError, StripeWebhookSignatureError } from "./errors.ts";
 import { decodeStripeEvent, StripeBalanceTransactionSchema } from "./events.ts";
@@ -47,6 +49,9 @@ const PriceRefSchema = Schema.Struct({
   id: Schema.optional(Schema.String),
   product: Schema.optional(Schema.NullOr(Schema.String)),
 });
+
+/** Parses an already signature-verified webhook body as arbitrary JSON. */
+const decodeJsonBody = Schema.decodeEffect(Schema.fromJsonString(Schema.Unknown));
 
 const parseSignatureHeader = (
   header: string,
@@ -74,24 +79,30 @@ const timingSafeEqual = (a: string, b: string): boolean => {
   return mismatch === 0;
 };
 
+const hmacFailure = (error: unknown) =>
+  new StripeWebhookSignatureError({ reason: `HMAC computation failed: ${String(error)}` });
+
 const computeHmacHex = (secret: string, payload: string) =>
-  Effect.tryPromise({
-    catch: (error) =>
-      new StripeWebhookSignatureError({ reason: `HMAC computation failed: ${String(error)}` }),
-    try: async () => {
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(secret),
-        { hash: "SHA-256", name: "HMAC" },
-        false,
-        ["sign"],
-      );
-      const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-      return Array.from(new Uint8Array(signature))
-        .map((byte) => byte.toString(16).padStart(2, "0"))
-        .join("");
-    },
+  Effect.gen(function* () {
+    const encoder = new TextEncoder();
+    const key = yield* Effect.tryPromise({
+      catch: hmacFailure,
+      try: () =>
+        crypto.subtle.importKey(
+          "raw",
+          encoder.encode(secret),
+          { hash: "SHA-256", name: "HMAC" },
+          false,
+          ["sign"],
+        ),
+    });
+    const signature = yield* Effect.tryPromise({
+      catch: hmacFailure,
+      try: () => crypto.subtle.sign("HMAC", key, encoder.encode(payload)),
+    });
+    return Array.from(new Uint8Array(signature))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
   });
 
 export type StripeContext = ReturnType<typeof buildStripeContext>;
@@ -100,12 +111,17 @@ export type StripeContext = ReturnType<typeof buildStripeContext>;
 export const buildStripeContext = (config: StripeContextConfig) => {
   const apiBaseUrl = config.apiBaseUrl ?? DEFAULT_API_BASE_URL;
 
+  const secretKeyFor = (mode: StripeMode): string => {
+    if (mode === "live") return config.liveSecretKey;
+    return config.testSecretKey;
+  };
+
   const credentialsLayerFor = (mode: StripeMode) =>
     Layer.succeed(
       Credentials,
       Effect.succeed({
         apiBaseUrl,
-        apiKey: Redacted.make(mode === "live" ? config.liveSecretKey : config.testSecretKey),
+        apiKey: Redacted.make(secretKeyFor(mode)),
       }),
     );
 
@@ -144,7 +160,7 @@ export const buildStripeContext = (config: StripeContextConfig) => {
         });
       }
       if (!input.skipTimestampTolerance) {
-        const nowSeconds = Math.floor(Date.now() / 1000);
+        const nowSeconds = Math.floor((yield* Clock.currentTimeMillis) / 1000);
         if (Math.abs(nowSeconds - timestampSeconds) > SIGNATURE_TOLERANCE_SECONDS) {
           return yield* new StripeWebhookSignatureError({
             reason: "Stripe-Signature timestamp outside tolerance window",
@@ -173,24 +189,31 @@ export const buildStripeContext = (config: StripeContextConfig) => {
         });
       }
 
-      const parsed = yield* Effect.try({
-        catch: (error) =>
-          new StripeWebhookSignatureError({
-            reason: `verified body is not valid JSON: ${String(error)}`,
-          }),
-        try: () => JSON.parse(input.rawBody) as unknown,
-      });
+      const parsed = yield* decodeJsonBody(input.rawBody).pipe(
+        Effect.mapError(
+          (error) =>
+            new StripeWebhookSignatureError({
+              reason: `verified body is not valid JSON: ${String(error)}`,
+            }),
+        ),
+      );
       const event = yield* decodeStripeEvent(parsed).pipe(
         Effect.mapError((error) => new StripeWebhookSignatureError({ reason: error.cause })),
       );
-      return { event, mode: verifiedMode } as const;
+      return constant({ event, mode: verifiedMode });
     });
+
+  const toPriceRef = (ref: {
+    readonly id?: string | undefined;
+    readonly product?: string | null | undefined;
+  }) => {
+    if (!ref.id) return undefined;
+    return { priceId: ref.id, productId: ref.product ?? undefined };
+  };
 
   const decodePriceRef = (price: unknown) =>
     Schema.decodeUnknownEffect(PriceRefSchema)(price).pipe(
-      Effect.map((ref) =>
-        ref.id ? { priceId: ref.id, productId: ref.product ?? undefined } : undefined,
-      ),
+      Effect.map(toPriceRef),
       Effect.catch(() => Effect.succeed(undefined)),
     );
 
@@ -229,9 +252,10 @@ export const buildStripeContext = (config: StripeContextConfig) => {
     readonly mode: StripeMode;
   }) =>
     runOp(GetPaymentIntentsIntent({ intent: input.paymentIntentId }), input.mode).pipe(
-      Effect.map((intent) =>
-        typeof intent.latest_charge === "string" ? intent.latest_charge : undefined,
-      ),
+      Effect.map((intent) => {
+        if (typeof intent.latest_charge === "string") return intent.latest_charge;
+        return undefined;
+      }),
       Effect.catch(() => Effect.succeed<string | undefined>(undefined)),
     );
 
@@ -251,7 +275,8 @@ export const buildStripeContext = (config: StripeContextConfig) => {
         const line = response.data.find(
           (entry) => typeof entry.price === "object" && entry.price !== null,
         );
-        return line ? decodePriceRef(line.price) : Effect.succeed(undefined);
+        if (!line) return Effect.succeed(undefined);
+        return decodePriceRef(line.price);
       }),
       Effect.mapError(
         (error) =>
@@ -261,10 +286,10 @@ export const buildStripeContext = (config: StripeContextConfig) => {
       ),
     );
 
-  return {
+  return constant({
     fetchChargeFeeMinor,
     fetchCheckoutLineItemPriceProduct,
     fetchPaymentIntentLatestChargeId,
     verifyAndDecodeEvent,
-  } as const;
+  });
 };

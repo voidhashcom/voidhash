@@ -22,7 +22,7 @@ import { CardOverlay } from "./Card";
 import { AddColumnForm } from "./AddColumnForm";
 import { EditCardModal } from "./EditCardModal";
 import { useKanban } from "../../context/KanbanContext";
-import type { Card as CardType, Column as ColumnType } from "../../types/kanban";
+import type { Card as CardType } from "../../types/kanban";
 import { useTodoStore, TodoStoreContext } from "../../lib/store";
 import { useUndoRedo, useUndoRedoKeyboard } from "@voidhash/mimic/zustand-commander";
 import type { CardSnapshot, ColumnSnapshot } from "../../shared";
@@ -32,6 +32,32 @@ const toCard = (card: CardSnapshot): CardType => ({
   title: card.data?.title ?? "",
   description: card.data?.description ?? "",
 });
+
+const dragType = (value: unknown): "card" | "column" | undefined => {
+  if (value === "card") return "card";
+  if (value === "column") return "column";
+  return undefined;
+};
+
+const connectionClass = (isConnected: boolean): string => {
+  if (isConnected) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+  return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+};
+
+const connectionLabel = (isConnected: boolean): string => {
+  if (isConnected) return "Connected";
+  return "Disconnected";
+};
+
+const readyClass = (isReady: boolean): string => {
+  if (isReady) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+  return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+};
+
+const readyLabel = (isReady: boolean): string => {
+  if (isReady) return "Ready";
+  return "Loading...";
+};
 
 export function KanbanBoard() {
   const { state, moveCard, reorderColumns } = useKanban();
@@ -58,10 +84,6 @@ export function KanbanBoard() {
     }),
   );
 
-  const columns = useMemo(() => {
-    return state?.children;
-  }, [state?.children]);
-
   const allCards = useMemo(() => {
     return state?.children.flatMap((child: ColumnSnapshot) => child.children) ?? [];
   }, [state?.children]);
@@ -69,7 +91,8 @@ export function KanbanBoard() {
   const activeCard = useMemo(() => {
     if (activeType === "card" && activeId) {
       const card = allCards.find((candidate: CardSnapshot) => candidate.id === activeId);
-      return card ? toCard(card) : null;
+      if (!card) return null;
+      return toCard(card);
     }
     return null;
   }, [activeType, activeId, allCards]);
@@ -103,13 +126,13 @@ export function KanbanBoard() {
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
-    const type = active.data.current?.type as "card" | "column" | undefined;
+    const type = dragType(active.data.current?.type);
 
     if (type === "card") {
-      setActiveId(active.id as string);
+      setActiveId(String(active.id));
       setActiveType("card");
     } else if (type === "column") {
-      setActiveId(active.id as string);
+      setActiveId(String(active.id));
       setActiveType("column");
     }
   }
@@ -124,7 +147,7 @@ export function KanbanBoard() {
     // Only handle card movements during drag over
     if (activeType !== "card") return;
 
-    const activeCardId = active.id as string;
+    const activeCardId = String(active.id);
     const sourceColumnId = findColumnByCardId(activeCardId);
     if (!sourceColumnId) return;
 
@@ -132,7 +155,7 @@ export function KanbanBoard() {
 
     if (overType === "card") {
       // Dragging over another card
-      destinationColumnId = findColumnByCardId(over.id as string);
+      destinationColumnId = findColumnByCardId(String(over.id));
     } else if (overType === "column" || over.id.toString().startsWith("column-droppable-")) {
       // Dragging over a column or its drop zone
       destinationColumnId =
@@ -155,7 +178,7 @@ export function KanbanBoard() {
     if (overType === "card") {
       destinationIndex =
         destinationColumn?.children.findIndex(
-          (child: CardSnapshot) => child.id === (over.id as string),
+          (child: CardSnapshot) => child.id === String(over.id),
         ) ?? -1;
     }
 
@@ -176,26 +199,26 @@ export function KanbanBoard() {
       // Reorder columns
       if (active.id !== over.id) {
         const sourceIndex =
-          allColumns?.findIndex((column: ColumnSnapshot) => column.id === (active.id as string)) ??
+          allColumns?.findIndex((column: ColumnSnapshot) => column.id === String(active.id)) ??
           -1;
         const destinationIndex =
-          allColumns?.findIndex((column: ColumnSnapshot) => column.id === (over.id as string)) ??
+          allColumns?.findIndex((column: ColumnSnapshot) => column.id === String(over.id)) ??
           -1;
 
         if (sourceIndex !== -1 && destinationIndex !== -1) {
-          reorderColumns(active.id as string, destinationIndex);
+          reorderColumns(String(active.id), destinationIndex);
         }
       }
     } else if (activeType === "card") {
       // Handle card reordering within the same column
-      const activeCardId = active.id as string;
+      const activeCardId = String(active.id);
       const sourceColumnId = findColumnByCardId(activeCardId);
       if (!sourceColumnId) return;
 
       const overType = over.data.current?.type;
 
       if (overType === "card") {
-        const overCardId = over.id as string;
+        const overCardId = String(over.id);
         const destinationColumnId = findColumnByCardId(overCardId);
 
         if (destinationColumnId && sourceColumnId === destinationColumnId) {
@@ -249,14 +272,12 @@ export function KanbanBoard() {
           {/* Connection status */}
           <div className="flex flex-row items-center gap-2">
             <div
-              className={`px-2 py-1 text-xs rounded ${mimic.isConnected ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}`}
+              className={`px-2 py-1 text-xs rounded ${connectionClass(mimic.isConnected)}`}
             >
-              {mimic.isConnected ? "Connected" : "Disconnected"}
+              {connectionLabel(mimic.isConnected)}
             </div>
-            <div
-              className={`px-2 py-1 text-xs rounded ${mimic.isReady ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"}`}
-            >
-              {mimic.isReady ? "Ready" : "Loading..."}
+            <div className={`px-2 py-1 text-xs rounded ${readyClass(mimic.isReady)}`}>
+              {readyLabel(mimic.isReady)}
             </div>
           </div>
 

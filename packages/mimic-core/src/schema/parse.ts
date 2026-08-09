@@ -1,6 +1,4 @@
-import type { Path } from "../core/types.ts";
 import { isCoreError } from "../core/errors.ts";
-import { SchemaErrorCodes } from "./errors.ts";
 import type { Schema } from "./types.ts";
 import { getSchemaModel, isSchemaKind } from "./registry.ts";
 import {
@@ -11,6 +9,7 @@ import {
   parseOptionalBoolean,
 } from "./shared.ts";
 import { validate as validateSchema } from "./validate.ts";
+import { constant } from "../internal/lang.ts";
 
 export const parseSchema = (input: unknown): Schema => {
   const schema = parseSchemaInternal(input, []);
@@ -35,11 +34,17 @@ const parseSchemaInternal = (input: unknown, schemaPath: readonly (string | numb
   );
 };
 
-function normalizeDefault(
-  schema: Schema,
+const literalValueKind = (value: string | number | boolean): "string" | "number" | "boolean" => {
+  if (typeof value === "string") return "string";
+  if (typeof value === "number") return "number";
+  return "boolean";
+};
+
+function normalizeDefault<TSchema extends Schema>(
+  schema: TSchema,
   rawDefault: unknown,
   schemaPath: readonly (string | number)[],
-): Schema {
+): TSchema {
   if (rawDefault === undefined) {
     return schema;
   }
@@ -47,12 +52,7 @@ function normalizeDefault(
   const parsedDefault = parseDefaultValue(rawDefault, [...schemaPath, "default"]);
 
   if (schema.kind === "literal") {
-    const literalKind =
-      typeof schema.value === "string"
-        ? "string"
-        : typeof schema.value === "number"
-          ? "number"
-          : "boolean";
+    const literalKind = literalValueKind(schema.value);
     if (parsedDefault.kind !== literalKind || parsedDefault.value !== schema.value) {
       throw invalidSchema([...schemaPath, "default"], "literal default must equal literal value");
     }
@@ -60,7 +60,7 @@ function normalizeDefault(
 
   try {
     const normalized = validateSchema(schema, parsedDefault);
-    return { ...schema, default: normalized as NonNullable<Schema["default"]> } as Schema;
+    return { ...schema, default: normalized };
   } catch (error) {
     if (isCoreError(error) || error instanceof Error) {
       throw invalidSchema(
@@ -72,7 +72,7 @@ function normalizeDefault(
   }
 }
 
-const parseContext = {
+const parseContext = constant({
   parseSchema: parseSchemaInternal,
   normalizeDefault,
-} as const;
+});

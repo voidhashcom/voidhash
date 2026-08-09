@@ -40,6 +40,8 @@ import {
 } from "@voidhash/db";
 import { Effect, Layer, Option, Schema, Context } from "effect";
 
+import { constant } from "@voidhash/lib/lang";
+
 import { AppStorePaymentProviderServiceError } from "./errors.ts";
 import { classifyAppStoreRevocation } from "./helpers.ts";
 import { AppStorePaymentProvider } from "./payment-provider.ts";
@@ -102,7 +104,7 @@ const make = Effect.gen(function* () {
       project: input.project,
       providerEnvironment: input.providerEnvironment,
       receivedAt: input.receivedAt,
-      source: "reconciliation" as const,
+      source: constant("reconciliation"),
       subtype: undefined,
     };
     const revocationDate = Option.getOrUndefined(input.decodedTransaction.revocationDate);
@@ -153,7 +155,7 @@ const make = Effect.gen(function* () {
       project: input.project,
       providerEnvironment: input.providerEnvironment,
       receivedAt: input.receivedAt,
-      source: "reconciliation" as const,
+      source: constant("reconciliation"),
       subtype: undefined,
     };
     if (input.status === Status.EXPIRED) {
@@ -259,12 +261,11 @@ const make = Effect.gen(function* () {
             (typeof GetTransactionHistoryVersion)[keyof typeof GetTransactionHistoryVersion]
           >(),
         );
-      resolvedEnvironment =
-        environment === "Sandbox" ? ProviderEnvironment.Sandbox : ProviderEnvironment.Production;
+      resolvedEnvironment = providerEnvironmentFor(environment);
 
       const signedTransactions = Option.getOrElse(
         historyResponse.signedTransactions,
-        () => [] as ReadonlyArray<string>,
+        () => noSignedTransactions,
       );
       for (const signed of signedTransactions) {
         const decoded = yield* sdkContext
@@ -283,12 +284,12 @@ const make = Effect.gen(function* () {
         }).pipe(
           Effect.match({
             onFailure: (error) => ({
-              ok: false as const,
+              ok: constant(false),
               error: String(error),
             }),
             onSuccess: (result) => ({
               idempotent: result.idempotent,
-              ok: true as const,
+              ok: constant(true),
             }),
           }),
         );
@@ -322,10 +323,7 @@ const make = Effect.gen(function* () {
         input.originalTransactionId,
         Option.none<Status[]>(),
       );
-    const statusProviderEnvironment =
-      statusEnvironment === "Sandbox"
-        ? ProviderEnvironment.Sandbox
-        : ProviderEnvironment.Production;
+    const statusProviderEnvironment = providerEnvironmentFor(statusEnvironment);
 
     const subscriptionGroups = Option.getOrElse(statusResponse.data, () => []);
     for (const group of subscriptionGroups) {
@@ -349,22 +347,20 @@ const make = Effect.gen(function* () {
          * and replaced with `Option.none()` so the snapshot replay still
          * progresses.
          */
-        const decodedRenewalInfo = Option.isSome(item.signedRenewalInfo)
-          ? yield* sdkContext
-              .decodeSignedRenewalInfo(item.signedRenewalInfo.value, statusEnvironment)
-              .pipe(
-                Effect.map(Option.some),
-                Effect.catch((error: unknown) =>
-                  Effect.logWarning(
-                    "App Store reconciliation: failed to decode signedRenewalInfo",
-                    {
-                      cause: error,
-                      originalTransactionId: input.originalTransactionId,
-                    },
-                  ).pipe(Effect.as(Option.none<JWSRenewalInfoDecodedPayload>())),
-                ),
-              )
-          : Option.none<JWSRenewalInfoDecodedPayload>();
+        let decodedRenewalInfo = Option.none<JWSRenewalInfoDecodedPayload>();
+        if (Option.isSome(item.signedRenewalInfo)) {
+          decodedRenewalInfo = yield* sdkContext
+            .decodeSignedRenewalInfo(item.signedRenewalInfo.value, statusEnvironment)
+            .pipe(
+              Effect.map(Option.some),
+              Effect.catch((error: unknown) =>
+                Effect.logWarning("App Store reconciliation: failed to decode signedRenewalInfo", {
+                  cause: error,
+                  originalTransactionId: input.originalTransactionId,
+                }).pipe(Effect.as(Option.none<JWSRenewalInfoDecodedPayload>())),
+              ),
+            );
+        }
         const outcome = yield* _replayStatusSnapshot({
           configuration,
           decodedRenewalInfo,
@@ -376,16 +372,15 @@ const make = Effect.gen(function* () {
         }).pipe(
           Effect.match({
             onFailure: (error) => ({
-              ok: false as const,
+              ok: constant(false),
               error: String(error),
             }),
             onSuccess: (result) => {
               // ACTIVE status is a no-op (the history walk covers renewals)
               // — _replayStatusSnapshot returns undefined for it, which we
               // count as already-up-to-date for telemetry purposes.
-              const resultObj = result as { idempotent?: boolean } | null | undefined;
-              const idempotent = resultObj?.idempotent ?? true;
-              return { idempotent, ok: true as const };
+              const idempotent = idempotentFlag(result);
+              return { idempotent, ok: constant(true) };
             },
           }),
         );
@@ -427,10 +422,27 @@ const make = Effect.gen(function* () {
     return finalReport;
   });
 
-  return {
+  return constant({
     reconcileOriginalTransaction,
-  } as const;
+  });
 });
+
+/** Empty history page, typed so `Option.getOrElse` keeps its element type. */
+const noSignedTransactions: ReadonlyArray<string> = [];
+
+/** Maps Apple's environment label onto our stored provider environment. */
+const providerEnvironmentFor = (environment: string): ProviderEnvironmentValue => {
+  if (environment === "Sandbox") return ProviderEnvironment.Sandbox;
+  return ProviderEnvironment.Production;
+};
+
+/**
+ * ACTIVE status is a no-op (the history walk covers renewals) — the replay
+ * returns nothing for it, which counts as already-up-to-date for telemetry.
+ */
+const idempotentFlag = (
+  result: { readonly idempotent?: boolean } | null | undefined,
+): boolean => result?.idempotent ?? true;
 
 export class AppStoreReconciliationService extends Context.Service<AppStoreReconciliationService>()(
   "core/AppStoreReconciliationService",

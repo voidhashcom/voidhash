@@ -10,7 +10,7 @@ import {
   createVoidhashSdk as createVoidhashEffectSdk,
   type VoidhashNodeEffectClient,
 } from "../src/effect";
-import { createJsonResponse, installFetchMock } from "./helpers";
+import { createJsonResponse, decodeJson, installFetchMock } from "./helpers";
 
 const EXPECTED_GROUPS = [
   "apiKeys",
@@ -27,23 +27,35 @@ const EXPECTED_GROUPS = [
   "schema",
   "users",
   "webhooks",
-] as const;
+];
 
 type HasKey<TValue, TKey extends PropertyKey> = TKey extends keyof TValue ? true : false;
 
-const extractEffectFailure = async <Result, Error>(effect: Effect.Effect<Result, Error>) => {
-  const exit = await Effect.runPromiseExit(effect);
-
-  if (Exit.isSuccess(exit)) {
-    throw new Error("Expected effect failure.");
+const tagOf = (value: unknown): string | undefined => {
+  if (typeof value !== "object" || value === null || !("_tag" in value)) {
+    return undefined;
   }
 
-  const typedError = Cause.findErrorOption(exit.cause);
+  if (typeof value._tag !== "string") {
+    return undefined;
+  }
 
-  return Option.isSome(typedError) ? typedError.value : Cause.squash(exit.cause);
+  return value._tag;
 };
 
+const extractEffectFailure = <Result, Error>(effect: Effect.Effect<Result, Error>) =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(effect);
+
+    if (Exit.isSuccess(exit)) {
+      return yield* Effect.die(new Error("Expected effect failure."));
+    }
+
+    return Option.getOrElse(Cause.findErrorOption(exit.cause), () => Cause.squash(exit.cause));
+  });
+
 describe("@voidhash/node", () => {
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- vitest global-stub cleanup: vi.unstubAllGlobals resets vitest's own module state, which has no Effect-scoped equivalent.
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -104,237 +116,272 @@ describe("@voidhash/node", () => {
     ).toThrow(VoidhashNodeConfigurationError);
   });
 
-  it("uses the default baseUrl and sends x-secret-key on auth.session()", async () => {
-    const { calls } = installFetchMock(() =>
-      createJsonResponse({
-        method: "secret-key",
-        name: "voidhash",
-        organizations: [],
-        projects: [],
+  it("uses the default baseUrl and sends x-secret-key on auth.session()", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            method: "secret-key",
+            name: "voidhash",
+            organizations: [],
+            projects: [],
+          }),
+        );
+
+        const client = createVoidhashEffectSdk({
+          headers: {
+            "x-trace-id": "trace_123",
+          },
+          secretKey: "vh_sk_test",
+        });
+
+        const session = yield* client.auth.session();
+
+        expect(session).toEqual({
+          method: "secret-key",
+          name: "voidhash",
+          organizations: [],
+          projects: [],
+        });
+        expect(calls[0]?.method).toBe("GET");
+        expect(calls[0]?.url).toBe("https://api.voidhash.com/api/v1/auth/session");
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+        expect(calls[0]?.headers["x-trace-id"]).toBe("trace_123");
       }),
-    );
+    ));
 
-    const client = createVoidhashEffectSdk({
-      headers: {
-        "x-trace-id": "trace_123",
-      },
-      secretKey: "vh_sk_test",
-    });
+  it("supports path params with projects.listProjects({ params })", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse([
+            {
+              id: "proj_1",
+              name: "Alpha",
+              slug: "alpha",
+            },
+          ]),
+        );
 
-    const session = await Effect.runPromise(client.auth.session());
+        const client = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
 
-    expect(session).toEqual({
-      method: "secret-key",
-      name: "voidhash",
-      organizations: [],
-      projects: [],
-    });
-    expect(calls[0]?.method).toBe("GET");
-    expect(calls[0]?.url).toBe("https://api.voidhash.com/api/v1/auth/session");
-    expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
-    expect(calls[0]?.headers["x-trace-id"]).toBe("trace_123");
-  });
+        const projects = yield* Effect.promise(() =>
+          client.projects.listProjects({
+            params: {
+              organizationId: "org_123",
+            },
+          }),
+        );
 
-  it("supports path params with projects.listProjects({ params })", async () => {
-    const { calls } = installFetchMock(() =>
-      createJsonResponse([
-        {
-          id: "proj_1",
-          name: "Alpha",
-          slug: "alpha",
-        },
-      ]),
-    );
-
-    const client = createVoidhashSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
-
-    const projects = await client.projects.listProjects({
-      params: {
-        organizationId: "org_123",
-      },
-    });
-
-    expect(projects).toEqual([
-      {
-        id: "proj_1",
-        name: "Alpha",
-        slug: "alpha",
-      },
-    ]);
-    expect(calls[0]?.method).toBe("GET");
-    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/projects/org_123");
-    expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
-  });
-
-  it("supports POST bodies with persons.createPerson({ payload })", async () => {
-    const { calls } = installFetchMock(() =>
-      createJsonResponse({
-        personId: "person_123",
-        distinctId: "user_123",
-        email: "user@example.com",
-        name: "Taylor",
+        expect(projects).toEqual([
+          {
+            id: "proj_1",
+            name: "Alpha",
+            slug: "alpha",
+          },
+        ]);
+        expect(calls[0]?.method).toBe("GET");
+        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/projects/org_123");
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
       }),
-    );
+    ));
 
-    const client = createVoidhashSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
+  it("supports POST bodies with persons.createPerson({ payload })", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            personId: "person_123",
+            distinctId: "user_123",
+            email: "user@example.com",
+            name: "Taylor",
+          }),
+        );
 
-    const person = await client.persons.createPerson({
-      payload: {
-        distinctId: "user_123",
-        email: "user@example.com",
-        name: "Taylor",
-      },
-    });
+        const client = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
 
-    expect(person).toEqual({
-      personId: "person_123",
-      distinctId: "user_123",
-      email: "user@example.com",
-      name: "Taylor",
-    });
-    expect(calls[0]?.method).toBe("POST");
-    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/persons");
-    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
-      distinctId: "user_123",
-      email: "user@example.com",
-      name: "Taylor",
-    });
-    expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
-  });
+        const person = yield* Effect.promise(() =>
+          client.persons.createPerson({
+            payload: {
+              distinctId: "user_123",
+              email: "user@example.com",
+              name: "Taylor",
+            },
+          }),
+        );
 
-  it("supports PATCH bodies with webhooks.updateWebhookEndpoint({ params, payload })", async () => {
-    const { calls } = installFetchMock(() =>
-      createJsonResponse({
-        consecutiveFailures: 0,
-        createdAt: "2026-03-09T12:00:00.000Z",
-        description: "Updated description",
-        events: ["purchase.completed"],
-        id: "wh_123",
-        lastSuccessAt: null,
-        name: "Updated endpoint",
-        projectId: "proj_123",
-        secret: "secret_123",
-        status: "active",
-        url: "https://example.com/hooks",
+        expect(person).toEqual({
+          personId: "person_123",
+          distinctId: "user_123",
+          email: "user@example.com",
+          name: "Taylor",
+        });
+        expect(calls[0]?.method).toBe("POST");
+        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/persons");
+        expect(decodeJson(calls[0]?.body ?? "{}")).toEqual({
+          distinctId: "user_123",
+          email: "user@example.com",
+          name: "Taylor",
+        });
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
       }),
-    );
+    ));
 
-    const client = createVoidhashSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
+  it("supports PATCH bodies with webhooks.updateWebhookEndpoint({ params, payload })", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            consecutiveFailures: 0,
+            createdAt: "2026-03-09T12:00:00.000Z",
+            description: "Updated description",
+            events: ["purchase.completed"],
+            id: "wh_123",
+            lastSuccessAt: null,
+            name: "Updated endpoint",
+            projectId: "proj_123",
+            secret: "secret_123",
+            status: "active",
+            url: "https://example.com/hooks",
+          }),
+        );
 
-    const endpoint = await client.webhooks.updateWebhookEndpoint({
-      params: {
-        endpointId: "wh_123",
-      },
-      payload: {
-        description: "Updated description",
-        events: ["purchase.completed"],
-        name: "Updated endpoint",
-        status: "disabled",
-        url: "https://example.com/hooks",
-      },
-    });
+        const client = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
 
-    expect(endpoint.id).toBe("wh_123");
-    expect(endpoint.createdAt).toBe("2026-03-09T12:00:00.000Z");
-    expect(calls[0]?.method).toBe("PATCH");
-    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/webhooks/endpoints/wh_123");
-    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
-      description: "Updated description",
-      events: ["purchase.completed"],
-      name: "Updated endpoint",
-      status: "disabled",
-      url: "https://example.com/hooks",
-    });
-    expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
-  });
+        const endpoint = yield* Effect.promise(() =>
+          client.webhooks.updateWebhookEndpoint({
+            params: {
+              endpointId: "wh_123",
+            },
+            payload: {
+              description: "Updated description",
+              events: ["purchase.completed"],
+              name: "Updated endpoint",
+              status: "disabled",
+              url: "https://example.com/hooks",
+            },
+          }),
+        );
 
-  it("supports DELETE requests with apiKeys.deleteApiKey({ params })", async () => {
-    const { calls } = installFetchMock(() => new Response(null, { status: 204 }));
-
-    const client = createVoidhashSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
-
-    const result = await client.apiKeys.deleteApiKey({
-      params: {
-        apiKeyId: "ak_123",
-      },
-    });
-
-    expect(result).toBeUndefined();
-    expect(calls[0]?.method).toBe("DELETE");
-    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/api-keys/ak_123");
-    expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
-  });
-
-  it("surfaces matching success values through effect and promise factories", async () => {
-    installFetchMock(() =>
-      createJsonResponse({
-        method: "secret-key",
-        name: "voidhash",
-        organizations: [],
-        projects: [],
+        expect(endpoint.id).toBe("wh_123");
+        expect(endpoint.createdAt).toBe("2026-03-09T12:00:00.000Z");
+        expect(calls[0]?.method).toBe("PATCH");
+        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/webhooks/endpoints/wh_123");
+        expect(decodeJson(calls[0]?.body ?? "{}")).toEqual({
+          description: "Updated description",
+          events: ["purchase.completed"],
+          name: "Updated endpoint",
+          status: "disabled",
+          url: "https://example.com/hooks",
+        });
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
       }),
-    );
+    ));
 
-    const effectClient = createVoidhashEffectSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
-    const promiseClient = createVoidhashSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
+  it("supports DELETE requests with apiKeys.deleteApiKey({ params })", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() => new Response(null, { status: 204 }));
 
-    const effectResult = await Effect.runPromise(effectClient.auth.session());
-    const promiseResult = await promiseClient.auth.session();
+        const client = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
 
-    expect(promiseResult).toEqual(effectResult);
-  });
+        const result = yield* Effect.promise(() =>
+          client.apiKeys.deleteApiKey({
+            params: {
+              apiKeyId: "ak_123",
+            },
+          }),
+        );
 
-  it("surfaces matching failure objects through effect and promise factories", async () => {
-    installFetchMock(() =>
-      createJsonResponse(
-        {
-          _tag: "ActionForbiddenError",
-          message: "Forbidden",
-        },
-        403,
-      ),
-    );
+        expect(result).toBeUndefined();
+        expect(calls[0]?.method).toBe("DELETE");
+        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/api-keys/ak_123");
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+      }),
+    ));
 
-    const effectClient = createVoidhashEffectSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
-    const promiseClient = createVoidhashSdk({
-      baseUrl: "https://api.voidhash.test",
-      secretKey: "vh_sk_test",
-    });
+  it("surfaces matching success values through effect and promise factories", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        installFetchMock(() =>
+          createJsonResponse({
+            method: "secret-key",
+            name: "voidhash",
+            organizations: [],
+            projects: [],
+          }),
+        );
 
-    const effectError = await extractEffectFailure(effectClient.auth.session());
-    const promiseError = await promiseClient.auth.session().then(
-      () => {
-        throw new Error("Expected promise client failure.");
-      },
-      (error: unknown) => error,
-    );
+        const effectClient = createVoidhashEffectSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+        const promiseClient = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
 
-    expect(promiseError).toMatchObject({
-      _tag: (effectError as { _tag?: string })._tag,
-    });
-    expect(promiseError).toMatchObject({
-      _tag: "ApiActionForbiddenError",
-    });
-  });
+        const effectResult = yield* effectClient.auth.session();
+        const promiseResult = yield* Effect.promise(() => promiseClient.auth.session());
+
+        expect(promiseResult).toEqual(effectResult);
+      }),
+    ));
+
+  it("surfaces matching failure objects through effect and promise factories", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        installFetchMock(() =>
+          createJsonResponse(
+            {
+              _tag: "ActionForbiddenError",
+              message: "Forbidden",
+            },
+            403,
+          ),
+        );
+
+        const effectClient = createVoidhashEffectSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+        const promiseClient = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+
+        const effectError = yield* extractEffectFailure(effectClient.auth.session());
+        const promiseExit = yield* Effect.exit(
+          Effect.tryPromise({
+            try: () => promiseClient.auth.session(),
+            catch: (error: unknown) => error,
+          }),
+        );
+
+        if (Exit.isSuccess(promiseExit)) {
+          return yield* Effect.die(new Error("Expected promise client failure."));
+        }
+
+        const promiseError = Cause.squash(promiseExit.cause);
+
+        expect(promiseError).toMatchObject({
+          _tag: tagOf(effectError),
+        });
+        expect(promiseError).toMatchObject({
+          _tag: "ApiActionForbiddenError",
+        });
+      }),
+    ));
 });

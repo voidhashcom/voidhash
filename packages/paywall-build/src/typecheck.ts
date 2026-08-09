@@ -4,6 +4,7 @@ import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error } from "./diagnostics.ts";
 import type { ResolvedComponent } from "./imports.ts";
 import { DEFAULT_LIB, LIB_ASSETS } from "./lib/index.ts";
+import { withTrailingSlash } from "./paths.ts";
 import type { TypecheckOptions } from "./types.ts";
 
 /** The virtual path the SDK ambient dts is mounted at inside the program. */
@@ -33,6 +34,19 @@ const COMPILER_OPTIONS: ts.CompilerOptions = {
   // probes the real typescript install for `lib.*.d.ts`.
   lib: [`${LIB_DIR}/${DEFAULT_LIB}`],
 };
+
+/** The virtual lib path a caller-supplied lib name mounts at. */
+function libPathFor(name: string): string {
+  // Accept both bare lib names and pre-mounted virtual paths.
+  if (name.startsWith("/")) return name;
+  return `${LIB_DIR}/${name}`;
+}
+
+/** The script kind a virtual file is parsed as. */
+function scriptKindOf(fileName: string): ts.ScriptKind {
+  if (fileName.endsWith(".tsx")) return ts.ScriptKind.TSX;
+  return ts.ScriptKind.TS;
+}
 
 /**
  * Stage 2 — e2e typecheck.
@@ -72,9 +86,7 @@ export function typecheck(
     libFiles.set(`${LIB_DIR}/${name}`, contents);
   }
   for (const [name, contents] of Object.entries(options.libs ?? {})) {
-    // Accept both bare lib names and pre-mounted virtual paths.
-    const path = name.startsWith("/") ? name : `${LIB_DIR}/${name}`;
-    libFiles.set(path, contents);
+    libFiles.set(libPathFor(name), contents);
   }
 
   const readVirtual = (path: string): string | undefined =>
@@ -89,13 +101,12 @@ export function typecheck(
       if (cached) return cached;
       const contents = readVirtual(fileName);
       if (contents === undefined) return undefined;
-      const kind = fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
       const sourceFile = ts.createSourceFile(
         fileName,
         contents,
         languageVersion,
         /* setParentNodes */ true,
-        kind,
+        scriptKindOf(fileName),
       );
       sourceFileCache.set(fileName, sourceFile);
       return sourceFile;
@@ -113,7 +124,7 @@ export function typecheck(
     // Directory methods resolved over the virtual path space ONLY. Delegating
     // any of these to the real FS silently breaks relative resolution.
     directoryExists: (dir) => {
-      const prefix = dir.endsWith("/") ? dir : `${dir}/`;
+      const prefix = withTrailingSlash(dir);
       for (const path of files.keys()) if (path.startsWith(prefix)) return true;
       for (const path of libFiles.keys()) if (path.startsWith(prefix)) return true;
       return dir === "/" || dir === LIB_DIR;

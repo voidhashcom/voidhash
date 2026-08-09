@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { applyBatch, Primitive, validate } from "@voidhash/mimic-core";
 import { describe, expect, test } from "vite-plus/test";
 
@@ -6,22 +7,37 @@ import {
   createStateSchemaWithStyleOverrides,
 } from "./states.ts";
 
+/**
+ * Feeds a deliberately ill-typed payload to a typed proxy setter: the mimic
+ * proxies reject unknown keys at the type level, so the negative test that
+ * asserts the runtime strips them has to bypass the compile-time shape.
+ */
+function isIllTyped<T>(value: unknown): value is T {
+  return value !== undefined;
+}
+
+function illTyped<T>(value: Record<string, unknown>, use: (value: T) => void): void {
+  if (isIllTyped<T>(value)) {
+    use(value);
+  }
+}
+
 const baseCondition = {
-  type: "or" as const,
+  type: constant("or"),
   value: [
     {
-      type: "and" as const,
+      type: constant("and"),
       value: [
         {
-          type: "equals" as const,
+          type: constant("equals"),
           value: {
             left: {
-              type: "literal" as const,
-              value: { key: "boolean" as const, value: true },
+              type: constant("literal"),
+              value: { key: constant("boolean"), value: true },
             },
             right: {
-              type: "literal" as const,
-              value: { key: "boolean" as const, value: true },
+              type: constant("literal"),
+              value: { key: constant("boolean"), value: true },
             },
           },
         },
@@ -112,9 +128,9 @@ describe("state schemas", () => {
 
   test("ignores unknown style override keys", () => {
     const snapshot = buildStyleStateSnapshot((root) => {
-      root.overrides.style.update({
-        unknownKey: 123,
-      } as never);
+      illTyped<never>({ unknownKey: 123 }, (value) => {
+        root.overrides.style.update(value);
+      });
     });
 
     expect(snapshot.overrides.style).toEqual({});

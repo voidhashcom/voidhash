@@ -164,11 +164,14 @@ export function resolveComponentPropValue(
     }
     const entryLocale = value.locale.toLowerCase();
     if (entryLocale === want) {
-      return { type: "literal" as const, value: value.value };
+      return { type: "literal", value: value.value };
     }
     if (prefixMatch === undefined && entryLocale === lang) {
       prefixMatch = value.value;
     }
   }
-  return prefixMatch === undefined ? binding : { type: "literal" as const, value: prefixMatch };
+  if (prefixMatch === undefined) {
+    return binding;
+  }
+  return { type: "literal", value: prefixMatch };
 }

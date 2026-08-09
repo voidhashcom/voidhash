@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Effect, Random } from "effect";
 
 import { base64Url, createHash, type SHAFamily, type TypedArray } from "./create-hash.ts";
 
@@ -29,11 +30,12 @@ const createHashEf = (algorithm: SHAFamily) =>
   });
 
 const keyGenerator = (options: { length: number; prefix: string | undefined }) =>
-  Effect.sync(() => {
+  Effect.gen(function* () {
     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     let apiKey = `${options.prefix || ""}`;
     for (const _ of Array.from({ length: options.length })) {
-      apiKey += characters[Math.floor(Math.random() * characters.length)];
+      const index = yield* Random.nextIntBetween(0, characters.length, { halfOpen: true });
+      apiKey += characters[index];
     }
     return apiKey;
   });
@@ -58,13 +60,15 @@ export const generatePublishableKey = () =>
 
 export const createPublishableKey = () =>
   generatePublishableKey().pipe(
-    Effect.map((key) => ({
-      end: key.slice(-KEY_END_LENGTH),
-      isPublic: true as const,
-      key,
-      prefix: PRODUCTION_PUBLISHABLE_KEY_PREFIX,
-      rawKey: key,
-    })),
+    Effect.map((key) =>
+      constant({
+        end: key.slice(-KEY_END_LENGTH),
+        isPublic: true,
+        key,
+        prefix: PRODUCTION_PUBLISHABLE_KEY_PREFIX,
+        rawKey: key,
+      }),
+    ),
   );
 
 export const createSecretKey = () =>
@@ -73,13 +77,13 @@ export const createSecretKey = () =>
     const hashed = yield* hashKey(key);
     const end = key.slice(key.length - KEY_END_LENGTH);
 
-    return {
+    return constant({
       end,
-      isPublic: false as const,
+      isPublic: false,
       key: hashed,
       prefix: PRODUCTION_SECRET_KEY_PREFIX,
       rawKey: key,
-    };
+    });
   });
 
 export const generateUserApiKey = (prefix: string) =>

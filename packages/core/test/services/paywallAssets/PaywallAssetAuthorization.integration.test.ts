@@ -4,13 +4,15 @@ import { Db, eq, paywallAsset } from "@voidhash/db";
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
-import { Effect, Layer } from "effect";
+import { generateId } from "@voidhash/core/utils/generate-id";
+import { DateTime, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
 import { PublicFileStore } from "../../../src/services/storage/PublicFileStore.ts";
 
 const { test } = CoreIntegrationTestHarness.make();
-const suffix = crypto.randomUUID();
+const suffix = generateId("test");
+const epoch = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 const assetId = suffix;
 const assetKey = `paywall-assets/${CoreTestFixture.organizationId}/${suffix}.png`;
 const objectMutations: string[] = [];
@@ -39,14 +41,14 @@ const sessionWithoutOrganizationAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: epoch,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: epoch,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });

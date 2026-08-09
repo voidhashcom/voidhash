@@ -1,6 +1,8 @@
 import { Effect, Schema } from "effect";
 
-export const CURRENCIES = {
+import { constant } from "../lang/index.ts";
+
+export const CURRENCIES = constant({
   AED: "United Arab Emirates Dirham",
   AFN: "Afghanistan Afghani",
   ALL: "Albania Lek",
@@ -189,9 +191,13 @@ export const CURRENCIES = {
   ZAR: "South Africa Rand",
   ZMW: "Zambia Kwacha",
   ZWL: "Zimbabwe Dollar (historical, replaced by ZiG)",
-} as const;
+});
 
 export type ISO4217CurrencyCode = keyof typeof CURRENCIES;
+
+/** Narrows an arbitrary string to a known ISO 4217 currency code. */
+const isISO4217CurrencyCode = (currency: string): currency is ISO4217CurrencyCode =>
+  currency in CURRENCIES;
 
 export class InvalidISO4217CurrencyCodeError extends Schema.TaggedErrorClass<InvalidISO4217CurrencyCodeError>(
   "InvalidISO4217CurrencyCodeError",
@@ -203,8 +209,8 @@ export class InvalidISO4217CurrencyCodeError extends Schema.TaggedErrorClass<Inv
 /** Parses and validates an ISO 4217 currency code. */
 export const parseISO4217CurrencyCode = (currency: string) =>
   Effect.gen(function* () {
-    if (currency in CURRENCIES) {
-      return currency as ISO4217CurrencyCode;
+    if (isISO4217CurrencyCode(currency)) {
+      return currency;
     }
 
     return yield* Effect.fail(

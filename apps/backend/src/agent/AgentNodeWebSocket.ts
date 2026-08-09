@@ -1,4 +1,6 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- Node platform adapter: it upgrades connections on the real http.Server created by the standalone entrypoint, so it needs that module's own types.
 import type { IncomingMessage, Server } from "node:http";
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the WebSocket upgrade handler receives a node:stream Duplex from the Node HTTP server; Stream/Channel cannot type that handshake argument.
 import type { Duplex } from "node:stream";
 
 import {
@@ -64,6 +66,20 @@ export type AgentNodeRouteResult =
 
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
+/**
+ * Percent-decodes one path segment, yielding `undefined` for malformed input.
+ *
+ * `decodeURIComponent` throws on broken escape sequences, so the throw is
+ * captured by `Effect.try` and run synchronously to keep this parser pure.
+ */
+const decodeSegment = (segment: string): string | undefined =>
+  Effect.runSync(
+    Effect.try({
+      try: () => decodeURIComponent(segment),
+      catch: (cause) => cause,
+    }).pipe(Effect.catch(() => Effect.succeed(undefined))),
+  );
+
 /** Parses and validates the self-host agent upgrade target. */
 export const parseAgentNodeRoute = (
   request: Pick<IncomingMessage, "url">,
@@ -75,12 +91,8 @@ export const parseAgentNodeRoute = (
   const organizationId = url.searchParams.get("organizationId")?.trim() ?? "";
   const projectId = url.searchParams.get("projectId")?.trim() ?? "";
   const surface = url.searchParams.get("surface")?.trim() ?? "";
-  let sessionId: string;
-  try {
-    sessionId = decodeURIComponent(match[1]);
-  } catch {
-    return { _tag: "Invalid" };
-  }
+  const sessionId = decodeSegment(match[1]);
+  if (sessionId === undefined) return { _tag: "Invalid" };
   if (
     !organizationId ||
     !projectId ||
@@ -90,16 +102,9 @@ export const parseAgentNodeRoute = (
     return { _tag: "Invalid" };
   }
   const paywallId = url.searchParams.get("paywallId")?.trim() || undefined;
-  return {
-    _tag: "Route",
-    route: {
-      sessionId,
-      organizationId,
-      projectId,
-      surface,
-      ...(paywallId === undefined ? {} : { paywallId }),
-    },
-  };
+  const route: AgentRoute = { sessionId, organizationId, projectId, surface };
+  if (paywallId === undefined) return { _tag: "Route", route };
+  return { _tag: "Route", route: { ...route, paywallId } };
 };
 
 const rejectUpgrade = (socket: Duplex, status: number, reason: string): void => {
@@ -107,22 +112,45 @@ const rejectUpgrade = (socket: Duplex, status: number, reason: string): void => 
   socket.destroy();
 };
 
+const headerEntries = (request: IncomingMessage): Array<readonly [string, string]> => {
+  const entries: Array<readonly [string, string]> = [];
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      entries.push([name, value.join(", ")]);
+      continue;
+    }
+    entries.push([name, value]);
+  }
+  return entries;
+};
+
 const headersOf = (request: IncomingMessage): HttpHeaders.Headers =>
-  HttpHeaders.fromInput(
-    Object.fromEntries(
-      Object.entries(request.headers).flatMap(([name, value]) =>
-        value === undefined
-          ? []
-          : [[name, Array.isArray(value) ? value.join(", ") : value] as const],
-      ),
-    ),
-  );
+  HttpHeaders.fromInput(Object.fromEntries(headerEntries(request)));
 
 const frameOf = (data: RawData, isBinary: boolean): string | Uint8Array => {
-  if (!isBinary) return data.toString();
+  // `ws` hands text frames over as a Buffer, an ArrayBuffer or a Buffer[]
+  // depending on `binaryType`; only the Buffer case decodes correctly on its
+  // own, so the other two are normalized before being read as text.
+  if (!isBinary) {
+    if (data instanceof ArrayBuffer) return Buffer.from(data).toString();
+    if (Array.isArray(data)) return Buffer.concat(data).toString();
+    return data.toString();
+  }
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
   if (Array.isArray(data)) return new Uint8Array(Buffer.concat(data));
   return new Uint8Array(data);
+};
+
+const withOpenaiBaseUrl = (
+  model: Model<string>,
+  provider: string,
+  openaiBaseUrl: string | undefined,
+): Model<string> => {
+  if (provider === "openai" && openaiBaseUrl !== undefined) {
+    return { ...model, baseUrl: openaiBaseUrl };
+  }
+  return model;
 };
 
 const configuredModel = (
@@ -131,10 +159,11 @@ const configuredModel = (
   openaiBaseUrl: string | undefined,
 ): Model<string> => {
   const model = getCatalogModel(provider, modelId);
-  if (model === undefined) throw new Error(`Unknown agent model: ${provider}/${modelId}`);
-  return provider === "openai" && openaiBaseUrl !== undefined
-    ? { ...model, baseUrl: openaiBaseUrl }
-    : model;
+  // Startup misconfiguration: there is no usable server without a known model.
+  if (model === undefined) {
+    return Effect.runSync(Effect.die(new Error(`Unknown agent model: ${provider}/${modelId}`)));
+  }
+  return withOpenaiBaseUrl(model, provider, openaiBaseUrl);
 };
 
 const resolveConfiguredModel = (
@@ -143,11 +172,8 @@ const resolveConfiguredModel = (
   openaiBaseUrl: string | undefined,
 ): Model<string> | undefined => {
   const model = getCatalogModel(provider, modelId);
-  return model === undefined
-    ? undefined
-    : provider === "openai" && openaiBaseUrl !== undefined
-      ? { ...model, baseUrl: openaiBaseUrl }
-      : model;
+  if (model === undefined) return undefined;
+  return withOpenaiBaseUrl(model, provider, openaiBaseUrl);
 };
 
 /** Installs authenticated durable Pi sessions on the self-host HTTP server. */
@@ -165,18 +191,19 @@ export const installAgentNodeWebSocketServer = (
     config.visionModelId,
     config.openaiBaseUrl,
   );
-  const contextFor = (data: AgentConnectionData) =>
-    Context.add(services, AuthSession, data.authSession) as Context.Context<
-      WorkspaceAgentDeps | AgentSessionIndexService | AuthSession
-    >;
+  const contextFor = (
+    data: AgentConnectionData,
+  ): Context.Context<WorkspaceAgentDeps | AgentSessionIndexService | AuthSession> =>
+    Context.add(services, AuthSession, data.authSession);
+  const runOptions = (signal: AbortSignal | undefined) => {
+    if (signal === undefined) return undefined;
+    return { signal };
+  };
   const runAgentEffect: EffectRunner<
     AgentConnectionData,
     WorkspaceAgentDeps | AgentSessionIndexService | AuthSession
   > = (data, effect, signal) =>
-    Effect.runPromise(
-      effect.pipe(Effect.provide(contextFor(data))),
-      signal === undefined ? undefined : { signal },
-    );
+    Effect.runPromise(effect.pipe(Effect.provide(contextFor(data))), runOptions(signal));
   const factory = makeWorkspaceAgentSessionFactory<AgentConnectionData>({
     defaultModel,
     visionModel,
@@ -254,11 +281,10 @@ export const installAgentNodeWebSocketServer = (
           webSocket.on("message", (data, isBinary) => {
             run(
               Effect.promise(() => connected).pipe(
-                Effect.flatMap((authorized) =>
-                  authorized
-                    ? core.handleMessage(connection, frameOf(data, isBinary))
-                    : Effect.sync(() => webSocket.close(1008, "Session access denied")),
-                ),
+                Effect.flatMap((authorized) => {
+                  if (authorized) return core.handleMessage(connection, frameOf(data, isBinary));
+                  return Effect.sync(() => webSocket.close(1008, "Session access denied"));
+                }),
               ),
             );
           });

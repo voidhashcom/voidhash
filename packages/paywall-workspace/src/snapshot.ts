@@ -1,8 +1,3 @@
-import type {
-  CodeComponentSnapshotNode,
-  SnapshotNode,
-} from "@voidhash/paywall-renderer-web-core";
-
 /**
  * Pure snapshot readers over the decoded paywall document (the array of root
  * snapshots produced by `PaywallDesignerDocument.decode`). Reimplemented here —
@@ -10,6 +5,19 @@ import type {
  * projection stays free of any Zustand/React dependency and runs unchanged in a
  * Worker or Node.
  */
+
+/**
+ * The minimal structural shape of a decoded document node these readers need:
+ * `{id, type, data, children}`. Deliberately structural (rather than the
+ * renderer's `SnapshotNode` union) so BOTH the renderer snapshot types and the
+ * raw `PaywallDesignerDocument.decode` output are accepted without narrowing.
+ */
+export interface DocumentSnapshotNode {
+  readonly id: string;
+  readonly type: string;
+  readonly data: Record<string, unknown>;
+  readonly children: readonly DocumentSnapshotNode[];
+}
 
 /**
  * A code-component definition read from a document snapshot. `path` is the
@@ -29,7 +37,7 @@ export interface WorkspaceComponentDefinition {
  * the document has no root or no library yet.
  */
 export function readComponentDefinitions(
-  snapshot: readonly SnapshotNode[],
+  snapshot: readonly DocumentSnapshotNode[],
 ): WorkspaceComponentDefinition[] {
   const root = snapshot[0];
   if (root === undefined) {
@@ -39,11 +47,28 @@ export function readComponentDefinitions(
   if (library === undefined) {
     return [];
   }
-  return library.children.flatMap((node) =>
-    node.type === "codeComponent" ? [toDefinition(node)] : [],
-  );
+  return library.children.flatMap(toDefinition);
 }
 
-function toDefinition(node: CodeComponentSnapshotNode): WorkspaceComponentDefinition {
-  return { id: node.id, path: node.data.path, source: node.data.source };
+/** The definition carried by a `codeComponent` node, or nothing for other node types. */
+function toDefinition(node: DocumentSnapshotNode): WorkspaceComponentDefinition[] {
+  if (node.type !== "codeComponent") {
+    return [];
+  }
+  return [
+    {
+      id: node.id,
+      path: stringField(node.data, "path"),
+      source: stringField(node.data, "source"),
+    },
+  ];
+}
+
+/** Reads a string field off a node's decoded data, or `""` when absent/non-string. */
+function stringField(data: Record<string, unknown>, key: string): string {
+  const value = data[key];
+  if (typeof value === "string") {
+    return value;
+  }
+  return "";
 }

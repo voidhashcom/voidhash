@@ -10,12 +10,13 @@
  * (`Schema.NullOr`) — read with plain nullish checks, NOT `Option`. The engine
  * converts to the `Option`-based domain types at its boundary.
  */
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Schema } from "effect";
 
 import { StripePaymentProviderServiceError } from "./errors.ts";
 
 /** Stripe event types this integration acts on. Any other type is ignored (still wire-deduped). */
-export const StripeEventType = {
+export const StripeEventType = constant({
   CheckoutSessionCompleted: "checkout.session.completed",
   ChargeDisputeClosed: "charge.dispute.closed",
   ChargeRefundUpdated: "charge.refund.updated",
@@ -24,7 +25,7 @@ export const StripeEventType = {
   CustomerSubscriptionUpdated: "customer.subscription.updated",
   InvoicePaid: "invoice.paid",
   InvoicePaymentFailed: "invoice.payment_failed",
-} as const;
+});
 
 /**
  * Stripe webhook event envelope. `data.object` stays `Unknown` (decoded per
@@ -238,7 +239,7 @@ export const decodeStripeEvent = (raw: unknown) =>
   decodeEvent(raw).pipe(
     Effect.mapError(
       (error) =>
-        new StripePaymentProviderServiceError({ cause: `Stripe event decode failed: ${error}` }),
+        new StripePaymentProviderServiceError({ cause: `Stripe event decode failed: ${error.message}` }),
     ),
   );
 
@@ -253,6 +254,6 @@ export const decodeStripeObject =
     Schema.decodeUnknownEffect(schema)(object).pipe(
       Effect.mapError(
         (error) =>
-          new StripePaymentProviderServiceError({ cause: `Stripe object decode failed: ${error}` }),
+          new StripePaymentProviderServiceError({ cause: `Stripe object decode failed: ${error.message}` }),
       ),
     );

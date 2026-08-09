@@ -1,6 +1,7 @@
 import { PaywallThumbnailService } from "@voidhash/core/services/paywallThumbnails/PaywallThumbnailService";
+import { generateId } from "@voidhash/core/utils/generate-id";
 import { Db, sql } from "@voidhash/db";
-import { Effect } from "effect";
+import { Clock, Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { makeSelfhostAnalyticsRuntimeLive } from "../src/backend/Analytics.ts";
@@ -12,14 +13,26 @@ import {
 } from "../src/mimic/MimicDocumentIdleQueue.ts";
 
 describe("self-host thumbnail queue", () => {
-  it("delivers and acknowledges an idle-document revision", async () => {
-    const config = getSelfhostRuntimeConfig();
-    const documentId = `thumbnail-${crypto.randomUUID()}`;
-    const handled: Array<{ readonly documentId: string; readonly seq: number }> = [];
+  it("delivers and acknowledges an idle-document revision", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const config = getSelfhostRuntimeConfig();
+        const documentId = `thumbnail-${generateId("test")}`;
+        const handled: Array<{ readonly documentId: string; readonly seq: number }> = [];
 
-    try {
-      await Effect.runPromise(
-        Effect.scoped(
+        const cleanup = Effect.gen(function* () {
+          const db = yield* Db;
+          // The cluster queue driver hands the store a JSON string, which the
+          // store then JSON-encodes into `element`, so the body is doubly
+          // encoded: unwrap the outer JSON scalar before reading its fields.
+          yield* db.execute(sql`
+            DELETE FROM effect_queue
+            WHERE queue_name = ${mimicDocumentIdleQueueName}
+              AND (element::jsonb #>> '{}')::jsonb ->> 'documentId' = ${documentId}
+          `);
+        }).pipe(Effect.provide(Db.layer(config.platformDatabase)), Effect.orDie);
+
+        yield* Effect.scoped(
           Effect.gen(function* () {
             const publish = yield* makeSelfhostMimicDocumentIdlePublisher;
             const service = PaywallThumbnailService.of({
@@ -37,29 +50,17 @@ describe("self-host thumbnail queue", () => {
             );
             yield* publish({ collectionId: "collection-1", documentId, seq: 17 });
 
-            const deadline = Date.now() + 10_000;
-            while (handled.length === 0 && Date.now() < deadline) {
+            const deadline = (yield* Clock.currentTimeMillis) + 10_000;
+            while (handled.length === 0 && (yield* Clock.currentTimeMillis) < deadline) {
               yield* Effect.sleep("25 millis");
             }
           }),
-        ).pipe(Effect.provide(makeSelfhostAnalyticsRuntimeLive(config))),
-      );
-    } finally {
-      await Effect.runPromise(
-        Effect.gen(function* () {
-          const db = yield* Db;
-          // The cluster queue driver hands the store a JSON string, which the
-          // store then JSON-encodes into `element`, so the body is doubly
-          // encoded: unwrap the outer JSON scalar before reading its fields.
-          yield* db.execute(sql`
-            DELETE FROM effect_queue
-            WHERE queue_name = ${mimicDocumentIdleQueueName}
-              AND (element::jsonb #>> '{}')::jsonb ->> 'documentId' = ${documentId}
-          `);
-        }).pipe(Effect.provide(Db.layer(config.platformDatabase))),
-      );
-    }
+        ).pipe(
+          Effect.provide(makeSelfhostAnalyticsRuntimeLive(config)),
+          Effect.ensuring(cleanup),
+        );
 
-    expect(handled).toEqual([{ documentId, seq: 17 }]);
-  });
+        expect(handled).toEqual([{ documentId, seq: 17 }]);
+      }),
+    ));
 });

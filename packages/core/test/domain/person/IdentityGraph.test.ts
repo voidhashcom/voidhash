@@ -1,4 +1,7 @@
+import { DateTime } from "effect";
 import { describe, expect, it } from "vite-plus/test";
+
+import { pick } from "@voidhash/lib/lang";
 
 import {
   applyTraitWrite,
@@ -19,6 +22,29 @@ import {
 
 const EMPTY_TRAIT_STATE: TraitFoldState = { meta: {}, traits: {} };
 
+/** Lexicographic comparator used to make projection dumps order-stable. */
+const compareStrings = (left: string, right: string): number => {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+};
+
+/** Deterministic order for `[key, value]` map entries so two dumps compare structurally. */
+const compareStringEntries = (
+  [keyA, valueA]: readonly [string, string],
+  [keyB, valueB]: readonly [string, string],
+): number => {
+  const byKey = compareStrings(keyA, keyB);
+  if (byKey !== 0) {
+    return byKey;
+  }
+  return compareStrings(valueA, valueB);
+};
+
 /** Folds writes one-at-a-time (the streaming path) into a final trait map. */
 const foldIncrementally = (writes: ReadonlyArray<TraitWrite>): Record<string, unknown> =>
   writes.reduce<TraitFoldState>((state, write) => applyTraitWrite(state, write), EMPTY_TRAIT_STATE)
@@ -31,7 +57,7 @@ const foldIncrementally = (writes: ReadonlyArray<TraitWrite>): Record<string, un
  */
 const normalize = (projection: IdentityProjection) => ({
   canonicalOf: [...projection.canonicalOf.entries()].sort(([left], [right]) =>
-    left < right ? -1 : left > right ? 1 : 0,
+    compareStrings(left, right),
   ),
   persons: [...projection.persons.values()]
     .map((person) => ({
@@ -43,13 +69,7 @@ const normalize = (projection: IdentityProjection) => ({
       name: person.name ?? null,
       traits: person.traits,
     }))
-    .sort((left, right) =>
-      left.canonicalDistinctId < right.canonicalDistinctId
-        ? -1
-        : left.canonicalDistinctId > right.canonicalDistinctId
-          ? 1
-          : 0,
-    ),
+    .sort((left, right) => compareStrings(left.canonicalDistinctId, right.canonicalDistinctId)),
 });
 
 /** All permutations of `items` via Heap's algorithm (use only for small N). */
@@ -63,7 +83,7 @@ const permutations = <T>(items: ReadonlyArray<T>): Array<Array<T>> => {
     }
     for (let i = 0; i < k; i++) {
       generate(k - 1);
-      const swap = k % 2 === 0 ? i : 0;
+      const swap = pick(k % 2 === 0, i, 0);
       const tmp = arr[swap]!;
       arr[swap] = arr[k - 1]!;
       arr[k - 1] = tmp;
@@ -171,8 +191,8 @@ describe("resolveIdentities", () => {
     });
     expect(forward.canonicalOf.get("phone")).toBe("anon");
     expect(reversed.canonicalOf.get("phone")).toBe("anon");
-    expect([...forward.canonicalOf.entries()].sort()).toEqual(
-      [...reversed.canonicalOf.entries()].sort(),
+    expect([...forward.canonicalOf.entries()].sort(compareStringEntries)).toEqual(
+      [...reversed.canonicalOf.entries()].sort(compareStringEntries),
     );
   });
 });
@@ -249,7 +269,7 @@ describe("applyTraitWrite", () => {
 });
 
 describe("comparePersonForMerge", () => {
-  const at = (iso: string) => new Date(iso);
+  const at = (iso: string) => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
 
   it("selects the person with the earlier firstSeenAt as survivor (negative => left wins)", () => {
     const older = { id: "p_b", firstSeenAt: at("2026-01-01T00:00:00Z") };
@@ -327,7 +347,7 @@ describe("combineTraitStates", () => {
 });
 
 describe("planProjectionRebuild", () => {
-  const at = (iso: string) => new Date(iso);
+  const at = (iso: string) => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
   const map = (distinctId: string, id: string, firstSeen: string): DistinctIdMapping => ({
     distinctId,
     person: { id, firstSeenAt: at(firstSeen) },
@@ -371,8 +391,8 @@ describe("planProjectionRebuild", () => {
       mappings: [...mappings].reverse(),
     });
     const normalize = (plan: ReturnType<typeof planProjectionRebuild>) => ({
-      canonical: [...plan.canonicalPersonOf.entries()].sort(),
-      merged: [...plan.mergedInto.entries()].sort(),
+      canonical: [...plan.canonicalPersonOf.entries()].sort(compareStringEntries),
+      merged: [...plan.mergedInto.entries()].sort(compareStringEntries),
     });
     expect(normalize(forward)).toEqual(normalize(reversed));
     // p_b is the oldest → the survivor for the whole {a,b,c} component.

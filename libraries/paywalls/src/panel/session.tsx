@@ -381,7 +381,7 @@ export const createPanelSession = <P extends PanelProps = PanelProps>(
     const definition = <PanelDefinitionHost render={options.render} ctx={ctx} />;
     const wrapped = options.wrap ? options.wrap(definition) : definition;
     const element = (
-      <PanelErrorBoundary onError={options.callbacks.onError}>
+      <PanelErrorBoundary onError={(error) => options.callbacks.onError(error)}>
         <PanelRuntimeProvider value={ctx}>{wrapped}</PanelRuntimeProvider>
       </PanelErrorBoundary>
     );

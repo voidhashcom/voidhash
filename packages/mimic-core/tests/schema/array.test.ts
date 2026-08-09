@@ -10,7 +10,7 @@ import {
   stringValue,
   validate,
 } from "../../src/index.js";
-import { expectSchemaErrorCode } from "./helpers.js";
+import { constant, expectSchemaErrorCode } from "./helpers.js";
 
 describe("schema array model", () => {
   it("parses and serializes arrays", () => {
@@ -77,10 +77,10 @@ describe("schema array model", () => {
     );
   });
 
-  it.each([
+  it.each(constant([
     [{ kind: "minLength", value: 2 }, 1],
     [{ kind: "maxLength", value: 0 }, 1],
-  ] as const)("enforces array validator %o", (validator, count) => {
+  ]))("enforces array validator %o", (validator, count) => {
     const schema = parseSchema({
       kind: "array",
       element: { kind: "string" },

@@ -1,5 +1,5 @@
 import { objectValue, stringValue } from "@voidhash/mimic-core";
-import { Effect } from "effect";
+import { Data, Effect, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import type { PresenceEntry } from "../../src/app/hostService.ts";
@@ -8,6 +8,7 @@ import {
   handleDocumentSocketClose,
   handleDocumentSocketMessage,
   isolateSessionHook,
+  type DocumentSessionAuth,
   type DocumentSessionContext,
   type SessionAttachment,
 } from "../../src/ws/document-session.ts";
@@ -21,6 +22,16 @@ interface FakeSocket {
 }
 
 const docValue = objectValue({ title: stringValue("Hello") });
+
+/** Renders a client frame as the JSON text the socket handler receives. */
+const encodeFrame = Schema.encodeSync(Schema.fromJsonString(Schema.Any));
+
+/** Rejection raised by the harness for an unrecognised document token. */
+class InvalidTokenError extends Data.TaggedError("InvalidTokenError")<{
+  readonly message: string;
+}> {}
+
+const goodTokenAuth: DocumentSessionAuth = { tokenId: "tok-1", permission: "write" };
 
 const makeManualTimers = () => {
   let currentNow = 0;
@@ -82,10 +93,12 @@ const makeHarness = (options?: {
       Effect.sync(() => {
         socket.closed = { code, reason };
       }),
-    authenticate: (token) =>
-      token === "good-token"
-        ? Effect.succeed({ tokenId: "tok-1", permission: "write" as const })
-        : Effect.fail(new Error("invalid token")),
+    authenticate: (token) => {
+      if (token !== "good-token") {
+        return Effect.fail(new InvalidTokenError({ message: "invalid token" }));
+      }
+      return Effect.succeed(goodTokenAuth);
+    },
     loadDocument: options?.loadDocument ?? (() => Effect.succeed({ value: docValue, version: 1 })),
     submitTransaction: (envelope) =>
       Effect.succeed({ accepted: true, version: 2, transactionId: envelope.id }),
@@ -117,15 +130,16 @@ const makeHarness = (options?: {
     return socket;
   };
 
-  const message = (socket: FakeSocket, frame: unknown): Promise<void> =>
-    Effect.runPromise(handleDocumentSocketMessage(ctx, socket, JSON.stringify(frame)));
+  const message = (socket: FakeSocket, frame: unknown): Effect.Effect<void> =>
+    handleDocumentSocketMessage(ctx, socket, encodeFrame(frame));
 
-  const authenticateSocket = async (connectionId: string): Promise<FakeSocket> => {
-    const socket = connectSocket(connectionId);
-    await message(socket, { type: "auth", token: "good-token" });
-    socket.sent.length = 0;
-    return socket;
-  };
+  const authenticateSocket = (connectionId: string): Effect.Effect<FakeSocket> =>
+    Effect.gen(function* () {
+      const socket = connectSocket(connectionId);
+      yield* message(socket, { type: "auth", token: "good-token" });
+      socket.sent.length = 0;
+      return socket;
+    });
 
   return {
     ctx,
@@ -141,98 +155,113 @@ const makeHarness = (options?: {
 };
 
 describe("document session protocol", () => {
-  it("answers a successful auth with auth_result, snapshot, and presence snapshot", async () => {
-    const harness = makeHarness();
-    const socket = harness.connectSocket("conn-1");
+  it("answers a successful auth with auth_result, snapshot, and presence snapshot", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        const socket = harness.connectSocket("conn-1");
 
-    await harness.message(socket, { type: "auth", token: "good-token" });
+        yield* harness.message(socket, { type: "auth", token: "good-token" });
 
-    expect(socket.sent).toEqual([
-      { type: "auth_result", success: true, tokenId: "tok-1", permission: "write" },
-      { type: "snapshot", value: docValue, version: 1 },
-      { type: "presence_snapshot", selfId: "conn-1", presences: {} },
-    ]);
-    expect(socket.attachment?.authenticated).toBe(true);
-    expect(harness.registry.authenticated()).toEqual([socket]);
-  });
+        expect(socket.sent).toEqual([
+          { type: "auth_result", success: true, tokenId: "tok-1", permission: "write" },
+          { type: "snapshot", value: docValue, version: 1 },
+          { type: "presence_snapshot", selfId: "conn-1", presences: {} },
+        ]);
+        expect(socket.attachment?.authenticated).toBe(true);
+        expect(harness.registry.authenticated()).toEqual([socket]);
+      }),
+    ));
 
-  it("rejects an invalid token without granting the session", async () => {
-    const harness = makeHarness();
-    const socket = harness.connectSocket("conn-1");
+  it("rejects an invalid token without granting the session", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        const socket = harness.connectSocket("conn-1");
 
-    await harness.message(socket, { type: "auth", token: "wrong" });
+        yield* harness.message(socket, { type: "auth", token: "wrong" });
 
-    expect(socket.sent).toEqual([
-      { type: "auth_result", success: false, error: "Invalid document token" },
-    ]);
-    expect(socket.attachment?.authenticated).toBe(false);
-    expect(harness.registry.authenticated()).toEqual([]);
-  });
+        expect(socket.sent).toEqual([
+          { type: "auth_result", success: false, error: "Invalid document token" },
+        ]);
+        expect(socket.attachment?.authenticated).toBe(false);
+        expect(harness.registry.authenticated()).toEqual([]);
+      }),
+    ));
 
-  it("never broadcasts to sockets that have not authenticated", async () => {
-    const harness = makeHarness();
-    const writer = await harness.authenticateSocket("writer");
-    const peer = await harness.authenticateSocket("peer");
-    const lurker = harness.connectSocket("lurker");
+  it("never broadcasts to sockets that have not authenticated", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        const writer = yield* harness.authenticateSocket("writer");
+        const peer = yield* harness.authenticateSocket("peer");
+        const lurker = harness.connectSocket("lurker");
 
-    await harness.message(writer, {
-      type: "submit",
-      transaction: { id: "tx-1", baseVersion: 1, commands: [] },
-    });
-    await harness.message(writer, {
-      type: "presence_set",
-      data: objectValue({ name: stringValue("w") }),
-    });
+        yield* harness.message(writer, {
+          type: "submit",
+          transaction: { id: "tx-1", baseVersion: 1, commands: [] },
+        });
+        yield* harness.message(writer, {
+          type: "presence_set",
+          data: objectValue({ name: stringValue("w") }),
+        });
 
-    expect(lurker.sent).toEqual([]);
-    expect(peer.sent.map((m) => m.type)).toEqual(["transaction", "presence_update"]);
-    expect(writer.sent.map((m) => m.type)).toEqual(["transaction", "presence_update"]);
-  });
+        expect(lurker.sent).toEqual([]);
+        expect(peer.sent.map((m) => m.type)).toEqual(["transaction", "presence_update"]);
+        expect(writer.sent.map((m) => m.type)).toEqual(["transaction", "presence_update"]);
+      }),
+    ));
 
-  it("sends an error frame and closes the socket when the snapshot load fails after auth", async () => {
-    const harness = makeHarness({
-      loadDocument: () => Effect.fail({ message: "database unreachable" }),
-    });
-    const socket = harness.connectSocket("conn-1");
+  it("sends an error frame and closes the socket when the snapshot load fails after auth", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness({
+          loadDocument: () => Effect.fail({ message: "database unreachable" }),
+        });
+        const socket = harness.connectSocket("conn-1");
 
-    await harness.message(socket, { type: "auth", token: "good-token" });
+        yield* harness.message(socket, { type: "auth", token: "good-token" });
 
-    expect(socket.sent).toEqual([
-      {
-        type: "error",
-        transactionId: undefined,
-        reason: "Failed to load document: database unreachable",
-      },
-    ]);
-    expect(socket.closed).toEqual({ code: 1011, reason: "Document load failed" });
-    expect(harness.registry.authenticated()).toEqual([]);
-  });
+        expect(socket.sent).toEqual([
+          {
+            type: "error",
+            transactionId: undefined,
+            reason: "Failed to load document: database unreachable",
+          },
+        ]);
+        expect(socket.closed).toEqual({ code: 1011, reason: "Document load failed" });
+        expect(harness.registry.authenticated()).toEqual([]);
+      }),
+    ));
 
-  it("broadcasts presence_remove to peers when a socket with presence closes", async () => {
-    const harness = makeHarness();
-    const leaver = await harness.authenticateSocket("leaver");
-    const peer = await harness.authenticateSocket("peer");
+  it("broadcasts presence_remove to peers when a socket with presence closes", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        const leaver = yield* harness.authenticateSocket("leaver");
+        const peer = yield* harness.authenticateSocket("peer");
 
-    await harness.message(leaver, {
-      type: "presence_set",
-      data: objectValue({ name: stringValue("l") }),
-    });
-    peer.sent.length = 0;
+        yield* harness.message(leaver, {
+          type: "presence_set",
+          data: objectValue({ name: stringValue("l") }),
+        });
+        peer.sent.length = 0;
 
-    await Effect.runPromise(handleDocumentSocketClose(harness.ctx, leaver));
+        yield* handleDocumentSocketClose(harness.ctx, leaver);
 
-    expect(peer.sent).toEqual([{ type: "presence_remove", id: "leaver" }]);
-    expect(harness.presence.has("leaver")).toBe(false);
-    expect(harness.registry.authenticated()).toEqual([peer]);
+        expect(peer.sent).toEqual([{ type: "presence_remove", id: "leaver" }]);
+        expect(harness.presence.has("leaver")).toBe(false);
+        expect(harness.registry.authenticated()).toEqual([peer]);
 
-    // Closing a socket without presence broadcasts nothing.
-    peer.sent.length = 0;
-    const quiet = await harness.authenticateSocket("quiet");
-    await Effect.runPromise(handleDocumentSocketClose(harness.ctx, quiet));
-    expect(peer.sent).toEqual([]);
-  });
+        // Closing a socket without presence broadcasts nothing.
+        peer.sent.length = 0;
+        const quiet = yield* harness.authenticateSocket("quiet");
+        yield* handleDocumentSocketClose(harness.ctx, quiet);
+        expect(peer.sent).toEqual([]);
+      }),
+    ));
 
-  it("closes sockets that never authenticate once the deadline passes", async () => {
+  it("closes sockets that never authenticate once the deadline passes", () => {
     const harness = makeHarness();
     const socket = harness.connectSocket("conn-1");
 
@@ -242,88 +271,105 @@ describe("document session protocol", () => {
     expect(socket.closed).toEqual({ code: 1008, reason: "Authentication deadline exceeded" });
   });
 
-  it("keeps authenticated sockets alive past the auth deadline", async () => {
-    const harness = makeHarness();
-    const socket = await harness.authenticateSocket("conn-1");
+  it("keeps authenticated sockets alive past the auth deadline", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        const socket = yield* harness.authenticateSocket("conn-1");
 
-    harness.advance(AUTH_DEADLINE_MS * 10);
-    expect(socket.closed).toBeNull();
-    expect(harness.registry.authenticated()).toEqual([socket]);
-  });
+        harness.advance(AUTH_DEADLINE_MS * 10);
+        expect(socket.closed).toBeNull();
+        expect(harness.registry.authenticated()).toEqual([socket]);
+      }),
+    ));
 
-  it("reports the accepted sequence to the idle-notify host on submit", async () => {
-    const harness = makeHarness();
-    const writer = await harness.authenticateSocket("writer");
+  it("reports the accepted sequence to the idle-notify host on submit", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        const writer = yield* harness.authenticateSocket("writer");
 
-    await harness.message(writer, {
-      type: "submit",
-      transaction: { id: "tx-1", baseVersion: 1, commands: [] },
-    });
+        yield* harness.message(writer, {
+          type: "submit",
+          transaction: { id: "tx-1", baseVersion: 1, commands: [] },
+        });
 
-    // The stub submit returns version 2, so the current sequence is 1.
-    expect(harness.acceptedSeqs).toEqual([1]);
-  });
+        // The stub submit returns version 2, so the current sequence is 1.
+        expect(harness.acceptedSeqs).toEqual([1]);
+      }),
+    ));
 
-  it("signals the idle-notify host only when the last authenticated socket closes", async () => {
-    const harness = makeHarness();
-    const first = await harness.authenticateSocket("first");
-    const second = await harness.authenticateSocket("second");
+  it("signals the idle-notify host only when the last authenticated socket closes", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        const first = yield* harness.authenticateSocket("first");
+        const second = yield* harness.authenticateSocket("second");
 
-    await Effect.runPromise(handleDocumentSocketClose(harness.ctx, first));
-    expect(harness.lastAuthenticatedCloses()).toBe(0);
+        yield* handleDocumentSocketClose(harness.ctx, first);
+        expect(harness.lastAuthenticatedCloses()).toBe(0);
 
-    await Effect.runPromise(handleDocumentSocketClose(harness.ctx, second));
-    expect(harness.lastAuthenticatedCloses()).toBe(1);
-  });
+        yield* handleDocumentSocketClose(harness.ctx, second);
+        expect(harness.lastAuthenticatedCloses()).toBe(1);
+      }),
+    ));
 
-  it("completes close cleanup even when an isolated onLastAuthenticatedClose hook dies", async () => {
-    const harness = makeHarness();
-    // The DO wires the storage-backed hook through `isolateSessionHook`; model a
-    // hook whose underlying storage effect DIES (a defect, not a typed failure).
-    const dyingCtx: DocumentSessionContext<FakeSocket> = {
-      ...harness.ctx,
-      onLastAuthenticatedClose: () =>
-        isolateSessionHook(
-          Effect.die(new Error("storage unavailable")),
-          "onLastAuthenticatedClose",
-        ),
-    };
-    const leaver = await harness.authenticateSocket("leaver");
-    await Effect.runPromise(
-      handleDocumentSocketMessage(
-        harness.ctx,
-        leaver,
-        JSON.stringify({ type: "presence_set", data: objectValue({ name: stringValue("l") }) }),
-      ),
-    );
+  it("completes close cleanup even when an isolated onLastAuthenticatedClose hook dies", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const harness = makeHarness();
+        // The DO wires the storage-backed hook through `isolateSessionHook`; model a
+        // hook whose underlying storage effect DIES (a defect, not a typed failure).
+        const dyingCtx: DocumentSessionContext<FakeSocket> = {
+          ...harness.ctx,
+          onLastAuthenticatedClose: () =>
+            isolateSessionHook(
+              Effect.die(new Error("storage unavailable")),
+              "onLastAuthenticatedClose",
+            ),
+        };
+        const leaver = yield* harness.authenticateSocket("leaver");
+        yield* handleDocumentSocketMessage(
+          harness.ctx,
+          leaver,
+          encodeFrame({ type: "presence_set", data: objectValue({ name: stringValue("l") }) }),
+        );
 
-    // Must resolve (not reject) — the die is swallowed by the isolation wrapper —
-    // and the registry/presence cleanup still runs.
-    await Effect.runPromise(handleDocumentSocketClose(dyingCtx, leaver));
+        // Must complete (not fail) — the die is swallowed by the isolation wrapper —
+        // and the registry/presence cleanup still runs.
+        yield* handleDocumentSocketClose(dyingCtx, leaver);
 
-    expect(harness.presence.has("leaver")).toBe(false);
-    expect(harness.registry.authenticated()).toEqual([]);
-  });
+        expect(harness.presence.has("leaver")).toBe(false);
+        expect(harness.registry.authenticated()).toEqual([]);
+      }),
+    ));
 });
 
 describe("isolateSessionHook", () => {
-  it("swallows a die and returns void so the caller proceeds", async () => {
-    let ran = false;
-    const result = await Effect.runPromise(
-      isolateSessionHook(Effect.die(new Error("boom")), "recordDirty").pipe(
-        Effect.tap(() =>
-          Effect.sync(() => {
-            ran = true;
-          }),
-        ),
-      ),
-    );
-    expect(ran).toBe(true);
-    expect(result).toBeUndefined();
-  });
+  it("swallows a die and returns void so the caller proceeds", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        let ran = false;
+        const result = yield* isolateSessionHook(
+          Effect.die(new Error("boom")),
+          "recordDirty",
+        ).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              ran = true;
+            }),
+          ),
+        );
+        expect(ran).toBe(true);
+        expect(result).toBeUndefined();
+      }),
+    ));
 
-  it("passes a succeeding hook through untouched", async () => {
-    const result = await Effect.runPromise(isolateSessionHook(Effect.succeed(42), "recordDirty"));
-    expect(result).toBe(42);
-  });
+  it("passes a succeeding hook through untouched", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* isolateSessionHook(Effect.succeed(42), "recordDirty");
+        expect(result).toBe(42);
+      }),
+    ));
 });

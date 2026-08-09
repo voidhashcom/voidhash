@@ -12,10 +12,30 @@ import {
   type MintedIds,
 } from "@voidhash/paywall-workspace";
 
+import { constant } from "@voidhash/lib/lang";
+
 import { PaywallNotFoundError } from "../../domain/paywall/Paywall.ts";
 import { MimicHost, type AgentPaywallPresence } from "../paywalls/MimicHost.ts";
 import { PaywallService } from "../paywalls/PaywallService.ts";
 import { ComponentManifestCacheError } from "./ComponentManifestCacheService.ts";
+
+/** Appends a mimic-host error's cause to its message when there is one. */
+const mimicHostMessage = (error: {
+  readonly message: string;
+  readonly cause: string;
+}): string => {
+  if (error.cause.length > 0) return `${error.message} (${error.cause})`;
+  return error.message;
+};
+
+/**
+ * A no-op edit (`commandCount` 0) committed no new nodes, so the applier's
+ * pre-minted ids never became real — report none rather than dangling ids.
+ */
+const mintedIdsForCommit = (commandCount: number, mintedIds: MintedIds): MintedIds => {
+  if (commandCount === 0) return {};
+  return mintedIds;
+};
 
 /**
  * Catch-all error raised by {@link PaywallWorkspaceService} public methods —
@@ -225,10 +245,7 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
           Effect.catchTags({
             MimicHostError: (error) =>
               Effect.fail(
-                new PaywallWorkspaceServiceError({
-                  message:
-                    error.cause.length > 0 ? `${error.message} (${error.cause})` : error.message,
-                }),
+                new PaywallWorkspaceServiceError({ message: mimicHostMessage(error) }),
               ),
           }),
         );
@@ -365,9 +382,11 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
        */
       const attemptTransaction = (paywallId: string, lower: Lowering, connectionId?: string) =>
         Effect.gen(function* () {
-          const document = yield* connectionId === undefined
-            ? mimicHost.getPaywallDocument(paywallId)
-            : mimicHost.getConnectedPaywallDocument({ paywallId, connectionId });
+          const readDocument = () => {
+            if (connectionId === undefined) return mimicHost.getPaywallDocument(paywallId);
+            return mimicHost.getConnectedPaywallDocument({ paywallId, connectionId });
+          };
+          const document = yield* readDocument();
           const preImage = { tree: document.tree, version: document.version };
           const lowered = yield* lower(document.tree);
 
@@ -383,34 +402,38 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
           // Info-level lowering diagnostics (duplicate inline ids on a
           // composition write) ride along on the committed result.
           const loweringDiagnostics: WorkspaceDiagnostic[] = (lowered.diagnostics ?? []).map(
-            (d) => ({ message: d.message, severity: "info" as const }),
+            (d) => ({ message: d.message, severity: constant("info") }),
           );
 
           // A no-op (unchanged source) commits nothing — report the live version.
           if (lowered.commands.length === 0) {
             return {
-              done: true as const,
-              accepted: false as const,
+              done: constant(true),
+              accepted: constant(false),
               result: { version: document.version, commandCount: 0 },
               loweringDiagnostics,
               preImage,
             };
           }
 
-          const submitted = yield* connectionId === undefined
-            ? mimicHost.submitPaywallTransaction(paywallId, {
-                baseVersion: document.version,
-                commands: lowered.commands,
-              })
-            : mimicHost.submitConnectedPaywallTransaction(paywallId, connectionId, {
+          const submitTransaction = () => {
+            if (connectionId === undefined) {
+              return mimicHost.submitPaywallTransaction(paywallId, {
                 baseVersion: document.version,
                 commands: lowered.commands,
               });
+            }
+            return mimicHost.submitConnectedPaywallTransaction(paywallId, connectionId, {
+              baseVersion: document.version,
+              commands: lowered.commands,
+            });
+          };
+          const submitted = yield* submitTransaction();
 
           if (submitted.accepted) {
             return {
-              done: true as const,
-              accepted: true as const,
+              done: constant(true),
+              accepted: constant(true),
               result: { version: submitted.version, commandCount: lowered.commands.length },
               loweringDiagnostics,
               preImage,
@@ -419,8 +442,8 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
           // Version conflict (or a batch the DO refused against the advanced
           // document): re-read + re-reconcile on the next attempt.
           return {
-            done: false as const,
-            accepted: false as const,
+            done: constant(false),
+            accepted: constant(false),
             result: undefined,
             loweringDiagnostics: [],
             preImage,
@@ -586,7 +609,7 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
             // A no-op edit (commandCount 0) committed no new nodes — the applier's
             // pre-minted ids never became real, so report none rather than
             // dangling ids the model cannot address.
-            mintedIds: outcome.result.commandCount === 0 ? {} : mintedIds,
+            mintedIds: mintedIdsForCommit(outcome.result.commandCount, mintedIds),
           } satisfies EditDocumentResult;
         }).pipe(
           Effect.catchTags({
@@ -688,7 +711,7 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
           );
           return {
             ...outcome.result,
-            mintedIds: outcome.result.commandCount === 0 ? {} : mintedIds,
+            mintedIds: mintedIdsForCommit(outcome.result.commandCount, mintedIds),
           } satisfies EditDocumentResult;
         }).pipe(
           Effect.catchTags({
@@ -805,7 +828,7 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
           }),
         );
 
-      return {
+      return constant({
         closeDocumentConnection,
         deleteConnectedComponentFile,
         listPaywalls,
@@ -823,7 +846,7 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
         deleteComponentFile,
         revertConnectedDocument,
         revertDocument,
-      } as const;
+      });
     }),
   },
 ) {

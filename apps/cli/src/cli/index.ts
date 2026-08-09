@@ -39,9 +39,12 @@ const cli = Command.run(command, {
 });
 
 // Apply debug log level if --debug flag is present
-const cliEffect = cli.pipe(
-  isDebugMode() ? Effect.provideService(References.MinimumLogLevel, "Debug") : (x) => x,
-);
+const withDebugLogLevel = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> => {
+  if (!isDebugMode()) return effect;
+  return effect.pipe(Effect.provideService(References.MinimumLogLevel, "Debug"));
+};
+
+const cliEffect = withDebugLogLevel(cli);
 
 const ServicesLayer = Layer.mergeAll(
   SourceCode.Default,

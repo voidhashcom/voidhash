@@ -9,6 +9,14 @@ import { buildSlackMessage } from "../../../src/services/feedback/FeedbackServic
  * lines so a missing org/project/page/sentiment never emits an empty field.
  */
 
+/** The context block is the only Block Kit variant carrying `elements`. */
+type ContextBlock = { readonly elements: ReadonlyArray<{ readonly text: string }> };
+const isContextBlock = (block: object): block is ContextBlock => "elements" in block;
+const contextTextOf = (block: object): string => {
+  if (isContextBlock(block)) return block.elements[0].text;
+  return "";
+};
+
 const base = {
   topicLabel: "Analytics",
   message: "The revenue chart is blank",
@@ -31,7 +39,7 @@ describe("buildSlackMessage", () => {
     expect(blocks[1]).toMatchObject({ type: "section" });
     expect(blocks[2]).toMatchObject({ type: "context" });
 
-    const contextText = (blocks[2] as { elements: Array<{ text: string }> }).elements[0].text;
+    const contextText = contextTextOf(blocks[2]);
     expect(contextText).toContain("Jane Doe");
     expect(contextText).toContain("jane@acme.com");
     expect(contextText).toContain("Acme");
@@ -54,7 +62,7 @@ describe("buildSlackMessage", () => {
       pathname: null,
     });
 
-    const contextText = (blocks[2] as { elements: Array<{ text: string }> }).elements[0].text;
+    const contextText = contextTextOf(blocks[2]);
     expect(contextText).toContain("Jane Doe");
     expect(contextText).not.toContain("Organization:");
     expect(contextText).not.toContain("Project:");

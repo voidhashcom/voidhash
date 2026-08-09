@@ -1,4 +1,4 @@
-import { Effect, Layer, Schedule, type Scope, Schema } from "effect";
+import { Clock, Effect, Layer, Random, Schedule, type Scope, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import type { PlatformRuntime } from "../PlatformRuntime.ts";
@@ -18,7 +18,13 @@ export interface WorkflowConformanceOptions {
  * this suite would join the previous run's finished executions and observe no
  * handler side effects.
  */
-const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const runId = Effect.runSync(
+  Effect.gen(function* () {
+    const millis = yield* Clock.currentTimeMillis;
+    const entropy = yield* Random.nextIntBetween(0, 0xff_ff_ff);
+    return `${millis.toString(36)}-${entropy.toString(36)}`;
+  }),
+);
 
 const Greet = Workflow.define({
   name: "conformance-greet",
@@ -38,10 +44,7 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
   // the lifetime of the scope, so each test discharges its own.
   const run = <A, E>(
     effect: Effect.Effect<A, E, WorkflowRunner | PlatformRuntime | Scope.Scope>,
-  ): Promise<A> =>
-    Effect.runPromise(
-      Effect.scoped(effect.pipe(Effect.provide(options.layer()))) as Effect.Effect<A, E>,
-    );
+  ): Promise<A> => Effect.runPromise(Effect.scoped(effect.pipe(Effect.provide(options.layer()))));
 
   /**
    * Waits for a dispatched execution to reach a persisted result.
@@ -54,22 +57,21 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
     Effect.gen(function* () {
       const runner = yield* WorkflowRunner;
       return yield* Effect.retry(
-        runner
-          .poll(Greet, executionId)
-          .pipe(
-            Effect.flatMap((result) =>
-              result._tag === "Some" && result.value.status !== "suspended"
-                ? Effect.succeed(result)
-                : Effect.fail("pending" as const),
-            ),
-          ),
+        runner.poll(Greet, executionId).pipe(
+          Effect.flatMap((result) => {
+            if (result._tag === "Some" && result.value.status !== "suspended") {
+              return Effect.succeed(result);
+            }
+            return Effect.fail("pending");
+          }),
+        ),
         { times: 100, schedule: Schedule.spaced("20 millis") },
       );
     });
 
   describe(`${options.name}: workflow runner conformance`, () => {
-    it("executes a registered workflow and returns its result", async () => {
-      const result = await run(
+    it("executes a registered workflow and returns its result", () =>
+      run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
           yield* runner.register(
@@ -77,18 +79,17 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
             (payload) => Effect.succeed(`hello ${payload.subject}`),
             Layer.empty,
           );
-          return yield* runner.execute(Greet, { subject: `world-${runId}` });
+          const result = yield* runner.execute(Greet, { subject: `world-${runId}` });
+
+          expect(result).toBe(`hello world-${runId}`);
         }),
-      );
+      ));
 
-      expect(result).toBe(`hello world-${runId}`);
-    });
-
-    it("runs durable steps inside a workflow body", async () => {
-      const steps: Array<string> = [];
-
-      const result = await run(
+    it("runs durable steps inside a workflow body", () =>
+      run(
         Effect.gen(function* () {
+          const steps: Array<string> = [];
+
           const runner = yield* WorkflowRunner;
           yield* runner.register(
             Greet,
@@ -106,19 +107,18 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
               }),
             Layer.empty,
           );
-          return yield* runner.execute(Greet, { subject: `steps-${runId}` });
+          const result = yield* runner.execute(Greet, { subject: `steps-${runId}` });
+
+          expect(result).toBe(`hello ${`steps-${runId}`.toUpperCase()}`);
+          expect(steps).toEqual(["shout"]);
         }),
-      );
+      ));
 
-      expect(result).toBe(`hello ${`steps-${runId}`.toUpperCase()}`);
-      expect(steps).toEqual(["shout"]);
-    });
-
-    it("derives a stable execution ID from the idempotency key", async () => {
-      const started: Array<string> = [];
-
-      const [first, second] = await run(
+    it("derives a stable execution ID from the idempotency key", () =>
+      run(
         Effect.gen(function* () {
+          const started: Array<string> = [];
+
           const runner = yield* WorkflowRunner;
           yield* runner.register(
             Greet,
@@ -133,17 +133,15 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
           yield* awaitResult(first);
           const second = yield* runner.dispatch(Greet, { subject: `same-${runId}` });
           yield* awaitResult(second);
-          return [first, second] as const;
+
+          expect(first).toBe(second);
+          // The second dispatch joins the completed run rather than re-running it.
+          expect(started).toEqual([`same-${runId}`]);
         }),
-      );
+      ));
 
-      expect(first).toBe(second);
-      // The second dispatch joins the completed run rather than re-running it.
-      expect(started).toEqual([`same-${runId}`]);
-    });
-
-    it("polls a completed execution", async () => {
-      const polled = await run(
+    it("polls a completed execution", () =>
+      run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
           yield* runner.register(
@@ -152,33 +150,31 @@ export const workflowRunnerConformance = (options: WorkflowConformanceOptions): 
             Layer.empty,
           );
           const executionId = yield* runner.dispatch(Greet, { subject: `polled-${runId}` });
-          return yield* awaitResult(executionId);
+          const polled = yield* awaitResult(executionId);
+
+          expect(polled._tag).toBe("Some");
+          if (polled._tag === "Some") {
+            expect(polled.value.status).toBe("succeeded");
+            if (polled.value.status === "succeeded") {
+              expect(polled.value.value).toBe(`hello polled-${runId}`);
+            }
+          }
         }),
-      );
+      ));
 
-      expect(polled._tag).toBe("Some");
-      if (polled._tag === "Some") {
-        expect(polled.value.status).toBe("succeeded");
-        if (polled.value.status === "succeeded") {
-          expect(polled.value.value).toBe(`hello polled-${runId}`);
-        }
-      }
-    });
-
-    it("reports a failing workflow as a failed execution", async () => {
-      const polled = await run(
+    it("reports a failing workflow as a failed execution", () =>
+      run(
         Effect.gen(function* () {
           const runner = yield* WorkflowRunner;
           yield* runner.register(Greet, () => Effect.fail("boom"), Layer.empty);
           const executionId = yield* runner.dispatch(Greet, { subject: `failing-${runId}` });
-          return yield* awaitResult(executionId);
-        }),
-      );
+          const polled = yield* awaitResult(executionId);
 
-      expect(polled._tag).toBe("Some");
-      if (polled._tag === "Some") {
-        expect(polled.value.status).toBe("failed");
-      }
-    });
+          expect(polled._tag).toBe("Some");
+          if (polled._tag === "Some") {
+            expect(polled.value.status).toBe("failed");
+          }
+        }),
+      ));
   });
 };

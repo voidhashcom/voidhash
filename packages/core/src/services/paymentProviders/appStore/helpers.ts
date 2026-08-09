@@ -18,6 +18,7 @@ import {
 } from "@voidhash/db";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
 import { parseISO4217CurrencyCode } from "@voidhash/lib/constants";
+import { pick } from "@voidhash/lib/lang";
 import { Effect, Option } from "effect";
 
 import { PurchaseProcessingResult } from "../../../domain/purchaseProcessing/PurchaseProcessing.ts";
@@ -117,8 +118,11 @@ export const buildAppStoreWebhookAnonymousDistinctId = (input: {
   readonly providerEnvironment: ProviderEnvironmentValue;
   readonly personIdentifier: string;
 }): string => {
-  const environmentLabel =
-    input.providerEnvironment === ProviderEnvironment.Sandbox ? "sandbox" : "production";
+  const environmentLabel = pick(
+    input.providerEnvironment === ProviderEnvironment.Sandbox,
+    "sandbox",
+    "production",
+  );
   return `${ANONYMOUS_USER_ID_PREFIX}provider:apple-app-store:${environmentLabel}:${input.personIdentifier}`;
 };
 
@@ -228,9 +232,9 @@ export const getAppStorePurchaseProcessingIdempotencyKey = (input: {
 }): Effect.Effect<string, AppStorePurchaseProcessingIdempotencyKeyDerivationError> =>
   Effect.gen(function* () {
     const transaction = input.decodedTransaction;
-    const renewalInfo = input.decodedRenewalInfo
-      ? Option.getOrUndefined(input.decodedRenewalInfo)
-      : undefined;
+    const renewalInfo = Option.getOrUndefined(
+      input.decodedRenewalInfo ?? Option.none<JWSRenewalInfoDecodedPayload>(),
+    );
     const transactionIdOp = getAppStoreProviderTransactionId({
       decodedTransaction: transaction,
       sdkTransactionId: input.sdkTransactionId,

@@ -21,6 +21,7 @@ import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
 import { ClusterQueueLive } from "@voidhash/platform-selfhost/Queue";
 import { SingleNodeClusterLive } from "@voidhash/platform-selfhost/Topology";
 import * as ClusterWorkflowRunner from "@voidhash/platform-selfhost/Workflow";
+import { pick } from "@voidhash/lib/lang";
 import { Layer, Redacted } from "effect";
 import {
   KeyValueStore as PersistenceKeyValueStore,
@@ -69,7 +70,7 @@ export const selfhostPlatformPostgres = (database: DbConfig): PgPlatformConfig =
   host: database.host,
   password: Redacted.make(database.password),
   port: database.port,
-  ...(database.ssl === undefined ? {} : { ssl: database.ssl }),
+  ...pick(database.ssl === undefined, {}, { ssl: database.ssl }),
   username: database.username,
 });
 
@@ -80,7 +81,7 @@ const platformLayers = (postgres: PgPlatformConfig): SelfhostPlatformLayers => {
     password: postgres.password,
     port: postgres.port,
     username: postgres.username,
-    ...(postgres.ssl === undefined ? {} : { ssl: postgres.ssl }),
+    ...pick(postgres.ssl === undefined, {}, { ssl: postgres.ssl }),
   }).pipe(Layer.orDie);
 
   // Every cluster-backed primitive shares this one topology value so a single

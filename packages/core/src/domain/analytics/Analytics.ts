@@ -6,7 +6,8 @@
  *
  * The catch-all `AnalyticsServiceError` lives with the service.
  */
-import { Effect, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { DateTime, Effect, Schema } from "effect";
 
 /** Time range parameters were rejected during normalisation. */
 export class InvalidTimeRangeError extends Schema.TaggedErrorClass<InvalidTimeRangeError>(
@@ -154,13 +155,13 @@ export interface InsightDefinition {
   supportedGranularities: readonly TimeGranularity[];
 }
 
-const DEFAULT_FILTER_FIELDS = ["project.id"] as const;
-const REVENUE_FILTER_FIELDS = [
+const DEFAULT_FILTER_FIELDS = constant(["project.id"]);
+const REVENUE_FILTER_FIELDS = constant([
   "project.id",
   "product.id",
   "provider.environment",
   "subscription.status",
-] as const;
+]);
 
 const ALL_GRANULARITIES: ReadonlyArray<TimeGranularity> = [
   "hour",
@@ -346,26 +347,26 @@ export const BUILT_IN_INSIGHTS = [
 // Field registry — supported / reserved analytics filter fields.
 // =============================================================================
 
-export const SUPPORTED_REVENUE_FILTER_FIELDS = [
+export const SUPPORTED_REVENUE_FILTER_FIELDS = constant([
   "project.id",
   "product.id",
   "provider.environment",
   "subscription.status",
-] as const;
+]);
 
 export type SupportedRevenueFilterField = (typeof SUPPORTED_REVENUE_FILTER_FIELDS)[number];
 
-export const RESERVED_ANALYTICS_FIELD_PREFIXES = [
+export const RESERVED_ANALYTICS_FIELD_PREFIXES = constant([
   "event.",
   "person.properties.",
   "event.properties.",
   "context.",
-] as const;
+]);
 
 export const isSupportedRevenueFilterField = (
   field: string,
 ): field is SupportedRevenueFilterField =>
-  (SUPPORTED_REVENUE_FILTER_FIELDS as readonly string[]).includes(field);
+  SUPPORTED_REVENUE_FILTER_FIELDS.some((supported) => supported === field);
 
 export const isReservedAnalyticsField = (field: string): boolean =>
   RESERVED_ANALYTICS_FIELD_PREFIXES.some((prefix) => field.startsWith(prefix));
@@ -395,37 +396,40 @@ export const RATE_INSIGHTS = new Set<BuiltInInsightId>([
 export const sumDataPoints = (dataPoints: ReadonlyArray<AnalyticsDataPoint>): number =>
   dataPoints.reduce((sum, dataPoint) => sum + dataPoint.value, 0);
 
-export const avgDataPoints = (dataPoints: ReadonlyArray<AnalyticsDataPoint>): number =>
-  dataPoints.length === 0 ? 0 : sumDataPoints(dataPoints) / dataPoints.length;
+export const avgDataPoints = (dataPoints: ReadonlyArray<AnalyticsDataPoint>): number => {
+  if (dataPoints.length === 0) return 0;
+  return sumDataPoints(dataPoints) / dataPoints.length;
+};
 
 // =============================================================================
 // Insight registry lookup + breakdown guard
 // =============================================================================
 
-const INSIGHT_REGISTRY = new Map(BUILT_IN_INSIGHTS.map((insight) => [insight.id, insight]));
+const INSIGHT_REGISTRY = new Map<string, InsightDefinition>(
+  BUILT_IN_INSIGHTS.map((insight) => [insight.id, insight]),
+);
 
 export const getBuiltInInsight = (
   insightId: string,
 ): Effect.Effect<InsightDefinition, UnknownInsightError> => {
-  const insight = INSIGHT_REGISTRY.get(insightId as BuiltInInsightId);
-  return insight
-    ? Effect.succeed(insight)
-    : Effect.fail(
-        new UnknownInsightError({ insightId, message: `Unknown analytics insight ${insightId}` }),
-      );
+  const insight = INSIGHT_REGISTRY.get(insightId);
+  if (insight) return Effect.succeed(insight);
+  return Effect.fail(
+    new UnknownInsightError({ insightId, message: `Unknown analytics insight ${insightId}` }),
+  );
 };
 
 export const ensureNoBreakdowns = (
   breakdowns: AnalyticsInsightQuery["breakdowns"] | undefined,
-): Effect.Effect<void, UnsupportedAnalyticsBreakdownError> =>
-  !breakdowns || breakdowns.length === 0
-    ? Effect.void
-    : Effect.fail(
-        new UnsupportedAnalyticsBreakdownError({
-          field: breakdowns[0]?.field ?? "unknown",
-          message: "Breakdowns are not supported in this PoC",
-        }),
-      );
+): Effect.Effect<void, UnsupportedAnalyticsBreakdownError> => {
+  if (!breakdowns || breakdowns.length === 0) return Effect.void;
+  return Effect.fail(
+    new UnsupportedAnalyticsBreakdownError({
+      field: breakdowns[0]?.field ?? "unknown",
+      message: "Breakdowns are not supported in this PoC",
+    }),
+  );
+};
 
 // =============================================================================
 // Time-range resolution
@@ -436,33 +440,63 @@ export const ensureNoBreakdowns = (
  * fractional-second timestamps when bound as query parameters, and analytics
  * buckets never care about sub-seconds, so we floor at the resolver boundary.
  */
-const truncateToSecond = (date: Date): Date => new Date(Math.floor(date.getTime() / 1000) * 1000);
+const truncateToSecond = (date: Date): Date =>
+  fromEpochMillis(Math.floor(date.getTime() / 1000) * 1000);
+
+/** Builds a `Date` from epoch milliseconds without the banned `new Date(ms)`. */
+const fromEpochMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
+/**
+ * Builds a `Date` from calendar parts interpreted in the host time zone, which
+ * is what the `new Date(year, monthIndex, day)` constructor did here. `month` is
+ * one-based for `DateTime`, unlike the zero-based constructor argument.
+ */
+const fromLocalParts = (parts: { day: number; month: number; year: number }): Date =>
+  DateTime.toDateUtc(
+    DateTime.makeZonedUnsafe(parts, {
+      adjustForTimeZone: true,
+      timeZone: DateTime.zoneMakeLocal(),
+    }),
+  );
 
 export const resolveTimeRange = (
   timeRange: AnalyticsTimeRange,
 ): Effect.Effect<{ end: Date; start: Date }, InvalidTimeRangeError> =>
   Effect.gen(function* () {
-    const now = truncateToSecond(new Date());
+    const now = truncateToSecond(yield* DateTime.nowAsDate);
 
     switch (timeRange.preset) {
       case "today":
-        return { end: now, start: new Date(now.getFullYear(), now.getMonth(), now.getDate()) };
+        return {
+          end: now,
+          start: fromLocalParts({
+            day: now.getDate(),
+            month: now.getMonth() + 1,
+            year: now.getFullYear(),
+          }),
+        };
       case "last_7d":
-        return { end: now, start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        return { end: now, start: fromEpochMillis(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
       case "last_30d":
-        return { end: now, start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+        return { end: now, start: fromEpochMillis(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
       case "last_90d":
-        return { end: now, start: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
+        return { end: now, start: fromEpochMillis(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
       case "last_365d":
-        return { end: now, start: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
+        return { end: now, start: fromEpochMillis(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
       case "mtd":
-        return { end: now, start: new Date(now.getFullYear(), now.getMonth(), 1) };
+        return {
+          end: now,
+          start: fromLocalParts({ day: 1, month: now.getMonth() + 1, year: now.getFullYear() }),
+        };
       case "qtd": {
         const quarter = Math.floor(now.getMonth() / 3);
-        return { end: now, start: new Date(now.getFullYear(), quarter * 3, 1) };
+        return {
+          end: now,
+          start: fromLocalParts({ day: 1, month: quarter * 3 + 1, year: now.getFullYear() }),
+        };
       }
       case "ytd":
-        return { end: now, start: new Date(now.getFullYear(), 0, 1) };
+        return { end: now, start: fromLocalParts({ day: 1, month: 1, year: now.getFullYear() }) };
       case "custom": {
         if (timeRange.start > timeRange.end) {
           return yield* Effect.fail(
@@ -496,13 +530,16 @@ const ensureSupportedField = (
   supportedFields: readonly string[],
 ): Effect.Effect<void, UnsupportedAnalyticsFilterError> => {
   if (!isSupportedRevenueFilterField(field)) {
+    if (isReservedAnalyticsField(field)) {
+      return Effect.fail(
+        new UnsupportedAnalyticsFilterError({
+          field,
+          message: `Field ${field} is reserved for a future analytics domain`,
+        }),
+      );
+    }
     return Effect.fail(
-      new UnsupportedAnalyticsFilterError({
-        field,
-        message: isReservedAnalyticsField(field)
-          ? `Field ${field} is reserved for a future analytics domain`
-          : `Field ${field} is not supported`,
-      }),
+      new UnsupportedAnalyticsFilterError({ field, message: `Field ${field} is not supported` }),
     );
   }
   if (!supportedFields.includes(field)) {
@@ -516,10 +553,13 @@ const ensureSupportedField = (
   return Effect.void;
 };
 
+const isPrimitiveFilterValue = (value: FilterValue): value is PrimitiveFilterValue =>
+  value === null || typeof value !== "object";
+
 const toArray = (value: FilterValue | undefined): PrimitiveFilterValue[] => {
   if (value === undefined) return [];
-  if (Array.isArray(value)) return [...value] as PrimitiveFilterValue[];
-  return [value as PrimitiveFilterValue];
+  if (isPrimitiveFilterValue(value)) return [value];
+  return [...value];
 };
 
 const toStringArray = (
@@ -527,12 +567,13 @@ const toStringArray = (
   value: FilterValue | undefined,
 ): Effect.Effect<string[], InvalidAnalyticsQueryError> => {
   const values = toArray(value);
-  if (values.some((item) => typeof item !== "string")) {
+  const strings = values.filter((item) => typeof item === "string");
+  if (strings.length !== values.length) {
     return Effect.fail(
       new InvalidAnalyticsQueryError({ message: `Filter ${field} expects string values` }),
     );
   }
-  return Effect.succeed(values as string[]);
+  return Effect.succeed(strings);
 };
 
 const toNumberArray = (
@@ -540,12 +581,13 @@ const toNumberArray = (
   value: FilterValue | undefined,
 ): Effect.Effect<number[], InvalidAnalyticsQueryError> => {
   const values = toArray(value);
-  if (values.some((item) => typeof item !== "number")) {
+  const numbers = values.filter((item) => typeof item === "number");
+  if (numbers.length !== values.length) {
     return Effect.fail(
       new InvalidAnalyticsQueryError({ message: `Filter ${field} expects numeric values` }),
     );
   }
-  return Effect.succeed(values as number[]);
+  return Effect.succeed(numbers);
 };
 
 const intersect = <T>(left: T[] | undefined, right: T[] | undefined): T[] | undefined => {
@@ -655,6 +697,15 @@ const compilePredicate = ({
     );
   });
 
+type PredicateOp = Extract<AnalyticsFilter, { type: "predicate" }>["op"];
+
+/** Inverts the equality operators a NOT filter wraps; other operators pass through. */
+const negatePredicateOp = (op: PredicateOp): PredicateOp => {
+  if (op === "eq") return "neq";
+  if (op === "in") return "not_in";
+  return op;
+};
+
 const compileNode = ({
   availableProjectIds,
   filter,
@@ -700,15 +751,7 @@ const compileNode = ({
         }
         return yield* compilePredicate({
           availableProjectIds,
-          filter: {
-            ...filter.filter,
-            op:
-              filter.filter.op === "eq"
-                ? "neq"
-                : filter.filter.op === "in"
-                  ? "not_in"
-                  : filter.filter.op,
-          },
+          filter: { ...filter.filter, op: negatePredicateOp(filter.filter.op) },
         });
       }
     }
@@ -723,9 +766,10 @@ export const compileAnalyticsFilter = ({
   InvalidAnalyticsQueryError | UnsupportedAnalyticsFilterError
 > =>
   Effect.gen(function* () {
-    const compiled = filter
-      ? yield* compileNode({ availableProjectIds, filter, supportedFields })
-      : {};
+    let compiled: PartialConstraints = {};
+    if (filter) {
+      compiled = yield* compileNode({ availableProjectIds, filter, supportedFields });
+    }
 
     return {
       productIds: compiled.productIds,

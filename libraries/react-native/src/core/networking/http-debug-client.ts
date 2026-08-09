@@ -40,19 +40,19 @@ const isTextLikeContentType = (contentType: string | undefined) =>
 
 const decodeUtf8Preview = (bytes: Uint8Array) => {
   const limited = bytes.slice(0, MAX_BODY_PREVIEW_BYTES);
-  try {
-    if (typeof TextDecoder !== "undefined") {
-      return truncate(new TextDecoder().decode(limited), MAX_VALUE_PREVIEW_CHARS);
-    }
+  return Effect.runSync(
+    Effect.try(() => {
+      if (typeof TextDecoder !== "undefined") {
+        return truncate(new TextDecoder().decode(limited), MAX_VALUE_PREVIEW_CHARS);
+      }
 
-    let fallback = "";
-    for (const byte of limited) {
-      fallback += String.fromCharCode(byte);
-    }
-    return truncate(fallback, MAX_VALUE_PREVIEW_CHARS);
-  } catch {
-    return "<unable to decode request body>";
-  }
+      let fallback = "";
+      for (const byte of limited) {
+        fallback += String.fromCharCode(byte);
+      }
+      return truncate(fallback, MAX_VALUE_PREVIEW_CHARS);
+    }).pipe(Effect.orElseSucceed(() => "<unable to decode request body>")),
+  );
 };
 
 const summarizeBody = (body: unknown) => {
@@ -85,14 +85,12 @@ const summarizeBody = (body: unknown) => {
       };
     }
 
-    try {
-      return {
+    return Effect.runSync(
+      Effect.try(() => ({
         preview: truncate(JSON.stringify(value), MAX_VALUE_PREVIEW_CHARS),
         type: "Raw",
-      };
-    } catch {
-      return { preview: "<unserializable body>", type: "Raw" };
-    }
+      })).pipe(Effect.orElseSucceed(() => ({ preview: "<unserializable body>", type: "Raw" }))),
+    );
   }
 
   if (body._tag === "Uint8Array") {
@@ -139,9 +137,8 @@ const summarizeError = (error: unknown) => {
     summary.status = error.response.status;
   }
 
-  return Object.keys(summary).length > 0
-    ? summary
-    : { message: error instanceof Error ? error.message : String(error) };
+  if (Object.keys(summary).length > 0) return summary;
+  return { message: error instanceof Error ? error.message : JSON.stringify(error) };
 };
 
 export const withHttpDebugLogging = (client: HttpClient.HttpClient) =>

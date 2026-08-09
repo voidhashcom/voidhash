@@ -24,19 +24,22 @@ const make = Effect.gen(function* effect() {
         client: typeof authClient,
       ) => Promise<{ error: E; data?: null } | { error?: null; data: D }>,
     ) =>
-      Effect.tryPromise({
-        catch: (error) =>
-          new BetterAuthClientError({
-            cause: error,
+      Effect.gen(function* use() {
+        const res = yield* Effect.tryPromise({
+          catch: (error) =>
+            new BetterAuthClientError({
+              cause: error,
+              message: "Failed to use better-auth client",
+            }),
+          try: () => fn(authClient),
+        });
+        if (res.error) {
+          return yield* new BetterAuthClientError({
+            cause: res.error,
             message: "Failed to use better-auth client",
-          }),
-        try: async () => {
-          const res = await fn(authClient);
-          if (res.error) {
-            throw res.error;
-          }
-          return res.data;
-        },
+          });
+        }
+        return res.data;
       }),
   };
 });

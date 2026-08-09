@@ -1,11 +1,10 @@
-import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
-import { FetchHttpClient, HttpClient } from "effect/unstable/http";
+import { Effect, Layer, ManagedRuntime, pipe } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
 
 import type { SdkPerson } from "@voidhash/generated-clients";
 
 import { VoidhashConfigurationError } from "./errors";
 import type {
-  AnalyticsFlushResult,
   ResolvedVoidhashConfig,
   VoidhashClientOptions,
   VoidhashPersonAttributes,
@@ -27,7 +26,11 @@ const DEFAULT_BASE_URL = "https://api.voidhash.com";
 
 const assertPositiveInteger = (name: string, value: number) => {
   if (!Number.isInteger(value) || value < 1) {
-    throw new VoidhashConfigurationError(`${name} must be a positive integer.`);
+    // `resolveVoidhashConfig` is a synchronous public API, so the configuration
+    // error is raised as a defect and rethrown verbatim by `Effect.runSync`.
+    return Effect.runSync(
+      Effect.die(new VoidhashConfigurationError(`${name} must be a positive integer.`)),
+    );
   }
 };
 
@@ -54,7 +57,9 @@ export const resolveVoidhashConfig = (options: VoidhashClientOptions): ResolvedV
   const ttlMs = options.featureFlags?.ttlMs ?? 300_000;
 
   if (!options.publishableKey.trim()) {
-    throw new VoidhashConfigurationError("publishableKey is required.");
+    return Effect.runSync(
+      Effect.die(new VoidhashConfigurationError("publishableKey is required.")),
+    );
   }
 
   assertPositiveInteger("analytics.maxBatchSize", maxBatchSize);
@@ -159,6 +164,15 @@ const splitPersonAttributes = (attributes: VoidhashPersonAttributes) => {
   return { email, name, traits };
 };
 
+/** Returns the traits record, or `undefined` when it carries no entries. */
+const nonEmptyTraits = (traits: VoidhashTraits) => {
+  if (Object.keys(traits).length > 0) {
+    return traits;
+  }
+
+  return undefined;
+};
+
 /**
  * Enqueues a `$set` analytics event that updates the current person profile.
  * Fire-and-forget: the event is queued and flushed by the normal pipeline.
@@ -167,11 +181,13 @@ export const setPersonAttributesEffect = (attributes: VoidhashPersonAttributes) 
   Effect.gen(function* setPersonAttributes() {
     const analyticsService = yield* AnalyticsService;
     const { email, name, traits } = splitPersonAttributes(attributes);
-    const $set = {
-      ...traits,
-      ...(email !== undefined ? { email } : {}),
-      ...(name !== undefined ? { name } : {}),
-    };
+    const $set: Record<string, unknown> = { ...traits };
+    if (email !== undefined) {
+      $set.email = email;
+    }
+    if (name !== undefined) {
+      $set.name = name;
+    }
     yield* analyticsService.enqueue("$set", {
       $set,
       $process_person_profile: true,
@@ -191,7 +207,7 @@ export const setPersonAttributesSyncEffect = (
     return yield* identityManager.setPersonAttributesSync({
       email,
       name,
-      traits: Object.keys(traits).length > 0 ? traits : undefined,
+      traits: nonEmptyTraits(traits),
     });
   });
 

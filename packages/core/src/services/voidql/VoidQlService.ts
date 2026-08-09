@@ -20,6 +20,7 @@
  */
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import { Db, analyticsDashboardItems, analyticsSavedQuery, and, desc, eq } from "@voidhash/db";
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Option } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -150,9 +151,11 @@ export class VoidQlService extends Context.Service<VoidQlService>()("VoidQlServi
       });
     });
 
-    const capabilitiesFor = (principal: VoidQlPrincipal): ReadonlySet<Capability> =>
-      // AI agents never get `pii` by default (§9, §14); authorized users do.
-      new Set<Capability>(principal.kind === "user" ? ["pii"] : []);
+    // AI agents never get `pii` by default (§9, §14); authorized users do.
+    const capabilitiesFor = (principal: VoidQlPrincipal): ReadonlySet<Capability> => {
+      if (principal.kind === "user") return new Set<Capability>(["pii"]);
+      return new Set<Capability>([]);
+    };
 
     const loadSavedInsight = Effect.fn("voidql.loadSavedInsight")(function* (id: string) {
       const [insight] = yield* db
@@ -248,10 +251,10 @@ export class VoidQlService extends Context.Service<VoidQlService>()("VoidQlServi
           // diagnostic an attacker/repair-loop can iterate against — so we Effect.die.
           Effect.catchIf(
             isVoidQlCompileError,
-            (error): Effect.Effect<ValidateResult> =>
-              error._tag === "VoidQlIsolationError"
-                ? Effect.die(error)
-                : Effect.succeed({ valid: false, diagnostic: toDiagnostic(error) }),
+            (error): Effect.Effect<ValidateResult> => {
+              if (error._tag === "VoidQlIsolationError") return Effect.die(error);
+              return Effect.succeed({ valid: false, diagnostic: toDiagnostic(error) });
+            },
           ),
         );
       },
@@ -393,7 +396,7 @@ export class VoidQlService extends Context.Service<VoidQlService>()("VoidQlServi
         ),
     );
 
-    return {
+    return constant({
       deleteInsight,
       getSchema,
       listInsights,
@@ -401,7 +404,7 @@ export class VoidQlService extends Context.Service<VoidQlService>()("VoidQlServi
       runSavedInsight,
       saveInsight,
       validateQuery,
-    } as const;
+    });
   }),
 }) {
   static layer: Layer.Layer<VoidQlService, never, Db> = Layer.effect(VoidQlService)(

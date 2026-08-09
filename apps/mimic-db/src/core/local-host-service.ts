@@ -3,9 +3,10 @@ import {
   DurableEntityHost,
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
-import { Effect, Layer } from "effect";
+import { Clock, Effect, Layer, Predicate } from "effect";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import { NotFoundError } from "@voidhash/mimic-server/rpc";
+import { constant } from "@voidhash/lib/lang";
 
 import { HostServiceTag, type HostService, type PresenceEntry } from "../app/hostService.ts";
 import { getConfig, type MimicConfig } from "../config.ts";
@@ -38,6 +39,22 @@ import { randomId } from "./ids.ts";
 
 const docKeyOf = (collectionId: string, documentId: string): string =>
   `${collectionId}:${documentId}`;
+
+/**
+ * Whether a websocket session attachment belongs to an authenticated
+ * collaborator. The entity host types attachments as `unknown`, so the shape is
+ * narrowed here instead of at every broadcast site.
+ */
+const isAuthenticatedSession = (attachment: unknown): attachment is SessionAttachment => {
+  if (!Predicate.hasProperty(attachment, "authenticated")) return false;
+  return attachment.authenticated === true;
+};
+
+/** Spreads `userId` into a presence entry only when the connection has one. */
+const optionalUserId = (userId: string | undefined): { readonly userId?: string } => {
+  if (userId === undefined) return {};
+  return { userId };
+};
 
 interface StoredPresence {
   readonly entry: PresenceEntry;
@@ -124,8 +141,8 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
         sessions,
         (session) =>
           Effect.gen(function* () {
-            const attachment = (yield* session.getAttachment) as SessionAttachment | undefined;
-            if (attachment?.authenticated !== true) return;
+            const attachment = yield* session.getAttachment;
+            if (!isAuthenticatedSession(attachment)) return;
             yield* session.send(encodeServerMessage(message));
           }),
         { discard: true },
@@ -144,12 +161,13 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     entries: Map<string, StoredPresence>,
     entity: DurableEntityContext,
   ) => {
-    const expirations = [...entries.values()].flatMap(({ expiresAt }) =>
-      expiresAt === undefined ? [] : [expiresAt],
-    );
-    return expirations.length === 0
-      ? Effect.void
-      : scheduleAlarmAt(entity, Math.min(...expirations));
+    const expirations: number[] = [];
+    for (const { expiresAt } of entries.values()) {
+      if (expiresAt === undefined) continue;
+      expirations.push(expiresAt);
+    }
+    if (expirations.length === 0) return Effect.void;
+    return scheduleAlarmAt(entity, Math.min(...expirations));
   };
 
   const prunePresence = (
@@ -159,7 +177,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
   ): Effect.Effect<void> =>
     Effect.gen(function* () {
       const entries = presenceOf(collectionId, documentId);
-      const now = Date.now();
+      const now = yield* Clock.currentTimeMillis;
       for (const [connectionId, stored] of entries) {
         if (stored.expiresAt === undefined || stored.expiresAt > now) continue;
         entries.delete(connectionId);
@@ -182,7 +200,8 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
       if (current?.expiresAt === undefined) {
         return yield* Effect.fail(connectionNotFound(connectionId));
       }
-      const next = { ...current, expiresAt: Date.now() + leaseMs };
+      const now = yield* Clock.currentTimeMillis;
+      const next = { ...current, expiresAt: now + leaseMs };
       entries.set(connectionId, next);
       yield* scheduleAlarmAt(entity, next.expiresAt);
       return next;
@@ -276,14 +295,13 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
             getDoc(collectionId, documentId)
               .load()
               .pipe(
-                Effect.map(
-                  (loaded) =>
-                    ({
-                      id: documentId,
-                      collectionId,
-                      value: loaded.value,
-                      version: loaded.version,
-                    }) as const,
+                Effect.map((loaded) =>
+                  constant({
+                    id: documentId,
+                    collectionId,
+                    value: loaded.value,
+                    version: loaded.version,
+                  }),
                 ),
               ),
           ),
@@ -335,11 +353,12 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
           const loaded = yield* getDoc(collectionId, documentId).load();
           const entry: PresenceEntry = {
             data: connectionPresence,
-            ...(userId === undefined ? {} : { userId }),
+            ...optionalUserId(userId),
           };
+          const now = yield* Clock.currentTimeMillis;
           const stored = {
             entry,
-            expiresAt: Date.now() + leaseMs,
+            expiresAt: now + leaseMs,
           };
           presenceOf(collectionId, documentId).set(connectionId, stored);
           yield* scheduleAlarmAt(entity, stored.expiresAt);
@@ -391,7 +410,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
             ...transaction,
             actor: {
               connectionId,
-              ...(connection.entry.userId === undefined ? {} : { userId: connection.entry.userId }),
+              ...optionalUserId(connection.entry.userId),
             },
           };
           const result = yield* getDoc(collectionId, documentId).submit(envelope);
@@ -408,7 +427,8 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
           const removed = presenceOf(collectionId, documentId).delete(connectionId);
           if (removed) yield* broadcast(entity, presenceRemoveMessage(connectionId));
           if (removed && presenceOf(collectionId, documentId).size === 0) {
-            yield* scheduleAlarmAt(entity, Date.now() + config.idleNotifyDebounceMs);
+            const now = yield* Clock.currentTimeMillis;
+            yield* scheduleAlarmAt(entity, now + config.idleNotifyDebounceMs);
           }
         }),
       ),

@@ -9,6 +9,12 @@ interface CardProps {
   onClick: () => void;
 }
 
+/** Extra classes applied to a card while it is being dragged. */
+function dragStateClassName(isDragging: boolean): string {
+  if (isDragging) return "opacity-50 shadow-lg ring-2 ring-blue-500";
+  return "";
+}
+
 export function Card({ card, columnId, onClick }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
@@ -24,6 +30,8 @@ export function Card({ card, columnId, onClick }: CardProps) {
     transition,
   };
 
+  const draggingClassName = dragStateClassName(isDragging);
+
   return (
     <div
       ref={setNodeRef}
@@ -36,7 +44,7 @@ export function Card({ card, columnId, onClick }: CardProps) {
         p-3 cursor-grab active:cursor-grabbing
         hover:shadow-md hover:border-gray-300 dark:hover:border-gray-500
         transition-shadow
-        ${isDragging ? "opacity-50 shadow-lg ring-2 ring-blue-500" : ""}
+        ${draggingClassName}
       `}
     >
       <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{card.title}</h4>

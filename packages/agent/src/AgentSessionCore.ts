@@ -1,12 +1,13 @@
 import { Agent, type AgentEvent, type AgentMessage } from "@earendil-works/pi-agent-core";
-import type { Model } from "@earendil-works/pi-ai";
+import type { ImageContent, Model } from "@earendil-works/pi-ai";
 import {
   type DurableEntityAddress,
   type DurableEntityHostShape,
   type DurableEntitySession,
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
-import { Effect, Semaphore } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Clock, Data, Effect, Semaphore } from "effect";
 
 import {
   AGENT_PROTOCOL_VERSION,
@@ -107,26 +108,79 @@ interface LiveAgentSession<ConnectionData> {
   readonly unsubscribe: () => void;
 }
 
+/** Raised when a WebSocket text frame is not a valid agent command. */
+class InvalidAgentCommandError extends Data.TaggedError("InvalidAgentCommandError")<{
+  readonly message: string;
+}> {}
+
 const sameOwner = (left: AgentSessionOwner, right: AgentSessionOwner): boolean =>
   left.organizationId === right.organizationId &&
   left.projectId === right.projectId &&
   left.userId === right.userId;
 
+const isPromiseLike = <A>(value: Promise<A> | A): value is Promise<A> => {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("then" in value)) return false;
+  return typeof value.then === "function";
+};
+
+/** Awaits a host callback that may answer either synchronously or with a promise. */
+const fromMaybePromise = <A>(thunk: () => Promise<A> | A): Effect.Effect<A> =>
+  Effect.suspend(() => {
+    const value = thunk();
+    if (isPromiseLike(value)) return Effect.promise(() => value);
+    return Effect.succeed(value);
+  });
+
+const touchIndex = <ConnectionData>(
+  index: AgentSessionIndex<ConnectionData> | undefined,
+  input: {
+    readonly sessionId: string;
+    readonly owner: AgentSessionOwner;
+    readonly title?: string;
+    readonly metadata?: AgentSessionMetadata;
+    readonly connectionData: ConnectionData;
+  },
+): Effect.Effect<void> => {
+  if (index === undefined) return Effect.void;
+  return Effect.promise(() => index.touch(input));
+};
+
+const optionalPaywallId = (value: string | null | undefined): string | undefined => {
+  if (typeof value === "string") return value;
+  return undefined;
+};
+
+const dynamicSessionContext = (
+  paywallId: string | undefined,
+  selectedNodeIds: ReadonlyArray<string>,
+): AgentSessionDynamicContext => {
+  if (paywallId === undefined) return { selectedNodeIds };
+  return { paywallId, selectedNodeIds };
+};
+
 const userMessage = (
   text: string,
-  images: ReadonlyArray<{ type: "image"; data: string; mimeType: string }>,
-): AgentMessage => ({
-  role: "user",
-  content: images.length === 0 ? text : [{ type: "text", text }, ...images],
-  timestamp: Date.now(),
-});
+  images: ReadonlyArray<ImageContent>,
+): Effect.Effect<AgentMessage> =>
+  Effect.gen(function* () {
+    const timestamp = yield* Clock.currentTimeMillis;
+    if (images.length === 0) {
+      return { role: "user", content: text, timestamp } satisfies AgentMessage;
+    }
+    return {
+      role: "user",
+      content: [{ type: "text", text }, ...images],
+      timestamp,
+    } satisfies AgentMessage;
+  });
 
-const errorMessage = (cause: unknown): string =>
-  cause instanceof Error ? cause.message : typeof cause === "string" ? cause : String(cause);
+const defaultNow = (): number => Effect.runSync(Clock.currentTimeMillis);
 
 const titleFromText = (text: string): string => {
   const title = text.trim() || "New chat";
-  return title.length > 80 ? `${title.slice(0, 79)}…` : title;
+  if (title.length > 80) return `${title.slice(0, 79)}…`;
+  return title;
 };
 
 /**
@@ -148,7 +202,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
     this.#host = options.host;
     this.#factory = options.factory;
     this.#idleTimeoutMs = options.idleTimeoutMs ?? 5 * 60_000;
-    this.#now = options.now ?? Date.now;
+    this.#now = options.now ?? defaultNow;
     this.#index = options.index;
   }
 
@@ -162,15 +216,12 @@ export class AgentSessionCore<ConnectionData = unknown> {
     return Effect.gen(function* () {
       const authorized = yield* ensureSessionOwner(host, address, connection.owner, sameOwner);
       if (!authorized) return false;
-      yield* Effect.promise(
-        () =>
-          index?.touch({
-            sessionId: connection.sessionId,
-            owner: connection.owner,
-            metadata: connection.metadata,
-            connectionData: connection.data,
-          }) ?? Promise.resolve(),
-      );
+      yield* touchIndex(index, {
+        sessionId: connection.sessionId,
+        owner: connection.owner,
+        metadata: connection.metadata,
+        connectionData: connection.data,
+      });
       yield* host.run(address, (entity) =>
         Effect.gen(function* () {
           yield* entity.sessions.attach(connection.session);
@@ -232,17 +283,19 @@ export class AgentSessionCore<ConnectionData = unknown> {
         });
         return;
       }
-      let command: AgentClientMessage;
-      try {
-        command = decodeAgentClientMessage(frame);
-      } catch (cause) {
-        yield* send({
-          v: AGENT_PROTOCOL_VERSION,
-          type: "error",
-          message: `Invalid agent command: ${errorMessage(cause)}`,
-        });
-        return;
-      }
+      const command = yield* Effect.try({
+        try: () => decodeAgentClientMessage(frame),
+        catch: (cause) => new InvalidAgentCommandError({ message: causeMessage(cause) }),
+      }).pipe(
+        Effect.catchTag("InvalidAgentCommandError", (error) =>
+          send({
+            v: AGENT_PROTOCOL_VERSION,
+            type: "error",
+            message: `Invalid agent command: ${error.message}`,
+          }).pipe(Effect.as(undefined)),
+        ),
+      );
+      if (command === undefined) return;
 
       switch (command.type) {
         case "get_entries": {
@@ -256,7 +309,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
           return;
         }
         case "get_state": {
-          const live = yield* Effect.promise(getOrCreate);
+          const live = yield* getOrCreate();
           const entryCount = yield* readSessionLogCount(
             host,
             agentSessionAddress(connection.sessionId),
@@ -279,33 +332,28 @@ export class AgentSessionCore<ConnectionData = unknown> {
           return;
         }
         case "set_context": {
-          const live = yield* Effect.promise(getOrCreate);
-          live.dynamicContext.current = {
-            ...(command.paywallId === undefined ? {} : { paywallId: command.paywallId }),
-            selectedNodeIds: command.selectedNodeIds,
-          };
+          const live = yield* getOrCreate();
+          live.dynamicContext.current = dynamicSessionContext(
+            command.paywallId,
+            command.selectedNodeIds,
+          );
           live.metadata = {
             surface: live.metadata?.surface ?? "designer",
             paywallId: command.paywallId ?? null,
           };
-          yield* Effect.promise(
-            () =>
-              index?.touch({
-                sessionId: connection.sessionId,
-                owner: connection.owner,
-                metadata: live.metadata,
-                connectionData: live.connectionData,
-              }) ?? Promise.resolve(),
-          );
+          yield* touchIndex(index, {
+            sessionId: connection.sessionId,
+            owner: connection.owner,
+            metadata: live.metadata,
+            connectionData: live.connectionData,
+          });
           yield* ack(command);
           return;
         }
         case "set_model": {
-          const live = yield* Effect.promise(getOrCreate);
-          const model = yield* Effect.promise(() =>
-            Promise.resolve(
-              factory.resolveModel(command.provider, command.modelId, live.connectionData),
-            ),
+          const live = yield* getOrCreate();
+          const model = yield* fromMaybePromise(() =>
+            factory.resolveModel(command.provider, command.modelId, live.connectionData),
           );
           if (model === undefined) {
             yield* send({
@@ -331,9 +379,9 @@ export class AgentSessionCore<ConnectionData = unknown> {
         case "prompt":
         case "steer":
         case "follow_up": {
-          const live = yield* Effect.promise(getOrCreate);
+          const live = yield* getOrCreate();
           const images = promptImages(command);
-          const message = userMessage(command.text, images);
+          const message = yield* userMessage(command.text, images);
           if (command.type === "prompt") {
             if (live.agent.state.isStreaming) {
               yield* send({
@@ -344,33 +392,28 @@ export class AgentSessionCore<ConnectionData = unknown> {
               });
               return;
             }
-            yield* Effect.promise(() =>
-              Promise.resolve(
-                factory.preparePrompt?.({
-                  agent: live.agent,
-                  message,
-                  sessionId: connection.sessionId,
-                  owner: connection.owner,
-                  connectionData: live.connectionData,
-                  dynamicContext: live.dynamicContext,
-                }),
-              ),
+            yield* fromMaybePromise(() =>
+              factory.preparePrompt?.({
+                agent: live.agent,
+                message,
+                sessionId: connection.sessionId,
+                owner: connection.owner,
+                connectionData: live.connectionData,
+                dynamicContext: live.dynamicContext,
+              }),
             );
             void live.agent
               .prompt(message)
               .catch((cause) =>
-                Effect.runPromise(broadcastError(command.requestId, errorMessage(cause))),
+                Effect.runPromise(broadcastError(command.requestId, causeMessage(cause))),
               );
-            yield* Effect.promise(
-              () =>
-                index?.touch({
-                  sessionId: connection.sessionId,
-                  owner: connection.owner,
-                  title: titleFromText(command.text),
-                  metadata: live.metadata,
-                  connectionData: live.connectionData,
-                }) ?? Promise.resolve(),
-            );
+            yield* touchIndex(index, {
+              sessionId: connection.sessionId,
+              owner: connection.owner,
+              title: titleFromText(command.text),
+              metadata: live.metadata,
+              connectionData: live.connectionData,
+            });
           } else if (command.type === "steer") {
             live.agent.steer(message);
           } else {
@@ -416,106 +459,117 @@ export class AgentSessionCore<ConnectionData = unknown> {
   /** Returns whether this process currently holds a live Pi agent for the session. */
   readonly hasLiveSession = (sessionId: string): boolean => this.#sessions.has(sessionId);
 
-  async #getOrCreate(
+  #getOrCreate(
     connection: AgentSessionConnection<ConnectionData>,
-  ): Promise<LiveAgentSession<ConnectionData>> {
-    const existing = this.#sessions.get(connection.sessionId);
-    if (existing) {
-      if (!sameOwner(existing.owner, connection.owner)) throw new Error("Session access denied");
-      return existing;
-    }
-    const pending = this.#creating.get(connection.sessionId);
-    if (pending) return pending;
+  ): Effect.Effect<LiveAgentSession<ConnectionData>> {
+    return Effect.suspend(() => {
+      const existing = this.#sessions.get(connection.sessionId);
+      if (existing !== undefined) {
+        if (!sameOwner(existing.owner, connection.owner)) {
+          return Effect.die(new Error("Session access denied"));
+        }
+        return Effect.succeed(existing);
+      }
+      const pending = this.#creating.get(connection.sessionId);
+      if (pending !== undefined) return Effect.promise(() => pending);
 
-    const creating = this.#create(connection).finally(() =>
-      this.#creating.delete(connection.sessionId),
-    );
-    this.#creating.set(connection.sessionId, creating);
-    return creating;
-  }
-
-  async #create(
-    connection: AgentSessionConnection<ConnectionData>,
-  ): Promise<LiveAgentSession<ConnectionData>> {
-    const entries = await Effect.runPromise(
-      readSessionLog(this.#host, agentSessionAddress(connection.sessionId)),
-    );
-    const dynamicContext = {
-      current: {
-        ...(typeof connection.metadata?.paywallId === "string"
-          ? { paywallId: connection.metadata.paywallId }
-          : {}),
-        selectedNodeIds: [],
-      } satisfies AgentSessionDynamicContext,
-    };
-    const agent = await this.#factory.create({
-      sessionId: connection.sessionId,
-      owner: connection.owner,
-      connectionData: connection.data,
-      messages: messagesFromSessionLog(entries),
-      dynamicContext,
-      metadata: connection.metadata,
-    });
-    const modelChange = entries.findLast(
-      (entry): entry is Extract<SessionLogEntry, { readonly type: "model_change" }> =>
-        entry.type === "model_change",
-    );
-    if (modelChange !== undefined) {
-      const model = await this.#factory.resolveModel(
-        modelChange.provider,
-        modelChange.modelId,
-        connection.data,
+      const creating = this.#create(connection).finally(() =>
+        this.#creating.delete(connection.sessionId),
       );
-      if (model !== undefined) agent.state.model = model;
-    }
-    const unsubscribe = agent.subscribe((event) => this.#onAgentEvent(connection.sessionId, event));
-    const live = {
-      agent,
-      owner: connection.owner,
-      connectionData: connection.data,
-      dynamicContext,
-      metadata: connection.metadata,
-      unsubscribe,
-    };
-    this.#sessions.set(connection.sessionId, live);
-    return live;
+      this.#creating.set(connection.sessionId, creating);
+      return Effect.promise(() => creating);
+    });
   }
 
-  async #onAgentEvent(sessionId: string, event: AgentEvent): Promise<void> {
-    await Effect.runPromise(
-      this.#broadcast(sessionId, {
-        v: AGENT_PROTOCOL_VERSION,
-        type: "event",
-        event,
+  #create(
+    connection: AgentSessionConnection<ConnectionData>,
+  ): Promise<LiveAgentSession<ConnectionData>> {
+    const host = this.#host;
+    const factory = this.#factory;
+    const sessions = this.#sessions;
+    const onAgentEvent = (event: AgentEvent): Promise<void> =>
+      this.#onAgentEvent(connection.sessionId, event);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const entries = yield* readSessionLog(host, agentSessionAddress(connection.sessionId));
+        const dynamicContext: { current: AgentSessionDynamicContext } = {
+          current: dynamicSessionContext(optionalPaywallId(connection.metadata?.paywallId), []),
+        };
+        const agent = yield* fromMaybePromise(() =>
+          factory.create({
+            sessionId: connection.sessionId,
+            owner: connection.owner,
+            connectionData: connection.data,
+            messages: messagesFromSessionLog(entries),
+            dynamicContext,
+            metadata: connection.metadata,
+          }),
+        );
+        const modelChange = entries.findLast(
+          (entry): entry is Extract<SessionLogEntry, { readonly type: "model_change" }> =>
+            entry.type === "model_change",
+        );
+        if (modelChange !== undefined) {
+          const model = yield* fromMaybePromise(() =>
+            factory.resolveModel(modelChange.provider, modelChange.modelId, connection.data),
+          );
+          if (model !== undefined) agent.state.model = model;
+        }
+        const unsubscribe = agent.subscribe(onAgentEvent);
+        const live: LiveAgentSession<ConnectionData> = {
+          agent,
+          owner: connection.owner,
+          connectionData: connection.data,
+          dynamicContext,
+          metadata: connection.metadata,
+          unsubscribe,
+        };
+        sessions.set(connection.sessionId, live);
+        return live;
       }),
     );
-    const inputs: SessionLogEntryInput[] = [];
-    if (event.type === "message_end" && event.message.role === "user") {
-      inputs.push({ type: "message", message: event.message });
-    }
-    if (event.type === "turn_end") {
-      inputs.push({ type: "message", message: event.message });
-      inputs.push(
-        ...event.toolResults.map((message) => ({
-          type: "message" as const,
-          message,
-        })),
-      );
-    }
-    if (inputs.length > 0) {
-      await Effect.runPromise(appendSessionLog(this.#host, agentSessionAddress(sessionId), inputs));
-    }
-    if (event.type === "turn_end") {
-      const live = this.#sessions.get(sessionId);
-      if (live) {
-        await this.#index?.touch({
-          sessionId,
-          owner: live.owner,
-          metadata: live.metadata,
-          connectionData: live.connectionData,
-        });
-      }
-    }
+  }
+
+  #onAgentEvent(sessionId: string, event: AgentEvent): Promise<void> {
+    const host = this.#host;
+    const index = this.#index;
+    const sessions = this.#sessions;
+    const broadcast = this.#broadcast(sessionId, {
+      v: AGENT_PROTOCOL_VERSION,
+      type: "event",
+      event,
+    });
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        yield* broadcast;
+        const inputs: SessionLogEntryInput[] = [];
+        if (event.type === "message_end" && event.message.role === "user") {
+          inputs.push({ type: "message", message: event.message });
+        }
+        if (event.type === "turn_end") {
+          inputs.push({ type: "message", message: event.message });
+          inputs.push(
+            ...event.toolResults.map(
+              (message): SessionLogEntryInput => ({ type: "message", message }),
+            ),
+          );
+        }
+        if (inputs.length > 0) {
+          yield* appendSessionLog(host, agentSessionAddress(sessionId), inputs);
+        }
+        if (event.type === "turn_end") {
+          const live = sessions.get(sessionId);
+          if (live !== undefined) {
+            yield* touchIndex(index, {
+              sessionId,
+              owner: live.owner,
+              metadata: live.metadata,
+              connectionData: live.connectionData,
+            });
+          }
+        }
+      }),
+    );
   }
 
   #ack(session: DurableEntitySession, command: AgentClientMessage): Effect.Effect<void> {

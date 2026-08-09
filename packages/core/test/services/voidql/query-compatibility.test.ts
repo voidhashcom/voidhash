@@ -5,7 +5,7 @@
  * ClickHouse SELECT surface; administrative, mutating, external-source, and
  * settings/output clauses belong in the permanent rejection corpus below.
  */
-import { Effect } from "effect";
+import { constant } from "@voidhash/lib/lang";
 
 import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 
@@ -100,7 +100,7 @@ describe("VoidQL function allowlist snapshot", () => {
   });
 });
 
-const PERMANENTLY_REJECTED = [
+const PERMANENTLY_REJECTED = constant([
   "SELECT event_id FROM events SETTINGS max_threads = 1",
   "SELECT event_id FROM events FORMAT JSON",
   "SELECT event_id FROM events INTO OUTFILE 'result.csv'",
@@ -118,7 +118,7 @@ const PERMANENTLY_REJECTED = [
   "SELECT sum(1) OVER (ORDER BY event_ts ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) FROM events",
   "SELECT rowNumber() FROM events",
   "SELECT e.*, p.* FROM events AS e JOIN persons AS p ON e.person_id = p.person_id",
-] as const;
+]);
 
 describe("VoidQL permanent security boundary", () => {
   for (const sql of PERMANENTLY_REJECTED) {

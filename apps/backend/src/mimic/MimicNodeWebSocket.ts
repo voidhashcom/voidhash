@@ -1,6 +1,10 @@
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- Node platform adapter: it upgrades connections on the real http.Server created by the standalone entrypoint, so it needs that module's own types.
 import type { IncomingMessage, Server } from "node:http";
+// oxlint-disable-next-line effect/noNodeBuiltinImport -- the WebSocket upgrade handler receives a node:stream Duplex from the Node HTTP server; Stream/Channel cannot type that handshake argument.
 import type { Duplex } from "node:stream";
 
+import { createIdGenerator } from "@voidhash/core/utils/generate-id";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import type { HostService } from "@voidhash/mimic-db/app/hostService";
 import {
   AUTH_DEADLINE_MS,
@@ -23,7 +27,7 @@ import {
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
 import { makeNodeDurableEntitySession } from "@voidhash/platform-selfhost/NodeDurableEntitySession";
-import { Duration, Effect, Fiber, Semaphore } from "effect";
+import { Clock, Duration, Effect, Fiber, Semaphore } from "effect";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 
 import {
@@ -58,6 +62,17 @@ export interface MimicNodeIdleNotificationOptions {
 
 const mimicDocumentEntityType = "mimic-document";
 
+/** Ephemeral per-socket connection ids; opaque outside this adapter. */
+const generateConnectionId = createIdGenerator({ connection: "conn" });
+
+/** Reads wall-clock millis through the ambient `Clock` from a sync callback. */
+const nowMillis = (): number => Effect.runSync(Clock.currentTimeMillis);
+
+const numberOrUndefined = (value: unknown): number | undefined => {
+  if (typeof value === "number") return value;
+  return undefined;
+};
+
 const documentKey = (collectionId: string, documentId: string): string =>
   `${collectionId}\u0000${documentId}`;
 
@@ -87,13 +102,10 @@ const makeNodeIdleNotifier = (
     collectionId,
     debounceMs: options.debounceMs,
     documentId,
-    now: Date.now,
+    now: nowMillis,
     publish: options.publish,
     storage: {
-      get: (key) =>
-        entity.keyValue
-          .get(key)
-          .pipe(Effect.map((value) => (typeof value === "number" ? value : undefined))),
+      get: (key) => entity.keyValue.get(key).pipe(Effect.map(numberOrUndefined)),
       put: (key, value) => entity.keyValue.put(key, value),
       setAlarm: entity.alarm.set,
     },
@@ -150,7 +162,14 @@ const parseDocumentAddress = (
 };
 
 const toFrame = (data: RawData, isBinary: boolean): string | Uint8Array => {
-  if (!isBinary) return data.toString();
+  // `ws` hands text frames over as a Buffer, an ArrayBuffer or a Buffer[]
+  // depending on `binaryType`; only the Buffer case decodes correctly on its
+  // own, so the other two are normalized before being read as text.
+  if (!isBinary) {
+    if (data instanceof ArrayBuffer) return Buffer.from(data).toString();
+    if (Array.isArray(data)) return Buffer.concat(data).toString();
+    return data.toString();
+  }
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
   if (Array.isArray(data)) return new Uint8Array(Buffer.concat(data));
   return new Uint8Array(data);
@@ -158,8 +177,7 @@ const toFrame = (data: RawData, isBinary: boolean): string | Uint8Array => {
 
 // HostService's legacy signatures retain `R = any`; the fully-built entry
 // layer has already discharged those requirements at this adapter boundary.
-const withoutRequirements = <A, E>(effect: Effect.Effect<A, E, any>): Effect.Effect<A, E> =>
-  effect as Effect.Effect<A, E>;
+const withoutRequirements = <A, E>(effect: Effect.Effect<A, E>): Effect.Effect<A, E> => effect;
 
 const run = (effect: Effect.Effect<void, unknown>): void => {
   Effect.runFork(
@@ -234,8 +252,8 @@ export const installMimicNodeWebSocketServer = (
         Effect.runSync(socket.entitySession.setAttachment(attachment));
       },
       send: (socket, message) =>
-        Effect.sync(() => void socket.webSocket.send(encodeServerMessage(message))),
-      close: (socket, code, reason) => Effect.sync(() => void socket.webSocket.close(code, reason)),
+        Effect.sync(() =>  socket.webSocket.send(encodeServerMessage(message))),
+      close: (socket, code, reason) => Effect.sync(() =>  socket.webSocket.close(code, reason)),
       authenticate: (token, attachment) =>
         withoutRequirements(
           host.authenticateDocumentToken(
@@ -247,18 +265,16 @@ export const installMimicNodeWebSocketServer = (
         ),
       loadDocument: () =>
         withoutRequirements(host.getDocument(collectionId, documentId)).pipe(
-          Effect.mapError((error) => ({
-            message: error instanceof Error ? error.message : String(error),
-          })),
+          Effect.mapError((error) => ({ message: causeMessage(error) })),
         ),
       submitTransaction: (transaction) =>
         withoutRequirements(host.submitTransaction(collectionId, documentId, transaction)).pipe(
           Effect.catch((error) =>
             Effect.succeed({
-              accepted: false as const,
+              accepted: constant(false),
               version: 0,
               transactionId: transaction.id,
-              reason: error instanceof Error ? error.message : String(error),
+              reason: causeMessage(error),
             }),
           ),
         ),
@@ -284,11 +300,11 @@ export const installMimicNodeWebSocketServer = (
     webSockets.handleUpgrade(request, socket, head, (webSocket) => {
       const runtime = runtimeFor(address.collectionId, address.documentId);
       const attachment: SessionAttachment = {
-        connectionId: crypto.randomUUID(),
+        connectionId: generateConnectionId("connection"),
         collectionId: address.collectionId,
         documentId: address.documentId,
         origin: request.headers.origin ?? null,
-        connectedAt: Date.now(),
+        connectedAt: nowMillis(),
         authenticated: false,
       };
       const entitySession = makeNodeDurableEntitySession(

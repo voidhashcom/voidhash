@@ -5,6 +5,8 @@ import {
   type TransactionEnvelope,
 } from "@voidhash/mimic";
 import { type Value } from "@voidhash/mimic-core";
+import { constant } from "@voidhash/lib/lang";
+import { Effect } from "effect";
 import { describe, expect, test } from "vite-plus/test";
 
 import { createInitialPaywallDocumentInput, PaywallDesignerDocument } from "../document.ts";
@@ -18,7 +20,9 @@ import { ViewNode } from "./view-node.ts";
 class StubTransport implements DocumentTransport {
   readonly submitted: TransactionEnvelope[] = [];
 
-  async connect(): Promise<void> {}
+  connect(): Promise<void> {
+    return Effect.runPromise(Effect.void);
+  }
   disconnect(): void {}
   subscribe(_handler: (message: ServerMessage) => void): () => void {
     return () => {};
@@ -54,7 +58,7 @@ function isComponentNodeData(node: { readonly type: string }): node is Component
 function narrowToComponent(node: { readonly type: string } | undefined): ComponentNodeData {
   expect(node).toBeDefined();
   if (node === undefined || !isComponentNodeData(node)) {
-    throw new Error(`expected a component node, got ${node?.type}`);
+    return Effect.runSync(Effect.die(new Error(`expected a component node, got ${node?.type}`)));
   }
   return node;
 }
@@ -267,12 +271,12 @@ describe("ComponentNode", () => {
       ids.textId = screen.children.insertLast({ type: "text" }).id;
     });
 
-    const componentData = {
+    const componentData = constant({
       type: "component",
       componentSlug: "product-option",
       componentVersion: 1,
       contentHash: "ab93f1",
-    } as const;
+    });
 
     expect(() =>
       doc.transaction((root) =>

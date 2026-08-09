@@ -25,7 +25,8 @@
  *     `FxRateSyncWorkflow` on a `0 5 * * *` cron from `BackendService`.
  *   - {@link ensureSeeded} — a one-shot seed for an empty `fx_rate` table.
  */
-import { Cache, Context, Duration, Effect, Layer, Option, Schema } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Cache, Context, DateTime, Duration, Effect, Layer, Option, Schema } from "effect";
 
 import { type FxRateLookup, USD_IDENTITY_RATE } from "../../domain/fxRate/FxRate.ts";
 import { Db, type DbError, fxRates } from "@voidhash/db";
@@ -97,17 +98,20 @@ export interface FxRateConfig {
 const buildCacheKey = (currency: string, asOfDate: Date): string =>
   `${currency}:${asOfDate.getTime()}`;
 
+/** Builds a `Date` from epoch milliseconds without the banned `new Date(ms)`. */
+const fromEpochMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
 const parseCacheKey = (key: string): { readonly currency: string; readonly asOfDate: Date } => {
   const separatorIndex = key.indexOf(":");
   return {
-    asOfDate: new Date(Number(key.slice(separatorIndex + 1))),
+    asOfDate: fromEpochMillis(Number(key.slice(separatorIndex + 1))),
     currency: key.slice(0, separatorIndex),
   };
 };
 
 /** Truncates a `Date` to midnight UTC, matching the `(currency, as_of_date)` unique index. */
 const toUtcDay = (d: Date): Date =>
-  new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  fromEpochMillis(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
 /** Formats a `Date` as a low-cardinality `YYYY-MM-DD` UTC day label for span attributes. */
 const toUtcDayString = (d: Date): string => toUtcDay(d).toISOString().slice(0, 10);
@@ -155,7 +159,7 @@ const make = Effect.gen(function* () {
     // mirror — a missing mirror would under-count USD revenue downstream. Still
     // returns `none` (no fetch) when nothing is in range, preserving the
     // quota-safe read-path contract.
-    const carryForwardCutoff = new Date(
+    const carryForwardCutoff = fromEpochMillis(
       input.asOfDate.getTime() - FX_RATE_CARRY_FORWARD_MAX_AGE_DAYS * MS_PER_DAY,
     );
     const carried = yield* db.query.fxRates.findFirst({
@@ -210,7 +214,7 @@ const make = Effect.gen(function* () {
       "voidhash.fx.persist_concurrency",
       DEFAULT_PERSIST_CONCURRENCY,
     );
-    const fetchedAt = new Date();
+    const fetchedAt = yield* DateTime.nowAsDate;
     yield* Effect.forEach(
       rates,
       (entry) =>
@@ -313,14 +317,15 @@ const make = Effect.gen(function* () {
     return seededCount;
   });
 
-  return { ensureSeeded, getUsdRate, refreshLatest } as const;
+  return constant({ ensureSeeded, getUsdRate, refreshLatest });
 });
 
 const liveFetcherLayer = (config: FxRateConfig): Layer.Layer<FxRateFetcherTag> =>
   Layer.effect(FxRateFetcherTag)(
     Effect.gen(function* () {
       const apiKey = yield* config.apiKey;
-      const baseUrl = config.baseUrl ? yield* config.baseUrl : undefined;
+      if (!config.baseUrl) return createExchangeRateApiFxRateFetcher({ apiKey });
+      const baseUrl = yield* config.baseUrl;
       return createExchangeRateApiFxRateFetcher({ apiKey, baseUrl });
     }),
   );

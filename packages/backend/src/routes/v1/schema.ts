@@ -19,6 +19,7 @@ import {
 } from "@voidhash/api-contracts/errors";
 import { SchemaService } from "@voidhash/core/services";
 import { extractAuthorizedProjectId } from "@voidhash/core/utils";
+import { constant } from "@voidhash/lib/lang";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect, Option } from "effect";
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
@@ -27,9 +28,9 @@ import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
 
-const SCHEMA_CACHE_HEADERS = {
+const SCHEMA_CACHE_HEADERS = constant({
   "cache-control": "no-cache, must-revalidate",
-} as const;
+});
 
 /**
  * Returns a `304 Not Modified` response when the client's `If-None-Match`
@@ -90,10 +91,13 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
                   products: schema.products.map(
                     (product) =>
                       new SchemaProduct({
-                        ...product,
+                        name: product.name,
+                        perks: product.perks,
                         providers: product.providers.map(
                           (provider) => new SchemaProductProvider(provider),
                         ),
+                        slug: product.slug,
+                        type: product.type,
                       }),
                   ),
                   version: schema.version,

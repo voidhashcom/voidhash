@@ -10,6 +10,7 @@ import {
   RpcAgentSessionNotFoundError,
   RpcAgentSessionServiceError,
 } from "@voidhash/rpc";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import { Effect } from "effect";
 
 type RevertRpcError =
@@ -17,15 +18,25 @@ type RevertRpcError =
   | RpcAgentSessionNotFoundError
   | RpcAgentSessionServiceError;
 
+/** Structural view of the service errors the revert handler re-maps. */
+interface RevertErrorLike {
+  readonly _tag?: unknown;
+  readonly message?: unknown;
+  readonly sessionId?: unknown;
+}
+
+const revertErrorRecord = (error: unknown): RevertErrorLike | undefined => {
+  if (typeof error === "object" && error !== null) return error;
+  return undefined;
+};
+
+const revertErrorMessage = (message: unknown): string => {
+  if (message === undefined) return "Could not revert changes.";
+  return causeMessage(message);
+};
+
 const mapRevertError = (error: unknown): Effect.Effect<never, RevertRpcError> => {
-  const record =
-    typeof error === "object" && error !== null
-      ? (error as {
-          readonly _tag?: unknown;
-          readonly message?: unknown;
-          readonly sessionId?: unknown;
-        })
-      : undefined;
+  const record = revertErrorRecord(error);
   if (record?._tag === "AgentSessionForbiddenError" || record?._tag === "ActionForbiddenError") {
     return Effect.fail(new RpcActionForbiddenError({ message: String(record.message) }));
   }
@@ -34,7 +45,7 @@ const mapRevertError = (error: unknown): Effect.Effect<never, RevertRpcError> =>
   }
   return Effect.fail(
     new RpcAgentSessionServiceError({
-      message: record?.message === undefined ? "Could not revert changes." : String(record.message),
+      message: revertErrorMessage(record?.message),
     }),
   );
 };
@@ -45,12 +56,12 @@ export const AgentSessionRpcsLive = AgentSessionRpcsDef.toLayer(
     const sessions = yield* AgentSessionIndexService;
     const attachments = yield* AgentAttachmentService;
     const editSessions = yield* PaywallEditSessionService;
-    const mapSessionErrors = {
+    const mapSessionErrors = constant({
       AgentSessionForbiddenError: (error: { readonly message: string }) =>
         Effect.fail(new RpcActionForbiddenError({ message: error.message })),
       AgentSessionIndexServiceError: (error: { readonly message: string }) =>
         Effect.fail(new RpcAgentSessionServiceError({ message: error.message })),
-    } as const;
+    });
     return {
       ListAgentSessions: ({ organizationId, projectId, surface, paywallId }) =>
         sessions

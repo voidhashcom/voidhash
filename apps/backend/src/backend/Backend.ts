@@ -19,7 +19,7 @@ import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/Pay
 import { Db } from "@voidhash/db";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
 import { SelfhostPlatformRuntimeLive } from "@voidhash/platform-selfhost/PlatformRuntime";
-import { Effect, Layer, Redacted } from "effect";
+import { Layer, Redacted } from "effect";
 
 import type { SelfhostAuthConfig, SelfhostRuntimeConfig } from "../config.ts";
 import { makeHttpComponentCompilerLive } from "../compiler/CompilerClient.ts";

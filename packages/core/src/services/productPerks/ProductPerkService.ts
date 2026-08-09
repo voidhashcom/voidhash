@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -34,6 +35,9 @@ export class ProductPerkValidationError extends Schema.TaggedErrorClass<ProductP
 )("ProductPerkValidationError", { message: Schema.String }) {}
 
 type DbProductPerkWithProduct = DbProductPerk & { readonly product: DbProduct };
+
+/** The relational query returns a looser row shape than the joined type above. */
+const asProductPerkWithProduct = (row: any): DbProductPerkWithProduct | undefined => row;
 
 /**
  * `ProductPerkService` orchestrates the (product, perk) join-table
@@ -183,10 +187,12 @@ export class ProductPerkService extends Context.Service<ProductPerkService>()(
               session.person.distinctId,
             );
 
-          const productPerk = (yield* db.query.productPerks.findFirst({
-            where: { id: input.id },
-            with: { product: true },
-          })) as DbProductPerkWithProduct | undefined;
+          const productPerk = asProductPerkWithProduct(
+            yield* db.query.productPerks.findFirst({
+              where: { id: input.id },
+              with: { product: true },
+            }),
+          );
           if (!productPerk) {
             return yield* Effect.fail(
               new ProductPerkValidationError({
@@ -229,11 +235,11 @@ export class ProductPerkService extends Context.Service<ProductPerkService>()(
           ),
       );
 
-      return {
+      return constant({
         getProductPerksByProductId,
         createProductPerk,
         deleteProductPerk,
-      } as const;
+      });
     }),
   },
 ) {

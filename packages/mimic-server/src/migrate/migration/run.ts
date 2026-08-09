@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import {
   applyBatch,
   cloneValue,
@@ -9,6 +10,13 @@ import {
 
 import { reconcileMigrationValue } from "./reconcile.ts";
 import type { AnyDirectMigration } from "./definition.ts";
+
+/**
+ * Rejects an impossible migration outcome. `runDirectMigration` is a
+ * synchronous API whose callers wrap it in `Effect.try`, so violations are
+ * raised as defects rather than returned.
+ */
+const dieWith = (message: string): never => Effect.runSync(Effect.die(new Error(message)));
 
 /** Runs a deployed migration directly without evaluating generated source. */
 export const runDirectMigration = (migration: AnyDirectMigration, oldValue: Value): Value => {
@@ -40,9 +48,7 @@ export const runDirectMigration = (migration: AnyDirectMigration, oldValue: Valu
   };
   const readOnlySession = {
     current: () => original,
-    emit: () => {
-      throw new Error("oldRoot is read-only");
-    },
+    emit: () => dieWith("oldRoot is read-only"),
     generator: session.generator,
   };
 
@@ -53,7 +59,7 @@ export const runDirectMigration = (migration: AnyDirectMigration, oldValue: Valu
 
   const validated = validate(migration.to.schema, current);
   if (validated === undefined) {
-    throw new Error(`Migration ${migration.version} (${migration.name}) produced an empty root`);
+    return dieWith(`Migration ${migration.version} (${migration.name}) produced an empty root`);
   }
   return validated;
 };

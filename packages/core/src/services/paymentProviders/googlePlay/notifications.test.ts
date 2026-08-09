@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Encoding, Schema } from "effect";
 
 import { describe, expect, it } from "../../../testing/effect-vitest.ts";
 import {
@@ -8,10 +8,12 @@ import {
   parseAndCategorizeNotification,
 } from "./notifications.ts";
 
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 /** Wraps a DeveloperNotification in a base64 Pub/Sub push envelope. */
 const envelope = (developerNotification: unknown, messageId = "m-1") => ({
   message: {
-    data: btoa(JSON.stringify(developerNotification)),
+    data: Encoding.encodeBase64(encodeJson(developerNotification)),
     messageId,
     publishTime: "2024-02-15T12:00:00.000Z",
   },
@@ -102,17 +104,17 @@ describe("parseAndCategorizeNotification", () => {
     Effect.gen(function* () {
       const error = yield* Effect.flip(
         parseAndCategorizeNotification({
-          message: { data: btoa("this is not json") },
+          message: { data: Encoding.encodeBase64("this is not json") },
         }),
       );
-      expect((error as { _tag: string })._tag).toBe("GooglePlayInvalidNotificationError");
+      expect(error._tag).toBe("GooglePlayInvalidNotificationError");
     }),
   );
 
   it.effect("fails when the envelope structure is invalid", () =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(parseAndCategorizeNotification({ not: "a pubsub message" }));
-      expect((error as { _tag: string })._tag).toBe("GooglePlayInvalidNotificationError");
+      expect(error._tag).toBe("GooglePlayInvalidNotificationError");
     }),
   );
 });

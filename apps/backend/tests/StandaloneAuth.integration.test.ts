@@ -7,9 +7,9 @@ import {
   signStandaloneAuthToken,
 } from "@voidhash/core/utils/crypto/standalone-auth-token";
 import { Db, eq, sql, user } from "@voidhash/db";
-import { Context, Effect, Layer, Redacted } from "effect";
+import { Context, DateTime, Effect, Exit, Layer, Redacted } from "effect";
 import * as HttpHeaders from "effect/unstable/http/Headers";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { makeSelfhostAuthLayers } from "../src/backend/Backend.ts";
 import { getSelfhostDatabaseConfig } from "../src/config.ts";
@@ -47,84 +47,104 @@ const resolve = (headers: Record<string, string>) =>
       Effect.provide(LocalUserSessionService.layer),
       Effect.provide(database),
     );
-  }).pipe(Effect.scoped, Effect.runPromise);
+  }).pipe(Effect.scoped);
+
+const optionalName = (name?: string): { readonly name?: string } => {
+  if (!name) return {};
+  return { name };
+};
 
 const token = (email: string, name?: string) =>
-  Effect.runPromise(signStandaloneAuthToken({ email, secret, ...(name ? { name } : {}) }));
+  signStandaloneAuthToken({ email, secret, ...optionalName(name) });
+
+/** Runs a test body and always drops the rows the suite provisions. */
+const runTest = <A, E>(body: Effect.Effect<A, E>) =>
+  Effect.runPromise(body.pipe(Effect.ensuring(cleanup.pipe(Effect.orDie))));
 
 describe("standalone identity provider against Postgres", () => {
-  afterAll(async () => {
-    await Effect.runPromise(cleanup);
-  });
-
-  it("creates the root user row on first cookie authentication", async () => {
-    await Effect.runPromise(cleanup);
-    const session = await resolve({
-      cookie: `${STANDALONE_AUTH_COOKIE_NAME}=${await token(rootEmail, "Root Operator")}`,
-    });
-
-    expect(session.method).toBe("user");
-    expect(session.user?.email).toBe(rootEmail);
-    expect(session.user?.workosUserId).toBe(STANDALONE_ROOT_SUBJECT);
-    expect(session.user?.name).toBe("Root Operator");
-  });
-
-  it("resolves the same single user through the bearer path", async () => {
-    const bearer = await token(rootEmail, "Root Operator");
-
-    const first = await resolve({ authorization: `Bearer ${bearer}` });
-    const second = await resolve({ cookie: `${STANDALONE_AUTH_COOKIE_NAME}=${bearer}` });
-
-    expect(first.user?.id).toBe(second.user?.id);
-    expect(first.user?.email).toBe(rootEmail);
-  });
-
-  it("rejects a token signed with a different secret", async () => {
-    const forged = await Effect.runPromise(
-      signStandaloneAuthToken({ email: rootEmail, secret: "not-the-secret" }),
-    );
-
-    await expect(resolve({ authorization: `Bearer ${forged}` })).rejects.toBeDefined();
-  });
-
-  it("rejects a request with no credentials", async () => {
-    await expect(resolve({})).rejects.toBeDefined();
-  });
-
-  it("adopts an existing row for the same email instead of creating a second user", async () => {
-    await Effect.runPromise(cleanup);
-    await Effect.runPromise(
+  it("creates the root user row on first cookie authentication", () =>
+    runTest(
       Effect.gen(function* () {
-        const db = yield* Db;
-        yield* db.insert(user).values({
-          banned: false,
-          banExpires: null,
-          banReason: null,
-          createdAt: new Date(),
-          customImageUrl: null,
-          email: rootEmail,
-          emailVerified: true,
-          id: "user_standaloneadopt00000000",
-          image: null,
-          name: "Previously Provisioned",
-          role: null,
-          updatedAt: new Date(),
-          workosUserId: "user_external_previous",
+        yield* cleanup;
+        const session = yield* resolve({
+          cookie: `${STANDALONE_AUTH_COOKIE_NAME}=${yield* token(rootEmail, "Root Operator")}`,
         });
-      }).pipe(Effect.provide(database), Effect.scoped),
-    );
 
-    const session = await resolve({ authorization: `Bearer ${await token(rootEmail)}` });
+        expect(session.method).toBe("user");
+        expect(session.user?.email).toBe(rootEmail);
+        expect(session.user?.workosUserId).toBe(STANDALONE_ROOT_SUBJECT);
+        expect(session.user?.name).toBe("Root Operator");
+      }),
+    ));
 
-    expect(session.user?.id).toBe("user_standaloneadopt00000000");
-    expect(session.user?.workosUserId).toBe(STANDALONE_ROOT_SUBJECT);
-
-    const rows = await Effect.runPromise(
+  it("resolves the same single user through the bearer path", () =>
+    runTest(
       Effect.gen(function* () {
-        const db = yield* Db;
-        return yield* db.select().from(user).where(eq(user.email, rootEmail));
-      }).pipe(Effect.provide(database), Effect.scoped),
-    );
-    expect(rows).toHaveLength(1);
-  });
+        const bearer = yield* token(rootEmail, "Root Operator");
+
+        const first = yield* resolve({ authorization: `Bearer ${bearer}` });
+        const second = yield* resolve({ cookie: `${STANDALONE_AUTH_COOKIE_NAME}=${bearer}` });
+
+        expect(first.user?.id).toBe(second.user?.id);
+        expect(first.user?.email).toBe(rootEmail);
+      }),
+    ));
+
+  it("rejects a token signed with a different secret", () =>
+    runTest(
+      Effect.gen(function* () {
+        const forged = yield* signStandaloneAuthToken({
+          email: rootEmail,
+          secret: "not-the-secret",
+        });
+
+        const exit = yield* Effect.exit(resolve({ authorization: `Bearer ${forged}` }));
+        expect(Exit.isFailure(exit)).toBe(true);
+      }),
+    ));
+
+  it("rejects a request with no credentials", () =>
+    runTest(
+      Effect.gen(function* () {
+        const exit = yield* Effect.exit(resolve({}));
+        expect(Exit.isFailure(exit)).toBe(true);
+      }),
+    ));
+
+  it("adopts an existing row for the same email instead of creating a second user", () =>
+    runTest(
+      Effect.gen(function* () {
+        yield* cleanup;
+        const now = yield* DateTime.nowAsDate;
+        yield* Effect.gen(function* () {
+          const db = yield* Db;
+          yield* db.insert(user).values({
+            banned: false,
+            banExpires: null,
+            banReason: null,
+            createdAt: now,
+            customImageUrl: null,
+            email: rootEmail,
+            emailVerified: true,
+            id: "user_standaloneadopt00000000",
+            image: null,
+            name: "Previously Provisioned",
+            role: null,
+            updatedAt: now,
+            workosUserId: "user_external_previous",
+          });
+        }).pipe(Effect.provide(database), Effect.scoped);
+
+        const session = yield* resolve({ authorization: `Bearer ${yield* token(rootEmail)}` });
+
+        expect(session.user?.id).toBe("user_standaloneadopt00000000");
+        expect(session.user?.workosUserId).toBe(STANDALONE_ROOT_SUBJECT);
+
+        const rows = yield* Effect.gen(function* () {
+          const db = yield* Db;
+          return yield* db.select().from(user).where(eq(user.email, rootEmail));
+        }).pipe(Effect.provide(database), Effect.scoped);
+        expect(rows).toHaveLength(1);
+      }),
+    ));
 });

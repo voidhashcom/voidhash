@@ -1,19 +1,21 @@
+import { constant, stringOr } from "@voidhash/lib/lang";
 import { Effect, Layer } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import { McpOAuth } from "../McpOAuth.ts";
 
-const METADATA_HEADERS = { "cache-control": "public, max-age=300" } as const;
+const METADATA_HEADERS = constant({ "cache-control": "public, max-age=300" });
 
-const requestOrigin = (request: HttpServerRequest.HttpServerRequest): string => {
-  try {
-    return new URL(request.originalUrl).origin;
-  } catch {
-    const host = request.headers.host ?? "localhost";
-    const protocol = request.headers["x-forwarded-proto"] ?? "http";
-    return `${protocol}://${host}`;
-  }
-};
+const requestOrigin = (
+  request: HttpServerRequest.HttpServerRequest,
+): Effect.Effect<string> =>
+  Effect.try(() => new URL(request.originalUrl).origin).pipe(
+    Effect.orElseSucceed(() => {
+      const host = stringOr(request.headers.host, "localhost");
+      const protocol = stringOr(request.headers["x-forwarded-proto"], "http");
+      return `${protocol}://${host}`;
+    }),
+  );
 
 const unavailable = HttpServerResponse.json(
   { error: "MCP OAuth is not configured" },
@@ -24,11 +26,12 @@ const protectedResourceMetadata = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest;
   const mcpOAuth = yield* McpOAuth;
   if (!mcpOAuth.authorizationServer) return yield* unavailable;
+  const origin = yield* requestOrigin(request);
   return yield* HttpServerResponse.json(
     {
       authorization_servers: [mcpOAuth.authorizationServer],
       bearer_methods_supported: ["header"],
-      resource: `${requestOrigin(request)}/api/mcp`,
+      resource: `${origin}/api/mcp`,
     },
     { headers: METADATA_HEADERS },
   );
@@ -37,9 +40,10 @@ const protectedResourceMetadata = Effect.gen(function* () {
 const authorizationServerMetadata = Effect.gen(function* () {
   const mcpOAuth = yield* McpOAuth;
   const result = yield* Effect.result(mcpOAuth.fetchAuthorizationServerMetadata());
-  return result._tag === "Success"
-    ? yield* HttpServerResponse.json(result.success, { headers: METADATA_HEADERS })
-    : yield* HttpServerResponse.json({ error: result.failure.message }, { status: 502 });
+  if (result._tag === "Success") {
+    return yield* HttpServerResponse.json(result.success, { headers: METADATA_HEADERS });
+  }
+  return yield* HttpServerResponse.json({ error: result.failure.message }, { status: 502 });
 });
 
 const registerMcpOAuthRoutes = Effect.gen(function* () {

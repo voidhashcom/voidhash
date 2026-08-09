@@ -1,5 +1,6 @@
 import { sha1 } from "@noble/hashes/legacy.js";
 import { utf8ToBytes } from "@noble/hashes/utils.js";
+import { Effect } from "effect";
 
 /** Shared UUIDv5 namespace for StoreKit and Google Play account identifiers. */
 export const VOIDHASH_ACCOUNT_TOKEN_NAMESPACE = "3919eb4e-3466-593c-8c1e-84554e13a0a6";
@@ -7,7 +8,7 @@ export const VOIDHASH_ACCOUNT_TOKEN_NAMESPACE = "3919eb4e-3466-593c-8c1e-84554e1
 const uuidToBytes = (uuid: string): Uint8Array => {
   const hex = uuid.replaceAll("-", "");
   if (!/^[0-9a-fA-F]{32}$/.test(hex)) {
-    throw new TypeError(`Invalid UUID namespace: ${uuid}`);
+    return Effect.runSync(Effect.die(new TypeError(`Invalid UUID namespace: ${uuid}`)));
   }
 
   const bytes = new Uint8Array(16);

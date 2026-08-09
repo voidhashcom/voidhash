@@ -6,7 +6,7 @@
  * normalize → forward to {@link GooglePlayPaymentProvider.recordPurchase}) and
  * delegates webhook ingress to {@link GooglePlayWebhookHandlerService}.
  */
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Predicate } from "effect";
 
 import {
   GooglePlayPaymentProviderService,
@@ -19,6 +19,12 @@ import { GooglePlayPaymentProviderServiceQueries } from "./payment-provider-serv
 import { GooglePlayPurchaseVerifier } from "./purchase-verifier.ts";
 import { GooglePlayWebhookHandlerService } from "./webhook-handler-service.ts";
 
+/** Reads a property off an unknown value without an `as` assertion. */
+const readProperty = <P extends string>(value: unknown, property: P): unknown => {
+  if (Predicate.hasProperty(value, property)) return value[property];
+  return undefined;
+};
+
 /**
  * Best-effort extraction of a human-readable cause from any upstream failure
  * (Play SDK errors carry `message`, infra errors carry `cause`). Collapses the
@@ -28,18 +34,20 @@ import { GooglePlayWebhookHandlerService } from "./webhook-handler-service.ts";
 const extractCause = (error: unknown): string => {
   if (error instanceof GooglePlayPaymentProviderServiceError) return error.cause;
   if (typeof error === "object" && error !== null) {
-    const candidate = error as { message?: unknown; cause?: unknown; status?: unknown };
-    if (typeof candidate.message === "string") return candidate.message;
-    if (typeof candidate.cause === "string") return candidate.cause;
-    if (typeof candidate.status === "string") return String(candidate.status);
+    const message = readProperty(error, "message");
+    if (typeof message === "string") return message;
+    const cause = readProperty(error, "cause");
+    if (typeof cause === "string") return cause;
+    const status = readProperty(error, "status");
+    if (typeof status === "string") return String(status);
   }
   return String(error);
 };
 
-const toServiceError = (error: unknown): GooglePlayPaymentProviderServiceError =>
-  error instanceof GooglePlayPaymentProviderServiceError
-    ? error
-    : new GooglePlayPaymentProviderServiceError({ cause: extractCause(error) });
+const toServiceError = (error: unknown): GooglePlayPaymentProviderServiceError => {
+  if (error instanceof GooglePlayPaymentProviderServiceError) return error;
+  return new GooglePlayPaymentProviderServiceError({ cause: extractCause(error) });
+};
 
 export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPaymentProviderService)(
   Effect.gen(function* () {
@@ -112,6 +120,7 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
     // deps at layer-build time, but the inferred `R`/`E` may still carry a
     // residual the public shape models as `never`. The deps are ambient at call
     // time (the service runs inside the deployed Worker).
+    // oxlint-disable-next-line effect/noAs -- boundary cast described in the comment above: the residual R/E left by the engine is ambient at call time inside the deployed Worker, and satisfies is not an assertion so it cannot erase it.
     return {
       acceptRtdnNotification: (input: {
         readonly paymentProviderConfigurationId: string;

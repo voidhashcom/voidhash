@@ -15,7 +15,7 @@ import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentCo
 import { Db } from "@voidhash/db";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import { QueueDriver } from "@voidhash/platform/Queue";
-import { Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer } from "effect";
 
 import type { SelfhostRuntimeConfig } from "../config.ts";
 
@@ -54,12 +54,16 @@ export const SelfhostPushDeliveryDispatchLive = Layer.effect(
 const makePushDeliveryServiceLive = (config: SelfhostRuntimeConfig) => {
   const database = Db.layer(config.database);
   const crypto = PaymentConfigSecretCrypto.layer({
-    key: Effect.sync(() => process.env.ENCRYPTION_KEY ?? ""),
+    key: Config.string("ENCRYPTION_KEY").pipe(Config.withDefault(""), Effect.orDie),
   });
   const providers = Layer.mergeAll(
     FirebaseCloudMessagingServiceConfigLive,
     makeApplePushNotificationServiceConfigLive({
-      deliveryEnabled: Effect.sync(() => process.env.APNS_DELIVERY_ENABLED === "true"),
+      deliveryEnabled: Config.string("APNS_DELIVERY_ENABLED").pipe(
+        Config.withDefault(""),
+        Effect.map((value) => value === "true"),
+        Effect.orDie,
+      ),
     }),
   ).pipe(Layer.provide(crypto));
   const tokens = NotificationTokenService.layer.pipe(

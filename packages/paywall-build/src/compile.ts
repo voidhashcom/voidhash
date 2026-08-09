@@ -1,7 +1,9 @@
+import { causeMessage } from "@voidhash/lib/lang";
+import { Effect } from "effect";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error, info } from "./diagnostics.ts";
 import type { ResolvedComponent } from "./imports.ts";
-import type { BuildCapabilities, BuildDiagnosticInput } from "./types.ts";
+import type { BuildCapabilities, BuildDiagnosticInput, CompileOutcome } from "./types.ts";
 
 /** The per-component result of the compile stage. */
 export interface CompiledComponent {
@@ -16,6 +18,14 @@ export interface CompileResult {
   readonly diagnostics: readonly BuildDiagnostic[];
 }
 
+/** The 1-based position of a capability diagnostic, when it carries one. */
+function positionOf(diagnostic: BuildDiagnosticInput): { line?: number; column?: number } {
+  const position: { line?: number; column?: number } = {};
+  if (diagnostic.line !== undefined) position.line = diagnostic.line;
+  if (diagnostic.column !== undefined) position.column = diagnostic.column;
+  return position;
+}
+
 /** Map a capability diagnostic to a build diagnostic for `path` in a phase. */
 function fromCapability(
   path: string,
@@ -27,8 +37,7 @@ function fromCapability(
     phase,
     severity: diagnostic.severity ?? "error",
     message: diagnostic.message,
-    ...(diagnostic.line !== undefined ? { line: diagnostic.line } : {}),
-    ...(diagnostic.column !== undefined ? { column: diagnostic.column } : {}),
+    ...positionOf(diagnostic),
   };
 }
 
@@ -41,52 +50,65 @@ function fromCapability(
  * failure records the capability's `compile`-phase diagnostics for that file and
  * leaves its `code` null; other files still compile.
  */
-export async function compileComponents(
+export function compileComponents(
   components: readonly ResolvedComponent[],
   caps: BuildCapabilities,
 ): Promise<CompileResult> {
-  const diagnostics: BuildDiagnostic[] = [];
-  const compile = caps.compile;
-  if (!compile) {
-    if (components.length > 0) {
-      diagnostics.push(
-        info(
-          components[0]!.path,
-          "compile",
-          "No compile capability provided — components are not compiled; manifests fall back to cache or 'unknown'.",
-        ),
-      );
-    }
-    return {
-      compiled: components.map((component) => ({ component, code: null })),
-      diagnostics,
-    };
-  }
+  return Effect.runPromise(compileComponentsEffect(components, caps));
+}
 
-  const compiled: CompiledComponent[] = [];
-  for (const component of components) {
-    let outcome;
-    try {
-      outcome = await compile(component.source);
-    } catch (err) {
-      diagnostics.push(
-        error(
-          component.path,
-          "compile",
-          err instanceof Error ? err.message : String(err),
-        ),
-      );
-      compiled.push({ component, code: null });
-      continue;
-    }
-    if ("diagnostics" in outcome) {
-      for (const diagnostic of outcome.diagnostics) {
-        diagnostics.push(fromCapability(component.path, "compile", diagnostic));
+/** The compile stage as an Effect; {@link compileComponents} runs it. */
+function compileComponentsEffect(
+  components: readonly ResolvedComponent[],
+  caps: BuildCapabilities,
+): Effect.Effect<CompileResult> {
+  return Effect.gen(function* () {
+    const diagnostics: BuildDiagnostic[] = [];
+    const compile = caps.compile;
+    if (!compile) {
+      if (components.length > 0) {
+        diagnostics.push(
+          info(
+            components[0]!.path,
+            "compile",
+            "No compile capability provided — components are not compiled; manifests fall back to cache or 'unknown'.",
+          ),
+        );
       }
-      compiled.push({ component, code: null });
-      continue;
+      return {
+        compiled: components.map((component) => ({ component, code: null })),
+        diagnostics,
+      };
     }
-    compiled.push({ component, code: outcome.code });
-  }
-  return { compiled, diagnostics };
+
+    const compiled: CompiledComponent[] = [];
+    for (const component of components) {
+      // A capability failure is recorded for that file only — the rest still compile.
+      const outcome: CompileOutcome | null = yield* Effect.tryPromise({
+        try: () => compile(component.source),
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.match({
+          onSuccess: (value) => value,
+          onFailure: (cause) => {
+            diagnostics.push(error(component.path, "compile", causeMessage(cause)));
+            return null;
+          },
+        }),
+      );
+      if (outcome === null) {
+        compiled.push({ component, code: null });
+        continue;
+      }
+      if ("diagnostics" in outcome) {
+        for (const diagnostic of outcome.diagnostics) {
+          diagnostics.push(fromCapability(component.path, "compile", diagnostic));
+        }
+        compiled.push({ component, code: null });
+        continue;
+      }
+      compiled.push({ component, code: outcome.code });
+    }
+    return { compiled, diagnostics };
+  });
 }

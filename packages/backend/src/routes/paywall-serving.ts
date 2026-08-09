@@ -15,6 +15,7 @@
  */
 import { PaywallArtifactStore } from "@voidhash/core/services";
 import { SHA256_HEX_PATTERN } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
+import { constant } from "@voidhash/lib/lang";
 import { Cause, Effect, Layer } from "effect";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 
@@ -28,21 +29,21 @@ const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
  * functional; nosniff + no-referrer close the type-confusion and URL-leak
  * side channels.
  */
-const SECURITY_HEADERS = {
+const SECURITY_HEADERS = constant({
   "content-security-policy": "sandbox allow-scripts allow-forms",
   "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",
-} as const;
+});
 
 /**
  * 404/error responses carry CORS too (contract §5.1): cross-origin consumers
  * (the studio fetching preview trees) must observe a readable 404 instead of
  * an opaque CORS failure.
  */
-const ERROR_HEADERS = {
+const ERROR_HEADERS = constant({
   ...SECURITY_HEADERS,
   "access-control-allow-origin": "*",
-} as const;
+});
 
 const notFound = HttpServerResponse.json(
   { error: "Not found" },
@@ -88,7 +89,7 @@ const handleServe = (prefix: "p" | "c") =>
 const registerPaywallServingRoutes = Effect.gen(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
-  for (const prefix of ["p", "c"] as const) {
+  for (const prefix of constant(["p", "c"])) {
     yield* router.add(
       "GET",
       `/${prefix}/:contentHash/*`,

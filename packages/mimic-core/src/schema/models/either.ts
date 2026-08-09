@@ -1,7 +1,8 @@
-import { makeSchemaError, SchemaErrorCodes, type SchemaError } from "../errors.ts";
+import { makeSchemaError, SchemaErrorCodes } from "../errors.ts";
 import type { SchemaModel } from "../model.ts";
 import { cloneSchemaDefault, serializeRequired } from "../shared.ts";
 import type { EitherSchema } from "../types.ts";
+import type { Mutable } from "../../internal/lang.ts";
 
 export const eitherSchemaModel: SchemaModel<EitherSchema> = {
   kind: "either",
@@ -22,16 +23,21 @@ export const eitherSchemaModel: SchemaModel<EitherSchema> = {
       },
       input["default"],
       schemaPath,
-    ) as EitherSchema;
+    );
   },
-  serialize: (schema, serializeSchema) => ({
-    kind: "either",
-    variants: schema.variants.map((variant) => serializeSchema(variant)),
-    ...serializeRequired(schema.required),
-    ...(schema.default !== undefined ? { default: cloneSchemaDefault(schema.default) } : {}),
-  }),
+  serialize: (schema, serializeSchema) => {
+    const serialized: Mutable<EitherSchema> = {
+      kind: "either",
+      variants: schema.variants.map((variant) => serializeSchema(variant)),
+      ...serializeRequired(schema.required),
+    };
+    if (schema.default !== undefined) {
+      serialized.default = cloneSchemaDefault(schema.default);
+    }
+    return serialized;
+  },
   validate: (schema, value, context, valuePath, schemaPath) => {
-    const failures: SchemaError[] = [];
+    const failures: Error[] = [];
 
     for (let index = 0; index < schema.variants.length; index += 1) {
       try {
@@ -45,7 +51,7 @@ export const eitherSchemaModel: SchemaModel<EitherSchema> = {
         }
       } catch (error) {
         if (error instanceof Error) {
-          failures.push(error as SchemaError);
+          failures.push(error);
         }
       }
     }

@@ -6,14 +6,16 @@
  * get a "revenue table" without knowing the `$purchase.completed`/`$subscription.*`
  * taxonomy.
  */
+import { constant } from "@voidhash/lib/lang";
+
 import { buildEventsLower, eventsTable } from "./events.ts";
 import type { CatalogColumn, CatalogTable } from "./types.ts";
 
-const REVENUE_EVENT_NAMES = [
+const REVENUE_EVENT_NAMES = constant([
   "$purchase.completed",
   "$subscription.created",
   "$subscription.renewed",
-] as const;
+]);
 
 // Code-derived constants only (event names + JSON keys) — safe to splice.
 const EVENT_NAME_FILTER = `event_name IN (${REVENUE_EVENT_NAMES.map((n) => `'${n}'`).join(", ")})`;

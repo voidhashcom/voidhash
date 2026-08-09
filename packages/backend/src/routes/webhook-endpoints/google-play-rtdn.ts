@@ -18,7 +18,8 @@ import {
   GooglePlayPaymentProviderService,
   GooglePlayPaymentProviderServiceError,
 } from "@voidhash/core/services";
-import { Effect, Layer, Schema } from "effect";
+import { pick } from "@voidhash/lib/lang";
+import { DateTime, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import { GooglePubSubPushVerifier } from "../../GooglePubSubPushVerifier.ts";
@@ -54,7 +55,7 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
       );
       if (authenticationResult._tag === "Failure") {
         const error = authenticationResult.failure;
-        const status = error.kind === "misconfigured" ? 503 : 401;
+        const status = pick(error.kind === "misconfigured", 503, 401);
         yield* Effect.logWarning("Google Play RTDN caller authentication failed", {
           kind: error.kind,
           paymentProviderConfigurationId: pathParamsResult.success.paymentProviderConfigurationId,
@@ -72,11 +73,12 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
         return yield* invalidPayloadResponse;
       }
 
+      const receivedAt = yield* DateTime.nowAsDate;
       const googlePlayPaymentProviderService = yield* GooglePlayPaymentProviderService;
       const result = yield* googlePlayPaymentProviderService.acceptRtdnNotification({
         paymentProviderConfigurationId: pathParamsResult.success.paymentProviderConfigurationId,
         pubsubBody: bodyResult.success,
-        receivedAt: new Date(),
+        receivedAt,
       });
 
       yield* Effect.logInfo("Google Play RTDN notification accepted", {

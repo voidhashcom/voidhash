@@ -15,10 +15,10 @@ export type TypedArray =
 export type SHAFamily = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 export type EncodingFormat = "hex" | "base64" | "base64url" | "base64urlnopad" | "none";
 
-const getAlphabet = (urlSafe: boolean): string =>
-  urlSafe
-    ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-    : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const getAlphabet = (urlSafe: boolean): string => {
+  if (urlSafe) return "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  return "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+};
 
 const base64Encode = (data: Uint8Array, alphabet: string, padding: boolean): string => {
   let result = "";
@@ -61,6 +61,7 @@ const base64Decode = (data: string, alphabet: string): Uint8Array => {
     }
     const value = decodeMap.get(char);
     if (value === undefined) {
+      // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- pure synchronous base64 decoder used from synchronous call sites (including hashing on the Workers request path); throw is the control flow here and the Effect boundary is the caller that wraps this decoder.
       throw new Error(`Invalid Base64 character: ${char}`);
     }
     buffer = (buffer << 6) | value;
@@ -85,6 +86,11 @@ const toUint8Array = (data: ArrayBuffer | TypedArray): Uint8Array => {
   return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 };
 
+const toBytes = (data: ArrayBuffer | TypedArray | string): Uint8Array => {
+  if (typeof data === "string") return new TextEncoder().encode(data);
+  return toUint8Array(data);
+};
+
 const base64 = {
   decode(data: string | ArrayBuffer | TypedArray) {
     if (typeof data !== "string") {
@@ -96,8 +102,7 @@ const base64 = {
   },
   encode(data: ArrayBuffer | TypedArray | string, options: { padding?: boolean } = {}) {
     const alphabet = getAlphabet(false);
-    const buffer = typeof data === "string" ? new TextEncoder().encode(data) : toUint8Array(data);
-    return base64Encode(buffer, alphabet, options.padding ?? true);
+    return base64Encode(toBytes(data), alphabet, options.padding ?? true);
   },
 };
 
@@ -109,38 +114,50 @@ export const base64Url = {
   },
   encode(data: ArrayBuffer | TypedArray | string, options: { padding?: boolean } = {}) {
     const alphabet = getAlphabet(true);
-    const buffer = typeof data === "string" ? new TextEncoder().encode(data) : toUint8Array(data);
-    return base64Encode(buffer, alphabet, options.padding ?? true);
+    return base64Encode(toBytes(data), alphabet, options.padding ?? true);
   },
 };
 
-export const createHash = <Encoding extends EncodingFormat = "none">(
+export type HashInput = string | ArrayBuffer | TypedArray;
+
+export interface Hasher<Output> {
+  readonly digest: (input: HashInput) => Promise<Output>;
+}
+
+const encodeDigest = (hashBuffer: ArrayBuffer, encoding?: EncodingFormat): ArrayBuffer | string => {
+  if (encoding === "hex") {
+    const hashArray = [...new Uint8Array(hashBuffer)];
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  if (encoding === "base64url" || encoding === "base64urlnopad") {
+    return base64Url.encode(hashBuffer, { padding: encoding !== "base64urlnopad" });
+  }
+  if (encoding === "base64") {
+    return base64.encode(hashBuffer);
+  }
+  return hashBuffer;
+};
+
+/**
+ * Builds a digest helper for `algorithm`, optionally encoding the digest bytes.
+ *
+ * The overloads carry what a conditional return type used to: omitting the
+ * encoding (or passing `"none"`) yields the raw `ArrayBuffer`, any other
+ * encoding yields an encoded string.
+ */
+export function createHash(algorithm: SHAFamily, encoding?: "none"): Hasher<ArrayBuffer>;
+export function createHash(
   algorithm: SHAFamily,
-  encoding?: Encoding,
-) => ({
-  digest: async (
-    input: string | ArrayBuffer | TypedArray,
-  ): Promise<Encoding extends "none" ? ArrayBuffer : string> => {
-    const encoder = new TextEncoder();
-    const encoded = typeof input === "string" ? encoder.encode(input) : toUint8Array(input);
-    const data = new Uint8Array(encoded);
-    const hashBuffer = await subtle.digest(algorithm, data);
-
-    if (encoding === "hex") {
-      const hashArray = [...new Uint8Array(hashBuffer)];
-      const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-      return hashHex as Encoding extends "none" ? ArrayBuffer : string;
-    }
-
-    if (encoding === "base64" || encoding === "base64url" || encoding === "base64urlnopad") {
-      if (encoding.includes("url")) {
-        return base64Url.encode(hashBuffer, {
-          padding: encoding !== "base64urlnopad",
-        }) as Encoding extends "none" ? ArrayBuffer : string;
-      }
-      const hashBase64 = base64.encode(hashBuffer);
-      return hashBase64 as Encoding extends "none" ? ArrayBuffer : string;
-    }
-    return hashBuffer as Encoding extends "none" ? ArrayBuffer : string;
-  },
-});
+  encoding: Exclude<EncodingFormat, "none">,
+): Hasher<string>;
+export function createHash(
+  algorithm: SHAFamily,
+  encoding?: EncodingFormat,
+): Hasher<ArrayBuffer | string> {
+  return {
+    digest: (input) =>
+      subtle
+        .digest(algorithm, new Uint8Array(toBytes(input)))
+        .then((hashBuffer) => encodeDigest(hashBuffer, encoding)),
+  };
+}

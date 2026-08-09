@@ -3,6 +3,7 @@ import {
   paywalls as rawPaywalls,
   projectRoot as rawProjectRoot,
 } from "virtual:voidhash-paywalls";
+import { causeMessage } from "@voidhash/lib/lang";
 import {
   type ActionMap,
   type ComponentDefinition,
@@ -13,6 +14,12 @@ import {
   type PaywallDefinition,
   type PropMap,
 } from "@voidhash/paywalls";
+import { Data, Effect } from "effect";
+
+/** Raised when a component definition's §2 manifest cannot be extracted. */
+class ManifestExtractionError extends Data.TaggedError("ManifestExtractionError")<{
+  readonly message: string;
+}> {}
 
 /**
  * A component definition with its prop/action generics erased — the shape of
@@ -71,15 +78,15 @@ const findComponentDefinition = (
   return null;
 };
 
-const safeManifest = (definition: AnyComponentDefinition): ComponentManifest | null => {
-  try {
-    return extractComponentManifest(definition);
-  } catch {
-    // A structurally valid definition with hand-rolled (non-builder) props can
-    // still blow up extraction; the sidebar then just omits the metadata.
-    return null;
-  }
-};
+// A structurally valid definition with hand-rolled (non-builder) props can
+// still blow up extraction; the sidebar then just omits the metadata.
+const safeManifest = (definition: AnyComponentDefinition): ComponentManifest | null =>
+  Effect.runSync(
+    Effect.try({
+      try: () => extractComponentManifest(definition),
+      catch: (cause) => new ManifestExtractionError({ message: causeMessage(cause) }),
+    }).pipe(Effect.orElseSucceed(() => null)),
+  );
 
 /**
  * Normalizes the raw `virtual:voidhash-paywalls` module into typed, validated
@@ -112,12 +119,10 @@ export const loadProjectContent = (): ProjectContent => {
 
   const components: ComponentEntry[] = rawComponents.map((entry) => {
     const definition = findComponentDefinition(entry.module);
-    return {
-      definition,
-      file: entry.file,
-      id: entry.id,
-      manifest: definition ? safeManifest(definition) : null,
-    };
+    if (!definition) {
+      return { definition: null, file: entry.file, id: entry.id, manifest: null };
+    }
+    return { definition, file: entry.file, id: entry.id, manifest: safeManifest(definition) };
   });
 
   return {

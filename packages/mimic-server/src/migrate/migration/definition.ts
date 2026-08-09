@@ -1,4 +1,14 @@
+import { Effect, Schema } from "effect";
 import { Primitive, serializeSchema } from "@voidhash/mimic-core";
+
+/** JSON codec used to derive a stable structural key from a serialized schema. */
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+/**
+ * Rejects an invalid registry definition. Registry construction is a
+ * synchronous, build-time invariant, so a violation is raised as a defect.
+ */
+const dieWith = (message: string): never => Effect.runSync(Effect.die(new Error(message)));
 
 export interface DirectMigrationContext<TTo extends Primitive.AnyPrimitive> {
   readonly root: Primitive.InferProxy<TTo>;
@@ -59,7 +69,7 @@ const canonicalize = (value: unknown): unknown => {
 };
 
 const schemaKey = (primitive: Primitive.AnyPrimitive): string =>
-  JSON.stringify(canonicalize(serializeSchema(primitive.schema)));
+  encodeJson(canonicalize(serializeSchema(primitive.schema)));
 
 /**
  * Defines and validates the complete deployed migration registry.
@@ -74,7 +84,7 @@ export const defineMigrationRegistry = (
   for (const definition of collections) {
     const address = `${definition.database}\u0000${definition.collection}`;
     if (byAddress.has(address)) {
-      throw new Error(
+      return dieWith(
         `Duplicate migration collection ${definition.database}/${definition.collection}`,
       );
     }
@@ -83,12 +93,12 @@ export const defineMigrationRegistry = (
     for (const [index, migration] of definition.migrations.entries()) {
       const expectedVersion = index + 1;
       if (!Number.isSafeInteger(migration.version) || migration.version !== expectedVersion) {
-        throw new Error(
+        return dieWith(
           `Expected migration version ${expectedVersion} for ${definition.database}/${definition.collection}, received ${migration.version}`,
         );
       }
       if (schemaKey(previous) !== schemaKey(migration.from)) {
-        throw new Error(
+        return dieWith(
           `Migration ${migration.version} (${migration.name}) does not start from the previous schema`,
         );
       }

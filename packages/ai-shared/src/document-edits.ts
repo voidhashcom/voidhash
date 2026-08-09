@@ -5,6 +5,7 @@ import {
   type NodeType,
 } from "@voidhash/mimic-schema";
 import { getBuiltinComponent, listBuiltinComponents } from "@voidhash/paywall-builtins";
+import { Effect, Schema } from "effect";
 
 import {
   acceptanceOf,
@@ -26,6 +27,18 @@ import type { DocumentEdit, NodeInput } from "./surfaces.ts";
  * leaves it addresses), and children. `data` is optional because containment /
  * move / remove checks don't need it.
  */
+/**
+ * JSON-render a value for a model-facing error message (strings come back quoted).
+ * The Schema JSON codec is used rather than a bare `JSON.stringify` so the quoting
+ * of every rendered value goes through one audited boundary.
+ */
+const toJsonText = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+/** A non-null, non-array object (a mimic `style` / update `set` shape). */
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 export interface EditableDocumentNode {
   readonly id: string;
   readonly type: string;
@@ -163,7 +176,8 @@ export function validateDocumentEdits(
         if (node) {
           validateSet(node.type, edit.set, editIndex, errors);
           const set = deriveEnabledFlagsForSet(node.type, edit.set);
-          normalized.push(set === edit.set ? edit : { ...edit, set });
+          if (set === edit.set) normalized.push(edit);
+          else normalized.push({ ...edit, set });
         }
         break;
       }
@@ -214,7 +228,8 @@ export function validateDocumentEdits(
 
   validateNonOverlapping(edits, byId, errors);
 
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, edits: normalized };
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, edits: normalized };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,7 +276,8 @@ function validateMutableTarget(
  * (an insert creates fresh nodes and only reads its parent, so it never overlaps).
  */
 function targetOf(edit: DocumentEdit): string | null {
-  return edit.op === "insert" ? null : edit.nodeId;
+  if (edit.op === "insert") return null;
+  return edit.nodeId;
 }
 
 /**
@@ -316,13 +332,17 @@ function validateNonOverlapping(
           editIndex,
           code: "overlappingEdits",
           nodeId: target,
-          message: `Edit ${editIndex} targets node \`${target}\`, which is inside the subtree edit ${otherIndex} ${
-            other.op === "remove" ? "removes" : "replaces"
-          } (\`${otherTarget}\`). Removal already includes descendants, so this overlap is redundant and makes undo ambiguous — drop the inner edit, or split them into separate edit_paywall calls.`,
+          message: `Edit ${editIndex} targets node \`${target}\`, which is inside the subtree edit ${otherIndex} ${wholesaleVerb(other)} (\`${otherTarget}\`). Removal already includes descendants, so this overlap is redundant and makes undo ambiguous — drop the inner edit, or split them into separate edit_paywall calls.`,
         });
       }
     }
   });
+}
+
+/** How a wholesale edit disposes of its target's subtree, for the overlap message. */
+function wholesaleVerb(edit: DocumentEdit): string {
+  if (edit.op === "remove") return "removes";
+  return "replaces";
 }
 
 /** Whether `candidateId` is a PROPER descendant of `node` (excludes `node` itself). */
@@ -362,9 +382,15 @@ function requireNode(
     editIndex,
     code,
     nodeId: id,
-    message: `${code === "unknownParent" ? "Parent node" : "Node"} \`${id}\` does not exist in the document. Node ids come from get_paywall or the current selection.`,
+    message: `${missingNodeLabel(code)} \`${id}\` does not exist in the document. Node ids come from get_paywall or the current selection.`,
   });
   return null;
+}
+
+/** The subject label of a missing-node error ("Parent node" vs "Node"). */
+function missingNodeLabel(code: "unknownNode" | "unknownParent"): string {
+  if (code === "unknownParent") return "Parent node";
+  return "Node";
 }
 
 /** Whether `candidateParentId` is `node` itself or lies within `node`'s subtree. */
@@ -395,18 +421,27 @@ function validateChildType(
   errors: DocumentEditError[],
 ): void {
   if (canBeChildOf(childType, parentType)) return;
-  const allowed = isNodeType(parentType)
-    ? ALLOWED_CHILDREN_BY_NODE_TYPE[parentType as NodeType]
-    : [];
   errors.push({
     editIndex,
     code: "illegalChild",
     nodeId: parentType,
-    message:
-      allowed.length > 0
-        ? `Node type \`${childType}\` cannot be a child of \`${parentType}\`. Allowed children of \`${parentType}\`: [${allowed.join(", ")}].`
-        : `Node type \`${parentType}\` cannot contain children (attempted to add \`${childType}\`).`,
+    message: illegalChildMessage(childType, parentType),
   });
+}
+
+/** The node types a parent type may legally contain (empty for a leaf / unknown type). */
+function allowedChildrenOf(parentType: string): readonly NodeType[] {
+  if (!isNodeType(parentType)) return [];
+  return ALLOWED_CHILDREN_BY_NODE_TYPE[parentType];
+}
+
+/** The containment error text: the allowed child set, or "cannot contain children". */
+function illegalChildMessage(childType: string, parentType: string): string {
+  const allowed = allowedChildrenOf(parentType);
+  if (allowed.length === 0) {
+    return `Node type \`${parentType}\` cannot contain children (attempted to add \`${childType}\`).`;
+  }
+  return `Node type \`${childType}\` cannot be a child of \`${parentType}\`. Allowed children of \`${parentType}\`: [${allowed.join(", ")}].`;
 }
 
 // ---------------------------------------------------------------------------
@@ -445,7 +480,7 @@ function validateNodeInput(
     });
     return;
   }
-  const type = node.type as NodeType;
+  const type: NodeType = node.type;
 
   // A `component` node must carry a concrete identity, else it inserts a dead
   // placeholder instance (all identity fields default to sentinels).
@@ -475,7 +510,8 @@ function validateNodeInput(
  */
 function nonEmptyString(node: NodeInput, key: string): string | undefined {
   const value = node[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+  if (typeof value === "string" && value.trim().length > 0) return value;
+  return undefined;
 }
 
 /**
@@ -588,10 +624,9 @@ function validateSet(
   errors: DocumentEditError[],
 ): void {
   if (!isNodeType(type)) return;
-  const nodeType = type as NodeType;
   for (const [key, value] of Object.entries(set)) {
     if (key === "name") continue;
-    validateDataField(nodeType, key, value, editIndex, key, errors);
+    validateDataField(type, key, value, editIndex, key, errors);
   }
 }
 
@@ -636,7 +671,7 @@ function validateStyle(
   path: string,
   errors: DocumentEditError[],
 ): void {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+  if (!isPlainRecord(value)) {
     errors.push({
       editIndex,
       code: "invalidValue",
@@ -656,7 +691,7 @@ function validateStyle(
     });
     return;
   }
-  for (const [styleKey, styleValue] of Object.entries(value as Record<string, unknown>)) {
+  for (const [styleKey, styleValue] of Object.entries(value)) {
     const fieldSchema = styleSchema.fields[styleKey];
     if (!fieldSchema) {
       errors.push(
@@ -696,12 +731,12 @@ function validateScalar(
   const isClosedEnum =
     acc.literals.length > 0 && !acc.acceptsNumber && !acc.acceptsBoolean && !acc.acceptsString;
   if (isClosedEnum) {
-    if (!acc.literals.includes(value as string | number | boolean)) {
+    if (!includesLiteral(acc.literals, value)) {
       errors.push({
         editIndex,
         code: "invalidValue",
         field: path,
-        message: `Invalid value ${describeValue(value)} for \`${path}\`. Allowed values: [${acc.literals.map((l) => JSON.stringify(l)).join(", ")}].`,
+        message: `Invalid value ${describeValue(value)} for \`${path}\`. Allowed values: [${literalList(acc.literals)}].`,
       });
     }
     return;
@@ -714,30 +749,48 @@ function validateScalar(
     (family === "number" && acc.acceptsNumber) ||
     (family === "boolean" && acc.acceptsBoolean) ||
     (family === "string" && acc.acceptsString) ||
-    acc.literals.includes(value as string | number | boolean);
+    includesLiteral(acc.literals, value);
   if (!familyOk) {
     errors.push({
       editIndex,
       code: "invalidValue",
       field: path,
-      message: `Expected ${expectedTypeLabel(schema)}${acc.literals.length ? ` (or one of [${acc.literals.map((l) => JSON.stringify(l)).join(", ")}])` : ""} for \`${path}\`, got ${describeValue(value)}.`,
+      message: `Expected ${expectedTypeLabel(schema)}${literalAlternatives(acc.literals)} for \`${path}\`, got ${describeValue(value)}.`,
     });
     return;
   }
 
   // Regex-constrained strings (e.g. RGBA colors): the value must match.
-  if (family === "string" && acc.regexes.length > 0) {
-    const str = value as string;
-    const matches = acc.regexes.some((r) => safeRegexTest(r.pattern, r.flags, str));
+  if (typeof value === "string" && acc.regexes.length > 0) {
+    const matches = acc.regexes.some((r) => safeRegexTest(r.pattern, r.flags, value));
     if (!matches) {
       errors.push({
         editIndex,
         code: "invalidValue",
         field: path,
-        message: `String value ${JSON.stringify(str)} for \`${path}\` does not match the required format (${acc.regexes.map((r) => r.pattern).join(" | ")}).`,
+        message: `String value ${toJsonText(value)} for \`${path}\` does not match the required format (${acc.regexes.map((r) => r.pattern).join(" | ")}).`,
       });
     }
   }
+}
+
+/** Whether a runtime value equals one of a schema's declared literals. */
+function includesLiteral(
+  literals: readonly (string | number | boolean)[],
+  value: unknown,
+): boolean {
+  return literals.some((literal) => literal === value);
+}
+
+/** The comma-joined, JSON-quoted literal set for an error message. */
+function literalList(literals: readonly (string | number | boolean)[]): string {
+  return literals.map((literal) => toJsonText(literal)).join(", ");
+}
+
+/** The trailing "(or one of [...])" clause of a family-mismatch message, when there are literals. */
+function literalAlternatives(literals: readonly (string | number | boolean)[]): string {
+  if (literals.length === 0) return "";
+  return ` (or one of [${literalList(literals)}])`;
 }
 
 // ---------------------------------------------------------------------------
@@ -752,8 +805,7 @@ function unknownFieldError(
   allowed: readonly string[],
   kindLabel: string,
 ): DocumentEditError {
-  const suggestion = nearestField(key, allowed);
-  const didYouMean = suggestion ? ` did you mean \`${suggestion}\`?` : "";
+  const didYouMean = suffixed(nearestField(key, allowed), (field) => ` did you mean \`${field}\`?`);
   return {
     editIndex,
     code: "unknownField",
@@ -769,13 +821,21 @@ function invalidNodeTypeMessage(type: string): string {
   if (type === "library" || type === "codeComponent") {
     return `Node type \`${type}\` is managed by the component tools (write_component / rename_component / delete_component), not edit_paywall.`;
   }
-  const suggestion = nearestField(type, INSERTABLE_NODE_TYPES);
-  const didYouMean = suggestion ? ` Did you mean \`${suggestion}\`?` : "";
+  const didYouMean = suffixed(
+    nearestField(type, INSERTABLE_NODE_TYPES),
+    (candidate) => ` Did you mean \`${candidate}\`?`,
+  );
   return `Unknown node type \`${type}\`.${didYouMean} Insertable types: [${INSERTABLE_NODE_TYPES.join(", ")}].`;
 }
 
-function isInsertableNodeType(type: string): boolean {
-  return INSERTABLE_NODE_TYPES.includes(type as NodeType);
+/** Render an optional did-you-mean suggestion, or the empty string when there is none. */
+function suffixed(suggestion: string | undefined, render: (suggestion: string) => string): string {
+  if (suggestion === undefined) return "";
+  return render(suggestion);
+}
+
+function isInsertableNodeType(type: string): type is NodeType {
+  return INSERTABLE_NODE_TYPES.some((insertable) => insertable === type);
 }
 
 /** The scalar family of a runtime value, for family-mismatch errors. */
@@ -790,18 +850,20 @@ function valueFamily(value: unknown): "number" | "boolean" | "string" | "other" 
 function describeValue(value: unknown): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
-  if (typeof value === "string") return JSON.stringify(value);
-  if (typeof value === "object") return Array.isArray(value) ? "an array" : "an object";
+  if (typeof value === "string") return toJsonText(value);
+  if (Array.isArray(value)) return "an array";
+  if (typeof value === "object") return "an object";
+  // oxlint-disable-next-line typescript/no-base-to-string -- every object-typed case (null, arrays, objects) has already returned above, so only primitives reach here; the rule cannot see that narrowing off `unknown`. Adding a JSON.stringify branch would change the error-message text these edits are asserted on.
   return String(value);
 }
 
 /** Test a serialized regex safely; a malformed pattern rejects rather than throws. */
 function safeRegexTest(pattern: string, flags: string | undefined, value: string): boolean {
-  try {
-    return new RegExp(pattern, flags).test(value);
-  } catch {
-    return false;
-  }
+  return Effect.runSync(
+    Effect.try(() => new RegExp(pattern, flags).test(value)).pipe(
+      Effect.orElseSucceed(() => false),
+    ),
+  );
 }
 
 /**
@@ -820,7 +882,8 @@ function nearestField(key: string, candidates: readonly string[]): string | unde
     }
   }
   const threshold = Math.min(3, Math.floor(key.length / 2) + 1);
-  return best !== undefined && bestDistance <= threshold ? best : undefined;
+  if (best !== undefined && bestDistance <= threshold) return best;
+  return undefined;
 }
 
 /** Classic iterative Levenshtein edit distance. */
@@ -833,7 +896,8 @@ function levenshtein(a: string, b: string): number {
     dist[0] = i;
     for (let j = 1; j < cols; j++) {
       const temp = dist[j]!;
-      dist[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dist[j]!, dist[j - 1]!);
+      if (a[i - 1] === b[j - 1]) dist[j] = prev;
+      else dist[j] = 1 + Math.min(prev, temp, dist[j - 1]!);
       prev = temp;
     }
   }

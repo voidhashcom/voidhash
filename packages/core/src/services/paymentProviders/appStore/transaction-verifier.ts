@@ -5,9 +5,15 @@ import type {
   ProviderEnvironmentValue,
 } from "@voidhash/db";
 import { ProviderEnvironment } from "@voidhash/db";
-import { Context, Effect, Layer, Option } from "effect";
+import { pick } from "@voidhash/lib/lang";
+import { Context, Data, Effect, Layer, Option } from "effect";
 
 import { AppStorePaymentProvider } from "./payment-provider.ts";
+
+/** Apple returned transaction info without the signed payload we need to decode. */
+export class AppStoreSignedTransactionMissingError extends Data.TaggedError(
+  "AppStoreSignedTransactionMissingError",
+)<{ readonly message: string }> {}
 
 /** Canonical App Store transaction data accepted by the record engine. */
 export interface AppStoreVerifiedTransaction {
@@ -44,7 +50,11 @@ export class AppStoreTransactionVerifier extends Context.Service<
               transactionInfoResult.transactionInfo.signedTransactionInfo,
             );
             if (!signedTransactionInfo) {
-              return yield* Effect.fail(new Error("Signed transaction info is not found"));
+              return yield* Effect.fail(
+                new AppStoreSignedTransactionMissingError({
+                  message: "Signed transaction info is not found",
+                }),
+              );
             }
 
             const decodedTransaction = yield* sdkContext.decodeSignedTransaction(
@@ -54,10 +64,11 @@ export class AppStoreTransactionVerifier extends Context.Service<
 
             return {
               decodedTransaction,
-              providerEnvironment:
-                transactionInfoResult.environment === Environment.SANDBOX
-                  ? ProviderEnvironment.Sandbox
-                  : ProviderEnvironment.Production,
+              providerEnvironment: pick(
+                transactionInfoResult.environment === Environment.SANDBOX,
+                ProviderEnvironment.Sandbox,
+                ProviderEnvironment.Production,
+              ),
             };
           }),
       });

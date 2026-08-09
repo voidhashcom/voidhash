@@ -6,7 +6,7 @@ import {
   type DurableEntityHostShape,
   type DurableEntitySession,
 } from "@voidhash/platform/DurableEntity";
-import { Duration, Effect, Layer, Semaphore } from "effect";
+import { Duration, Effect, Layer, Schema, Semaphore } from "effect";
 import { EntityId, Sharding } from "effect/unstable/cluster";
 import { KeyValueStore } from "effect/unstable/persistence";
 
@@ -45,6 +45,9 @@ export interface ClusterDurableEntityOptions {
 }
 
 const ownershipPollIntervalMillis = 25;
+
+const decodeJsonValue = Schema.decodeUnknownEffect(Schema.UnknownFromJsonString);
+const encodeJsonValue = Schema.encodeEffect(Schema.UnknownFromJsonString);
 
 /**
  * Durable entity host backed by Effect Cluster.
@@ -89,14 +92,13 @@ export const makeClusterDurableEntityHost = (
    * trace when they have not.
    */
   const warnIfNotOwned = (address: DurableEntityAddress) =>
-    Effect.suspend(() =>
-      isOwned(address)
-        ? Effect.void
-        : Effect.logDebug("durable entity is not assigned to this runner", {
-            entityType: address.type,
-            entityId: address.id,
-          }),
-    );
+    Effect.suspend(() => {
+      if (isOwned(address)) return Effect.void;
+      return Effect.logDebug("durable entity is not assigned to this runner", {
+        entityType: address.type,
+        entityId: address.id,
+      });
+    });
 
   const attachOwnershipTimeoutMillis = Duration.toMillis(
     options?.attachOwnershipTimeout ?? Duration.seconds(5),
@@ -133,15 +135,13 @@ export const makeClusterDurableEntityHost = (
 
   const readValue = (key: string) =>
     store.get(key).pipe(
-      Effect.map((raw) => {
-        if (raw === undefined) return undefined;
-        try {
-          return JSON.parse(raw) as unknown;
-        } catch {
-          return undefined;
-        }
-      }),
       Effect.orDie,
+      Effect.flatMap((raw) => {
+        if (raw === undefined) return Effect.succeed<unknown>(undefined);
+        // A value written by an older/other encoder is treated as absent rather
+        // than crashing the entity turn, matching the previous parse fallback.
+        return decodeJsonValue(raw).pipe(Effect.orElseSucceed(() => undefined));
+      }),
     );
 
   /**
@@ -170,7 +170,10 @@ export const makeClusterDurableEntityHost = (
           keyValue: {
             get: (key) => readValue(valueKey(address, key)),
             put: (key, value) =>
-              store.set(valueKey(address, key), JSON.stringify(value ?? null)).pipe(Effect.orDie),
+              encodeJsonValue(value ?? null).pipe(
+                Effect.flatMap((encoded) => store.set(valueKey(address, key), encoded)),
+                Effect.orDie,
+              ),
             delete: (key) => store.remove(valueKey(address, key)).pipe(Effect.orDie),
           },
           alarm: {

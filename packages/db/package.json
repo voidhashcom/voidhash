@@ -17,6 +17,7 @@
     "typecheck-go": "tsgo --noEmit"
   },
   "dependencies": {
+    "@effect/platform-node": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@voidhash/lib": "workspace:*",
     "drizzle-orm": "1.0.0-rc.4",

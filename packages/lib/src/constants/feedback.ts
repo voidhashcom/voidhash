@@ -4,13 +4,15 @@
  * so the label/value mapping lives in exactly one place.
  */
 
+import { constant } from "../lang/index.ts";
+
 /**
  * Which product area the feedback is about. Stored verbatim as a slug
  * (varchar). These are product areas, not feedback *types* (bug/idea) — so the
  * inbox can be triaged by the surface a user is talking about. Extend this list
  * as the product grows; keep slugs ≤ 32 chars (the column limit).
  */
-export const FeedbackTopic = {
+export const FeedbackTopic = constant({
   Analytics: "analytics",
   Paywalls: "paywalls",
   Products: "products",
@@ -23,12 +25,12 @@ export const FeedbackTopic = {
   Billing: "billing",
   Dashboard: "dashboard",
   Other: "other",
-} as const;
+});
 
 export type FeedbackTopicValue = (typeof FeedbackTopic)[keyof typeof FeedbackTopic];
 
 /** The ordered list of topic values, for building the topic select. */
-export const FeedbackTopicValues = [
+export const FeedbackTopicValues = constant([
   FeedbackTopic.Analytics,
   FeedbackTopic.Paywalls,
   FeedbackTopic.Products,
@@ -41,7 +43,7 @@ export const FeedbackTopicValues = [
   FeedbackTopic.Billing,
   FeedbackTopic.Dashboard,
   FeedbackTopic.Other,
-] as const;
+]);
 
 export const FeedbackTopicLabels: Record<FeedbackTopicValue, string> = {
   [FeedbackTopic.Analytics]: "Analytics",
@@ -56,56 +58,56 @@ export const FeedbackTopicLabels: Record<FeedbackTopicValue, string> = {
   [FeedbackTopic.Billing]: "Billing",
   [FeedbackTopic.Dashboard]: "Dashboard (UI, Navigation)",
   [FeedbackTopic.Other]: "Other",
-} as const;
+};
 
 /**
  * Sentiment on an ordinal 1–4 scale (stored as `smallint`). The UI renders each
  * level with a lucide icon (frown → annoyed → smile → laugh); the numeric value
  * keeps ordering/aggregation cheap and decouples storage from the icon set.
  */
-export const FeedbackSentiment = {
+export const FeedbackSentiment = constant({
   Frown: 1,
   Annoyed: 2,
   Smile: 3,
   Laugh: 4,
-} as const;
+});
 
 export type FeedbackSentimentValue = (typeof FeedbackSentiment)[keyof typeof FeedbackSentiment];
 
-export const FeedbackSentimentValues = [
+export const FeedbackSentimentValues = constant([
   FeedbackSentiment.Frown,
   FeedbackSentiment.Annoyed,
   FeedbackSentiment.Smile,
   FeedbackSentiment.Laugh,
-] as const;
+]);
 
 export const FeedbackSentimentLabels: Record<FeedbackSentimentValue, string> = {
   [FeedbackSentiment.Frown]: "Very unhappy",
   [FeedbackSentiment.Annoyed]: "Unhappy",
   [FeedbackSentiment.Smile]: "Happy",
   [FeedbackSentiment.Laugh]: "Very happy",
-} as const;
+};
 
 /**
  * Triage state for a stored feedback item, driven from the moderation inbox.
  * `New` is the default on insert; the inbox transitions it to `Read`/`Archived`.
  */
-export const FeedbackStatus = {
+export const FeedbackStatus = constant({
   New: 0,
   Read: 1,
   Archived: 2,
-} as const;
+});
 
 export type FeedbackStatusValue = (typeof FeedbackStatus)[keyof typeof FeedbackStatus];
 
-export const FeedbackStatusValues = [
+export const FeedbackStatusValues = constant([
   FeedbackStatus.New,
   FeedbackStatus.Read,
   FeedbackStatus.Archived,
-] as const;
+]);
 
 export const FeedbackStatusLabels: Record<FeedbackStatusValue, string> = {
   [FeedbackStatus.New]: "New",
   [FeedbackStatus.Read]: "Read",
   [FeedbackStatus.Archived]: "Archived",
-} as const;
+};

@@ -13,7 +13,7 @@ export const Button = (props: ButtonProps) => (
   <Pressable
     disabled={props.disabled}
     onPress={props.onPress}
-    style={[styles.button, props.disabled ? styles.buttonDisabled : null, props.style]}
+    style={[styles.button, props.disabled && styles.buttonDisabled, props.style]}
   >
     <Text style={[styles.text, props.textStyle]}>{props.title}</Text>
   </Pressable>

@@ -8,6 +8,8 @@
 import { Schema } from "effect";
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
 
+import { constant } from "@voidhash/lib/lang";
+
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
   RpcVoidQlComplexityError,
@@ -18,6 +20,7 @@ import {
   RpcVoidQlUnknownFieldError,
   RpcVoidQlUnsupportedError,
 } from "../errors/voidql.ts";
+
 import { AuthMiddleware } from "../middlewares.ts";
 
 /**
@@ -107,7 +110,7 @@ export const ListVoidQlInsightsResponse = Schema.Struct({
 });
 
 /** The compile-error union shared by the run + save surfaces. */
-const COMPILE_ERRORS = [
+const COMPILE_ERRORS = constant([
   RpcActionForbiddenError,
   RpcVoidQlSyntaxError,
   RpcVoidQlUnsupportedError,
@@ -116,7 +119,7 @@ const COMPILE_ERRORS = [
   RpcVoidQlPiiError,
   RpcVoidQlComplexityError,
   RpcVoidQlExecutionError,
-] as const;
+]);
 
 export class VoidQlRpcsDef extends RpcGroup.make(
   Rpc.make("RunVoidQlQuery", {

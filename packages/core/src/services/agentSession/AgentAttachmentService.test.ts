@@ -1,4 +1,6 @@
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
+
+import { constant } from "@voidhash/lib/lang";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { describe, expect, it } from "../../testing/effect-vitest.ts";
@@ -9,9 +11,11 @@ import { AgentAttachmentForbiddenError, AgentAttachmentService } from "./AgentAt
 const png =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
+const EPOCH = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+
 const auth = {
   cookie: null,
-  method: "user" as const,
+  method: constant("user"),
   name: "User",
   person: null,
   organizations: [
@@ -27,8 +31,8 @@ const auth = {
   projects: [],
   user: {
     id: "user_1",
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
+    createdAt: EPOCH,
+    updatedAt: EPOCH,
     email: "user@example.com",
     emailVerified: true,
     image: null,
@@ -40,22 +44,29 @@ const auth = {
 
 const makeLayer = (indexedOrganization?: string) => {
   const writes: Array<{ key: string; body: Uint8Array; contentType?: string }> = [];
+  // Only `get` is exercised by these tests; the other index operations are
+  // stubbed so the service shape is satisfied without an assertion.
   const index = Layer.succeed(AgentSessionIndexService, {
-    get: ({ sessionId }: { sessionId: string }) =>
-      indexedOrganization === undefined
-        ? Effect.fail(new AgentSessionNotFoundError({ sessionId }))
-        : Effect.succeed({
-            id: sessionId,
-            organizationId: indexedOrganization,
-            projectId: "project_1",
-            surface: "designer",
-            paywallId: null,
-            userId: "user_1",
-            title: "Session",
-            createdAt: new Date(0),
-            updatedAt: new Date(0),
-          }),
-  } as unknown as AgentSessionIndexService["Service"]);
+    touch: () => Effect.die("AgentSessionIndexService.touch is not used in these tests"),
+    list: () => Effect.die("AgentSessionIndexService.list is not used in these tests"),
+    delete: () => Effect.die("AgentSessionIndexService.delete is not used in these tests"),
+    get: ({ sessionId }: { sessionId: string }) => {
+      if (indexedOrganization === undefined) {
+        return Effect.fail(new AgentSessionNotFoundError({ sessionId }));
+      }
+      return Effect.succeed({
+        id: sessionId,
+        organizationId: indexedOrganization,
+        projectId: "project_1",
+        surface: "designer",
+        paywallId: null,
+        userId: "user_1",
+        title: "Session",
+        createdAt: EPOCH,
+        updatedAt: EPOCH,
+      });
+    },
+  });
   const files = Layer.succeed(PublicFileStore, {
     publicBaseUrl: "https://files.example.com",
     publicUrl: (key: string) => `https://files.example.com/files/${key}`,

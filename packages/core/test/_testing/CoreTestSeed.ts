@@ -14,7 +14,7 @@ import {
   projects,
   user,
 } from "@voidhash/db";
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import { CoreTestFixture } from "./CoreTestFixture";
 
@@ -24,18 +24,21 @@ import { CoreTestFixture } from "./CoreTestFixture";
  * rows are reused across runs and concurrent local runs never collide. Run once
  * from `globalSetup`; requires {@link Db}.
  */
+const NO_IDS: ReadonlyArray<string> = [];
+
 export const seedFixture = Effect.gen(function* () {
   const db = yield* Db;
+  const now = yield* DateTime.nowAsDate;
 
   yield* db
     .insert(user)
     .values({
-      createdAt: new Date(),
+      createdAt: now,
       email: CoreTestFixture.userEmail,
       emailVerified: true,
       id: CoreTestFixture.userId,
       name: CoreTestFixture.userName,
-      updatedAt: new Date(),
+      updatedAt: now,
       workosUserId: CoreTestFixture.workosUserId,
     })
     // Heal the full canonical row on reuse: a prior run's test could have
@@ -55,7 +58,7 @@ export const seedFixture = Effect.gen(function* () {
   yield* db
     .insert(organization)
     .values({
-      createdAt: new Date(),
+      createdAt: now,
       id: CoreTestFixture.organizationId,
       name: CoreTestFixture.organizationName,
       slug: CoreTestFixture.organizationSlug,
@@ -69,7 +72,7 @@ export const seedFixture = Effect.gen(function* () {
   yield* db
     .insert(member)
     .values({
-      createdAt: new Date(),
+      createdAt: now,
       id: CoreTestFixture.memberId,
       organizationId: CoreTestFixture.organizationId,
       role: "owner",
@@ -107,7 +110,7 @@ export const cleanupFixture = Effect.gen(function* () {
     .where(eq(products.projectId, projectId))
     .pipe(
       Effect.map(ids),
-      Effect.catch(() => Effect.succeed([] as string[])),
+      Effect.catch(() => Effect.succeed(NO_IDS)),
     );
   const perkIds = yield* db
     .select({ id: perks.id })
@@ -115,7 +118,7 @@ export const cleanupFixture = Effect.gen(function* () {
     .where(eq(perks.projectId, projectId))
     .pipe(
       Effect.map(ids),
-      Effect.catch(() => Effect.succeed([] as string[])),
+      Effect.catch(() => Effect.succeed(NO_IDS)),
     );
 
   if (productIds.length > 0) {

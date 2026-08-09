@@ -1,8 +1,9 @@
+import { constant } from "@voidhash/lib/lang";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { validateSelfhostSecurityConfig } from "../src/config.ts";
 
-const validProductionEnvironment = {
+const validProductionEnvironment = constant({
   CLICKHOUSE_URL: "",
   DATABASE_PASSWORD: "database-secret",
   MIMIC_PUBLIC_BASE_URL: "https://mimic.example.test",
@@ -15,7 +16,7 @@ const validProductionEnvironment = {
   VOIDHASH_AUTH_SECRET: "session-signing-secret-with-entropy",
   VOIDHASH_ROOT_PASSWORD: "root-secret-with-sufficient-entropy",
   VOIDHASH_ROOT_USERNAME: "operator",
-} as const;
+});
 
 const stubEnvironment = (environment: Record<string, string>) => {
   for (const [name, value] of Object.entries(environment)) {
@@ -23,6 +24,7 @@ const stubEnvironment = (environment: Record<string, string>) => {
   }
 };
 
+// oxlint-disable-next-line effect/noTestLifecycleHooks -- `vi.unstubAllEnvs()` restores vitest's process-env stubs, which live in the vitest lifecycle and have no Effect-scoped equivalent.
 afterEach(() => {
   vi.unstubAllEnvs();
 });

@@ -53,19 +53,23 @@ export class AuthTokenVerifier extends Context.Service<
   AuthTokenVerifierShape
 >()("@voidhash/core/AuthTokenVerifier") {}
 
+const bearerToken = (authorizationHeader: string | undefined): string => {
+  if (authorizationHeader?.startsWith("Bearer ")) {
+    return authorizationHeader.slice("Bearer ".length).trim();
+  }
+  return "";
+};
+
 /** Extracts the raw token from a `Bearer <token>` Authorization header. */
 export const extractBearerToken = (
   authorizationHeader: string | undefined,
 ): Effect.Effect<string, JwtAuthError> => {
-  const token = authorizationHeader?.startsWith("Bearer ")
-    ? authorizationHeader.slice("Bearer ".length).trim()
-    : "";
+  const token = bearerToken(authorizationHeader);
 
-  return token.length > 0
-    ? Effect.succeed(token)
-    : Effect.fail(
-        new JwtAuthError({
-          message: "Expected an Authorization header of the form 'Bearer <token>'",
-        }),
-      );
+  if (token.length > 0) return Effect.succeed(token);
+  return Effect.fail(
+    new JwtAuthError({
+      message: "Expected an Authorization header of the form 'Bearer <token>'",
+    }),
+  );
 };

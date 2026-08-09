@@ -1,12 +1,13 @@
 import {
   HiddenTreeRootId,
   type ArrayItem,
+  type ObjectValue,
   type TreeNode,
   type TreeValue,
   type Value,
 } from "./types.ts";
 import { ErrorCodes, makeCoreError } from "./errors.ts";
-import { cloneValue } from "./types.ts";
+import { cloneObjectValue, cloneValue } from "./types.ts";
 
 export const compareArrayItems = (a: ArrayItem, b: ArrayItem): number => {
   if (a.pos < b.pos) return -1;
@@ -52,7 +53,7 @@ export const orderedTreeNodes = (value: Value): TreeNode[] => {
       id: node.id,
       parent: node.parent,
       pos: node.pos,
-      value: cloneValue(node.value) as TreeNode["value"],
+      value: cloneObjectValue(node.value),
     }))
     .sort(compareTreeNodes);
 };
@@ -74,41 +75,52 @@ export const orderedTreeChildren = (value: Value, parentId: string): TreeNode[] 
       id: node.id,
       parent: node.parent,
       pos: node.pos,
-      value: cloneValue(node.value) as TreeNode["value"],
+      value: cloneObjectValue(node.value),
     }))
     .sort(compareTreeSiblings);
 };
 
-export const normalize = (value: Value): Value => {
-  const next = cloneValue(value);
-  normalizeInPlace(next);
-  return next;
+export const normalize = (value: Value): Value => normalizeValue(value);
+
+const normalizeObjectValue = (value: ObjectValue): ObjectValue => {
+  const fields: Record<string, Value> = {};
+  for (const [key, field] of Object.entries(value.fields)) {
+    fields[key] = normalizeValue(field);
+  }
+  return { kind: "object", fields };
 };
 
-const normalizeInPlace = (value: Value): void => {
+const normalizeValue = (value: Value): Value => {
   switch (value.kind) {
     case "string":
     case "number":
     case "boolean":
-      return;
+      return { ...value };
     case "object":
-      for (const [key, field] of Object.entries(value.fields)) {
-        normalizeInPlace(field);
-        (value.fields as Record<string, Value>)[key] = field;
-      }
-      return;
+      return normalizeObjectValue(value);
     case "array":
-      for (const item of value.items) {
-        normalizeInPlace(item.value);
-      }
-      (value.items as ArrayItem[]).sort(compareArrayItems);
-      return;
+      return {
+        kind: "array",
+        items: value.items
+          .map((item) => ({
+            id: item.id,
+            pos: item.pos,
+            value: normalizeValue(item.value),
+          }))
+          .sort(compareArrayItems),
+      };
     case "tree":
-      for (const node of value.nodes) {
-        normalizeInPlace(node.value);
-      }
-      (value.nodes as TreeNode[]).sort(compareTreeNodes);
-      return;
+      return {
+        kind: "tree",
+        nodes: value.nodes
+          .map((node) => ({
+            id: node.id,
+            parent: node.parent,
+            pos: node.pos,
+            value: normalizeObjectValue(node.value),
+          }))
+          .sort(compareTreeNodes),
+      };
   }
 };
 

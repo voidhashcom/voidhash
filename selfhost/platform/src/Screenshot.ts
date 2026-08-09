@@ -5,7 +5,7 @@ import {
   type ScreenshotShape,
 } from "@voidhash/platform/Screenshot";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
-import { Effect, Layer } from "effect";
+import { Config, Effect, Layer, Option } from "effect";
 import { chromium, type Browser } from "playwright-core";
 
 /** Headless Chromium launch and resource limits. */
@@ -22,6 +22,11 @@ export interface ChromiumScreenshotConfig {
 
 const screenshotError = (operation: string, cause: unknown) =>
   new ScreenshotError({ operation, cause: String(cause) });
+
+const sandboxArgs = (disableSandbox: boolean | undefined): ReadonlyArray<string> => {
+  if (disableSandbox) return ["--no-sandbox"];
+  return [];
+};
 
 const positiveInteger = (value: number, maximum: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= maximum;
@@ -79,25 +84,38 @@ const render = (browser: Browser, config: ChromiumScreenshotConfig, options: Scr
           catch: (cause) => screenshotError("openContext", cause),
         }),
         (context) =>
-          Effect.tryPromise({
-            try: async () => {
-              await context.setOffline(true);
-              const page = await context.newPage();
-              await page.route("**/*", (route) => route.abort("blockedbyclient"));
-              await page.setContent(options.html, {
-                waitUntil: "load",
-                timeout: config.timeoutMillis ?? 15_000,
-              });
-              return new Uint8Array(
-                await page.screenshot({
+          Effect.gen(function* () {
+            yield* Effect.tryPromise({
+              try: () => context.setOffline(true),
+              catch: (cause) => screenshotError("render", cause),
+            });
+            const page = yield* Effect.tryPromise({
+              try: () => context.newPage(),
+              catch: (cause) => screenshotError("render", cause),
+            });
+            yield* Effect.tryPromise({
+              try: () => page.route("**/*", (route) => route.abort("blockedbyclient")),
+              catch: (cause) => screenshotError("render", cause),
+            });
+            yield* Effect.tryPromise({
+              try: () =>
+                page.setContent(options.html, {
+                  waitUntil: "load",
+                  timeout: config.timeoutMillis ?? 15_000,
+                }),
+              catch: (cause) => screenshotError("render", cause),
+            });
+            const png = yield* Effect.tryPromise({
+              try: () =>
+                page.screenshot({
                   type: "png",
                   fullPage: false,
                   animations: "disabled",
                   timeout: config.timeoutMillis ?? 15_000,
                 }),
-              );
-            },
-            catch: (cause) => screenshotError("render", cause),
+              catch: (cause) => screenshotError("render", cause),
+            });
+            return new Uint8Array(png);
           }),
         (context) =>
           Effect.promise(() => context.close()).pipe(
@@ -122,14 +140,21 @@ export const ChromiumScreenshotLive = (
   Layer.effect(
     Screenshot,
     Effect.acquireRelease(
-      Effect.tryPromise({
-        try: () =>
-          chromium.launch({
-            executablePath: config.executablePath ?? process.env.CHROMIUM_EXECUTABLE_PATH,
-            headless: true,
-            args: ["--disable-dev-shm-usage", ...(config.disableSandbox ? ["--no-sandbox"] : [])],
-          }),
-        catch: (cause) => screenshotError("launch", cause),
+      Effect.gen(function* () {
+        const configuredPath = yield* Config.string("CHROMIUM_EXECUTABLE_PATH").pipe(
+          Config.option,
+          Effect.map(Option.getOrUndefined),
+          Effect.orDie,
+        );
+        return yield* Effect.tryPromise({
+          try: () =>
+            chromium.launch({
+              executablePath: config.executablePath ?? configuredPath,
+              headless: true,
+              args: ["--disable-dev-shm-usage", ...sandboxArgs(config.disableSandbox)],
+            }),
+          catch: (cause) => screenshotError("launch", cause),
+        });
       }),
       (browser) =>
         Effect.promise(() => browser.close()).pipe(

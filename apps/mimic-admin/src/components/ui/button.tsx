@@ -32,6 +32,14 @@ const buttonVariants = cva(
 	},
 );
 
+/** Renders through Radix `Slot` when `asChild` is set, otherwise a native button. */
+function resolveElement(asChild: boolean): typeof Slot | "button" {
+	if (asChild) {
+		return Slot;
+	}
+	return "button";
+}
+
 export interface ButtonProps
 	extends React.ButtonHTMLAttributes<HTMLButtonElement>,
 		VariantProps<typeof buttonVariants> {
@@ -45,7 +53,7 @@ function Button({
 	asChild = false,
 	...props
 }: ButtonProps) {
-	const Comp = asChild ? Slot : "button";
+	const Comp = resolveElement(asChild);
 	return (
 		<Comp
 			className={cn(buttonVariants({ variant, size, className }))}

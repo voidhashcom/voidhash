@@ -1,4 +1,5 @@
 "use client";
+import { Effect } from "effect";
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
@@ -7,6 +8,19 @@ import { cn } from "../../lib/utils";
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { dark: ".dark", light: "" } as const;
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const;
+
+/**
+ * Config key for a legend/tooltip payload entry: the caller's `nameKey` wins,
+ * then the series `dataKey` when it has a text form, else `"value"`. Recharts
+ * types `dataKey` as string | number | accessor function; an accessor has no
+ * meaningful key, so it falls through to the default.
+ */
+function payloadKey(nameKey: string | undefined, dataKey: unknown): string {
+  if (nameKey) return nameKey;
+  if (typeof dataKey === "string" && dataKey.length > 0) return dataKey;
+  if (typeof dataKey === "number") return dataKey.toString();
+  return "value";
+}
 
 export type ChartConfig = {
   [k in string]: {
@@ -28,7 +42,9 @@ function useChart() {
   const context = React.useContext(ChartContext);
 
   if (!context) {
-    throw new Error("useChart must be used within a <ChartContainer />");
+    return Effect.runSync(
+      Effect.die(new Error("useChart must be used within a <ChartContainer />")),
+    );
   }
 
   return context;
@@ -269,7 +285,7 @@ function ChartLegendContent({
       {payload
         .filter((item) => item.type !== "none")
         .map((item) => {
-          const key = `${nameKey || item.dataKey || "value"}`;
+          const key = payloadKey(nameKey, item.dataKey);
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
 
           return (

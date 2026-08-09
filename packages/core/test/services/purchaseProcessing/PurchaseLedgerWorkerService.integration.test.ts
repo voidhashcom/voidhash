@@ -38,7 +38,7 @@
  *    controllable double is the only in-process seam for the dispatch-failure
  *    → retry / dead-letter paths.
  */
-import { Effect, Layer } from "effect";
+import { Clock, Data, DateTime, Effect, Layer } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 
@@ -55,6 +55,7 @@ import {
   sql,
 } from "@voidhash/db";
 
+import { constant } from "@voidhash/lib/lang";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
 
@@ -65,7 +66,20 @@ const organizationId = CoreTestFixture.organizationId;
 
 /** Monotonic counter so idempotency keys stay unique within the same millisecond. */
 let seq = 0;
-const uniqueKey = (label: string) => `it-pl-${label}-${Date.now()}-${seq++}`;
+const uniqueKey = (label: string) =>
+  `it-pl-${label}-${DateTime.toEpochMillis(DateTime.nowUnsafe())}-${seq++}`;
+
+const fakeService = (impl: object): any => impl;
+
+/** Dispatch failure injected by the test double; its message is asserted downstream. */
+class DispatchBoomError extends Data.TaggedError("DispatchBoomError")<{
+  readonly message: string;
+}> {}
+
+const publishedFlag = (count: number): number => {
+  if (count >= 1) return 1;
+  return 0;
+};
 
 /**
  * Poll options with a small batch / fast stale cutoff so a single pass claims
@@ -73,11 +87,11 @@ const uniqueKey = (label: string) => `it-pl-${label}-${Date.now()}-${seq++}`;
  * production default so the retry-vs-dead-letter boundary is exercised at the
  * real watermark.
  */
-const pollOptions = {
+const pollOptions = constant({
   batchSize: 100,
   maxAttempts: 8,
   staleClaimSeconds: 300,
-} as const;
+});
 
 /**
  * A test-double {@link AnalyticsDispatchService} whose `dispatchTrusted`
@@ -89,8 +103,10 @@ const pollOptions = {
 const makeDispatch = (behavior: "succeed" | "fail"): Layer.Layer<AnalyticsDispatchService> =>
   Layer.succeed(AnalyticsDispatchService, {
     dispatchCaptured: () => Effect.void,
-    dispatchTrusted: (() =>
-      behavior === "fail" ? Effect.fail(new Error("dispatch boom")) : Effect.void) as never,
+    dispatchTrusted: fakeService(() => {
+      if (behavior === "fail") return Effect.fail(new DispatchBoomError({ message: "dispatch boom" }));
+      return Effect.void;
+    }),
   });
 
 /**
@@ -101,7 +117,9 @@ const makeDispatch = (behavior: "succeed" | "fail"): Layer.Layer<AnalyticsDispat
 const PlatformRuntimeStub = Layer.succeed(PlatformRuntime, PlatformRuntime.of({}));
 
 /** Build a complete `purchase_ledger` insert row, defaulting every NOT NULL column. */
-const ledgerRow = (overrides: Partial<InsertPurchaseLedger>): InsertPurchaseLedger => ({
+const ledgerRow = (
+  overrides: Partial<InsertPurchaseLedger>,
+): InsertPurchaseLedger & { readonly id: string } => ({
   attemptCount: 0,
   claimedAt: null,
   claimedBy: null,
@@ -129,7 +147,7 @@ const insertRow = (overrides: Partial<InsertPurchaseLedger>) =>
     const db = yield* Db;
     const row = ledgerRow(overrides);
     yield* db.insert(purchaseLedger).values(row);
-    return row.id as string;
+    return row.id;
   });
 
 /** Read a single ledger row straight from the DB, bypassing the worker. */
@@ -190,7 +208,7 @@ describe("PurchaseLedgerWorkerService.poll", () => {
         // A Published row is terminal — the claim SQL only targets Pending rows,
         // so a poll must never reclaim or re-process it.
         const id = yield* insertRow({
-          publishedAt: new Date(),
+          publishedAt: yield* DateTime.nowAsDate,
           status: PurchaseLedgerStatus.Published,
         });
         track(id);
@@ -298,8 +316,9 @@ describe("PurchaseLedgerWorkerService.poll", () => {
         // Backoff pushes the next eligible time into the future (computeBackoff =
         // 2 ** 1 = 2s); assert it is scheduled ahead of now rather than the exact
         // second, which races NOW().
+        const nowMillis = yield* Clock.currentTimeMillis;
         expect(row?.nextAttemptAt).not.toBeNull();
-        expect(row?.nextAttemptAt && row.nextAttemptAt.getTime() > Date.now()).toBe(true);
+        expect(row?.nextAttemptAt && row.nextAttemptAt.getTime() > nowMillis).toBe(true);
         expect(row?.lastError).toContain("dispatch boom");
         // The claim is released so the row is eligible again after the window.
         expect(row?.claimedBy).toBeNull();
@@ -419,7 +438,7 @@ describe("PurchaseLedgerWorkerService.poll", () => {
         const [a, b] = yield* Effect.all([worker.poll(pollOptions), worker.poll(pollOptions)], {
           concurrency: 2,
         });
-        const ourPublished = (a.publishedCount >= 1 ? 1 : 0) + (b.publishedCount >= 1 ? 1 : 0);
+        const ourPublished = publishedFlag(a.publishedCount) + publishedFlag(b.publishedCount);
         expect(ourPublished).toBeGreaterThanOrEqual(1);
 
         const row = yield* findRow(id);

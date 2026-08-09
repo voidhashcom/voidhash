@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { DateTime, Schema } from "effect";
 import { AuthSession } from "@voidhash/rpc";
 // Single canonical AuthSession service tag — the rpc package owns the
 // definition and middleware that provides it; re-exporting here keeps domain
@@ -145,7 +145,7 @@ export const makeInternalProjectUserAuthSession = (
   userId: string,
   name = "Internal user session",
 ): AuthSession["Service"] => {
-  const timestamp = new Date(0);
+  const timestamp = DateTime.toDateUtc(DateTime.makeUnsafe(0));
   return {
     cookie: null,
     method: "user",

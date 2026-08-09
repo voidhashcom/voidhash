@@ -2,7 +2,7 @@ import type {
   ProductPurchaseV2Type,
   SubscriptionPurchaseV2Type,
 } from "@voidhash/google-play-server-sdk";
-import { Effect, Option } from "effect";
+import { DateTime, Effect, Option } from "effect";
 
 import { describe, expect, it } from "../../../testing/effect-vitest.ts";
 import { GooglePlayPurchaseProcessingIdempotencyKeyDerivationError } from "./errors.ts";
@@ -16,6 +16,9 @@ import {
 } from "./helpers.ts";
 
 /** Builds a minimal normalized purchase; every Option field defaults to none. */
+/** Builds a `Date` from epoch milliseconds without the banned `new Date(ms)`. */
+const fromEpochMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
 const purchase = (
   overrides: Partial<GooglePlayNormalizedPurchase> = {},
 ): GooglePlayNormalizedPurchase => ({
@@ -125,7 +128,7 @@ describe("getGooglePlayPurchaseProcessingIdempotencyKey", () => {
     Effect.gen(function* () {
       const key = yield* getGooglePlayPurchaseProcessingIdempotencyKey({
         eventType: "expired",
-        purchase: purchase({ expiryTime: Option.some(new Date(EXPIRES_MS)), purchaseToken: "tok" }),
+        purchase: purchase({ expiryTime: Option.some(fromEpochMillis(EXPIRES_MS)), purchaseToken: "tok" }),
       });
       expect(key).toBe(`google:tok:expired:${EXPIRES_MS}`);
     }),
@@ -135,12 +138,12 @@ describe("getGooglePlayPurchaseProcessingIdempotencyKey", () => {
     Effect.gen(function* () {
       const first = yield* getGooglePlayPurchaseProcessingIdempotencyKey({
         eventType: "canceled",
-        purchase: purchase({ expiryTime: Option.some(new Date(EXPIRES_MS)), purchaseToken: "tok" }),
+        purchase: purchase({ expiryTime: Option.some(fromEpochMillis(EXPIRES_MS)), purchaseToken: "tok" }),
       });
       const second = yield* getGooglePlayPurchaseProcessingIdempotencyKey({
         eventType: "canceled",
         purchase: purchase({
-          expiryTime: Option.some(new Date(EXPIRES_MS + 30 * 24 * 3_600_000)),
+          expiryTime: Option.some(fromEpochMillis(EXPIRES_MS + 30 * 24 * 3_600_000)),
           purchaseToken: "tok",
         }),
       });
@@ -162,11 +165,11 @@ describe("getGooglePlayPurchaseProcessingIdempotencyKey", () => {
     Effect.gen(function* () {
       const a = yield* getGooglePlayPurchaseProcessingIdempotencyKey({
         eventType: "billing_retry",
-        purchase: purchase({ expiryTime: Option.some(new Date(EXPIRES_MS)), purchaseToken: "tok" }),
+        purchase: purchase({ expiryTime: Option.some(fromEpochMillis(EXPIRES_MS)), purchaseToken: "tok" }),
       });
       const b = yield* getGooglePlayPurchaseProcessingIdempotencyKey({
         eventType: "billing_retry",
-        purchase: purchase({ expiryTime: Option.some(new Date(EXPIRES_MS)), purchaseToken: "tok" }),
+        purchase: purchase({ expiryTime: Option.some(fromEpochMillis(EXPIRES_MS)), purchaseToken: "tok" }),
       });
       expect(a).toBe(b);
     }),

@@ -1,6 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
+import { constant } from "@voidhash/lib/lang";
 
-const prefixes = {
+const prefixes = constant({
   test: "test",
   request: "req",
   user: "user",
@@ -85,7 +86,7 @@ const prefixes = {
   pushNotificationSend: "push_send",
   pushNotificationDelivery: "push_del",
   pushNotificationDeliveryAttempt: "push_att",
-} as const;
+});
 
 /**
  * Builds a prefixed cuid2 id generator over a caller-owned prefix table, so

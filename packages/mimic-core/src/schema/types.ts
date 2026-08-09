@@ -7,8 +7,9 @@ import type {
   TreeValue,
   Value,
 } from "../core/types.ts";
+import { constant } from "../internal/lang.ts";
 
-export const SchemaKinds = {
+export const SchemaKinds = constant({
   String: "string",
   Number: "number",
   Boolean: "boolean",
@@ -18,7 +19,7 @@ export const SchemaKinds = {
   Union: "union",
   Either: "either",
   Tree: "tree",
-} as const;
+});
 
 export type SchemaKind = (typeof SchemaKinds)[keyof typeof SchemaKinds];
 

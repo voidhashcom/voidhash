@@ -25,7 +25,7 @@
  * The DLQ rows carry no append-only audit entries, so cleanup deletes the rows
  * alone.
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect, Schema } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import { DlqProducer } from "@voidhash/core/services/analyticsIngest/DlqProducer";
@@ -41,31 +41,54 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+/** Reads the `failureId` out of a stored `payload_json` blob, if present. */
+const failureIdOf = (payloadJson: unknown): string | undefined => {
+  if (typeof payloadJson !== "object" || payloadJson === null) {
+    return undefined;
+  }
+  if (!("failureId" in payloadJson)) {
+    return undefined;
+  }
+  const { failureId } = payloadJson;
+  if (typeof failureId !== "string") {
+    return undefined;
+  }
+  return failureId;
+};
+
 /** Monotonic counter so capture ids stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueCaptureId = (label: string) => `it-dlq-${label}-${Date.now()}-${seq++}`;
+const uniqueCaptureId = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-dlq-${label}-${now}-${seq++}`);
 
 /**
  * Build a fully-populated {@link EventProcessorDlqV1} envelope, letting each
  * test override only the fields it asserts on. Defaults are valid wire values
  * so a test that doesn't care about, say, the lane still produces a writable row.
  */
-const dlqEvent = (overrides: Partial<EventProcessorDlqV1> = {}): EventProcessorDlqV1 => ({
-  captureId: uniqueCaptureId("evt"),
-  distinctId: "distinct-1",
-  failedAt: new Date().toISOString(),
-  failureClass: "schema_rejected",
-  failureId: crypto.randomUUID(),
-  failureMessage: "schema validation failed",
-  headers: {},
-  lane: "main",
-  projectId,
-  schemaVersion: 1,
-  sourceOffset: "topic-0:42",
-  sourcePartition: 0,
-  sourceTopic: "analytics.main.0",
-  ...overrides,
-});
+const dlqEvent = (
+  overrides: Partial<EventProcessorDlqV1> = {},
+): Effect.Effect<EventProcessorDlqV1> =>
+  Effect.gen(function* () {
+    return {
+      captureId: yield* uniqueCaptureId("evt"),
+      distinctId: "distinct-1",
+      failedAt: (yield* DateTime.nowAsDate).toISOString(),
+      failureClass: "schema_rejected",
+      failureId: yield* uniqueCaptureId("failure"),
+      failureMessage: "schema validation failed",
+      headers: {},
+      lane: "main",
+      projectId,
+      schemaVersion: 1,
+      sourceOffset: "topic-0:42",
+      sourcePartition: 0,
+      sourceTopic: "analytics.main.0",
+      ...overrides,
+    };
+  });
 
 /** Read a DLQ row straight from the database by its capture id (UNIQUE). */
 const findDlqRowByCaptureId = (captureId: string) =>
@@ -113,13 +136,13 @@ describe("DlqProducer.dbLive publishBatch", () => {
       Effect.gen(function* () {
         const producer = yield* DlqProducer;
 
-        const overflow = dlqEvent({ captureId: uniqueCaptureId("overflow"), lane: "overflow" });
-        const historical = dlqEvent({
-          captureId: uniqueCaptureId("historical"),
+        const overflow = yield* dlqEvent({ captureId: yield* uniqueCaptureId("overflow"), lane: "overflow" });
+        const historical = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("historical"),
           lane: "historical",
         });
-        const main = dlqEvent({ captureId: uniqueCaptureId("main"), lane: "main" });
-        const unknown = dlqEvent({ captureId: uniqueCaptureId("unknown"), lane: "unknown" });
+        const main = yield* dlqEvent({ captureId: yield* uniqueCaptureId("main"), lane: "main" });
+        const unknown = yield* dlqEvent({ captureId: yield* uniqueCaptureId("unknown"), lane: "unknown" });
         track(overflow.captureId!);
         track(historical.captureId!);
         track(main.captureId!);
@@ -150,12 +173,12 @@ describe("DlqProducer.dbLive publishBatch", () => {
       Effect.gen(function* () {
         const producer = yield* DlqProducer;
 
-        const numericSuffix = dlqEvent({
-          captureId: uniqueCaptureId("seq-num"),
+        const numericSuffix = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("seq-num"),
           sourceOffset: "analytics.main.0:1234",
         });
-        const nonNumericSuffix = dlqEvent({
-          captureId: uniqueCaptureId("seq-nan"),
+        const nonNumericSuffix = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("seq-nan"),
           sourceOffset: "offset-without-number",
         });
         track(numericSuffix.captureId!);
@@ -182,16 +205,17 @@ describe("DlqProducer.dbLive publishBatch", () => {
       Effect.gen(function* () {
         const producer = yield* DlqProducer;
 
-        const validJson = dlqEvent({
-          captureId: uniqueCaptureId("payload-json"),
-          rawValue: JSON.stringify({ marker: "decoded", nested: { ok: true } }),
+        const validJson = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("payload-json"),
+          rawValue: encodeJson({ marker: "decoded", nested: { ok: true } }),
         });
-        const unparseable = dlqEvent({
-          captureId: uniqueCaptureId("payload-bad"),
+        const unparseable = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("payload-bad"),
           rawValue: "{not valid json",
         });
-        const absent = dlqEvent({ captureId: uniqueCaptureId("payload-absent") });
-        delete (absent as { rawValue?: string }).rawValue;
+        const { rawValue: _absentRawValue, ...absent } = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("payload-absent"),
+        });
         track(validJson.captureId!);
         track(unparseable.captureId!);
         track(absent.captureId!);
@@ -203,15 +227,11 @@ describe("DlqProducer.dbLive publishBatch", () => {
 
         // Unparseable rawValue → the producer stores the original event object.
         const fallbackRow = yield* findDlqRowByCaptureId(unparseable.captureId!);
-        expect((fallbackRow?.payloadJson as { failureId?: string })?.failureId).toBe(
-          unparseable.failureId,
-        );
+        expect(failureIdOf(fallbackRow?.payloadJson)).toBe(unparseable.failureId);
 
         // Missing rawValue → likewise stores the original event object.
         const absentRow = yield* findDlqRowByCaptureId(absent.captureId!);
-        expect((absentRow?.payloadJson as { failureId?: string })?.failureId).toBe(
-          absent.failureId,
-        );
+        expect(failureIdOf(absentRow?.payloadJson)).toBe(absent.failureId);
       }),
     ).pipe(
       Effect.provide(DlqProducer.dbLive),
@@ -226,8 +246,8 @@ describe("DlqProducer.dbLive publishBatch", () => {
       Effect.gen(function* () {
         const producer = yield* DlqProducer;
 
-        const event = dlqEvent({
-          captureId: uniqueCaptureId("fields"),
+        const event = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("fields"),
           distinctId: "distinct-fields",
           failureClass: "policy_rejected",
           failureMessage: "rejected by policy",
@@ -261,8 +281,12 @@ describe("DlqProducer.dbLive publishBatch", () => {
       Effect.gen(function* () {
         const producer = yield* DlqProducer;
 
-        const events = Array.from({ length: 3 }, (_, i) =>
-          dlqEvent({ captureId: uniqueCaptureId(`batch-${i}`) }),
+        const events = yield* Effect.all(
+          Array.from({ length: 3 }, (_, i) =>
+            uniqueCaptureId(`batch-${i}`).pipe(
+              Effect.flatMap((captureId) => dlqEvent({ captureId })),
+            ),
+          ),
         );
         for (const event of events) track(event.captureId!);
 
@@ -288,8 +312,9 @@ describe("DlqProducer.dbLive publishBatch", () => {
       Effect.gen(function* () {
         const producer = yield* DlqProducer;
 
-        const event = dlqEvent({ captureId: uniqueCaptureId("no-project") });
-        delete (event as { projectId?: string }).projectId;
+        const { projectId: _eventProjectId, ...event } = yield* dlqEvent({
+          captureId: yield* uniqueCaptureId("no-project"),
+        });
         track(event.captureId!);
 
         yield* producer.publishBatch([event]);
@@ -312,8 +337,8 @@ describe("DlqProducer.noop publishBatch", () => {
     Effect.gen(function* () {
       const producer = yield* DlqProducer;
 
-      const captureId = uniqueCaptureId("noop");
-      const event = dlqEvent({ captureId });
+      const captureId = yield* uniqueCaptureId("noop");
+      const event = yield* dlqEvent({ captureId });
 
       const result = yield* producer.publishBatch([event]);
       expect(result).toBeUndefined();

@@ -10,6 +10,7 @@
  * runtime without ClickHouse acknowledges messages with zero inserted rows.
  */
 import { Db } from "@voidhash/db";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import {
@@ -25,12 +26,13 @@ import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-w
 // Unqualified table names — the runtime Clickhouse client connects with the
 // per-stage database (provisioned by `Clickhouse.Database`) as its default,
 // so these resolve correctly without a hardcoded database prefix.
-const CLICKHOUSE_EVENTS_FULL_TABLE = "events_v2" as const;
-const CLICKHOUSE_PERSONS_FULL_TABLE = "persons_v1" as const;
-const CLICKHOUSE_PERSON_IDENTITY_FULL_TABLE = "person_identity_v1" as const;
-const CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_FULL_TABLE = "person_identity_overrides_v1" as const;
-const CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_FULL_TABLE =
-  "person_identity_pending_overrides_v2" as const;
+const CLICKHOUSE_EVENTS_FULL_TABLE = constant("events_v2");
+const CLICKHOUSE_PERSONS_FULL_TABLE = constant("persons_v1");
+const CLICKHOUSE_PERSON_IDENTITY_FULL_TABLE = constant("person_identity_v1");
+const CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_FULL_TABLE = constant("person_identity_overrides_v1");
+const CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_FULL_TABLE = constant(
+  "person_identity_pending_overrides_v2",
+);
 
 export class AnalyticsWriterServiceError extends Schema.TaggedErrorClass<AnalyticsWriterServiceError>(
   "AnalyticsWriterServiceError",
@@ -85,11 +87,11 @@ export const dedupeRevenueRowsWithinBatch = (
   let skippedCount = 0;
 
   for (const row of rows) {
-    const eventId = typeof row.event_id === "string" ? row.event_id : undefined;
-    if (!isRevenueAnalyticsWriterRow(row) || eventId === undefined) {
+    if (!isRevenueAnalyticsWriterRow(row) || typeof row.event_id !== "string") {
       deduped.push(row);
       continue;
     }
+    const eventId = row.event_id;
     if (seen.has(eventId)) {
       skippedCount++;
       continue;
@@ -98,7 +100,10 @@ export const dedupeRevenueRowsWithinBatch = (
     deduped.push(row);
   }
 
-  return { rows: skippedCount === 0 ? rows : deduped, skippedCount };
+  if (skippedCount === 0) {
+    return { rows, skippedCount };
+  }
+  return { rows: deduped, skippedCount };
 };
 
 export class AnalyticsWriterService extends Context.Service<AnalyticsWriterService>()(
@@ -116,15 +121,17 @@ export class AnalyticsWriterService extends Context.Service<AnalyticsWriterServi
       // against the "too many parts" failure mode of small frequent inserts.
       // `wait_for_async_insert: 1` keeps the write durable and backpressured:
       // the insert resolves only once the server buffer has been flushed.
-      const insertRows = (table: string, rows: ReadonlyArray<Record<string, unknown>>) =>
-        rows.length === 0 || ch === undefined
-          ? Effect.void
-          : ch
-              .withClickhouseSettings(ch.insertQuery({ table, values: rows }), {
-                async_insert: 1,
-                wait_for_async_insert: 1,
-              })
-              .pipe(Effect.asVoid);
+      const insertRows = (table: string, rows: ReadonlyArray<Record<string, unknown>>) => {
+        if (rows.length === 0 || ch === undefined) {
+          return Effect.void;
+        }
+        return ch
+          .withClickhouseSettings(ch.insertQuery({ table, values: rows }), {
+            async_insert: 1,
+            wait_for_async_insert: 1,
+          })
+          .pipe(Effect.asVoid);
+      };
 
       const fetchExistingEventKeys = (
         projectIds: ReadonlyArray<string>,
@@ -251,7 +258,7 @@ export class AnalyticsWriterService extends Context.Service<AnalyticsWriterServi
               EffectDrizzleQueryError: (error) =>
                 Effect.fail(
                   new AnalyticsWriterServiceError({
-                    cause: String(error.cause ?? error.message),
+                    cause: causeMessage(error.cause ?? error.message),
                     message: "failed to resolve organization ids for analytics messages",
                   }),
                 ),
@@ -259,7 +266,7 @@ export class AnalyticsWriterService extends Context.Service<AnalyticsWriterServi
           ),
       );
 
-      return { writeMessages } as const;
+      return constant({ writeMessages });
     }),
   },
 ) {

@@ -29,7 +29,8 @@
  *    session via {@link asUnauthorized}; typed failures use `Effect.flip` +
  *    `instanceof`, each paired with a DB-state assertion.
  */
-import { Effect, Layer } from "effect";
+import { stringOr } from "@voidhash/lib/lang";
+import { Clock, DateTime, Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
 
 import {
@@ -71,7 +72,11 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so derived keys stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueKey = (label: string) => `it-ppc-${label}-${Date.now()}-${seq++}`;
+const uniqueKey = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it-ppc-${label}-${now}-${seq++}`);
+
+/** Fixed epoch instant for the synthetic session rows below. */
+const EPOCH_DATE = DateTime.toDateUtc(DateTime.makeUnsafe(0));
 
 /**
  * Deterministic {@link PaymentProviderShape} stub for one provider id. The real
@@ -92,12 +97,12 @@ const makeProviderStub = <TKind extends PaymentProviderKind>(
   defaultGlobalConfiguration: () => Effect.succeed({ default: true, provider: id }),
   defaultProductConfiguration: () => Effect.succeed({}),
   createGlobalKey: (configuration) =>
-    Effect.succeed(typeof configuration.key === "string" ? configuration.key : "stub-key"),
+    Effect.succeed(stringOr(configuration.key, "stub-key")),
   createProductKey: () => Effect.succeed("stub-product-key"),
   validateGlobalConfiguration: (configuration) =>
     Effect.succeed({
       parsedConfiguration: { ...configuration, validated: true },
-      paymentProviderKey: typeof configuration.key === "string" ? configuration.key : "stub-key",
+      paymentProviderKey: stringOr(configuration.key, "stub-key"),
     }),
   validateProductConfiguration: (configuration) =>
     Effect.succeed({ parsedConfiguration: configuration, productKey: "stub-product-key" }),
@@ -143,6 +148,14 @@ const findConfigAuditEntries = (entityId: string) =>
       );
   });
 
+/** Spreadable fragment: the soft-delete column only when the caller set it. */
+const deletedAtField = (deletedAt: Date | null | undefined): { deletedAt?: Date | null } => {
+  if (deletedAt === undefined) {
+    return {};
+  }
+  return { deletedAt };
+};
+
 /**
  * Insert a configuration row directly (bypassing the service) so tests can plant
  * fixtures for read/update/delete paths and key-conflict scenarios. Returns the id.
@@ -164,7 +177,7 @@ const insertConfigRow = (input: {
       paymentProviderKey: input.paymentProviderKey,
       projectId,
       providerId: input.providerId,
-      ...(input.deletedAt !== undefined ? { deletedAt: input.deletedAt } : {}),
+      ...deletedAtField(input.deletedAt),
     });
     return input.id;
   });
@@ -217,14 +230,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: EPOCH_DATE,
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: EPOCH_DATE,
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -373,19 +386,19 @@ describe("PaymentProviderConfigurationService.getPaymentProviderConfigurations",
       Effect.gen(function* () {
         const service = yield* PaymentProviderConfigurationService;
 
-        const liveId = `pp_conf_${uniqueKey("list-live")}`;
-        const deletedId = `pp_conf_${uniqueKey("list-deleted")}`;
+        const liveId = `pp_conf_${yield* uniqueKey("list-live")}`;
+        const deletedId = `pp_conf_${yield* uniqueKey("list-deleted")}`;
         yield* insertConfigRow({
           id: liveId,
           providerId: "stripe",
-          paymentProviderKey: uniqueKey("list-live-key"),
+          paymentProviderKey: yield* uniqueKey("list-live-key"),
         });
         track(liveId);
         yield* insertConfigRow({
           id: deletedId,
           providerId: "google-play",
-          paymentProviderKey: uniqueKey("list-deleted-key"),
-          deletedAt: new Date(),
+          paymentProviderKey: yield* uniqueKey("list-deleted-key"),
+          deletedAt: yield* DateTime.nowAsDate,
         });
         track(deletedId);
 
@@ -415,8 +428,8 @@ describe("PaymentProviderConfigurationService.getPaymentProviderConfigurationByI
       Effect.gen(function* () {
         const service = yield* PaymentProviderConfigurationService;
 
-        const id = `pp_conf_${uniqueKey("by-id")}`;
-        const key = uniqueKey("by-id-key");
+        const id = `pp_conf_${yield* uniqueKey("by-id")}`;
+        const key = yield* uniqueKey("by-id-key");
         yield* insertConfigRow({ id, providerId: "stripe", paymentProviderKey: key });
         track(id);
 
@@ -433,8 +446,9 @@ describe("PaymentProviderConfigurationService.getPaymentProviderConfigurationByI
     "fails with PaymentProviderConfigurationNotFoundError for an unknown id",
     Effect.gen(function* () {
       const service = yield* PaymentProviderConfigurationService;
+      const now = yield* Clock.currentTimeMillis;
       const error = yield* Effect.flip(
-        service.getPaymentProviderConfigurationById(`pp_conf_missing_${Date.now()}`),
+        service.getPaymentProviderConfigurationById(`pp_conf_missing_${now}`),
       );
       expect(error).toBeInstanceOf(PaymentProviderConfigurationNotFoundError);
     }).pipe(Effect.provide(ServiceUnderTest), CoreAuthSession.authenticate()),
@@ -446,11 +460,11 @@ describe("PaymentProviderConfigurationService.getPaymentProviderConfigurationByI
       Effect.gen(function* () {
         const service = yield* PaymentProviderConfigurationService;
 
-        const id = `pp_conf_${uniqueKey("by-id-forbidden")}`;
+        const id = `pp_conf_${yield* uniqueKey("by-id-forbidden")}`;
         yield* insertConfigRow({
           id,
           providerId: "google-play",
-          paymentProviderKey: uniqueKey("by-id-forbidden-key"),
+          paymentProviderKey: yield* uniqueKey("by-id-forbidden-key"),
         });
         track(id);
 
@@ -471,11 +485,11 @@ describe("PaymentProviderConfigurationService.updatePaymentProviderConfiguration
         const service = yield* PaymentProviderConfigurationService;
         const cache = yield* ProjectSchemaCache;
 
-        const id = `pp_conf_${uniqueKey("update-disabled")}`;
+        const id = `pp_conf_${yield* uniqueKey("update-disabled")}`;
         yield* insertConfigRow({
           id,
           providerId: "stripe",
-          paymentProviderKey: uniqueKey("update-disabled-key"),
+          paymentProviderKey: yield* uniqueKey("update-disabled-key"),
           enabled: true,
         });
         track(id);
@@ -513,8 +527,8 @@ describe("PaymentProviderConfigurationService.updatePaymentProviderConfiguration
         const service = yield* PaymentProviderConfigurationService;
         const cache = yield* ProjectSchemaCache;
 
-        const id = `pp_conf_${uniqueKey("update-enabled")}`;
-        const derivedKey = uniqueKey("update-enabled-key");
+        const id = `pp_conf_${yield* uniqueKey("update-enabled")}`;
+        const derivedKey = yield* uniqueKey("update-enabled-key");
         yield* insertConfigRow({
           id,
           providerId: "stripe",
@@ -562,9 +576,10 @@ describe("PaymentProviderConfigurationService.updatePaymentProviderConfiguration
     "fails with PaymentProviderConfigurationNotFoundError for an unknown id",
     Effect.gen(function* () {
       const service = yield* PaymentProviderConfigurationService;
+      const now = yield* Clock.currentTimeMillis;
       const error = yield* Effect.flip(
         service.updatePaymentProviderConfiguration({
-          id: `pp_conf_missing_${Date.now()}`,
+          id: `pp_conf_missing_${now}`,
           enabled: false,
           configuration: {},
         }),
@@ -579,8 +594,8 @@ describe("PaymentProviderConfigurationService.updatePaymentProviderConfiguration
       Effect.gen(function* () {
         const service = yield* PaymentProviderConfigurationService;
 
-        const id = `pp_conf_${uniqueKey("update-forbidden")}`;
-        const key = uniqueKey("update-forbidden-key");
+        const id = `pp_conf_${yield* uniqueKey("update-forbidden")}`;
+        const key = yield* uniqueKey("update-forbidden-key");
         yield* insertConfigRow({
           id,
           providerId: "stripe",
@@ -594,7 +609,7 @@ describe("PaymentProviderConfigurationService.updatePaymentProviderConfiguration
             service.updatePaymentProviderConfiguration({
               id,
               enabled: true,
-              configuration: { key: uniqueKey("update-forbidden-new") },
+              configuration: { key: yield* uniqueKey("update-forbidden-new") },
             }),
           ),
         );
@@ -616,11 +631,11 @@ describe("PaymentProviderConfigurationService.deletePaymentProviderConfiguration
         const service = yield* PaymentProviderConfigurationService;
         const cache = yield* ProjectSchemaCache;
 
-        const id = `pp_conf_${uniqueKey("delete")}`;
+        const id = `pp_conf_${yield* uniqueKey("delete")}`;
         yield* insertConfigRow({
           id,
           providerId: "google-play",
-          paymentProviderKey: uniqueKey("delete-key"),
+          paymentProviderKey: yield* uniqueKey("delete-key"),
         });
         track(id);
 
@@ -654,9 +669,10 @@ describe("PaymentProviderConfigurationService.deletePaymentProviderConfiguration
     "fails with PaymentProviderConfigurationNotFoundError for an unknown id",
     Effect.gen(function* () {
       const service = yield* PaymentProviderConfigurationService;
+      const now = yield* Clock.currentTimeMillis;
       const error = yield* Effect.flip(
         service.deletePaymentProviderConfiguration({
-          paymentProviderConfigurationId: `pp_conf_missing_${Date.now()}`,
+          paymentProviderConfigurationId: `pp_conf_missing_${now}`,
         }),
       );
       expect(error).toBeInstanceOf(PaymentProviderConfigurationNotFoundError);
@@ -669,11 +685,11 @@ describe("PaymentProviderConfigurationService.deletePaymentProviderConfiguration
       Effect.gen(function* () {
         const service = yield* PaymentProviderConfigurationService;
 
-        const id = `pp_conf_${uniqueKey("delete-forbidden")}`;
+        const id = `pp_conf_${yield* uniqueKey("delete-forbidden")}`;
         yield* insertConfigRow({
           id,
           providerId: "stripe",
-          paymentProviderKey: uniqueKey("delete-forbidden-key"),
+          paymentProviderKey: yield* uniqueKey("delete-forbidden-key"),
         });
         track(id);
 

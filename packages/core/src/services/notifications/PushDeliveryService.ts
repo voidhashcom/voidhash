@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { constant, pick, stringOr } from "@voidhash/lib/lang";
+import { Clock, Context, DateTime, Duration, Effect, Layer, Schema } from "effect";
 
 import {
   and,
@@ -8,7 +9,6 @@ import {
   isNull,
   PushNotificationDeliveryStatus,
   PushNotificationSendStatus,
-  pushNotificationConfigs,
   pushNotificationDeliveries,
   pushNotificationDeliveryAttempts,
   pushNotificationSends,
@@ -42,7 +42,7 @@ export class PushDeliveryRetryableError extends Schema.TaggedErrorClass<PushDeli
 )("PushDeliveryRetryableError", { message: Schema.String, delaySeconds: Schema.Number }) {}
 
 /** Push retry backoff, seconds: 10s, 30s, 5min, 30min, 2hr (the doc's schedule). */
-const RETRY_SCHEDULE_SECONDS = [10, 30, 5 * 60, 30 * 60, 2 * 60 * 60] as const;
+const RETRY_SCHEDULE_SECONDS = constant([10, 30, 5 * 60, 30 * 60, 2 * 60 * 60]);
 
 /**
  * Next retry delay for a delivery on its `attemptCount`-th attempt. An explicit
@@ -59,7 +59,61 @@ export const nextPushDeliveryDelaySeconds = (
     return retryAfterSeconds;
   }
   const index = Math.min(Math.max(attemptCount - 1, 0), RETRY_SCHEDULE_SECONDS.length - 1);
-  return RETRY_SCHEDULE_SECONDS[index] as number;
+  // The index is clamped into range; the `??` only discharges the
+  // `noUncheckedIndexedAccess` union.
+  return RETRY_SCHEDULE_SECONDS[index] ?? RETRY_SCHEDULE_SECONDS[0];
+};
+
+/**
+ * Rebuild the typed {@link PushMessage} from the parent send's `jsonb` column
+ * (the inverse of how `NotificationSendingService` persists it) without
+ * asserting over the untyped record.
+ */
+const toPushMessage = (raw: Record<string, unknown> | undefined): PushMessage => {
+  const source = raw ?? {};
+  const message: {
+    title: string;
+    body: string;
+    data?: Record<string, unknown>;
+    sound?: string;
+    badge?: number;
+    priority?: "default" | "high";
+    ttl?: number;
+    channelId?: string;
+    collapseId?: string;
+  } = {
+    title: stringOr(source.title, ""),
+    body: stringOr(source.body, ""),
+  };
+  const data = source.data;
+  if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+    message.data = Object.fromEntries(Object.entries(data));
+  }
+  if (typeof source.sound === "string") message.sound = source.sound;
+  if (typeof source.badge === "number") message.badge = source.badge;
+  if (source.priority === "default" || source.priority === "high")
+    message.priority = source.priority;
+  if (typeof source.ttl === "number") message.ttl = source.ttl;
+  if (typeof source.channelId === "string") message.channelId = source.channelId;
+  if (typeof source.collapseId === "string") message.collapseId = source.collapseId;
+  return message;
+};
+
+/** Aggregate parent-send status from the child delivery tallies. */
+const rollupSendStatus = ({
+  inFlight,
+  succeeded,
+  total,
+}: {
+  readonly inFlight: number;
+  readonly succeeded: number;
+  readonly total: number;
+}): number => {
+  if (total === 0) return PushNotificationSendStatus.NoRecipients;
+  if (inFlight > 0) return PushNotificationSendStatus.InProgress;
+  if (succeeded === total) return PushNotificationSendStatus.Succeeded;
+  if (succeeded === 0) return PushNotificationSendStatus.Failed;
+  return PushNotificationSendStatus.PartialFailed;
 };
 
 /**
@@ -109,16 +163,19 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
         readonly providerMessageId?: string;
         readonly lastError?: string;
       }) =>
-        db
-          .update(pushNotificationDeliveries)
-          .set({
-            status: input.status,
-            completedAt: new Date(),
-            nextAttemptAt: null,
-            ...(input.providerMessageId ? { providerMessageId: input.providerMessageId } : {}),
-            ...(input.lastError ? { lastError: input.lastError.slice(0, 500) } : {}),
-          })
-          .where(eq(pushNotificationDeliveries.id, input.deliveryId));
+        Effect.gen(function* () {
+          const completedAt = yield* DateTime.nowAsDate;
+          return yield* db
+            .update(pushNotificationDeliveries)
+            .set({
+              status: input.status,
+              completedAt,
+              nextAttemptAt: null,
+              ...(input.providerMessageId && { providerMessageId: input.providerMessageId }),
+              ...(input.lastError && { lastError: input.lastError.slice(0, 500) }),
+            })
+            .where(eq(pushNotificationDeliveries.id, input.deliveryId));
+        });
 
       /** Non-terminal retry transition: status Failed, `completedAt` stays null (re-claimable). */
       const scheduleRetry = (input: {
@@ -126,14 +183,20 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
         readonly delaySeconds: number;
         readonly lastError: string;
       }) =>
-        db
-          .update(pushNotificationDeliveries)
-          .set({
-            status: PushNotificationDeliveryStatus.Failed,
-            nextAttemptAt: new Date(Date.now() + input.delaySeconds * 1000),
-            lastError: input.lastError.slice(0, 500),
-          })
-          .where(eq(pushNotificationDeliveries.id, input.deliveryId));
+        Effect.gen(function* () {
+          const now = yield* DateTime.now;
+          const nextAttemptAt = DateTime.toDateUtc(
+            DateTime.addDuration(now, Duration.seconds(input.delaySeconds)),
+          );
+          return yield* db
+            .update(pushNotificationDeliveries)
+            .set({
+              status: PushNotificationDeliveryStatus.Failed,
+              nextAttemptAt,
+              lastError: input.lastError.slice(0, 500),
+            })
+            .where(eq(pushNotificationDeliveries.id, input.deliveryId));
+        });
 
       /**
        * Race-free parent roll-up: recompute the aggregate from the child rows.
@@ -162,23 +225,15 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
               inFlight += 1;
             }
           }
-          const status =
-            total === 0
-              ? PushNotificationSendStatus.NoRecipients
-              : inFlight > 0
-                ? PushNotificationSendStatus.InProgress
-                : succeeded === total
-                  ? PushNotificationSendStatus.Succeeded
-                  : succeeded === 0
-                    ? PushNotificationSendStatus.Failed
-                    : PushNotificationSendStatus.PartialFailed;
+          const status = rollupSendStatus({ inFlight, succeeded, total });
+          const completedAt = yield* DateTime.nowAsDate;
           yield* db
             .update(pushNotificationSends)
             .set({
               status,
               succeededCount: succeeded,
               failedCount: settledFailed,
-              ...(inFlight === 0 ? { completedAt: new Date() } : {}),
+              ...(inFlight === 0 && { completedAt }),
             })
             .where(eq(pushNotificationSends.id, sendId));
         });
@@ -189,7 +244,7 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           // The attempt clock for the freshness gate: any re-registration AFTER
           // this instant means the device is live and a terminal 404/410 must not
           // kill it.
-          const observedAt = new Date();
+          const observedAt = yield* DateTime.nowAsDate;
 
           // Atomic claim/CAS. `completed_at IS NULL` keeps terminal rows (which
           // carry a completedAt) un-reclaimable while still allowing a retryable
@@ -306,9 +361,9 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           const parent = yield* db.query.pushNotificationSends.findFirst({
             where: { id: row.pushNotificationSendId },
           });
-          const message = (parent?.message ?? { title: "", body: "" }) as unknown as PushMessage;
+          const message: PushMessage = toPushMessage(parent?.message);
 
-          const provider: AnyPushDeliveryProviderShape = row.provider === "apns" ? apns : fcm;
+          const provider: AnyPushDeliveryProviderShape = pick(row.provider === "apns", apns, fcm);
           const deviceToken: DeviceToken = {
             platform: device.platform,
             platformToken: device.platformToken,
@@ -316,7 +371,7 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
             environment: device.environment,
           };
 
-          const start = Date.now();
+          const start = yield* Clock.currentTimeMillis;
           // `Effect.result` lifts the provider's success/failure into a value so
           // the attempt row is recorded uniformly before branching. The failure
           // is a normalized `PushDeliveryError` — matched on `_tag` with
@@ -324,7 +379,7 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           const outcome = yield* Effect.result(
             provider.deliver(config.configuration, deviceToken, message),
           );
-          const durationMs = Date.now() - start;
+          const durationMs = (yield* Clock.currentTimeMillis) - start;
 
           if (outcome._tag === "Success") {
             const success: PushDeliverySuccess = outcome.success;
@@ -437,9 +492,10 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
        */
       const markExhausted = (deliveryId: string) =>
         Effect.gen(function* () {
+          const completedAt = yield* DateTime.nowAsDate;
           const rows = yield* db
             .update(pushNotificationDeliveries)
-            .set({ status: PushNotificationDeliveryStatus.Exhausted, completedAt: new Date() })
+            .set({ status: PushNotificationDeliveryStatus.Exhausted, completedAt })
             .where(
               and(
                 eq(pushNotificationDeliveries.id, deliveryId),
@@ -458,7 +514,7 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           }),
         );
 
-      return { processDelivery, markExhausted } as const;
+      return constant({ processDelivery, markExhausted });
     }),
   },
 ) {

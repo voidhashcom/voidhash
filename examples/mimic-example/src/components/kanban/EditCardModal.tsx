@@ -23,7 +23,7 @@ export function EditCardModal({ card, columnId, onClose }: EditCardModalProps) {
     };
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+      if (e.target instanceof Node && modalRef.current && !modalRef.current.contains(e.target)) {
         onClose();
       }
     };

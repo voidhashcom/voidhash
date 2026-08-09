@@ -13,6 +13,14 @@ import productOption from "../components/product-option";
 
 const ProductOption = productOption.component;
 
+const DEFAULT_ACCENT_COLOR = "#16a34a";
+
+/** Reads the `accentColor` paywall variable, falling back to the default green. */
+const resolveAccentColor = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  return DEFAULT_ACCENT_COLOR;
+};
+
 export default createPaywall({
   title: "Onboarding",
   description: "Full-screen onboarding paywall.",
@@ -23,8 +31,7 @@ export default createPaywall({
     const variables = usePaywallVariables();
     const actions = usePaywallActions();
     const { selectedProductId, selectProduct } = useSelectedProduct();
-    const accentColor =
-      typeof variables.accentColor === "string" ? variables.accentColor : "#16a34a";
+    const accentColor = resolveAccentColor(variables.accentColor);
 
     return (
       <View

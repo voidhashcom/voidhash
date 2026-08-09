@@ -1,51 +1,70 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { Data, Effect, FileSystem, Path, Stdio } from "effect";
 
 import { findSkill } from "../packages/backend/src/ai/skills/registry.ts";
+import { constant } from "../packages/lib/src/lang/index.ts";
 
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const skills = [
+class SyncPluginsError extends Data.TaggedError("SyncPluginsError")<{
+  readonly message: string;
+}> {}
+
+const skills = constant([
   { sourceName: "paywall-authoring", pluginName: "design-paywall" },
   { sourceName: "code-component-authoring", pluginName: "code-component-authoring" },
-] as const;
+]);
 
-const check = process.argv.includes("--check");
-const stale: string[] = [];
+const program = Effect.gen(function* () {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const stdio = yield* Stdio.Stdio;
 
-for (const skill of skills) {
-  const definition = findSkill(skill.sourceName);
-  if (definition === undefined) {
-    throw new Error(`The ${skill.sourceName} skill is not registered`);
-  }
-  const generated = `---
+  const scriptPath = yield* path.fromFileUrl(new URL(import.meta.url));
+  const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
+
+  const args = yield* stdio.args;
+  const check = args.includes("--check");
+  const stale: string[] = [];
+
+  for (const skill of skills) {
+    const definition = findSkill(skill.sourceName);
+    if (definition === undefined) {
+      return yield* new SyncPluginsError({
+        message: `The ${skill.sourceName} skill is not registered`,
+      });
+    }
+    const generated = `---
 name: ${skill.pluginName}
 description: ${definition.description}
 ---
 
 ${definition.body().trimEnd()}
 `;
-  const targetPaths = [
-    resolve(
-      repositoryRoot,
-      `integrations/claude-code/voidhash/skills/${skill.pluginName}/SKILL.md`,
-    ),
-    resolve(repositoryRoot, `plugins/voidhash/skills/${skill.pluginName}/SKILL.md`),
-  ];
+    const targetPaths = [
+      path.resolve(
+        repositoryRoot,
+        `integrations/claude-code/voidhash/skills/${skill.pluginName}/SKILL.md`,
+      ),
+      path.resolve(repositoryRoot, `plugins/voidhash/skills/${skill.pluginName}/SKILL.md`),
+    ];
 
-  for (const targetPath of targetPaths) {
-    const current = await readFile(targetPath, "utf8").catch(() => undefined);
-    if (current === generated) continue;
-    if (check) {
-      stale.push(targetPath);
-    } else {
-      await writeFile(targetPath, generated);
+    for (const targetPath of targetPaths) {
+      const current = yield* fileSystem
+        .readFileString(targetPath, "utf8")
+        .pipe(Effect.orElseSucceed(() => undefined));
+      if (current === generated) continue;
+      if (check) {
+        stale.push(targetPath);
+        continue;
+      }
+      yield* fileSystem.writeFileString(targetPath, generated);
     }
   }
-}
 
-if (stale.length > 0) {
-  throw new Error(
-    `Generated plugin skills are stale:\n${stale.join("\n")}\nRun pnpm sync:plugins.`,
-  );
-}
+  if (stale.length > 0) {
+    return yield* new SyncPluginsError({
+      message: `Generated plugin skills are stale:\n${stale.join("\n")}\nRun pnpm sync:plugins.`,
+    });
+  }
+});
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)));

@@ -33,7 +33,7 @@
  * scenario created (operational projection + lazily-created persons + the
  * notification-dedup + the seeded config/product rows).
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect, Schema } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import {
@@ -63,7 +63,10 @@ import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness"
 
 const { test } = CoreIntegrationTestHarness.make();
 
-const nowSeconds = () => Math.floor(Date.now() / 1000);
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+/** Current unix time in whole seconds — the unit Stripe signatures are stamped in. */
+const nowSeconds = Effect.map(Clock.currentTimeMillis, (millis) => Math.floor(millis / 1000));
 
 /** Reads back the operational subscription row keyed on the Stripe subscription id. */
 const findSubscriptionByStoreId = (storeSubscriptionId: string) =>
@@ -90,7 +93,7 @@ describe("StripePaymentProviderService.acceptWebhookEvent", () => {
         service.acceptWebhookEvent({
           paymentProviderConfigurationId: uniq("missing-config"),
           rawBody: "{}",
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           signatureHeader: "t=0,v1=deadbeef",
         }),
       );
@@ -140,9 +143,10 @@ describe("StripePaymentProviderService.acceptWebhookEvent", () => {
         type: "invoice.paid",
       });
 
-      const rawBody = JSON.stringify(event);
+      const rawBody = encodeJson(event);
+      const signatureSeconds = yield* nowSeconds;
       const signatureHeader = yield* Effect.promise(() =>
-        signStripePayload(rawBody, TEST_TEST_WEBHOOK_SECRET, nowSeconds()),
+        signStripePayload(rawBody, TEST_TEST_WEBHOOK_SECRET, signatureSeconds),
       );
 
       const httpClient = stripeStubHttpClient([
@@ -155,7 +159,7 @@ describe("StripePaymentProviderService.acceptWebhookEvent", () => {
         return yield* service.acceptWebhookEvent({
           paymentProviderConfigurationId: seeded.configId,
           rawBody,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           signatureHeader,
         });
       }).pipe(Effect.provide(stripeServiceLayer(httpClient)), CoreAuthSession.authenticate());

@@ -42,6 +42,12 @@ export const Route = createFileRoute("/_app/_layout/databases")({
   component: DatabasesPage,
 });
 
+/** Label for the create-database submit button. */
+function createLabel(isPending: boolean): string {
+  if (isPending) return "Creating...";
+  return "Create";
+}
+
 function DatabasesPage() {
   const sdk = useMimicSdk();
   const queryClient = useQueryClient();
@@ -54,7 +60,7 @@ function DatabasesPage() {
   const createMutation = useMutation({
     mutationFn: () => sdk.createDatabase({ name, description }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["databases"] });
+      void queryClient.invalidateQueries({ queryKey: ["databases"] });
       setName("");
       setDescription("");
       setOpen(false);
@@ -66,11 +72,67 @@ function DatabasesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => sdk.deleteDatabase(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["databases"] });
+      void queryClient.invalidateQueries({ queryKey: ["databases"] });
       toast.success("Database deleted");
     },
     onError: (err) => toast.error(`Failed to delete database: ${err.message}`),
   });
+
+  let content = <p className="text-muted-foreground">Loading...</p>;
+  if (!isLoading) {
+    content = (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead>ID</TableHead>
+            <TableHead className="w-16" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {databases?.map((db) => (
+            <TableRow key={db.id}>
+              <TableCell className="font-medium">{db.name}</TableCell>
+              <TableCell className="text-muted-foreground">{db.description ?? "-"}</TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">{db.id}</TableCell>
+              <TableCell>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <Trash2 className="h-4 w-4 text-destructive-foreground" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete database?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete "{db.name}" and all its data. This action
+                        cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteMutation.mutate(db.id)}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </TableCell>
+            </TableRow>
+          ))}
+          {databases?.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={4} className="text-center text-muted-foreground">
+                No databases yet.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -116,7 +178,7 @@ function DatabasesPage() {
                   <Button variant="outline">Cancel</Button>
                 </DialogClose>
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creating..." : "Create"}
+                  {createLabel(createMutation.isPending)}
                 </Button>
               </DialogFooter>
             </form>
@@ -124,60 +186,7 @@ function DatabasesPage() {
         </Dialog>
       </div>
 
-      {isLoading ? (
-        <p className="text-muted-foreground">Loading...</p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead className="w-16" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {databases?.map((db) => (
-              <TableRow key={db.id}>
-                <TableCell className="font-medium">{db.name}</TableCell>
-                <TableCell className="text-muted-foreground">{db.description ?? "-"}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">{db.id}</TableCell>
-                <TableCell>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4 text-destructive-foreground" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete database?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete "{db.name}" and all its data. This action
-                          cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteMutation.mutate(db.id)}>
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </TableCell>
-              </TableRow>
-            ))}
-            {databases?.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No databases yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
+      {content}
     </div>
   );
 }

@@ -1,8 +1,14 @@
 import { Effect } from "effect";
-import type { Value } from "@voidhash/mimic-core";
+import type {
+  NumberValue,
+  ObjectSchema,
+  ObjectValue,
+  StringValue,
+  Value,
+} from "@voidhash/mimic-core";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 
-import type { HostService } from "../src/app/hostService.ts";
+import type { HostService, HostServiceTag } from "../src/app/hostService.ts";
 import { getConfig } from "../src/config.ts";
 import { makeControlEngine, type ControlEngineApi } from "../src/core/control-engine.ts";
 import {
@@ -19,8 +25,8 @@ import { EmptyMigrationRegistry, ensureMigrationRegistry } from "../src/core/mig
  * backend. Compose the whole flow into a single program so control + document
  * state persists across the steps.
  */
-export const runHost = <A, E>(program: Effect.Effect<A, E, any>): Promise<A> =>
-  Effect.runPromise(program.pipe(Effect.provide(LocalHostServiceDefault)) as Effect.Effect<A, E>);
+export const runHost = <A, E>(program: Effect.Effect<A, E, HostServiceTag>): Promise<A> =>
+  Effect.runPromise(program.pipe(Effect.provide(LocalHostServiceDefault)));
 
 /**
  * Run `program` against a fresh in-memory host, giving it BOTH the host service
@@ -33,7 +39,7 @@ export const runHostWithControl = <A, E>(
   program: (deps: {
     readonly host: HostService;
     readonly control: ControlEngineApi;
-  }) => Effect.Effect<A, E, any>,
+  }) => Effect.Effect<A, E>,
 ): Promise<A> =>
   Effect.runPromise(
     Effect.gen(function* () {
@@ -49,13 +55,13 @@ export const runHostWithControl = <A, E>(
         config,
       });
       return yield* program({ control, host });
-    }).pipe(Effect.provide(MemoryDocumentStoreFactoryLive)) as Effect.Effect<A, E>,
+    }).pipe(Effect.provide(MemoryDocumentStoreFactoryLive)),
   );
 
 /** Runs a program against an in-memory host configured with deployed migrations. */
 export const runHostWithRegistry = <A, E>(
   migrations: MigrationRegistry,
-  program: (host: HostService) => Effect.Effect<A, E, any>,
+  program: (host: HostService) => Effect.Effect<A, E>,
 ): Promise<A> =>
   Effect.runPromise(
     Effect.gen(function* () {
@@ -73,27 +79,27 @@ export const runHostWithRegistry = <A, E>(
         config,
       });
       return yield* program(host);
-    }).pipe(Effect.provide(MemoryDocumentStoreFactoryLive)) as Effect.Effect<A, E>,
+    }).pipe(Effect.provide(MemoryDocumentStoreFactoryLive)),
   );
 
 /** A minimal mimic-core object schema with a single string field. */
-export const titleSchema = {
-  kind: "object" as const,
-  fields: { title: { kind: "string" as const, default: { kind: "string" as const, value: "" } } },
+export const titleSchema: ObjectSchema = {
+  kind: "object",
+  fields: { title: { kind: "string", default: { kind: "string", value: "" } } },
 };
 
 /** v2 of {@link titleSchema}: adds a defaulted `count` number field. */
-export const titleCountSchema = {
-  kind: "object" as const,
+export const titleCountSchema: ObjectSchema = {
+  kind: "object",
   fields: {
-    title: { kind: "string" as const, default: { kind: "string" as const, value: "" } },
-    count: { kind: "number" as const, default: { kind: "number" as const, value: 0 } },
+    title: { kind: "string", default: { kind: "string", value: "" } },
+    count: { kind: "number", default: { kind: "number", value: 0 } },
   },
 };
 
-export const objectValue = (fields: Record<string, Value>) => ({
-  kind: "object" as const,
+export const objectValue = (fields: Record<string, Value>): ObjectValue => ({
+  kind: "object",
   fields,
 });
-export const stringValue = (value: string) => ({ kind: "string" as const, value });
-export const numberValue = (value: number) => ({ kind: "number" as const, value });
+export const stringValue = (value: string): StringValue => ({ kind: "string", value });
+export const numberValue = (value: number): NumberValue => ({ kind: "number", value });

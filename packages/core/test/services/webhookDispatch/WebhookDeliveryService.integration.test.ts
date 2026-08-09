@@ -25,7 +25,8 @@
  * collide. `send` is exercised over a real `node:http` server bound to an
  * ephemeral port and torn down in an `Effect.ensuring` finalizer.
  */
-import { Effect } from "effect";
+import { createId } from "@paralleldrive/cuid2";
+import { Clock, DateTime, Effect, Schema } from "effect";
 import { describe, expect } from "vitest";
 
 import { WebhookDeliveryService } from "@voidhash/core/services/webhookDispatch/WebhookDeliveryService";
@@ -43,14 +44,18 @@ import {
 import { CoreAuthSession } from "@testing/CoreAuthSession";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
+import { stringOr } from "@voidhash/lib/lang";
 
 const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
-/** Monotonic counter so ids stay unique even within the same millisecond. */
+/** Serializes a webhook payload the same way the service does. */
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
+/** Monotonic counter so ids stay unique even within the same process run. */
 let idSeq = 0;
-const uniqueId = (label: string) => `it-wh-${label}-${Date.now()}-${idSeq++}`;
+const uniqueId = (label: string) => `it-wh-${label}-${createId()}-${idSeq++}`;
 
 // ---------------------------------------------------------------------------
 // DB read-back helpers (bypass the service)
@@ -92,9 +97,10 @@ const insertEndpoint = (overrides?: { readonly consecutiveFailures?: number }) =
     const db = yield* Db;
     const id = uniqueId("ep");
     const secret = `whsec_${uniqueId("secret")}`;
+    const createdAt = yield* DateTime.nowAsDate;
     yield* db.insert(webhookEndpoints).values({
       consecutiveFailures: overrides?.consecutiveFailures ?? 0,
-      createdAt: new Date(),
+      createdAt,
       events: ["person.created"],
       id,
       name: "Integration Endpoint",
@@ -110,9 +116,10 @@ const insertDelivery = (endpointId: string) =>
   Effect.gen(function* () {
     const db = yield* Db;
     const id = uniqueId("del");
+    const createdAt = yield* DateTime.nowAsDate;
     yield* db.insert(webhookDeliveries).values({
-      createdAt: new Date(),
-      eventOccurredAt: new Date(),
+      createdAt,
+      eventOccurredAt: createdAt,
       eventType: "person.created",
       id,
       payload: { hello: "world" },
@@ -203,8 +210,21 @@ interface NodeHttp {
 // `node:http` module (the infra-pure core tsconfig ships no `@types/node`); the
 // import is real and resolves at runtime under Node.
 const HTTP_MODULE = "node:http";
-const loadHttp = (): Promise<NodeHttp> =>
-  import(HTTP_MODULE) as Promise<unknown> as Promise<NodeHttp>;
+
+/** Structural check standing in for the type the untyped module cannot provide. */
+const isNodeHttp = (value: unknown): value is NodeHttp =>
+  typeof value === "object" &&
+  value !== null &&
+  "createServer" in value &&
+  typeof value.createServer === "function";
+
+const loadHttp = Effect.gen(function* () {
+  const loaded: unknown = yield* Effect.promise(() => import(HTTP_MODULE));
+  if (!isNodeHttp(loaded)) {
+    return yield* Effect.die(new Error(`${HTTP_MODULE} did not expose createServer`));
+  }
+  return loaded;
+});
 
 interface CapturedRequest {
   readonly body: string;
@@ -217,25 +237,20 @@ interface RunningServer {
   readonly url: string;
 }
 
-const readBody = (req: NodeRequest) =>
-  new Promise<string>((resolve) => {
-    let data = "";
-    req.on("data", (chunk) => {
-      data += chunk.toString();
-    });
-    req.on("end", () => resolve(data));
-  });
-
 /** Start a server that replies with `respond(req.body)` for every request. */
 const startServer = (
   respond: (body: string) => { readonly body: string; readonly status: number },
 ): Effect.Effect<RunningServer> =>
-  Effect.promise(async () => {
-    const http = await loadHttp();
-    return await new Promise<RunningServer>((resolve) => {
+  Effect.gen(function* () {
+    const http = yield* loadHttp;
+    return yield* Effect.callback<RunningServer>((resume) => {
       const captured: CapturedRequest[] = [];
       const server = http.createServer((req, res) => {
-        void readBody(req).then((body) => {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+        req.on("end", () => {
           captured.push({ body, headers: req.headers });
           const { body: responseBody, status } = respond(body);
           res.writeHead(status, { "Content-Type": "text/plain" });
@@ -244,11 +259,15 @@ const startServer = (
       });
       server.listen(0, "127.0.0.1", () => {
         const port = server.address()?.port ?? 0;
-        resolve({
-          captured,
-          close: Effect.promise(() => new Promise<void>((done) => server.close(() => done()))),
-          url: `http://127.0.0.1:${port}/`,
-        });
+        resume(
+          Effect.succeed({
+            captured,
+            close: Effect.callback<void>((done) => {
+              server.close(() => done(Effect.void));
+            }),
+            url: `http://127.0.0.1:${port}/`,
+          }),
+        );
       });
     });
   });
@@ -275,18 +294,18 @@ const bytesToHex = (bytes: Uint8Array) =>
 
 /** Recompute the service's signature independently to assert byte-equality. */
 const expectedSignature = (payload: string, timestamp: string, secret: string) =>
-  Effect.promise(async () => {
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(secret),
-      { hash: "SHA-256", name: "HMAC" },
-      false,
-      ["sign"],
+  Effect.gen(function* () {
+    const key = yield* Effect.promise(() =>
+      crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(secret),
+        { hash: "SHA-256", name: "HMAC" },
+        false,
+        ["sign"],
+      ),
     );
-    const sig = await crypto.subtle.sign(
-      "HMAC",
-      key,
-      new TextEncoder().encode(`${timestamp}.${payload}`),
+    const sig = yield* Effect.promise(() =>
+      crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${payload}`)),
     );
     return `v1=${bytesToHex(new Uint8Array(sig))}`;
   });
@@ -387,18 +406,20 @@ describe("WebhookDeliveryService.send", () => {
       expect(req.headers["content-type"]).toBe("application/json");
       expect(req.headers["x-webhook-event"]).toBe("person.created");
 
-      const signature = req.headers["x-webhook-signature"] as string;
-      const timestamp = req.headers["x-webhook-timestamp"] as string;
+      const signature = req.headers["x-webhook-signature"];
+      const timestamp = req.headers["x-webhook-timestamp"];
       expect(typeof signature).toBe("string");
-      expect(signature.startsWith("v1=")).toBe(true);
-      expect(/^v1=[0-9a-f]{64}$/.test(signature)).toBe(true);
+      const signatureText = stringOr(signature, "");
+      expect(signatureText.startsWith("v1=")).toBe(true);
+      expect(/^v1=[0-9a-f]{64}$/.test(signatureText)).toBe(true);
       expect(typeof timestamp).toBe("string");
+      const timestampText = stringOr(timestamp, "");
 
       // The body the server received is exactly the JSON-serialized payload, and
       // the signature is HMAC over `${timestamp}.${body}` with the secret.
-      expect(req.body).toBe(JSON.stringify(input.payload));
-      const expected = yield* expectedSignature(req.body, timestamp, secret);
-      expect(signature).toBe(expected);
+      expect(req.body).toBe(encodeJson(input.payload));
+      const expected = yield* expectedSignature(req.body, timestampText, secret);
+      expect(signatureText).toBe(expected);
     }).pipe(Effect.provide(WebhookDeliveryService.layer), CoreAuthSession.authenticate()),
   );
 });
@@ -506,7 +527,10 @@ describe("WebhookDeliveryService.markFailed", () => {
         // Whole-second instant: MySQL TIMESTAMP has no sub-second precision and
         // ROUNDS (not floors) a fractional second, so a sub-second `nextRetry`
         // could store one second ahead of the floored comparison below.
-        const nextRetry = new Date(Math.floor((Date.now() + 60_000) / 1000) * 1000);
+        const nowMillis = yield* Clock.currentTimeMillis;
+        const nextRetry = DateTime.toDateUtc(
+          DateTime.makeUnsafe(Math.floor((nowMillis + 60_000) / 1000) * 1000),
+        );
         yield* svc.markFailed(
           deliverInput({
             attemptNumber: 1,
@@ -582,27 +606,28 @@ describe("WebhookDeliveryService.nextRetryTime", () => {
     Effect.gen(function* () {
       const svc = yield* WebhookDeliveryService;
 
-      // Allow a small wall-clock tolerance: the service reads Date.now() inside.
-      const expectDelay = (attemptNumber: number, seconds: number) => {
-        const before = Date.now();
-        const result = svc.nextRetryTime(attemptNumber);
-        const after = Date.now();
-        expect(result).not.toBeNull();
-        const delta = (result as Date).getTime() - before;
-        expect(delta).toBeGreaterThanOrEqual(seconds * 1000 - 1);
-        expect(delta).toBeLessThanOrEqual(seconds * 1000 + (after - before) + 5000);
-      };
+      // Allow a small wall-clock tolerance: the service reads the clock inside.
+      const expectDelay = (attemptNumber: number, seconds: number) =>
+        Effect.gen(function* () {
+          const before = yield* Clock.currentTimeMillis;
+          const result = yield* svc.nextRetryTime(attemptNumber);
+          const after = yield* Clock.currentTimeMillis;
+          expect(result).not.toBeNull();
+          const delta = (result?.getTime() ?? 0) - before;
+          expect(delta).toBeGreaterThanOrEqual(seconds * 1000 - 1);
+          expect(delta).toBeLessThanOrEqual(seconds * 1000 + (after - before) + 5000);
+        });
 
-      expectDelay(1, 60);
-      expectDelay(2, 300);
-      expectDelay(3, 1800);
-      expectDelay(4, 7200);
-      expectDelay(5, 86400);
+      yield* expectDelay(1, 60);
+      yield* expectDelay(2, 300);
+      yield* expectDelay(3, 1800);
+      yield* expectDelay(4, 7200);
+      yield* expectDelay(5, 86400);
 
       // Beyond the schedule, no further retry is offered.
-      expect(svc.nextRetryTime(6)).toBeNull();
-      expect(svc.nextRetryTime(7)).toBeNull();
-      expect(svc.nextRetryTime(100)).toBeNull();
+      expect(yield* svc.nextRetryTime(6)).toBeNull();
+      expect(yield* svc.nextRetryTime(7)).toBeNull();
+      expect(yield* svc.nextRetryTime(100)).toBeNull();
     }).pipe(Effect.provide(WebhookDeliveryService.layer), CoreAuthSession.authenticate()),
   );
 });

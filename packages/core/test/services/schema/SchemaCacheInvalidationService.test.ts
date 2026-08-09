@@ -1,11 +1,11 @@
 import { Effect, Exit, Layer } from "effect";
-import { describe, expect, it } from "vite-plus/test";
 
 import {
   type ProjectSchemaCacheShape,
   ProjectSchemaCache,
 } from "../../../src/services/schema/SchemaService.ts";
 import { SchemaCacheInvalidationService } from "../../../src/services/schema/SchemaCacheInvalidationService.ts";
+import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 
 /**
  * A tiny recording fake of the {@link ProjectSchemaCache} port. This is the
@@ -51,43 +51,44 @@ const layerWith = (cache: ProjectSchemaCacheShape) =>
   );
 
 describe("SchemaCacheInvalidationService.invalidate", () => {
-  it("routes the projectId through cache.getByName(projectId).invalidate() and returns void", async () => {
+  it.effect(
+    "routes the projectId through cache.getByName(projectId).invalidate() and returns void",
+    () => {
+      const { cache, invalidations } = recordingCache();
+
+      return Effect.gen(function* () {
+        const service = yield* SchemaCacheInvalidationService;
+        const result = yield* service.invalidate("project-abc");
+
+        expect(result).toBeUndefined();
+        expect(invalidations).toEqual(["project-abc"]);
+      }).pipe(Effect.provide(layerWith(cache)));
+    },
+  );
+
+  it.effect("invalidates the exact projectId given (per-project DO routing)", () => {
     const { cache, invalidations } = recordingCache();
 
-    const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SchemaCacheInvalidationService;
-        return yield* service.invalidate("project-abc");
-      }).pipe(Effect.provide(layerWith(cache))),
-    );
+    return Effect.gen(function* () {
+      const service = yield* SchemaCacheInvalidationService;
+      yield* service.invalidate("project-one");
+      yield* service.invalidate("project-two");
+      yield* service.invalidate("project-one");
 
-    expect(result).toBeUndefined();
-    expect(invalidations).toEqual(["project-abc"]);
+      expect(invalidations).toEqual(["project-one", "project-two", "project-one"]);
+    }).pipe(Effect.provide(layerWith(cache)));
   });
 
-  it("invalidates the exact projectId given (per-project DO routing)", async () => {
-    const { cache, invalidations } = recordingCache();
+  it.effect("propagates a failure from the cache port instead of swallowing it", () =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        Effect.gen(function* () {
+          const service = yield* SchemaCacheInvalidationService;
+          return yield* service.invalidate("project-boom");
+        }).pipe(Effect.provide(layerWith(failingCache()))),
+      );
 
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SchemaCacheInvalidationService;
-        yield* service.invalidate("project-one");
-        yield* service.invalidate("project-two");
-        yield* service.invalidate("project-one");
-      }).pipe(Effect.provide(layerWith(cache))),
-    );
-
-    expect(invalidations).toEqual(["project-one", "project-two", "project-one"]);
-  });
-
-  it("propagates a failure from the cache port instead of swallowing it", async () => {
-    const exit = await Effect.runPromiseExit(
-      Effect.gen(function* () {
-        const service = yield* SchemaCacheInvalidationService;
-        return yield* service.invalidate("project-boom");
-      }).pipe(Effect.provide(layerWith(failingCache()))),
-    );
-
-    expect(Exit.isFailure(exit)).toBe(true);
-  });
+      expect(Exit.isFailure(exit)).toBe(true);
+    }),
+  );
 });

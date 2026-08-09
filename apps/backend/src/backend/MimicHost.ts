@@ -3,6 +3,9 @@ import {
   MimicHostError,
   type MimicHostShape,
 } from "@voidhash/core/services/paywalls/MimicHost";
+import { generateId } from "@voidhash/core/utils/generate-id";
+import { causeMessage } from "@voidhash/lib/lang";
+import type { Value } from "@voidhash/mimic-core";
 import { HostServiceTag, type HostService } from "@voidhash/mimic-db/app/hostService";
 import { decodeTransactionEnvelope } from "@voidhash/mimic-db/document/transaction";
 import {
@@ -12,7 +15,7 @@ import {
   PaywallDesignerDocument,
   PresenceSchema,
 } from "@voidhash/mimic-schema";
-import { Effect, Layer, Semaphore } from "effect";
+import { Clock, DateTime, Effect, Layer, Semaphore } from "effect";
 
 const editTokenTtlSeconds = 300;
 const agentConnectionLeaseMs = 5 * 60 * 1000;
@@ -24,19 +27,36 @@ interface ProvisioningIds {
 
 const hostError = (message: string, cause: unknown) =>
   new MimicHostError({
-    cause: cause instanceof Error ? cause.message : String(cause),
+    cause: causeMessage(cause),
     message,
   });
 
-const errorTag = (cause: unknown): string | undefined =>
-  typeof cause === "object" && cause !== null && "_tag" in cause ? String(cause._tag) : undefined;
+/** Wraps `cause` unless it already is a {@link MimicHostError}. */
+const toHostError =
+  (message: string) =>
+  (cause: unknown): MimicHostError => {
+    if (cause instanceof MimicHostError) return cause;
+    return hostError(message, cause);
+  };
+
+const registryError = (message: string) => new MimicHostError({ cause: message, message });
+
+const errorTag = (cause: unknown): string | undefined => {
+  if (typeof cause === "object" && cause !== null && "_tag" in cause) return String(cause._tag);
+  return undefined;
+};
 
 const isNotFound = (cause: unknown): boolean => errorTag(cause) === "NotFoundError";
 const isConflict = (cause: unknown): boolean => errorTag(cause) === "ConflictError";
 
+const websocketProtocol = (protocol: string): string => {
+  if (protocol === "https:") return "wss:";
+  return "ws:";
+};
+
 const connectionUrl = (publicBaseUrl: string, ids: ProvisioningIds, paywallId: string): string => {
   const base = new URL(publicBaseUrl);
-  base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
+  base.protocol = websocketProtocol(base.protocol);
   base.pathname = `/ws/v1/databases/${encodeURIComponent(
     ids.databaseId,
   )}/collections/${encodeURIComponent(ids.collectionId)}/documents/${encodeURIComponent(
@@ -54,9 +74,8 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
   const resolveDatabase = Effect.gen(function* () {
     const listed = yield* host.listDatabases();
     const existing = listed.find((database) => database.name === MIMIC_DATABASE_NAME);
-    return existing
-      ? existing.id
-      : yield* Effect.fail(new Error(`Missing registry database ${MIMIC_DATABASE_NAME}`));
+    if (existing) return existing.id;
+    return yield* registryError(`Missing registry database ${MIMIC_DATABASE_NAME}`);
   });
 
   const resolveCollection = (databaseId: string) =>
@@ -65,11 +84,10 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
       const existing = listed.find(
         (collection) => collection.name === MIMIC_PAYWALLS_COLLECTION_NAME,
       );
-      return existing
-        ? existing.id
-        : yield* Effect.fail(
-            new Error(`Missing registry collection ${MIMIC_PAYWALLS_COLLECTION_NAME}`),
-          );
+      if (existing) return existing.id;
+      return yield* registryError(
+        `Missing registry collection ${MIMIC_PAYWALLS_COLLECTION_NAME}`,
+      );
     });
 
   const provision = provisioningLock.withPermit(
@@ -92,29 +110,25 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
       Effect.flatMap(({ collectionId }) =>
         host.getDocument(collectionId, paywallId).pipe(
           Effect.asVoid,
-          Effect.catch((cause) =>
-            isNotFound(cause)
-              ? host
-                  .createDocument(
-                    collectionId,
-                    paywallId,
-                    PaywallDesignerDocument.encode(createInitialPaywallDocumentInput()),
-                  )
-                  .pipe(
-                    Effect.asVoid,
-                    Effect.catch((createCause) =>
-                      isConflict(createCause) ? Effect.void : Effect.fail(createCause),
-                    ),
-                  )
-              : Effect.fail(cause),
-          ),
+          Effect.catch((cause) => {
+            if (!isNotFound(cause)) return Effect.fail(cause);
+            return host
+              .createDocument(
+                collectionId,
+                paywallId,
+                PaywallDesignerDocument.encode(createInitialPaywallDocumentInput()),
+              )
+              .pipe(
+                Effect.asVoid,
+                Effect.catch((createCause) => {
+                  if (isConflict(createCause)) return Effect.void;
+                  return Effect.fail(createCause);
+                }),
+              );
+          }),
         ),
       ),
-      Effect.mapError((cause) =>
-        cause instanceof MimicHostError
-          ? cause
-          : hostError(`Failed to ensure paywall document ${paywallId}`, cause),
-      ),
+      Effect.mapError(toHostError(`Failed to ensure paywall document ${paywallId}`)),
     );
 
   const getDocument = (paywallId: string) =>
@@ -123,8 +137,8 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
       Effect.mapError((cause) => hostError(`Failed to read paywall document ${paywallId}`, cause)),
     );
 
-  const toPaywallDocument = (document: { readonly value: unknown; readonly version: number }) => {
-    const roots = PaywallDesignerDocument.decode(document.value as never);
+  const toPaywallDocument = (document: { readonly value: Value; readonly version: number }) => {
+    const roots = PaywallDesignerDocument.decode(document.value);
     return {
       root: roots?.[0],
       tree: document.value,
@@ -139,11 +153,15 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
           host
             .createDocumentAuthToken(ids.collectionId, paywallId, "write", [], editTokenTtlSeconds)
             .pipe(
-              Effect.map(({ token }) => ({
-                expiresAt: new Date(Date.now() + editTokenTtlSeconds * 1000),
-                token,
-                url: connectionUrl(publicBaseUrl, ids, paywallId),
-              })),
+              Effect.flatMap(({ token }) =>
+                Effect.map(Clock.currentTimeMillis, (now) => ({
+                  expiresAt: DateTime.toDateUtc(
+                    DateTime.makeUnsafe(now + editTokenTtlSeconds * 1000),
+                  ),
+                  token,
+                  url: connectionUrl(publicBaseUrl, ids, paywallId),
+                })),
+              ),
             ),
         ),
         Effect.mapError((cause) => hostError(`Failed to mint a token for ${paywallId}`, cause)),
@@ -162,7 +180,7 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
               decodeTransactionEnvelope({
                 baseVersion: input.baseVersion,
                 commands: input.commands,
-                id: crypto.randomUUID(),
+                id: generateId("transaction"),
               }),
             catch: (cause) => hostError("Invalid mimic transaction", cause),
           }).pipe(
@@ -172,11 +190,7 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
           ),
         ),
         Effect.map((result) => ({ accepted: result.accepted, version: result.version })),
-        Effect.mapError((cause) =>
-          cause instanceof MimicHostError
-            ? cause
-            : hostError(`Failed to update paywall document ${paywallId}`, cause),
-        ),
+        Effect.mapError(toHostError(`Failed to update paywall document ${paywallId}`)),
       ),
     openPaywallConnection: ({ paywallId, connectionId, presence }) =>
       provision.pipe(
@@ -240,7 +254,7 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
               decodeTransactionEnvelope({
                 baseVersion: input.baseVersion,
                 commands: input.commands,
-                id: crypto.randomUUID(),
+                id: generateId("transaction"),
               }),
             catch: (cause) => hostError("Invalid mimic transaction", cause),
           }).pipe(
@@ -256,11 +270,7 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
           ),
         ),
         Effect.map((result) => ({ accepted: result.accepted, version: result.version })),
-        Effect.mapError((cause) =>
-          cause instanceof MimicHostError
-            ? cause
-            : hostError(`Failed to update connected paywall ${paywallId}`, cause),
-        ),
+        Effect.mapError(toHostError(`Failed to update connected paywall ${paywallId}`)),
       ),
   };
 };

@@ -1,3 +1,4 @@
+import { constant } from "@voidhash/lib/lang";
 import { Effect, FileSystem, Layer, Path, Schema, Context } from "effect";
 import os from "node:os";
 
@@ -30,6 +31,21 @@ const baseOf = (config: ConfigFile): ResolvedConfig => ({
   web_url: config.web_url,
 });
 
+/**
+ * Builds the profile overrides to keep when resetting a profile. Never persists
+ * `api_key: null` as an override — that would mask the base key.
+ */
+const preservedOverrides = (apiKey: string | null | undefined): ProfileOverrides => {
+  if (apiKey) return { api_key: apiKey };
+  return {};
+};
+
+/** Raw JSON object shape of the config file, before schema decoding. */
+const RawConfigJsonSchema = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
+
+/** Encodes a validated config file to the JSON text written to disk. */
+const ConfigFileJsonSchema = Schema.fromJsonString(CliConfigSchema);
+
 const make = Effect.gen(function* effect() {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -56,7 +72,7 @@ const make = Effect.gen(function* effect() {
         return yield* Effect.succeed<ConfigFile>(emptyConfig);
       }
       const configString = yield* fileSystem.readFileString(filePath);
-      const configJson = JSON.parse(configString);
+      const configJson = yield* Schema.decodeUnknownEffect(RawConfigJsonSchema)(configString);
       yield* Effect.logDebug("Config file loaded successfully");
       return yield* Schema.decodeUnknownEffect(CliConfigSchema)({
         ...emptyConfig,
@@ -106,6 +122,23 @@ const make = Effect.gen(function* effect() {
    * @param config - Partial configuration values to persist.
    * @returns An Effect that writes the merged configuration to disk.
    */
+  const mergeIntoConfig = (
+    currentConfig: ConfigFile,
+    config: Partial<ResolvedConfig>,
+  ): ConfigFile => {
+    if (!activeProfile) return { ...currentConfig, ...config };
+    return {
+      ...currentConfig,
+      profiles: {
+        ...currentConfig.profiles,
+        [activeProfile]: {
+          ...currentConfig.profiles?.[activeProfile],
+          ...config,
+        },
+      },
+    };
+  };
+
   const writeToConfig = (config: Partial<ResolvedConfig>) =>
     Effect.gen(function* writeToConfig() {
       yield* Effect.logDebug(`Writing config to ${filePath}`);
@@ -113,21 +146,10 @@ const make = Effect.gen(function* effect() {
         Effect.catch(() => Effect.succeed<ConfigFile>(emptyConfig)),
       );
 
-      const mergedConfig: ConfigFile = activeProfile
-        ? {
-            ...currentConfig,
-            profiles: {
-              ...currentConfig.profiles,
-              [activeProfile]: {
-                ...currentConfig.profiles?.[activeProfile],
-                ...config,
-              },
-            },
-          }
-        : { ...currentConfig, ...config };
+      const mergedConfig = mergeIntoConfig(currentConfig, config);
 
-      const validatedConfig = yield* Schema.decodeUnknownEffect(CliConfigSchema)(mergedConfig);
-      yield* fileSystem.writeFileString(filePath, JSON.stringify(validatedConfig));
+      const configJson = yield* Schema.encodeEffect(ConfigFileJsonSchema)(mergedConfig);
+      yield* fileSystem.writeFileString(filePath, configJson);
       yield* Effect.logDebug("Config file written successfully");
     }).pipe(Effect.withSpan("CliConfig.writeToConfig"));
 
@@ -145,16 +167,13 @@ const make = Effect.gen(function* effect() {
 
       if (activeProfile) {
         const raw = yield* readRawConfig();
-        const apiKey = raw.profiles?.[activeProfile]?.api_key;
-        // Never persist `api_key: null` as an override — that would mask the
-        // base key. Keep only a real, non-null profile key.
-        const preserved: ProfileOverrides = apiKey ? { api_key: apiKey } : {};
+        const preserved = preservedOverrides(raw.profiles?.[activeProfile]?.api_key);
         const mergedConfig: ConfigFile = {
           ...baseOf(raw),
           profiles: { ...raw.profiles, [activeProfile]: preserved },
         };
-        const validatedConfig = yield* Schema.decodeUnknownEffect(CliConfigSchema)(mergedConfig);
-        yield* fileSystem.writeFileString(filePath, JSON.stringify(validatedConfig));
+        const configJson = yield* Schema.encodeEffect(ConfigFileJsonSchema)(mergedConfig);
+        yield* fileSystem.writeFileString(filePath, configJson);
         yield* Effect.logDebug("Config reset complete");
         return;
       }
@@ -167,12 +186,12 @@ const make = Effect.gen(function* effect() {
       yield* Effect.logDebug("Config reset complete");
     }).pipe(Effect.withSpan("CliConfig.resetConfig"));
 
-  return {
+  return constant({
     readConfig,
     readRawConfig,
     resetConfig,
     writeToConfig,
-  } as const;
+  });
 });
 
 type CliConfigShape = Effect.Success<typeof make>;

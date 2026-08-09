@@ -38,8 +38,10 @@
  * collision-free.
  */
 
+import { constant } from "@voidhash/lib/lang";
+
 /** Matches `generateId("analyticsEvent")` so deterministic and legacy ids share a namespace. */
-const ANALYTICS_EVENT_ID_PREFIX = "an_evt" as const;
+const ANALYTICS_EVENT_ID_PREFIX = constant("an_evt");
 
 /**
  * Slugs an event name to `[A-Za-z0-9._-]`, stripping the `:` separator and the

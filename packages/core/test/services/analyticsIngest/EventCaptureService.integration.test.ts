@@ -48,7 +48,7 @@ import {
   type CaptureEvent,
 } from "@voidhash/api-contracts/event-capture";
 import { apiKeys, captureProjectPolicies, Db, eq, inArray } from "@voidhash/db";
-import { Effect, Layer } from "effect";
+import { Clock, DateTime, Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 
@@ -61,8 +61,10 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so tokens/ids stay unique even within the same millisecond. */
 let seq = 0;
-const uniqueToken = (label: string) => `vh_pk_it${label}${Date.now()}${seq++}`;
-const uniqueId = (label: string) => `it_capt_${label}_${Date.now()}_${seq++}`;
+const uniqueToken = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `vh_pk_it${label}${now}${seq++}`);
+const uniqueId = (label: string) =>
+  Effect.map(Clock.currentTimeMillis, (now) => `it_capt_${label}_${now}_${seq++}`);
 
 /**
  * Minimal {@link PlatformRuntime} stub. The noop / double {@link PolicyCounterStore}
@@ -126,38 +128,42 @@ const provideService =
 /** A fresh capture event with sensible defaults; override fields per test. */
 const captureEvent = (
   overrides: Partial<typeof CaptureEvent.Type> = {},
-): typeof CaptureEvent.Type => ({
-  uuid: uniqueId("evt"),
-  event: "page_view",
-  context: {},
-  properties: {},
-  distinct_id: "user-1",
-  ...overrides,
-});
+): Effect.Effect<typeof CaptureEvent.Type> =>
+  Effect.gen(function* () {
+    return {
+      uuid: yield* uniqueId("evt"),
+      event: "page_view",
+      context: {},
+      properties: {},
+      distinct_id: "user-1",
+      ...overrides,
+    };
+  });
 
 /** A fresh capture request wrapping the given events. */
 const captureRequest = (
   token: string,
   events: ReadonlyArray<typeof CaptureEvent.Type>,
-): CaptureRequest => {
-  const now = new Date();
-  return {
-    request: {
-      headers: { "user-agent": "integration-test" },
-      receivedAt: now,
-      requestId: uniqueId("req"),
-      sentAt: now,
-      token,
-    },
-    events,
-  };
-};
+): Effect.Effect<CaptureRequest> =>
+  Effect.gen(function* () {
+    const now = yield* DateTime.nowAsDate;
+    return {
+      request: {
+        headers: { "user-agent": "integration-test" },
+        receivedAt: now,
+        requestId: yield* uniqueId("req"),
+        sentAt: now,
+        token,
+      },
+      events,
+    };
+  });
 
 /** Insert a public api-key row (the capture token) under the fixture project. */
 const insertPublicApiKey = (token: string) =>
   Effect.gen(function* () {
     const db = yield* Db;
-    const id = uniqueId("key");
+    const id = yield* uniqueId("key");
     yield* db.insert(apiKeys).values({
       end: token.slice(-8),
       id,
@@ -170,14 +176,36 @@ const insertPublicApiKey = (token: string) =>
     return id;
   });
 
-/** Insert (or upsert) the capture-project policy row for the fixture project. */
-const upsertCapturePolicy = (policy: {
+interface CapturePolicyInput {
   readonly ingestEnabled?: boolean;
   readonly requestsPerMinute?: number;
   readonly eventsPerDay?: number;
   readonly forceRoute?: string;
   readonly skipEnrichment?: boolean;
-}) =>
+}
+
+/**
+ * Only the columns the caller actually set — an undefined key must not
+ * overwrite an existing row's value on conflict.
+ */
+const definedPolicyColumns = (policy: CapturePolicyInput): CapturePolicyInput => {
+  const set: {
+    ingestEnabled?: boolean;
+    requestsPerMinute?: number;
+    eventsPerDay?: number;
+    forceRoute?: string;
+    skipEnrichment?: boolean;
+  } = {};
+  if (policy.ingestEnabled !== undefined) set.ingestEnabled = policy.ingestEnabled;
+  if (policy.requestsPerMinute !== undefined) set.requestsPerMinute = policy.requestsPerMinute;
+  if (policy.eventsPerDay !== undefined) set.eventsPerDay = policy.eventsPerDay;
+  if (policy.forceRoute !== undefined) set.forceRoute = policy.forceRoute;
+  if (policy.skipEnrichment !== undefined) set.skipEnrichment = policy.skipEnrichment;
+  return set;
+};
+
+/** Insert (or upsert) the capture-project policy row for the fixture project. */
+const upsertCapturePolicy = (policy: CapturePolicyInput) =>
   Effect.gen(function* () {
     const db = yield* Db;
     yield* db
@@ -185,15 +213,7 @@ const upsertCapturePolicy = (policy: {
       .values({ projectId, ...policy })
       .onConflictDoUpdate({
         target: captureProjectPolicies.projectId,
-        set: {
-          ...(policy.ingestEnabled !== undefined ? { ingestEnabled: policy.ingestEnabled } : {}),
-          ...(policy.requestsPerMinute !== undefined
-            ? { requestsPerMinute: policy.requestsPerMinute }
-            : {}),
-          ...(policy.eventsPerDay !== undefined ? { eventsPerDay: policy.eventsPerDay } : {}),
-          ...(policy.forceRoute !== undefined ? { forceRoute: policy.forceRoute } : {}),
-          ...(policy.skipEnrichment !== undefined ? { skipEnrichment: policy.skipEnrichment } : {}),
-        },
+        set: definedPolicyColumns(policy),
       });
   });
 
@@ -250,13 +270,14 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("ok");
+          const token = yield* uniqueToken("ok");
           trackKey(yield* insertPublicApiKey(token));
 
-          const eventA = captureEvent({ event: "signup", distinct_id: "user-a" });
-          const eventB = captureEvent({ event: "page_view", distinct_id: "user-b" });
+          const eventA = yield* captureEvent({ event: "signup", distinct_id: "user-a" });
+          const eventB = yield* captureEvent({ event: "page_view", distinct_id: "user-b" });
 
-          const result = yield* service.captureEvents(captureRequest(token, [eventA, eventB]));
+          const request = yield* captureRequest(token, [eventA, eventB]);
+          const result = yield* service.captureEvents(request);
 
           expect(result.accepted).toBe(2);
           expect(result.rejected).toBe(0);
@@ -283,12 +304,12 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("trim");
+          const token = yield* uniqueToken("trim");
           trackKey(yield* insertPublicApiKey(token));
 
           // Surrounding whitespace must be stripped so the DB lookup hits.
           const result = yield* service.captureEvents(
-            captureRequest(`  ${token}\n`, [captureEvent()]),
+            yield* captureRequest(`  ${token}\n`, [yield* captureEvent()]),
           );
 
           expect(result.accepted).toBe(1);
@@ -307,7 +328,9 @@ describe("EventCaptureService.captureEvents", () => {
         const service = yield* EventCaptureService;
 
         const error = yield* Effect.flip(
-          service.captureEvents(captureRequest("not-a-valid-token", [captureEvent()])),
+          service.captureEvents(
+            yield* captureRequest("not-a-valid-token", [yield* captureEvent()]),
+          ),
         );
         expect(error).toBeInstanceOf(CaptureUnauthorizedError);
         if (error instanceof CaptureUnauthorizedError) {
@@ -328,7 +351,9 @@ describe("EventCaptureService.captureEvents", () => {
 
         // Correct `vh_pk_*` shape, but no matching api-key row exists.
         const error = yield* Effect.flip(
-          service.captureEvents(captureRequest(uniqueToken("missing"), [captureEvent()])),
+          service.captureEvents(
+            yield* captureRequest(yield* uniqueToken("missing"), [yield* captureEvent()]),
+          ),
         );
         expect(error).toBeInstanceOf(CaptureUnauthorizedError);
 
@@ -345,13 +370,13 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("disabled");
+          const token = yield* uniqueToken("disabled");
           trackKey(yield* insertPublicApiKey(token));
           yield* upsertCapturePolicy({ ingestEnabled: false });
           markPolicy();
 
           const error = yield* Effect.flip(
-            service.captureEvents(captureRequest(token, [captureEvent()])),
+            service.captureEvents(yield* captureRequest(token, [yield* captureEvent()])),
           );
           expect(error).toBeInstanceOf(CaptureRateLimitedError);
           if (error instanceof CaptureRateLimitedError) {
@@ -375,11 +400,11 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("ratelimited");
+          const token = yield* uniqueToken("ratelimited");
           trackKey(yield* insertPublicApiKey(token));
 
           const error = yield* Effect.flip(
-            service.captureEvents(captureRequest(token, [captureEvent()])),
+            service.captureEvents(yield* captureRequest(token, [yield* captureEvent()])),
           );
           expect(error).toBeInstanceOf(CaptureRateLimitedError);
           if (error instanceof CaptureRateLimitedError) {
@@ -400,13 +425,14 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("reserved");
+          const token = yield* uniqueToken("reserved");
           trackKey(yield* insertPublicApiKey(token));
 
-          const reserved = captureEvent({ event: "$purchase.completed" });
-          const allowed = captureEvent({ event: "checkout_started" });
+          const reserved = yield* captureEvent({ event: "$purchase.completed" });
+          const allowed = yield* captureEvent({ event: "checkout_started" });
 
-          const result = yield* service.captureEvents(captureRequest(token, [reserved, allowed]));
+          const request = yield* captureRequest(token, [reserved, allowed]);
+          const result = yield* service.captureEvents(request);
 
           expect(result.rejected).toBe(1);
           expect(result.accepted).toBe(1);
@@ -432,11 +458,12 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("overflow");
+          const token = yield* uniqueToken("overflow");
           trackKey(yield* insertPublicApiKey(token));
 
           // Quota check denies → selectRoute falls back to the overflow lane.
-          const result = yield* service.captureEvents(captureRequest(token, [captureEvent()]));
+          const request = yield* captureRequest(token, [yield* captureEvent()]);
+          const result = yield* service.captureEvents(request);
 
           expect(result.accepted).toBe(1);
           expect(result.rejected).toBe(0);
@@ -457,12 +484,13 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("historical");
+          const token = yield* uniqueToken("historical");
           trackKey(yield* insertPublicApiKey(token));
           yield* upsertCapturePolicy({ forceRoute: "historical" });
           markPolicy();
 
-          const result = yield* service.captureEvents(captureRequest(token, [captureEvent()]));
+          const request = yield* captureRequest(token, [yield* captureEvent()]);
+          const result = yield* service.captureEvents(request);
 
           expect(result.accepted).toBe(1);
           const events = publishedEvents(ingress.batches);
@@ -486,20 +514,21 @@ describe("EventCaptureService.captureEvents", () => {
       const policyStore = policyStoreLayer({
         checkEventQuota: () => {
           calls += 1;
-          return calls === 1
-            ? Effect.fail(new PolicyStoreError({ message: "per-event quota check failed" }))
-            : Effect.succeed(true);
+          if (calls === 1) {
+            return Effect.fail(new PolicyStoreError({ message: "per-event quota check failed" }));
+          }
+          return Effect.succeed(true);
         },
       });
       return withCaptureCleanup((trackKey) =>
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("partialfail");
+          const token = yield* uniqueToken("partialfail");
           trackKey(yield* insertPublicApiKey(token));
 
           const result = yield* service.captureEvents(
-            captureRequest(token, [captureEvent(), captureEvent()]),
+            yield* captureRequest(token, [yield* captureEvent(), yield* captureEvent()]),
           );
 
           expect(result.rejected).toBe(1);
@@ -521,11 +550,11 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("ingresserr");
+          const token = yield* uniqueToken("ingresserr");
           trackKey(yield* insertPublicApiKey(token));
 
           const error = yield* Effect.flip(
-            service.captureEvents(captureRequest(token, [captureEvent()])),
+            service.captureEvents(yield* captureRequest(token, [yield* captureEvent()])),
           );
           // CaptureIngressError is wrapped at the public boundary, surfacing the
           // adapter's message on EventCaptureServiceError.
@@ -550,11 +579,11 @@ describe("EventCaptureService.captureEvents", () => {
         Effect.gen(function* () {
           const service = yield* EventCaptureService;
 
-          const token = uniqueToken("policyerr");
+          const token = yield* uniqueToken("policyerr");
           trackKey(yield* insertPublicApiKey(token));
 
           const error = yield* Effect.flip(
-            service.captureEvents(captureRequest(token, [captureEvent()])),
+            service.captureEvents(yield* captureRequest(token, [yield* captureEvent()])),
           );
           expect(error).toBeInstanceOf(EventCaptureServiceError);
           if (error instanceof EventCaptureServiceError) {

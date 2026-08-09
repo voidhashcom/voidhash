@@ -31,7 +31,7 @@
  *    `PaywallAssetConfig` beyond the harness services, so the test provides
  *    both itself (in-memory store, `Layer.succeed` config).
  */
-import { Effect, Layer } from "effect";
+import { Clock, DateTime, Effect, Layer, Schema } from "effect";
 import { describe, expect } from "vitest";
 
 import {
@@ -102,7 +102,10 @@ const makeInMemoryArtifactStore = () => {
     head: (key) =>
       Effect.sync(() => {
         const object = objects.get(key);
-        return object ? { size: object.body.byteLength } : null;
+        if (!object) {
+          return null;
+        }
+        return { size: object.body.byteLength };
       }),
     putObject: ({ body, contentType, key }) =>
       Effect.sync(() => {
@@ -113,6 +116,9 @@ const makeInMemoryArtifactStore = () => {
 };
 
 const artifactStore = makeInMemoryArtifactStore();
+
+/** JSON serialization for the fixture manifest/preview blobs. */
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 /** Provide the service + its extra deps, then authenticate as the fixture user. */
 const provideService = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -150,7 +156,7 @@ const buildDeployFixture = (overrides?: {
   readonly contentTag?: string;
 }) =>
   Effect.gen(function* () {
-    const runTag = `${Date.now()}-${seq++}`;
+    const runTag = `${yield* Clock.currentTimeMillis}-${seq++}`;
     const paywallSlug = overrides?.paywallSlug ?? `it-dep-pw-${runTag}`;
     const componentSlug = overrides?.componentSlug ?? `it-dep-cmp-${runTag}`;
     const contentTag = overrides?.contentTag ?? runTag;
@@ -179,7 +185,7 @@ const buildDeployFixture = (overrides?: {
       slot: false,
       title: "Integration Component",
     };
-    const componentManifest = yield* makeBlob(JSON.stringify(componentManifestJson));
+    const componentManifest = yield* makeBlob(encodeJson(componentManifestJson));
 
     const previewTreeJson = {
       root: {
@@ -190,7 +196,7 @@ const buildDeployFixture = (overrides?: {
       state: "default",
       treeVersion: 1,
     };
-    const previewTree = yield* makeBlob(JSON.stringify(previewTreeJson));
+    const previewTree = yield* makeBlob(encodeJson(previewTreeJson));
 
     const paywallContentHash = yield* computePaywallContentHash({
       assetSha256s: [asset.sha256],
@@ -256,7 +262,7 @@ const buildDeployFixture = (overrides?: {
         },
       ],
       config: { bytes: config.body.byteLength, path: "voidhash.config.ts", sha256: config.sha256 },
-      createdAt: new Date().toISOString(),
+      createdAt: (yield* DateTime.nowAsDate).toISOString(),
       paywalls: [
         {
           artifacts: {
@@ -661,7 +667,7 @@ describe("PaywallDeployService deploy lifecycle", () => {
         }
 
         // -- assign an open showing pinned to the v1 release ------------------
-        const locationId = `it_dep_loc_${Date.now()}-${seq++}`;
+        const locationId = `it_dep_loc_${yield* Clock.currentTimeMillis}-${seq++}`;
         ids.locationIds.push(locationId);
         yield* db.insert(paywallLocations).values({
           id: locationId,
@@ -669,7 +675,7 @@ describe("PaywallDeployService deploy lifecycle", () => {
           projectId,
           slug: locationId,
         });
-        const showingId = `it_dep_show_${Date.now()}-${seq++}`;
+        const showingId = `it_dep_show_${yield* Clock.currentTimeMillis}-${seq++}`;
         yield* db.insert(paywallLocationShowings).values({
           createdByUserId: CoreTestFixture.userId,
           featureFlagId: null,
@@ -678,7 +684,7 @@ describe("PaywallDeployService deploy lifecycle", () => {
           paywallLocationId: locationId,
           paywallReleaseId: summaryV1.releaseId,
           projectId,
-          startedAt: new Date(),
+          startedAt: yield* DateTime.nowAsDate,
           type: PaywallLocationShowingType.paywallRelease,
         });
 
@@ -692,7 +698,7 @@ describe("PaywallDeployService deploy lifecycle", () => {
         // -- deploy v2: same slug, changed content -----------------------------
         const v2 = yield* buildDeployFixture({
           componentSlug: v1.componentSlug,
-          contentTag: `${Date.now()}-${seq++}-v2`,
+          contentTag: `${yield* Clock.currentTimeMillis}-${seq++}-v2`,
           paywallSlug: v1.paywallSlug,
         });
         ids.blobSha256s.push(...v2.allHashes);

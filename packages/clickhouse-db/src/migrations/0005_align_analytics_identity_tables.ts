@@ -29,6 +29,28 @@ const execute = (statement: string) =>
     yield* ch.asCommand(sql`${sql.literal(statement)}`);
   });
 
+/**
+ * The expression a new column should be back-filled from, or `undefined` when
+ * the legacy column no longer exists on the table.
+ */
+const legacyColumnExpression = (
+  columns: ReadonlySet<string>,
+  column: string,
+  expression: string = column,
+): string | undefined => {
+  if (!columns.has(column)) {
+    return undefined;
+  }
+  return expression;
+};
+
+const defaultClause = (legacyExpression: string | undefined): string => {
+  if (!legacyExpression) {
+    return "";
+  }
+  return ` DEFAULT ${legacyExpression}`;
+};
+
 const addColumnFromLegacy = ({
   columns,
   fallbackType,
@@ -46,7 +68,7 @@ const addColumnFromLegacy = ({
     return Effect.void;
   }
 
-  const expression = legacyExpression ? ` DEFAULT ${legacyExpression}` : "";
+  const expression = defaultClause(legacyExpression);
   return execute(
     `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${name} ${fallbackType}${expression}`,
   );
@@ -64,28 +86,32 @@ export default Effect.gen(function* alignAnalyticsIdentityTables() {
   yield* addColumnFromLegacy({
     columns: personColumns,
     fallbackType: "String",
-    legacyExpression: personColumns.has("customer_id") ? "customer_id" : undefined,
+    legacyExpression: legacyColumnExpression(personColumns, "customer_id"),
     name: "person_id",
     table: CLICKHOUSE_PERSONS_TABLE,
   });
   yield* addColumnFromLegacy({
     columns: personColumns,
     fallbackType: "Nullable(String)",
-    legacyExpression: personColumns.has("app_user_id") ? "nullIf(app_user_id, '')" : undefined,
+    legacyExpression: legacyColumnExpression(
+      personColumns,
+      "app_user_id",
+      "nullIf(app_user_id, '')",
+    ),
     name: "primary_distinct_id",
     table: CLICKHOUSE_PERSONS_TABLE,
   });
   yield* addColumnFromLegacy({
     columns: personColumns,
     fallbackType: "String",
-    legacyExpression: personColumns.has("properties") ? "properties" : undefined,
+    legacyExpression: legacyColumnExpression(personColumns, "properties"),
     name: "traits",
     table: CLICKHOUSE_PERSONS_TABLE,
   });
   yield* addColumnFromLegacy({
     columns: personColumns,
     fallbackType: "Nullable(String)",
-    legacyExpression: personColumns.has("parent_customer_id") ? "parent_customer_id" : undefined,
+    legacyExpression: legacyColumnExpression(personColumns, "parent_customer_id"),
     name: "merged_into_person_id",
     table: CLICKHOUSE_PERSONS_TABLE,
   });
@@ -96,7 +122,7 @@ export default Effect.gen(function* alignAnalyticsIdentityTables() {
   yield* addColumnFromLegacy({
     columns: pendingOverrideColumns,
     fallbackType: "String",
-    legacyExpression: pendingOverrideColumns.has("customer_id") ? "customer_id" : undefined,
+    legacyExpression: legacyColumnExpression(pendingOverrideColumns, "customer_id"),
     name: "person_id",
     table: CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_TABLE,
   });

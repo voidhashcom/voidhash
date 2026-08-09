@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Encoding, Schema } from "effect";
 
 /**
  * Raised when an uploaded avatar fails validation (unsupported type, too large,
@@ -47,16 +47,24 @@ const matchesContentType = (bytes: Uint8Array, contentType: string): boolean => 
   }
 };
 
-const decodeBase64 = (base64: string): Uint8Array => {
-  // Tolerate a `data:<type>;base64,` prefix even though the studio sends raw base64.
+/** Tolerate a `data:<type>;base64,` prefix even though the studio sends raw base64. */
+const base64Payload = (base64: string): string => {
   const comma = base64.indexOf(",");
-  const payload = base64.startsWith("data:") && comma !== -1 ? base64.slice(comma + 1) : base64;
-  const binary = atob(payload);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
+  if (base64.startsWith("data:") && comma !== -1) {
+    return base64.slice(comma + 1);
   }
-  return bytes;
+  return base64;
+};
+
+/**
+ * Copies `bytes` into a standalone `ArrayBuffer` so it can be handed to
+ * WebCrypto, whose `BufferSource` parameter does not accept a view over a
+ * possibly-shared buffer.
+ */
+const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 };
 
 /**
@@ -88,10 +96,13 @@ export const validateAndDecodeAvatar = (input: {
       );
     }
 
-    const bytes = yield* Effect.try({
-      try: () => decodeBase64(input.imageBase64),
-      catch: () => new AvatarValidationError({ message: "Image data is not valid base64." }),
-    });
+    const bytes = yield* Effect.fromResult(
+      Encoding.decodeBase64(base64Payload(input.imageBase64)),
+    ).pipe(
+      Effect.mapError(
+        () => new AvatarValidationError({ message: "Image data is not valid base64." }),
+      ),
+    );
 
     if (bytes.length === 0) {
       return yield* Effect.fail(new AvatarValidationError({ message: "Image is empty." }));
@@ -114,12 +125,14 @@ export const validateAndDecodeAvatar = (input: {
 
 /** SHA-256 hex digest of the avatar bytes (WebCrypto; available in workerd). */
 export const avatarSha256Hex = (bytes: Uint8Array): Effect.Effect<string> =>
-  Effect.promise(async () => {
-    const digest = await crypto.subtle.digest("SHA-256", bytes as unknown as ArrayBuffer);
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  });
+  // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (Node/Browser/Bun only, none Workers-safe); requiring one would leak a Crypto dependency into every avatar caller. WebCrypto is available in workerd, per the jsdoc above.
+  Effect.promise(() => crypto.subtle.digest("SHA-256", toArrayBuffer(bytes))).pipe(
+    Effect.map((digest) =>
+      Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(""),
+    ),
+  );
 
 /** Content-addressed object key: `avatars/<entity>/<id>/<sha256>.<ext>`. */
 export const deriveAvatarKey = (
@@ -140,5 +153,8 @@ export const isOwnedAvatarUrl = (logo: string | null, publicBaseUrl: string): bo
 /** Extracts the object key from one of our public file URLs, or `null`. */
 export const avatarKeyFromUrl = (logo: string, publicBaseUrl: string): string | null => {
   const prefix = `${publicBaseUrl}/files/`;
-  return logo.startsWith(prefix) ? logo.slice(prefix.length) : null;
+  if (!logo.startsWith(prefix)) {
+    return null;
+  }
+  return logo.slice(prefix.length);
 };

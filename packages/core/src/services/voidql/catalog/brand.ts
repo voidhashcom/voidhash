@@ -6,11 +6,11 @@
  * already-validated identifiers, never from user text. A lint/CODEOWNERS rule
  * keeps `ch.literal(` and `catalog(` confined to the VoidQL printer + catalog.
  */
-import { Schema } from "effect";
+import { Brand, Schema } from "effect";
 
 export const CatalogSqlSchema = Schema.String.pipe(Schema.brand("CatalogSql"));
 
 export type CatalogSql = typeof CatalogSqlSchema.Type;
 
 /** Brand a compiler-controlled SQL fragment. NEVER call with user-derived text. */
-export const catalog = (s: string): CatalogSql => s as CatalogSql;
+export const catalog = Brand.nominal<CatalogSql>();

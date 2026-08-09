@@ -2,7 +2,6 @@ import {
   applyBatch,
   cloneValue,
   parseSchema,
-  type Command,
   type SchemaObject,
   type Value,
 } from "@voidhash/mimic-core";
@@ -12,7 +11,8 @@ import {
   runDirectMigration,
   type MigrationRegistry,
 } from "@voidhash/mimic-server/migrate";
-import { Effect, Result } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Clock, Effect, Result } from "effect";
 
 import { sanitizeValueForSchema } from "../document/schema.ts";
 import type { SubmitTransactionResponse, TransactionEnvelope } from "../document/transaction.ts";
@@ -103,10 +103,11 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
           newSchema: parseSchema(target.schemaJson),
           value: current,
         });
-        if (!result.ok || result.value === undefined) {
-          return yield* Effect.fail(
-            migrationFailed(result.ok ? "Migration produced an empty value" : result.error.message),
-          );
+        if (!result.ok) {
+          return yield* Effect.fail(migrationFailed(result.error.message));
+        }
+        if (result.value === undefined) {
+          return yield* Effect.fail(migrationFailed("Migration produced an empty value"));
         }
         current = result.value;
         current = yield* sanitize(target.schemaJson, current);
@@ -120,7 +121,7 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
   ): Effect.Effect<Value, MigrationFailedError> =>
     Effect.try({
       try: () => sanitizeValueForSchema(schemaJson, value),
-      catch: (error) => migrationFailed(error instanceof Error ? error.message : String(error)),
+      catch: (error) => migrationFailed(causeMessage(error)),
     });
 
   const load: DocumentEngineApi["load"] = () =>
@@ -168,8 +169,7 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
           for (const migration of definition.migrations.slice(currentMigrationVersion)) {
             value = yield* Effect.try({
               try: () => runDirectMigration(migration, value),
-              catch: (error) =>
-                migrationFailed(error instanceof Error ? error.message : String(error)),
+              catch: (error) => migrationFailed(causeMessage(error)),
             });
             migrationVersion = migration.version;
             changed = true;
@@ -217,15 +217,16 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
 
       const ctx = yield* deps.schema.getCollectionContext(loaded.collectionId);
       const schemaJson = ctx?.schemaJson;
-      const commands = envelope.commands as readonly Command[];
+      const commands = envelope.commands;
 
       const applied = yield* Effect.result(
         Effect.try({
           try: () => {
             const next = applyBatch(loaded.value, commands);
-            return schemaJson ? sanitizeValueForSchema(schemaJson, next) : next;
+            if (!schemaJson) return next;
+            return sanitizeValueForSchema(schemaJson, next);
           },
-          catch: (error) => (error instanceof Error ? error : new Error(String(error))),
+          catch: causeMessage,
         }),
       );
 
@@ -234,7 +235,7 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
           accepted: false,
           version: loaded.version,
           transactionId,
-          reason: applied.failure.message,
+          reason: applied.failure,
         };
       }
 
@@ -254,7 +255,10 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
   const remove: DocumentEngineApi["remove"] = () =>
     Effect.gen(function* () {
       const meta = yield* store.readMeta();
-      if (meta) yield* store.setMeta({ deletedAt: Date.now() });
+      if (meta) {
+        const deletedAt = yield* Clock.currentTimeMillis;
+        yield* store.setMeta({ deletedAt });
+      }
     });
 
   return { create, load, submit, remove };

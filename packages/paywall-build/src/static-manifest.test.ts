@@ -1,3 +1,4 @@
+import { Effect, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { parseComponentManifest } from "@voidhash/paywalls/schema";
 import {
@@ -38,17 +39,45 @@ export default defineComponent({
 });
 `;
 
-/** Extract a manifest, asserting success and returning the raw manifest value. */
-function manifestOf(source: string): Record<string, unknown> {
-  const outcome = staticExtractManifest(source);
+/** Abort the current test — the raised defect becomes the test failure. */
+function fail(message: string): never {
+  return Effect.runSync(Effect.die(new Error(message)));
+}
+
+/** True for a non-null object value (raw manifests are read as records). */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** The raw manifest of a successful outcome, or a test failure. */
+function manifestValueOf(outcome: ExtractOutcome): Record<string, unknown> {
   if ("diagnostics" in outcome) {
-    throw new Error(
+    return fail(
       `expected a manifest, got diagnostics: ${outcome.diagnostics.map((d) => d.message).join("; ")}`,
     );
   }
-  const parsed = parseComponentManifest(outcome.manifest);
+  if (!isRecord(outcome.manifest)) return fail("expected a manifest object");
+  return outcome.manifest;
+}
+
+/** The `props` map of a raw manifest, read as records for assertions. */
+function propsOf(manifest: Record<string, unknown>): Record<string, Record<string, unknown>> {
+  const props = manifest.props;
+  if (!isRecord(props)) return fail("expected a manifest `props` object");
+  const byName: Record<string, Record<string, unknown>> = {};
+  for (const [name, schema] of Object.entries(props)) {
+    if (!isRecord(schema)) return fail(`expected prop \`${name}\` to be an object`);
+    byName[name] = schema;
+  }
+  return byName;
+}
+
+/** Extract a manifest, asserting success and returning the raw manifest value. */
+function manifestOf(source: string): Record<string, unknown> {
+  const manifest = manifestValueOf(staticExtractManifest(source));
+  const parsed = parseComponentManifest(manifest);
   expect(parsed.ok).toBe(true);
-  return outcome.manifest as Record<string, unknown>;
+  return manifest;
 }
 
 /**
@@ -57,19 +86,13 @@ function manifestOf(source: string): Record<string, unknown> {
  * with the runtime extractor is covered by the differential suite below.
  */
 function extractManifestOf(source: string): Record<string, unknown> {
-  const outcome = staticExtractManifest(source);
-  if ("diagnostics" in outcome) {
-    throw new Error(
-      `expected a manifest, got diagnostics: ${outcome.diagnostics.map((d) => d.message).join("; ")}`,
-    );
-  }
-  return outcome.manifest as Record<string, unknown>;
+  return manifestValueOf(staticExtractManifest(source));
 }
 
 /** Assert the outcome degraded with a diagnostic matching `pattern`. */
 function expectDiagnostic(outcome: ExtractOutcome, pattern: RegExp): void {
   if (!("diagnostics" in outcome)) {
-    throw new Error("expected diagnostics, got a manifest");
+    return fail("expected diagnostics, got a manifest");
   }
   expect(outcome.diagnostics.length).toBeGreaterThan(0);
   expect(outcome.diagnostics.some((d) => pattern.test(d.message))).toBe(true);
@@ -99,7 +122,7 @@ describe("staticExtractManifest — prop kinds", () => {
     items: p.array(p.string()),
   }),`),
     );
-    const props = manifest.props as Record<string, Record<string, unknown>>;
+    const props = propsOf(manifest);
 
     expect(props.name).toEqual({ kind: "string", optional: false });
     expect(props.n).toEqual({ kind: "number", optional: false });
@@ -119,7 +142,7 @@ describe("staticExtractManifest — prop kinds", () => {
     colors: p.array(p.string().editor("color")),
   }),`),
     );
-    const props = manifest.props as Record<string, Record<string, unknown>>;
+    const props = propsOf(manifest);
     expect(props.tags).toEqual({
       kind: "array",
       item: { kind: "select", options: ["x", "y"] },
@@ -149,7 +172,7 @@ describe("staticExtractManifest — chained modifiers", () => {
     count: p.number().default(3),
   }),`),
     );
-    const props = manifest.props as Record<string, Record<string, unknown>>;
+    const props = propsOf(manifest);
 
     // A default makes the prop optional even without .optional().
     expect(props.title).toEqual({
@@ -178,7 +201,7 @@ describe("staticExtractManifest — chained modifiers", () => {
     logo: p.image(),
   }),`),
     );
-    const props = manifest.props as Record<string, Record<string, unknown>>;
+    const props = propsOf(manifest);
 
     expect(props.headline).toEqual({ kind: "string", localizable: true, optional: false });
     expect(props.hero).toEqual({ kind: "image", localizable: true, optional: false });
@@ -196,7 +219,7 @@ describe("staticExtractManifest — chained modifiers", () => {
     b: p.string().localizable().label("B").default("y"),
   }),`),
     );
-    const props = manifest.props as Record<string, Record<string, unknown>>;
+    const props = propsOf(manifest);
     expect(props.a).toEqual({
       kind: "string",
       label: "A",
@@ -219,7 +242,7 @@ describe("staticExtractManifest — chained modifiers", () => {
     items: p.array(p.string()).default(["a", "b"]),
   }),`),
     );
-    const props = manifest.props as Record<string, Record<string, unknown>>;
+    const props = propsOf(manifest);
     expect(props.items).toEqual({
       kind: "array",
       item: { kind: "string" },
@@ -466,17 +489,23 @@ describe("staticExtractManifest — differential vs runtime extractor", () => {
   // it for any statically-analyzable definition.
   const caps = makeNodeCapabilities();
 
-  const runtimeManifest = async (source: string): Promise<unknown> => {
-    const outcome = await caps.compile!(source);
-    if ("diagnostics" in outcome) {
-      throw new Error(`compile failed: ${outcome.diagnostics.map((d) => d.message).join("; ")}`);
-    }
-    const extracted = await caps.extractManifest!(outcome.code);
-    if ("diagnostics" in extracted) {
-      throw new Error(`extract failed: ${extracted.diagnostics.map((d) => d.message).join("; ")}`);
-    }
-    return extracted.manifest;
-  };
+  const runtimeManifest = (source: string): Effect.Effect<unknown> =>
+    Effect.gen(function* () {
+      const outcome = yield* Effect.promise(() => caps.compile!(source));
+      if ("diagnostics" in outcome) {
+        return fail(`compile failed: ${outcome.diagnostics.map((d) => d.message).join("; ")}`);
+      }
+      const extracted = yield* Effect.promise(() => caps.extractManifest!(outcome.code));
+      if ("diagnostics" in extracted) {
+        return fail(`extract failed: ${extracted.diagnostics.map((d) => d.message).join("; ")}`);
+      }
+      return extracted.manifest;
+    });
+
+  // Round-trip through JSON to normalize key order for a structural compare.
+  const toJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+  const fromJson = Schema.decodeSync(Schema.UnknownFromJsonString);
+  const jsonNormalized = (value: unknown): unknown => fromJson(toJson(value));
 
   const cases: Array<[string, string]> = [
     ["PRICING_OPTION_TSX", PRICING_OPTION_TSX],
@@ -488,24 +517,28 @@ describe("staticExtractManifest — differential vs runtime extractor", () => {
   ];
 
   for (const [name, source] of cases) {
-    it(`static manifest deep-equals the runtime manifest for ${name}`, async () => {
-      const runtime = await runtimeManifest(source);
-      const outcome = staticExtractManifest(source);
-      expect("manifest" in outcome).toBe(true);
-      const staticManifest = (outcome as { manifest: unknown }).manifest;
-      // Round-trip through JSON to normalize key order for a structural compare.
-      expect(JSON.parse(JSON.stringify(staticManifest))).toEqual(
-        JSON.parse(JSON.stringify(runtime)),
-      );
-    });
+    it(`static manifest deep-equals the runtime manifest for ${name}`, () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const runtime = yield* runtimeManifest(source);
+          const outcome = staticExtractManifest(source);
+          expect("manifest" in outcome).toBe(true);
+          const staticManifest = manifestValueOf(outcome);
+          expect(jsonNormalized(staticManifest)).toEqual(jsonNormalized(runtime));
+        }),
+      ));
   }
 
-  it("both extractors report slot: true for the aliased-Slot component", async () => {
-    // The compiled alias is rewritten back to `.Slot`, so the runtime detects it;
-    // static must agree via import-binding resolution.
-    const runtime = (await runtimeManifest(ALIASED_SLOT_TSX)) as { slot: boolean };
-    const outcome = staticExtractManifest(ALIASED_SLOT_TSX) as { manifest: { slot: boolean } };
-    expect(runtime.slot).toBe(true);
-    expect(outcome.manifest.slot).toBe(true);
-  });
+  it("both extractors report slot: true for the aliased-Slot component", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        // The compiled alias is rewritten back to `.Slot`, so the runtime detects it;
+        // static must agree via import-binding resolution.
+        const runtime = yield* runtimeManifest(ALIASED_SLOT_TSX);
+        if (!isRecord(runtime)) return fail("expected a runtime manifest object");
+        const staticManifest = manifestValueOf(staticExtractManifest(ALIASED_SLOT_TSX));
+        expect(runtime.slot).toBe(true);
+        expect(staticManifest.slot).toBe(true);
+      }),
+    ));
 });

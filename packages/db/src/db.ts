@@ -26,8 +26,10 @@ const isLocalDatabaseHost = (host: string): boolean => {
   );
 };
 
-const getDefaultSsl = (host: string): boolean | ConnectionOptions | undefined =>
-  isLocalDatabaseHost(host) ? undefined : { rejectUnauthorized: true };
+const getDefaultSsl = (host: string): boolean | ConnectionOptions | undefined => {
+  if (isLocalDatabaseHost(host)) return undefined;
+  return { rejectUnauthorized: true };
+};
 
 /**
  * Plain connection config consumed by {@link Db.layer}. Built from the bound
@@ -60,6 +62,11 @@ export type DbTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0
 /** The tagged error every `Db` query fails with (`EffectDrizzleQueryError`). */
 export type DbError = PgDrizzle.EffectPgQueryEffectHKT["error"];
 
+const resolveSsl = (config: DbConfig): boolean | ConnectionOptions | undefined => {
+  if ("ssl" in config) return config.ssl;
+  return getDefaultSsl(config.host);
+};
+
 const pgClientLayer = (config: DbConfig) =>
   PgClient.layer({
     host: config.host,
@@ -67,7 +74,7 @@ const pgClientLayer = (config: DbConfig) =>
     database: config.databaseName,
     username: config.username,
     password: Redacted.make(config.password),
-    ssl: "ssl" in config ? config.ssl : getDefaultSsl(config.host),
+    ssl: resolveSsl(config),
   });
 
 /**

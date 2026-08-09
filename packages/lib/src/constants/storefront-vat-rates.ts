@@ -57,7 +57,7 @@ export const STOREFRONT_VAT_RATES_BPS: Readonly<Record<string, number>> = {
   LIE: 810, // Liechtenstein VAT (matches Switzerland)
   NOR: 2500, // Norway VAT
   NZL: 1500, // New Zealand GST
-} as const;
+};
 
 /**
  * Looks up the estimated tax rate (in basis points) for an Apple storefront

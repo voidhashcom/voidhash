@@ -14,13 +14,25 @@ import {
   PaywallEditSessionService,
   PaywallWorkspaceService,
   SnapshotImageRenderer,
+  WorkspaceWriteConflictError,
 } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
+import { constant } from "@voidhash/lib/lang";
 import { Context, Effect } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import { findMcpTool } from "./tool-manifest.ts";
-import type { WorkspaceToolResult } from "../ai/workspace-tools.ts";
+
+/**
+ * Builds a service test double from the subset of methods a test exercises.
+ * The absent methods are deliberate: reaching one is a test bug. The single
+ * unchecked widening (`Partial<T>` → `T`) lives in this overload rather than at
+ * every fake.
+ */
+function serviceStub<T>(methods: Partial<T>): T;
+function serviceStub<T>(methods: Partial<T>) {
+  return methods;
+}
 
 /** A decoded document root: root → screen. */
 const documentRoot = {
@@ -35,14 +47,21 @@ const documentRoot = {
 };
 
 const fakeWorkspace = (over: Partial<PaywallWorkspaceService["Service"]> = {}) =>
-  ({
+  serviceStub<PaywallWorkspaceService["Service"]>({
     listPaywalls: () =>
       Effect.succeed([
         { slug: "trial", paywallId: "pw_1" },
         { slug: "onboarding", paywallId: "pw_2" },
       ]),
     readDocument: (_p: string, slug: string) =>
-      Effect.succeed({ slug, name: "Trial", paywallId: "pw_1", root: documentRoot }),
+      Effect.succeed({
+        slug,
+        name: "Trial",
+        paywallId: "pw_1",
+        tree: {},
+        root: documentRoot,
+        version: 8,
+      }),
     readConnectedDocumentTree: () => Effect.succeed({ tree: {}, root: documentRoot, version: 8 }),
     editDocument: () => Effect.succeed({ version: 9, commandCount: 2, mintedIds: {} }),
     editConnectedDocument: () => Effect.succeed({ version: 9, commandCount: 2, mintedIds: {} }),
@@ -56,30 +75,30 @@ const fakeWorkspace = (over: Partial<PaywallWorkspaceService["Service"]> = {}) =
     deleteConnectedComponentFile: () =>
       Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
     ...over,
-  }) as unknown as PaywallWorkspaceService["Service"];
+  });
 
 const fakeDeploy = (over: Partial<PaywallDeployService["Service"]> = {}) =>
-  ({
+  serviceStub<PaywallDeployService["Service"]>({
     listComponents: () => Effect.succeed([]),
     ...over,
-  }) as unknown as PaywallDeployService["Service"];
+  });
 
 const fakeManifestCache = (over: Partial<ComponentManifestCacheService["Service"]> = {}) =>
-  ({
+  serviceStub<ComponentManifestCacheService["Service"]>({
     getMany: () => Effect.succeed(new Map()),
-    record: () => Effect.void,
+    record: () => Effect.succeed(undefined),
     ...over,
-  }) as unknown as ComponentManifestCacheService["Service"];
+  });
 
 const fakeCompiler = (over: Partial<ComponentCompiler["Service"]> = {}) =>
-  ({
-    compileCheck: () => Effect.succeed({ status: "unavailable" as const }),
-    compileAndExtract: () => Effect.succeed({ status: "unavailable" as const }),
+  serviceStub<ComponentCompiler["Service"]>({
+    compileCheck: () => Effect.succeed(constant({ status: "unavailable" })),
+    compileAndExtract: () => Effect.succeed(constant({ status: "unavailable" })),
     ...over,
-  }) as unknown as ComponentCompiler["Service"];
+  });
 
 const fakeEditSessions = (over: Partial<PaywallEditSessionService["Service"]> = {}) =>
-  ({
+  serviceStub<PaywallEditSessionService["Service"]>({
     recordMutation: () => Effect.void,
     connectActive: () =>
       Effect.succeed({
@@ -90,7 +109,7 @@ const fakeEditSessions = (over: Partial<PaywallEditSessionService["Service"]> = 
         baselineVersion: 1,
       }),
     ...over,
-  }) as unknown as PaywallEditSessionService["Service"];
+  });
 
 interface Fakes {
   readonly workspace?: PaywallWorkspaceService["Service"];
@@ -107,159 +126,192 @@ const contextWith = (fakes: Fakes) =>
     Context.add(ComponentManifestCacheService, fakes.manifestCache ?? fakeManifestCache()),
     Context.add(ComponentCompiler, fakes.compiler ?? fakeCompiler()),
     Context.add(PaywallEditSessionService, fakes.editSessions ?? fakeEditSessions()),
-    Context.add(PaywallArtifactStore, {
-      getObject: () => Effect.succeed(null),
-    } as unknown as PaywallArtifactStore["Service"]),
-    Context.add(SnapshotImageRenderer, {
-      render: () => Effect.succeed(new Uint8Array([1])),
-    } as SnapshotImageRenderer["Service"]),
-    Context.add(AuthSession, {} as never),
+    Context.add(
+      PaywallArtifactStore,
+      serviceStub<PaywallArtifactStore["Service"]>({
+        getObject: () => Effect.succeed(null),
+      }),
+    ),
+    Context.add(
+      SnapshotImageRenderer,
+      serviceStub<SnapshotImageRenderer["Service"]>({
+        render: () => Effect.succeed(new Uint8Array([1])),
+      }),
+    ),
+    Context.add(AuthSession, serviceStub<AuthSession["Service"]>({})),
   );
 
-const dispatchWith = (fakes: Fakes, name: string, args: unknown): Promise<WorkspaceToolResult> => {
-  const tool = findMcpTool(name);
-  if (tool === undefined) {
-    throw new Error(`tool ${name} not found`);
-  }
-  return Effect.runPromise(
-    tool.dispatch({ projectId: "proj_1" }, args).pipe(Effect.provide(contextWith(fakes))),
-  );
-};
+const dispatchWith = (fakes: Fakes, name: string, args: unknown) =>
+  Effect.gen(function* () {
+    const tool = findMcpTool(name);
+    if (tool === undefined) {
+      return yield* Effect.die(new Error(`tool ${name} not found`));
+    }
+    return yield* tool
+      .dispatch({ projectId: "proj_1" }, args)
+      .pipe(Effect.provide(contextWith(fakes)));
+  });
 
-const dispatch = (name: string, args: unknown): Promise<WorkspaceToolResult> =>
-  dispatchWith({}, name, args);
+const dispatch = (name: string, args: unknown) => dispatchWith({}, name, args);
 
 describe("MCP tool dispatch", () => {
-  it("list_paywalls lists the project directories (no input)", async () => {
-    const result = await dispatch("list_paywalls", {});
-    expect(result.isError).toBe(false);
-    expect(result.output).toContain("pw_1: slug trial (/paywalls/trial)");
-    expect(result.output).toContain("pw_2: slug onboarding (/paywalls/onboarding)");
-  });
+  it("list_paywalls lists the project directories (no input)", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* dispatch("list_paywalls", {});
+        expect(result.isError).toBe(false);
+        expect(result.output).toContain("pw_1: slug trial (/paywalls/trial)");
+        expect(result.output).toContain("pw_2: slug onboarding (/paywalls/onboarding)");
+      }),
+    ));
 
-  it("get_paywall returns the cleaned document JSON with node ids", async () => {
-    const result = await dispatch("get_paywall", { editSessionId: "pw_edit_1" });
-    expect(result.isError).toBe(false);
-    expect(result.output).toContain('"id": "root1"');
-    expect(result.output).toContain('"type": "screen"');
-  });
+  it("get_paywall returns the cleaned document JSON with node ids", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* dispatch("get_paywall", { editSessionId: "pw_edit_1" });
+        expect(result.isError).toBe(false);
+        expect(result.output).toContain('"id": "root1"');
+        expect(result.output).toContain('"type": "screen"');
+      }),
+    ));
 
-  it("edit_paywall validates then applies, reporting the new version", async () => {
-    const result = await dispatch("edit_paywall", {
-      editSessionId: "pw_edit_1",
-      edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
-    });
-    expect(result.isError).toBe(false);
-    expect(result.output).toContain("version 9");
-  });
+  it("edit_paywall validates then applies, reporting the new version", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* dispatch("edit_paywall", {
+          editSessionId: "pw_edit_1",
+          edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
+        });
+        expect(result.isError).toBe(false);
+        expect(result.output).toContain("version 9");
+      }),
+    ));
 
-  it("edit_paywall returns structured validation errors verbatim (no apply)", async () => {
-    const editConnectedDocument = () => {
-      throw new Error("editConnectedDocument must not be called on a validation failure");
-    };
-    const result = await dispatchWith(
-      { workspace: fakeWorkspace({ editConnectedDocument: editConnectedDocument as never }) },
-      "edit_paywall",
-      // Unknown parent id → validation rejects before any submit.
-      {
-        editSessionId: "pw_edit_1",
-        edits: [{ op: "insert", parentId: "ghost", node: { type: "view" } }],
-      },
-    );
-    expect(result.isError).toBe(true);
-    expect(result.output).toContain("edit_paywall rejected");
-    expect(result.output).toContain("ghost");
-  });
+  it("edit_paywall returns structured validation errors verbatim (no apply)", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const editConnectedDocument = () =>
+          Effect.die(new Error("editConnectedDocument must not be called on a validation failure"));
+        const result = yield* dispatchWith(
+          { workspace: fakeWorkspace({ editConnectedDocument }) },
+          "edit_paywall",
+          // Unknown parent id → validation rejects before any submit.
+          {
+            editSessionId: "pw_edit_1",
+            edits: [{ op: "insert", parentId: "ghost", node: { type: "view" } }],
+          },
+        );
+        expect(result.isError).toBe(true);
+        expect(result.output).toContain("edit_paywall rejected");
+        expect(result.output).toContain("ghost");
+      }),
+    ));
 
-  it("write_component rejects broken source with diagnostics (commits nothing)", async () => {
-    const writeConnectedComponentSource = () => {
-      throw new Error("writeConnectedComponentSource must not be called on a compile error");
-    };
-    const result = await dispatchWith(
-      {
-        workspace: fakeWorkspace({
-          writeConnectedComponentSource: writeConnectedComponentSource as never,
-        }),
-        compiler: fakeCompiler({
-          compileAndExtract: () =>
-            Effect.succeed({
-              status: "error" as const,
-              phase: "compile" as const,
-              diagnostics: [{ message: "Unexpected token", line: 3 }],
+  it("write_component rejects broken source with diagnostics (commits nothing)", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const writeConnectedComponentSource = () =>
+          Effect.die(
+            new Error("writeConnectedComponentSource must not be called on a compile error"),
+          );
+        const result = yield* dispatchWith(
+          {
+            workspace: fakeWorkspace({ writeConnectedComponentSource }),
+            compiler: fakeCompiler({
+              compileAndExtract: () =>
+                Effect.succeed(
+                  constant({
+                    status: "error",
+                    phase: "compile",
+                    diagnostics: [{ message: "Unexpected token", line: 3 }],
+                  }),
+                ),
             }),
-        }),
-      },
-      "write_component",
-      {
-        editSessionId: "pw_edit_1",
-        path: "components/hero.tsx",
-        source: "export default (=> {",
-      },
-    );
-    expect(result.isError).toBe(true);
-    expect(result.output).toContain("write_component rejected");
-    expect(result.output).toContain("Unexpected token");
-  });
+          },
+          "write_component",
+          {
+            editSessionId: "pw_edit_1",
+            path: "components/hero.tsx",
+            source: "export default (=> {",
+          },
+        );
+        expect(result.isError).toBe(true);
+        expect(result.output).toContain("write_component rejected");
+        expect(result.output).toContain("Unexpected token");
+      }),
+    ));
 
-  it("write_component commits a clean component and records its manifest", async () => {
-    const recorded: unknown[] = [];
-    const manifest = {
-      manifestVersion: 2 as const,
-      props: {},
-      actions: {},
-      slot: false,
-      previewStates: ["default"],
-      hostData: [],
-    };
-    const result = await dispatchWith(
-      {
-        manifestCache: fakeManifestCache({
-          record: ((input: unknown) => Effect.sync(() => void recorded.push(input))) as never,
-        }),
-        compiler: fakeCompiler({
-          compileAndExtract: () =>
-            Effect.succeed({ status: "ready" as const, manifest, previewTrees: {} }),
-        }),
-      },
-      "write_component",
-      {
-        editSessionId: "pw_edit_1",
-        path: "components/hero.tsx",
-        source: "export default () => null;",
-      },
-    );
-    expect(result.isError).toBe(false);
-    expect(result.output).toContain("version 9");
-    expect(result.output).toContain("manifest recorded");
-    expect(recorded).toHaveLength(1);
-  });
+  it("write_component commits a clean component and records its manifest", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const recorded: unknown[] = [];
+        const manifest = constant({
+          manifestVersion: 2,
+          props: {},
+          actions: {},
+          slot: false,
+          previewStates: ["default"],
+          hostData: [],
+        });
+        const result = yield* dispatchWith(
+          {
+            manifestCache: fakeManifestCache({
+              record: (input) =>
+                Effect.sync(() => {
+                  recorded.push(input);
+                  return undefined;
+                }),
+            }),
+            compiler: fakeCompiler({
+              compileAndExtract: () =>
+                Effect.succeed(constant({ status: "ready", manifest, previewTrees: {} })),
+            }),
+          },
+          "write_component",
+          {
+            editSessionId: "pw_edit_1",
+            path: "components/hero.tsx",
+            source: "export default () => null;",
+          },
+        );
+        expect(result.isError).toBe(false);
+        expect(result.output).toContain("version 9");
+        expect(result.output).toContain("manifest recorded");
+        expect(recorded).toHaveLength(1);
+      }),
+    ));
 
-  it("folds invalid arguments into an isError result (never throws)", async () => {
-    const result = await dispatch("get_paywall", {});
-    expect(result.isError).toBe(true);
-    expect(result.output).toContain("get_paywall: invalid arguments");
-  });
+  it("folds invalid arguments into an isError result (never throws)", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* dispatch("get_paywall", {});
+        expect(result.isError).toBe(true);
+        expect(result.output).toContain("get_paywall: invalid arguments");
+      }),
+    ));
 
-  it("folds an edit rejection into an isError result with a CLEAN message (no Cause/_tag leak)", async () => {
-    const result = await dispatchWith(
-      {
-        workspace: fakeWorkspace({
-          editConnectedDocument: () =>
-            Effect.fail({
-              _tag: "WorkspaceWriteConflictError",
-              message: "lost the concurrency race",
-            }) as never,
-        }),
-      },
-      "edit_paywall",
-      {
-        editSessionId: "pw_edit_1",
-        edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
-      },
-    );
-    expect(result.isError).toBe(true);
-    expect(result.output).toContain("edit_paywall rejected: lost the concurrency race");
-    expect(result.output).not.toContain("Cause(");
-    expect(result.output).not.toContain("_tag");
-  });
+  it("folds an edit rejection into an isError result with a CLEAN message (no Cause/_tag leak)", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* dispatchWith(
+          {
+            workspace: fakeWorkspace({
+              editConnectedDocument: () =>
+                Effect.fail(
+                  new WorkspaceWriteConflictError({ message: "lost the concurrency race" }),
+                ),
+            }),
+          },
+          "edit_paywall",
+          {
+            editSessionId: "pw_edit_1",
+            edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
+          },
+        );
+        expect(result.isError).toBe(true);
+        expect(result.output).toContain("edit_paywall rejected: lost the concurrency race");
+        expect(result.output).not.toContain("Cause(");
+        expect(result.output).not.toContain("_tag");
+      }),
+    ));
 });

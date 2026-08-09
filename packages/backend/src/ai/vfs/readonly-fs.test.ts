@@ -1,3 +1,5 @@
+import { pick } from "@voidhash/lib/lang";
+import { Effect } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import { LazyReadOnlyFs, type ReadOnlyDirEntry, type ReadOnlyDirProvider } from "./readonly-fs.ts";
@@ -14,98 +16,119 @@ const fixtureProvider = (): ReadOnlyDirProvider => {
     ["top.txt", "root file"],
   ]);
   const dirs = new Set(["", "a"]);
+  const listing = (relPath: string): ReadonlyArray<ReadOnlyDirEntry> | null => {
+    if (!dirs.has(relPath)) {
+      return null;
+    }
+    const prefix = pick(relPath === "", "", `${relPath}/`);
+    const entries: ReadOnlyDirEntry[] = [];
+    for (const dir of dirs) {
+      if (dir !== "" && dir.startsWith(prefix) && !dir.slice(prefix.length).includes("/")) {
+        entries.push({ name: dir.slice(prefix.length), kind: "dir" });
+      }
+    }
+    for (const file of files.keys()) {
+      if (file.startsWith(prefix) && !file.slice(prefix.length).includes("/")) {
+        entries.push({ name: file.slice(prefix.length), kind: "file" });
+      }
+    }
+    return entries;
+  };
+  const statOf = (relPath: string): { kind: "file" | "dir" } | null => {
+    if (dirs.has(relPath)) {
+      return { kind: "dir" };
+    }
+    if (files.get(relPath) === undefined) {
+      return null;
+    }
+    return { kind: "file" };
+  };
   return {
-    async readdir(relPath): Promise<ReadonlyArray<ReadOnlyDirEntry> | null> {
-      if (!dirs.has(relPath)) {
-        return null;
-      }
-      const prefix = relPath === "" ? "" : `${relPath}/`;
-      const entries: ReadOnlyDirEntry[] = [];
-      for (const dir of dirs) {
-        if (dir !== "" && dir.startsWith(prefix) && !dir.slice(prefix.length).includes("/")) {
-          entries.push({ name: dir.slice(prefix.length), kind: "dir" });
-        }
-      }
-      for (const file of files.keys()) {
-        if (file.startsWith(prefix) && !file.slice(prefix.length).includes("/")) {
-          entries.push({ name: file.slice(prefix.length), kind: "file" });
-        }
-      }
-      return entries;
+    readdir(relPath): Promise<ReadonlyArray<ReadOnlyDirEntry> | null> {
+      return Effect.runPromise(Effect.sync(() => listing(relPath)));
     },
-    async stat(relPath) {
-      if (dirs.has(relPath)) {
-        return { kind: "dir" };
-      }
-      const content = files.get(relPath);
-      return content === undefined ? null : { kind: "file" };
+    stat(relPath) {
+      return Effect.runPromise(Effect.sync(() => statOf(relPath)));
     },
-    async readFile(relPath) {
-      return files.get(relPath) ?? null;
+    readFile(relPath) {
+      return Effect.runPromise(Effect.sync(() => files.get(relPath) ?? null));
     },
   };
 };
 
 describe("LazyReadOnlyFs", () => {
-  it("maps readdir/stat/readFile onto the provider", async () => {
-    const fs = new LazyReadOnlyFs(fixtureProvider());
-    expect((await fs.readdir("/")).sort()).toEqual(["a", "top.txt"]);
-    expect(await fs.readdir("/a")).toEqual(["x.txt"]);
-    expect(await fs.readFile("/a/x.txt")).toBe("hello");
-    expect(await fs.exists("/a/x.txt")).toBe(true);
-    expect(await fs.exists("/nope")).toBe(false);
-    const stat = await fs.stat("/a/x.txt");
-    expect(stat.isFile).toBe(true);
-    expect(stat.size).toBe(5);
-    expect((await fs.stat("/a")).isDirectory).toBe(true);
-    expect(await fs.realpath("/a/../a/x.txt")).toBe("/a/x.txt");
-  });
+  it("maps readdir/stat/readFile onto the provider", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const fs = new LazyReadOnlyFs(fixtureProvider());
+        expect((yield* Effect.promise(() => fs.readdir("/"))).sort()).toEqual(["a", "top.txt"]);
+        expect(yield* Effect.promise(() => fs.readdir("/a"))).toEqual(["x.txt"]);
+        expect(yield* Effect.promise(() => fs.readFile("/a/x.txt"))).toBe("hello");
+        expect(yield* Effect.promise(() => fs.exists("/a/x.txt"))).toBe(true);
+        expect(yield* Effect.promise(() => fs.exists("/nope"))).toBe(false);
+        const stat = yield* Effect.promise(() => fs.stat("/a/x.txt"));
+        expect(stat.isFile).toBe(true);
+        expect(stat.size).toBe(5);
+        expect((yield* Effect.promise(() => fs.stat("/a"))).isDirectory).toBe(true);
+        expect(yield* Effect.promise(() => fs.realpath("/a/../a/x.txt"))).toBe("/a/x.txt");
+      }),
+    ));
 
-  it("reports typed dirents without extra stat calls", async () => {
-    const fs = new LazyReadOnlyFs(fixtureProvider());
-    const entries = await fs.readdirWithFileTypes("/");
-    expect(entries.find((entry) => entry.name === "a")?.isDirectory).toBe(true);
-    expect(entries.find((entry) => entry.name === "top.txt")?.isFile).toBe(true);
-  });
+  it("reports typed dirents without extra stat calls", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const fs = new LazyReadOnlyFs(fixtureProvider());
+        const entries = yield* Effect.promise(() => fs.readdirWithFileTypes("/"));
+        expect(entries.find((entry) => entry.name === "a")?.isDirectory).toBe(true);
+        expect(entries.find((entry) => entry.name === "top.txt")?.isFile).toBe(true);
+      }),
+    ));
 
-  it("throws Node-shaped errors for missing and mistyped paths", async () => {
-    const fs = new LazyReadOnlyFs(fixtureProvider());
-    await expect(fs.readFile("/nope.txt")).rejects.toThrow(
-      "ENOENT: no such file or directory, open '/nope.txt'",
-    );
-    await expect(fs.readFile("/a")).rejects.toThrow(
-      "EISDIR: illegal operation on a directory, read '/a'",
-    );
-    await expect(fs.stat("/nope")).rejects.toThrow(
-      "ENOENT: no such file or directory, stat '/nope'",
-    );
-    await expect(fs.readdir("/nope")).rejects.toThrow(
-      "ENOENT: no such file or directory, scandir '/nope'",
-    );
-    await expect(fs.readdir("/top.txt")).rejects.toThrow(
-      "ENOTDIR: not a directory, scandir '/top.txt'",
-    );
-    await expect(fs.readlink("/a/x.txt")).rejects.toThrow(
-      "EINVAL: invalid argument, readlink '/a/x.txt'",
-    );
-  });
+  it("throws Node-shaped errors for missing and mistyped paths", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const fs = new LazyReadOnlyFs(fixtureProvider());
+        const rejects = (promise: Promise<unknown>, message: string) =>
+          Effect.promise(() => expect(promise).rejects.toThrow(message));
+        yield* rejects(
+          fs.readFile("/nope.txt"),
+          "ENOENT: no such file or directory, open '/nope.txt'",
+        );
+        yield* rejects(
+          fs.readFile("/a"),
+          "EISDIR: illegal operation on a directory, read '/a'",
+        );
+        yield* rejects(fs.stat("/nope"), "ENOENT: no such file or directory, stat '/nope'");
+        yield* rejects(fs.readdir("/nope"), "ENOENT: no such file or directory, scandir '/nope'");
+        yield* rejects(fs.readdir("/top.txt"), "ENOTDIR: not a directory, scandir '/top.txt'");
+        yield* rejects(
+          fs.readlink("/a/x.txt"),
+          "EINVAL: invalid argument, readlink '/a/x.txt'",
+        );
+      }),
+    ));
 
-  it("throws EROFS for every mutation", async () => {
-    const fs = new LazyReadOnlyFs(fixtureProvider());
-    const mutations: ReadonlyArray<[string, Promise<unknown>]> = [
-      ["writeFile", fs.writeFile("/a/x.txt")],
-      ["appendFile", fs.appendFile("/a/x.txt")],
-      ["mkdir", fs.mkdir("/b")],
-      ["rm", fs.rm("/a/x.txt")],
-      ["cp", fs.cp("/a/x.txt", "/a/y.txt")],
-      ["mv", fs.mv("/a/x.txt")],
-      ["chmod", fs.chmod("/a/x.txt")],
-      ["symlink", fs.symlink("/a/x.txt", "/a/l")],
-      ["link", fs.link("/a/x.txt", "/a/l")],
-      ["utimes", fs.utimes("/a/x.txt")],
-    ];
-    for (const [name, promise] of mutations) {
-      await expect(promise, name).rejects.toThrow(/^EROFS: read-only file system/);
-    }
-  });
+  it("throws EROFS for every mutation", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const fs = new LazyReadOnlyFs(fixtureProvider());
+        const mutations: ReadonlyArray<[string, Promise<unknown>]> = [
+          ["writeFile", fs.writeFile("/a/x.txt")],
+          ["appendFile", fs.appendFile("/a/x.txt")],
+          ["mkdir", fs.mkdir("/b")],
+          ["rm", fs.rm("/a/x.txt")],
+          ["cp", fs.cp("/a/x.txt", "/a/y.txt")],
+          ["mv", fs.mv("/a/x.txt")],
+          ["chmod", fs.chmod("/a/x.txt")],
+          ["symlink", fs.symlink("/a/x.txt", "/a/l")],
+          ["link", fs.link("/a/x.txt", "/a/l")],
+          ["utimes", fs.utimes("/a/x.txt")],
+        ];
+        for (const [name, promise] of mutations) {
+          yield* Effect.promise(() =>
+            expect(promise, name).rejects.toThrow(/^EROFS: read-only file system/),
+          );
+        }
+      }),
+    ));
 });

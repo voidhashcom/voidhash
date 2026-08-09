@@ -12,7 +12,8 @@ import {
 } from "@voidhash/db";
 import { generateId } from "../../../utils/index.ts";
 import { PurchaseType } from "@voidhash/lib/constants";
-import { Effect, Layer, Option, Schema, Context } from "effect";
+import { constant, pick } from "@voidhash/lib/lang";
+import { DateTime, Effect, Layer, Option, Schema, Context } from "effect";
 
 import { FxRateService } from "../../fxRates/FxRateService.ts";
 import { PersonIdentityService } from "../../personIdentity/PersonIdentityService.ts";
@@ -121,10 +122,33 @@ export type RecordTransactionInput = RecordTransactionInputBase &
     | { readonly source: "webhook" | "reconciliation"; readonly distinctId?: never }
   );
 
+/** Epoch millis (Apple's date encoding) → a `Date`. */
+const dateFromMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
+/**
+ * The StoreKit transaction id the SDK client observed, present only on the
+ * `"sdk"` arm of {@link RecordTransactionInput}.
+ */
+const sdkTransactionIdOf = (input: RecordTransactionInput): string | undefined => {
+  if (input.source === "sdk") {
+    return input.sdkTransactionId;
+  }
+  return undefined;
+};
+
+/** The caller-supplied distinct id, present only on the `"sdk"` arm. */
+const sdkDistinctIdOf = (input: RecordTransactionInput): string | undefined => {
+  if (input.source === "sdk") {
+    return input.distinctId;
+  }
+  return undefined;
+};
+
 const optionSpanAttribute = <A>(
   value: Option.Option<A>,
   map: (value: A) => unknown = (some) => some,
-): unknown | undefined => (Option.isSome(value) ? map(value.value) : undefined);
+): unknown =>
+  Option.match(value, { onNone: () => undefined, onSome: (some) => map(some) });
 
 const annotateRecordTransaction = (input: RecordTransactionInput) =>
   Effect.gen(function* () {
@@ -158,15 +182,20 @@ const annotateRecordTransaction = (input: RecordTransactionInput) =>
     }
   });
 
-const purchaseProcessingResultKind = (result: PurchaseProcessingResult) =>
-  result.idempotent
-    ? "idempotent"
-    : result.analyticsEventIds.length === 0 &&
-        Option.isNone(result.purchaseId) &&
-        Option.isNone(result.subscriptionId) &&
-        Option.isNone(result.transactionId)
-      ? "ignored"
-      : "applied";
+const purchaseProcessingResultKind = (result: PurchaseProcessingResult) => {
+  if (result.idempotent) {
+    return "idempotent";
+  }
+  if (
+    result.analyticsEventIds.length === 0 &&
+    Option.isNone(result.purchaseId) &&
+    Option.isNone(result.subscriptionId) &&
+    Option.isNone(result.transactionId)
+  ) {
+    return "ignored";
+  }
+  return "applied";
+};
 
 const purchaseProcessingResultSpanAttributes = (result: PurchaseProcessingResult) => ({
   "app_store.purchase_processing_result": purchaseProcessingResultKind(result),
@@ -181,24 +210,22 @@ const isPurchaseProcessingResultLike = (value: unknown): value is PurchaseProces
   "personId" in value;
 
 const annotatePurchaseProcessingResult = (result: unknown) =>
-  isPurchaseProcessingResultLike(result)
-    ? Effect.gen(function* () {
-        yield* Effect.annotateCurrentSpan(purchaseProcessingResultSpanAttributes(result));
-        yield* Effect.annotateCurrentSpan("voidhash.person.id", result.personId);
-        if (Option.isSome(result.purchaseId)) {
-          yield* Effect.annotateCurrentSpan("voidhash.purchase.id", result.purchaseId.value);
-        }
-        if (Option.isSome(result.subscriptionId)) {
-          yield* Effect.annotateCurrentSpan(
-            "voidhash.subscription.id",
-            result.subscriptionId.value,
-          );
-        }
-        if (Option.isSome(result.transactionId)) {
-          yield* Effect.annotateCurrentSpan("voidhash.transaction.id", result.transactionId.value);
-        }
-      })
-    : Effect.void;
+  Effect.gen(function* () {
+    if (!isPurchaseProcessingResultLike(result)) {
+      return;
+    }
+    yield* Effect.annotateCurrentSpan(purchaseProcessingResultSpanAttributes(result));
+    yield* Effect.annotateCurrentSpan("voidhash.person.id", result.personId);
+    if (Option.isSome(result.purchaseId)) {
+      yield* Effect.annotateCurrentSpan("voidhash.purchase.id", result.purchaseId.value);
+    }
+    if (Option.isSome(result.subscriptionId)) {
+      yield* Effect.annotateCurrentSpan("voidhash.subscription.id", result.subscriptionId.value);
+    }
+    if (Option.isSome(result.transactionId)) {
+      yield* Effect.annotateCurrentSpan("voidhash.transaction.id", result.transactionId.value);
+    }
+  });
 
 const make = Effect.gen(function* () {
   const queries = yield* AppStorePaymentProviderServiceQueries;
@@ -491,9 +518,11 @@ const make = Effect.gen(function* () {
                 });
               }
               yield* Effect.annotateCurrentSpan({
-                "app_store.identity_result": transferred
-                  ? "cross_owner_transfer"
-                  : "cross_owner_transfer_failed",
+                "app_store.identity_result": pick(
+                  transferred,
+                  "cross_owner_transfer",
+                  "cross_owner_transfer_failed",
+                ),
               });
             }
           } else {
@@ -676,7 +705,7 @@ const make = Effect.gen(function* () {
         projectId: input.projectId,
         providerEnvironment: input.providerEnvironment,
         providerEventType: input.providerEventType,
-        providerId: "apple-app-store" as const,
+        providerId: constant("apple-app-store"),
         providerSubscriptionId: getAppStoreProviderSubscriptionId(transaction),
         providerTransactionId: getAppStoreProviderTransactionId({
           decodedTransaction: transaction,
@@ -758,7 +787,7 @@ const make = Effect.gen(function* () {
       yield* Effect.annotateCurrentSpan("voidhash.payment_provider.event_type", providerEventType);
       const providerTransactionIdOp = getAppStoreProviderTransactionId({
         decodedTransaction: input.decodedTransaction,
-        sdkTransactionId: input.source === "sdk" ? input.sdkTransactionId : undefined,
+        sdkTransactionId: sdkTransactionIdOf(input),
       });
       if (Option.isNone(providerTransactionIdOp)) {
         return yield* new AppStorePaymentProviderServiceError({
@@ -770,11 +799,11 @@ const make = Effect.gen(function* () {
 
       const occurredAt = Option.match(input.decodedTransaction.purchaseDate, {
         onNone: () => input.receivedAt,
-        onSome: (ms) => new Date(ms),
+        onSome: (ms) => dateFromMillis(ms),
       });
       const productId = Option.getOrUndefined(input.decodedTransaction.productId);
       if (!productId) {
-        return { kind: "ignored" as const };
+        return { kind: constant("ignored") };
       }
 
       const personIdentifierOp = getAppStorePersonIdentifier(input.decodedTransaction);
@@ -791,7 +820,7 @@ const make = Effect.gen(function* () {
 
       const resolvedPerson = yield* _resolvePersonForAppStoreTransaction({
         appAccountToken: Option.getOrUndefined(input.decodedTransaction.appAccountToken),
-        distinctId: input.source === "sdk" ? input.distinctId : undefined,
+        distinctId: sdkDistinctIdOf(input),
         occurredAt,
         organizationId: input.project.organizationId,
         paymentProviderConfigurationId: input.configuration.id,
@@ -836,7 +865,7 @@ const make = Effect.gen(function* () {
         providerEnvironment: input.providerEnvironment,
         providerEventType,
         receivedAt: input.receivedAt,
-        sdkTransactionId: input.source === "sdk" ? input.sdkTransactionId : undefined,
+        sdkTransactionId: sdkTransactionIdOf(input),
         source: input.source,
       });
 
@@ -844,7 +873,7 @@ const make = Effect.gen(function* () {
         base,
         decodedTransaction: input.decodedTransaction,
         globalConfiguration: parsedConfiguration,
-        kind: "resolved" as const,
+        kind: constant("resolved"),
         money,
         occurredAt,
         subtype: input.subtype,
@@ -864,7 +893,7 @@ const make = Effect.gen(function* () {
       input.decodedTransaction.transactionReason,
       (reason) => reason === "RENEWAL",
     );
-    const providerEventType = isRenewal ? "renewal" : "purchase";
+    const providerEventType = pick(isRenewal, "renewal", "purchase");
     const ctx = yield* _resolveAppStorePurchaseContext(input, providerEventType);
     if (ctx.kind === "ignored") {
       return makeIgnoredPurchaseProcessingResult();
@@ -878,13 +907,13 @@ const make = Effect.gen(function* () {
     if (isAutoRenewableSubscription) {
       const startsAt = Option.match(ctx.decodedTransaction.originalPurchaseDate, {
         onNone: () => ctx.occurredAt,
-        onSome: (ms) => new Date(ms),
+        onSome: (ms) => dateFromMillis(ms),
       });
       const isTrial = Option.exists(
         ctx.decodedTransaction.offerDiscountType,
         (offer) => offer === "FREE_TRIAL",
       );
-      const expiresAt = Option.map(ctx.decodedTransaction.expiresDate, (ms) => new Date(ms));
+      const expiresAt = Option.map(ctx.decodedTransaction.expiresDate, (ms) => dateFromMillis(ms));
 
       if (isRenewal) {
         return yield* purchaseProcessingService.renewSubscription({
@@ -914,7 +943,7 @@ const make = Effect.gen(function* () {
     return yield* purchaseProcessingService.completeOneTimePurchase({
       ...ctx.base,
       money: ctx.money,
-      purchaseType: isConsumable ? ("consumable" as const) : ("one-time" as const),
+      purchaseType: pick(isConsumable, constant("consumable"), constant("one-time")),
       purchasedAt: ctx.occurredAt,
     });
   }, _withRecordTransactionObservability);
@@ -932,7 +961,7 @@ const make = Effect.gen(function* () {
     }
     return yield* purchaseProcessingService.renewSubscription({
       ...ctx.base,
-      expiresAt: Option.map(ctx.decodedTransaction.expiresDate, (ms) => new Date(ms)),
+      expiresAt: Option.map(ctx.decodedTransaction.expiresDate, (ms) => dateFromMillis(ms)),
       isTrial: Option.exists(
         ctx.decodedTransaction.offerDiscountType,
         (offer) => offer === "FREE_TRIAL",
@@ -941,7 +970,7 @@ const make = Effect.gen(function* () {
       renewedAt: ctx.occurredAt,
       startsAt: Option.match(ctx.decodedTransaction.originalPurchaseDate, {
         onNone: () => ctx.occurredAt,
-        onSome: (ms) => new Date(ms),
+        onSome: (ms) => dateFromMillis(ms),
       }),
     });
   }, _withRecordTransactionObservability);
@@ -960,7 +989,7 @@ const make = Effect.gen(function* () {
     }
     const expiredAt = Option.match(ctx.decodedTransaction.expiresDate, {
       onNone: () => ctx.occurredAt,
-      onSome: (ms) => new Date(ms),
+      onSome: (ms) => dateFromMillis(ms),
     });
     return yield* purchaseProcessingService.expireSubscription({
       ...ctx.base,
@@ -999,7 +1028,7 @@ const make = Effect.gen(function* () {
     }
     const refundedAt = Option.match(ctx.decodedTransaction.revocationDate, {
       onNone: () => ctx.occurredAt,
-      onSome: (ms) => new Date(ms),
+      onSome: (ms) => dateFromMillis(ms),
     });
     return yield* purchaseProcessingService.refundPurchase({
       ...ctx.base,
@@ -1021,7 +1050,7 @@ const make = Effect.gen(function* () {
     }
     const revokedAt = Option.match(ctx.decodedTransaction.revocationDate, {
       onNone: () => ctx.occurredAt,
-      onSome: (ms) => new Date(ms),
+      onSome: (ms) => dateFromMillis(ms),
     });
     const isAutoRenewableSubscription = Option.exists(
       ctx.decodedTransaction.type,
@@ -1056,7 +1085,7 @@ const make = Effect.gen(function* () {
     }
     const reversedAt = Option.match(ctx.decodedTransaction.signedDate, {
       onNone: () => ctx.occurredAt,
-      onSome: (ms) => new Date(ms),
+      onSome: (ms) => dateFromMillis(ms),
     });
     return yield* purchaseProcessingService.reverseRefund({
       ...ctx.base,
@@ -1079,7 +1108,7 @@ const make = Effect.gen(function* () {
      * billing-retry start without a grace deadline.
      */
     const gracePeriodExpiresAt = Option.flatMap(input.decodedRenewalInfo, (renewalInfo) =>
-      Option.map(renewalInfo.gracePeriodExpiresDate, (ms) => new Date(ms)),
+      Option.map(renewalInfo.gracePeriodExpiresDate, (ms) => dateFromMillis(ms)),
     );
     return yield* purchaseProcessingService.enterBillingRetry({
       ...ctx.base,
@@ -1101,7 +1130,7 @@ const make = Effect.gen(function* () {
     }
     return yield* purchaseProcessingService.extendSubscription({
       ...ctx.base,
-      extendedTo: new Date(ctx.decodedTransaction.expiresDate.value),
+      extendedTo: dateFromMillis(ctx.decodedTransaction.expiresDate.value),
     });
   }, _withRecordTransactionObservability);
 
@@ -1161,7 +1190,7 @@ const make = Effect.gen(function* () {
      * transaction price when renewal info is absent.
      */
     const effectiveAt = Option.flatMap(input.decodedRenewalInfo, (renewalInfo) =>
-      Option.map(renewalInfo.renewalDate, (ms) => new Date(ms)),
+      Option.map(renewalInfo.renewalDate, (ms) => dateFromMillis(ms)),
     );
     /**
      * The next renewal date is when the new price applies; pricing fields live
@@ -1170,19 +1199,25 @@ const make = Effect.gen(function* () {
      * same commission / tax rules as the inline-transaction path; otherwise
      * we fall back to the transaction's existing money breakdown.
      */
-    const renewalInfo = Option.getOrUndefined(input.decodedRenewalInfo);
-    const renewalPrice = renewalInfo ? Option.getOrUndefined(renewalInfo.renewalPrice) : undefined;
-    const renewalCurrency = renewalInfo ? Option.getOrUndefined(renewalInfo.currency) : undefined;
-    const money =
-      renewalPrice !== undefined && renewalCurrency !== undefined
-        ? yield* _moneyForRenewalPrice(
-            ctx.decodedTransaction,
-            ctx.globalConfiguration,
-            ctx.occurredAt,
-            renewalPrice,
-            renewalCurrency,
-          )
-        : ctx.money;
+    const renewalPrice = Option.getOrUndefined(
+      Option.flatMap(input.decodedRenewalInfo, (renewalInfo) => renewalInfo.renewalPrice),
+    );
+    const renewalCurrency = Option.getOrUndefined(
+      Option.flatMap(input.decodedRenewalInfo, (renewalInfo) => renewalInfo.currency),
+    );
+    const resolveMoney = () => {
+      if (renewalPrice !== undefined && renewalCurrency !== undefined) {
+        return _moneyForRenewalPrice(
+          ctx.decodedTransaction,
+          ctx.globalConfiguration,
+          ctx.occurredAt,
+          renewalPrice,
+          renewalCurrency,
+        );
+      }
+      return Effect.succeed(ctx.money);
+    };
+    const money = yield* resolveMoney();
     return yield* purchaseProcessingService.recordPriceIncrease({
       ...ctx.base,
       effectiveAt,
@@ -1222,7 +1257,7 @@ const make = Effect.gen(function* () {
     return makeIgnoredPurchaseProcessingResult();
   }, _withRecordTransactionObservability);
 
-  return {
+  return constant({
     ...provider,
     buildSdkContextFromConfiguration,
     recordAutoRenewResumed,
@@ -1239,7 +1274,7 @@ const make = Effect.gen(function* () {
     recordSubscriptionExpired,
     recordSubscriptionExtended,
     recordSubscriptionRenewed,
-  } as const;
+  });
 });
 
 export type { AppStoreSdkContext };

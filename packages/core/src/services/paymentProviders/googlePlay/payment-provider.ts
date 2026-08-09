@@ -22,6 +22,7 @@ import {
 import { PurchaseType } from "@voidhash/lib/constants";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
+import { constant } from "@voidhash/lib/lang";
 import {
   DEFAULT_SUBSCRIPTION_TRANSFER_MODE,
   type SubscriptionTransferMode,
@@ -118,6 +119,29 @@ export type GooglePlayRecordInput = GooglePlayRecordInputBase &
 
 const optionAttr = <A>(value: Option.Option<A>): A | undefined => Option.getOrUndefined(value);
 
+const crossOwnerTransferOutcome = (transferred: boolean): string => {
+  if (transferred) return "cross_owner_transfer";
+  return "cross_owner_transfer_failed";
+};
+
+/** Only the SDK path carries a caller-supplied distinct id. */
+const sdkDistinctId = (input: GooglePlayRecordInput): string | undefined => {
+  if (input.source === "sdk") return input.distinctId;
+  return undefined;
+};
+
+const subscriptionIdOption = (
+  purchase: GooglePlayNormalizedPurchase,
+): Option.Option<string> => {
+  if (purchase.kind === "subscription") return Option.some(purchase.purchaseToken);
+  return Option.none<string>();
+};
+
+const purchaseEventType = (isSubscription: boolean): GooglePlayPurchaseProcessingEventType => {
+  if (isSubscription) return "purchase";
+  return "one_time_purchase";
+};
+
 const make = Effect.gen(function* () {
   const queries = yield* GooglePlayPaymentProviderServiceQueries;
   const personIdentityService = yield* PersonIdentityService;
@@ -159,8 +183,10 @@ const make = Effect.gen(function* () {
     });
   });
 
-  const providerEnvironmentForTest = (isTestPurchase: boolean): ProviderEnvironmentValue =>
-    isTestPurchase ? ProviderEnvironment.Sandbox : ProviderEnvironment.Production;
+  const providerEnvironmentForTest = (isTestPurchase: boolean): ProviderEnvironmentValue => {
+    if (isTestPurchase) return ProviderEnvironment.Sandbox;
+    return ProviderEnvironment.Production;
+  };
 
   /**
    * Fetches authoritative subscription state for a `purchaseToken`, resolves
@@ -379,9 +405,7 @@ const make = Effect.gen(function* () {
               });
             }
             yield* Effect.annotateCurrentSpan({
-              "google_play.identity_result": transferred
-                ? "cross_owner_transfer"
-                : "cross_owner_transfer_failed",
+              "google_play.identity_result": crossOwnerTransferOutcome(transferred),
             });
           }
         } else {
@@ -516,17 +540,14 @@ const make = Effect.gen(function* () {
       // notification whose fetched purchase lacks a line item). Caller
       // short-circuits with an idempotent no-op.
       if (!purchase.productId) {
-        return { kind: "ignored" as const };
+        return constant({ kind: "ignored" });
       }
 
       const providerTransactionId = Option.getOrElse(
         purchase.orderId,
         () => purchase.purchaseToken,
       );
-      const providerSubscriptionId =
-        purchase.kind === "subscription"
-          ? Option.some(purchase.purchaseToken)
-          : Option.none<string>();
+      const providerSubscriptionId = subscriptionIdOption(purchase);
       const occurredAt = input.eventTime;
 
       const personIdentifierOp = getGooglePlayPersonIdentifier(purchase);
@@ -537,7 +558,7 @@ const make = Effect.gen(function* () {
       }
 
       const resolvedPerson = yield* _resolvePersonForGooglePlayTransaction({
-        distinctId: input.source === "sdk" ? input.distinctId : undefined,
+        distinctId: sdkDistinctId(input),
         obfuscatedExternalAccountId: optionAttr(purchase.obfuscatedExternalAccountId),
         occurredAt,
         organizationId: input.project.organizationId,
@@ -562,12 +583,13 @@ const make = Effect.gen(function* () {
           paymentProviderConfigurationId: input.configuration.id,
           providerProductKey: fullKey,
         })) ??
-        (fullKey !== purchase.productId
-          ? yield* queries.findPaymentProviderConfigurationProductByPrimaryKey({
-              paymentProviderConfigurationId: input.configuration.id,
-              providerProductKey: purchase.productId,
-            })
-          : undefined);
+        (yield* Effect.gen(function* () {
+          if (fullKey === purchase.productId) return undefined;
+          return yield* queries.findPaymentProviderConfigurationProductByPrimaryKey({
+            paymentProviderConfigurationId: input.configuration.id,
+            providerProductKey: purchase.productId,
+          });
+        }));
       if (!providerProduct) {
         return yield* new GooglePlayPaymentProviderProductNotMappedError({
           paymentProviderConfigurationId: input.configuration.id,
@@ -594,7 +616,7 @@ const make = Effect.gen(function* () {
         projectId: input.project.id,
         providerEnvironment: input.providerEnvironment,
         providerEventType,
-        providerId: "google-play" as const,
+        providerId: constant("google-play"),
         providerSubscriptionId,
         providerTransactionId: Option.some(providerTransactionId),
         providerWebhookNotificationId: Option.fromNullishOr(input.notificationUUID),
@@ -603,7 +625,7 @@ const make = Effect.gen(function* () {
         source: input.source,
       };
 
-      return { base, kind: "resolved" as const, money, occurredAt, purchase };
+      return { base, kind: constant("resolved"), money, occurredAt, purchase };
     });
 
   /**
@@ -614,7 +636,7 @@ const make = Effect.gen(function* () {
    */
   const recordPurchase = Effect.fn("recordPurchase")(function* (input: GooglePlayRecordInput) {
     const isSubscription = input.purchase.kind === "subscription";
-    const ctx = yield* _resolveContext(input, isSubscription ? "purchase" : "one_time_purchase");
+    const ctx = yield* _resolveContext(input, purchaseEventType(isSubscription));
     if (ctx.kind === "ignored") {
       return makeIgnoredPurchaseProcessingResult();
     }
@@ -803,7 +825,7 @@ const make = Effect.gen(function* () {
     return makeIgnoredPurchaseProcessingResult();
   });
 
-  return {
+  return constant({
     ...provider,
     buildSdkContextFromConfiguration,
     fetchAndNormalizeProduct,
@@ -819,7 +841,7 @@ const make = Effect.gen(function* () {
     recordSubscriptionExpired,
     recordSubscriptionExtended,
     recordSubscriptionRenewed,
-  } as const;
+  });
 });
 
 export type { GooglePlaySdkContext };

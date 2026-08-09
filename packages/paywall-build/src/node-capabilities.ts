@@ -1,8 +1,11 @@
+import { Effect } from "effect";
 import * as paywalls from "@voidhash/paywalls";
 import * as paywallsJsxRuntime from "@voidhash/paywalls/jsx-runtime";
 import { extractComponentManifest } from "@voidhash/paywalls";
+import { causeMessage, constant } from "@voidhash/lib/lang";
 import type {
   BuildCapabilities,
+  BuildDiagnosticInput,
   CompileOutcome,
   ExtractOutcome,
 } from "./types.ts";
@@ -20,13 +23,13 @@ export interface NodeCapabilityOptions {
  * `ComponentCompilerNode` pipeline: TSX loader, automatic JSX with the paywall
  * import source, CJS output, ES2022 target.
  */
-const TRANSFORM_OPTIONS = {
+const TRANSFORM_OPTIONS = constant({
   format: "cjs",
   jsx: "automatic",
   jsxImportSource: "@voidhash/paywalls",
   loader: "tsx",
   target: "es2022",
-} as const;
+});
 
 /** The modules the CJS `require` shim resolves during manifest extraction. */
 const REQUIRE_MODULES: Readonly<Record<string, unknown>> = {
@@ -37,34 +40,101 @@ const REQUIRE_MODULES: Readonly<Record<string, unknown>> = {
   "@voidhash/paywalls/jsx-dev-runtime": paywallsJsxRuntime,
 };
 
+/** The `errors` array esbuild attaches to a transform failure, when present. */
+function esbuildErrors(cause: unknown): readonly unknown[] {
+  if (typeof cause !== "object" || cause === null || !("errors" in cause)) return [];
+  const { errors } = cause;
+  if (!Array.isArray(errors)) return [];
+  return errors;
+}
+
+/** The `text` of an esbuild message, falling back to its stringification. */
+function esbuildText(message: unknown): string {
+  if (typeof message === "object" && message !== null && "text" in message) {
+    const { text } = message;
+    if (typeof text === "string") return text;
+  }
+  return String(message);
+}
+
+/**
+ * The 1-based position of an esbuild message, when it carries one (esbuild
+ * columns are 0-based).
+ */
+function esbuildPosition(message: unknown): { line?: number; column?: number } {
+  if (typeof message !== "object" || message === null || !("location" in message)) return {};
+  const { location } = message;
+  if (typeof location !== "object" || location === null) return {};
+  const position: { line?: number; column?: number } = {};
+  if ("line" in location && typeof location.line === "number") position.line = location.line;
+  if ("column" in location && typeof location.column === "number") {
+    position.column = location.column + 1;
+  }
+  return position;
+}
+
+/** Lower an esbuild transform failure to compile diagnostics. */
+function compileFailure(cause: unknown): CompileOutcome {
+  const errors = esbuildErrors(cause);
+  if (errors.length > 0) {
+    return {
+      diagnostics: errors.map(
+        (message): BuildDiagnosticInput => ({
+          message: esbuildText(message),
+          ...esbuildPosition(message),
+        }),
+      ),
+    };
+  }
+  return { diagnostics: [{ message: causeMessage(cause) }] };
+}
+
 /**
  * The Node `compile` capability: an esbuild `transform` of the component's TSX
  * source to CJS. A transform error surfaces as compile diagnostics (esbuild's
  * message text with 1-based line/column when available).
  */
-async function nodeCompile(source: string): Promise<CompileOutcome> {
-  const esbuild = await import("esbuild");
-  try {
-    const result = await esbuild.transform(source, TRANSFORM_OPTIONS);
-    return { code: result.code };
-  } catch (err) {
-    const errors = (err as { errors?: readonly unknown[] }).errors;
-    if (Array.isArray(errors) && errors.length > 0) {
-      return {
-        diagnostics: errors.map((e) => {
-          const message = (e as { text?: string }).text ?? String(e);
-          const location = (e as { location?: { line?: number; column?: number } }).location;
-          return {
-            message,
-            ...(location?.line !== undefined ? { line: location.line } : {}),
-            // esbuild columns are 0-based; convert to 1-based.
-            ...(location?.column !== undefined ? { column: location.column + 1 } : {}),
-          };
+function nodeCompile(source: string): Promise<CompileOutcome> {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const esbuild = yield* Effect.promise(() => import("esbuild"));
+      return yield* Effect.tryPromise({
+        try: () => esbuild.transform(source, TRANSFORM_OPTIONS),
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.match({
+          onSuccess: (result): CompileOutcome => ({ code: result.code }),
+          onFailure: compileFailure,
         }),
-      };
-    }
-    return { diagnostics: [{ message: err instanceof Error ? err.message : String(err) }] };
+      );
+    }),
+  );
+}
+
+/** The `require` shim bound to the workspace SDK packages. */
+function requireShim(specifier: string): unknown {
+  const mod = REQUIRE_MODULES[specifier];
+  if (mod === undefined) {
+    // The CJS contract is to raise on an unresolvable specifier; the raised
+    // defect is caught below and surfaced as an extraction diagnostic.
+    return Effect.runSync(Effect.die(new Error(`Cannot find module '${specifier}'`)));
   }
+  return mod;
+}
+
+/** True for a value carrying a `render` property (of any type). */
+function hasRender(value: object): value is { readonly render: unknown } {
+  return "render" in value;
+}
+
+/** True when an evaluated default export looks like a component definition. */
+function isDefinitionExport(
+  value: unknown,
+): value is Parameters<typeof extractComponentManifest>[0] {
+  if (typeof value !== "object" && typeof value !== "function") return false;
+  if (value === null) return false;
+  if (!hasRender(value)) return false;
+  return typeof value.render === "function";
 }
 
 /**
@@ -74,49 +144,55 @@ async function nodeCompile(source: string): Promise<CompileOutcome> {
  * `extractComponentManifest` on the default export. Mirrors the existing Node
  * adapter's evaluation shape WITHOUT importing stacks.
  *
- * A throw / missing default export / non-definition export surfaces as an
- * extraction diagnostic (the build attributes it to the `runtime` phase).
+ * A raised failure / missing default export / non-definition export surfaces as
+ * an extraction diagnostic (the build attributes it to the `runtime` phase).
  */
-async function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
-  const requireShim = (specifier: string): unknown => {
-    const mod = REQUIRE_MODULES[specifier];
-    if (mod === undefined) {
-      throw new Error(`Cannot find module '${specifier}'`);
-    }
-    return mod;
-  };
+function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const moduleObj: { exports: Record<string, unknown> } = { exports: {} };
 
-  const moduleObj: { exports: Record<string, unknown> } = { exports: {} };
-  try {
-    // eslint-disable-next-line no-new-func -- controlled evaluation of already
-    // compiled, typechecked component code; the require shim is the only ambient.
-    const factory = new Function("require", "module", "exports", compiledCode);
-    factory(requireShim, moduleObj, moduleObj.exports);
-  } catch (err) {
-    return { diagnostics: [{ message: err instanceof Error ? err.message : String(err) }] };
-  }
+      const evaluationFailure = yield* Effect.try({
+        try: () => {
+          // eslint-disable-next-line no-new-func -- controlled evaluation of already
+          // compiled, typechecked component code; the require shim is the only ambient.
+          // oxlint-disable-next-line typescript/no-implied-eval -- same reason as the eslint directive above and the jsdoc on `nodeExtractManifest`: this evaluation shape IS the Node extractManifest capability, and any raised failure is captured as a `runtime`-phase diagnostic.
+          const factory = new Function("require", "module", "exports", compiledCode);
+          factory(requireShim, moduleObj, moduleObj.exports);
+        },
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.match({
+          onSuccess: (): ExtractOutcome | null => null,
+          onFailure: (cause): ExtractOutcome | null => ({
+            diagnostics: [{ message: causeMessage(cause) }],
+          }),
+        }),
+      );
+      if (evaluationFailure) return evaluationFailure;
 
-  const definition = moduleObj.exports.default;
-  if (
-    definition === undefined ||
-    definition === null ||
-    typeof (definition as { render?: unknown }).render !== "function"
-  ) {
-    return {
-      diagnostics: [
-        { message: "Component must export a default defineComponent({ ... })" },
-      ],
-    };
-  }
+      const definition = moduleObj.exports.default;
+      if (!isDefinitionExport(definition)) {
+        return {
+          diagnostics: [
+            { message: "Component must export a default defineComponent({ ... })" },
+          ],
+        };
+      }
 
-  try {
-    const manifest = extractComponentManifest(
-      definition as Parameters<typeof extractComponentManifest>[0],
-    );
-    return { manifest };
-  } catch (err) {
-    return { diagnostics: [{ message: err instanceof Error ? err.message : String(err) }] };
-  }
+      return yield* Effect.try({
+        try: () => extractComponentManifest(definition),
+        catch: (cause) => cause,
+      }).pipe(
+        Effect.match({
+          onSuccess: (manifest): ExtractOutcome => ({ manifest }),
+          onFailure: (cause): ExtractOutcome => ({
+            diagnostics: [{ message: causeMessage(cause) }],
+          }),
+        }),
+      );
+    }),
+  );
 }
 
 /**
@@ -128,10 +204,13 @@ async function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome
 export function makeNodeCapabilities(
   options: NodeCapabilityOptions = {},
 ): BuildCapabilities {
-  return {
+  const capabilities: BuildCapabilities = {
     compile: nodeCompile,
     extractManifest: nodeExtractManifest,
     typecheck: options.typecheck ?? true,
-    ...(options.manifestCache ? { manifestCache: options.manifestCache } : {}),
   };
+  if (options.manifestCache) {
+    return { ...capabilities, manifestCache: options.manifestCache };
+  }
+  return capabilities;
 }

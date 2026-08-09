@@ -1,4 +1,6 @@
-export const NODE_TYPES = [
+import { constant } from "@voidhash/lib/lang";
+
+export const NODE_TYPES = constant([
   "root",
   "screen",
   "view",
@@ -9,11 +11,11 @@ export const NODE_TYPES = [
   "component",
   "library",
   "codeComponent",
-] as const;
+]);
 
 export type NodeType = (typeof NODE_TYPES)[number];
 
-export const EDITABLE_NODE_TYPES = [
+export const EDITABLE_NODE_TYPES = constant([
   "screen",
   "view",
   "scrollView",
@@ -21,7 +23,7 @@ export const EDITABLE_NODE_TYPES = [
   "shape",
   "path",
   "component",
-] as const;
+]);
 
 export type EditableNodeType = (typeof EDITABLE_NODE_TYPES)[number];
 
@@ -31,14 +33,14 @@ export type EditableNodeType = (typeof EDITABLE_NODE_TYPES)[number];
  * stateless (props in, actions out) — generic style/state/variable actions
  * must be typed over this subset.
  */
-export const STATEFUL_NODE_TYPES = [
+export const STATEFUL_NODE_TYPES = constant([
   "screen",
   "view",
   "scrollView",
   "text",
   "shape",
   "path",
-] as const;
+]);
 
 export type StatefulEditableNodeType = (typeof STATEFUL_NODE_TYPES)[number];
 
@@ -56,17 +58,18 @@ export const ALLOWED_CHILDREN_BY_NODE_TYPE: Record<NodeType, readonly NodeType[]
 };
 
 export function isNodeType(type: string): type is NodeType {
-  return NODE_TYPES.includes(type as NodeType);
+  return NODE_TYPES.some((known) => known === type);
 }
 
 export function isEditableNodeType(type: string): type is EditableNodeType {
-  return EDITABLE_NODE_TYPES.includes(type as EditableNodeType);
+  return EDITABLE_NODE_TYPES.some((known) => known === type);
 }
 
 export function isStatefulNodeType(type: string): type is StatefulEditableNodeType {
-  return STATEFUL_NODE_TYPES.includes(type as StatefulEditableNodeType);
+  return STATEFUL_NODE_TYPES.some((known) => known === type);
 }
 
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: these accept unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value. Narrowing to `string` would silently accept anything at call sites.
 export function canBeChildOf(childType: string | NodeType, parentType: string | NodeType): boolean {
   if (!isNodeType(childType) || !isNodeType(parentType)) {
     return false;
@@ -74,6 +77,7 @@ export function canBeChildOf(childType: string | NodeType, parentType: string | 
   return ALLOWED_CHILDREN_BY_NODE_TYPE[parentType].includes(childType);
 }
 
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: this accepts unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value.
 export function canHaveChildren(type: string | NodeType | null | undefined): boolean {
   return type != null && isNodeType(type) && ALLOWED_CHILDREN_BY_NODE_TYPE[type].length > 0;
 }
@@ -85,6 +89,7 @@ export function canHaveChildren(type: string | NodeType | null | undefined): boo
  * qualify at the type level only — actions must additionally gate on the
  * component manifest's `slot` flag.
  */
+// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: this accepts unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value.
 export function canCreateLayoutChildren(type: string | NodeType | null | undefined): boolean {
   return type === "screen" || type === "view" || type === "scrollView" || type === "component";
 }

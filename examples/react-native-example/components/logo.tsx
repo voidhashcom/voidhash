@@ -10,6 +10,12 @@ interface LogoProps {
   height?: number;
 }
 
+/** Picks the mark color: the accent blue for the dual-tone variant, otherwise the text color. */
+const resolveSymbolColor = (color: LogoProps["color"], currentColor: string): string => {
+  if (color === "dual-tone") return "#005EFF";
+  return currentColor;
+};
+
 export const Logo: React.FC<LogoProps> = ({
   style,
   variant = "default",
@@ -17,7 +23,7 @@ export const Logo: React.FC<LogoProps> = ({
   height = 28,
 }) => {
   const currentColor = "#FFF";
-  const symbolColor = color === "dual-tone" ? "#005EFF" : currentColor;
+  const symbolColor = resolveSymbolColor(color, currentColor);
 
   if (variant === "symbol") {
     return (

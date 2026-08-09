@@ -32,7 +32,8 @@
  * asserted with `Effect.flip` + `instanceof`, paired with a DB-state assertion
  * proving nothing leaked.
  */
-import { Effect } from "effect";
+import { constant } from "@voidhash/lib/lang";
+import { Clock, DateTime, Effect, Schema } from "effect";
 import { describe, expect } from "vitest";
 
 import { StripeWebhookHandlerService } from "@voidhash/core/services/paymentProviders/stripe/stripe-webhook-handler-service";
@@ -61,6 +62,9 @@ import {
 } from "./stripe-test-support.ts";
 
 const { test } = CoreIntegrationTestHarness.make();
+
+/** Serialises a Stripe event/invoice fixture to the raw webhook body bytes. */
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 // ----------------------------------------------------------------------------
 // DB read-back helpers (bypass the engine).
@@ -115,14 +119,17 @@ const moneyInHttpClient = (paymentIntentId: string, chargeId: string) =>
 /** A unique `pi_*` / matching `ch_*` pair for a money-in event's fee enrichment. */
 const moneyInIds = (label: string) => {
   const stable = uniq(label).replace(/[^A-Za-z0-9]/g, "");
-  return { chargeId: `ch_${stable}`, paymentIntentId: `pi_${stable}` } as const;
+  return constant({ chargeId: `ch_${stable}`, paymentIntentId: `pi_${stable}` });
 };
 
 /** Sign `rawBody` with the seeded TEST webhook secret at the current second (livemode:false ⇒ test mode). */
 const signWithTestSecret = (rawBody: string) =>
-  Effect.promise(() =>
-    signStripePayload(rawBody, TEST_TEST_WEBHOOK_SECRET, Math.floor(Date.now() / 1000)),
-  );
+  Effect.gen(function* () {
+    const nowMillis = yield* Clock.currentTimeMillis;
+    return yield* Effect.promise(() =>
+      signStripePayload(rawBody, TEST_TEST_WEBHOOK_SECRET, Math.floor(nowMillis / 1000)),
+    );
+  });
 
 describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
   test(
@@ -141,14 +148,15 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
         stripeProductId: uniq("prod"),
         subscriptionId: uniq("sub"),
       });
-      const rawBody = JSON.stringify(makeStripeEvent({ object: invoice, type: "invoice.paid" }));
+      const eventObject = makeStripeEvent({ object: invoice, type: "invoice.paid" });
+      const rawBody = encodeJson(eventObject);
       const signatureHeader = yield* signWithTestSecret(rawBody);
 
       const error = yield* Effect.flip(
         handler.acceptWebhookEvent({
           paymentProviderConfigurationId: missingConfigId,
           rawBody,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           signatureHeader,
         }),
       );
@@ -158,8 +166,7 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
       }
 
       // Nothing was written for the missing configuration.
-      const event = JSON.parse(rawBody) as { id: string };
-      const rows = yield* findNotificationRows(missingConfigId, event.id);
+      const rows = yield* findNotificationRows(missingConfigId, eventObject.id);
       expect(rows.length).toBe(0);
     }).pipe(
       // No money-in REST calls are reachable (the lookup fails first); the empty
@@ -186,7 +193,8 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
           stripeProductId: product.stripeProductId,
           subscriptionId: uniq("sub"),
         });
-        const rawBody = JSON.stringify(makeStripeEvent({ object: invoice, type: "invoice.paid" }));
+        const eventObject = makeStripeEvent({ object: invoice, type: "invoice.paid" });
+        const rawBody = encodeJson(eventObject);
         // Sign the ORIGINAL body, then tamper it: the stored HMAC no longer
         // matches the delivered bytes, so verification fails.
         const signatureHeader = yield* signWithTestSecret(rawBody);
@@ -196,7 +204,7 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
           handler.acceptWebhookEvent({
             paymentProviderConfigurationId: seeded.configId,
             rawBody: tamperedBody,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             signatureHeader,
           }),
         );
@@ -207,8 +215,7 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
 
         // The signature check precedes the wire-dedup write, so no row exists
         // for this event id.
-        const event = JSON.parse(rawBody) as { id: string };
-        const rows = yield* findNotificationRows(seeded.configId, event.id);
+        const rows = yield* findNotificationRows(seeded.configId, eventObject.id);
         expect(rows.length).toBe(0);
       }).pipe(
         Effect.ensuring(
@@ -249,14 +256,14 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
             taxMinor: 100,
           });
           const eventObject = makeStripeEvent({ object: invoice, type: "invoice.paid" });
-          const rawBody = JSON.stringify(eventObject);
-          const eventId = (eventObject as { id: string }).id;
+          const rawBody = encodeJson(eventObject);
+          const eventId = eventObject.id;
           const signatureHeader = yield* signWithTestSecret(rawBody);
 
           const result = yield* handler.acceptWebhookEvent({
             paymentProviderConfigurationId: seeded.configId,
             rawBody,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             signatureHeader,
           });
           expect(result.accepted).toBe(true);
@@ -329,14 +336,14 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
             subscriptionId,
           });
           const eventObject = makeStripeEvent({ object: invoice, type: "invoice.paid" });
-          const rawBody = JSON.stringify(eventObject);
-          const eventId = (eventObject as { id: string }).id;
+          const rawBody = encodeJson(eventObject);
+          const eventId = eventObject.id;
           const signatureHeader = yield* signWithTestSecret(rawBody);
 
           const input = {
             paymentProviderConfigurationId: seeded.configId,
             rawBody,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             signatureHeader,
           };
 
@@ -386,6 +393,7 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
         const providerProductKey = `${stripeProductId}:${stripePriceId}`;
 
         yield* Effect.gen(function* () {
+          const subscriptionId = uniq("sub");
           const invoice = makeStripeInvoice({
             amountPaid: 1999,
             billingReason: "subscription_create",
@@ -394,17 +402,17 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
             paymentIntentId: ids.paymentIntentId,
             stripePriceId,
             stripeProductId,
-            subscriptionId: uniq("sub"),
+            subscriptionId,
           });
           const eventObject = makeStripeEvent({ object: invoice, type: "invoice.paid" });
-          const rawBody = JSON.stringify(eventObject);
-          const eventId = (eventObject as { id: string }).id;
+          const rawBody = encodeJson(eventObject);
+          const eventId = eventObject.id;
           const signatureHeader = yield* signWithTestSecret(rawBody);
 
           const result = yield* handler.acceptWebhookEvent({
             paymentProviderConfigurationId: seeded.configId,
             rawBody,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             signatureHeader,
           });
           // Parking still acks the webhook (so Stripe stops retrying) and reports
@@ -424,7 +432,7 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
           expect(notif.parkedRawPayload).toBe(rawBody);
 
           // No subscription was projected — the product is unmapped.
-          const subRow = yield* findSubscriptionByStoreId(invoice.subscription as string);
+          const subRow = yield* findSubscriptionByStoreId(subscriptionId);
           expect(subRow).toBeUndefined();
         }).pipe(
           Effect.ensuring(
@@ -452,14 +460,14 @@ describe("StripeWebhookHandlerService.acceptWebhookEvent", () => {
           object: { id: uniq("cus"), object: "customer" },
           type: "customer.created",
         });
-        const rawBody = JSON.stringify(eventObject);
-        const eventId = (eventObject as { id: string }).id;
+        const rawBody = encodeJson(eventObject);
+        const eventId = eventObject.id;
         const signatureHeader = yield* signWithTestSecret(rawBody);
 
         const result = yield* handler.acceptWebhookEvent({
           paymentProviderConfigurationId: seeded.configId,
           rawBody,
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
           signatureHeader,
         });
         expect(result.accepted).toBe(true);
@@ -508,15 +516,15 @@ describe("StripeWebhookHandlerService.replayParkedNotificationsForProductMapping
             subscriptionId,
           });
           const eventObject = makeStripeEvent({ object: invoice, type: "invoice.paid" });
-          const rawBody = JSON.stringify(eventObject);
-          const eventId = (eventObject as { id: string }).id;
+          const rawBody = encodeJson(eventObject);
+          const eventId = eventObject.id;
           const signatureHeader = yield* signWithTestSecret(rawBody);
 
           // 1. Deliver while unmapped → parked.
           const parkedResult = yield* handler.acceptWebhookEvent({
             paymentProviderConfigurationId: seeded.configId,
             rawBody,
-            receivedAt: new Date(),
+            receivedAt: yield* DateTime.nowAsDate,
             signatureHeader,
           });
           expect(parkedResult.handled).toBe(true);

@@ -18,16 +18,20 @@ import {
 } from "../StripePaymentProviderService.ts";
 import { StripeWebhookHandlerService } from "./stripe-webhook-handler-service.ts";
 
+/**
+ * Boundary bridge (mirrors App Store / Google Play): the webhook handler
+ * resolves its deps at layer-build time, but the inferred `R` still carries a
+ * residual `Db` that the public shape models as `never`. `Db` is ambient at
+ * call time — the service runs inside the deployed Worker with a per-request DB
+ * provided at the backend root. This is the single place that gap is bridged.
+ */
+const asServiceShape = (value: any): StripePaymentProviderServiceShape => value;
+
 export const StripePaymentProviderServiceLive = Layer.effect(StripePaymentProviderService)(
   Effect.gen(function* () {
     const stripeWebhookHandlerService = yield* StripeWebhookHandlerService;
-    // Boundary cast (mirrors App Store / Google Play): the webhook handler
-    // resolves its deps at layer-build time, but the inferred `R` still carries
-    // a residual `Db` that the public shape models as `never`. `Db` is ambient
-    // at call time — the service runs inside the deployed Worker with a
-    // per-request DB provided at the backend root.
-    return {
+    return asServiceShape({
       acceptWebhookEvent: stripeWebhookHandlerService.acceptWebhookEvent,
-    } as unknown as StripePaymentProviderServiceShape;
+    });
   }),
 ).pipe(Layer.provide(StripeWebhookHandlerService.layer));

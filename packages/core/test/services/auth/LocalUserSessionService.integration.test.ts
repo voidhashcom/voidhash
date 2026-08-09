@@ -26,7 +26,7 @@
  *  - DB reads bypass the service via `yield* Db` to verify the row that actually
  *    persisted (which, for the upsert path, may not be the one we generated).
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { LocalUserSessionService } from "@voidhash/core/services";
@@ -52,7 +52,7 @@ const { test } = CoreIntegrationTestHarness.make();
 
 /** Monotonic counter so ids/emails stay unique even within the same millisecond. */
 let seq = 0;
-const nonce = () => `${Date.now()}-${seq++}`;
+const nonce = () => Effect.map(Clock.currentTimeMillis, (now) => `${now}-${seq++}`);
 /**
  * The `user`/`organization`/`member` primary keys are `varchar(36)`, so a
  * descriptive `label` embedded in the id can overflow the column ("Data too
@@ -62,9 +62,15 @@ const nonce = () => `${Date.now()}-${seq++}`;
  * instead. `label` is accepted for call-site readability but intentionally
  * unused in the id itself.
  */
-const uniqueId = (_label: string) => `lus-${Date.now().toString(36)}-${(seq++).toString(36)}`;
-const uniqueEmail = (label: string) => `it-lus-${label}-${nonce()}@voidhash.test`;
-const uniqueWorkosId = (label: string) => `it_workos_${label}_${nonce()}`;
+const uniqueId = (_label: string) =>
+  Effect.map(
+    Clock.currentTimeMillis,
+    (now) => `lus-${now.toString(36)}-${(seq++).toString(36)}`,
+  );
+const uniqueEmail = (label: string) =>
+  Effect.map(nonce(), (value) => `it-lus-${label}-${value}@voidhash.test`);
+const uniqueWorkosId = (label: string) =>
+  Effect.map(nonce(), (value) => `it_workos_${label}_${value}`);
 
 /** Build a {@link LocalUserIdentity} (WorkOS-shaped) with sensible defaults. */
 const identity = (
@@ -162,10 +168,10 @@ describe("LocalUserSessionService.resolveLocalUser", () => {
         const service = yield* LocalUserSessionService;
         const db = yield* Db;
 
-        const id = uniqueId("match-workos");
-        const email = uniqueEmail("match-workos");
-        const workosUserId = uniqueWorkosId("match");
-        const now = new Date();
+        const id = yield* uniqueId("match-workos");
+        const email = yield* uniqueEmail("match-workos");
+        const workosUserId = yield* uniqueWorkosId("match");
+        const now = yield* DateTime.nowAsDate;
         // Store the row already in the exact shape the incoming identity derives
         // (name = "Existing Name" from firstName+lastName, verified, no image)
         // so the `needsUpdate` guard is false and resolve is a pure read-back.
@@ -210,9 +216,9 @@ describe("LocalUserSessionService.resolveLocalUser", () => {
         const service = yield* LocalUserSessionService;
         const db = yield* Db;
 
-        const id = uniqueId("backfill");
-        const email = uniqueEmail("backfill");
-        const now = new Date();
+        const id = yield* uniqueId("backfill");
+        const email = yield* uniqueEmail("backfill");
+        const now = yield* DateTime.nowAsDate;
         // Legacy-style row: has the email but no workos_user_id yet, and stale
         // emailVerified / image / name compared to the incoming identity.
         yield* db.insert(user).values({
@@ -227,7 +233,7 @@ describe("LocalUserSessionService.resolveLocalUser", () => {
         });
         track.user(id);
 
-        const workosUserId = uniqueWorkosId("backfill");
+        const workosUserId = yield* uniqueWorkosId("backfill");
         const resolved = yield* service.resolveLocalUser(
           identity({
             email,
@@ -261,8 +267,8 @@ describe("LocalUserSessionService.resolveLocalUser", () => {
       Effect.gen(function* () {
         const service = yield* LocalUserSessionService;
 
-        const email = uniqueEmail("create");
-        const workosUserId = uniqueWorkosId("create");
+        const email = yield* uniqueEmail("create");
+        const workosUserId = yield* uniqueWorkosId("create");
 
         const resolved = yield* service.resolveLocalUser(
           identity({
@@ -296,8 +302,8 @@ describe("LocalUserSessionService.resolveLocalUser", () => {
         const service = yield* LocalUserSessionService;
         const db = yield* Db;
 
-        const email = uniqueEmail("race");
-        const workosUserId = uniqueWorkosId("race");
+        const email = yield* uniqueEmail("race");
+        const workosUserId = yield* uniqueWorkosId("race");
         const id = identity({
           email,
           emailVerified: true,
@@ -342,22 +348,22 @@ describe("LocalUserSessionService.resolveLocalUser", () => {
         const service = yield* LocalUserSessionService;
 
         // No firstName/lastName → name falls back to the email; null picture → null image.
-        const emailNoName = uniqueEmail("noname");
+        const emailNoName = yield* uniqueEmail("noname");
         const noName = yield* service.resolveLocalUser(
-          identity({ email: emailNoName, emailVerified: true, id: uniqueWorkosId("noname") }),
+          identity({ email: emailNoName, emailVerified: true, id: yield* uniqueWorkosId("noname") }),
         );
         track.user(noName.id);
         expect(noName.name).toBe(emailNoName);
         expect(noName.image).toBeNull();
 
         // firstName only → trimmed single-word name; picture mapped to image.
-        const emailFirstOnly = uniqueEmail("firstonly");
+        const emailFirstOnly = yield* uniqueEmail("firstonly");
         const firstOnly = yield* service.resolveLocalUser(
           identity({
             email: emailFirstOnly,
             emailVerified: true,
             firstName: "Solo",
-            id: uniqueWorkosId("firstonly"),
+            id: yield* uniqueWorkosId("firstonly"),
             profilePictureUrl: "https://example.test/solo.png",
           }),
         );
@@ -381,23 +387,23 @@ describe("LocalUserSessionService.loadUserAccess", () => {
         const service = yield* LocalUserSessionService;
         const db = yield* Db;
 
-        const userId = uniqueId("access-user");
-        const orgId = uniqueId("access-org");
-        const workosOrgId = uniqueWorkosId("access-org");
-        const projectAId = uniqueId("access-proj-a");
-        const projectBId = uniqueId("access-proj-b");
-        const otherOrgId = uniqueId("access-other-org");
-        const otherProjectId = uniqueId("access-other-proj");
-        const now = new Date();
+        const userId = yield* uniqueId("access-user");
+        const orgId = yield* uniqueId("access-org");
+        const workosOrgId = yield* uniqueWorkosId("access-org");
+        const projectAId = yield* uniqueId("access-proj-a");
+        const projectBId = yield* uniqueId("access-proj-b");
+        const otherOrgId = yield* uniqueId("access-other-org");
+        const otherProjectId = yield* uniqueId("access-other-proj");
+        const now = yield* DateTime.nowAsDate;
 
         yield* db.insert(user).values({
           createdAt: now,
-          email: uniqueEmail("access-user"),
+          email: yield* uniqueEmail("access-user"),
           emailVerified: true,
           id: userId,
           name: "Access User",
           updatedAt: now,
-          workosUserId: uniqueWorkosId("access-user"),
+          workosUserId: yield* uniqueWorkosId("access-user"),
         });
         track.user(userId);
 
@@ -406,15 +412,15 @@ describe("LocalUserSessionService.loadUserAccess", () => {
             createdAt: now,
             id: orgId,
             name: "Access Org",
-            slug: uniqueId("access-org-slug"),
+            slug: yield* uniqueId("access-org-slug"),
             workosOrganizationId: workosOrgId,
           },
           {
             createdAt: now,
             id: otherOrgId,
             name: "Other Org",
-            slug: uniqueId("access-other-org-slug"),
-            workosOrganizationId: uniqueWorkosId("access-other-org"),
+            slug: yield* uniqueId("access-other-org-slug"),
+            workosOrganizationId: yield* uniqueWorkosId("access-other-org"),
           },
         ]);
         track.org(orgId);
@@ -423,21 +429,21 @@ describe("LocalUserSessionService.loadUserAccess", () => {
         // Membership only in `orgId`, not in `otherOrgId`.
         yield* db.insert(member).values({
           createdAt: now,
-          id: uniqueId("access-member"),
+          id: yield* uniqueId("access-member"),
           organizationId: orgId,
           role: "owner",
           userId,
-          workosMembershipId: uniqueWorkosId("access-member"),
+          workosMembershipId: yield* uniqueWorkosId("access-member"),
         });
 
         yield* db.insert(projects).values([
-          { id: projectAId, name: "Proj A", organizationId: orgId, slug: uniqueId("proj-a") },
-          { id: projectBId, name: "Proj B", organizationId: orgId, slug: uniqueId("proj-b") },
+          { id: projectAId, name: "Proj A", organizationId: orgId, slug: yield* uniqueId("proj-a") },
+          { id: projectBId, name: "Proj B", organizationId: orgId, slug: yield* uniqueId("proj-b") },
           {
             id: otherProjectId,
             name: "Other Proj",
             organizationId: otherOrgId,
-            slug: uniqueId("other-proj"),
+            slug: yield* uniqueId("other-proj"),
           },
         ]);
         track.project(projectAId);
@@ -470,16 +476,16 @@ describe("LocalUserSessionService.loadUserAccess", () => {
         const service = yield* LocalUserSessionService;
         const db = yield* Db;
 
-        const userId = uniqueId("no-access-user");
-        const now = new Date();
+        const userId = yield* uniqueId("no-access-user");
+        const now = yield* DateTime.nowAsDate;
         yield* db.insert(user).values({
           createdAt: now,
-          email: uniqueEmail("no-access-user"),
+          email: yield* uniqueEmail("no-access-user"),
           emailVerified: true,
           id: userId,
           name: "No Access",
           updatedAt: now,
-          workosUserId: uniqueWorkosId("no-access-user"),
+          workosUserId: yield* uniqueWorkosId("no-access-user"),
         });
         track.user(userId);
 
@@ -497,7 +503,7 @@ describe("LocalUserSessionService.toUserSession", () => {
     Effect.gen(function* () {
       const service = yield* LocalUserSessionService;
 
-      const now = new Date();
+      const now = yield* DateTime.nowAsDate;
       const dbUser: DbUser = {
         banExpires: null,
         banReason: null,
@@ -565,9 +571,9 @@ describe("LocalUserSessionService.getLocalUser", () => {
         const service = yield* LocalUserSessionService;
         const db = yield* Db;
 
-        const id = uniqueId("get");
-        const email = uniqueEmail("get");
-        const now = new Date();
+        const id = yield* uniqueId("get");
+        const email = yield* uniqueEmail("get");
+        const now = yield* DateTime.nowAsDate;
         yield* db.insert(user).values({
           createdAt: now,
           email,
@@ -575,7 +581,7 @@ describe("LocalUserSessionService.getLocalUser", () => {
           id,
           name: "Lookup User",
           updatedAt: now,
-          workosUserId: uniqueWorkosId("get"),
+          workosUserId: yield* uniqueWorkosId("get"),
         });
         track.user(id);
 
@@ -583,7 +589,7 @@ describe("LocalUserSessionService.getLocalUser", () => {
         expect(found?.id).toBe(id);
         expect(found?.email).toBe(email);
 
-        const missing = yield* service.getLocalUser(`user_missing_${nonce()}`);
+        const missing = yield* service.getLocalUser(`user_missing_${yield* nonce()}`);
         expect(missing).toBeUndefined();
       }),
     ).pipe(Effect.provide(LocalUserSessionService.layer), CoreAuthSession.authenticate()),

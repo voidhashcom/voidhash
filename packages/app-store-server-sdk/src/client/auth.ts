@@ -1,12 +1,26 @@
-import { Effect, Option } from "effect";
+import { causeMessage } from "@voidhash/lib/lang";
+import { Effect, Option, Schema } from "effect";
 import { decodeJwt, importPKCS8, SignJWT } from "jose";
 import { JwtCreationError } from "../errors/index.ts";
 import { bytesToBase64, utf8ToBytes } from "../internal/bytes.ts";
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> =>
-  Option.isOption(value) ? value : Option.fromNullishOr(value);
+const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+  if (Option.isOption(value)) return value;
+  return Option.fromNullishOr(value);
+};
 
 const ES256_ALG = "ES256";
+
+/** Builds the `catch` handler shared by every signing step of an operation. */
+const jwtCreationError =
+  (context: string) =>
+  (error: unknown): JwtCreationError =>
+    new JwtCreationError({
+      message: `${context}: ${causeMessage(error)}`,
+      cause: Option.some(error),
+    });
+
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
  * Configuration for creating App Store Server API bearer tokens.
@@ -33,22 +47,23 @@ export interface BearerTokenConfig {
 export const createBearerToken = (
   config: BearerTokenConfig,
 ): Effect.Effect<string, JwtCreationError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const key = await importPKCS8(config.signingKey, ES256_ALG);
-      return await new SignJWT({ bid: config.bundleId })
-        .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
-        .setIssuer(config.issuerId)
-        .setAudience("appstoreconnect-v1")
-        .setIssuedAt()
-        .setExpirationTime("5m")
-        .sign(key);
-    },
-    catch: (error) =>
-      new JwtCreationError({
-        message: `Failed to create bearer token: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+  Effect.gen(function* () {
+    const toError = jwtCreationError("Failed to create bearer token");
+    const key = yield* Effect.tryPromise({
+      try: () => importPKCS8(config.signingKey, ES256_ALG),
+      catch: toError,
+    });
+    return yield* Effect.tryPromise({
+      try: () =>
+        new SignJWT({ bid: config.bundleId })
+          .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
+          .setIssuer(config.issuerId)
+          .setAudience("appstoreconnect-v1")
+          .setIssuedAt()
+          .setExpirationTime("5m")
+          .sign(key),
+      catch: toError,
+    });
   });
 
 /**
@@ -80,34 +95,35 @@ export const createPromotionalOfferV2Signature = (
   offerIdentifier: string,
   transactionId: Option.Option<string>,
 ): Effect.Effect<string, JwtCreationError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const nonce = globalThis.crypto.randomUUID();
-      const payload: Record<string, unknown> = {
-        bid: config.bundleId,
-        nonce,
-        productId,
-        offerIdentifier,
-      };
+  Effect.gen(function* () {
+    const toError = jwtCreationError("Failed to create promotional offer V2 signature");
+    const nonce = globalThis.crypto.randomUUID();
+    const payload: Record<string, unknown> = {
+      bid: config.bundleId,
+      nonce,
+      productId,
+      offerIdentifier,
+    };
 
-      const transactionIdOption = asOption(transactionId);
-      if (Option.isSome(transactionIdOption)) {
-        payload.transactionId = transactionIdOption.value;
-      }
+    const transactionIdOption = asOption(transactionId);
+    if (Option.isSome(transactionIdOption)) {
+      payload.transactionId = transactionIdOption.value;
+    }
 
-      const key = await importPKCS8(config.signingKey, ES256_ALG);
-      return await new SignJWT(payload)
-        .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
-        .setIssuer(config.issuerId)
-        .setAudience("promotional-offer")
-        .setIssuedAt()
-        .sign(key);
-    },
-    catch: (error) =>
-      new JwtCreationError({
-        message: `Failed to create promotional offer V2 signature: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+    const key = yield* Effect.tryPromise({
+      try: () => importPKCS8(config.signingKey, ES256_ALG),
+      catch: toError,
+    });
+    return yield* Effect.tryPromise({
+      try: () =>
+        new SignJWT(payload)
+          .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
+          .setIssuer(config.issuerId)
+          .setAudience("promotional-offer")
+          .setIssuedAt()
+          .sign(key),
+      catch: toError,
+    });
   });
 
 /**
@@ -125,30 +141,31 @@ export const createIntroductoryOfferEligibilitySignature = (
   allowIntroductoryOffer: boolean,
   transactionId: string,
 ): Effect.Effect<string, JwtCreationError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const nonce = globalThis.crypto.randomUUID();
-      const payload = {
-        bid: config.bundleId,
-        nonce,
-        productId,
-        allowIntroductoryOffer,
-        transactionId,
-      };
+  Effect.gen(function* () {
+    const toError = jwtCreationError("Failed to create introductory offer eligibility signature");
+    const nonce = globalThis.crypto.randomUUID();
+    const payload = {
+      bid: config.bundleId,
+      nonce,
+      productId,
+      allowIntroductoryOffer,
+      transactionId,
+    };
 
-      const key = await importPKCS8(config.signingKey, ES256_ALG);
-      return await new SignJWT(payload)
-        .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
-        .setIssuer(config.issuerId)
-        .setAudience("introductory-offer-eligibility")
-        .setIssuedAt()
-        .sign(key);
-    },
-    catch: (error) =>
-      new JwtCreationError({
-        message: `Failed to create introductory offer eligibility signature: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+    const key = yield* Effect.tryPromise({
+      try: () => importPKCS8(config.signingKey, ES256_ALG),
+      catch: toError,
+    });
+    return yield* Effect.tryPromise({
+      try: () =>
+        new SignJWT(payload)
+          .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
+          .setIssuer(config.issuerId)
+          .setAudience("introductory-offer-eligibility")
+          .setIssuedAt()
+          .sign(key),
+      catch: toError,
+    });
   });
 
 /**
@@ -162,29 +179,30 @@ export const createAdvancedCommerceInAppSignature = (
   config: PromotionalOfferSignatureConfig,
   requestPayload: Record<string, unknown>,
 ): Effect.Effect<string, JwtCreationError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const nonce = globalThis.crypto.randomUUID();
-      const requestJson = JSON.stringify(requestPayload);
-      const payload = {
-        bid: config.bundleId,
-        nonce,
-        request: bytesToBase64(utf8ToBytes(requestJson)),
-      };
+  Effect.gen(function* () {
+    const toError = jwtCreationError("Failed to create advanced commerce in-app signature");
+    const nonce = globalThis.crypto.randomUUID();
+    const requestJson = encodeJson(requestPayload);
+    const payload = {
+      bid: config.bundleId,
+      nonce,
+      request: bytesToBase64(utf8ToBytes(requestJson)),
+    };
 
-      const key = await importPKCS8(config.signingKey, ES256_ALG);
-      return await new SignJWT(payload)
-        .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
-        .setIssuer(config.issuerId)
-        .setAudience("advanced-commerce-api")
-        .setIssuedAt()
-        .sign(key);
-    },
-    catch: (error) =>
-      new JwtCreationError({
-        message: `Failed to create advanced commerce in-app signature: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+    const key = yield* Effect.tryPromise({
+      try: () => importPKCS8(config.signingKey, ES256_ALG),
+      catch: toError,
+    });
+    return yield* Effect.tryPromise({
+      try: () =>
+        new SignJWT(payload)
+          .setProtectedHeader({ alg: ES256_ALG, kid: config.keyId, typ: "JWT" })
+          .setIssuer(config.issuerId)
+          .setAudience("advanced-commerce-api")
+          .setIssuedAt()
+          .sign(key),
+      catch: toError,
+    });
   });
 
 /**
@@ -198,9 +216,5 @@ export const decodeJwtWithoutVerification = (
 ): Effect.Effect<unknown, JwtCreationError> =>
   Effect.try({
     try: () => decodeJwt(token),
-    catch: (error) =>
-      new JwtCreationError({
-        message: `Failed to decode JWT: ${error instanceof Error ? error.message : String(error)}`,
-        cause: Option.some(error),
-      }),
+    catch: jwtCreationError("Failed to decode JWT"),
   });

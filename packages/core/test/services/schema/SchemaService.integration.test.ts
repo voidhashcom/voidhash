@@ -31,8 +31,9 @@
  *  - Typed failures are asserted with `Effect.flip` (project convention),
  *    narrowing the swapped error with `instanceof`.
  */
-import { Effect } from "effect";
+import { Clock, DateTime, Effect, Schema } from "effect";
 import { ProductType, type ProductTypeValue } from "@voidhash/lib";
+import { constant } from "@voidhash/lib/lang";
 import { subtle } from "uncrypto";
 import { describe, expect, test as vitestTest } from "vitest";
 
@@ -60,7 +61,19 @@ const projectId = CoreTestFixture.projectId;
 
 /** Monotonic counter so slugs stay unique even within the same millisecond. */
 let slugSeq = 0;
-const uniqueSlug = (label: string) => `it-schema-${label}-${Date.now()}-${slugSeq++}`;
+const uniqueSlug = (label: string): Effect.Effect<string> =>
+  Effect.map(Clock.currentTimeMillis, (nowMillis) => `it-schema-${label}-${nowMillis}-${slugSeq++}`);
+
+/** `Date` at `millis` since the epoch — the `new Date(millis)` seam. */
+const dateAtMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
+
+/** The cached schema envelope, decoded rather than asserted. */
+const CachedSchema = Schema.Struct({ version: Schema.String });
+const cachedVersion = (cached: unknown): string =>
+  Schema.decodeUnknownSync(CachedSchema)(cached).version;
+
+/** The `JSON.stringify` seam, byte-identical to `computeSchemaVersion`. */
+const encodeJsonValue = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
  * Tracks every row a test seeds across the five catalog tables so the cleanup
@@ -214,6 +227,8 @@ const insertProviderConfig = (
     const db = yield* Db;
     const id = generateId("paymentProviderConfiguration");
     track.providerConfig(id);
+    let deletedAt: Date | null = null;
+    if (input.deleted) deletedAt = yield* DateTime.nowAsDate;
     yield* db.insert(paymentProviderConfigurations).values({
       id,
       providerId: input.providerId,
@@ -221,7 +236,7 @@ const insertProviderConfig = (
       paymentProviderKey: `it-key-${id}`,
       enabled: input.enabled,
       name: `cfg-${input.providerId}`,
-      deletedAt: input.deleted ? new Date() : null,
+      deletedAt,
     });
     return id;
   });
@@ -259,7 +274,7 @@ const insertProviderProductMapping = (
  * that intentionally omits `enabledProviders`). Proves the service's hash is
  * deterministic against the exact same layout the CLI reproduces.
  */
-const expectedVersion = async (projection: {
+const expectedVersion = (projection: {
   perks: ReadonlyArray<{ slug: string; name: string }>;
   locations: ReadonlyArray<{ slug: string; name: string; description: string | null }>;
   products: ReadonlyArray<{
@@ -267,40 +282,43 @@ const expectedVersion = async (projection: {
     name: string;
     type: "subscription";
     perks: ReadonlyArray<string>;
-    providers: ReadonlyArray<{ providerId: string; configuration: Record<string, unknown> }>;
+    providers: ReadonlyArray<{ providerId: string; configuration: unknown }>;
   }>;
-}): Promise<string> => {
-  const products = [...projection.products]
-    .map((product) => ({
-      name: product.name,
-      perks: [...product.perks].sort(),
-      providers: [...product.providers]
-        .map((provider) => ({
-          providerId: provider.providerId,
-          configuration: provider.configuration,
-        }))
-        .sort((a, b) => a.providerId.localeCompare(b.providerId)),
-      slug: product.slug,
-      type: product.type,
-    }))
-    .sort((a, b) => a.slug.localeCompare(b.slug));
-  const locations = [...projection.locations]
-    .map((location) => ({
-      description: location.description,
-      name: location.name,
-      slug: location.slug,
-    }))
-    .sort((a, b) => a.slug.localeCompare(b.slug));
-  const perksList = [...projection.perks]
-    .map((perk) => ({ name: perk.name, slug: perk.slug }))
-    .sort((a, b) => a.slug.localeCompare(b.slug));
-  const payload = JSON.stringify({ locations, perks: perksList, products });
-  const hashBuffer = await subtle.digest("SHA-256", new TextEncoder().encode(payload));
-  const hashHex = [...new Uint8Array(hashBuffer)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-  return `sha256:${hashHex}`;
-};
+}): Effect.Effect<string> =>
+  Effect.gen(function* () {
+    const products = [...projection.products]
+      .map((product) => ({
+        name: product.name,
+        perks: [...product.perks].sort(),
+        providers: [...product.providers]
+          .map((provider) => ({
+            providerId: provider.providerId,
+            configuration: provider.configuration,
+          }))
+          .sort((a, b) => a.providerId.localeCompare(b.providerId)),
+        slug: product.slug,
+        type: product.type,
+      }))
+      .sort((a, b) => a.slug.localeCompare(b.slug));
+    const locations = [...projection.locations]
+      .map((location) => ({
+        description: location.description,
+        name: location.name,
+        slug: location.slug,
+      }))
+      .sort((a, b) => a.slug.localeCompare(b.slug));
+    const perksList = [...projection.perks]
+      .map((perk) => ({ name: perk.name, slug: perk.slug }))
+      .sort((a, b) => a.slug.localeCompare(b.slug));
+    const payload = encodeJsonValue({ locations, perks: perksList, products });
+    const hashBuffer = yield* Effect.promise(() =>
+      subtle.digest("SHA-256", new TextEncoder().encode(payload)),
+    );
+    const hashHex = [...new Uint8Array(hashBuffer)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    return `sha256:${hashHex}`;
+  });
 
 /** A `user`-method session for the fixture principal carrying no project access. */
 const sessionWithoutProjectAccess = (): UserSession => ({
@@ -311,14 +329,14 @@ const sessionWithoutProjectAccess = (): UserSession => ({
   person: null,
   projects: [],
   user: {
-    createdAt: new Date(0),
+    createdAt: dateAtMillis(0),
     email: CoreTestFixture.userEmail,
     emailVerified: true,
     id: CoreTestFixture.userId,
     image: null,
     name: CoreTestFixture.userName,
     role: null,
-    updatedAt: new Date(0),
+    updatedAt: dateAtMillis(0),
     workosUserId: CoreTestFixture.workosUserId,
   },
 });
@@ -339,7 +357,7 @@ describe("SchemaService.getProjectSchema", () => {
         const cache = yield* ProjectSchemaCache;
 
         // Seed a perk so a fresh assembly would differ from the planted cache value.
-        const slug = uniqueSlug("cache-hit");
+        const slug = yield* uniqueSlug("cache-hit");
         yield* insertPerk(track, { name: "Cache Hit Perk", slug });
 
         // Plant a sentinel schema the service must return verbatim on a hit.
@@ -368,10 +386,10 @@ describe("SchemaService.getProjectSchema", () => {
         const schemaService = yield* SchemaService;
         const cache = yield* ProjectSchemaCache;
 
-        const perkSlug = uniqueSlug("miss-perk");
-        const productSlug = uniqueSlug("miss-product");
-        const consumableSlug = uniqueSlug("miss-consumable");
-        const locationSlug = uniqueSlug("miss-location");
+        const perkSlug = yield* uniqueSlug("miss-perk");
+        const productSlug = yield* uniqueSlug("miss-product");
+        const consumableSlug = yield* uniqueSlug("miss-consumable");
+        const locationSlug = yield* uniqueSlug("miss-location");
 
         const perkId = yield* insertPerk(track, { name: "Miss Perk", slug: perkSlug });
         const productId = yield* insertProduct(track, { name: "Miss Product", slug: productSlug });
@@ -424,7 +442,7 @@ describe("SchemaService.getProjectSchema", () => {
         // The assembled schema is now persisted in the cache.
         const after = yield* cache.getByName(projectId).get();
         expect(after).not.toBeNull();
-        expect((after as { version: string }).version).toBe(schema.version);
+        expect(cachedVersion(after)).toBe(schema.version);
       }),
     ).pipe(Effect.provide(SchemaService.layer), CoreAuthSession.authenticate()),
   );
@@ -457,7 +475,7 @@ describe("SchemaService.getProjectSchemaForSdk", () => {
       Effect.gen(function* () {
         const schemaService = yield* SchemaService;
 
-        const perkSlug = uniqueSlug("sdk-perk");
+        const perkSlug = yield* uniqueSlug("sdk-perk");
         yield* insertPerk(track, { name: "SDK Perk", slug: perkSlug });
 
         // Even with a session that has NO project access, the SDK variant must succeed.
@@ -475,7 +493,7 @@ describe("SchemaService.getProjectSchemaForSdk", () => {
         const schemaService = yield* SchemaService;
         const cache = yield* ProjectSchemaCache;
 
-        const slug = uniqueSlug("sdk-cache-hit");
+        const slug = yield* uniqueSlug("sdk-cache-hit");
         yield* insertPerk(track, { name: "SDK Cache Hit", slug });
 
         const sentinel = {
@@ -502,7 +520,7 @@ describe("SchemaService.getProjectSchemaForSdk", () => {
         const schemaService = yield* SchemaService;
         const cache = yield* ProjectSchemaCache;
 
-        const slug = uniqueSlug("sdk-miss");
+        const slug = yield* uniqueSlug("sdk-miss");
         yield* insertPerk(track, { name: "SDK Miss", slug });
 
         const before = yield* cache.getByName(projectId).get();
@@ -513,7 +531,7 @@ describe("SchemaService.getProjectSchemaForSdk", () => {
 
         const after = yield* cache.getByName(projectId).get();
         expect(after).not.toBeNull();
-        expect((after as { version: string }).version).toBe(schema.version);
+        expect(cachedVersion(after)).toBe(schema.version);
       }),
     ).pipe(Effect.provide(SchemaService.layer), CoreAuthSession.authenticate()),
   );
@@ -526,7 +544,7 @@ describe("SchemaService.computeProjectSchemaVersion", () => {
       Effect.gen(function* () {
         const schemaService = yield* SchemaService;
 
-        const slug = uniqueSlug("version-perk");
+        const slug = yield* uniqueSlug("version-perk");
         yield* insertPerk(track, { name: "Version Perk", slug });
 
         const schema = yield* schemaService.getProjectSchema(projectId);
@@ -556,13 +574,14 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
       Effect.gen(function* () {
         const schemaService = yield* SchemaService;
 
-        const activeSlug = uniqueSlug("loc-active");
-        const archivedSlug = uniqueSlug("loc-archived");
+        const activeSlug = yield* uniqueSlug("loc-active");
+        const archivedSlug = yield* uniqueSlug("loc-archived");
         yield* insertLocation(track, { name: "Active", slug: activeSlug });
+        const archivedAt = yield* DateTime.nowAsDate;
         yield* insertLocation(track, {
           name: "Archived",
           slug: archivedSlug,
-          archivedAt: new Date(),
+          archivedAt,
         });
 
         const schema = yield* schemaService.getProjectSchema(projectId);
@@ -578,7 +597,7 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
       Effect.gen(function* () {
         const schemaService = yield* SchemaService;
 
-        const productSlug = uniqueSlug("softdel-product");
+        const productSlug = yield* uniqueSlug("softdel-product");
         const productId = yield* insertProduct(track, {
           name: "SoftDel Product",
           slug: productSlug,
@@ -615,7 +634,7 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
       Effect.gen(function* () {
         const schemaService = yield* SchemaService;
 
-        const productSlug = uniqueSlug("inactive-product");
+        const productSlug = yield* uniqueSlug("inactive-product");
         const productId = yield* insertProduct(track, {
           name: "Inactive Product",
           slug: productSlug,
@@ -646,7 +665,7 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
       Effect.gen(function* () {
         const schemaService = yield* SchemaService;
 
-        const productSlug = uniqueSlug("stripe-product");
+        const productSlug = yield* uniqueSlug("stripe-product");
         const productId = yield* insertProduct(track, {
           name: "Stripe Product",
           slug: productSlug,
@@ -670,10 +689,10 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
         expect(product).toBeDefined();
         expect(product?.providers.some((pr) => pr.providerId === "appleAppStore")).toBe(true);
         // stripe is unmappable, so it never appears as a schema providerId.
-        expect(product?.providers.map((pr) => pr.providerId as string)).not.toContain("stripe");
+        expect(product?.providers.map((pr) => pr.providerId)).not.toContain("stripe");
         // enabledProviders is the surfaceable subset (only ever apple / google literals).
         expect(schema.enabledProviders).toContain("appleAppStore");
-        expect(schema.enabledProviders as ReadonlyArray<string>).not.toContain("stripe");
+        expect(schema.enabledProviders).not.toContain("stripe");
       }),
     ).pipe(Effect.provide(SchemaService.layer), CoreAuthSession.authenticate()),
   );
@@ -686,9 +705,9 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
         const db = yield* Db;
 
         // Seed a known set of rows for THIS project.
-        const perkSlug = uniqueSlug("hash-perk");
-        const productSlug = uniqueSlug("hash-product");
-        const locationSlug = uniqueSlug("hash-location");
+        const perkSlug = yield* uniqueSlug("hash-perk");
+        const productSlug = yield* uniqueSlug("hash-product");
+        const locationSlug = yield* uniqueSlug("hash-location");
 
         const perkId = yield* insertPerk(track, { name: "Hash Perk", slug: perkSlug });
         const productId = yield* insertProduct(track, { name: "Hash Product", slug: productSlug });
@@ -723,27 +742,32 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
 
         const projectionProducts = allProducts.map((product) => {
           const fromSchema = schema.products.find((p) => p.slug === product.slug);
+          if (!fromSchema) {
+            return {
+              slug: product.slug,
+              name: product.name,
+              type: constant("subscription"),
+              perks: [],
+              providers: [],
+            };
+          }
           return {
             slug: product.slug,
             name: product.name,
-            type: "subscription" as const,
-            perks: fromSchema ? [...fromSchema.perks] : [],
-            providers: fromSchema
-              ? fromSchema.providers.map((pr) => ({
-                  providerId: pr.providerId as string,
-                  configuration: pr.configuration as Record<string, unknown>,
-                }))
-              : [],
+            type: constant("subscription"),
+            perks: [...fromSchema.perks],
+            providers: fromSchema.providers.map((pr) => ({
+              providerId: pr.providerId,
+              configuration: pr.configuration,
+            })),
           };
         });
 
-        const oracle = yield* Effect.promise(() =>
-          expectedVersion({
-            perks: allPerks.map((p) => ({ slug: p.slug, name: p.name })),
-            locations: activeLocations,
-            products: projectionProducts,
-          }),
-        );
+        const oracle = yield* expectedVersion({
+          perks: allPerks.map((p) => ({ slug: p.slug, name: p.name })),
+          locations: activeLocations,
+          products: projectionProducts,
+        });
 
         expect(schema.version).toBe(oracle);
       }),
@@ -757,7 +781,7 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
         const schemaService = yield* SchemaService;
 
         // Insert in reverse-alphabetical order to prove the service re-sorts.
-        const stamp = `${Date.now()}-${slugSeq++}`;
+        const stamp = `${yield* Clock.currentTimeMillis}-${slugSeq++}`;
         const perkZ = `it-schema-sort-perk-z-${stamp}`;
         const perkA = `it-schema-sort-perk-a-${stamp}`;
         const prodZ = `it-schema-sort-prod-z-${stamp}`;

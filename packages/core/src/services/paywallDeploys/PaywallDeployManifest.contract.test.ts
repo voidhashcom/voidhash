@@ -25,6 +25,7 @@
  * server-lenient-at-this-layer, per the spec — the contract test accounts for
  * the difference, it does not "fix" it.
  */
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Result, Schema } from "effect";
 import {
   COMPONENT_MANIFEST_VERSION as OSS_COMPONENT_MANIFEST_VERSION,
@@ -74,69 +75,71 @@ const ossAcceptsManifest = (input: unknown) => parseComponentManifest(input).ok;
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const validTree = () => ({
-  treeVersion: OSS_TREE_VERSION,
-  state: "default",
-  root: {
-    type: "view",
-    style: {
-      flexDirection: "column",
-      paddingTop: 16,
-      paddingBottom: 16,
-      paddingLeft: 16,
-      paddingRight: 16,
-      backgroundColor: "#ffffff",
-      gap: 8,
-    },
-    children: [
-      { type: "text", style: { fontSize: 18, fontWeight: 700, color: "#111827" }, text: "Go Pro" },
-      {
-        type: "pressable",
-        style: {
-          paddingTop: 12,
-          paddingBottom: 12,
-          paddingLeft: 12,
-          paddingRight: 12,
-          borderTopLeftRadius: 8,
-          borderTopRightRadius: 8,
-          borderBottomLeftRadius: 8,
-          borderBottomRightRadius: 8,
-          backgroundColor: "#2563eb",
+const validTree = () =>
+  constant({
+    treeVersion: OSS_TREE_VERSION,
+    state: "default",
+    root: {
+      type: "view",
+      style: {
+        flexDirection: "column",
+        paddingTop: 16,
+        paddingBottom: 16,
+        paddingLeft: 16,
+        paddingRight: 16,
+        backgroundColor: "#ffffff",
+        gap: 8,
+      },
+      children: [
+        { type: "text", style: { fontSize: 18, fontWeight: 700, color: "#111827" }, text: "Go Pro" },
+        {
+          type: "pressable",
+          style: {
+            paddingTop: 12,
+            paddingBottom: 12,
+            paddingLeft: 12,
+            paddingRight: 12,
+            borderTopLeftRadius: 8,
+            borderTopRightRadius: 8,
+            borderBottomLeftRadius: 8,
+            borderBottomRightRadius: 8,
+            backgroundColor: "#2563eb",
+          },
+          children: [{ type: "text", style: { color: "#ffffff" }, text: "Subscribe" }],
+          action: "purchase",
         },
-        children: [{ type: "text", style: { color: "#ffffff" }, text: "Subscribe" }],
-        action: "purchase",
-      },
-      {
-        type: "image",
-        style: { width: 120, height: 120 },
-        src: "https://x/hero.png",
-        resizeMode: "cover",
-      },
-      { type: "slot" },
-    ],
-  },
-});
+        {
+          type: "image",
+          style: { width: 120, height: 120 },
+          src: "https://x/hero.png",
+          resizeMode: "cover",
+        },
+        { type: "slot" },
+      ],
+    },
+  });
 
-const validManifest = () => ({
-  manifestVersion: 2,
-  title: "Pro Card",
-  description: "Upsell card",
-  props: {
-    heading: { kind: "string", optional: false },
-    accent: { kind: "string", editor: "color", optional: true, default: "#2563eb" },
-    count: { kind: "number", optional: true, default: 3 },
-    featured: { kind: "boolean", optional: true },
-    variant: { kind: "select", options: ["a", "b"], optional: false },
-    hero: { kind: "image", optional: true },
-    product: { kind: "ref", refType: "product", optional: false },
-    child: { kind: "component", optional: true },
-    bullets: { kind: "array", item: { kind: "string" }, optional: true },
-  },
-  actions: { purchase: { payload: {} }, dismiss: { payload: { reason: { kind: "string" } } } },
-  slot: true,
-  previewStates: ["default", "loading"],
-  hostData: ["products"],
-});
+const validManifest = () =>
+  constant({
+    manifestVersion: 2,
+    title: "Pro Card",
+    description: "Upsell card",
+    props: {
+      heading: { kind: "string", optional: false },
+      accent: { kind: "string", editor: "color", optional: true, default: "#2563eb" },
+      count: { kind: "number", optional: true, default: 3 },
+      featured: { kind: "boolean", optional: true },
+      variant: { kind: "select", options: ["a", "b"], optional: false },
+      hero: { kind: "image", optional: true },
+      product: { kind: "ref", refType: "product", optional: false },
+      child: { kind: "component", optional: true },
+      bullets: { kind: "array", item: { kind: "string" }, optional: true },
+    },
+    actions: { purchase: { payload: {} }, dismiss: { payload: { reason: { kind: "string" } } } },
+    slot: true,
+    previewStates: ["default", "loading"],
+    hostData: ["products"],
+  });
 
 // ---------------------------------------------------------------------------
 // Version constants
@@ -421,7 +424,7 @@ describe("deliberate OSS-strict / server-lenient-at-this-layer divergences", () 
 
 describe("type assignability (compile-time)", () => {
   it("OSS PaywallNodeTree is assignable to the server PreviewTree", () => {
-    const ossTree = validTree() as unknown as PaywallNodeTree;
+    const ossTree: PaywallNodeTree = validTree();
     const asServer: PreviewTree = ossTree;
     expect(asServer.treeVersion).toBe(OSS_TREE_VERSION);
   });
@@ -437,8 +440,8 @@ describe("type assignability (compile-time)", () => {
     // a prop `default` as `unknown` and `optional` as required, while the server
     // narrows `default` per kind and leaves `optional` optional. So instead of a
     // whole-value alias we assert one fixture is a member of BOTH types.
-    const oss: OssComponentManifest = validManifest() as unknown as OssComponentManifest;
-    const server: ComponentManifest = validManifest() as unknown as ComponentManifest;
+    const oss: OssComponentManifest = validManifest();
+    const server: ComponentManifest = validManifest();
     expect(oss.manifestVersion).toBe(server.manifestVersion);
   });
 });

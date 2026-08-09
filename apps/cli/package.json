@@ -27,7 +27,7 @@
     "start": "dotenv -- tsx ./src/index.ts",
     "build": "rm -rf ./dist && tsx build.ts && cp package.json dist/ && chmod +x ./dist/bin.cjs",
     "build:dev": "rm -rf ./dist && tsx build.dev.ts && chmod +x ./dist/index.cjs",
-    "dev:set-local-urls": "npx voidhash-cli config set api_url http://localhost:8787 && npx voidhash-cli config set web_url https://localhost:3000",
+    "dev:set-local-urls": "npx voidhash-cli config set api_url http://localhost:8787 && npx voidhash-cli config set web_url https://voidhash.localhost",
     "typecheck": "tsgo --noEmit",
     "test": "vitest run -c vitest.unit.mts",
     "test:watch": "vitest -c vitest.unit.mts"
@@ -36,6 +36,7 @@
     "@better-auth/api-key": "catalog:",
     "@effect/platform-node": "4.0.0-beta.100",
     "@voidhash/generated-clients": "workspace:*",
+    "@voidhash/lib": "workspace:*",
     "@voidhash/shared": "workspace:*",
     "@voidhash/studio": "workspace:*",
     "better-auth": "catalog:",

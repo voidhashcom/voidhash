@@ -5,6 +5,10 @@
       "cache": false,
       "persistent": true
     },
+    "dev:server": {
+      "cache": false,
+      "persistent": true
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/*", "!.next/cache/**"],
@@ -28,9 +32,6 @@
     "clean": {},
     "format": {},
     "lint": {},
-    "knip": {
-      "cache": true
-    },
     "start": {
       "cache": false
     },

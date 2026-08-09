@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import React, {
   forwardRef,
   useCallback,
@@ -100,7 +101,11 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
     // Nitro Views rely on Fabric/New Architecture.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((globalThis as any).nativeFabricUIManager == null) {
-      throw new Error("PaywallWebView requires React Native New Architecture (Fabric) enabled.");
+      return Effect.runSync(
+        Effect.die(
+          new Error("PaywallWebView requires React Native New Architecture (Fabric) enabled."),
+        ),
+      );
     }
 
     const hybridViewRef = useRef<PaywallWebViewHostRef | null>(null);

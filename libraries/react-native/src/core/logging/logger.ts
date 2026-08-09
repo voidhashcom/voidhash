@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 export const LogLevel = {
   DEBUG: 0,
   ERROR: 3,
@@ -150,11 +152,18 @@ export class Logger {
     };
 
     for (const handler of this.handlers) {
-      try {
-        handler.handle(entry);
-      } catch (error) {
-        console.error("Logger handler error:", error);
-      }
+      Effect.runSync(
+        Effect.try({
+          try: () => handler.handle(entry),
+          catch: (error) => error,
+        }).pipe(
+          Effect.catch((error) =>
+            Effect.sync(() => {
+              console.error("Logger handler error:", error);
+            }),
+          ),
+        ),
+      );
     }
   }
 

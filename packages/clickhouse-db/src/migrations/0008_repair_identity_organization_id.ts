@@ -1,6 +1,8 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
+import { constant } from "@voidhash/lib/lang";
+
 import {
   CLICKHOUSE_EVENTS_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE,
@@ -10,14 +12,14 @@ import {
 } from "../analytics/schema.ts";
 import { ClickhouseWebClient } from "../clickhouse-client-web/index.ts";
 
-const IDENTITY_TABLES = [
+const IDENTITY_TABLES = constant([
   CLICKHOUSE_PERSONS_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_OVERRIDES_TABLE,
   CLICKHOUSE_PERSON_IDENTITY_PENDING_OVERRIDES_V2_TABLE,
-] as const;
+]);
 
-const ORG_BACKFILL_JOIN = "person_org_backfill_join_0008" as const;
+const ORG_BACKFILL_JOIN = "person_org_backfill_join_0008";
 
 /** Build the idempotent `organization_id` column repair for an identity table. */
 export const buildAddOrganizationIdStatement = (table: string): string =>

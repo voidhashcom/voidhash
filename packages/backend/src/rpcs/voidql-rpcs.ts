@@ -10,10 +10,6 @@
  * worker provides this layer the `analyticsQuery` client (see BackendWorker).
  */
 import { VoidQlService } from "@voidhash/core/services";
-// Imported so the inferred layer type (whose requirements include the
-// ClickhouseWebClient VoidQlService binds) is nameable in the emitted
-// declarations — the client is re-exported as a namespace (TS2883).
-import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import {
   AuthSession,
   RpcActionForbiddenError,

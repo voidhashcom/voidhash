@@ -9,7 +9,7 @@
  * deferred to `test.todo` (mirroring the App Store webhook handler suite, which
  * is entirely `test.todo` behind the live-Apple wall).
  */
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Encoding, Layer, Schema } from "effect";
 import { describe, expect, test as vitestTest } from "vitest";
 
 import {
@@ -42,8 +42,10 @@ const { test } = CoreIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
 let seq = 0;
-const uniq = (label: string) => `it-gpwh-${label}-${Date.now()}-${seq++}`;
+const uniq = (label: string) => `it-gpwh-${label}-${generateId("test")}-${seq++}`;
 
 const HandlerLive = GooglePlayWebhookHandlerService.layer.pipe(
   Layer.provideMerge(
@@ -61,7 +63,7 @@ const HandlerLive = GooglePlayWebhookHandlerService.layer.pipe(
 /** Base64-encoded Pub/Sub push envelope around a DeveloperNotification. */
 const envelope = (developerNotification: unknown, messageId = uniq("msg")) => ({
   message: {
-    data: btoa(JSON.stringify(developerNotification)),
+    data: Encoding.encodeBase64(encodeJson(developerNotification)),
     messageId,
     publishTime: "2024-02-15T12:00:00.000Z",
   },
@@ -139,7 +141,7 @@ describe("GooglePlayWebhookHandlerService.acceptRtdnNotification", () => {
         handler.acceptRtdnNotification({
           paymentProviderConfigurationId: "nonexistent-config",
           pubsubBody: envelope({ packageName: "com.x", testNotification: { version: "1.0" } }),
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
         }),
       );
       expect(error).toBeInstanceOf(GooglePlayPaymentProviderConfigurationNotFoundError);
@@ -155,7 +157,7 @@ describe("GooglePlayWebhookHandlerService.acceptRtdnNotification", () => {
         .acceptRtdnNotification({
           paymentProviderConfigurationId: ids.configId,
           pubsubBody: { not: "a valid pubsub message" },
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
         })
         .pipe(Effect.ensuring(cleanupConfig(ids)));
       expect(result.accepted).toBe(true);
@@ -180,7 +182,7 @@ describe("GooglePlayWebhookHandlerService.acceptRtdnNotification", () => {
             },
             messageId,
           ),
-          receivedAt: new Date(),
+          receivedAt: yield* DateTime.nowAsDate,
         })
         .pipe(
           Effect.tap((value) =>

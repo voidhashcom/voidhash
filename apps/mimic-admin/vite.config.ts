@@ -6,6 +6,11 @@ export default defineConfig({
   plugins: [tailwindcss(), viteReact()],
   resolve: { tsconfigPaths: true },
   root: "src",
+  server: {
+    host: "127.0.0.1",
+    port: 3003,
+    strictPort: true,
+  },
   build: {
     outDir: "../dist",
     emptyOutDir: true,

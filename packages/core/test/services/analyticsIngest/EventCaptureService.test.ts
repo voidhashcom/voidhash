@@ -4,7 +4,7 @@ import {
   CaptureUnauthorizedError,
   type CaptureEvent,
 } from "@voidhash/api-contracts/event-capture";
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import { describe, expect, it } from "../../../src/testing/effect-vitest.ts";
 import type {
@@ -27,6 +27,8 @@ import {
 // =============================================================================
 // Fixtures (fresh per test via const-returning builders)
 // =============================================================================
+
+const instant = (iso: string): Date => DateTime.toDateUtc(DateTime.makeUnsafe(iso));
 
 const policy = (overrides: Partial<CaptureProjectPolicy> = {}): CaptureProjectPolicy => ({
   ingestEnabled: true,
@@ -74,13 +76,13 @@ const envelopeArgs = (
   event: overrides.event ?? captureEvent(),
   organizationId: overrides.organizationId ?? "org_1",
   projectId: overrides.projectId ?? "proj_123",
-  receivedAt: overrides.receivedAt ?? new Date("2026-01-01T00:00:05.000Z"),
+  receivedAt: overrides.receivedAt ?? instant("2026-01-01T00:00:05.000Z"),
   request: overrides.request ?? {
     headers: { "user-agent": "test-agent" },
     requestId: "req_1",
   },
   route: overrides.route ?? route(),
-  sentAt: overrides.sentAt ?? new Date("2026-01-01T00:00:02.000Z"),
+  sentAt: overrides.sentAt ?? instant("2026-01-01T00:00:02.000Z"),
   token: overrides.token ?? "vh_pk_abcd1234",
 });
 
@@ -89,42 +91,54 @@ const envelopeArgs = (
 // =============================================================================
 
 describe("validateCaptureToken", () => {
-  it("accepts a token matching the vh_pk_* format and returns it", async () => {
-    const result = await Effect.runPromise(validateCaptureToken("vh_pk_abcd1234"));
-    expect(result).toBe("vh_pk_abcd1234");
-  });
+  it.effect("accepts a token matching the vh_pk_* format and returns it", () =>
+    Effect.gen(function* () {
+      const result = yield* validateCaptureToken("vh_pk_abcd1234");
+      expect(result).toBe("vh_pk_abcd1234");
+    }),
+  );
 
-  it("trims surrounding whitespace before validating and returns the trimmed token", async () => {
-    const result = await Effect.runPromise(validateCaptureToken("  vh_pk_abcd1234\n"));
-    expect(result).toBe("vh_pk_abcd1234");
-  });
+  it.effect("trims surrounding whitespace before validating and returns the trimmed token", () =>
+    Effect.gen(function* () {
+      const result = yield* validateCaptureToken("  vh_pk_abcd1234\n");
+      expect(result).toBe("vh_pk_abcd1234");
+    }),
+  );
 
-  it("rejects an empty token with CaptureUnauthorizedError 'missing token'", async () => {
-    // `Effect.flip` moves the typed error into the success channel so we can
-    // assert on its concrete type without poking into the Cause.
-    const error = await Effect.runPromise(validateCaptureToken("").pipe(Effect.flip));
-    expect(error).toBeInstanceOf(CaptureUnauthorizedError);
-    expect(error.error).toBe("missing token");
-    expect(error.code).toBe("unauthorized");
-  });
+  it.effect("rejects an empty token with CaptureUnauthorizedError 'missing token'", () =>
+    Effect.gen(function* () {
+      // `Effect.flip` moves the typed error into the success channel so we can
+      // assert on its concrete type without poking into the Cause.
+      const error = yield* Effect.flip(validateCaptureToken(""));
+      expect(error).toBeInstanceOf(CaptureUnauthorizedError);
+      expect(error.error).toBe("missing token");
+      expect(error.code).toBe("unauthorized");
+    }),
+  );
 
-  it("treats a whitespace-only token as missing", async () => {
-    const error = await Effect.runPromise(validateCaptureToken("   ").pipe(Effect.flip));
-    expect(error).toBeInstanceOf(CaptureUnauthorizedError);
-    expect(error.error).toBe("missing token");
-  });
+  it.effect("treats a whitespace-only token as missing", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(validateCaptureToken("   "));
+      expect(error).toBeInstanceOf(CaptureUnauthorizedError);
+      expect(error.error).toBe("missing token");
+    }),
+  );
 
   it.each([
     ["pk_abcd1234", "wrong prefix"],
     ["vh_pk_", "empty body"],
     ["vh_pk_abc-123", "non-word char"],
     ["VH_PK_ABCD", "uppercase prefix"],
-  ])("rejects malformed token %j (%s) with 'invalid token format'", async (token) => {
-    const error = await Effect.runPromise(validateCaptureToken(token).pipe(Effect.flip));
-    expect(error).toBeInstanceOf(CaptureUnauthorizedError);
-    expect(error.error).toBe("invalid token format");
-    expect(error.code).toBe("unauthorized");
-  });
+  ])("rejects malformed token %j (%s) with 'invalid token format'", (token) =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const error = yield* Effect.flip(validateCaptureToken(token));
+        expect(error).toBeInstanceOf(CaptureUnauthorizedError);
+        expect(error.error).toBe("invalid token format");
+        expect(error.code).toBe("unauthorized");
+      }),
+    ),
+  );
 });
 
 // =============================================================================
@@ -146,9 +160,9 @@ describe("tokenSuffix", () => {
 // =============================================================================
 
 describe("resolveEventTimestamp", () => {
-  const receivedAt = new Date("2026-01-01T00:00:05.000Z");
-  const sentAt = new Date("2026-01-01T00:00:02.000Z");
-  const timestamp = new Date("2026-01-01T00:00:01.000Z");
+  const receivedAt = instant("2026-01-01T00:00:05.000Z");
+  const sentAt = instant("2026-01-01T00:00:02.000Z");
+  const timestamp = instant("2026-01-01T00:00:01.000Z");
 
   it("returns the explicit timestamp when provided (highest priority)", () => {
     expect(resolveEventTimestamp({ receivedAt, sentAt, timestamp })).toBe(timestamp);
@@ -168,22 +182,26 @@ describe("resolveEventTimestamp", () => {
 // =============================================================================
 
 describe("selectRoute", () => {
-  it("routes to 'main'/CAPTURE_TOPIC_MAIN when not over quota and no forceRoute", async () => {
-    const decision = await Effect.runPromise(selectRoute({ overQuota: false, policy: policy() }));
-    expect(decision).toStrictEqual({
-      isHistorical: false,
-      routeClass: "main",
-      skipEnrichment: false,
-      targetTopic: CAPTURE_TOPIC_MAIN,
-    });
-  });
+  it.effect("routes to 'main'/CAPTURE_TOPIC_MAIN when not over quota and no forceRoute", () =>
+    Effect.gen(function* () {
+      const decision = yield* selectRoute({ overQuota: false, policy: policy() });
+      expect(decision).toStrictEqual({
+        isHistorical: false,
+        routeClass: "main",
+        skipEnrichment: false,
+        targetTopic: CAPTURE_TOPIC_MAIN,
+      });
+    }),
+  );
 
-  it("routes to 'overflow'/CAPTURE_TOPIC_OVERFLOW when over quota", async () => {
-    const decision = await Effect.runPromise(selectRoute({ overQuota: true, policy: policy() }));
-    expect(decision.routeClass).toBe("overflow");
-    expect(decision.targetTopic).toBe(CAPTURE_TOPIC_OVERFLOW);
-    expect(decision.isHistorical).toBe(false);
-  });
+  it.effect("routes to 'overflow'/CAPTURE_TOPIC_OVERFLOW when over quota", () =>
+    Effect.gen(function* () {
+      const decision = yield* selectRoute({ overQuota: true, policy: policy() });
+      expect(decision.routeClass).toBe("overflow");
+      expect(decision.targetTopic).toBe(CAPTURE_TOPIC_OVERFLOW);
+      expect(decision.isHistorical).toBe(false);
+    }),
+  );
 
   it.each<[Exclude<RouteClass, "custom">, string, boolean]>([
     ["main", CAPTURE_TOPIC_MAIN, false],
@@ -192,41 +210,50 @@ describe("selectRoute", () => {
     ["dlq", CAPTURE_TOPIC_DLQ, false],
   ])(
     "respects forceRoute=%s (topic %s, isHistorical=%s) even when over quota",
-    async (forceRoute, expectedTopic, expectedHistorical) => {
-      const decision = await Effect.runPromise(
-        // overQuota is intentionally true to prove forceRoute wins over the quota fallback.
-        selectRoute({ overQuota: true, policy: policy({ forceRoute }) }),
-      );
-      expect(decision.routeClass).toBe(forceRoute);
-      expect(decision.targetTopic).toBe(expectedTopic);
-      expect(decision.isHistorical).toBe(expectedHistorical);
-    },
+    (forceRoute, expectedTopic, expectedHistorical) =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          // overQuota is intentionally true to prove forceRoute wins over the quota fallback.
+          const decision = yield* selectRoute({ overQuota: true, policy: policy({ forceRoute }) });
+          expect(decision.routeClass).toBe(forceRoute);
+          expect(decision.targetTopic).toBe(expectedTopic);
+          expect(decision.isHistorical).toBe(expectedHistorical);
+        }),
+      ),
   );
 
-  it("rejects forceRoute='custom' with CaptureRateLimitedError", async () => {
-    const error = await Effect.runPromise(
-      selectRoute({ overQuota: false, policy: policy({ forceRoute: "custom" }) }).pipe(Effect.flip),
-    );
-    expect(error).toBeInstanceOf(CaptureRateLimitedError);
-    expect(error.code).toBe("rate_limited");
-    expect(error.error).toBe("custom routes are not supported in this deployment");
-  });
+  it.effect("rejects forceRoute='custom' with CaptureRateLimitedError", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(
+        selectRoute({ overQuota: false, policy: policy({ forceRoute: "custom" }) }),
+      );
+      expect(error).toBeInstanceOf(CaptureRateLimitedError);
+      expect(error.code).toBe("rate_limited");
+      expect(error.error).toBe("custom routes are not supported in this deployment");
+    }),
+  );
 
-  it("carries skipEnrichment through from the policy into the RouteDecision", async () => {
-    const decision = await Effect.runPromise(
-      selectRoute({ overQuota: false, policy: policy({ skipEnrichment: true }) }),
-    );
-    expect(decision.skipEnrichment).toBe(true);
-  });
+  it.effect("carries skipEnrichment through from the policy into the RouteDecision", () =>
+    Effect.gen(function* () {
+      const decision = yield* selectRoute({
+        overQuota: false,
+        policy: policy({ skipEnrichment: true }),
+      });
+      expect(decision.skipEnrichment).toBe(true);
+    }),
+  );
 
-  it("sets isHistorical=true only for the historical route", async () => {
-    const main = await Effect.runPromise(selectRoute({ overQuota: false, policy: policy() }));
-    const historical = await Effect.runPromise(
-      selectRoute({ overQuota: false, policy: policy({ forceRoute: "historical" }) }),
-    );
-    expect(main.isHistorical).toBe(false);
-    expect(historical.isHistorical).toBe(true);
-  });
+  it.effect("sets isHistorical=true only for the historical route", () =>
+    Effect.gen(function* () {
+      const main = yield* selectRoute({ overQuota: false, policy: policy() });
+      const historical = yield* selectRoute({
+        overQuota: false,
+        policy: policy({ forceRoute: "historical" }),
+      });
+      expect(main.isHistorical).toBe(false);
+      expect(historical.isHistorical).toBe(true);
+    }),
+  );
 });
 
 // =============================================================================
@@ -257,7 +284,7 @@ describe("makeEnvelope", () => {
   it("uses resolveEventTimestamp: explicit event.timestamp wins over sentAt/receivedAt", () => {
     const envelope = makeEnvelope(
       envelopeArgs({
-        event: captureEvent({ timestamp: new Date("2025-12-31T23:59:00.000Z") }),
+        event: captureEvent({ timestamp: instant("2025-12-31T23:59:00.000Z") }),
       }),
     );
     expect(envelope.eventTimestamp).toBe("2025-12-31T23:59:00.000Z");
@@ -284,13 +311,13 @@ describe("makeEnvelope", () => {
         request: { headers: { "user-agent": "ua" }, requestId: "req_2", clientIp: "1.2.3.4" },
       }),
     );
-    expect((envelope.properties as Record<string, unknown>).$ip).toBe("1.2.3.4");
+    expect(envelope.properties.$ip).toBe("1.2.3.4");
     expect(envelope.request.clientIp).toBe("1.2.3.4");
   });
 
   it("omits $ip when clientIp is absent", () => {
     const envelope = makeEnvelope(envelopeArgs());
-    expect((envelope.properties as Record<string, unknown>).$ip).toBeUndefined();
+    expect(envelope.properties.$ip).toBeUndefined();
     expect(envelope.request.clientIp).toBeUndefined();
   });
 
@@ -298,7 +325,7 @@ describe("makeEnvelope", () => {
     const envelope = makeEnvelope(
       envelopeArgs({ event: captureEvent({ distinct_id: "real_user" }) }),
     );
-    expect((envelope.properties as Record<string, unknown>).$process_person_profile).toBe(true);
+    expect(envelope.properties.$process_person_profile).toBe(true);
   });
 
   it("sets $process_person_profile=false for an anonymous distinct id", () => {
@@ -307,7 +334,7 @@ describe("makeEnvelope", () => {
         event: captureEvent({ distinct_id: `${ANONYMOUS_USER_ID_PREFIX}abc` }),
       }),
     );
-    expect((envelope.properties as Record<string, unknown>).$process_person_profile).toBe(false);
+    expect(envelope.properties.$process_person_profile).toBe(false);
   });
 
   it("honors a client-supplied $process_person_profile=true for an anonymous distinct id", () => {
@@ -321,7 +348,7 @@ describe("makeEnvelope", () => {
         }),
       }),
     );
-    expect((envelope.properties as Record<string, unknown>).$process_person_profile).toBe(true);
+    expect(envelope.properties.$process_person_profile).toBe(true);
   });
 
   it("honors a client-supplied $process_person_profile=false for a non-anonymous distinct id", () => {
@@ -333,7 +360,7 @@ describe("makeEnvelope", () => {
         }),
       }),
     );
-    expect((envelope.properties as Record<string, unknown>).$process_person_profile).toBe(false);
+    expect(envelope.properties.$process_person_profile).toBe(false);
   });
 
   it("falls back to the distinct-id default when $process_person_profile is not a boolean", () => {
@@ -345,6 +372,6 @@ describe("makeEnvelope", () => {
         }),
       }),
     );
-    expect((envelope.properties as Record<string, unknown>).$process_person_profile).toBe(false);
+    expect(envelope.properties.$process_person_profile).toBe(false);
   });
 });

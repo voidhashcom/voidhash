@@ -1,0 +1,60 @@
+---
+title: Export your StoreKit testing certificate
+description: Export the public root certificate from your StoreKit configuration file in Xcode so Voidhash can verify transactions made in the local StoreKit testing environment.
+---
+
+The **StoreKit testing framework (.cer certificate)** is the public root certificate that Xcode's
+local StoreKit testing environment uses to sign receipts and transactions. Voidhash needs it
+because local test purchases are signed with a different key than Sandbox and Production (which
+use the Apple Inc. Root certificate). You export it as a `.cer` file from your `.storekit`
+configuration file in Xcode and upload that file to Voidhash.
+
+<Steps>
+
+<Step>
+### Create a StoreKit configuration file (if you don't have one)
+
+In Xcode, choose **File → New → File from Template**. Type `storekit` in the Filter field, select
+**StoreKit Configuration File**, click **Next**, and save it into your project. The test
+certificate is derived from this file.
+</Step>
+
+<Step>
+### Select the .storekit file in the Project navigator
+
+In Xcode's Project navigator (left sidebar), click the StoreKit configuration file so it is the
+active item. The **Save Public Certificate** command is only available when the configuration
+file is selected.
+</Step>
+
+<Step>
+### Choose Editor → Save Public Certificate
+
+From the Xcode menu bar, choose **Editor → Save Public Certificate**, then select a location in
+your project and save the file. Apple doesn't prescribe a folder or filename, so you can name it
+anything.
+
+<Callout type="info" title="It's a root certificate">
+The test environment's certificate is a root certificate, so there's no certificate chain to
+validate when verifying the receipt signature.
+</Callout>
+</Step>
+
+<Step>
+### Upload the .cer to Voidhash
+
+Upload the exported `.cer` file into the **StoreKit testing framework (.cer certificate)** field
+in Voidhash.
+
+<Callout type="warn" title="Local testing only">
+This certificate verifies only transactions and receipts produced by Xcode's local StoreKit
+testing environment. Those receipts aren't signed by the App Store and aren't valid in Sandbox or
+Production, which use the Apple Inc. Root certificate.
+</Callout>
+</Step>
+
+</Steps>
+
+{/* To add a screenshot, drop an image at
+packages/web-app/public/docs/guides/payment-providers/apple-app-store/storekit-testing-certificate.png and reference it:
+![Xcode Editor menu showing Save Public Certificate](/docs/guides/payment-providers/apple-app-store/storekit-testing-certificate.png) */}

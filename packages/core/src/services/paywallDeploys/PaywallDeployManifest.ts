@@ -7,9 +7,13 @@
  * derivation. Everything in this module is pure — service-side orchestration
  * lives in `PaywallDeployService`.
  */
+import { constant } from "@voidhash/lib/lang";
 import { Effect, Schema } from "effect";
 
 import { createHash } from "../apiKeys/create-hash.ts";
+
+/** JSON serialization for the canonical hash preimage. */
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
 /** Manifest major version this server build understands (contract §1/§8). */
 export const DEPLOY_MANIFEST_SCHEMA_VERSION = 2;
@@ -40,7 +44,7 @@ export const PREVIEW_STATE_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/;
 export const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/;
 
 /** §1.1 size caps, in bytes. */
-export const SIZE_CAPS = {
+export const SIZE_CAPS = constant({
   jsBundle: 5 * 1024 * 1024,
   asset: 10 * 1024 * 1024,
   deployManifest: 1 * 1024 * 1024,
@@ -49,7 +53,7 @@ export const SIZE_CAPS = {
   html: 1 * 1024 * 1024,
   sourceFile: 1 * 1024 * 1024,
   config: 256 * 1024,
-} as const;
+});
 
 /**
  * §1.1 contentType grammar: a bare media type plus an optional charset
@@ -87,10 +91,10 @@ export const CONTENT_TYPE_ALLOWLIST: ReadonlySet<string> = new Set([
  * reported and unknown keys are rejected (contract: schemas "mirror this
  * document exactly"; §3 additionally mandates rejecting unknown keys).
  */
-export const strictParseOptions = {
+export const strictParseOptions = constant({
   errors: "all",
   onExcessProperty: "error",
-} as const;
+});
 
 // =============================================================================
 // §1 Deploy manifest
@@ -177,11 +181,11 @@ export type PaywallDeployManifest = typeof PaywallDeployManifestSchema.Type;
 // §2 Component manifest
 // =============================================================================
 
-const PropCommonFields = {
+const PropCommonFields = constant({
   label: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
   optional: Schema.optional(Schema.Boolean),
-} as const;
+});
 
 const StringPropSchema = Schema.Struct({
   kind: Schema.Literal("string"),
@@ -615,17 +619,23 @@ export const computeComponentContentHash = (input: {
  * key (`paywall_deploy.manifest_hash`): the same manifest re-POSTed always
  * hashes identically regardless of key order.
  */
+const compareKeys = (a: string, b: string): number => {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+};
+
 export const canonicalJsonStringify = (value: unknown): string => {
   if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
+    return encodeJson(value);
   }
   if (Array.isArray(value)) {
     return `[${value.map((item) => canonicalJsonStringify(item)).join(",")}]`;
   }
   const entries = Object.entries(value)
     .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([k, v]) => `${JSON.stringify(k)}:${canonicalJsonStringify(v)}`);
+    .sort(([a], [b]) => compareKeys(a, b))
+    .map(([k, v]) => `${encodeJson(k)}:${canonicalJsonStringify(v)}`);
   return `{${entries.join(",")}}`;
 };
 
@@ -651,7 +661,10 @@ export const paywallServingJsKey = (contentHash: string): string => `p/${content
 export const assetBasename = (path: string): string => {
   const segments = path.split("/");
   const last = segments[segments.length - 1];
-  return last === undefined || last === "" ? path : last;
+  if (last === undefined || last === "") {
+    return path;
+  }
+  return last;
 };
 
 /** §5 serving key for one paywall asset: `p/<contentHash>/assets/<basename>`. */
@@ -770,12 +783,13 @@ export const componentServingMetadata = (
   contentHash: string,
 ): { readonly hasPanel: boolean; readonly previewStates: ReadonlyArray<string> } | null => {
   const component = manifest.components.find((entry) => entry.contentHash === contentHash);
-  return component === undefined
-    ? null
-    : {
-        hasPanel: component.artifacts.panel !== null,
-        previewStates: component.previews.map((preview) => preview.state),
-      };
+  if (component === undefined) {
+    return null;
+  }
+  return {
+    hasPanel: component.artifacts.panel !== null,
+    previewStates: component.previews.map((preview) => preview.state),
+  };
 };
 
 // =============================================================================

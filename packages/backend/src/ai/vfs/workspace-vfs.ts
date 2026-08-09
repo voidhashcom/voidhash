@@ -15,6 +15,7 @@
  */
 import { serializeDocument, type SnapshotDocumentNode } from "@voidhash/ai-shared";
 import { fileNameFromDocRelative } from "@voidhash/paywall-workspace";
+import { Effect, Formatter } from "effect";
 import { InMemoryFs, MountableFs, type IFileSystem } from "just-bash/browser";
 
 import { LazyReadOnlyFs, type ReadOnlyDirEntry, type ReadOnlyDirProvider } from "./readonly-fs.ts";
@@ -41,28 +42,55 @@ export interface WorkspaceVfsSources {
   readPaywall(paywallId: string): Promise<PaywallVfsFiles | null>;
 }
 
+const cleanedDocument = (root: SnapshotDocumentNode | null): unknown => {
+  if (root === null) {
+    return null;
+  }
+  return serializeDocument([root]);
+};
+
+const componentFilesOf = (
+  node: SnapshotDocumentNode,
+): ReadonlyArray<{ readonly fileName: string; readonly source: string }> => {
+  if (node.type !== "codeComponent") {
+    return [];
+  }
+  const data = node.data ?? {};
+  if (typeof data.path !== "string" || typeof data.source !== "string") {
+    return [];
+  }
+  return [{ fileName: fileNameFromDocRelative(data.path), source: data.source }];
+};
+
 /**
  * Shape a decoded document root into its VFS files: pretty-printed cleaned
  * document JSON plus the local `codeComponent` sources (walked from the
  * singleton `library` node) named by their `<name>.tsx` file basename.
  */
 export const paywallVfsFiles = (root: SnapshotDocumentNode | null): PaywallVfsFiles => {
-  const cleaned = root === null ? null : serializeDocument([root]);
+  const cleaned = cleanedDocument(root);
   const library = (root?.children ?? []).find((child) => child.type === "library");
-  const components = (library?.children ?? []).flatMap((node) => {
-    if (node.type !== "codeComponent") {
-      return [];
-    }
-    const data = (node.data ?? {}) as { path?: unknown; source?: unknown };
-    return typeof data.path === "string" && typeof data.source === "string"
-      ? [{ fileName: fileNameFromDocRelative(data.path), source: data.source }]
-      : [];
-  });
-  return { documentJson: `${JSON.stringify(cleaned, null, 2)}\n`, components };
+  const components = (library?.children ?? []).flatMap(componentFilesOf);
+  return { documentJson: `${Formatter.formatJson(cleaned, { space: 2 })}\n`, components };
 };
 
 const COMPONENTS_DIR = "components";
 const DOCUMENT_FILE = "document.json";
+
+/** The stat shape {@link ReadOnlyDirProvider} answers with. */
+type ReadOnlyStat = { kind: "file" | "dir"; size?: number };
+
+const pathSegments = (relPath: string): ReadonlyArray<string> => {
+  if (relPath === "") {
+    return [];
+  }
+  return relPath.split("/");
+};
+
+// The provider contract is promise-typed (just-bash calls it directly), and
+// `Promise.resolve` is not available under the Effect lint preset — an already
+// completed Effect gives the same synchronously-settled promise.
+const resolved = <A>(value: A): Promise<A> => Effect.runPromise(Effect.succeed(value));
 
 /**
  * `/paywalls` provider: one directory per paywall id. The listing and each
@@ -85,86 +113,111 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
     return this.listing;
   }
 
-  private async filesOf(paywallId: string): Promise<PaywallVfsFiles | null> {
-    const listed = (await this.list()).some((paywall) => paywall.paywallId === paywallId);
-    if (!listed) {
-      return null;
-    }
-    let files = this.files.get(paywallId);
-    if (files === undefined) {
-      files = this.sources.readPaywall(paywallId);
-      this.files.set(paywallId, files);
-    }
-    return files;
-  }
-
-  async readdir(relPath: string): Promise<ReadonlyArray<ReadOnlyDirEntry> | null> {
-    const segments = relPath === "" ? [] : relPath.split("/");
-    if (segments.length === 0) {
-      const paywalls = await this.list();
-      return paywalls.map((paywall) => ({ name: paywall.paywallId, kind: "dir" }));
-    }
-    if (segments.length === 1) {
-      const files = await this.filesOf(segments[0]!);
-      return files === null
-        ? null
-        : [
-            { name: DOCUMENT_FILE, kind: "file" },
-            { name: COMPONENTS_DIR, kind: "dir" },
-          ];
-    }
-    if (segments.length === 2 && segments[1] === COMPONENTS_DIR) {
-      const files = await this.filesOf(segments[0]!);
-      return files === null
-        ? null
-        : files.components.map((component) => ({ name: component.fileName, kind: "file" }));
-    }
-    return null;
-  }
-
-  async stat(relPath: string): Promise<{ kind: "file" | "dir"; size?: number } | null> {
-    const segments = relPath === "" ? [] : relPath.split("/");
-    if (segments.length === 0) {
-      return { kind: "dir" };
-    }
-    if (segments.length === 1) {
-      return (await this.filesOf(segments[0]!)) === null ? null : { kind: "dir" };
-    }
-    if (segments.length === 2) {
-      const files = await this.filesOf(segments[0]!);
-      if (files === null) {
+  private filesOf(paywallId: string): Promise<PaywallVfsFiles | null> {
+    return this.list().then((paywalls): Promise<PaywallVfsFiles | null> | null => {
+      if (!paywalls.some((paywall) => paywall.paywallId === paywallId)) {
         return null;
       }
-      if (segments[1] === DOCUMENT_FILE) {
-        return { kind: "file", size: new TextEncoder().encode(files.documentJson).length };
+      const cached = this.files.get(paywallId);
+      if (cached !== undefined) {
+        return cached;
       }
-      return segments[1] === COMPONENTS_DIR ? { kind: "dir" } : null;
-    }
-    if (segments.length === 3 && segments[1] === COMPONENTS_DIR) {
-      const source = await this.componentSource(segments[0]!, segments[2]!);
-      return source === null
-        ? null
-        : { kind: "file", size: new TextEncoder().encode(source).length };
-    }
-    return null;
+      const files = this.sources.readPaywall(paywallId);
+      this.files.set(paywallId, files);
+      return files;
+    });
   }
 
-  async readFile(relPath: string): Promise<string | null> {
-    const segments = relPath === "" ? [] : relPath.split("/");
+  readdir(relPath: string): Promise<ReadonlyArray<ReadOnlyDirEntry> | null> {
+    const segments = pathSegments(relPath);
+    if (segments.length === 0) {
+      return this.list().then((paywalls): ReadonlyArray<ReadOnlyDirEntry> =>
+        paywalls.map((paywall) => ({ name: paywall.paywallId, kind: "dir" })),
+      );
+    }
+    if (segments.length === 1) {
+      return this.filesOf(segments[0]!).then((files): ReadonlyArray<ReadOnlyDirEntry> | null => {
+        if (files === null) {
+          return null;
+        }
+        return [
+          { name: DOCUMENT_FILE, kind: "file" },
+          { name: COMPONENTS_DIR, kind: "dir" },
+        ];
+      });
+    }
+    if (segments.length === 2 && segments[1] === COMPONENTS_DIR) {
+      return this.filesOf(segments[0]!).then((files): ReadonlyArray<ReadOnlyDirEntry> | null => {
+        if (files === null) {
+          return null;
+        }
+        return files.components.map((component) => ({ name: component.fileName, kind: "file" }));
+      });
+    }
+    return resolved(null);
+  }
+
+  stat(relPath: string): Promise<ReadOnlyStat | null> {
+    const segments = pathSegments(relPath);
+    if (segments.length === 0) {
+      return resolved<ReadOnlyStat>({ kind: "dir" });
+    }
+    if (segments.length === 1) {
+      return this.filesOf(segments[0]!).then((files): ReadOnlyStat | null => {
+        if (files === null) {
+          return null;
+        }
+        return { kind: "dir" };
+      });
+    }
+    if (segments.length === 2) {
+      return this.filesOf(segments[0]!).then((files): ReadOnlyStat | null => {
+        if (files === null) {
+          return null;
+        }
+        if (segments[1] === DOCUMENT_FILE) {
+          return { kind: "file", size: new TextEncoder().encode(files.documentJson).length };
+        }
+        if (segments[1] === COMPONENTS_DIR) {
+          return { kind: "dir" };
+        }
+        return null;
+      });
+    }
+    if (segments.length === 3 && segments[1] === COMPONENTS_DIR) {
+      return this.componentSource(segments[0]!, segments[2]!).then(
+        (source): ReadOnlyStat | null => {
+          if (source === null) {
+            return null;
+          }
+          return { kind: "file", size: new TextEncoder().encode(source).length };
+        },
+      );
+    }
+    return resolved(null);
+  }
+
+  readFile(relPath: string): Promise<string | null> {
+    const segments = pathSegments(relPath);
     if (segments.length === 2 && segments[1] === DOCUMENT_FILE) {
-      const files = await this.filesOf(segments[0]!);
-      return files === null ? null : files.documentJson;
+      return this.filesOf(segments[0]!).then((files): string | null => {
+        if (files === null) {
+          return null;
+        }
+        return files.documentJson;
+      });
     }
     if (segments.length === 3 && segments[1] === COMPONENTS_DIR) {
       return this.componentSource(segments[0]!, segments[2]!);
     }
-    return null;
+    return resolved(null);
   }
 
-  private async componentSource(paywallId: string, fileName: string): Promise<string | null> {
-    const files = await this.filesOf(paywallId);
-    const component = files?.components.find((candidate) => candidate.fileName === fileName);
-    return component?.source ?? null;
+  private componentSource(paywallId: string, fileName: string): Promise<string | null> {
+    return this.filesOf(paywallId).then((files): string | null => {
+      const component = files?.components.find((candidate) => candidate.fileName === fileName);
+      return component?.source ?? null;
+    });
   }
 }
 
@@ -188,7 +241,7 @@ To modify a paywall, use begin_paywall_edit + edit_paywall / write_component.
  * `/README.md` and the scratch dirs, with the read-only `/paywalls` projection
  * mounted over it.
  */
-export const makeWorkspaceVfs = async (sources: WorkspaceVfsSources): Promise<IFileSystem> => {
+export const makeWorkspaceVfs = (sources: WorkspaceVfsSources): Promise<IFileSystem> => {
   const base = new InMemoryFs({ "/README.md": WORKSPACE_VFS_README });
   const fs = new MountableFs({
     base,
@@ -201,7 +254,8 @@ export const makeWorkspaceVfs = async (sources: WorkspaceVfsSources): Promise<IF
       },
     ],
   });
-  await fs.mkdir("/tmp");
-  await fs.mkdir("/home/user", { recursive: true });
-  return fs;
+  return fs
+    .mkdir("/tmp")
+    .then(() => fs.mkdir("/home/user", { recursive: true }))
+    .then(() => fs);
 };

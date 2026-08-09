@@ -10,6 +10,16 @@ const yearlyFixture: PaywallProduct = {
   trialPeriod: "7d",
 };
 
+const optionBackgroundColor = (selected: boolean) => {
+  if (selected) return "rgba(255,255,255,0.10)";
+  return "transparent";
+};
+
+const optionBorderColor = (selected: boolean, accentColor: string) => {
+  if (selected) return accentColor;
+  return "rgba(255,255,255,0.15)";
+};
+
 /**
  * A selectable product row: name and trial on the left, price on the right.
  * Purely presentational — the paywall passes the product, whether it is
@@ -36,8 +46,8 @@ export default defineComponent({
       onPress={() => actions.onSelect({ productId: props.product.id })}
       style={{
         alignItems: "center",
-        backgroundColor: props.selected ? "rgba(255,255,255,0.10)" : "transparent",
-        borderColor: props.selected ? props.accentColor : "rgba(255,255,255,0.15)",
+        backgroundColor: optionBackgroundColor(props.selected),
+        borderColor: optionBorderColor(props.selected, props.accentColor),
         borderRadius: 16,
         borderWidth: 2,
         flexDirection: "row",
@@ -49,11 +59,11 @@ export default defineComponent({
         <Text style={{ color: "white", fontSize: 16, fontWeight: "700" }}>
           {props.product.displayName}
         </Text>
-        {props.product.trialPeriod ? (
+        {props.product.trialPeriod && (
           <Text style={{ color: props.accentColor, fontSize: 12 }}>
             {props.product.trialPeriod} free trial
           </Text>
-        ) : null}
+        )}
       </View>
       <Text style={{ color: "white", fontSize: 16, fontWeight: "700" }}>
         {props.product.priceString}

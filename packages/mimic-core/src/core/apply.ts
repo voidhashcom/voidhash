@@ -3,19 +3,28 @@ import {
   HiddenTreeRootId,
   type ArrayItem,
   type Command,
+  type ObjectValue,
   type Path,
   type TreeNode,
   type Value,
+  arrayValue,
   clonePath,
   cloneValue,
+  objectValue,
+  treeValue,
 } from "./types.ts";
 import { compareArrayItems, compareTreeNodes } from "./order.ts";
 import { validateValue } from "./validate.ts";
 
+const withClonedPath = (command: Command): Command => ({
+  ...command,
+  path: clonePath(command.path),
+});
+
 export const apply = (state: Value, command: Command): Value => {
   validateValue(state);
   const next = cloneValue(state);
-  applyInPlace(next, { ...command, path: clonePath(command.path) } as Command);
+  applyInPlace(next, withClonedPath(command));
   validateValue(next);
   return next;
 };
@@ -24,7 +33,7 @@ export const applyBatch = (state: Value, commands: readonly Command[]): Value =>
   validateValue(state);
   const next = cloneValue(state);
   for (const command of commands) {
-    applyInPlace(next, { ...command, path: clonePath(command.path) } as Command);
+    applyInPlace(next, withClonedPath(command));
   }
   validateValue(next);
   return next;
@@ -80,7 +89,7 @@ const applyObjectSet = (state: Value, path: Path, key: string, value: Value): vo
     if (target.kind !== "object") {
       throw makeCoreError(ErrorCodes.TypeMismatch, "object command requires object target");
     }
-    (target.fields as Record<string, Value>)[key] = cloneValue(value);
+    mutableFields(target)[key] = cloneValue(value);
   });
 };
 
@@ -95,7 +104,7 @@ const applyObjectDelete = (state: Value, path: Path, key: string): void => {
     if (!Object.hasOwn(target.fields, key)) {
       throw makeCoreError(ErrorCodes.MissingField, "object field does not exist");
     }
-    delete (target.fields as Record<string, Value>)[key];
+    delete mutableFields(target)[key];
   });
 };
 
@@ -112,12 +121,12 @@ const applyArrayInsert = (state: Value, path: Path, item: ArrayItem): void => {
         throw makeCoreError(ErrorCodes.DuplicateArrayPos, "array item position already exists");
       }
     }
-    (target.items as ArrayItem[]).push({
-      id: item.id,
-      pos: item.pos,
-      value: cloneValue(item.value),
-    });
-    (target.items as ArrayItem[]).sort(compareArrayItems);
+    const nextItems = [
+      ...target.items,
+      { id: item.id, pos: item.pos, value: cloneValue(item.value) },
+    ];
+    nextItems.sort(compareArrayItems);
+    replaceValue(target, arrayValue(nextItems));
   });
 };
 
@@ -143,11 +152,13 @@ const applyArrayMove = (state: Value, path: Path, id: string, pos: string): void
     if (index === -1) {
       throw makeCoreError(ErrorCodes.MissingArrayItem, "array item does not exist");
     }
-    (target.items as ArrayItem[])[index] = {
+    const nextItems = [...target.items];
+    nextItems[index] = {
       ...target.items[index]!,
       pos,
     };
-    (target.items as ArrayItem[]).sort(compareArrayItems);
+    nextItems.sort(compareArrayItems);
+    replaceValue(target, arrayValue(nextItems));
   });
 };
 
@@ -163,7 +174,9 @@ const applyArrayDelete = (state: Value, path: Path, id: string): void => {
     if (index === -1) {
       throw makeCoreError(ErrorCodes.MissingArrayItem, "array item does not exist");
     }
-    (target.items as ArrayItem[]).splice(index, 1);
+    const nextItems = [...target.items];
+    nextItems.splice(index, 1);
+    replaceValue(target, arrayValue(nextItems));
   });
 };
 
@@ -191,13 +204,17 @@ const applyTreeInsert = (state: Value, path: Path, node: TreeNode): void => {
       throw makeCoreError(ErrorCodes.DuplicateTreePos, "tree sibling position already exists");
     }
 
-    (target.nodes as TreeNode[]).push({
-      id: node.id,
-      parent: node.parent,
-      pos: node.pos,
-      value: cloneValue(node.value) as TreeNode["value"],
-    });
-    (target.nodes as TreeNode[]).sort(compareTreeNodes);
+    const nextNodes = [
+      ...target.nodes,
+      {
+        id: node.id,
+        parent: node.parent,
+        pos: node.pos,
+        value: cloneObjectValue(node.value),
+      },
+    ];
+    nextNodes.sort(compareTreeNodes);
+    replaceValue(target, treeValue(nextNodes));
   });
 };
 
@@ -224,12 +241,14 @@ const applyTreeMove = (state: Value, path: Path, id: string, parent: string, pos
       throw makeCoreError(ErrorCodes.DuplicateTreePos, "tree sibling position already exists");
     }
 
-    (target.nodes as TreeNode[])[index] = {
+    const nextNodes = [...target.nodes];
+    nextNodes[index] = {
       ...target.nodes[index]!,
       parent,
       pos,
     };
-    (target.nodes as TreeNode[]).sort(compareTreeNodes);
+    nextNodes.sort(compareTreeNodes);
+    replaceValue(target, treeValue(nextNodes));
   });
 };
 
@@ -258,7 +277,7 @@ const applyTreeDelete = (state: Value, path: Path, id: string): void => {
     }
 
     const nextNodes = target.nodes.filter((node) => !toDelete.has(node.id));
-    (target.nodes as TreeNode[]).splice(0, target.nodes.length, ...nextNodes);
+    replaceValue(target, treeValue(nextNodes));
   });
 };
 
@@ -278,7 +297,7 @@ const mutateAtPath = (current: Value, path: Path, fn: (target: Value) => void): 
       if (!Object.hasOwn(current.fields, segment.key)) {
         throw makeCoreError(ErrorCodes.MissingField, "field does not exist");
       }
-      mutateAtPath(current.fields[segment.key] as Value, rest, fn);
+      mutateAtPath(current.fields[segment.key]!, rest, fn);
       return;
     case "item":
       if (current.kind !== "array") {
@@ -309,9 +328,22 @@ const mutateAtPath = (current: Value, path: Path, fn: (target: Value) => void): 
 
 const replaceValue = (target: Value, next: Value): void => {
   for (const key of Object.keys(target)) {
-    delete (target as unknown as Record<string, unknown>)[key];
+    Reflect.deleteProperty(target, key);
   }
-  Object.assign(target as unknown as Record<string, unknown>, next);
+  Object.assign(target, next);
+};
+
+/**
+ * Narrow view over an object value's fields so in-place edits stay local to this module.
+ */
+const mutableFields = (target: ObjectValue): Record<string, Value> => target.fields;
+
+const cloneObjectValue = (value: ObjectValue): ObjectValue => {
+  const fields: Record<string, Value> = {};
+  for (const [key, field] of Object.entries(value.fields)) {
+    fields[key] = cloneValue(field);
+  }
+  return objectValue(fields);
 };
 
 const findArrayItemIndex = (items: readonly ArrayItem[], id: string): number =>

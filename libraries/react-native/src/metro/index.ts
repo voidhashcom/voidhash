@@ -98,7 +98,9 @@ function startWatcher(options: WithVoidhashOptions) {
     ...(options.extraArgs ?? []),
   ];
 
+  // oxlint-disable-next-line effect/noTryCatch -- Metro config hook: this runs inside Metro's synchronous config evaluation, with no Effect runtime available to run an Effect.try.
   try {
+    // oxlint-disable-next-line effect/noDynamicImports -- node:child_process is loaded lazily so the Metro config stays importable in non-Node bundling targets that never start the type-generation watcher.
     const childProcessModule = require("node:child_process") as ChildProcessModule;
     activeChildProcess = childProcessModule.spawn(binary, args, {
       env: process.env,
