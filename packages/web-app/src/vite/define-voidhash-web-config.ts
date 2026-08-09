@@ -15,6 +15,7 @@ import {
   type UserConfig,
   type UserConfigExport,
 } from "vite";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 const webAppRoot = new URL("../../", import.meta.url);
 const webAppSource = new URL("../", import.meta.url);
@@ -164,6 +165,7 @@ export function defineVoidhashWebConfig(options: VoidhashWebConfigOptions): User
           exclude: [...(options.optimizeDepsExclude ?? [])],
         },
         plugins: [
+          tsconfigPaths(),
           ...mdx(options.sourceConfig, {
             configPath: options.sourceConfigPath ?? "src/features/source.config.ts",
           }),
@@ -198,7 +200,6 @@ export function defineVoidhashWebConfig(options: VoidhashWebConfigOptions): User
         resolve: {
           alias: aliases,
           dedupe: ["@tanstack/react-query", "@tanstack/react-router", "react", "react-dom"],
-          tsconfigPaths: true,
         },
         server: {
           cors: {
