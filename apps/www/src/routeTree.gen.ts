@@ -8,1331 +8,1387 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./../../../packages/web-app/src/routes/__root";
-import { Route as StudioRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/route";
-import { Route as DocsRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/docs/route";
-import { Route as AuthRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/auth/route";
-import { Route as MarketingRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/_marketing/route";
-import { Route as DocsIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/docs/index";
-import { Route as AuthIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/auth/index";
-import { Route as MarketingIndexRouteImport } from "./../../../packages/web-app/src/routes/community/_marketing/index";
-import { Route as DocsSplatRouteImport } from "./../../../packages/web-app/src/routes/shared/docs/$";
-import { Route as AuthVerifyEmailRouteImport } from "./../../../packages/web-app/src/routes/community/auth/verify-email";
-import { Route as AuthSignUpRouteImport } from "./../../../packages/web-app/src/routes/community/auth/sign-up";
-import { Route as AuthResetPasswordRouteImport } from "./../../../packages/web-app/src/routes/community/auth/reset-password";
-import { Route as AuthLogoutRouteImport } from "./../../../packages/web-app/src/routes/shared/auth/logout";
-import { Route as AuthLoginRouteImport } from "./../../../packages/web-app/src/routes/community/auth/login";
-import { Route as AuthForgotPasswordRouteImport } from "./../../../packages/web-app/src/routes/community/auth/forgot-password";
-import { Route as StudioAuthenticatedRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/route";
-import { Route as StudioAuthenticatedIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/index";
-import { Route as AuthDevicesIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/auth/devices/index";
-import { Route as StudioAuthenticatedWaitlistRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/waitlist";
-import { Route as DocsApiSearchRouteImport } from "./../../../packages/web-app/src/routes/shared/docs/api/search";
-import { Route as DocsApiProxyRouteImport } from "./../../../packages/web-app/src/routes/shared/docs/api/proxy";
-import { Route as ApiAuthSignOutRouteImport } from "./../../../packages/web-app/src/routes/community/api/auth/sign-out";
-import { Route as ApiAuthSignInRouteImport } from "./../../../packages/web-app/src/routes/community/api/auth/sign-in";
-import { Route as ApiAuthSessionRouteImport } from "./../../../packages/web-app/src/routes/community/api/auth/session";
-import { Route as StudioAuthenticatedDashboardRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/route";
-import { Route as StudioAuthenticatedCreateOrganizationIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/create-organization/index";
-import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_organization/$organizationSlug/route";
-import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_organization/$organizationSlug/index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/route";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/index";
-import { Route as StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_designer/$organizationSlug.$projectSlug.design.$id";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments.index";
-import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.$id";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons.$id";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls.$id";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags.$id";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments.$id";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.trials";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.subscribers";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.revenue";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.query";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.insights";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.dashboards";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.churn";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity.sent-notifications";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity.events";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations.$id";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers.$paymentProviderConfigurationId";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications.$providerConfigurationId";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.$endpointId.index";
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRouteImport } from "./../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.$endpointId.$deliveryId";
+import { Route as rootRouteImport } from './../../../packages/web-app/src/routes/__root'
+import { Route as StudioRouteRouteImport } from './../../../packages/web-app/src/routes/shared/studio/route'
+import { Route as DocsRouteRouteImport } from './../../../packages/web-app/src/routes/shared/docs/route'
+import { Route as AuthRouteRouteImport } from './../../../packages/web-app/src/routes/shared/auth/route'
+import { Route as MarketingRouteRouteImport } from './../../../packages/web-app/src/routes/shared/_marketing/route'
+import { Route as DocsIndexRouteImport } from './../../../packages/web-app/src/routes/shared/docs/index'
+import { Route as AuthIndexRouteImport } from './../../../packages/web-app/src/routes/shared/auth/index'
+import { Route as MarketingIndexRouteImport } from './../../../packages/web-app/src/routes/community/_marketing/index'
+import { Route as DocsSplatRouteImport } from './../../../packages/web-app/src/routes/shared/docs/$'
+import { Route as AuthVerifyEmailRouteImport } from './../../../packages/web-app/src/routes/community/auth/verify-email'
+import { Route as AuthSignUpRouteImport } from './../../../packages/web-app/src/routes/community/auth/sign-up'
+import { Route as AuthResetPasswordRouteImport } from './../../../packages/web-app/src/routes/community/auth/reset-password'
+import { Route as AuthLogoutRouteImport } from './../../../packages/web-app/src/routes/shared/auth/logout'
+import { Route as AuthLoginRouteImport } from './../../../packages/web-app/src/routes/community/auth/login'
+import { Route as AuthForgotPasswordRouteImport } from './../../../packages/web-app/src/routes/community/auth/forgot-password'
+import { Route as StudioAuthenticatedRouteRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/route'
+import { Route as StudioAuthenticatedIndexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/index'
+import { Route as AuthDevicesIndexRouteImport } from './../../../packages/web-app/src/routes/shared/auth/devices/index'
+import { Route as StudioAuthenticatedWaitlistRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/waitlist'
+import { Route as DocsApiSearchRouteImport } from './../../../packages/web-app/src/routes/shared/docs/api/search'
+import { Route as DocsApiProxyRouteImport } from './../../../packages/web-app/src/routes/shared/docs/api/proxy'
+import { Route as ApiAuthSignOutRouteImport } from './../../../packages/web-app/src/routes/community/api/auth/sign-out'
+import { Route as ApiAuthSignInRouteImport } from './../../../packages/web-app/src/routes/community/api/auth/sign-in'
+import { Route as ApiAuthSessionRouteImport } from './../../../packages/web-app/src/routes/community/api/auth/session'
+import { Route as StudioAuthenticatedDashboardRouteRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/route'
+import { Route as StudioAuthenticatedCreateOrganizationIndexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/create-organization/index'
+import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_organization/$organizationSlug/route'
+import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_organization/$organizationSlug/index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/route'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/index'
+import { Route as StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_designer/$organizationSlug.$projectSlug.design.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments.index'
+import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.trials'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.subscribers'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.revenue'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.query'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.insights'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.dashboards'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.churn'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity.sent-notifications'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity.events'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers.$paymentProviderConfigurationId'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications.$providerConfigurationId'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.$endpointId.index'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.$endpointId.$deliveryId'
 
 const StudioRouteRoute = StudioRouteRouteImport.update({
-  id: "/studio",
-  path: "/studio",
+  id: '/studio',
+  path: '/studio',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const DocsRouteRoute = DocsRouteRouteImport.update({
-  id: "/docs",
-  path: "/docs",
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AuthRouteRoute = AuthRouteRouteImport.update({
-  id: "/auth",
-  path: "/auth",
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const MarketingRouteRoute = MarketingRouteRouteImport.update({
-  id: "/_marketing",
+  id: '/_marketing',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const DocsIndexRoute = DocsIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => DocsRouteRoute,
-} as any);
+} as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => AuthRouteRoute,
-} as any);
+} as any)
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => MarketingRouteRoute,
-} as any);
+} as any)
 const DocsSplatRoute = DocsSplatRouteImport.update({
-  id: "/$",
-  path: "/$",
+  id: '/$',
+  path: '/$',
   getParentRoute: () => DocsRouteRoute,
-} as any);
+} as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
-  id: "/verify-email",
-  path: "/verify-email",
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => AuthRouteRoute,
-} as any);
+} as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
-  id: "/sign-up",
-  path: "/sign-up",
+  id: '/sign-up',
+  path: '/sign-up',
   getParentRoute: () => AuthRouteRoute,
-} as any);
+} as any)
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: "/reset-password",
-  path: "/reset-password",
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => AuthRouteRoute,
-} as any);
+} as any)
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
-  id: "/logout",
-  path: "/logout",
+  id: '/logout',
+  path: '/logout',
   getParentRoute: () => AuthRouteRoute,
-} as any);
+} as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: "/login",
-  path: "/login",
+  id: '/login',
+  path: '/login',
   getParentRoute: () => AuthRouteRoute,
-} as any);
+} as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: "/forgot-password",
-  path: "/forgot-password",
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => AuthRouteRoute,
-} as any);
-const StudioAuthenticatedRouteRoute = StudioAuthenticatedRouteRouteImport.update({
-  id: "/_authenticated",
-  getParentRoute: () => StudioRouteRoute,
-} as any);
-const StudioAuthenticatedIndexRoute = StudioAuthenticatedIndexRouteImport.update({
-  id: "/",
-  path: "/",
-  getParentRoute: () => StudioAuthenticatedRouteRoute,
-} as any);
+} as any)
+const StudioAuthenticatedRouteRoute =
+  StudioAuthenticatedRouteRouteImport.update({
+    id: '/_authenticated',
+    getParentRoute: () => StudioRouteRoute,
+  } as any)
+const StudioAuthenticatedIndexRoute =
+  StudioAuthenticatedIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => StudioAuthenticatedRouteRoute,
+  } as any)
 const AuthDevicesIndexRoute = AuthDevicesIndexRouteImport.update({
-  id: "/devices/",
-  path: "/devices/",
+  id: '/devices/',
+  path: '/devices/',
   getParentRoute: () => AuthRouteRoute,
-} as any);
-const StudioAuthenticatedWaitlistRoute = StudioAuthenticatedWaitlistRouteImport.update({
-  id: "/waitlist",
-  path: "/waitlist",
-  getParentRoute: () => StudioAuthenticatedRouteRoute,
-} as any);
+} as any)
+const StudioAuthenticatedWaitlistRoute =
+  StudioAuthenticatedWaitlistRouteImport.update({
+    id: '/waitlist',
+    path: '/waitlist',
+    getParentRoute: () => StudioAuthenticatedRouteRoute,
+  } as any)
 const DocsApiSearchRoute = DocsApiSearchRouteImport.update({
-  id: "/api/search",
-  path: "/api/search",
+  id: '/api/search',
+  path: '/api/search',
   getParentRoute: () => DocsRouteRoute,
-} as any);
+} as any)
 const DocsApiProxyRoute = DocsApiProxyRouteImport.update({
-  id: "/api/proxy",
-  path: "/api/proxy",
+  id: '/api/proxy',
+  path: '/api/proxy',
   getParentRoute: () => DocsRouteRoute,
-} as any);
+} as any)
 const ApiAuthSignOutRoute = ApiAuthSignOutRouteImport.update({
-  id: "/api/auth/sign-out",
-  path: "/api/auth/sign-out",
+  id: '/api/auth/sign-out',
+  path: '/api/auth/sign-out',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiAuthSignInRoute = ApiAuthSignInRouteImport.update({
-  id: "/api/auth/sign-in",
-  path: "/api/auth/sign-in",
+  id: '/api/auth/sign-in',
+  path: '/api/auth/sign-in',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
-  id: "/api/auth/session",
-  path: "/api/auth/session",
+  id: '/api/auth/session',
+  path: '/api/auth/session',
   getParentRoute: () => rootRouteImport,
-} as any);
-const StudioAuthenticatedDashboardRouteRoute = StudioAuthenticatedDashboardRouteRouteImport.update({
-  id: "/_dashboard",
-  getParentRoute: () => StudioAuthenticatedRouteRoute,
-} as any);
+} as any)
+const StudioAuthenticatedDashboardRouteRoute =
+  StudioAuthenticatedDashboardRouteRouteImport.update({
+    id: '/_dashboard',
+    getParentRoute: () => StudioAuthenticatedRouteRoute,
+  } as any)
 const StudioAuthenticatedCreateOrganizationIndexRoute =
   StudioAuthenticatedCreateOrganizationIndexRouteImport.update({
-    id: "/create-organization/",
-    path: "/create-organization/",
+    id: '/create-organization/',
+    path: '/create-organization/',
     getParentRoute: () => StudioAuthenticatedRouteRoute,
-  } as any);
+  } as any)
 const StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute =
-  StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport.update({
-    id: "/_organization/$organizationSlug",
-    path: "/$organizationSlug",
-    getParentRoute: () => StudioAuthenticatedDashboardRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport.update(
+    {
+      id: '/_organization/$organizationSlug',
+      path: '/$organizationSlug',
+      getParentRoute: () => StudioAuthenticatedDashboardRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute =
-  StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport.update({
-    id: "/",
-    path: "/",
-    getParentRoute: () => StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport.update(
+    {
+      id: '/',
+      path: '/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport.update({
-    id: "/_project/$organizationSlug/$projectSlug",
-    path: "/$organizationSlug/$projectSlug",
-    getParentRoute: () => StudioAuthenticatedDashboardRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport.update(
+    {
+      id: '/_project/$organizationSlug/$projectSlug',
+      path: '/$organizationSlug/$projectSlug',
+      getParentRoute: () => StudioAuthenticatedDashboardRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRouteImport.update({
-    id: "/",
-    path: "/",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRouteImport.update(
+    {
+      id: '/',
+      path: '/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute =
-  StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRouteImport.update({
-    id: "/_designer/$organizationSlug/$projectSlug/design/$id",
-    path: "/$organizationSlug/$projectSlug/design/$id",
-    getParentRoute: () => StudioAuthenticatedRouteRoute,
-  } as any);
+  StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRouteImport.update(
+    {
+      id: '/_designer/$organizationSlug/$projectSlug/design/$id',
+      path: '/$organizationSlug/$projectSlug/design/$id',
+      getParentRoute: () => StudioAuthenticatedRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport.update({
-    id: "/overview",
-    path: "/overview",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport.update(
+    {
+      id: '/overview',
+      path: '/overview',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport.update({
-    id: "/settings/",
-    path: "/settings/",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport.update(
+    {
+      id: '/settings/',
+      path: '/settings/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRouteImport.update({
-    id: "/products/",
-    path: "/products/",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRouteImport.update(
+    {
+      id: '/products/',
+      path: '/products/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRouteImport.update({
-    id: "/persons/",
-    path: "/persons/",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRouteImport.update(
+    {
+      id: '/persons/',
+      path: '/persons/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRouteImport.update({
-    id: "/paywalls/",
-    path: "/paywalls/",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRouteImport.update(
+    {
+      id: '/paywalls/',
+      path: '/paywalls/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRouteImport.update({
-    id: "/flags/",
-    path: "/flags/",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRouteImport.update(
+    {
+      id: '/flags/',
+      path: '/flags/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRouteImport.update(
     {
-      id: "/experiments/",
-      path: "/experiments/",
+      id: '/experiments/',
+      path: '/experiments/',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute =
   StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRouteImport.update(
     {
-      id: "/~/settings/",
-      path: "/~/settings/",
-      getParentRoute: () => StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute,
+      id: '/~/settings/',
+      path: '/~/settings/',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport.update({
-    id: "/settings/perks",
-    path: "/settings/perks",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport.update(
+    {
+      id: '/settings/perks',
+      path: '/settings/perks',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport.update({
-    id: "/settings/api-keys",
-    path: "/settings/api-keys",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport.update(
+    {
+      id: '/settings/api-keys',
+      path: '/settings/api-keys',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRouteImport.update({
-    id: "/products/$id",
-    path: "/products/$id",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRouteImport.update(
+    {
+      id: '/products/$id',
+      path: '/products/$id',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRouteImport.update({
-    id: "/persons/$id",
-    path: "/persons/$id",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRouteImport.update(
+    {
+      id: '/persons/$id',
+      path: '/persons/$id',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRouteImport.update({
-    id: "/paywalls/$id",
-    path: "/paywalls/$id",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRouteImport.update(
+    {
+      id: '/paywalls/$id',
+      path: '/paywalls/$id',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRouteImport.update({
-    id: "/flags/$id",
-    path: "/flags/$id",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRouteImport.update(
+    {
+      id: '/flags/$id',
+      path: '/flags/$id',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRouteImport.update({
-    id: "/experiments/$id",
-    path: "/experiments/$id",
-    getParentRoute: () => StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-  } as any);
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRouteImport.update(
+    {
+      id: '/experiments/$id',
+      path: '/experiments/$id',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRouteImport.update(
     {
-      id: "/analytics/trials",
-      path: "/analytics/trials",
+      id: '/analytics/trials',
+      path: '/analytics/trials',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRouteImport.update(
     {
-      id: "/analytics/subscribers",
-      path: "/analytics/subscribers",
+      id: '/analytics/subscribers',
+      path: '/analytics/subscribers',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRouteImport.update(
     {
-      id: "/analytics/revenue",
-      path: "/analytics/revenue",
+      id: '/analytics/revenue',
+      path: '/analytics/revenue',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport.update(
     {
-      id: "/analytics/query",
-      path: "/analytics/query",
+      id: '/analytics/query',
+      path: '/analytics/query',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport.update(
     {
-      id: "/analytics/insights",
-      path: "/analytics/insights",
+      id: '/analytics/insights',
+      path: '/analytics/insights',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport.update(
     {
-      id: "/analytics/dashboards",
-      path: "/analytics/dashboards",
+      id: '/analytics/dashboards',
+      path: '/analytics/dashboards',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRouteImport.update(
     {
-      id: "/analytics/churn",
-      path: "/analytics/churn",
+      id: '/analytics/churn',
+      path: '/analytics/churn',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRouteImport.update(
     {
-      id: "/activity/sent-notifications",
-      path: "/activity/sent-notifications",
+      id: '/activity/sent-notifications',
+      path: '/activity/sent-notifications',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRouteImport.update(
     {
-      id: "/activity/events",
-      path: "/activity/events",
+      id: '/activity/events',
+      path: '/activity/events',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRouteImport.update(
     {
-      id: "/settings/webhooks/",
-      path: "/settings/webhooks/",
+      id: '/settings/webhooks/',
+      path: '/settings/webhooks/',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRouteImport.update(
     {
-      id: "/settings/paywall-locations/",
-      path: "/settings/paywall-locations/",
+      id: '/settings/paywall-locations/',
+      path: '/settings/paywall-locations/',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRouteImport.update(
     {
-      id: "/settings/payment-providers/",
-      path: "/settings/payment-providers/",
+      id: '/settings/payment-providers/',
+      path: '/settings/payment-providers/',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRouteImport.update(
     {
-      id: "/settings/notifications/",
-      path: "/settings/notifications/",
+      id: '/settings/notifications/',
+      path: '/settings/notifications/',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRouteImport.update(
     {
-      id: "/settings/paywall-locations/$id",
-      path: "/settings/paywall-locations/$id",
+      id: '/settings/paywall-locations/$id',
+      path: '/settings/paywall-locations/$id',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRouteImport.update(
     {
-      id: "/settings/payment-providers/$paymentProviderConfigurationId",
-      path: "/settings/payment-providers/$paymentProviderConfigurationId",
+      id: '/settings/payment-providers/$paymentProviderConfigurationId',
+      path: '/settings/payment-providers/$paymentProviderConfigurationId',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRouteImport.update(
     {
-      id: "/settings/notifications/$providerConfigurationId",
-      path: "/settings/notifications/$providerConfigurationId",
+      id: '/settings/notifications/$providerConfigurationId',
+      path: '/settings/notifications/$providerConfigurationId',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRouteImport.update(
     {
-      id: "/settings/webhooks/$endpointId/",
-      path: "/settings/webhooks/$endpointId/",
+      id: '/settings/webhooks/$endpointId/',
+      path: '/settings/webhooks/$endpointId/',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRouteImport.update(
     {
-      id: "/settings/webhooks/$endpointId/$deliveryId",
-      path: "/settings/webhooks/$endpointId/$deliveryId",
+      id: '/settings/webhooks/$endpointId/$deliveryId',
+      path: '/settings/webhooks/$endpointId/$deliveryId',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
-  );
+  )
 
 export interface FileRoutesByFullPath {
-  "/": typeof MarketingIndexRoute;
-  "/auth": typeof AuthRouteRouteWithChildren;
-  "/docs": typeof DocsRouteRouteWithChildren;
-  "/studio": typeof StudioRouteRouteWithChildren;
-  "/auth/forgot-password": typeof AuthForgotPasswordRoute;
-  "/auth/login": typeof AuthLoginRoute;
-  "/auth/logout": typeof AuthLogoutRoute;
-  "/auth/reset-password": typeof AuthResetPasswordRoute;
-  "/auth/sign-up": typeof AuthSignUpRoute;
-  "/auth/verify-email": typeof AuthVerifyEmailRoute;
-  "/docs/$": typeof DocsSplatRoute;
-  "/auth/": typeof AuthIndexRoute;
-  "/docs/": typeof DocsIndexRoute;
-  "/api/auth/session": typeof ApiAuthSessionRoute;
-  "/api/auth/sign-in": typeof ApiAuthSignInRoute;
-  "/api/auth/sign-out": typeof ApiAuthSignOutRoute;
-  "/docs/api/proxy": typeof DocsApiProxyRoute;
-  "/docs/api/search": typeof DocsApiSearchRoute;
-  "/studio/waitlist": typeof StudioAuthenticatedWaitlistRoute;
-  "/auth/devices/": typeof AuthDevicesIndexRoute;
-  "/studio/": typeof StudioAuthenticatedIndexRoute;
-  "/studio/create-organization/": typeof StudioAuthenticatedCreateOrganizationIndexRoute;
-  "/studio/$organizationSlug": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren;
-  "/studio/$organizationSlug/$projectSlug": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren;
-  "/studio/$organizationSlug/": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute;
-  "/studio/$organizationSlug/$projectSlug/overview": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute;
-  "/studio/$organizationSlug/$projectSlug/design/$id": typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute;
-  "/studio/$organizationSlug/$projectSlug/activity/events": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute;
-  "/studio/$organizationSlug/$projectSlug/activity/sent-notifications": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/churn": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/dashboards": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/insights": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/query": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/revenue": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/subscribers": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/trials": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute;
-  "/studio/$organizationSlug/$projectSlug/experiments/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/flags/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/paywalls/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/persons/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/products/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/api-keys": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/perks": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute;
-  "/studio/$organizationSlug/~/settings/": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/experiments/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/flags/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/paywalls/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/persons/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/products/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/notifications/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/payment-providers/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/webhooks/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute;
+  '/': typeof MarketingIndexRoute
+  '/auth': typeof AuthRouteRouteWithChildren
+  '/docs': typeof DocsRouteRouteWithChildren
+  '/studio': typeof StudioRouteRouteWithChildren
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/auth/sign-up': typeof AuthSignUpRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/auth/': typeof AuthIndexRoute
+  '/docs/': typeof DocsIndexRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/docs/api/proxy': typeof DocsApiProxyRoute
+  '/docs/api/search': typeof DocsApiSearchRoute
+  '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
+  '/auth/devices/': typeof AuthDevicesIndexRoute
+  '/studio/': typeof StudioAuthenticatedIndexRoute
+  '/studio/create-organization/': typeof StudioAuthenticatedCreateOrganizationIndexRoute
+  '/studio/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
+  '/studio/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
+  '/studio/$organizationSlug/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
+  '/studio/$organizationSlug/$projectSlug/overview': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
+  '/studio/$organizationSlug/$projectSlug/design/$id': typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute
+  '/studio/$organizationSlug/$projectSlug/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
+  '/studio/$organizationSlug/$projectSlug/activity/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
+  '/studio/$organizationSlug/$projectSlug/activity/sent-notifications': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/churn': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/dashboards': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/insights': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/query': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/revenue': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
+  '/studio/$organizationSlug/$projectSlug/experiments/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/flags/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/paywalls/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/settings/api-keys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  '/studio/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
+  '/studio/$organizationSlug/~/settings/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/experiments/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/flags/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/paywalls/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/persons/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/products/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute
+  '/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute
+  '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/settings/notifications/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/payment-providers/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/webhooks/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute
+  '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute
 }
 export interface FileRoutesByTo {
-  "/studio": typeof StudioAuthenticatedIndexRoute;
-  "/auth/forgot-password": typeof AuthForgotPasswordRoute;
-  "/auth/login": typeof AuthLoginRoute;
-  "/auth/logout": typeof AuthLogoutRoute;
-  "/auth/reset-password": typeof AuthResetPasswordRoute;
-  "/auth/sign-up": typeof AuthSignUpRoute;
-  "/auth/verify-email": typeof AuthVerifyEmailRoute;
-  "/docs/$": typeof DocsSplatRoute;
-  "/": typeof MarketingIndexRoute;
-  "/auth": typeof AuthIndexRoute;
-  "/docs": typeof DocsIndexRoute;
-  "/api/auth/session": typeof ApiAuthSessionRoute;
-  "/api/auth/sign-in": typeof ApiAuthSignInRoute;
-  "/api/auth/sign-out": typeof ApiAuthSignOutRoute;
-  "/docs/api/proxy": typeof DocsApiProxyRoute;
-  "/docs/api/search": typeof DocsApiSearchRoute;
-  "/studio/waitlist": typeof StudioAuthenticatedWaitlistRoute;
-  "/auth/devices": typeof AuthDevicesIndexRoute;
-  "/studio/create-organization": typeof StudioAuthenticatedCreateOrganizationIndexRoute;
-  "/studio/$organizationSlug": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute;
-  "/studio/$organizationSlug/$projectSlug/overview": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute;
-  "/studio/$organizationSlug/$projectSlug/design/$id": typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute;
-  "/studio/$organizationSlug/$projectSlug": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute;
-  "/studio/$organizationSlug/$projectSlug/activity/events": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute;
-  "/studio/$organizationSlug/$projectSlug/activity/sent-notifications": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/churn": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/dashboards": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/insights": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/query": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/revenue": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/subscribers": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute;
-  "/studio/$organizationSlug/$projectSlug/analytics/trials": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute;
-  "/studio/$organizationSlug/$projectSlug/experiments/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/flags/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/paywalls/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/persons/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/products/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/api-keys": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/perks": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute;
-  "/studio/$organizationSlug/~/settings": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/experiments": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/flags": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/paywalls": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/persons": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/products": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/notifications": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/payment-providers": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/paywall-locations": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/webhooks": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute;
-  "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute;
+  '/studio': typeof StudioAuthenticatedIndexRoute
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/auth/sign-up': typeof AuthSignUpRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/': typeof MarketingIndexRoute
+  '/auth': typeof AuthIndexRoute
+  '/docs': typeof DocsIndexRoute
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/docs/api/proxy': typeof DocsApiProxyRoute
+  '/docs/api/search': typeof DocsApiSearchRoute
+  '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
+  '/auth/devices': typeof AuthDevicesIndexRoute
+  '/studio/create-organization': typeof StudioAuthenticatedCreateOrganizationIndexRoute
+  '/studio/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
+  '/studio/$organizationSlug/$projectSlug/overview': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
+  '/studio/$organizationSlug/$projectSlug/design/$id': typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute
+  '/studio/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
+  '/studio/$organizationSlug/$projectSlug/activity/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
+  '/studio/$organizationSlug/$projectSlug/activity/sent-notifications': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/churn': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/dashboards': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/insights': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/query': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/revenue': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
+  '/studio/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
+  '/studio/$organizationSlug/$projectSlug/experiments/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/flags/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/paywalls/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/settings/api-keys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  '/studio/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
+  '/studio/$organizationSlug/~/settings': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/experiments': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/flags': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/paywalls': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/persons': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/products': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute
+  '/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute
+  '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute
+  '/studio/$organizationSlug/$projectSlug/settings/notifications': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/payment-providers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/paywall-locations': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/webhooks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute
+  '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute
+  '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/_marketing": typeof MarketingRouteRouteWithChildren;
-  "/auth": typeof AuthRouteRouteWithChildren;
-  "/docs": typeof DocsRouteRouteWithChildren;
-  "/studio": typeof StudioRouteRouteWithChildren;
-  "/studio/_authenticated": typeof StudioAuthenticatedRouteRouteWithChildren;
-  "/auth/forgot-password": typeof AuthForgotPasswordRoute;
-  "/auth/login": typeof AuthLoginRoute;
-  "/auth/logout": typeof AuthLogoutRoute;
-  "/auth/reset-password": typeof AuthResetPasswordRoute;
-  "/auth/sign-up": typeof AuthSignUpRoute;
-  "/auth/verify-email": typeof AuthVerifyEmailRoute;
-  "/docs/$": typeof DocsSplatRoute;
-  "/_marketing/": typeof MarketingIndexRoute;
-  "/auth/": typeof AuthIndexRoute;
-  "/docs/": typeof DocsIndexRoute;
-  "/studio/_authenticated/_dashboard": typeof StudioAuthenticatedDashboardRouteRouteWithChildren;
-  "/api/auth/session": typeof ApiAuthSessionRoute;
-  "/api/auth/sign-in": typeof ApiAuthSignInRoute;
-  "/api/auth/sign-out": typeof ApiAuthSignOutRoute;
-  "/docs/api/proxy": typeof DocsApiProxyRoute;
-  "/docs/api/search": typeof DocsApiSearchRoute;
-  "/studio/_authenticated/waitlist": typeof StudioAuthenticatedWaitlistRoute;
-  "/auth/devices/": typeof AuthDevicesIndexRoute;
-  "/studio/_authenticated/": typeof StudioAuthenticatedIndexRoute;
-  "/studio/_authenticated/create-organization/": typeof StudioAuthenticatedCreateOrganizationIndexRoute;
-  "/studio/_authenticated/_dashboard/_organization/$organizationSlug": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren;
-  "/studio/_authenticated/_dashboard/_organization/$organizationSlug/": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute;
-  "/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id": typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute;
-  "/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/": typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute;
-  "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/": typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute;
+  __root__: typeof rootRouteImport
+  '/_marketing': typeof MarketingRouteRouteWithChildren
+  '/auth': typeof AuthRouteRouteWithChildren
+  '/docs': typeof DocsRouteRouteWithChildren
+  '/studio': typeof StudioRouteRouteWithChildren
+  '/studio/_authenticated': typeof StudioAuthenticatedRouteRouteWithChildren
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/auth/sign-up': typeof AuthSignUpRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/docs/$': typeof DocsSplatRoute
+  '/_marketing/': typeof MarketingIndexRoute
+  '/auth/': typeof AuthIndexRoute
+  '/docs/': typeof DocsIndexRoute
+  '/studio/_authenticated/_dashboard': typeof StudioAuthenticatedDashboardRouteRouteWithChildren
+  '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/auth/sign-in': typeof ApiAuthSignInRoute
+  '/api/auth/sign-out': typeof ApiAuthSignOutRoute
+  '/docs/api/proxy': typeof DocsApiProxyRoute
+  '/docs/api/search': typeof DocsApiSearchRoute
+  '/studio/_authenticated/waitlist': typeof StudioAuthenticatedWaitlistRoute
+  '/auth/devices/': typeof AuthDevicesIndexRoute
+  '/studio/_authenticated/': typeof StudioAuthenticatedIndexRoute
+  '/studio/_authenticated/create-organization/': typeof StudioAuthenticatedCreateOrganizationIndexRoute
+  '/studio/_authenticated/_dashboard/_organization/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
+  '/studio/_authenticated/_dashboard/_organization/$organizationSlug/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
+  '/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id': typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
+  '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/auth"
-    | "/docs"
-    | "/studio"
-    | "/auth/forgot-password"
-    | "/auth/login"
-    | "/auth/logout"
-    | "/auth/reset-password"
-    | "/auth/sign-up"
-    | "/auth/verify-email"
-    | "/docs/$"
-    | "/auth/"
-    | "/docs/"
-    | "/api/auth/session"
-    | "/api/auth/sign-in"
-    | "/api/auth/sign-out"
-    | "/docs/api/proxy"
-    | "/docs/api/search"
-    | "/studio/waitlist"
-    | "/auth/devices/"
-    | "/studio/"
-    | "/studio/create-organization/"
-    | "/studio/$organizationSlug"
-    | "/studio/$organizationSlug/$projectSlug"
-    | "/studio/$organizationSlug/"
-    | "/studio/$organizationSlug/$projectSlug/overview"
-    | "/studio/$organizationSlug/$projectSlug/design/$id"
-    | "/studio/$organizationSlug/$projectSlug/"
-    | "/studio/$organizationSlug/$projectSlug/activity/events"
-    | "/studio/$organizationSlug/$projectSlug/activity/sent-notifications"
-    | "/studio/$organizationSlug/$projectSlug/analytics/churn"
-    | "/studio/$organizationSlug/$projectSlug/analytics/dashboards"
-    | "/studio/$organizationSlug/$projectSlug/analytics/insights"
-    | "/studio/$organizationSlug/$projectSlug/analytics/query"
-    | "/studio/$organizationSlug/$projectSlug/analytics/revenue"
-    | "/studio/$organizationSlug/$projectSlug/analytics/subscribers"
-    | "/studio/$organizationSlug/$projectSlug/analytics/trials"
-    | "/studio/$organizationSlug/$projectSlug/experiments/$id"
-    | "/studio/$organizationSlug/$projectSlug/flags/$id"
-    | "/studio/$organizationSlug/$projectSlug/paywalls/$id"
-    | "/studio/$organizationSlug/$projectSlug/persons/$id"
-    | "/studio/$organizationSlug/$projectSlug/products/$id"
-    | "/studio/$organizationSlug/$projectSlug/settings/api-keys"
-    | "/studio/$organizationSlug/$projectSlug/settings/perks"
-    | "/studio/$organizationSlug/~/settings/"
-    | "/studio/$organizationSlug/$projectSlug/experiments/"
-    | "/studio/$organizationSlug/$projectSlug/flags/"
-    | "/studio/$organizationSlug/$projectSlug/paywalls/"
-    | "/studio/$organizationSlug/$projectSlug/persons/"
-    | "/studio/$organizationSlug/$projectSlug/products/"
-    | "/studio/$organizationSlug/$projectSlug/settings/"
-    | "/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId"
-    | "/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
-    | "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id"
-    | "/studio/$organizationSlug/$projectSlug/settings/notifications/"
-    | "/studio/$organizationSlug/$projectSlug/settings/payment-providers/"
-    | "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/"
-    | "/studio/$organizationSlug/$projectSlug/settings/webhooks/"
-    | "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId"
-    | "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/auth'
+    | '/docs'
+    | '/studio'
+    | '/auth/forgot-password'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/auth/reset-password'
+    | '/auth/sign-up'
+    | '/auth/verify-email'
+    | '/docs/$'
+    | '/auth/'
+    | '/docs/'
+    | '/api/auth/session'
+    | '/api/auth/sign-in'
+    | '/api/auth/sign-out'
+    | '/docs/api/proxy'
+    | '/docs/api/search'
+    | '/studio/waitlist'
+    | '/auth/devices/'
+    | '/studio/'
+    | '/studio/create-organization/'
+    | '/studio/$organizationSlug'
+    | '/studio/$organizationSlug/$projectSlug'
+    | '/studio/$organizationSlug/'
+    | '/studio/$organizationSlug/$projectSlug/overview'
+    | '/studio/$organizationSlug/$projectSlug/design/$id'
+    | '/studio/$organizationSlug/$projectSlug/'
+    | '/studio/$organizationSlug/$projectSlug/activity/events'
+    | '/studio/$organizationSlug/$projectSlug/activity/sent-notifications'
+    | '/studio/$organizationSlug/$projectSlug/analytics/churn'
+    | '/studio/$organizationSlug/$projectSlug/analytics/dashboards'
+    | '/studio/$organizationSlug/$projectSlug/analytics/insights'
+    | '/studio/$organizationSlug/$projectSlug/analytics/query'
+    | '/studio/$organizationSlug/$projectSlug/analytics/revenue'
+    | '/studio/$organizationSlug/$projectSlug/analytics/subscribers'
+    | '/studio/$organizationSlug/$projectSlug/analytics/trials'
+    | '/studio/$organizationSlug/$projectSlug/experiments/$id'
+    | '/studio/$organizationSlug/$projectSlug/flags/$id'
+    | '/studio/$organizationSlug/$projectSlug/paywalls/$id'
+    | '/studio/$organizationSlug/$projectSlug/persons/$id'
+    | '/studio/$organizationSlug/$projectSlug/products/$id'
+    | '/studio/$organizationSlug/$projectSlug/settings/api-keys'
+    | '/studio/$organizationSlug/$projectSlug/settings/perks'
+    | '/studio/$organizationSlug/~/settings/'
+    | '/studio/$organizationSlug/$projectSlug/experiments/'
+    | '/studio/$organizationSlug/$projectSlug/flags/'
+    | '/studio/$organizationSlug/$projectSlug/paywalls/'
+    | '/studio/$organizationSlug/$projectSlug/persons/'
+    | '/studio/$organizationSlug/$projectSlug/products/'
+    | '/studio/$organizationSlug/$projectSlug/settings/'
+    | '/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId'
+    | '/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
+    | '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id'
+    | '/studio/$organizationSlug/$projectSlug/settings/notifications/'
+    | '/studio/$organizationSlug/$projectSlug/settings/payment-providers/'
+    | '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/'
+    | '/studio/$organizationSlug/$projectSlug/settings/webhooks/'
+    | '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId'
+    | '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/studio"
-    | "/auth/forgot-password"
-    | "/auth/login"
-    | "/auth/logout"
-    | "/auth/reset-password"
-    | "/auth/sign-up"
-    | "/auth/verify-email"
-    | "/docs/$"
-    | "/"
-    | "/auth"
-    | "/docs"
-    | "/api/auth/session"
-    | "/api/auth/sign-in"
-    | "/api/auth/sign-out"
-    | "/docs/api/proxy"
-    | "/docs/api/search"
-    | "/studio/waitlist"
-    | "/auth/devices"
-    | "/studio/create-organization"
-    | "/studio/$organizationSlug"
-    | "/studio/$organizationSlug/$projectSlug/overview"
-    | "/studio/$organizationSlug/$projectSlug/design/$id"
-    | "/studio/$organizationSlug/$projectSlug"
-    | "/studio/$organizationSlug/$projectSlug/activity/events"
-    | "/studio/$organizationSlug/$projectSlug/activity/sent-notifications"
-    | "/studio/$organizationSlug/$projectSlug/analytics/churn"
-    | "/studio/$organizationSlug/$projectSlug/analytics/dashboards"
-    | "/studio/$organizationSlug/$projectSlug/analytics/insights"
-    | "/studio/$organizationSlug/$projectSlug/analytics/query"
-    | "/studio/$organizationSlug/$projectSlug/analytics/revenue"
-    | "/studio/$organizationSlug/$projectSlug/analytics/subscribers"
-    | "/studio/$organizationSlug/$projectSlug/analytics/trials"
-    | "/studio/$organizationSlug/$projectSlug/experiments/$id"
-    | "/studio/$organizationSlug/$projectSlug/flags/$id"
-    | "/studio/$organizationSlug/$projectSlug/paywalls/$id"
-    | "/studio/$organizationSlug/$projectSlug/persons/$id"
-    | "/studio/$organizationSlug/$projectSlug/products/$id"
-    | "/studio/$organizationSlug/$projectSlug/settings/api-keys"
-    | "/studio/$organizationSlug/$projectSlug/settings/perks"
-    | "/studio/$organizationSlug/~/settings"
-    | "/studio/$organizationSlug/$projectSlug/experiments"
-    | "/studio/$organizationSlug/$projectSlug/flags"
-    | "/studio/$organizationSlug/$projectSlug/paywalls"
-    | "/studio/$organizationSlug/$projectSlug/persons"
-    | "/studio/$organizationSlug/$projectSlug/products"
-    | "/studio/$organizationSlug/$projectSlug/settings"
-    | "/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId"
-    | "/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
-    | "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id"
-    | "/studio/$organizationSlug/$projectSlug/settings/notifications"
-    | "/studio/$organizationSlug/$projectSlug/settings/payment-providers"
-    | "/studio/$organizationSlug/$projectSlug/settings/paywall-locations"
-    | "/studio/$organizationSlug/$projectSlug/settings/webhooks"
-    | "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId"
-    | "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId";
+    | '/studio'
+    | '/auth/forgot-password'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/auth/reset-password'
+    | '/auth/sign-up'
+    | '/auth/verify-email'
+    | '/docs/$'
+    | '/'
+    | '/auth'
+    | '/docs'
+    | '/api/auth/session'
+    | '/api/auth/sign-in'
+    | '/api/auth/sign-out'
+    | '/docs/api/proxy'
+    | '/docs/api/search'
+    | '/studio/waitlist'
+    | '/auth/devices'
+    | '/studio/create-organization'
+    | '/studio/$organizationSlug'
+    | '/studio/$organizationSlug/$projectSlug/overview'
+    | '/studio/$organizationSlug/$projectSlug/design/$id'
+    | '/studio/$organizationSlug/$projectSlug'
+    | '/studio/$organizationSlug/$projectSlug/activity/events'
+    | '/studio/$organizationSlug/$projectSlug/activity/sent-notifications'
+    | '/studio/$organizationSlug/$projectSlug/analytics/churn'
+    | '/studio/$organizationSlug/$projectSlug/analytics/dashboards'
+    | '/studio/$organizationSlug/$projectSlug/analytics/insights'
+    | '/studio/$organizationSlug/$projectSlug/analytics/query'
+    | '/studio/$organizationSlug/$projectSlug/analytics/revenue'
+    | '/studio/$organizationSlug/$projectSlug/analytics/subscribers'
+    | '/studio/$organizationSlug/$projectSlug/analytics/trials'
+    | '/studio/$organizationSlug/$projectSlug/experiments/$id'
+    | '/studio/$organizationSlug/$projectSlug/flags/$id'
+    | '/studio/$organizationSlug/$projectSlug/paywalls/$id'
+    | '/studio/$organizationSlug/$projectSlug/persons/$id'
+    | '/studio/$organizationSlug/$projectSlug/products/$id'
+    | '/studio/$organizationSlug/$projectSlug/settings/api-keys'
+    | '/studio/$organizationSlug/$projectSlug/settings/perks'
+    | '/studio/$organizationSlug/~/settings'
+    | '/studio/$organizationSlug/$projectSlug/experiments'
+    | '/studio/$organizationSlug/$projectSlug/flags'
+    | '/studio/$organizationSlug/$projectSlug/paywalls'
+    | '/studio/$organizationSlug/$projectSlug/persons'
+    | '/studio/$organizationSlug/$projectSlug/products'
+    | '/studio/$organizationSlug/$projectSlug/settings'
+    | '/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId'
+    | '/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
+    | '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id'
+    | '/studio/$organizationSlug/$projectSlug/settings/notifications'
+    | '/studio/$organizationSlug/$projectSlug/settings/payment-providers'
+    | '/studio/$organizationSlug/$projectSlug/settings/paywall-locations'
+    | '/studio/$organizationSlug/$projectSlug/settings/webhooks'
+    | '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId'
+    | '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId'
   id:
-    | "__root__"
-    | "/_marketing"
-    | "/auth"
-    | "/docs"
-    | "/studio"
-    | "/studio/_authenticated"
-    | "/auth/forgot-password"
-    | "/auth/login"
-    | "/auth/logout"
-    | "/auth/reset-password"
-    | "/auth/sign-up"
-    | "/auth/verify-email"
-    | "/docs/$"
-    | "/_marketing/"
-    | "/auth/"
-    | "/docs/"
-    | "/studio/_authenticated/_dashboard"
-    | "/api/auth/session"
-    | "/api/auth/sign-in"
-    | "/api/auth/sign-out"
-    | "/docs/api/proxy"
-    | "/docs/api/search"
-    | "/studio/_authenticated/waitlist"
-    | "/auth/devices/"
-    | "/studio/_authenticated/"
-    | "/studio/_authenticated/create-organization/"
-    | "/studio/_authenticated/_dashboard/_organization/$organizationSlug"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug"
-    | "/studio/_authenticated/_dashboard/_organization/$organizationSlug/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview"
-    | "/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks"
-    | "/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId"
-    | "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/_marketing'
+    | '/auth'
+    | '/docs'
+    | '/studio'
+    | '/studio/_authenticated'
+    | '/auth/forgot-password'
+    | '/auth/login'
+    | '/auth/logout'
+    | '/auth/reset-password'
+    | '/auth/sign-up'
+    | '/auth/verify-email'
+    | '/docs/$'
+    | '/_marketing/'
+    | '/auth/'
+    | '/docs/'
+    | '/studio/_authenticated/_dashboard'
+    | '/api/auth/session'
+    | '/api/auth/sign-in'
+    | '/api/auth/sign-out'
+    | '/docs/api/proxy'
+    | '/docs/api/search'
+    | '/studio/_authenticated/waitlist'
+    | '/auth/devices/'
+    | '/studio/_authenticated/'
+    | '/studio/_authenticated/create-organization/'
+    | '/studio/_authenticated/_dashboard/_organization/$organizationSlug'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug'
+    | '/studio/_authenticated/_dashboard/_organization/$organizationSlug/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview'
+    | '/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks'
+    | '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  MarketingRouteRoute: typeof MarketingRouteRouteWithChildren;
-  AuthRouteRoute: typeof AuthRouteRouteWithChildren;
-  DocsRouteRoute: typeof DocsRouteRouteWithChildren;
-  StudioRouteRoute: typeof StudioRouteRouteWithChildren;
-  ApiAuthSessionRoute: typeof ApiAuthSessionRoute;
-  ApiAuthSignInRoute: typeof ApiAuthSignInRoute;
-  ApiAuthSignOutRoute: typeof ApiAuthSignOutRoute;
+  MarketingRouteRoute: typeof MarketingRouteRouteWithChildren
+  AuthRouteRoute: typeof AuthRouteRouteWithChildren
+  DocsRouteRoute: typeof DocsRouteRouteWithChildren
+  StudioRouteRoute: typeof StudioRouteRouteWithChildren
+  ApiAuthSessionRoute: typeof ApiAuthSessionRoute
+  ApiAuthSignInRoute: typeof ApiAuthSignInRoute
+  ApiAuthSignOutRoute: typeof ApiAuthSignOutRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/studio": {
-      id: "/studio";
-      path: "/studio";
-      fullPath: "/studio";
-      preLoaderRoute: typeof StudioRouteRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/docs": {
-      id: "/docs";
-      path: "/docs";
-      fullPath: "/docs";
-      preLoaderRoute: typeof DocsRouteRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/auth": {
-      id: "/auth";
-      path: "/auth";
-      fullPath: "/auth";
-      preLoaderRoute: typeof AuthRouteRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/_marketing": {
-      id: "/_marketing";
-      path: "";
-      fullPath: "/";
-      preLoaderRoute: typeof MarketingRouteRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/docs/": {
-      id: "/docs/";
-      path: "/";
-      fullPath: "/docs/";
-      preLoaderRoute: typeof DocsIndexRouteImport;
-      parentRoute: typeof DocsRouteRoute;
-    };
-    "/auth/": {
-      id: "/auth/";
-      path: "/";
-      fullPath: "/auth/";
-      preLoaderRoute: typeof AuthIndexRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/_marketing/": {
-      id: "/_marketing/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof MarketingIndexRouteImport;
-      parentRoute: typeof MarketingRouteRoute;
-    };
-    "/docs/$": {
-      id: "/docs/$";
-      path: "/$";
-      fullPath: "/docs/$";
-      preLoaderRoute: typeof DocsSplatRouteImport;
-      parentRoute: typeof DocsRouteRoute;
-    };
-    "/auth/verify-email": {
-      id: "/auth/verify-email";
-      path: "/verify-email";
-      fullPath: "/auth/verify-email";
-      preLoaderRoute: typeof AuthVerifyEmailRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/auth/sign-up": {
-      id: "/auth/sign-up";
-      path: "/sign-up";
-      fullPath: "/auth/sign-up";
-      preLoaderRoute: typeof AuthSignUpRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/auth/reset-password": {
-      id: "/auth/reset-password";
-      path: "/reset-password";
-      fullPath: "/auth/reset-password";
-      preLoaderRoute: typeof AuthResetPasswordRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/auth/logout": {
-      id: "/auth/logout";
-      path: "/logout";
-      fullPath: "/auth/logout";
-      preLoaderRoute: typeof AuthLogoutRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/auth/login": {
-      id: "/auth/login";
-      path: "/login";
-      fullPath: "/auth/login";
-      preLoaderRoute: typeof AuthLoginRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/auth/forgot-password": {
-      id: "/auth/forgot-password";
-      path: "/forgot-password";
-      fullPath: "/auth/forgot-password";
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/studio/_authenticated": {
-      id: "/studio/_authenticated";
-      path: "";
-      fullPath: "/studio";
-      preLoaderRoute: typeof StudioAuthenticatedRouteRouteImport;
-      parentRoute: typeof StudioRouteRoute;
-    };
-    "/studio/_authenticated/": {
-      id: "/studio/_authenticated/";
-      path: "/";
-      fullPath: "/studio/";
-      preLoaderRoute: typeof StudioAuthenticatedIndexRouteImport;
-      parentRoute: typeof StudioAuthenticatedRouteRoute;
-    };
-    "/auth/devices/": {
-      id: "/auth/devices/";
-      path: "/devices";
-      fullPath: "/auth/devices/";
-      preLoaderRoute: typeof AuthDevicesIndexRouteImport;
-      parentRoute: typeof AuthRouteRoute;
-    };
-    "/studio/_authenticated/waitlist": {
-      id: "/studio/_authenticated/waitlist";
-      path: "/waitlist";
-      fullPath: "/studio/waitlist";
-      preLoaderRoute: typeof StudioAuthenticatedWaitlistRouteImport;
-      parentRoute: typeof StudioAuthenticatedRouteRoute;
-    };
-    "/docs/api/search": {
-      id: "/docs/api/search";
-      path: "/api/search";
-      fullPath: "/docs/api/search";
-      preLoaderRoute: typeof DocsApiSearchRouteImport;
-      parentRoute: typeof DocsRouteRoute;
-    };
-    "/docs/api/proxy": {
-      id: "/docs/api/proxy";
-      path: "/api/proxy";
-      fullPath: "/docs/api/proxy";
-      preLoaderRoute: typeof DocsApiProxyRouteImport;
-      parentRoute: typeof DocsRouteRoute;
-    };
-    "/api/auth/sign-out": {
-      id: "/api/auth/sign-out";
-      path: "/api/auth/sign-out";
-      fullPath: "/api/auth/sign-out";
-      preLoaderRoute: typeof ApiAuthSignOutRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/auth/sign-in": {
-      id: "/api/auth/sign-in";
-      path: "/api/auth/sign-in";
-      fullPath: "/api/auth/sign-in";
-      preLoaderRoute: typeof ApiAuthSignInRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/auth/session": {
-      id: "/api/auth/session";
-      path: "/api/auth/session";
-      fullPath: "/api/auth/session";
-      preLoaderRoute: typeof ApiAuthSessionRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/studio/_authenticated/_dashboard": {
-      id: "/studio/_authenticated/_dashboard";
-      path: "";
-      fullPath: "/studio";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardRouteRouteImport;
-      parentRoute: typeof StudioAuthenticatedRouteRoute;
-    };
-    "/studio/_authenticated/create-organization/": {
-      id: "/studio/_authenticated/create-organization/";
-      path: "/create-organization";
-      fullPath: "/studio/create-organization/";
-      preLoaderRoute: typeof StudioAuthenticatedCreateOrganizationIndexRouteImport;
-      parentRoute: typeof StudioAuthenticatedRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_organization/$organizationSlug": {
-      id: "/studio/_authenticated/_dashboard/_organization/$organizationSlug";
-      path: "/$organizationSlug";
-      fullPath: "/studio/$organizationSlug";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_organization/$organizationSlug/": {
-      id: "/studio/_authenticated/_dashboard/_organization/$organizationSlug/";
-      path: "/";
-      fullPath: "/studio/$organizationSlug/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug";
-      path: "/$organizationSlug/$projectSlug";
-      fullPath: "/studio/$organizationSlug/$projectSlug";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/";
-      path: "/";
-      fullPath: "/studio/$organizationSlug/$projectSlug/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id": {
-      id: "/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id";
-      path: "/$organizationSlug/$projectSlug/design/$id";
-      fullPath: "/studio/$organizationSlug/$projectSlug/design/$id";
-      preLoaderRoute: typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRouteImport;
-      parentRoute: typeof StudioAuthenticatedRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview";
-      path: "/overview";
-      fullPath: "/studio/$organizationSlug/$projectSlug/overview";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/";
-      path: "/settings";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/";
-      path: "/products";
-      fullPath: "/studio/$organizationSlug/$projectSlug/products/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/";
-      path: "/persons";
-      fullPath: "/studio/$organizationSlug/$projectSlug/persons/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/";
-      path: "/paywalls";
-      fullPath: "/studio/$organizationSlug/$projectSlug/paywalls/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/";
-      path: "/flags";
-      fullPath: "/studio/$organizationSlug/$projectSlug/flags/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/";
-      path: "/experiments";
-      fullPath: "/studio/$organizationSlug/$projectSlug/experiments/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/": {
-      id: "/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/";
-      path: "/~/settings";
-      fullPath: "/studio/$organizationSlug/~/settings/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks";
-      path: "/settings/perks";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/perks";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys";
-      path: "/settings/api-keys";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/api-keys";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id";
-      path: "/products/$id";
-      fullPath: "/studio/$organizationSlug/$projectSlug/products/$id";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id";
-      path: "/persons/$id";
-      fullPath: "/studio/$organizationSlug/$projectSlug/persons/$id";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id";
-      path: "/paywalls/$id";
-      fullPath: "/studio/$organizationSlug/$projectSlug/paywalls/$id";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id";
-      path: "/flags/$id";
-      fullPath: "/studio/$organizationSlug/$projectSlug/flags/$id";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id";
-      path: "/experiments/$id";
-      fullPath: "/studio/$organizationSlug/$projectSlug/experiments/$id";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials";
-      path: "/analytics/trials";
-      fullPath: "/studio/$organizationSlug/$projectSlug/analytics/trials";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers";
-      path: "/analytics/subscribers";
-      fullPath: "/studio/$organizationSlug/$projectSlug/analytics/subscribers";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue";
-      path: "/analytics/revenue";
-      fullPath: "/studio/$organizationSlug/$projectSlug/analytics/revenue";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query";
-      path: "/analytics/query";
-      fullPath: "/studio/$organizationSlug/$projectSlug/analytics/query";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights";
-      path: "/analytics/insights";
-      fullPath: "/studio/$organizationSlug/$projectSlug/analytics/insights";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards";
-      path: "/analytics/dashboards";
-      fullPath: "/studio/$organizationSlug/$projectSlug/analytics/dashboards";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn";
-      path: "/analytics/churn";
-      fullPath: "/studio/$organizationSlug/$projectSlug/analytics/churn";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications";
-      path: "/activity/sent-notifications";
-      fullPath: "/studio/$organizationSlug/$projectSlug/activity/sent-notifications";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events";
-      path: "/activity/events";
-      fullPath: "/studio/$organizationSlug/$projectSlug/activity/events";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/";
-      path: "/settings/webhooks";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/webhooks/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/";
-      path: "/settings/paywall-locations";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/";
-      path: "/settings/payment-providers";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/payment-providers/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/";
-      path: "/settings/notifications";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/notifications/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id";
-      path: "/settings/paywall-locations/$id";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId";
-      path: "/settings/payment-providers/$paymentProviderConfigurationId";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId";
-      path: "/settings/notifications/$providerConfigurationId";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/";
-      path: "/settings/webhooks/$endpointId";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
-    "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId": {
-      id: "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId";
-      path: "/settings/webhooks/$endpointId/$deliveryId";
-      fullPath: "/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId";
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRouteImport;
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute;
-    };
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_marketing': {
+      id: '/_marketing'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof MarketingRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/': {
+      id: '/docs/'
+      path: '/'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof DocsIndexRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/auth/': {
+      id: '/auth/'
+      path: '/'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/_marketing/': {
+      id: '/_marketing/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof MarketingIndexRouteImport
+      parentRoute: typeof MarketingRouteRoute
+    }
+    '/docs/$': {
+      id: '/docs/$'
+      path: '/$'
+      fullPath: '/docs/$'
+      preLoaderRoute: typeof DocsSplatRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/auth/verify-email': {
+      id: '/auth/verify-email'
+      path: '/verify-email'
+      fullPath: '/auth/verify-email'
+      preLoaderRoute: typeof AuthVerifyEmailRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/sign-up': {
+      id: '/auth/sign-up'
+      path: '/sign-up'
+      fullPath: '/auth/sign-up'
+      preLoaderRoute: typeof AuthSignUpRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/logout': {
+      id: '/auth/logout'
+      path: '/logout'
+      fullPath: '/auth/logout'
+      preLoaderRoute: typeof AuthLogoutRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/studio/_authenticated': {
+      id: '/studio/_authenticated'
+      path: ''
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioAuthenticatedRouteRouteImport
+      parentRoute: typeof StudioRouteRoute
+    }
+    '/studio/_authenticated/': {
+      id: '/studio/_authenticated/'
+      path: '/'
+      fullPath: '/studio/'
+      preLoaderRoute: typeof StudioAuthenticatedIndexRouteImport
+      parentRoute: typeof StudioAuthenticatedRouteRoute
+    }
+    '/auth/devices/': {
+      id: '/auth/devices/'
+      path: '/devices'
+      fullPath: '/auth/devices/'
+      preLoaderRoute: typeof AuthDevicesIndexRouteImport
+      parentRoute: typeof AuthRouteRoute
+    }
+    '/studio/_authenticated/waitlist': {
+      id: '/studio/_authenticated/waitlist'
+      path: '/waitlist'
+      fullPath: '/studio/waitlist'
+      preLoaderRoute: typeof StudioAuthenticatedWaitlistRouteImport
+      parentRoute: typeof StudioAuthenticatedRouteRoute
+    }
+    '/docs/api/search': {
+      id: '/docs/api/search'
+      path: '/api/search'
+      fullPath: '/docs/api/search'
+      preLoaderRoute: typeof DocsApiSearchRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/docs/api/proxy': {
+      id: '/docs/api/proxy'
+      path: '/api/proxy'
+      fullPath: '/docs/api/proxy'
+      preLoaderRoute: typeof DocsApiProxyRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/api/auth/sign-out': {
+      id: '/api/auth/sign-out'
+      path: '/api/auth/sign-out'
+      fullPath: '/api/auth/sign-out'
+      preLoaderRoute: typeof ApiAuthSignOutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/sign-in': {
+      id: '/api/auth/sign-in'
+      path: '/api/auth/sign-in'
+      fullPath: '/api/auth/sign-in'
+      preLoaderRoute: typeof ApiAuthSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/session': {
+      id: '/api/auth/session'
+      path: '/api/auth/session'
+      fullPath: '/api/auth/session'
+      preLoaderRoute: typeof ApiAuthSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio/_authenticated/_dashboard': {
+      id: '/studio/_authenticated/_dashboard'
+      path: ''
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardRouteRouteImport
+      parentRoute: typeof StudioAuthenticatedRouteRoute
+    }
+    '/studio/_authenticated/create-organization/': {
+      id: '/studio/_authenticated/create-organization/'
+      path: '/create-organization'
+      fullPath: '/studio/create-organization/'
+      preLoaderRoute: typeof StudioAuthenticatedCreateOrganizationIndexRouteImport
+      parentRoute: typeof StudioAuthenticatedRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_organization/$organizationSlug': {
+      id: '/studio/_authenticated/_dashboard/_organization/$organizationSlug'
+      path: '/$organizationSlug'
+      fullPath: '/studio/$organizationSlug'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_organization/$organizationSlug/': {
+      id: '/studio/_authenticated/_dashboard/_organization/$organizationSlug/'
+      path: '/'
+      fullPath: '/studio/$organizationSlug/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug'
+      path: '/$organizationSlug/$projectSlug'
+      fullPath: '/studio/$organizationSlug/$projectSlug'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/'
+      path: '/'
+      fullPath: '/studio/$organizationSlug/$projectSlug/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id': {
+      id: '/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'
+      path: '/$organizationSlug/$projectSlug/design/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/design/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRouteImport
+      parentRoute: typeof StudioAuthenticatedRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview'
+      path: '/overview'
+      fullPath: '/studio/$organizationSlug/$projectSlug/overview'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/'
+      path: '/settings'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/'
+      path: '/products'
+      fullPath: '/studio/$organizationSlug/$projectSlug/products/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/'
+      path: '/persons'
+      fullPath: '/studio/$organizationSlug/$projectSlug/persons/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/'
+      path: '/paywalls'
+      fullPath: '/studio/$organizationSlug/$projectSlug/paywalls/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/'
+      path: '/flags'
+      fullPath: '/studio/$organizationSlug/$projectSlug/flags/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/'
+      path: '/experiments'
+      fullPath: '/studio/$organizationSlug/$projectSlug/experiments/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/': {
+      id: '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/'
+      path: '/~/settings'
+      fullPath: '/studio/$organizationSlug/~/settings/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks'
+      path: '/settings/perks'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/perks'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys'
+      path: '/settings/api-keys'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/api-keys'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id'
+      path: '/products/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/products/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id'
+      path: '/persons/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/persons/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id'
+      path: '/paywalls/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/paywalls/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id'
+      path: '/flags/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/flags/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id'
+      path: '/experiments/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/experiments/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials'
+      path: '/analytics/trials'
+      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/trials'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers'
+      path: '/analytics/subscribers'
+      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/subscribers'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue'
+      path: '/analytics/revenue'
+      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/revenue'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query'
+      path: '/analytics/query'
+      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/query'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights'
+      path: '/analytics/insights'
+      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/insights'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards'
+      path: '/analytics/dashboards'
+      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/dashboards'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn'
+      path: '/analytics/churn'
+      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/churn'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications'
+      path: '/activity/sent-notifications'
+      fullPath: '/studio/$organizationSlug/$projectSlug/activity/sent-notifications'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events'
+      path: '/activity/events'
+      fullPath: '/studio/$organizationSlug/$projectSlug/activity/events'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/'
+      path: '/settings/webhooks'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/webhooks/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/'
+      path: '/settings/paywall-locations'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/'
+      path: '/settings/payment-providers'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/payment-providers/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/'
+      path: '/settings/notifications'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/notifications/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id'
+      path: '/settings/paywall-locations/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/paywall-locations/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
+      path: '/settings/payment-providers/$paymentProviderConfigurationId'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId'
+      path: '/settings/notifications/$providerConfigurationId'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/notifications/$providerConfigurationId'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/'
+      path: '/settings/webhooks/$endpointId'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId'
+      path: '/settings/webhooks/$endpointId/$deliveryId'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/webhooks/$endpointId/$deliveryId'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
   }
 }
 
 interface MarketingRouteRouteChildren {
-  MarketingIndexRoute: typeof MarketingIndexRoute;
+  MarketingIndexRoute: typeof MarketingIndexRoute
 }
 
 const MarketingRouteRouteChildren: MarketingRouteRouteChildren = {
   MarketingIndexRoute: MarketingIndexRoute,
-};
+}
 
 const MarketingRouteRouteWithChildren = MarketingRouteRoute._addFileChildren(
   MarketingRouteRouteChildren,
-);
+)
 
 interface AuthRouteRouteChildren {
-  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute;
-  AuthLoginRoute: typeof AuthLoginRoute;
-  AuthLogoutRoute: typeof AuthLogoutRoute;
-  AuthResetPasswordRoute: typeof AuthResetPasswordRoute;
-  AuthSignUpRoute: typeof AuthSignUpRoute;
-  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute;
-  AuthIndexRoute: typeof AuthIndexRoute;
-  AuthDevicesIndexRoute: typeof AuthDevicesIndexRoute;
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthLogoutRoute: typeof AuthLogoutRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+  AuthSignUpRoute: typeof AuthSignUpRoute
+  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+  AuthDevicesIndexRoute: typeof AuthDevicesIndexRoute
 }
 
 const AuthRouteRouteChildren: AuthRouteRouteChildren = {
@@ -1344,15 +1400,17 @@ const AuthRouteRouteChildren: AuthRouteRouteChildren = {
   AuthVerifyEmailRoute: AuthVerifyEmailRoute,
   AuthIndexRoute: AuthIndexRoute,
   AuthDevicesIndexRoute: AuthDevicesIndexRoute,
-};
+}
 
-const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(AuthRouteRouteChildren);
+const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
+  AuthRouteRouteChildren,
+)
 
 interface DocsRouteRouteChildren {
-  DocsSplatRoute: typeof DocsSplatRoute;
-  DocsIndexRoute: typeof DocsIndexRoute;
-  DocsApiProxyRoute: typeof DocsApiProxyRoute;
-  DocsApiSearchRoute: typeof DocsApiSearchRoute;
+  DocsSplatRoute: typeof DocsSplatRoute
+  DocsIndexRoute: typeof DocsIndexRoute
+  DocsApiProxyRoute: typeof DocsApiProxyRoute
+  DocsApiSearchRoute: typeof DocsApiSearchRoute
 }
 
 const DocsRouteRouteChildren: DocsRouteRouteChildren = {
@@ -1360,13 +1418,15 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsIndexRoute: DocsIndexRoute,
   DocsApiProxyRoute: DocsApiProxyRoute,
   DocsApiSearchRoute: DocsApiSearchRoute,
-};
+}
 
-const DocsRouteRouteWithChildren = DocsRouteRoute._addFileChildren(DocsRouteRouteChildren);
+const DocsRouteRouteWithChildren = DocsRouteRoute._addFileChildren(
+  DocsRouteRouteChildren,
+)
 
 interface StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren {
-  StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute;
-  StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute;
+  StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
+  StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
 }
 
 const StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren: StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren =
@@ -1375,47 +1435,47 @@ const StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren
       StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute,
     StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute:
       StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute,
-  };
+  }
 
 const StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren =
   StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute._addFileChildren(
     StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren,
-  );
+  )
 
 interface StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren {
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute;
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotidRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotidRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotidRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotproviderConfigurationIdRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotpaymentProviderConfigurationIdRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotidRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsNotificationsDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotindexRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute
 }
 
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren: StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren =
@@ -1486,16 +1546,16 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteCh
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotdeliveryIdRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksDotendpointIdDotindexRoute,
-  };
+  }
 
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute._addFileChildren(
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren,
-  );
+  )
 
 interface StudioAuthenticatedDashboardRouteRouteChildren {
-  StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren;
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren;
+  StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
 }
 
 const StudioAuthenticatedDashboardRouteRouteChildren: StudioAuthenticatedDashboardRouteRouteChildren =
@@ -1504,43 +1564,49 @@ const StudioAuthenticatedDashboardRouteRouteChildren: StudioAuthenticatedDashboa
       StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren,
-  };
+  }
 
 const StudioAuthenticatedDashboardRouteRouteWithChildren =
   StudioAuthenticatedDashboardRouteRoute._addFileChildren(
     StudioAuthenticatedDashboardRouteRouteChildren,
-  );
+  )
 
 interface StudioAuthenticatedRouteRouteChildren {
-  StudioAuthenticatedDashboardRouteRoute: typeof StudioAuthenticatedDashboardRouteRouteWithChildren;
-  StudioAuthenticatedWaitlistRoute: typeof StudioAuthenticatedWaitlistRoute;
-  StudioAuthenticatedIndexRoute: typeof StudioAuthenticatedIndexRoute;
-  StudioAuthenticatedCreateOrganizationIndexRoute: typeof StudioAuthenticatedCreateOrganizationIndexRoute;
-  StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute: typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute;
+  StudioAuthenticatedDashboardRouteRoute: typeof StudioAuthenticatedDashboardRouteRouteWithChildren
+  StudioAuthenticatedWaitlistRoute: typeof StudioAuthenticatedWaitlistRoute
+  StudioAuthenticatedIndexRoute: typeof StudioAuthenticatedIndexRoute
+  StudioAuthenticatedCreateOrganizationIndexRoute: typeof StudioAuthenticatedCreateOrganizationIndexRoute
+  StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute: typeof StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute
 }
 
-const StudioAuthenticatedRouteRouteChildren: StudioAuthenticatedRouteRouteChildren = {
-  StudioAuthenticatedDashboardRouteRoute: StudioAuthenticatedDashboardRouteRouteWithChildren,
-  StudioAuthenticatedWaitlistRoute: StudioAuthenticatedWaitlistRoute,
-  StudioAuthenticatedIndexRoute: StudioAuthenticatedIndexRoute,
-  StudioAuthenticatedCreateOrganizationIndexRoute: StudioAuthenticatedCreateOrganizationIndexRoute,
-  StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute:
-    StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute,
-};
+const StudioAuthenticatedRouteRouteChildren: StudioAuthenticatedRouteRouteChildren =
+  {
+    StudioAuthenticatedDashboardRouteRoute:
+      StudioAuthenticatedDashboardRouteRouteWithChildren,
+    StudioAuthenticatedWaitlistRoute: StudioAuthenticatedWaitlistRoute,
+    StudioAuthenticatedIndexRoute: StudioAuthenticatedIndexRoute,
+    StudioAuthenticatedCreateOrganizationIndexRoute:
+      StudioAuthenticatedCreateOrganizationIndexRoute,
+    StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute:
+      StudioAuthenticatedDesignerOrganizationSlugDotprojectSlugDotdesignDotidRoute,
+  }
 
-const StudioAuthenticatedRouteRouteWithChildren = StudioAuthenticatedRouteRoute._addFileChildren(
-  StudioAuthenticatedRouteRouteChildren,
-);
+const StudioAuthenticatedRouteRouteWithChildren =
+  StudioAuthenticatedRouteRoute._addFileChildren(
+    StudioAuthenticatedRouteRouteChildren,
+  )
 
 interface StudioRouteRouteChildren {
-  StudioAuthenticatedRouteRoute: typeof StudioAuthenticatedRouteRouteWithChildren;
+  StudioAuthenticatedRouteRoute: typeof StudioAuthenticatedRouteRouteWithChildren
 }
 
 const StudioRouteRouteChildren: StudioRouteRouteChildren = {
   StudioAuthenticatedRouteRoute: StudioAuthenticatedRouteRouteWithChildren,
-};
+}
 
-const StudioRouteRouteWithChildren = StudioRouteRoute._addFileChildren(StudioRouteRouteChildren);
+const StudioRouteRouteWithChildren = StudioRouteRoute._addFileChildren(
+  StudioRouteRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   MarketingRouteRoute: MarketingRouteRouteWithChildren,
@@ -1550,17 +1616,17 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSessionRoute: ApiAuthSessionRoute,
   ApiAuthSignInRoute: ApiAuthSignInRoute,
   ApiAuthSignOutRoute: ApiAuthSignOutRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx";
-import type { startInstance } from "./start.ts";
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true;
-    router: Awaited<ReturnType<typeof getRouter>>;
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>;
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
