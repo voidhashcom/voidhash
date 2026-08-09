@@ -62,6 +62,13 @@ class PublishError extends Data.TaggedError("PublishError") {}
 // out of the PR comment.
 const PACKAGES = [
   {
+    dir: "packages/lib",
+    name: "@voidhash/lib",
+    project: "lib",
+    build: false,
+    internal: true,
+  },
+  {
     dir: "packages/generated-clients",
     name: "@voidhash/generated-clients",
     project: "generated-clients",
@@ -390,7 +397,7 @@ const program = Effect.gen(function* () {
     lines.push(`**${pkg.name}**`, "```sh", `pnpm add ${pkg.name}@${installUrl(pkg)}`, "```", "");
   }
   lines.push(
-    "Internal workspace deps (generated-clients, shared, studio) are published at the same sha and resolved automatically.",
+    "Internal workspace deps (lib, generated-clients, shared, studio) are published at the same sha and resolved automatically.",
     "",
     ...prHint(prNumber),
   );

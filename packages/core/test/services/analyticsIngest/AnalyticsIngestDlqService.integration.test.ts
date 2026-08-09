@@ -33,6 +33,7 @@ import { generateId } from "@voidhash/core/utils/generate-id";
 import { Clock, Effect, Layer, Ref } from "effect";
 import { describe, expect } from "vitest";
 
+import type { CapturedEventV1Type } from "@voidhash/core/domain/analyticsIngest/AnalyticsIngest";
 import {
   type AnalyticsIngestDlqRecordFailureInput,
   AnalyticsIngestDlqService,
@@ -394,7 +395,27 @@ describe("AnalyticsIngestDlqService.requeueFailure", () => {
         // Fresh recording-ingress ref scoped to this single test.
         const ref = yield* Ref.make<ReadonlyArray<PublishableCaptureEvent>>([]);
 
-        const envelope = { captureId: unique("envelope"), schemaVersion: 1 };
+        const envelope: CapturedEventV1Type = {
+          captureId: unique("envelope"),
+          context: {},
+          distinctId: unique("distinct"),
+          event: "integration_event",
+          eventTimestamp: "2026-01-01T00:00:00.000Z",
+          organizationId: unique("organization"),
+          projectId: unique("project"),
+          properties: {},
+          rawPayload: {},
+          receivedAt: "2026-01-01T00:00:00.000Z",
+          request: { requestId: unique("request") },
+          routing: {
+            isHistorical: false,
+            routeClass: "overflow",
+            skipEnrichment: false,
+            targetTopic: "analytics.integration",
+          },
+          schemaVersion: 1,
+          token: "integration-token",
+        };
         const id = yield* service.recordFailure(
           recordInput({ payloadJson: envelope, routeClass: "overflow" }),
         );

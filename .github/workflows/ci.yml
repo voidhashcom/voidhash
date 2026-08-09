@@ -37,12 +37,6 @@ jobs:
           version: 11.1.3
           run_install: false
 
-      - name: Check publication boundary
-        run: node scripts/check-publication-boundary.mjs
-
-      - name: Check platform seam
-        run: node scripts/check-platform-seam.mjs
-
       - name: Setup Node.js
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         uses: actions/setup-node@v4
@@ -63,6 +57,14 @@ jobs:
       - name: Install dependencies
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: pnpm install --frozen-lockfile
+
+      - name: Check publication boundary
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        run: node scripts/check-publication-boundary.mjs
+
+      - name: Check platform seam
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        run: node scripts/check-platform-seam.mjs
 
       - name: Validate purchase and restore contracts
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false

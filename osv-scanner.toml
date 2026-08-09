@@ -1,0 +1,11 @@
+# The registry currently reports 2.0.3 as the patched image-size release, but
+# npm has not published a version newer than 2.0.2. Remove these entries once
+# the patched release is installable.
+
+[[IgnoredVulns]]
+id = "GHSA-5p2g-fcmc-qvqq"
+reason = "The reported patched version (image-size 2.0.3) is not published on npm"
+
+[[IgnoredVulns]]
+id = "GHSA-w3rx-r6r6-pgpr"
+reason = "The reported patched version (image-size 2.0.3) is not published on npm"
