@@ -60,19 +60,31 @@ const backendDeployment = Effect.gen(function* () {
   const planContext = Option.getOrUndefined(yield* Effect.serviceOption(Alchemy.AlchemyContext));
   const dev = planContext?.dev === true;
   const configuredDomain = yield* CommunityBackendDomain;
-  const domain: string | undefined = dev ? undefined : configuredDomain;
+  const domain: string | undefined = Match.value(dev).pipe(
+    Match.when(true, () => undefined),
+    Match.orElse(() => configuredDomain),
+  );
 
   return {
     domain,
-    publicBaseUrl:
-      domain === undefined ? (dev ? "http://localhost:8787" : undefined) : `https://${domain}`,
+    publicBaseUrl: Option.match(Option.fromNullishOr(domain), {
+      onNone: () =>
+        Match.value(dev).pipe(
+          Match.when(true, () => "http://localhost:8787"),
+          Match.orElse(() => undefined),
+        ),
+      onSome: (value) => `https://${value}`,
+    }),
   };
 }).pipe(Effect.orDie);
 
 const paywallPublicBaseUrl = (fallback: Effect.Effect<string | undefined>) =>
   Effect.flatMap(fallback, (value) => {
     const configured = Config.string("PAYWALL_PUBLIC_BASE_URL");
-    return value === undefined ? configured : configured.pipe(Config.withDefault(value));
+    return Option.match(Option.fromNullishOr(value), {
+      onNone: () => configured,
+      onSome: (fallbackValue) => configured.pipe(Config.withDefault(fallbackValue)),
+    });
   }).pipe(Effect.orDie);
 
 const workerEnvironment = (publicBaseUrl: Effect.Effect<string | undefined>) => ({
