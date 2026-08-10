@@ -56,15 +56,26 @@ import { ProjectSchemaCacheLive } from "../infrastructure/ProjectSchemaCache.ts"
 import { PaywallArtifactsBucket } from "../r2/PaywallArtifactsBucket.ts";
 import { PublicFileStorageBucket } from "../r2/PublicFileStorageBucket.ts";
 
-const paywallPublicBaseUrl = (fallback: string | undefined): Config.Config<string> => {
-  const configured = Config.string("PAYWALL_PUBLIC_BASE_URL");
-  return Option.match(Option.fromNullishOr(fallback), {
-    onNone: () => configured,
-    onSome: (value) => configured.pipe(Config.withDefault(value)),
-  });
-};
+const backendDeployment = Effect.gen(function* () {
+  const planContext = Option.getOrUndefined(yield* Effect.serviceOption(Alchemy.AlchemyContext));
+  const dev = planContext?.dev === true;
+  const configuredDomain = yield* CommunityBackendDomain;
+  const domain: string | undefined = dev ? undefined : configuredDomain;
 
-const workerEnvironment = (publicBaseUrl: string | undefined) => ({
+  return {
+    domain,
+    publicBaseUrl:
+      domain === undefined ? (dev ? "http://localhost:8787" : undefined) : `https://${domain}`,
+  };
+}).pipe(Effect.orDie);
+
+const paywallPublicBaseUrl = (fallback: Effect.Effect<string | undefined>) =>
+  Effect.flatMap(fallback, (value) => {
+    const configured = Config.string("PAYWALL_PUBLIC_BASE_URL");
+    return value === undefined ? configured : configured.pipe(Config.withDefault(value));
+  }).pipe(Effect.orDie);
+
+const workerEnvironment = (publicBaseUrl: Effect.Effect<string | undefined>) => ({
   APNS_DELIVERY_ENABLED: Config.string("APNS_DELIVERY_ENABLED").pipe(Config.withDefault("false")),
   ENCRYPTION_KEY: Config.redacted("ENCRYPTION_KEY").pipe(Config.withDefault(Redacted.make(""))),
   EXCHANGE_RATE_API_KEY: Config.redacted("EXCHANGE_RATE_API_KEY").pipe(
@@ -93,36 +104,19 @@ const workerEnvironment = (publicBaseUrl: string | undefined) => ({
  */
 export default Cloudflare.Worker(
   "CommunityBackend",
-  Effect.gen(function* () {
-    const planContext = Option.getOrUndefined(yield* Effect.serviceOption(Alchemy.AlchemyContext));
-    const dev = planContext?.dev === true;
-    const configuredDomain = yield* CommunityBackendDomain;
-    const domain: string | undefined = Match.value(dev).pipe(
-      Match.when(true, () => undefined),
-      Match.orElse(() => configuredDomain),
-    );
-    const domainOption: Option.Option<string> = Option.fromNullishOr(domain);
-    const publicBaseUrl = Option.match(domainOption, {
-      onNone: () =>
-        Match.value(dev).pipe(
-          Match.when(true, () => "http://localhost:8787"),
-          Match.orElse(() => undefined),
-        ),
-      onSome: (value) => `https://${value}`,
-    });
-
-    return {
-      main: import.meta.filename,
-      domain,
-      workersDev: {
-        enabled: yield* CommunityWorkersDevEnabled,
-        previewsEnabled: false,
-      },
-      compatibility: { date: "2026-03-17", flags: ["nodejs_compat"] },
-      dev: { host: "0.0.0.0", port: 8787, strictPort: true },
-      env: workerEnvironment(publicBaseUrl),
-    };
-  }).pipe(Effect.orDie),
+  {
+    main: import.meta.filename,
+    domain: backendDeployment.pipe(Effect.map(({ domain }) => domain)),
+    workersDev: {
+      enabled: CommunityWorkersDevEnabled,
+      previewsEnabled: false,
+    },
+    compatibility: { date: "2026-03-17", flags: ["nodejs_compat"] },
+    dev: { host: "0.0.0.0", port: 8787, strictPort: true },
+    env: workerEnvironment(
+      backendDeployment.pipe(Effect.map(({ publicBaseUrl }) => publicBaseUrl)),
+    ),
+  },
   Effect.gen(function* () {
     const planContext = Option.getOrUndefined(yield* Effect.serviceOption(Alchemy.AlchemyContext));
     const environment = Option.getOrUndefined(
