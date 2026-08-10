@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import * as React from "react";
+import { advancedAnalyticsAvailable } from "virtual:voidhash-web/edition";
 
 import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 
@@ -64,11 +65,11 @@ export function ProjectSidebar({
                 `/studio/${organizationSlug}/${projectSlug}/analytics`,
               ),
             title: "Analytics",
-            url: customAnalyticsEnabled
+            url: advancedAnalyticsAvailable && customAnalyticsEnabled
               ? `/studio/${organizationSlug}/${projectSlug}/analytics/insights`
               : `/studio/${organizationSlug}/${projectSlug}/analytics/revenue`,
             items: [
-              ...(customAnalyticsEnabled
+              ...(advancedAnalyticsAvailable && customAnalyticsEnabled
                 ? [
                     {
                       isActive: () =>
@@ -120,7 +121,7 @@ export function ProjectSidebar({
                 title: "Churn",
                 url: `/studio/${organizationSlug}/${projectSlug}/analytics/churn`,
               },
-              ...(queryEnabled
+              ...(advancedAnalyticsAvailable && queryEnabled
                 ? [
                     {
                       isActive: () =>

@@ -57,9 +57,6 @@ import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlug
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.trials'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.subscribers'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.revenue'
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.query'
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.insights'
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.dashboards'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.churn'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity.sent-notifications'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity.events'
@@ -404,33 +401,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDot
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
   )
-const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport.update(
-    {
-      id: '/analytics/query',
-      path: '/analytics/query',
-      getParentRoute: () =>
-        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-    } as any,
-  )
-const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport.update(
-    {
-      id: '/analytics/insights',
-      path: '/analytics/insights',
-      getParentRoute: () =>
-        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-    } as any,
-  )
-const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport.update(
-    {
-      id: '/analytics/dashboards',
-      path: '/analytics/dashboards',
-      getParentRoute: () =>
-        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-    } as any,
-  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRouteImport.update(
     {
@@ -572,9 +542,6 @@ export interface FileRoutesByFullPath {
   '/studio/$organizationSlug/$projectSlug/activity/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
   '/studio/$organizationSlug/$projectSlug/activity/sent-notifications': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
   '/studio/$organizationSlug/$projectSlug/analytics/churn': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
-  '/studio/$organizationSlug/$projectSlug/analytics/dashboards': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
-  '/studio/$organizationSlug/$projectSlug/analytics/insights': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
-  '/studio/$organizationSlug/$projectSlug/analytics/query': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
   '/studio/$organizationSlug/$projectSlug/analytics/revenue': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
   '/studio/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
   '/studio/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
@@ -629,9 +596,6 @@ export interface FileRoutesByTo {
   '/studio/$organizationSlug/$projectSlug/activity/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
   '/studio/$organizationSlug/$projectSlug/activity/sent-notifications': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
   '/studio/$organizationSlug/$projectSlug/analytics/churn': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
-  '/studio/$organizationSlug/$projectSlug/analytics/dashboards': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
-  '/studio/$organizationSlug/$projectSlug/analytics/insights': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
-  '/studio/$organizationSlug/$projectSlug/analytics/query': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
   '/studio/$organizationSlug/$projectSlug/analytics/revenue': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
   '/studio/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
   '/studio/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
@@ -695,9 +659,6 @@ export interface FileRoutesById {
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
-  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
-  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
-  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
@@ -759,9 +720,6 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/activity/events'
     | '/studio/$organizationSlug/$projectSlug/activity/sent-notifications'
     | '/studio/$organizationSlug/$projectSlug/analytics/churn'
-    | '/studio/$organizationSlug/$projectSlug/analytics/dashboards'
-    | '/studio/$organizationSlug/$projectSlug/analytics/insights'
-    | '/studio/$organizationSlug/$projectSlug/analytics/query'
     | '/studio/$organizationSlug/$projectSlug/analytics/revenue'
     | '/studio/$organizationSlug/$projectSlug/analytics/subscribers'
     | '/studio/$organizationSlug/$projectSlug/analytics/trials'
@@ -816,9 +774,6 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/activity/events'
     | '/studio/$organizationSlug/$projectSlug/activity/sent-notifications'
     | '/studio/$organizationSlug/$projectSlug/analytics/churn'
-    | '/studio/$organizationSlug/$projectSlug/analytics/dashboards'
-    | '/studio/$organizationSlug/$projectSlug/analytics/insights'
-    | '/studio/$organizationSlug/$projectSlug/analytics/query'
     | '/studio/$organizationSlug/$projectSlug/analytics/revenue'
     | '/studio/$organizationSlug/$projectSlug/analytics/subscribers'
     | '/studio/$organizationSlug/$projectSlug/analytics/trials'
@@ -881,9 +836,6 @@ export interface FileRouteTypes {
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/events'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/activity/sent-notifications'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn'
-    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards'
-    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights'
-    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/revenue'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials'
@@ -1260,27 +1212,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRouteImport
       parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
     }
-    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query': {
-      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/query'
-      path: '/analytics/query'
-      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/query'
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRouteImport
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
-    }
-    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights': {
-      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/insights'
-      path: '/analytics/insights'
-      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/insights'
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRouteImport
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
-    }
-    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards': {
-      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/dashboards'
-      path: '/analytics/dashboards'
-      fullPath: '/studio/$organizationSlug/$projectSlug/analytics/dashboards'
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRouteImport
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
-    }
     '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn': {
       id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/churn'
       path: '/analytics/churn'
@@ -1448,9 +1379,6 @@ interface StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRou
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDoteventsRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDottrialsRoute
@@ -1490,12 +1418,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteCh
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityDotsentNotificationsRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotchurnRoute,
-    StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute:
-      StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotdashboardsRoute,
-    StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute:
-      StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotinsightsRoute,
-    StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute:
-      StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotqueryRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotrevenueRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsDotsubscribersRoute:

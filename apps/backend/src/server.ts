@@ -198,12 +198,18 @@ export const runSelfhostServer = <
       const authContext = yield* Layer.build(authLayers.authTokenVerifier);
       const authTokenVerifier = Context.get(authContext, AuthTokenVerifier);
       const rpcExtension = options.rpcExtension({ authTokenVerifier, config });
-      const workflowRuntime = Layer.merge(platform.workflowRunner, platform.runtime);
+      const platformRuntime = Layer.mergeAll(
+        platform.workflowRunner,
+        platform.runtime,
+        platform.queue,
+        platform.keyValueStore,
+        platform.cronScheduler,
+      );
       const analyticsRuntime = makeSelfhostAnalyticsRuntimeLive(config);
       const runtimeContext = yield* Layer.build(
         Layer.mergeAll(
           infrastructure,
-          workflowRuntime,
+          platformRuntime,
           analyticsRuntime,
           SmtpMailerLive(config.mailer),
         ),
