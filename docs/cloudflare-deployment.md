@@ -37,7 +37,7 @@ Run migrations against the configured origin, then deploy:
 
 ```sh
 pnpm db:migrate
-pnpm deploy -- --stage production
+pnpm alchemy deploy --stage production
 ```
 
 `PAYWALL_PUBLIC_BASE_URL` defaults to `https://<VOIDHASH_BACKEND_DOMAIN>`. Set

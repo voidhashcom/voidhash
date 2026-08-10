@@ -37,8 +37,6 @@
   "scripts": {
     "build": "turbo build",
     "dev": "pnpm alchemy dev",
-    "deploy": "pnpm alchemy deploy",
-    "destroy": "pnpm alchemy destroy",
     "dev:doctor": "portless doctor",
     "dev:status": "portless list",
     "clean": "turbo clean && rm -rf node_modules",

@@ -38,9 +38,7 @@
     "@voidhash/paywall-renderer-web-core": "workspace:*",
     "@voidhash/paywalls": "workspace:*",
     "@voidhash/platform": "workspace:*",
-    "@voidhash/platform-cloudflare": "workspace:*",
     "@voidhash/platform-node": "workspace:*",
-    "alchemy": "catalog:",
     "effect": "catalog:",
     "esbuild": "^0.25.10",
     "jose": "catalog:",
@@ -55,7 +53,9 @@
     "@types/node": "^24.0.12",
     "@types/ws": "^8.18.1",
     "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/platform-cloudflare": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
+    "alchemy": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

@@ -122,7 +122,7 @@ export default Cloudflare.Worker(
       dev: { host: "0.0.0.0", port: 8787, strictPort: true },
       env: workerEnvironment(publicBaseUrl),
     };
-  }),
+  }).pipe(Effect.orDie),
   Effect.gen(function* () {
     const planContext = Option.getOrUndefined(yield* Effect.serviceOption(Alchemy.AlchemyContext));
     const environment = Option.getOrUndefined(
