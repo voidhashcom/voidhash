@@ -23,7 +23,7 @@ import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
 import { getConfig as getMimicConfig } from "@voidhash/mimic-db/config";
 import { makeRoutesLive } from "@voidhash/mimic-db/http/rpc-app";
 import { DurableEntityAlarmControl, DurableEntityHost } from "@voidhash/platform/DurableEntity";
-import { SmtpMailerLive } from "@voidhash/platform-selfhost/Mailer";
+import { SmtpMailerLive } from "@voidhash/platform-node/Mailer";
 import { causeMessage } from "@voidhash/lib/lang";
 import { Config, Context, Data, Effect, Layer, Option } from "effect";
 import { HttpRouter } from "effect/unstable/http";
@@ -250,9 +250,7 @@ export const runSelfhostServer = <
       yield* Effect.forkScoped(
         runSelfhostPushDeliveryConsumers(config).pipe(Effect.provide(runtimeContext)),
       );
-      yield* Effect.forkScoped(
-        runSelfhostCronJobs.pipe(Effect.provide(runtimeContext)),
-      );
+      yield* Effect.forkScoped(runSelfhostCronJobs.pipe(Effect.provide(runtimeContext)));
       if (chromiumConfig !== undefined) {
         const thumbnailContext = yield* Layer.build(
           makeSelfhostPaywallThumbnailServiceLive(chromiumConfig),

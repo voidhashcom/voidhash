@@ -1,0 +1,26 @@
+# Host-port overlay for the Node integration fixture.
+#
+# The base fixture keeps Postgres unpublished and the compiler on an
+# internal-only network. Integration tests run on the host, so this overlay
+# publishes both:
+#
+#   docker compose -f test/integration/docker-compose.yml \
+#     -f test/integration/docker-compose.dev.yml \
+#     --env-file .env up -d --build
+#
+# Host ports come from the repo-root `.env` (see `.env.example`); every default
+# matches what
+# the integration suites assume.
+services:
+  postgres:
+    ports:
+      - "${DATABASE_HOST_PORT:-5432}:5432"
+
+  compiler:
+    # The internal-only network blocks host port publishing, so the compiler
+    # also joins the default network in development.
+    networks:
+      - compiler
+      - default
+    ports:
+      - "${COMPILER_HOST_PORT:-5002}:5002"

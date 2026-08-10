@@ -17,16 +17,13 @@ import type { PublicFileStore } from "@voidhash/core/services/storage/PublicFile
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
 import { Db } from "@voidhash/db";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
-import { SelfhostPlatformRuntimeLive } from "@voidhash/platform-selfhost/PlatformRuntime";
+import { NodePlatformRuntimeLive } from "@voidhash/platform-node/PlatformRuntime";
 import { Layer, Redacted } from "effect";
 
 import type { SelfhostAuthConfig, SelfhostRuntimeConfig } from "../config.ts";
 import { makeHttpComponentCompilerLive } from "../compiler/CompilerClient.ts";
 import { makeBackendMimicHostLive } from "./MimicHost.ts";
-import {
-  makePaywallArtifactStoreLive,
-  makePublicFileStoreLive,
-} from "./ObjectStores.ts";
+import { makePaywallArtifactStoreLive, makePublicFileStoreLive } from "./ObjectStores.ts";
 import { MemoryProjectSchemaCacheLive } from "./ProjectSchemaCache.ts";
 
 /**
@@ -61,7 +58,7 @@ export const makeBackendInfrastructureLive = (
   const publicFileStore = makePublicFileStoreLive(
     config.publicObjectStore,
     config.publicFilesBaseUrl,
-  ).pipe(Layer.provide(SelfhostPlatformRuntimeLive));
+  ).pipe(Layer.provide(NodePlatformRuntimeLive));
   const db = Db.layer(config.database);
 
   return Layer.mergeAll(
@@ -72,7 +69,7 @@ export const makeBackendInfrastructureLive = (
       publicBaseUrl: config.publicBaseUrl,
     }),
     makePaywallArtifactStoreLive(config.artifactObjectStore).pipe(
-      Layer.provide(SelfhostPlatformRuntimeLive),
+      Layer.provide(NodePlatformRuntimeLive),
     ),
     publicFileStore,
     BackendPaymentProviderStubsLive,

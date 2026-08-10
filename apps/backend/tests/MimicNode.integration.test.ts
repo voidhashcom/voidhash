@@ -10,8 +10,8 @@ import {
   DurableEntityHost,
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
-import { PgClusterDurableEntityLive } from "@voidhash/platform-selfhost/ClusterDurableEntity";
-import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
+import { PgClusterDurableEntityLive } from "@voidhash/platform-node/ClusterDurableEntity";
+import type { PgPlatformConfig } from "@voidhash/platform-node/Postgres";
 import { Config, Data, Effect, Layer, ManagedRuntime, Redacted, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import WebSocket from "ws";
@@ -203,9 +203,7 @@ describe("self-host mimic Node composition", () => {
             Effect.timeoutOrElse({
               duration: "5 seconds",
               orElse: () =>
-                Effect.fail(
-                  new MimicNodeTestError({ message: "timed out waiting for snapshot" }),
-                ),
+                Effect.fail(new MimicNodeTestError({ message: "timed out waiting for snapshot" })),
             }),
           );
           expect(messages).toContainEqual(
