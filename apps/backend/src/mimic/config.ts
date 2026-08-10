@@ -1,6 +1,6 @@
 import type { DbConfig } from "@voidhash/db/db";
 import { makePgDocumentConfig } from "@voidhash/mimic-db/core/pg-store";
-import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
+import type { PgPlatformConfig } from "@voidhash/platform-node/Postgres";
 import { Redacted } from "effect";
 
 import { getSelfhostDatabaseConfig } from "../config.ts";

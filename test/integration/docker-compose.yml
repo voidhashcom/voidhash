@@ -1,0 +1,217 @@
+name: voidhash-integration
+
+x-backend-image: &backend-image
+  image: ${VOIDHASH_INTEGRATION_IMAGE:-voidhash-integration:local}
+  build:
+    context: ../..
+    dockerfile: apps/backend/Dockerfile
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-voidhash}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-password}
+      POSTGRES_DB: ${DATABASE_NAME:-voidhash}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-voidhash}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-password}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  minio-init:
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing "local/$${S3_PUBLIC_BUCKET}"
+        mc mb --ignore-existing "local/$${S3_ARTIFACT_BUCKET}"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-voidhash}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-password}
+      S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-voidhash-public}
+      S3_ARTIFACT_BUCKET: ${S3_ARTIFACT_BUCKET:-voidhash-artifacts}
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit@sha256:5a49a77c5bdbe7c5474450b4f46348d09949df3695257729c93a30369382d4f6
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 500
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    volumes:
+      - mailpit_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *backend-image
+    command: ["./node_modules/.bin/tsx", "src/migrate.ts"]
+    environment: &database-environment
+      SELFHOST_MODE: ${SELFHOST_MODE:-local-evaluation}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-voidhash}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
+      DATABASE_NAME: ${DATABASE_NAME:-voidhash}
+      DATABASE_SSL: "false"
+      ROOT_USERNAME: ${MIMIC_ROOT_USERNAME:-root}
+      ROOT_PASSWORD: ${MIMIC_ROOT_PASSWORD:-password}
+      # The single root account. Defaults are the documented evaluation
+      # credentials, which production mode refuses.
+      VOIDHASH_ROOT_USERNAME: ${VOIDHASH_ROOT_USERNAME:-root}
+      VOIDHASH_ROOT_PASSWORD: ${VOIDHASH_ROOT_PASSWORD:-voidhash}
+      VOIDHASH_ROOT_EMAIL: ${VOIDHASH_ROOT_EMAIL:-root@voidhash.local}
+      VOIDHASH_AUTH_SECRET: ${VOIDHASH_AUTH_SECRET:-}
+      # `migrate` runs the same production security validation as `app`, so the
+      # settings that validation reads have to reach it too — otherwise a
+      # correctly configured production deployment fails before its first
+      # migration.
+      MIMIC_ROOT_PASSWORD: ${MIMIC_ROOT_PASSWORD:-password}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-password}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5001}
+      PUBLIC_FILES_BASE_URL: ${PUBLIC_FILES_BASE_URL:-http://localhost:5001}
+      MIMIC_PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5001}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  compiler:
+    <<: *backend-image
+    command: ["./node_modules/.bin/tsx", "src/compiler/main.ts"]
+    cap_drop:
+      - ALL
+    environment:
+      COMPILER_HOST: 0.0.0.0
+      COMPILER_PORT: 5002
+    networks:
+      - compiler
+    pids_limit: 128
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    expose:
+      - "5002"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5002/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    <<: *backend-image
+    environment:
+      <<: *database-environment
+      PORT: 5001
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5001}
+      PUBLIC_FILES_BASE_URL: ${PUBLIC_FILES_BASE_URL:-http://localhost:5001}
+      MIMIC_PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5001}
+      MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS: ${MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS:-15000}
+      CORS_ORIGINS: ${MIMIC_CORS_ORIGINS:-http://localhost:3000,http://localhost:3003}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-voidhash}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-password}
+      S3_FORCE_PATH_STYLE: "true"
+      S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-voidhash-public}
+      S3_ARTIFACT_BUCKET: ${S3_ARTIFACT_BUCKET:-voidhash-artifacts}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      VOIDHASH_AGENT_MODEL_PROVIDER: ${VOIDHASH_AGENT_MODEL_PROVIDER:-}
+      VOIDHASH_AGENT_MODEL_ID: ${VOIDHASH_AGENT_MODEL_ID:-}
+      VOIDHASH_AGENT_VISION_MODEL_PROVIDER: ${VOIDHASH_AGENT_VISION_MODEL_PROVIDER:-}
+      VOIDHASH_AGENT_VISION_MODEL_ID: ${VOIDHASH_AGENT_VISION_MODEL_ID:-}
+      GOOGLE_PUBSUB_PUSH_AUDIENCE: ${GOOGLE_PUBSUB_PUSH_AUDIENCE:-}
+      GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      APNS_DELIVERY_ENABLED: ${APNS_DELIVERY_ENABLED:-false}
+      EXCHANGE_RATE_API_KEY: ${EXCHANGE_RATE_API_KEY:-}
+      COMPONENT_COMPILER_URL: http://compiler:5002
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-false}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-noreply@voidhash.local}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Voidhash}
+      SMTP_TLS_REJECT_UNAUTHORIZED: ${SMTP_TLS_REJECT_UNAUTHORIZED:-true}
+      SMTP_VERIFY_ON_START: ${SMTP_VERIFY_ON_START:-true}
+    ports:
+      - "${MIMIC_PORT:-5001}:5001"
+    networks:
+      - default
+      - compiler
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      compiler:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  mailpit_data:
+  minio_data:
+  postgres_data:
+
+networks:
+  compiler:
+    internal: true

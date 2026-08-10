@@ -10,7 +10,7 @@ import type {
   UserRecord,
 } from "@voidhash/mimic-db/core/store";
 import { ControlStore } from "@voidhash/mimic-db/core/store";
-import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
+import type { PgPlatformConfig } from "@voidhash/platform-node/Postgres";
 import { Effect, Layer, Predicate, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 

@@ -1,5 +1,5 @@
 {
-  "extends": "@voidhash/tsconfig/typescript-6.json",
+  "extends": "@voidhash/tsconfig/alchemy-base.json",
   "compilerOptions": {
     "types": ["node"],
     "noEmit": true,
@@ -7,6 +7,6 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true
   },
-  "include": ["src", "tests", "vitest.mts"],
-  "exclude": ["**/node_modules/**"]
+  "include": ["."],
+  "exclude": ["**/node_modules/**", ".alchemy", "dist"]
 }

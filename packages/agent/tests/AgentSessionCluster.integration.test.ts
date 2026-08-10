@@ -5,13 +5,10 @@ import {
   type Model,
 } from "@earendil-works/pi-ai";
 import { NodeCrypto } from "@effect/platform-node";
-import {
-  DurableEntityAlarmControl,
-  DurableEntityHost,
-} from "@voidhash/platform/DurableEntity";
-import { PgClusterDurableEntityLive } from "@voidhash/platform-selfhost/ClusterDurableEntity";
-import { makeNodeDurableEntitySession } from "@voidhash/platform-selfhost/NodeDurableEntitySession";
-import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
+import { DurableEntityAlarmControl, DurableEntityHost } from "@voidhash/platform/DurableEntity";
+import { PgClusterDurableEntityLive } from "@voidhash/platform-node/ClusterDurableEntity";
+import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurableEntitySession";
+import type { PgPlatformConfig } from "@voidhash/platform-node/Postgres";
 import { Clock, Config, Crypto, Effect, ManagedRuntime, Redacted, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -27,15 +24,15 @@ const encodeClientMessage = Schema.encodeSync(Schema.fromJsonString(AgentClientM
 
 const loadConfig: Effect.Effect<PgPlatformConfig> = Effect.gen(function* () {
   return {
-    host: yield* Config.string("PLATFORM_SELFHOST_PG_HOST").pipe(Config.withDefault("127.0.0.1")),
-    port: yield* Config.int("PLATFORM_SELFHOST_PG_PORT").pipe(Config.withDefault(5432)),
-    database: yield* Config.string("PLATFORM_SELFHOST_PG_DATABASE").pipe(
+    host: yield* Config.string("PLATFORM_NODE_PG_HOST").pipe(Config.withDefault("127.0.0.1")),
+    port: yield* Config.int("PLATFORM_NODE_PG_PORT").pipe(Config.withDefault(5432)),
+    database: yield* Config.string("PLATFORM_NODE_PG_DATABASE").pipe(
       Config.withDefault("voidhash"),
     ),
-    username: yield* Config.string("PLATFORM_SELFHOST_PG_USERNAME").pipe(
+    username: yield* Config.string("PLATFORM_NODE_PG_USERNAME").pipe(
       Config.withDefault("voidhash"),
     ),
-    password: yield* Config.redacted("PLATFORM_SELFHOST_PG_PASSWORD").pipe(
+    password: yield* Config.redacted("PLATFORM_NODE_PG_PASSWORD").pipe(
       Config.withDefault(Redacted.make("password")),
     ),
   };

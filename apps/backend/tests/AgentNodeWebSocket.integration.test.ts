@@ -10,7 +10,7 @@ import {
 } from "@voidhash/core/services";
 import { Db } from "@voidhash/db";
 import { causeMessage, constant } from "@voidhash/lib/lang";
-import { makeMemoryDurableEntityHost } from "@voidhash/platform-selfhost/MemoryDurableEntity";
+import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
 import { Context, Data, DateTime, Effect, Latch, Redacted, Schema } from "effect";
 import { WebSocket } from "ws";
 import { describe, expect, it } from "vite-plus/test";

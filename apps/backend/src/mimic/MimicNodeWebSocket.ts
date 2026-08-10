@@ -26,7 +26,7 @@ import {
   type DurableEntitySession,
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
-import { makeNodeDurableEntitySession } from "@voidhash/platform-selfhost/NodeDurableEntitySession";
+import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurableEntitySession";
 import { Clock, Duration, Effect, Fiber, Semaphore } from "effect";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 
@@ -252,8 +252,8 @@ export const installMimicNodeWebSocketServer = (
         Effect.runSync(socket.entitySession.setAttachment(attachment));
       },
       send: (socket, message) =>
-        Effect.sync(() =>  socket.webSocket.send(encodeServerMessage(message))),
-      close: (socket, code, reason) => Effect.sync(() =>  socket.webSocket.close(code, reason)),
+        Effect.sync(() => socket.webSocket.send(encodeServerMessage(message))),
+      close: (socket, code, reason) => Effect.sync(() => socket.webSocket.close(code, reason)),
       authenticate: (token, attachment) =>
         withoutRequirements(
           host.authenticateDocumentToken(
