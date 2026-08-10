@@ -59,7 +59,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Group | Operations |
 | --- | --- |
 | AgentSession | `ListAgentSessions`, `GetAgentSession`, `DeleteAgentSession`, `RevertAgentEditSession`, `UploadAgentAttachment` |
-| Analytics | `ListRecentAnalyticsEvents`, `QueryAnalyticsInsights`, `QueryCustomAnalyticsInsight`, `QueryCustomAnalyticsPersons`, `ListAnalyticsInsights`, `CreateAnalyticsInsight`, `UpdateAnalyticsInsight`, `DeleteAnalyticsInsight`, `ListAnalyticsCohorts`, `CreateAnalyticsCohort`, `UpdateAnalyticsCohort`, `DeleteAnalyticsCohort`, `ListAnalyticsDashboards`, `CreateAnalyticsDashboard`, `DuplicateAnalyticsDashboard`, `UpdateAnalyticsDashboard`, `DeleteAnalyticsDashboard`, `PutAnalyticsDashboardItem`, `ReorderAnalyticsDashboardItems`, `RemoveAnalyticsDashboardItem` |
+| Analytics | `ListRecentAnalyticsEvents`, `QueryAnalyticsInsights` |
 | ApiKey | `CreateSecretKey`, `ListApiKeys`, `GetApiKeyById`, `RotateSecretKey`, `DeleteApiKey`, `CreateUserApiKey`, `ListUserApiKeys`, `RevokeUserApiKey` |
 | Person | `CreatePerson`, `ListPersons`, `GetPersonById`, `GetPersonByDistinctId` |
 | Experiment | `ListExperiments`, `GetExperiment`, `CreateExperiment`, `SaveExperimentSetup`, `StartExperiment`, `PauseExperiment`, `ConcludeExperiment`, `ArchiveExperiment`, `RestoreExperiment`, `GetExperimentResults` |
@@ -81,13 +81,12 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Product | `ListProducts`, `GetProduct`, `CreateProduct`, `UpdateProduct`, `DeleteProduct` |
 | Project | `CreateProject`, `ListProjects`, `UpdateProject`, `DeleteProject`, `SetProjectAvatar`, `RemoveProjectAvatar` |
 | User | `CurrentUser`, `SetUserAvatar`, `RemoveUserAvatar` |
-| VoidQl | `RunVoidQlQuery`, `ValidateVoidQlQuery`, `GetVoidQlSchema`, `SaveVoidQlInsight`, `ListVoidQlInsights`, `RunSavedVoidQlInsight`, `DeleteVoidQlInsight` |
 | Webhook | `ListWebhookEndpoints`, `GetWebhookEndpoint`, `CreateWebhookEndpoint`, `UpdateWebhookEndpoint`, `DeleteWebhookEndpoint`, `RotateWebhookSecret`, `TestWebhookEndpoint`, `ListWebhookDeliveries`, `GetWebhookDelivery`, `RetryWebhookDelivery` |
 <!-- RPC_OPERATIONS_END -->
 
 | RPC groups | Authorization boundary | Evidence | Status |
 | --- | --- | --- | --- |
-| Analytics, VoidQl | Project permission before query compilation/execution; compiled SQL carries a bound tenant predicate. | Analytics integration suite and VoidQL compiler/substrate tests | Integrated |
+| Analytics | Project permission before event reads or built-in revenue queries; PostgreSQL reads remain project-scoped. | Community PostgreSQL analytics integration suite | Integrated |
 | ApiKey, Person, Organization, PaymentProviderConfiguration, PaymentProviderProduct, PaywallDeploy, PaywallLocation, Paywall, Perk, ProductPerk, Product, Project, Webhook, FeatureFlag | Project/organization permission followed by stored ownership checks for nested IDs. | Corresponding database-backed core service integration suites | Integrated |
 | PaywallComponent | Delegates to the project-authorized deploy service. | Paywall deploy integration suite | Integrated |
 | AgentSession, PaywallAsset, PaywallWorkspace | Project membership/permission and stored parent ownership are checked before every read or mutation. Client-minted session ID collisions are bound to the persisted user and project scope. | `AgentSessionIndexService.test.ts`, `agent-session-rpcs.test.ts`, `PaywallAssetAuthorization.integration.test.ts`, `PaywallWorkspaceAuthorization.integration.test.ts`, plus service and RPC unit tests | Integrated |

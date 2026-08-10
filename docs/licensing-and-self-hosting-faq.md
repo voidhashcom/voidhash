@@ -52,12 +52,11 @@ keeps the model easy to reason about while the project is young. Multi-user
 self-host — most likely as a generic OIDC adapter behind the same identity
 port the hosted cloud uses — is a public roadmap item.
 
-## Is analytics required?
+## How does Community analytics work?
 
-No. ClickHouse is an optional Compose profile. Without it, the platform still
-boots, purchase and identity state remains durable in PostgreSQL, and analytics
-queries degrade to empty results. Enable the profile for durable event capture
-and dashboards.
+Community stores built-in lifecycle and revenue events in PostgreSQL. The
+capture endpoints remain SDK-compatible, while custom events and advanced query
+features are outside the Community analytics surface.
 
 ## Are pricing or trademark terms defined here?
 

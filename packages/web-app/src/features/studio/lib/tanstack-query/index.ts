@@ -20,5 +20,4 @@ export * from "./products";
 export * from "./projects";
 export { queryKeys } from "./query-keys";
 export * from "./users";
-export * from "./voidql";
 export * from "./webhooks";

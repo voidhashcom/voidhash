@@ -1,12 +1,12 @@
 import { AppStoreServerSdk } from "@voidhash/app-store-server-sdk";
 import { VoidhashV1Api } from "@voidhash/api-contracts";
 import { Db } from "@voidhash/db";
-import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import {
   AnalyticsService,
+  AnalyticsEventStore,
   ApiKeyService,
   AuditLogPort,
   AppStorePaymentProvider,
@@ -55,7 +55,6 @@ import {
   PaywallWorkspaceService,
   ComponentCompiler,
   ComponentManifestCacheService,
-  CustomAnalyticsService,
   PerkGrantService,
   PerkService,
   PersonIdentityService,
@@ -79,12 +78,10 @@ import {
   StripePaymentProviderConfigLive,
   StripePaymentProviderServiceLive,
   UserService,
-  VoidQlService,
   WebhookManagerService,
   IdentityLinkBackfillService,
   OrgDirectoryPort,
 } from "@voidhash/core/services";
-import { AnalyticsWriterService } from "@voidhash/core/services/analyticsIngest/AnalyticsWriterService";
 import { createInitialPaywallDocumentInput, PaywallDesignerDocument } from "@voidhash/mimic-schema";
 import { AuthMiddleware } from "@voidhash/rpc";
 import { constant } from "@voidhash/lib/lang";
@@ -158,7 +155,6 @@ import { ProductPerkRpcsLive } from "./rpcs/product-perk-rpcs.ts";
 import { ProductRpcsLive } from "./rpcs/product-rpcs.ts";
 import { ProjectRpcsLive } from "./rpcs/project-rpcs.ts";
 import { UserRpcsLive } from "./rpcs/user-rpcs.ts";
-import { VoidQlRpcsLive } from "./rpcs/voidql-rpcs.ts";
 import { WebhookRpcsLive } from "./rpcs/webhook-rpcs.ts";
 
 /**
@@ -167,10 +163,8 @@ import { WebhookRpcsLive } from "./rpcs/webhook-rpcs.ts";
  * `Layer.provide` / `HttpRouter.provideRequest` in the route graph is actually
  * satisfied — without it, a missing service (e.g. the raw WorkOS webhook
  * handler's `Db`) only surfaces as a runtime "Service not found" instead of a
- * compile error. ClickHouse is deliberately not mandatory: analytics services
- * use it when the runtime's layer provides it and degrade to empty results when
- * absent. The caller's bound `InfraLayer` may be structurally wider than this
- * contract, so the cloud composition can still carry its analytics clients.
+ * compile error. Analytics storage is supplied through service layers, so the
+ * infrastructure contract remains database-agnostic.
  */
 export type InfraServices =
   | Db
@@ -217,18 +211,11 @@ export interface BackendRuntimeLayers<
    */
   readonly mcpOAuth?: Layer.Layer<McpOAuth>;
   readonly infrastructure: Layer.Layer<InfraServices, never, RInfrastructure>;
+  /** Overrides the community PostgreSQL analytics reader for hosted runtimes. */
+  readonly analyticsService?: Layer.Layer<AnalyticsService, never, RInfrastructure>;
   readonly features: BackendFeatureComposition<RFeatureRpcs, RFeatureServices>;
   readonly routes?: Layer.Layer<never, never, HttpRouter.HttpRouter | RInfrastructure>;
   readonly webhookManager?: Layer.Layer<WebhookManagerService, never, RInfrastructure>;
-  /**
-   * The hardened, single-shared `analytics_query` ClickHouse client that backs the
-   * VoidQL read path (`readonly = 1` CONST profile, SELECT-only, no row policy —
-   * isolation is the compiler-injected bound predicate). When omitted,
-   * {@link VoidQlService} resolves the ambient (RLS readonly) client from
-   * `infrastructure`, which fail-closes to empty rows because VoidQL sets no
-   * `SQL_organization_id`.
-   */
-  readonly analyticsQueryClient?: Layer.Layer<ClickhouseWebClient.ClickhouseWebClient>;
   /**
    * Queue-backed push-delivery dispatcher. Defaults to {@link PushDeliveryDispatch.noop}
    * (dev/smoke — rows are created but never delivered); the production worker
@@ -740,9 +727,9 @@ const buildBackendServiceGraph = <
     | "features"
     | "infrastructure"
     | "webhookManager"
-    | "analyticsQueryClient"
     | "pushDeliveryDispatch"
     | "mcpOAuth"
+    | "analyticsService"
   >,
 ) => {
   const RpcHandlersLayer = Layer.mergeAll(
@@ -769,7 +756,6 @@ const buildBackendServiceGraph = <
     ProductRpcsLive,
     ProjectRpcsLive,
     UserRpcsLive,
-    VoidQlRpcsLive,
     WebhookRpcsLive,
   );
 
@@ -796,19 +782,6 @@ const buildBackendServiceGraph = <
     Layer.provide(FeatureFlagService.layer),
   );
 
-  // VoidQL runs under the hardened single-shared `analytics_query` user when the
-  // caller wires that client (Layer.provide satisfies its ClickhouseWebClient
-  // before the ambient RLS readonly client is merged in); without it, it resolves
-  // the ambient readonly client and fail-closes to empty rows.
-  const voidQlServiceLayer = () => {
-    const analyticsQueryClient = layers.analyticsQueryClient;
-    if (analyticsQueryClient) {
-      return VoidQlService.layer.pipe(Layer.provide(analyticsQueryClient));
-    }
-    return VoidQlService.layer;
-  };
-  const VoidQlServiceLive = voidQlServiceLayer();
-
   const PaywallWorkspaceServiceLive = PaywallWorkspaceService.layer.pipe(
     Layer.provide(PaywallService.layer),
     Layer.provide(ComponentManifestCacheService.layer),
@@ -819,11 +792,11 @@ const buildBackendServiceGraph = <
   );
 
   const AgentSessionIndexServiceLive = AgentSessionIndexService.layer;
+  const AnalyticsEventStoreLive = AnalyticsEventStore.layer;
   const BaseDomainServicesLayer = Layer.mergeAll(
     AgentSessionIndexServiceLive,
     AgentAttachmentService.layer.pipe(Layer.provide(AgentSessionIndexServiceLive)),
-    AnalyticsService.layer,
-    CustomAnalyticsService.layer,
+    layers.analyticsService ?? AnalyticsService.layer.pipe(Layer.provide(AnalyticsEventStoreLive)),
     ApiKeyService.layer,
     BackendFeedbackServiceLive,
     BackendAppStorePaymentProviderServiceLive,
@@ -869,25 +842,12 @@ const buildBackendServiceGraph = <
     PurchaseService.layer,
     SchemaService.layer,
     UserService.layer,
-    VoidQlServiceLive,
     layers.webhookManager ?? WebhookManagerService.layer,
   ).pipe(Layer.provide(BackendPushProvidersLive), Layer.provide(SupportServicesLayer));
-
-  // The synchronous SDK person-attribute write projects into ClickHouse via the
-  // real `analyticsWriterLayer`. This is scoped to `SdkService` ONLY (provided
-  // innermost so it discharges the `IdentityProjectionPublisher` requirement
-  // first) — everywhere else, including `PersonIdentityService`'s own publisher
-  // and the async ingest processor, keeps the no-op binding so person rows are
-  // never double-written.
-  const SdkIdentityProjectionPublisherLayer = IdentityProjectionPublisher.analyticsWriterLayer.pipe(
-    Layer.provide(AnalyticsWriterService.layer),
-    Layer.provide(layers.infrastructure),
-  );
 
   const DomainServicesLayer = Layer.mergeAll(
     BaseDomainServicesLayer,
     SdkService.layer.pipe(
-      Layer.provide(SdkIdentityProjectionPublisherLayer),
       Layer.provide(BaseDomainServicesLayer),
       Layer.provide(SupportServicesLayer),
     ),
@@ -934,9 +894,9 @@ export const buildBackendAgentServices = <
     | "features"
     | "infrastructure"
     | "webhookManager"
-    | "analyticsQueryClient"
     | "pushDeliveryDispatch"
     | "mcpOAuth"
+    | "analyticsService"
   >,
 ) => {
   const graph = buildBackendServiceGraph(layers);
@@ -1016,7 +976,7 @@ export const buildBackendRpcServices = <
     | "features"
     | "infrastructure"
     | "webhookManager"
-    | "analyticsQueryClient"
+    | "analyticsService"
     | "rpcExtension"
     | "mcpOAuth"
   >,

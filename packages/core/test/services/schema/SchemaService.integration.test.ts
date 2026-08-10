@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link SchemaService}, run against the real backend
  * stack provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB
- * + ClickHouse + WorkOS; only the project schema cache is the in-memory stub the
+ * and PostgreSQL; only the project schema cache is the in-memory stub the
  * harness builds fresh per test).
  *
  * `SchemaService` is a read-only assembler: it folds six concurrent

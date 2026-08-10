@@ -18,13 +18,13 @@
  * The triple `(anchor, eventName, personId)` is injective across every revenue
  * mapper, so the derived id is stable across retries / re-dispatch and collides
  * for exactly the duplicates an at-least-once queue may produce — the property
- * the ClickHouse `(project_id, event_id)` pre-insert dedup relies on. This
+ * the portable `(project_id, event_id)` uniqueness constraint relies on. This
  * replaces the previous `generateId("analyticsEvent")` (a fresh random id per
  * call), which was the one piece genuinely incompatible with at-least-once
  * delivery.
  *
- * `event_id` is an unbounded ClickHouse `String`, so a structured, legible
- * deterministic string is used rather than a fixed-width hash — that keeps the
+ * A structured, legible deterministic string is used rather than a fixed-width
+ * hash — that keeps the
  * 17 sync mapper builders synchronous (no need to thread an async hash) and
  * keeps ids debuggable.
  *

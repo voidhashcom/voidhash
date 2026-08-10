@@ -436,9 +436,8 @@ export const ensureNoBreakdowns = (
 // =============================================================================
 
 /**
- * Truncate sub-second precision. ClickHouse's `DateTime` column rejects
- * fractional-second timestamps when bound as query parameters, and analytics
- * buckets never care about sub-seconds, so we floor at the resolver boundary.
+ * Truncate sub-second precision because analytics buckets do not distinguish
+ * values within the same second.
  */
 const truncateToSecond = (date: Date): Date =>
   fromEpochMillis(Math.floor(date.getTime() / 1000) * 1000);

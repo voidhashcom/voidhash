@@ -21,34 +21,6 @@ services:
       timeout: 3s
       retries: 30
 
-  clickhouse:
-    image: clickhouse/clickhouse-server@sha256:a4e8cf46e526a06f4f52d22f7fa8d07472b55d3c896d7ca3f159e249be38ae62
-    profiles: ["analytics"]
-    environment:
-      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-voidhash}
-      CLICKHOUSE_USER: ${CLICKHOUSE_ADMIN_USERNAME:-voidhash_admin}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_ADMIN_PASSWORD:-password}
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-    ports:
-      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
-      - clickhouse_logs:/var/log/clickhouse-server
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "clickhouse-client --user \"$$CLICKHOUSE_USER\" --password \"$$CLICKHOUSE_PASSWORD\" --query 'SELECT 1'",
-        ]
-      interval: 2s
-      timeout: 3s
-      retries: 30
-
   minio:
     image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: ["server", "/data", "--console-address", ":9001"]
@@ -113,16 +85,6 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-password}
       DATABASE_NAME: ${DATABASE_NAME:-voidhash}
       DATABASE_SSL: "false"
-      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-}
-      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-voidhash}
-      CLICKHOUSE_ADMIN_USERNAME: ${CLICKHOUSE_ADMIN_USERNAME:-voidhash_admin}
-      CLICKHOUSE_ADMIN_PASSWORD: ${CLICKHOUSE_ADMIN_PASSWORD:-password}
-      CLICKHOUSE_USERNAME: ${CLICKHOUSE_USERNAME:-voidhash_app}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-password}
-      CLICKHOUSE_RO_USERNAME: ${CLICKHOUSE_RO_USERNAME:-voidhash_ro}
-      CLICKHOUSE_RO_PASSWORD: ${CLICKHOUSE_RO_PASSWORD:-password}
-      CLICKHOUSE_ANALYTICS_QUERY_USERNAME: ${CLICKHOUSE_ANALYTICS_QUERY_USERNAME:-voidhash_query}
-      CLICKHOUSE_ANALYTICS_QUERY_PASSWORD: ${CLICKHOUSE_ANALYTICS_QUERY_PASSWORD:-password}
       ROOT_USERNAME: ${MIMIC_ROOT_USERNAME:-root}
       ROOT_PASSWORD: ${MIMIC_ROOT_PASSWORD:-password}
       # The single root account. Defaults are the documented evaluation
@@ -246,8 +208,6 @@ services:
       retries: 30
 
 volumes:
-  clickhouse_data:
-  clickhouse_logs:
   mailpit_data:
   minio_data:
   postgres_data:

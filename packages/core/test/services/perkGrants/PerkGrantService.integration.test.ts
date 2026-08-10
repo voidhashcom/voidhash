@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PerkGrantService}, run against the real backend
  * stack provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB
- * + ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * and PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * `PerkGrantService` reconciles a person's `person_unlocked_perk` rows against
  * their `subscription` / `purchase` rows and the product→perk catalog. There is

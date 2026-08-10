@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link AppStoreReconciliationService}, run against the
  * real backend stack provisioned once by `test/_testing/globalSetup.ts` (live
- * PlanetScale DB + ClickHouse + WorkOS; only the project schema cache is an
+ * PostgreSQL; only the project schema cache is an
  * in-memory stub).
  *
  * `reconcileOriginalTransaction` is a heavy replay engine: it resolves the
@@ -33,8 +33,8 @@
  * Conventions:
  *  - The collaborators the service-under-test layer needs but the harness does
  *    not provide (`AppStorePaymentProvider` and its whole record graph) are
- *    wired here from their real layers, mirroring `AppStoreRuntimeLayers.ts` and
- *    the {@link EventProcessorService} integration test. The FX fetcher and the
+ *    wired here from their real layers, mirroring `AppStoreRuntimeLayers.ts`.
+ *    The FX fetcher and the
  *    workflow/queue ports that carry no in-process seam are wired to stubs;
  *    none of them is reached on the pre-network paths exercised here.
  *  - Each test creates its own `payment_provider_configuration` row under the

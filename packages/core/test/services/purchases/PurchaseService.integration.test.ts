@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PurchaseService}, run against the real backend
  * stack provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB
- * + ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * and PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * `PurchaseService` exposes a single read-only method, `getPersonPurchases`,
  * which is gated behind a `project:all` permission check on the *person's*

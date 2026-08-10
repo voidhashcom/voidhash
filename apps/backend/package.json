@@ -28,7 +28,6 @@
     "@voidhash/api-contracts": "workspace:*",
     "@voidhash/app-store-server-sdk": "workspace:*",
     "@voidhash/backend": "workspace:*",
-    "@voidhash/clickhouse-db": "workspace:*",
     "@voidhash/core": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",

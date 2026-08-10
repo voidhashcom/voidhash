@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link StripeWebhookHandlerService} — the Stripe webhook
  * ingress — run against the real backend stack provisioned once by
- * `test/_testing/globalSetup.ts` (live PlanetScale DB + ClickHouse + WorkOS).
+ * `test/_testing/globalSetup.ts` (live PostgreSQL).
  *
  * Unlike the App Store webhook handler — whose every branch is gated behind a
  * real Apple-signed JWS chained to Apple's production/sandbox CA (no in-process

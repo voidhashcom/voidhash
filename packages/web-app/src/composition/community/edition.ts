@@ -10,3 +10,6 @@ export {
   type OrganizationNavSlotContext,
 } from "../../features/studio/enterprise/organization-nav-slot";
 export { PaywallThumbnailAdminSlot } from "../../features/studio/paywalls/designer/dev-mode/paywall-thumbnail-admin-slot";
+
+/** Community exposes only the built-in PostgreSQL analytics pages. */
+export const advancedAnalyticsAvailable = false;

@@ -15,12 +15,6 @@ export interface CoreTestConnections {
     readonly password: string;
     readonly databaseName: string;
   };
-  readonly clickhouse: {
-    readonly url: string;
-    readonly username: string;
-    readonly password: string;
-    readonly database: string;
-  };
 }
 
 /**
@@ -47,11 +41,5 @@ export const coreTestConnectionsFromEnv = (
     username: env.DATABASE_USERNAME ?? "voidhash",
     password: env.DATABASE_PASSWORD ?? "password",
     databaseName: env.DATABASE_NAME ?? "voidhash",
-  },
-  clickhouse: {
-    url: env.CLICKHOUSE_URL ?? "http://127.0.0.1:8123",
-    username: env.CLICKHOUSE_USERNAME ?? "voidhash_app",
-    password: env.CLICKHOUSE_PASSWORD ?? "password",
-    database: env.CLICKHOUSE_DATABASE ?? "voidhash",
   },
 });

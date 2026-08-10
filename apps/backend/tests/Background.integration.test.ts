@@ -7,8 +7,8 @@ import { constant } from "@voidhash/lib/lang";
 import { Clock, DateTime, Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { makeSelfhostAnalyticsRuntimeLive } from "../src/backend/Analytics.ts";
 import { makeSelfhostCronJobs } from "../src/backend/Background.ts";
+import { makeSelfhostPlatformLive } from "../src/backend/PlatformProfile.ts";
 import { getSelfhostRuntimeConfig } from "../src/config.ts";
 
 const requiredJobNames = constant([
@@ -59,12 +59,13 @@ describe("self-host scheduled jobs", () => {
   it("registers the required background jobs and executes them through the scheduler", () =>
     Effect.runPromise(
       Effect.gen(function* () {
+        const config = getSelfhostRuntimeConfig();
         const testRunner = TestWorkflowRunner.make();
 
         const outcome = yield* Effect.scoped(
           Effect.gen(function* () {
             const jobs: ReadonlyArray<CronJob<PlatformRuntime | WorkflowRunner>> =
-              yield* makeSelfhostCronJobs();
+              yield* makeSelfhostCronJobs;
             const registered = jobs.map((job) => job.name);
             const executions: Record<string, number> = {};
             for (const name of requiredJobNames) {
@@ -75,7 +76,7 @@ describe("self-host scheduled jobs", () => {
             return { executions, registered };
           }).pipe(
             Effect.provide(Layer.succeed(WorkflowRunner, testRunner)),
-            Effect.provide(makeSelfhostAnalyticsRuntimeLive(getSelfhostRuntimeConfig())),
+            Effect.provide(makeSelfhostPlatformLive(config)),
           ),
         );
 

@@ -12,6 +12,5 @@ test(
     // expose credentials for the in-process harness layers.
     expect(output.testConnections).not.toBeNull();
     expect(output.testConnections?.db.host).toBeDefined();
-    expect(output.testConnections?.clickhouse.url).toBeDefined();
   }),
 );

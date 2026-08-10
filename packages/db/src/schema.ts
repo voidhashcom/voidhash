@@ -3,6 +3,7 @@ import { constant } from "@voidhash/lib/lang";
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  bigserial,
   boolean,
   index,
   integer,
@@ -159,8 +160,8 @@ export const projects = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     organizationId: varchar("organization_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -194,11 +195,58 @@ export const captureProjectPolicies = pgTable(
       .notNull()
       .default(48),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [index("capture_project_policy_force_route_idx").on(table.forceRoute)],
+);
+
+/**
+ * Portable analytics event log used by the Community edition. Its semantic
+ * columns mirror the hosted analytics event record so rows can be exported and
+ * imported without reconstructing events from application tables.
+ */
+export const analyticsEvents = pgTable(
+  "analytics_event",
+  {
+    sequence: bigserial("sequence", { mode: "number" }).primaryKey(),
+    schemaVersion: smallint("schema_version").notNull().default(1),
+    eventId: varchar("event_id", { length: 255 }).notNull(),
+    captureId: varchar("capture_id", { length: 255 }).notNull(),
+    eventName: varchar("event_name", { length: 255 }).notNull(),
+    eventTimestamp: timestamp("event_timestamp", { withTimezone: true, precision: 3 }).notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true, precision: 3 })
+      .notNull()
+      .defaultNow(),
+    organizationId: varchar("organization_id", { length: 255 }).notNull(),
+    projectId: varchar("project_id", { length: 255 })
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    distinctId: varchar("distinct_id", { length: 512 }).notNull(),
+    previousDistinctId: varchar("previous_distinct_id", { length: 512 }),
+    personId: varchar("person_id", { length: 255 }),
+    identityMode: varchar("identity_mode", { length: 32 }).notNull(),
+    properties: jsonb("properties").$type<Readonly<Record<string, unknown>>>().notNull(),
+    context: jsonb("context").$type<Readonly<Record<string, unknown>>>().notNull(),
+    sessionId: varchar("session_id", { length: 255 }),
+    token: varchar("token", { length: 255 }).notNull(),
+    requestId: varchar("request_id", { length: 255 }).notNull(),
+    requestPath: varchar("request_path", { length: 255 }),
+    source: varchar("source", { length: 32 }).notNull(),
+    sourceTopic: varchar("source_topic", { length: 255 }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("analytics_event_project_event_uidx").on(table.projectId, table.eventId),
+    index("analytics_event_project_time_idx").on(table.projectId, table.eventTimestamp),
+    index("analytics_event_org_time_idx").on(table.organizationId, table.eventTimestamp),
+    index("analytics_event_project_name_time_idx").on(
+      table.projectId,
+      table.eventName,
+      table.eventTimestamp,
+    ),
+    index("analytics_event_export_cursor_idx").on(table.sequence),
+  ],
 );
 
 export const apiKeys = pgTable(
@@ -230,8 +278,8 @@ export const apiKeys = pgTable(
      */
     projectId: varchar("project_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [index("api_key_key_idx").on(table.key)],
@@ -330,8 +378,8 @@ export const persons = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
     deletionReason: varchar("deletion_reason", { length: 64 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [index("person_merged_into_person_id_idx").on(table.mergedIntoPersonId)],
@@ -351,8 +399,8 @@ export const personIdentities = pgTable(
     kind: smallint("kind").notNull().default(PersonIdentityKind.Anonymous),
     version: integer("version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -370,8 +418,8 @@ export const personPersonlessIdentities = pgTable(
     distinctId: varchar("distinct_id", { length: 255 }).notNull(),
     isMerged: boolean("is_merged").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -446,8 +494,8 @@ export const personIdentityMigrationJobs = pgTable(
     requestedAt: timestamp("requested_at", { withTimezone: true, precision: 3 }).notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -488,8 +536,8 @@ export const personUnlockedPerks = pgTable(
     }),
     expiresAt: timestamp("expires_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("person_id_perk_id_idx").on(table.personId, table.perkId)],
@@ -509,8 +557,8 @@ export const personExternalIdentifiers = pgTable(
     isDefault: boolean("is_default").notNull(),
     identifier: varchar("identifier", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -549,8 +597,8 @@ export const personDeletionRequests = pgTable(
       .defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -573,8 +621,8 @@ export const paymentProviderConfigurations = pgTable(
     name: varchar("name", { length: 255 }).notNull().default("Unknown"),
     configuration: jsonb("configuration").$type<object>(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
     activeProviderId: varchar("active_provider_id", { length: 255 }).generatedAlwaysAs(
@@ -600,8 +648,8 @@ export const perks = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     projectId: varchar("project_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("perk_slug_project_id_idx").on(table.slug, table.projectId)],
@@ -616,8 +664,8 @@ export const products = pgTable(
     projectId: varchar("project_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
     type: smallint("type").notNull().default(ProductType.Subscription),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("product_slug_project_id_idx").on(table.slug, table.projectId)],
@@ -630,8 +678,8 @@ export const productPerks = pgTable(
     id: varchar("id", { length: 255 }).primaryKey(),
     perkId: varchar("perk_id", { length: 255 }).notNull(),
     productId: varchar("product_id", { length: 255 }).notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("product_id_perk_id_idx").on(table.productId, table.perkId)],
@@ -651,8 +699,8 @@ export const paymentProviderConfigurationProducts = pgTable(
     providerProductKey: varchar("provider_product_key", {
       length: 255,
     }).notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -687,8 +735,8 @@ export const checkoutSessions = pgTable("checkout_session", {
   })
     .notNull()
     .default("LEGACY"),
-  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-    () => currentTimestamp(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+    currentTimestamp(),
   ),
 });
 
@@ -732,8 +780,8 @@ export const purchases = pgTable(
     lastEventOccurredAt: timestamp("last_event_occurred_at", { withTimezone: true, precision: 3 }),
 
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -838,8 +886,8 @@ export const subscriptions = pgTable(
     redeemedOfferAt: timestamp("redeemed_offer_at", { withTimezone: true, precision: 3 }),
 
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -860,7 +908,7 @@ export const transactions = pgTable(
     personId: varchar("person_id", { length: 255 }).notNull(),
     /**
      * Legacy single-amount column. Kept temporarily for read-side compatibility
-     * while ClickHouse views migrate to {@link transactions.grossAmount}.
+     * while analytics readers migrate to {@link transactions.grossAmount}.
      * New writes mirror `grossAmount` into this column; remove once readers
      * have cut over.
      */
@@ -957,8 +1005,8 @@ export const transactions = pgTable(
      */
     lastEventOccurredAt: timestamp("last_event_occurred_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -1082,8 +1130,8 @@ export const purchaseLedger = pgTable(
     claimedAt: timestamp("claimed_at", { withTimezone: true, precision: 3 }),
     publishedAt: timestamp("published_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -1121,8 +1169,8 @@ export const analyticsIngestDlq = pgTable(
       .notNull()
       .default(AnalyticsIngestDlqReplayStatus.Pending),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -1331,8 +1379,8 @@ export const paywalls = pgTable(
     // render from overwriting a newer one (see PaywallThumbnailService).
     thumbnailUrl: text("thumbnail_url"),
     thumbnailSeq: bigint("thumbnail_seq", { mode: "number" }),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [uniqueIndex("paywall_slug_project_id_idx").on(table.slug, table.projectId)],
@@ -1520,8 +1568,8 @@ export const paywallLocations = pgTable(
     description: varchar("description", { length: 1000 }),
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -1547,8 +1595,8 @@ export const paywallLocationShowings = pgTable(
     endedAt: timestamp("ended_at", { withTimezone: true, precision: 3 }),
     createdByUserId: varchar("created_by_user_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -1793,8 +1841,8 @@ export const webhookEndpoints = pgTable(
     lastSuccessAt: timestamp("last_success_at", { withTimezone: true, precision: 3 }),
 
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [index("webhook_endpoint_project_status_idx").on(table.projectId, table.status)],
@@ -2030,8 +2078,8 @@ export const featureFlags = pgTable(
     createdByUserId: varchar("created_by_user_id", { length: 255 }),
     updatedByUserId: varchar("updated_by_user_id", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
     version: integer("version").notNull().default(1),
   },
@@ -2051,8 +2099,8 @@ export const featureFlagTargets = pgTable(
     identityValue: varchar("identity_value", { length: 255 }).notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -2082,8 +2130,8 @@ export const featureFlagOverrides = pgTable(
     updatedByUserId: varchar("updated_by_user_id", { length: 255 }),
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -2107,8 +2155,8 @@ export const featureFlagVariants = pgTable(
     payload: jsonb("payload").$type<unknown>(),
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -2137,8 +2185,8 @@ export const internalFeatureFlagOverrides = pgTable(
     flagKey: varchar("flag_key", { length: 100 }).notNull(),
     enabled: boolean("enabled").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -2339,8 +2387,8 @@ export const experiments = pgTable(
     updatedByUserId: varchar("updated_by_user_id", { length: 255 }),
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
     version: integer("version").notNull().default(1),
   },
@@ -2367,8 +2415,8 @@ export const experimentVariants = pgTable(
     weightBps: integer("weight_bps").notNull().default(0),
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [index("experiment_variant_experiment_id_idx").on(table.experimentId)],
@@ -2410,8 +2458,8 @@ export const experimentTreatments = pgTable(
     config: jsonb("config").$type<ExperimentTreatmentConfig>().notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true, precision: 3 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
   },
   (table) => [
@@ -2649,8 +2697,8 @@ export const pushNotificationConfigs = pgTable(
     name: varchar("name", { length: 255 }).notNull().default("Unknown"),
     configuration: jsonb("configuration").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
     activeProviderId: varchar("active_provider_id", { length: 50 }).generatedAlwaysAs(
@@ -2688,8 +2736,8 @@ export const pushDeviceTokens = pgTable(
     invalidationReason: varchar("invalidation_reason", { length: 100 }),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     // Freshness clock for invalidation gating — see NotificationTokenService.invalidate.
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },
@@ -2718,8 +2766,8 @@ export const pushPersonDeviceTokens = pgTable(
     personId: varchar("person_id", { length: 255 }).notNull(), // references persons.id; re-pointed on merge
     pushDeviceTokenId: varchar("push_device_token_id", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(
-      () => currentTimestamp(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+      currentTimestamp(),
     ),
     deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
   },

@@ -31,7 +31,6 @@
     "@voidhash/ai-shared": "workspace:*",
     "@voidhash/api-contracts": "workspace:*",
     "@voidhash/app-store-server-sdk": "workspace:*",
-    "@voidhash/clickhouse-db": "workspace:*",
     "@voidhash/core": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/google-play-server-sdk": "workspace:*",

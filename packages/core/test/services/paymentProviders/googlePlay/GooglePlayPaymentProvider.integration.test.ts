@@ -2,7 +2,7 @@
  * Integration tests for the Google Play record engine
  * ({@link GooglePlayPaymentProvider}), run against the real backend stack
  * provisioned once by `test/_testing/globalSetup.ts` (live PlanetScale DB +
- * ClickHouse + WorkOS; only the project schema cache is an in-memory stub).
+ * PostgreSQL; only the project schema cache is an in-memory stub).
  *
  * The engine's `record*` methods consume an already-normalized purchase (the
  * Google analogue of App Store's decoded JWS), so these tests build synthetic

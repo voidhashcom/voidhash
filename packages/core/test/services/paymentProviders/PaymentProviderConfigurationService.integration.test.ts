@@ -1,7 +1,7 @@
 /**
  * Integration tests for {@link PaymentProviderConfigurationService}, run against
  * the real backend stack provisioned once by `test/_testing/globalSetup.ts`
- * (live PlanetScale DB + ClickHouse + WorkOS; only the project schema cache is
+ * (live PostgreSQL; only the project schema cache is
  * an in-memory stub).
  *
  * The service orchestrates four collaborators — permission checks, the

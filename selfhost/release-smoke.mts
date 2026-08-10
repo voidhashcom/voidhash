@@ -5,7 +5,6 @@ import { Clock, Config, Console, Crypto, Data, DateTime, Effect, Schema, Stream 
 import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
-import { CLICKHOUSE_EVENTS_TABLE } from "../packages/clickhouse-db/src/analytics/schema.ts";
 import { causeMessage } from "../packages/lib/src/lang/index.ts";
 import {
   createInitialPaywallDocumentInput,
@@ -52,7 +51,6 @@ const CaptureResult = Schema.Struct({
   rejected: Schema.Number,
 });
 
-const ClickHouseCountRow = Schema.Struct({ total: Schema.String });
 
 const SocketMessage = Schema.Struct({
   type: Schema.optional(Schema.String),
@@ -67,9 +65,6 @@ const decodePublishedReleaseResult = Schema.decodeEffect(
 );
 const decodeResolvedPaywall = Schema.decodeEffect(Schema.fromJsonString(ResolvedPaywall));
 const decodeCaptureResult = Schema.decodeEffect(Schema.fromJsonString(CaptureResult));
-const decodeClickHouseCountRow = Schema.decodeEffect(
-  Schema.fromJsonString(ClickHouseCountRow),
-);
 const decodeSocketMessage = Schema.decodeSync(Schema.fromJsonString(SocketMessage));
 
 const envString = (name: string, fallback: string): Effect.Effect<string> =>
@@ -185,17 +180,6 @@ const program = Effect.gen(function* () {
   const password = yield* envString("MIMIC_ROOT_PASSWORD", "password");
   const databaseUsername = yield* envString("DATABASE_USERNAME", "voidhash");
   const databaseName = yield* envString("DATABASE_NAME", "voidhash");
-  const clickhouseHttpPort = yield* envString("CLICKHOUSE_HTTP_PORT", "8123");
-  const clickhousePublicUrl = yield* envString(
-    "CLICKHOUSE_PUBLIC_URL",
-    `http://127.0.0.1:${clickhouseHttpPort}`,
-  );
-  const clickhouseDatabase = yield* envString("CLICKHOUSE_DATABASE", "voidhash");
-  const clickhouseAdminUsername = yield* envString(
-    "CLICKHOUSE_ADMIN_USERNAME",
-    "voidhash_admin",
-  );
-  const clickhouseAdminPassword = yield* envString("CLICKHOUSE_ADMIN_PASSWORD", "password");
 
   const composeFile = fileURLToPath(new URL("./docker-compose.yml", import.meta.url));
   const suffix = yield* platformCrypto.randomUUIDv4;
@@ -288,31 +272,10 @@ const program = Effect.gen(function* () {
     return published;
   });
 
-  const countCapturedEvents = Effect.gen(function* () {
-    const clickhouseUrl = new URL(clickhousePublicUrl);
-    clickhouseUrl.searchParams.set("database", clickhouseDatabase);
-    const credentials = Buffer.from(
-      `${clickhouseAdminUsername}:${clickhouseAdminPassword}`,
-    ).toString("base64");
-    const response = yield* HttpClient.post(clickhouseUrl, {
-      body: HttpBody.text(
-        `SELECT count() AS total FROM ${CLICKHOUSE_EVENTS_TABLE} WHERE project_id = ${quoteSql(
-          projectId,
-        )} FORMAT JSONEachRow`,
-        "text/plain",
-      ),
-      headers: { authorization: `Basic ${credentials}` },
-    });
-    const body = (yield* response.text).trim();
-    if (response.status < 200 || response.status > 299) {
-      return yield* new ReleaseSmokeError({
-        message: `ClickHouse query returned ${response.status}: ${body}`,
-      });
-    }
-    if (!body) return 0;
-    const row = yield* decodeClickHouseCountRow(body);
-    return Number(row.total);
-  });
+  const countCapturedEvents = runPostgres(
+    `SELECT count(*) FROM analytics_event WHERE project_id = ${quoteSql(projectId)}`,
+    true,
+  ).pipe(Effect.map(Number));
 
   const sdk = new MimicSDK({ url, username, password });
   let paywallDocumentCreated = false;
@@ -462,7 +425,7 @@ const program = Effect.gen(function* () {
       body: HttpBody.jsonUnsafe({
         context: { runtime: "selfhost" },
         distinct_id: `person_release_smoke_${suffix}`,
-        event: "selfhost_release_smoke",
+        event: "$app_opened",
         properties: { paywall_id: paywallId },
         sent_at: sentAt,
         timestamp: sentAt,
@@ -489,7 +452,7 @@ const program = Effect.gen(function* () {
           return undefined;
         }),
       ),
-      "Timed out waiting for the analytics event in ClickHouse",
+      "Timed out waiting for the analytics event in PostgreSQL",
     );
 
     yield* Console.log("Self-host release smoke passed");

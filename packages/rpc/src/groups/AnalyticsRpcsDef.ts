@@ -830,6 +830,10 @@ export class AnalyticsRpcsDef extends RpcGroup.make(
     payload: QueryAnalyticsInsightsRequest,
     success: QueryAnalyticsInsightsResponse,
   }),
+).middleware(AuthMiddleware) {}
+
+/** Hosted custom insights, cohorts, and dashboards RPC surface. */
+export class AdvancedAnalyticsRpcsDef extends RpcGroup.make(
   Rpc.make("QueryCustomAnalyticsInsight", {
     error: Schema.Union([
       RpcActionForbiddenError,

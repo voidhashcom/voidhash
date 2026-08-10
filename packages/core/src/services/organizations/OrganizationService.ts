@@ -35,11 +35,6 @@ export class OrganizationServiceError extends Schema.TaggedErrorClass<Organizati
  * first and is mirrored to the local DB only on success.
  * Webhooks reconcile any drift.
  *
- * Multi-tenant analytics isolation no longer needs any per-org ClickHouse
- * provisioning: a single shared readonly user enforces isolation via row
- * policies keyed on the per-query `SQL_organization_id` setting, so adding a
- * tenant is zero ClickHouse DDL.
- *
  * `Db`, `OrgDirectoryPort`, `OrganizationLifecyclePort`, and `AuthSession` are
  * provided by the application root. Community deployments use the no-op
  * lifecycle port; hosted deployments provide their own lifecycle extension

@@ -2,9 +2,8 @@
  * Server-trusted analytics events emitted by internal services into the
  * analytics pipeline. The schema is a discriminated union of strict per-event
  * variants, discriminated on the wire-stable `eventName` literal. The same
- * `eventName` is what downstream consumers (analytics-writer ClickHouse insert)
- * see, so the literal serves as both the tagged-union discriminator and the
- * wire identifier.
+ * `eventName` is preserved by every analytics store, so the literal serves as
+ * both the tagged-union discriminator and the wire identifier.
  *
  * Adding a new event:
  *   1. Define a `Schema.Struct` for the variant with a unique `eventName`
