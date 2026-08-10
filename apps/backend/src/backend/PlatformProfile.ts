@@ -12,15 +12,15 @@ import type { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 import {
   ClusterDurableEntityControlLive,
   ClusterDurableEntityHostLive,
-} from "@voidhash/platform-node/ClusterDurableEntity";
-import { ClusterCronSchedulerLive } from "@voidhash/platform-node/CronScheduler";
-import { PgEntityAlarmStoreLive } from "@voidhash/platform-node/EntityAlarmStore";
-import { PgKeyValueStoreLive } from "@voidhash/platform-node/KeyValueStore";
-import { NodePlatformRuntimeLive } from "@voidhash/platform-node/PlatformRuntime";
-import type { PgPlatformConfig } from "@voidhash/platform-node/Postgres";
-import { ClusterQueueLive } from "@voidhash/platform-node/Queue";
-import { SingleNodeClusterLive } from "@voidhash/platform-node/Topology";
-import * as ClusterWorkflowRunner from "@voidhash/platform-node/Workflow";
+} from "@voidhash/platform-selfhost/ClusterDurableEntity";
+import { ClusterCronSchedulerLive } from "@voidhash/platform-selfhost/CronScheduler";
+import { PgEntityAlarmStoreLive } from "@voidhash/platform-selfhost/EntityAlarmStore";
+import { PgKeyValueStoreLive } from "@voidhash/platform-selfhost/KeyValueStore";
+import { SelfhostPlatformRuntimeLive } from "@voidhash/platform-selfhost/PlatformRuntime";
+import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
+import { ClusterQueueLive } from "@voidhash/platform-selfhost/Queue";
+import { SingleNodeClusterLive } from "@voidhash/platform-selfhost/Topology";
+import * as ClusterWorkflowRunner from "@voidhash/platform-selfhost/Workflow";
 import { pick } from "@voidhash/lib/lang";
 import { Layer, Redacted } from "effect";
 import {
@@ -126,7 +126,7 @@ const platformLayers = (postgres: PgPlatformConfig): SelfhostPlatformLayers => {
       Layer.provide(topology),
     ),
     workflowRunner: ClusterWorkflowRunner.layer.pipe(Layer.provide(topology)),
-    runtime: NodePlatformRuntimeLive,
+    runtime: SelfhostPlatformRuntimeLive,
   };
 };
 

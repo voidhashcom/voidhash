@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 
 // Vite only exposes `VITE_`-prefixed values, and only to `import.meta.env` — the
 // server routes read plain `process.env` (root credentials, auth secret), so the
-// repo-root `.env` used by the Alchemy stack has to be loaded here too. Real
+// repo-root `.env` the self-host stack uses has to be loaded here too. Real
 // environment variables win: Node's parser skips names that are already set, and
 // a deployment without the file keeps every documented default.
 const rootEnvFile = `${import.meta.dirname}/../../../.env`;

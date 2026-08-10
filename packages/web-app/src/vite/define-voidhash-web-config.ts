@@ -151,7 +151,7 @@ export function defineVoidhashWebConfig(options: VoidhashWebConfigOptions): User
   const routesDirectory =
     relative(fileURLToPath(new URL("./src/", options.appRoot)), workspaceRoot) || ".";
   const ssr: SSROptions | undefined =
-    process.env.VOIDHASH_NODE_BUNDLE === "true" ? { noExternal: true } : undefined;
+    process.env.VOIDHASH_SELFHOST_BUNDLE === "true" ? { noExternal: true } : undefined;
 
   return defineConfig(
     () =>

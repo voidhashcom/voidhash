@@ -1,7 +1,7 @@
 import { defineConfig } from "vite-plus";
 
 // Backend RPC + webhook smoke against a provisioned environment. Locally the
-// Node test fixture supplies it via the shared core globalSetup; downstream
+// self-host stack supplies it via the shared core globalSetup; downstream
 // compositions substitute their own globalSetup providing the same
 // `coreStackOutput` contract.
 export default defineConfig({

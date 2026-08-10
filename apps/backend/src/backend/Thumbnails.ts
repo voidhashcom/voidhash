@@ -19,8 +19,8 @@ import { Screenshot } from "@voidhash/platform/Screenshot";
 import {
   ChromiumScreenshotLive,
   type ChromiumScreenshotConfig,
-} from "@voidhash/platform-node/Screenshot";
-import { NodePlatformRuntimeLive } from "@voidhash/platform-node/PlatformRuntime";
+} from "@voidhash/platform-selfhost/Screenshot";
+import { SelfhostPlatformRuntimeLive } from "@voidhash/platform-selfhost/PlatformRuntime";
 import { Cause, Effect, Layer } from "effect";
 
 import { mimicDocumentIdleQueueName } from "../mimic/MimicDocumentIdleQueue.ts";
@@ -155,7 +155,10 @@ export const makeSelfhostSnapshotImageRendererLive = (
     Layer.provide(
       SelfhostHtmlScreenshotLive.pipe(
         Layer.provide(
-          Layer.merge(ChromiumScreenshotLive(screenshotConfig), NodePlatformRuntimeLive),
+          Layer.merge(
+            ChromiumScreenshotLive(screenshotConfig),
+            SelfhostPlatformRuntimeLive,
+          ),
         ),
       ),
     ),
@@ -165,11 +168,8 @@ export const makeSelfhostSnapshotImageRendererLive = (
 /** Builds the Chromium-backed thumbnail service for the self-host runtime. */
 export const makeSelfhostPaywallThumbnailServiceLive = (
   screenshotConfig: ChromiumScreenshotConfig,
-  renderer: Layer.Layer<
-    SnapshotImageRenderer,
-    never,
-    PublicFileStore
-  > = makeSelfhostSnapshotImageRendererLive(screenshotConfig),
+  renderer: Layer.Layer<SnapshotImageRenderer, never, PublicFileStore> =
+    makeSelfhostSnapshotImageRendererLive(screenshotConfig),
 ) => {
   return PaywallThumbnailService.layer.pipe(
     Layer.provide(renderer),
@@ -198,11 +198,14 @@ export const runSelfhostPaywallThumbnailConsumer = Effect.gen(function* () {
               })
               .pipe(
                 Effect.tapCause((cause) =>
-                  Effect.logWarning("paywall thumbnail render failed; will retry then drop", {
-                    cause: Cause.pretty(cause),
-                    paywallDocumentId: message.documentId,
-                    seq: message.seq,
-                  }),
+                  Effect.logWarning(
+                    "paywall thumbnail render failed; will retry then drop",
+                    {
+                      cause: Cause.pretty(cause),
+                      paywallDocumentId: message.documentId,
+                      seq: message.seq,
+                    },
+                  ),
                 ),
               ),
           { discard: true },

@@ -26,7 +26,7 @@ import {
 import type { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import { Db } from "@voidhash/db";
 import type { DurableEntityHostShape } from "@voidhash/platform/DurableEntity";
-import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurableEntitySession";
+import { makeNodeDurableEntitySession } from "@voidhash/platform-selfhost/NodeDurableEntitySession";
 import { Context, Effect, Redacted } from "effect";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import { WebSocketServer, type RawData } from "ws";

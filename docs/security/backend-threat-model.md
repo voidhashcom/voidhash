@@ -1,9 +1,9 @@
 # Backend Threat Model
 
 Status: alpha review draft  
-Last updated: 2026-08-10<br>
+Last updated: 2026-07-12<br>
 Scope: `packages/backend`, `apps/mimic-db`, `apps/www`, `packages/core`, and
-`apps/backend`
+`selfhost`
 
 This document records the security analysis required before the repository can
 be made public. It describes current controls and known gaps; it is not a claim
@@ -24,7 +24,7 @@ review required by the publication plan have not happened yet.
 - Malformed or excessive input fails within bounded memory, time, and retry
   budgets.
 
-Availability of a deployed service against volumetric denial of service is an
+Availability of the managed service against volumetric denial of service is an
 operational objective, but not a guarantee made by the Community Edition.
 
 ## Assets and actors
@@ -37,7 +37,7 @@ artifacts, object-store credentials, and compiler/container integrity.
 Relevant actors are anonymous internet clients, SDK clients holding a
 publishable key, users holding a dashboard session or user API key, server
 integrations holding a project secret key, tenant administrators, payment and
-identity providers, deployment operators, and a malicious authenticated tenant
+identity providers, self-host operators, and a malicious authenticated tenant
 submitting component source.
 
 ## Trust boundaries
@@ -47,14 +47,16 @@ submitting component source.
 3. Tenant-scoped services to PostgreSQL adapters.
 4. Provider webhook ingress to provider verification and idempotent ledgers.
 5. Backend to queues, workflows, object stores, SMTP, and screenshot services.
-6. Backend to an enabled component compiler boundary.
+6. Backend to the component compiler container/sidecar.
 7. Public, content-addressed artifact serving to browsers and SDKs.
-8. Deployment configuration to Cloudflare resources and the PostgreSQL origin.
+8. Self-host operator configuration to the Compose network and persistent
+   stores.
 
-The Community composition deploys application services through Alchemy using
-Cloudflare Workers, Durable Objects, Queues, Workflows, R2, and Hyperdrive. The
-optional Node adapters and Compose services under `test/integration` are test
-fixtures, not a supported production boundary.
+The cloud and self-host compositions use the same application services. Their
+infrastructure boundaries differ: Cloudflare Workers, Durable Objects, Queues,
+Workflows, R2, Hyperdrive, and an isolated compiler container in cloud; a Node
+process, PostgreSQL-backed primitives, S3-compatible storage, and a separate
+compiler sidecar in self-host.
 
 ## Authentication and sessions
 
@@ -117,8 +119,8 @@ Trust rests on the root password and on transport security, so the controls are:
 
 The documented evaluation defaults (`root` / `voidhash` and the shared signing
 secret) are public knowledge and reachable only under
-`SELFHOST_MODE=local-evaluation`, which is reserved for the loopback-only Node
-integration fixture.
+`SELFHOST_MODE=local-evaluation`, which the self-hosting guide restricts to
+loopback.
 
 ## API keys and credential storage
 
@@ -233,7 +235,7 @@ Current controls:
 
 Residual work: verify bucket IAM, overwrite policy, maximum object sizes, SVG
 handling, cache poisoning resistance, and browser behavior for every served
-content type in the Community deployment.
+content type in both cloud and self-host deployments.
 
 ## Analytics ingest
 
@@ -269,14 +271,15 @@ Current controls:
 - Rendering and screenshot capabilities are platform ports, keeping privileged
   infrastructure adapters outside tenant application code.
 - Paywall manifests and preview trees are schema-validated before release.
-- The test-only Node Chromium adapter disables JavaScript, blocks service
-  workers, switches each fresh context offline, and aborts every
-  document/resource request before setting inline HTML. Because no outbound
-  navigation is permitted, redirects and DNS rebinding cannot reach private or
-  link-local services.
-- Screenshot adapters cap HTML at 4 MiB, viewport edges at 4,096 pixels,
+- The runtime runs as an unprivileged user in the self-host image.
+- Self-host Chromium disables JavaScript, blocks service workers, switches each
+  fresh context offline, and aborts every document/resource request before
+  setting inline HTML. The Cloudflare Browser Run request rejects every external
+  request pattern. Because no outbound navigation is permitted, redirects and
+  DNS rebinding cannot reach private or link-local services.
+- Both screenshot adapters cap HTML at 4 MiB, viewport edges at 4,096 pixels,
   scale at 4, and the rendered output at 16,777,216 pixels. Browser operations
-  have a 15-second timeout and Node thumbnail consumption is serialized
+  have a 15-second timeout and self-host thumbnail consumption is serialized
   with a bounded retry count.
 
 Budget unit tests cover normal and oversized inputs. The real-Chromium test
@@ -297,13 +300,12 @@ Current controls:
 - Module evaluation runs in a VM context with string/Wasm code generation
   disabled and a 500 ms synchronous execution budget.
 - Request bodies are capped at 1 MiB and compiler concurrency is limited.
-- The Node integration fixture runs the compiler as an unprivileged user with a
-  read-only root filesystem, dropped Linux capabilities,
-  `no-new-privileges`, a PID limit, and a private internal Docker network shared
-  only with the application. It does not receive database, object-store,
-  identity, or payment credentials.
-- Production compositions that enable compilation must supply and review their
-  own isolated implementation of the compiler port.
+- Self-host runs the compiler as an unprivileged user with a read-only root
+  filesystem, dropped Linux capabilities, `no-new-privileges`, a PID limit, and
+  a private internal Docker network shared only with the application. It does
+  not receive database, object-store, identity, or payment credentials.
+- Cloud invokes a dedicated container through a Durable Object boundary and
+  bounds the caller's compile round trip.
 
 Residual work: independently test container escape resistance, host-object VM
 escape attempts, memory bombs, asynchronous work, file reads, internal-service
@@ -311,33 +313,39 @@ SSRF, crash/restart behavior, and concurrent denial of service. Apply explicit
 memory/CPU quotas in each production deployment and keep the compiler image and
 Node runtime patched.
 
-## Deployment operator boundary
+## Self-host operator boundary
 
-The sample environment values are for loopback evaluation only. They include
-known passwords and the documented default root credentials; using them in a
-live Cloudflare stage would compromise all stored data.
+The sample Compose defaults are for loopback evaluation only. They include
+known passwords and the documented default root credentials. Compose explicitly
+marks the no-env quick start as `local-evaluation`; exposing that composition
+unchanged would compromise all stored data.
 
 Before any non-local deployment, the operator must replace every example
-password, set real root credentials and a real session signing secret, restrict
-the PostgreSQL origin to Hyperdrive, configure public URLs and CORS, back up the
-database, and review Cloudflare account access and resource policies.
+password, set real root credentials and a real session signing secret,
+configure HTTPS at the reverse proxy, restrict MinIO and Mailpit host
+ports, configure CORS and public URLs, use real SMTP credentials, back up
+persistent volumes, and apply host/container updates.
 
-Alchemy validates required configuration while planning Workers and bindings.
-Application tests cover credential and URL validation used by the optional Node
-fixture. Independent review must still confirm the live-stage configuration
-remains complete as new infrastructure is added.
+Production mode validates configuration before migrations or the application
+start. It refuses missing and known example root credentials, session signing
+secret, database, object-store, and Mimic credentials, and
+requires HTTPS for every public, file, and Mimic URL. Tests cover explicit mode
+selection, every credential class, and every URL
+boundary. Independent
+review must still confirm the list remains complete as new infrastructure is
+added.
 
 ## Publication risk register
 
-| ID        | Severity     | Status                    | Required evidence                                                                                                                                                               |
-| --------- | ------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| VH-TM-001 | High         | Mitigated, review pending | Pub/Sub OIDC negative tests and payment-ledger duplicate-delivery tests pass; deployment settings and implementation require independent review.                                |
-| VH-TM-002 | High         | Mitigated, review pending | Live-stage credentials, public URLs, Hyperdrive origin policy, and configuration coverage require independent review.                                                           |
-| VH-TM-003 | High         | Mitigated, review pending | Compiler VM budget and container/network hardening pass adversarial and independent review.                                                                                     |
-| VH-TM-004 | High         | Mitigated, review pending | Enabled browser adapters deny outbound requests and enforce time/input/output budgets; real-browser redirect/private-network coverage requires independent review.              |
-| VH-TM-005 | High         | Mitigated, review pending | Machine-checked endpoint matrix is complete; database-backed negatives cover every tenant-selectable service group, including persisted chat-ID collisions and raw paywall IDs. |
-| VH-TM-006 | Process gate | Open                      | Real beta traffic and security-log/incident review completed.                                                                                                                   |
-| VH-TM-007 | Process gate | Open                      | Independent reviewer signs off and residual risks have owners/deadlines.                                                                                                        |
+| ID | Severity | Status | Required evidence |
+| --- | --- | --- | --- |
+| VH-TM-001 | High | Mitigated, review pending | Pub/Sub OIDC negative tests and payment-ledger duplicate-delivery tests pass; deployment settings and implementation require independent review. |
+| VH-TM-002 | High | Mitigated, review pending | Production startup refuses known example credentials and insecure public URLs; configuration coverage requires independent review. |
+| VH-TM-003 | High | Mitigated, review pending | Compiler VM budget and container/network hardening pass adversarial and independent review. |
+| VH-TM-004 | High | Mitigated, review pending | Cloud and self-host browsers deny outbound requests and enforce time/input/output budgets; real-browser redirect/private-network coverage requires independent review. |
+| VH-TM-005 | High | Mitigated, review pending | Machine-checked endpoint matrix is complete; database-backed negatives cover every tenant-selectable service group, including persisted chat-ID collisions and raw paywall IDs. |
+| VH-TM-006 | Process gate | Open | Real beta traffic and security-log/incident review completed. |
+| VH-TM-007 | Process gate | Open | Independent reviewer signs off and residual risks have owners/deadlines. |
 
 Repository visibility must not change while a High item is open. Accepted
 residual risk must be recorded with an owner, deadline, and rationale in this

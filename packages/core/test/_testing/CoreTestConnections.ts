@@ -2,9 +2,9 @@
  * The complete environment contract for the core integration suite.
  *
  * This is the seam between the open-core tests and whatever composition runs
- * them: the Community `globalSetup` derives these values from the local Node
- * test fixture, while downstream compositions provision their own
- * infrastructure and inject the same shape. Tests
+ * them: the Community repo's `globalSetup` derives these values from the local
+ * self-host stack's environment, while downstream compositions (the managed
+ * cloud) provision their own infrastructure and inject the same shape. Tests
  * never know which composition produced it.
  */
 export interface CoreTestConnections {
@@ -19,8 +19,8 @@ export interface CoreTestConnections {
 
 /**
  * The once-per-run output a composition's `globalSetup` shares with every test
- * file. Compositions may inject a structural superset; the suite only relies
- * on this shape.
+ * file. Compositions may inject a structural superset (the managed cloud adds
+ * deploy artifacts such as URLs); the suite only relies on this shape.
  */
 export interface CoreStackOutput {
   readonly testConnections: CoreTestConnections | null;
@@ -28,8 +28,8 @@ export interface CoreStackOutput {
 
 /**
  * Builds the contract from environment variables, matching the names the
- * Node test fixture (repo-root `.env`) and `scripts/run-local-integration.mjs`
- * already use. Defaults target the local Compose fixture.
+ * self-host stack (repo-root `.env`) and `scripts/run-local-integration.mjs`
+ * already use. Defaults target the local docker-compose dev stack.
  */
 export const coreTestConnectionsFromEnv = (
   // oxlint-disable-next-line effect/noGlobals -- synchronous config adapter: the default argument is evaluated at call sites that run before any Effect runtime exists (vitest globalSetup and the local integration runner).

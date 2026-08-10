@@ -31,7 +31,7 @@
 
 > [!IMPORTANT]
 > This private validation branch contains the complete Community platform,
-> including the backend and Cloudflare composition. The repository remains
+> including the backend and self-hosting composition. The repository remains
 > private through alpha and beta security validation and must not be described
 > as publicly launched until the publication gate is complete.
 
@@ -56,12 +56,10 @@ voidhash-cli init
 
 ## 📚 Documentation
 
-For product documentation, visit [voidhash.com](https://voidhash.com/docs).
-`pnpm dev` runs the Community Alchemy/Cloudflare composition; see the
-[Cloudflare guide](docs/cloudflare-deployment.md) for local and live
-deployment.
-The [architecture overview](docs/architecture.md) explains the Community
-runtime and package boundaries, and the
+For product documentation, visit [voidhash.com](https://voidhash.com/docs). To
+run the Community platform locally, see the [self-hosting guide](selfhost/README.md).
+The [architecture overview](docs/architecture.md) explains the Community,
+Cloud, and Enterprise composition boundaries, and the
 [licensing and self-hosting FAQ](docs/licensing-and-self-hosting-faq.md) covers
 AGPL and the self-hosting model.
 
@@ -74,9 +72,10 @@ and [Security Policy](SECURITY.md).
 ## 📄 License
 
 This repository uses explicit license zones. SDKs and client libraries are
-MIT-licensed; the backend, dashboard, service packages, and deployment adapters
-are AGPL-3.0-only. Commercial features are not included here. See
-[LICENSE.md](LICENSE.md) for the authoritative map and full texts.
+MIT-licensed; the backend, dashboard, service packages, and self-hosting code
+are AGPL-3.0-only. Closed Enterprise implementation remains in the private
+cloud repository and is not included here. See [LICENSE.md](LICENSE.md) for the
+authoritative map and full texts.
 
 ## 🔗 Links
 

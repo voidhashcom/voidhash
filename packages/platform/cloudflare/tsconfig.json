@@ -1,4 +1,0 @@
-{
-  "extends": "@voidhash/tsconfig/alchemy-base.json",
-  "include": ["src"]
-}
