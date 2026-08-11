@@ -6,10 +6,10 @@
   "workspaces": {
     "packages": [
       "packages/*",
+      "packages/platform/*",
       "apps/*",
       "libraries/*",
-      "examples/*",
-      "selfhost/*"
+      "examples/*"
     ],
     "catalogs": {
       "react18": {
@@ -36,7 +36,7 @@
   "type": "module",
   "scripts": {
     "build": "turbo build",
-    "dev": "node scripts/check-dev-runtime.mjs && portless prune && node scripts/check-dev-ports.mjs && turbo dev dev:server",
+    "dev": "pnpm alchemy dev",
     "dev:doctor": "portless doctor",
     "dev:status": "portless list",
     "clean": "turbo clean && rm -rf node_modules",
@@ -52,16 +52,15 @@
     "sync:plugins:check": "tsx ./scripts/sync-plugins.ts --check",
     "check:publication": "node ./scripts/check-publication-boundary.mjs",
     "check:platform-seam": "node ./scripts/check-platform-seam.mjs",
-    "check:selfhost-runtime": "node ./scripts/check-selfhost-runtime-boundary.mjs",
     "check:test-tiers": "node ./scripts/check-test-tiers.mjs",
-    "stack:up": "SELFHOST_MODE=local-evaluation docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --project-directory selfhost up -d --build",
-    "stack:down": "SELFHOST_MODE=local-evaluation docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env --project-directory selfhost down",
+    "test:infra:up": "SELFHOST_MODE=local-evaluation docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration up -d --build",
+    "test:infra:down": "SELFHOST_MODE=local-evaluation docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration down",
     "verify": "pnpm verify:quick && pnpm test:integration && pnpm test:e2e && pnpm test:e2e:release",
-    "verify:quick": "pnpm check:publication && pnpm check:platform-seam && pnpm check:selfhost-runtime && pnpm check:test-tiers && pnpm lint && pnpm typecheck && pnpm test",
+    "verify:quick": "pnpm check:publication && pnpm check:platform-seam && pnpm check:test-tiers && pnpm lint && pnpm typecheck && pnpm test",
     "test": "turbo test",
     "test:integration": "node ./scripts/run-local-integration.mjs",
-    "test:e2e": "tsx selfhost/smoke.mts",
-    "test:e2e:release": "tsx selfhost/release-smoke.mts",
+    "test:e2e": "tsx test/integration/smoke.mts",
+    "test:e2e:release": "tsx test/integration/release-smoke.mts",
     "test:purchase-restore": "pnpm --filter @voidhash/paywalls build && pnpm --filter @voidhash/react-native specs && pnpm --filter @voidhash/react-native typecheck && pnpm --filter @voidhash/react-native test && pnpm --filter @voidhash/react-native test:android-purchase-coordinator && pnpm test:android-native-compile && pnpm --filter @voidhash/generated-clients typecheck && pnpm --filter @voidhash/api-contracts typecheck && pnpm --filter @voidhash/backend typecheck && pnpm --filter @voidhash/backend test",
     "test:android-native-compile": "pnpm --filter @voidhash/react-native-voidhash-example exec expo prebuild --platform android --no-install && examples/react-native-example/android/gradlew -p examples/react-native-example/android :voidhash_react-native:compileDebugKotlin --no-daemon",
     "typecheck": "turbo typecheck",
@@ -84,6 +83,7 @@
   },
   "devDependencies": {
     "@typescript/native-preview": "7.0.0-dev.20260302.1",
+    "alchemy": "catalog:",
     "dotenv-cli": "^8.0.0",
     "oxlint-plugin-effect": "^0.6.0",
     "portless": "0.15.5",
@@ -92,6 +92,7 @@
     "tslib": "2.8.1",
     "tsx": "^4.19.3",
     "vite-plus": "catalog:",
+    "wrangler": "^4.0.0",
     "zustand": "^5.0.9"
   },
   "resolutions": {

@@ -3,11 +3,10 @@
 //
 // Service packages under `packages/**` are portable: they depend on the
 // provider-neutral contracts in `@voidhash/platform` and never on a concrete
-// adapter. `@voidhash/platform-selfhost` is one such adapter, so importing it
-// from a package would pin portable code to the Node/PostgreSQL deployment and
-// break the Cloud composition that binds different implementations.
+// adapter. Importing either concrete adapter from a package would pin portable
+// code to a deployment and break the other composition.
 //
-// Compositions choose adapters, so `apps/**` and `selfhost/**` may import it
+// Compositions choose adapters, so `apps/**` may import them
 // freely. Tests are also allowed to bind a concrete adapter — that is how a
 // port is exercised against something real — but only as a devDependency, so
 // the adapter never reaches a package's runtime dependency graph.
@@ -16,14 +15,17 @@ import { Cause, Console, Data, Effect, FileSystem, Path, Schema, Stream } from "
 import { ChildProcess } from "effect/unstable/process";
 import { fileURLToPath } from "node:url";
 
-const adapter = "@voidhash/platform-selfhost";
+const adapters = ["@voidhash/platform-cloudflare", "@voidhash/platform-node"];
 
 const sourceLike = /\.[cm]?[jt]sx?$/;
 const isTestFile = (path) =>
   path.split("/").includes("tests") ||
   /\.test\.[cm]?[jt]sx?$/.test(path) ||
   /(^|\/)vitest\./.test(path);
-const importsAdapter = new RegExp(`["']${adapter}(?:/[^"']*)?["']`);
+const adapterImports = adapters.map((adapter) => ({
+  adapter,
+  pattern: new RegExp(`["']${adapter}(?:/[^"']*)?["']`),
+}));
 
 // Only the runtime dependency map matters here; every other manifest field is
 // irrelevant to the seam and is discarded by the decoder.
@@ -82,8 +84,10 @@ const collectFailures = Effect.gen(function* () {
       !entry.includes("/node_modules/"),
   )) {
     const source = yield* fs.readFileString(path.join(repoRoot, candidate), "utf8");
-    if (importsAdapter.test(source)) {
-      failures.push(`${candidate} imports ${adapter}; depend on @voidhash/platform instead`);
+    for (const { adapter, pattern } of adapterImports) {
+      if (pattern.test(source)) {
+        failures.push(`${candidate} imports ${adapter}; depend on @voidhash/platform instead`);
+      }
     }
   }
 
@@ -93,10 +97,12 @@ const collectFailures = Effect.gen(function* () {
     const manifest = yield* decodeManifest(
       yield* fs.readFileString(path.join(repoRoot, candidate), "utf8"),
     );
-    if (manifest.dependencies?.[adapter]) {
-      failures.push(
-        `${candidate} lists ${adapter} as a runtime dependency; tests may use it as a devDependency`,
-      );
+    for (const adapter of adapters) {
+      if (manifest.dependencies?.[adapter]) {
+        failures.push(
+          `${candidate} lists ${adapter} as a runtime dependency; tests may use it as a devDependency`,
+        );
+      }
     }
   }
 
@@ -110,7 +116,7 @@ const main = Effect.gen(function* () {
 
   if (failures.length === 0) {
     return yield* Console.log(
-      `Platform seam OK — no package outside apps/ and selfhost/ binds ${adapter}.`,
+      "Platform seam OK — portable packages do not bind a concrete platform adapter.",
     );
   }
 

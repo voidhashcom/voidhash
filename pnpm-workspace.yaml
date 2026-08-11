@@ -1,9 +1,9 @@
 packages:
   - apps/*
   - packages/*
+  - packages/platform/*
   - libraries/*
   - examples/*
-  - selfhost/*
   # just-bash's optional native compression accelerators (node-only; we run
   # just-bash in the browser, so their build scripts are intentionally skipped).
 ignoredBuiltDependencies:

@@ -15,7 +15,7 @@ import type {
   DurableEntityAlarmControl,
   DurableEntityHost,
 } from "@voidhash/platform/DurableEntity";
-import type { PgPlatformConfig } from "@voidhash/platform-selfhost/Postgres";
+import type { PgPlatformConfig } from "@voidhash/platform-node/Postgres";
 import { Effect, Layer } from "effect";
 
 import { PgControlStoreLive } from "./PgControlStore.ts";

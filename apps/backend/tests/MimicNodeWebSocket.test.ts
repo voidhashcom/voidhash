@@ -5,7 +5,7 @@ import { constant } from "@voidhash/lib/lang";
 import { objectValue } from "@voidhash/mimic-core";
 import type { HostService } from "@voidhash/mimic-db/app/hostService";
 import { makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
-import { makeMemoryDurableEntityHost } from "@voidhash/platform-selfhost/MemoryDurableEntity";
+import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
 import { Data, Effect, Option, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import WebSocket from "ws";
@@ -158,10 +158,7 @@ describe("mimic Node WebSocket sessions", () => {
           }),
         );
 
-        const address = makeDurableEntityAddress(
-          "mimic-document",
-          `${collectionId}:${documentId}`,
-        );
+        const address = makeDurableEntityAddress("mimic-document", `${collectionId}:${documentId}`);
         const attachments = yield* entities.run(address, (entity) =>
           entity.sessions.list.pipe(
             Effect.flatMap((sessions) =>
