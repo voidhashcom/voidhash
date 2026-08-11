@@ -1,4 +1,4 @@
-import { Schema, SchemaTransformation } from "effect";
+import { Schema } from "effect";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/httpapi";
 
 const CaptureErrorResponseFields = {
@@ -7,20 +7,8 @@ const CaptureErrorResponseFields = {
 
 /**
  * Accepts an ISO 8601 string from JSON input and decodes it to a valid `Date`.
- * Required because `Schema.DateValid` only accepts `Date` instances; in
- * `effect@4.0.0-beta.23`, `HttpApi` does not automatically apply
- * `toCodecJson`, so JSON dates arrive as strings and fail the `instanceof Date`
- * check.
  */
-const DateValidFromString = Schema.String.pipe(
-  Schema.decodeTo(
-    Schema.DateValid,
-    SchemaTransformation.transform({
-      decode: (s: string) => new globalThis.Date(s),
-      encode: (d: globalThis.Date) => d.toISOString(),
-    }),
-  ),
-);
+const DateValidFromString = Schema.DateFromString;
 
 // export { CaptureAcceptedResponse, CaptureBatchRequest, CaptureErrorCode, CaptureErrorResponse };
 // export { CaptureEvent, CaptureSdkRequestMetadata };
