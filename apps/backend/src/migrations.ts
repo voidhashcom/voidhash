@@ -1,5 +1,5 @@
 import { runAppDatabaseMigrations } from "@voidhash/db/migrations";
-import { PgClusterDurableEntityLive } from "@voidhash/platform-selfhost/ClusterDurableEntity";
+import { PgClusterDurableEntityLive } from "@voidhash/platform-node/ClusterDurableEntity";
 import { Effect, Layer } from "effect";
 
 import { selfhostPlatformPostgres } from "./backend/PlatformProfile.ts";
@@ -41,8 +41,6 @@ export const runSelfhostMigrations = (options: SelfhostMigrationOptions = {}) =>
     // value and alarm stores in whichever database holds platform state.
     const mimicConfig = getMimicNodeConfig(connection);
     const platform = selfhostPlatformPostgres(getSelfhostPlatformDatabaseConfig(connection));
-    yield* Layer.build(
-      makeMimicNodeHostLive(mimicConfig, PgClusterDurableEntityLive(platform)),
-    );
+    yield* Layer.build(makeMimicNodeHostLive(mimicConfig, PgClusterDurableEntityLive(platform)));
     yield* Effect.logInfo("Self-host database migrations are ready", { applied, skipped });
   });

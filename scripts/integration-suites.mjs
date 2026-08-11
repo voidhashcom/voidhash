@@ -8,7 +8,7 @@
 // `*.integration.test.ts` and nothing else. Unit files stay with `pnpm test`;
 // no suite appears in both.
 export const integrationSuites = [
-  { name: "platform", directory: "selfhost/platform" },
+  { name: "platform", directory: "packages/platform/node" },
   { name: "backend", directory: "apps/backend" },
   { name: "core", directory: "packages/core" },
   { name: "backend-smoke", directory: "packages/backend" },

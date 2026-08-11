@@ -8,10 +8,7 @@ import {
 } from "@voidhash/core/services/storage/PublicFileStore";
 import { ObjectStore, ObjectStoreError } from "@voidhash/platform/ObjectStore";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
-import {
-  S3ObjectStoreLive,
-  type S3ObjectStoreConfig,
-} from "@voidhash/platform-selfhost/ObjectStore";
+import { S3ObjectStoreLive, type S3ObjectStoreConfig } from "@voidhash/platform-node/ObjectStore";
 import { Effect, Layer, Option } from "effect";
 
 const objectStoreCause = (cause: unknown): string => {

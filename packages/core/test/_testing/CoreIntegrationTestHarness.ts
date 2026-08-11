@@ -126,11 +126,7 @@ const AuditLogPortTestLive: Layer.Layer<AuditLogPort, never, Db> = Layer.effect(
  */
 const makeHarnessLayer = (tc: CoreTestConnections): Layer.Layer<HarnessServices> => {
   const DbLive: Layer.Layer<Db> = Db.layer(tc.db);
-  const InfraLayer = Layer.mergeAll(
-    DbLive,
-    ProjectSchemaCacheStubLive,
-    PublicFileStoreStubLive,
-  );
+  const InfraLayer = Layer.mergeAll(DbLive, ProjectSchemaCacheStubLive, PublicFileStoreStubLive);
 
   const AuditLogSupportLayer = AuditLogPortTestLive.pipe(Layer.provide(InfraLayer));
 
@@ -178,8 +174,8 @@ export const CoreIntegrationTestHarness = {
    * ```
    *
    * The environment is provisioned once per run by the active composition's
-   * `globalSetup` (locally: `test/_testing/globalSetup.ts` over the self-host
-   * stack) and shared through vitest's `provide`/`inject` channel.
+   * `globalSetup` (locally: `test/_testing/globalSetup.ts` over the Node test
+   * fixture) and shared through vitest's `provide`/`inject` channel.
    */
   make: () => {
     // Resolved lazily inside each test/effect: vitest's injected context is set
