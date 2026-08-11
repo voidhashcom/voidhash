@@ -1,0 +1,27 @@
+# Lets maintainers dispatch an approved pull request to the project validation
+# workflow by commenting /import.
+name: Import contribution
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: >
+      github.event.issue.pull_request != null &&
+      startsWith(github.event.comment.body, '/import') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch contribution import
+        env:
+          GH_TOKEN: ${{ secrets.MONO_DISPATCH_TOKEN }}
+        run: |
+          gh api repos/voidhashcom/voidhash-mono/dispatches \
+            -f event_type=voidhash-import-pr \
+            -F 'client_payload[pr]=${{ github.event.issue.number }}'

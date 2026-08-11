@@ -2,13 +2,17 @@
 
 Thanks for taking the time to improve voidhash!
 
-During the repository unification, pull requests are limited to repository
-collaborators and external patches are not yet accepted. Issues and private
-security reports remain welcome.
+External contributions are welcome. Open a pull request against `main` as you
+would in any other project; CI runs against your branch as-is.
 
-Before external contributions reopen, Voidhash will enable an acceptance
-process for the [Contributor License Agreement](CONTRIBUTOR_LICENSE_AGREEMENT.md).
-Every external contributor will need to accept that agreement before a
+This repository is a synchronized distribution. Once a pull request is
+approved, a maintainer imports it into the project validation workflow. The
+accepted change then lands on `main` with the contributor preserved as its Git
+author, and the original pull request closes automatically. Do not push
+directly to `main`; it is maintained by the synchronization bot.
+
+Every external contributor must accept the
+[Contributor License Agreement](CONTRIBUTOR_LICENSE_AGREEMENT.md) before a
 contribution can be merged.
 
 ## Security issues
@@ -71,4 +75,4 @@ fixture directly.
 By contributing, you agree that your contribution is licensed under the license
 that applies to the files you change. See [LICENSE.md](LICENSE.md) for the MIT
 and AGPL zones. The Contributor License Agreement is an additional requirement
-once external contributions reopen.
+for external contributions.
