@@ -85,6 +85,7 @@ import {
   PanelSubSectionContent,
   PanelSubSectionTitle,
 } from "../panel-kit/panel-section";
+import { PopoverHeader } from "../panel-kit/popover-header";
 import { OverrideResetAffordance } from "../panel-kit/reset-affordance";
 import { SelectInput } from "../panel-kit/select-input";
 import { TextInput } from "../panel-kit/text-input";
@@ -141,6 +142,19 @@ const EMPTY_GRADIENT: BackgroundGradient = {
   ],
 };
 const EMPTY_IMAGE: BackgroundImage = { url: "", resizeMode: "cover" };
+
+/** Control nodes that render an input filling the width of their row slot. */
+const FILL_WIDTH_NODE_TYPES = new Set<string>([
+  "textField",
+  "selectField",
+  "dimensionField",
+  "sliderField",
+  "colorField",
+  "fillField",
+  "variableField",
+  "actionEditorField",
+  "productField",
+]);
 
 // =============================================================================
 // Value helpers
@@ -219,6 +233,24 @@ const renderChildren = (
   children?.map((child) => (
     <PanelNodeView ctx={ctx} key={child.id} node={child} transport={transport} />
   ));
+
+/**
+ * Renders a container's FIRST child as a bare element, for the Radix `asChild`
+ * slots (`popoverTrigger`). Slot clones one element child and merges its own
+ * props (ref, `onClick`, `aria-expanded`) into it — an array or a Fragment is not
+ * clonable, so this bypasses {@link renderChildren} and {@link PanelNodeView} and
+ * calls {@link renderNode} directly, keeping the gesture prop filter applied.
+ */
+const renderSlotChild = (
+  node: PanelNode,
+  transport: PanelTransport,
+  ctx: PanelRenderContext,
+): ReactNode => {
+  const child = node.children?.[0];
+  if (child === undefined) return null;
+  const props = ctx.gestures ? ctx.gestures.filterNodeProps(child) : child.props;
+  return renderNode(child, props, transport, ctx);
+};
 
 // =============================================================================
 // Per-type adapters
@@ -310,14 +342,24 @@ const renderNode = (
       return (
         <PanelRow
           align={asString(props.align) as never}
+          gap={asString(props.gap) as never}
           justify={asString(props.justify) as never}
+          width={asString(props.width) as never}
         >
           {children}
         </PanelRow>
       );
 
     case "column":
-      return <PanelColumn align={asString(props.align) as never}>{children}</PanelColumn>;
+      return (
+        <PanelColumn
+          align={asString(props.align) as never}
+          gap={asString(props.gap) as never}
+          width={asString(props.width) as never}
+        >
+          {children}
+        </PanelColumn>
+      );
 
     case "field":
       return (
@@ -363,27 +405,53 @@ const renderNode = (
     }
 
     case "popoverTrigger":
-      return <PopoverTrigger asChild>{children}</PopoverTrigger>;
+      // Radix `asChild` clones a SINGLE element child: `renderChildren` returns an
+      // array (and `PanelNodeView` wraps each node in a Fragment), and Slot renders
+      // NOTHING for either — the trigger silently disappeared. Render the one child
+      // node inline so the concrete element (a `button`) is what Slot clones.
+      return (
+        <PopoverTrigger asChild>{renderSlotChild(node, transport, ctx)}</PopoverTrigger>
+      );
 
-    case "popoverContent":
+    case "popoverContent": {
+      const onClose = eventHandler(transport, node, "onClose");
+      const title = asString(props.title);
       return (
         <PopoverContent
           align={(asString(props.align) as "start" | "center" | "end" | undefined) ?? "start"}
           side={asString(props.side) as never}
         >
-          {children}
+          {title !== undefined && (
+            <PopoverHeader onClose={onClose ? () => onClose() : undefined} title={title} />
+          )}
+          <div className="flex flex-col gap-2">{children}</div>
         </PopoverContent>
       );
+    }
 
     // ── Menu (composed Radix DropdownMenu) ─────────────────────────────────────
     case "menu": {
       const onSelect = eventHandler(transport, node, "onSelect");
       const items = asOptions(props.items);
+      const menuIcon = asIcon(props.icon);
+      const menuLabel = asString(props.label);
+      // A menu with neither an icon nor a label keeps the chevron trigger; a
+      // section-header "add" menu passes `icon="plus"` so it reads as the `+`
+      // affordance the sibling `button`-driven sections render.
+      const triggerGlyph = menuIcon ?? (menuLabel === undefined ? "chevronDown" : undefined);
+      // With an icon the `label` is the accessible name rather than a visible run,
+      // matching the icon-only `button` rule.
+      const iconOnly = menuIcon !== undefined;
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon-sm" variant="ghost">
-              {renderPanelIcon("chevronDown", "size-3.5")}
+            <Button
+              aria-label={iconOnly ? menuLabel : undefined}
+              size={(asString(props.size) as never) ?? "icon-sm"}
+              variant={(asString(props.variant) as never) ?? "ghost"}
+            >
+              {triggerGlyph ? renderPanelIcon(triggerGlyph, "size-3.5") : null}
+              {iconOnly ? null : menuLabel}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -460,6 +528,7 @@ const renderNode = (
       return (
         <SelectInput
           disabled={asBool(props.disabled)}
+          icon={props.icon ? renderPanelIcon(asIcon(props.icon)!, "size-3.5") : undefined}
           label={asString(props.placeholder) ?? "Select"}
           mixed={asBool(props.mixed)}
           onChange={onChange ? (next) => onChange(next) : () => {}}
@@ -481,8 +550,10 @@ const renderNode = (
         // button keeps its gap; block-level groups (stroke cap/join, text align)
         // fill their container regardless. Items keep `flex-1` to divide the width
         // evenly WHEN the group is stretched by its parent, byte-matching the old
-        // segmented-control markup.
+        // segmented-control markup. A definition that wants the Figma-style
+        // full-width segmented control opts in with `width="full"`.
         <ToggleGroup
+          className={asString(props.width) === "full" ? "w-full" : undefined}
           disabled={asBool(props.disabled)}
           onValueChange={onChange ? (next) => next && onChange(next) : undefined}
           size="sm"
@@ -513,15 +584,35 @@ const renderNode = (
 
     case "button": {
       const onClick = eventHandler(transport, node, "onClick");
+      const hint = asString(props.hint);
+      const label = asString(props.label);
+      const size = asString(props.size) ?? "sm";
+      const fullWidth = asString(props.width) === "full";
+      // An icon-sized button has no room for text: its `label` is the accessible
+      // name (the old sections' `aria-label`), NOT a visible run — rendering it
+      // spilled the label out of the square button.
+      const iconOnly = size === "icon-sm" && props.icon !== undefined;
       return (
         <Button
+          aria-label={iconOnly ? label : undefined}
+          // A `width="full"` list-row trigger spreads its label and hint to the
+          // two edges (the old rows drew the name left, the muted value right).
+          // `shrink` overrides the button base's `shrink-0`: without it a 100%-wide
+          // trigger refuses to give room back and pushes the row's trailing `−`
+          // button outside the panel.
+          className={fullWidth ? "w-full min-w-0 shrink justify-between" : undefined}
           disabled={asBool(props.disabled)}
           onClick={onClick ? () => onClick() : undefined}
-          size={(asString(props.size) as never) ?? "sm"}
+          size={size as never}
           variant={(asString(props.variant) as never) ?? "outline"}
         >
           {props.icon ? renderPanelIcon(asIcon(props.icon)!, "size-3.5") : null}
-          {asString(props.label)}
+          {!iconOnly && label !== undefined && (
+            <span className="min-w-0 truncate">{label}</span>
+          )}
+          {!iconOnly && hint !== undefined && (
+            <span className="min-w-0 truncate text-muted-foreground">{hint}</span>
+          )}
         </Button>
       );
     }
@@ -545,8 +636,15 @@ const renderNode = (
 
     case "resetAffordance": {
       const onReset = eventHandler(transport, node, "onReset");
+      // The affordance is a positioning wrapper, so it must not change how the
+      // control it decorates is sized: around a control that fills its slot it
+      // becomes a `w-full min-w-0` flex item (siblings then divide a row evenly);
+      // around a content-sized control (toggle group, swatch, button) it stays
+      // shrink-wrapped so the reset dot keeps hugging the control's corner.
+      const fills = node.children?.some((child) => FILL_WIDTH_NODE_TYPES.has(child.type)) ?? false;
       return (
         <OverrideResetAffordance
+          className={fills ? "w-full min-w-0" : undefined}
           label={asString(props.label) ?? "value"}
           onReset={onReset ? () => onReset() : () => {}}
           show={asBool(props.show) ?? false}

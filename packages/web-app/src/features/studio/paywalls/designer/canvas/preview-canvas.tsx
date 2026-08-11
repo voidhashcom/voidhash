@@ -1,10 +1,7 @@
 "use client";
 
 import { useQueries } from "@tanstack/react-query";
-import {
-  renderPaywallToHtml,
-  type ComponentArtifacts,
-} from "@voidhash/paywall-renderer-preact";
+import { renderPaywallToHtml, type ComponentArtifacts } from "@voidhash/paywall-renderer-preact";
 import type { PreviewTree, SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { Phone } from "@voidhash/ui";
 import { useCallback, useMemo } from "react";
@@ -14,7 +11,6 @@ import {
   componentPreviewTreeOptions,
   type ComponentPreviewTreeOptions,
 } from "../components/component-preview/use-preview-tree";
-import { CANVAS_DEFAULTS } from "../constants";
 import { PANEL_DIMENSIONS } from "../panels/constants";
 import { usePaywallDesignerStore } from "../state/designer-store";
 import type {
@@ -191,9 +187,8 @@ export function PreviewCanvas() {
 
   return (
     <div
-      className="absolute inset-0 flex items-center justify-center overflow-hidden"
+      className="absolute inset-0 flex items-center justify-center overflow-hidden bg-sidebar"
       style={{
-        backgroundColor: CANVAS_DEFAULTS.BACKGROUND_COLOR,
         backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)",
         backgroundSize: "16px 16px",
         top: PANEL_DIMENSIONS.TOP_HEIGHT,

@@ -421,7 +421,10 @@ const fullTree = () => {
 };
 
 describe("host-renderer — conformance", () => {
-  test("decodes and mounts a tree with every node type without crashing", () => {
+  // Mounting EVERY node type in one tree pulls in the heaviest composites
+  // (fill/color pickers, the action editor, monaco-adjacent imports); under a
+  // parallel suite run the first mount exceeds the 5s default.
+  test("decodes and mounts a tree with every node type without crashing", { timeout: 30_000 }, () => {
     const decoded = decodePanelTree(fullTree());
     expect(decoded.ok, decoded.ok ? "" : decoded.error).toBe(true);
     if (!decoded.ok) return;
@@ -511,7 +514,8 @@ describe("host-renderer — event dispatch", () => {
     const { transport, dispatched } = stubTransport(tree);
     const nodeId = findEventNode(tree, (n) => n.type === "button" && n.events.includes("onClick"));
     renderPanel(<PanelTreeView transport={transport} />);
-    fireEvent.click(screen.getByText("Add"));
+    // An `icon-sm` button carries its label as the accessible name, not as text.
+    fireEvent.click(screen.getByLabelText("Add"));
     const click = dispatched.find((e) => e.nodeId === nodeId && e.name === "onClick");
     expect(click).toBeTruthy();
   });
@@ -922,6 +926,249 @@ describe("host-renderer — layout parity fixes", () => {
     const { container } = renderPanel(<PanelTreeView transport={transport} />);
     expect(screen.getByText("Body")).toBeTruthy();
     expect(container.querySelector(".px-4.pb-4, .pb-4.px-4")).toBeTruthy();
+  });
+
+  test("A3: a toggleGroup WITH `width: full` stretches", () => {
+    const tree = treeWithChildren([
+      {
+        type: "toggleGroup",
+        id: 1,
+        props: {
+          value: "column",
+          width: "full",
+          options: [
+            { value: "column", icon: "arrowDown" },
+            { value: "row", icon: "arrowRight" },
+          ],
+        },
+        events: ["onChange"],
+      },
+    ]);
+    const { transport } = stubTransport(tree);
+    const { container } = renderPanel(<PanelTreeView transport={transport} />);
+    const group = container.querySelector('[data-slot="toggle-group"]')!;
+    expect(group.classList.contains("w-full")).toBe(true);
+    expect(group.classList.contains("w-fit")).toBe(false);
+  });
+
+  test("A4: row/column carry their gap and width tokens", () => {
+    const tree = treeWithChildren([
+      {
+        type: "row",
+        id: 1,
+        props: { gap: "xs", align: "start" },
+        events: [],
+        children: [
+          { type: "column", id: 2, props: { gap: "md", width: "full" }, events: [], children: [] },
+          { type: "column", id: 3, props: { width: "auto" }, events: [], children: [] },
+        ],
+      },
+    ]);
+    const { transport } = stubTransport(tree);
+    const { container } = renderPanel(<PanelTreeView transport={transport} />);
+    const row = container.querySelector(".flex-row")!;
+    expect(row.classList.contains("gap-1")).toBe(true);
+    expect(row.classList.contains("items-start")).toBe(true);
+    const columns = container.querySelectorAll(".flex-col");
+    expect(columns[0]!.classList.contains("gap-3")).toBe(true);
+    expect(columns[0]!.classList.contains("w-full")).toBe(true);
+    // `auto` hugs its content instead of dividing the row.
+    expect(columns[1]!.classList.contains("w-auto")).toBe(true);
+    expect(columns[1]!.classList.contains("gap-2")).toBe(true);
+  });
+
+  test("A5: a resetAffordance fills its slot around an input, hugs around a toggle", () => {
+    const tree = treeWithChildren([
+      {
+        type: "row",
+        id: 1,
+        props: {},
+        events: [],
+        children: [
+          {
+            type: "resetAffordance",
+            id: 2,
+            props: { label: "gap", show: false },
+            events: ["onReset"],
+            children: [
+              { type: "textField", id: 3, props: { kind: "number", value: "0" }, events: ["onChange"] },
+            ],
+          },
+          {
+            type: "resetAffordance",
+            id: 4,
+            props: { label: "direction", show: false },
+            events: ["onReset"],
+            children: [
+              {
+                type: "toggleGroup",
+                id: 5,
+                props: { value: "row", options: [{ value: "row", label: "Row" }] },
+                events: ["onChange"],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const { transport } = stubTransport(tree);
+    const { container } = renderPanel(<PanelTreeView transport={transport} />);
+    // The two affordance wrappers are the row's own children (an input's own
+    // `relative` InputGroup sits deeper, so query the row directly).
+    const wrappers = [...container.querySelector(".flex-row")!.children];
+    expect(wrappers).toHaveLength(2);
+    expect(wrappers[0]!.classList.contains("w-full")).toBe(true);
+    expect(wrappers[1]!.classList.contains("w-full")).toBe(false);
+  });
+
+  test("A6: a menu with an `icon` renders that glyph, not the default chevron", () => {
+    const withIcon = treeWithChildren([
+      {
+        type: "menu",
+        id: 1,
+        props: { icon: "plus", items: [{ value: "string", label: "Text" }] },
+        events: ["onSelect"],
+      },
+    ]);
+    const { container } = renderPanel(
+      <PanelTreeView transport={stubTransport(withIcon).transport} />,
+    );
+    expect(container.querySelector("svg")?.getAttribute("class")).toContain("lucide-plus");
+
+    cleanup();
+    const bare = treeWithChildren([
+      {
+        type: "menu",
+        id: 1,
+        props: { items: [{ value: "string", label: "Text" }] },
+        events: ["onSelect"],
+      },
+    ]);
+    const bareRender = renderPanel(<PanelTreeView transport={stubTransport(bare).transport} />);
+    expect(bareRender.container.querySelector("svg")?.getAttribute("class")).toContain(
+      "lucide-chevron-down",
+    );
+  });
+
+  test("A7: a button renders its `hint` muted and stretches at `width: full`", () => {
+    const tree = treeWithChildren([
+      {
+        type: "button",
+        id: 1,
+        props: { label: "greeting", hint: "hi", size: "sm", width: "full" },
+        events: ["onClick"],
+      },
+    ]);
+    const { container } = renderPanel(
+      <PanelTreeView transport={stubTransport(tree).transport} />,
+    );
+    const button = container.querySelector("button")!;
+    expect(button.classList.contains("w-full")).toBe(true);
+    expect(button.classList.contains("justify-between")).toBe(true);
+    // It must give width back to a trailing sibling (the button base is shrink-0).
+    expect(button.classList.contains("shrink")).toBe(true);
+    expect(button.classList.contains("shrink-0")).toBe(false);
+    expect(screen.getByText("hi").classList.contains("text-muted-foreground")).toBe(true);
+    expect(screen.getByText("greeting")).toBeTruthy();
+  });
+
+  test("A10: an icon-sized button labels itself instead of spilling visible text", () => {
+    // The Position section's absolute toggle is `icon="scan" size="icon-sm"` with a
+    // descriptive label; rendering that label as text overflowed the square button.
+    const tree = treeWithChildren([
+      {
+        type: "button",
+        id: 1,
+        props: { label: "Absolute position", icon: "scan", size: "icon-sm", variant: "ghost" },
+        events: ["onClick"],
+      },
+    ]);
+    const { container } = renderPanel(
+      <PanelTreeView transport={stubTransport(tree).transport} />,
+    );
+    expect(screen.getByLabelText("Absolute position")).toBeTruthy();
+    expect(container.textContent).toBe("");
+  });
+
+  test("A9: a popoverTrigger renders its child button and keeps it clickable", () => {
+    // Radix `asChild` clones ONE element child; handing it an array (or a
+    // Fragment) rendered nothing at all, so every popover row in the Variables /
+    // Interactions / Component-actions panels showed only its trailing `−`.
+    const tree = treeWithChildren([
+      {
+        type: "popover",
+        id: 1,
+        props: { open: false },
+        events: ["onOpenChange"],
+        children: [
+          {
+            type: "popoverTrigger",
+            id: 2,
+            props: {},
+            events: [],
+            children: [
+              {
+                type: "button",
+                id: 3,
+                props: { label: "greeting", hint: "hi", width: "full" },
+                events: ["onClick"],
+              },
+            ],
+          },
+          {
+            type: "popoverContent",
+            id: 4,
+            props: {},
+            events: [],
+            children: [{ type: "text", id: 5, props: { content: "Body" }, events: [] }],
+          },
+        ],
+      },
+    ]);
+    const { transport, dispatched } = stubTransport(tree);
+    renderPanel(<PanelTreeView transport={transport} />);
+    // The trigger renders as a real button…
+    const trigger = screen.getByText("greeting").closest("button")!;
+    expect(trigger).toBeTruthy();
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    // …and Slot merged its handler with the node's own `onClick`.
+    fireEvent.click(trigger);
+    expect(dispatched).toContainEqual({ nodeId: 3, name: "onClick", args: [] });
+  });
+
+  test("A8: a popoverContent `title` renders a header whose close dispatches onClose", () => {
+    const tree = treeWithChildren([
+      {
+        type: "popover",
+        id: 1,
+        props: { open: true },
+        events: ["onOpenChange"],
+        children: [
+          {
+            type: "popoverTrigger",
+            id: 2,
+            props: {},
+            events: [],
+            children: [{ type: "button", id: 3, props: { label: "Open" }, events: ["onClick"] }],
+          },
+          {
+            type: "popoverContent",
+            id: 4,
+            props: { title: "Variable" },
+            events: ["onClose"],
+            children: [{ type: "text", id: 5, props: { content: "Body" }, events: [] }],
+          },
+        ],
+      },
+    ]);
+    const { transport, dispatched } = stubTransport(tree);
+    renderPanel(<PanelTreeView transport={transport} />);
+    expect(screen.getByText("Variable")).toBeTruthy();
+    const closeButton = screen
+      .getAllByRole("button")
+      .find((b) => b.querySelector("svg")?.getAttribute("class")?.includes("lucide-x"))!;
+    fireEvent.click(closeButton);
+    expect(dispatched).toEqual([{ nodeId: 4, name: "onClose", args: [] }]);
   });
 });
 

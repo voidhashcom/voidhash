@@ -74,7 +74,7 @@ export function RightPanel() {
   return (
     <div
       className={cn(
-        "fixed right-0 bottom-0 z-40 flex flex-col border-border border-l bg-panel",
+        "fixed right-0 bottom-0 z-40 flex flex-col border-sidebar-border border-l bg-background",
         "transition-transform duration-300 ease-in-out",
         isPreviewMode && "translate-x-full",
       )}

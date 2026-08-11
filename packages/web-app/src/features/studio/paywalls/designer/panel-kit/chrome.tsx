@@ -11,6 +11,10 @@ import type { ReactNode } from "react";
 
 type Align = "start" | "center" | "end" | "stretch";
 type Justify = "start" | "center" | "end" | "between";
+/** Wire gap token (`Panel.Row`/`Panel.Column`). */
+export type PanelGap = "none" | "xs" | "sm" | "md" | "lg";
+/** Wire width token (`Panel.Row`/`Panel.Column`). */
+export type PanelWidth = "auto" | "full" | "half";
 
 const ALIGN_CLASS: Record<Align, string> = {
   start: "items-start",
@@ -26,8 +30,26 @@ const JUSTIFY_CLASS: Record<Justify, string> = {
   between: "justify-between",
 };
 
+const GAP_CLASS: Record<PanelGap, string> = {
+  none: "gap-0",
+  xs: "gap-1",
+  sm: "gap-2",
+  md: "gap-3",
+  lg: "gap-4",
+};
+
+// `full`/`half` containers are flex children themselves: pairing the basis with
+// `min-w-0` lets siblings divide a row evenly instead of being pushed out by an
+// input's intrinsic width.
+const WIDTH_CLASS: Record<PanelWidth, string> = {
+  auto: "w-auto shrink-0",
+  full: "w-full min-w-0",
+  half: "w-1/2 min-w-0",
+};
+
 export interface PanelRowProps {
-  gap?: number;
+  gap?: PanelGap;
+  width?: PanelWidth;
   align?: Align;
   justify?: Justify;
   className?: string;
@@ -35,16 +57,24 @@ export interface PanelRowProps {
 }
 
 /** Horizontal flex row. */
-export function PanelRow({ gap = 2, align = "center", justify, className, children }: PanelRowProps) {
+export function PanelRow({
+  gap = "sm",
+  width = "full",
+  align = "center",
+  justify,
+  className,
+  children,
+}: PanelRowProps) {
   return (
     <div
       className={cn(
         "flex flex-row",
+        GAP_CLASS[gap],
+        WIDTH_CLASS[width],
         ALIGN_CLASS[align],
         justify ? JUSTIFY_CLASS[justify] : undefined,
         className,
       )}
-      style={{ gap: `${gap * 0.25}rem` }}
     >
       {children}
     </div>
@@ -52,18 +82,30 @@ export function PanelRow({ gap = 2, align = "center", justify, className, childr
 }
 
 export interface PanelColumnProps {
-  gap?: number;
+  gap?: PanelGap;
+  width?: PanelWidth;
   align?: Align;
   className?: string;
   children?: ReactNode;
 }
 
 /** Vertical flex column. */
-export function PanelColumn({ gap = 2, align = "stretch", className, children }: PanelColumnProps) {
+export function PanelColumn({
+  gap = "sm",
+  width = "full",
+  align = "stretch",
+  className,
+  children,
+}: PanelColumnProps) {
   return (
     <div
-      className={cn("flex flex-col", ALIGN_CLASS[align], className)}
-      style={{ gap: `${gap * 0.25}rem` }}
+      className={cn(
+        "flex min-w-0 flex-col",
+        GAP_CLASS[gap],
+        WIDTH_CLASS[width],
+        ALIGN_CLASS[align],
+        className,
+      )}
     >
       {children}
     </div>

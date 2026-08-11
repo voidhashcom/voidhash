@@ -1,6 +1,6 @@
 import { defineConfig } from "vite-plus";
 
-// Integration tier: runs against the provisioned Node test fixture via
+// Integration tier: runs against the provisioned self-host stack via
 // `pnpm test:integration`. Timeouts are generous because these tests wait on
 // real containers rather than fakes.
 export default defineConfig({

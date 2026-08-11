@@ -38,33 +38,50 @@ pnpm typecheck
 pnpm test
 ```
 
-Use `pnpm check:publication` to validate license metadata and the repository
-boundary. The [Cloudflare deployment guide](docs/cloudflare-deployment.md)
-documents the local and live Alchemy workflow.
+Use `pnpm check:publication` to validate license metadata and the public/private
+repository boundary. The [self-hosting guide](selfhost/README.md) documents the
+local Compose environment and its smoke tests.
 
 Linting and formatting go through vite-plus: `pnpm lint` (`vp check`) and
 `pnpm format` (`vp check --fix`).
 
-Start PostgreSQL, apply migrations, and launch the Community Alchemy stack:
+`pnpm dev` starts every browser-facing development surface and the services
+used by the Mimic example through Portless. The first run creates and trusts a
+local certificate authority for the named HTTPS routes:
 
-```sh
-cp .env.example .env
-docker compose up -d standalone_postgres
-pnpm db:migrate
-pnpm dev
-```
+Run `pnpm dev` as your normal user, never through `sudo`. Portless elevates only
+its HTTPS proxy when necessary, while the application processes remain owned by
+your user. Startup also prunes orphaned Portless children left by crashed dev
+sessions before checking the fixed ports. Use `pnpm dev:status` to inspect active
+routes and `pnpm dev:doctor` to diagnose the proxy, certificate, or DNS setup.
 
-Alchemy serves the backend on `http://localhost:8787` and the web application
-on `http://localhost:3000`. Ports are strict so local links cannot silently move
-between runs.
+| Surface            | URL                                            | App port |
+| ------------------ | ---------------------------------------------- | -------- |
+| Dashboard and docs | `https://voidhash.localhost`                   | `3000`   |
+| Mimic example API  | `https://mimic-example-api.voidhash.localhost` | `3001`   |
+| Mimic admin        | `https://mimic-admin.voidhash.localhost`       | `3003`   |
+| Email previews     | `https://emails.voidhash.localhost`            | `3010`   |
+| Studio             | `https://studio.voidhash.localhost`            | `4830`   |
+| Mimic database     | `https://mimic.voidhash.localhost`             | `5001`   |
+| Mimic example      | `https://mimic-example.voidhash.localhost`     | `5173`   |
+
+The ports are strict: if another process is using one, startup fails instead of
+silently moving an app and breaking its local links.
+
+The steps above describe a **standalone clone** of this repository, which installs
+its own `node_modules` from this repository's lockfile. This repository is also
+consumed as a nested workspace by Voidhash's private monorepo. In that mode the
+superproject's root install is authoritative: it already covers every package here,
+this directory must **not** have its own `node_modules` (two installs give
+`drizzle-orm`/`@types/react` duplicate TypeScript type identities), and all commands
+are run from the superproject root rather than from here.
 
 ## Testing
 
 Run the smallest relevant package tests while iterating, then run the repository
-typecheck and test graph before requesting review. `pnpm test:integration`
-provisions the test-only Node fixture used by database and optional Node adapter
-tests. Use `pnpm test:infra:up` and `pnpm test:infra:down` when debugging that
-fixture directly.
+typecheck and test graph before requesting review. Changes to the Node runtime
+or Compose configuration should also pass both self-host smoke tests documented
+in [selfhost/README.md](selfhost/README.md#smoke-test).
 
 ## License zones
 

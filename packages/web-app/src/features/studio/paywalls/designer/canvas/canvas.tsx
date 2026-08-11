@@ -201,12 +201,9 @@ export function Canvas() {
 
   return (
     <div
-      className="absolute inset-0 h-full w-full overflow-hidden"
+      className="absolute inset-0 h-full w-full overflow-hidden bg-sidebar"
       onMouseLeave={handleMouseLeave}
       ref={containerRef}
-      style={{
-        background: CANVAS_DEFAULTS.BACKGROUND_COLOR,
-      }}
     >
       <Viewport onTransformChange={handleTransformChange}>
         <BoundingBoxManagerProvider>

@@ -1,4 +1,4 @@
-name: Node Integration Fixture
+name: Self-host Compose
 
 on:
   pull_request:
@@ -12,11 +12,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: node-integration-${{ github.head_ref || github.ref }}
+  group: selfhost-compose-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  COMPOSE_PROJECT_NAME: voidhash-node-ci-${{ github.run_id }}-${{ github.run_attempt }}
+  COMPOSE_PROJECT_NAME: voidhash-selfhost-ci-${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
   smoke:
@@ -54,20 +54,24 @@ jobs:
       - name: Prepare the stack environment
         run: |
           cp .env.example .env
+          # `.env.example` is a deployment template, so it selects production
+          # mode, which refuses its own placeholder secrets. This is a loopback
+          # CI stack: `pnpm stack:up` forces the same mode locally.
+          sed -i 's|^SELFHOST_MODE=.*|SELFHOST_MODE=local-evaluation|' .env
           # The thumbnail assertions wait on the idle debounce.
           sed -i 's|^MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS=.*|MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS=250|' .env
           grep -E '^[A-Z][A-Z0-9_]*=' .env >> "$GITHUB_ENV"
 
       - name: Start stateful stores
-        run: docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration up -d minio --wait --wait-timeout 180
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env up -d minio --wait --wait-timeout 180
 
       - name: Initialize object store
-        run: docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration run --rm minio-init
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env run --rm minio-init
 
       # The dev overlay publishes PostgreSQL and the compiler, which the
       # host-side integration tier connects to.
       - name: Build and start Community Compose
-        run: docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration up --build --wait --wait-timeout 180
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml --env-file .env up --build --wait --wait-timeout 180
 
       - name: Reclaim image build cache
         run: docker builder prune --all --force
@@ -91,9 +95,9 @@ jobs:
       - name: Show Compose diagnostics
         if: always()
         run: |
-          docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --project-directory test/integration ps || true
-          docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --project-directory test/integration logs --no-color || true
+          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml ps || true
+          docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml logs --no-color || true
 
       - name: Stop Compose
         if: always()
-        run: docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --project-directory test/integration down --volumes --remove-orphans
+        run: docker compose -f selfhost/docker-compose.yml -f selfhost/docker-compose.dev.yml down --volumes --remove-orphans

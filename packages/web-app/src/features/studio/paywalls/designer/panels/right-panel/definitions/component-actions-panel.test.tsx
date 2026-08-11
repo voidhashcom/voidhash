@@ -142,10 +142,12 @@ describe("ComponentActionsPanel — rows + payloadFields", () => {
     seedCatalogManifest(harness.store, manifestWithActions({ onPress: [], onDismiss: [] }));
     await flush();
 
-    const labels = findNodesByType(harness.tree().root, "button").map((b) => b.props.label);
-    // Stored close-paywall → its label; unbound onDismiss → None.
-    expect(labels).toContain("onPress  Close paywall");
-    expect(labels).toContain("onDismiss  None");
+    const rows = findNodesByType(harness.tree().root, "button").map(
+      (b) => `${b.props.label as string}:${b.props.hint as string}`,
+    );
+    // Stored close-paywall → its label as the muted hint; unbound onDismiss → None.
+    expect(rows).toContain("onPress:Close paywall");
+    expect(rows).toContain("onDismiss:None");
 
     const editor = findNodeByType(harness.tree().root, "actionEditorField")!;
     expect((editor.props.value as { type: string }).type).toBe("close-paywall");

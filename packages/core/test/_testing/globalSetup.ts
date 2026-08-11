@@ -1,12 +1,15 @@
 import { Db } from "@voidhash/db";
 import * as Effect from "effect/Effect";
 
-import { coreTestConnectionsFromEnv, type CoreStackOutput } from "./CoreTestConnections.ts";
+import {
+  coreTestConnectionsFromEnv,
+  type CoreStackOutput,
+} from "./CoreTestConnections.ts";
 import { cleanupFixture, seedFixture } from "./CoreTestSeed.ts";
 
 /**
  * Community composition of the core integration environment: the local
- * Node test fixture. Connections are derived from the environment (see
+ * self-host stack. Connections are derived from the environment (see
  * the repo-root `.env.example` and `scripts/run-local-integration.mjs`), the shared
  * fixture is seeded, and the contract is shared with every test file via
  * vitest's `provide`/`inject`.
@@ -31,8 +34,8 @@ export default function setup({
         Effect.catchCause((cause) =>
           Effect.die(
             new Error(
-              "Core integration setup could not seed the fixture. Is the integration fixture running? " +
-                "Start it with `pnpm test:infra:up` or point DATABASE_* at a migrated database.",
+              "Core integration setup could not seed the fixture. Is the self-host stack running? " +
+                "Start it with `pnpm stack:up` (see selfhost/README.md) or point DATABASE_* at a migrated database.",
               { cause },
             ),
           ),

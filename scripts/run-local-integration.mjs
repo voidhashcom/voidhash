@@ -1,4 +1,4 @@
-// Runs every integration-capable suite against the local Node test fixture.
+// Runs every integration-capable suite against the local self-host stack.
 //
 //   node scripts/run-local-integration.mjs [suite ...]
 //
@@ -12,7 +12,7 @@
 // they build get an isolated database of their own — see `resetPlatformDatabase`
 // below.
 //
-// The fixture is the only prerequisite, and the runner starts it if it is down.
+// The stack is the only prerequisite, and the runner starts it if it is down.
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Config, Console, Effect, Exit, FileSystem, Path, Runtime, Stdio, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
@@ -71,7 +71,7 @@ const defaultChromiumPath = () => {
  */
 const chromiumOverride = (executablePath) => {
   if (!executablePath) return {};
-  return { PLATFORM_NODE_CHROMIUM_EXECUTABLE_PATH: executablePath };
+  return { PLATFORM_SELFHOST_CHROMIUM_EXECUTABLE_PATH: executablePath };
 };
 
 /**
@@ -203,7 +203,7 @@ const program = Effect.gen(function* () {
   const mailpitUiPort = yield* value("MAILPIT_UI_PORT", "8025");
   const compilerPort = yield* value("COMPILER_HOST_PORT", "5002");
   const chromiumExecutablePath = yield* value(
-    "PLATFORM_NODE_CHROMIUM_EXECUTABLE_PATH",
+    "PLATFORM_SELFHOST_CHROMIUM_EXECUTABLE_PATH",
     defaultChromiumPath(),
   );
 
@@ -245,21 +245,21 @@ const program = Effect.gen(function* () {
     // The platform adapter suites and the cluster entity hosts the backend and
     // agent suites build all run over this connection, which is the isolated
     // platform database rather than the deployment's.
-    PLATFORM_NODE_PG_HOST: "127.0.0.1",
-    PLATFORM_NODE_PG_PORT: databasePort,
-    PLATFORM_NODE_PG_DATABASE: platformDatabaseName,
-    PLATFORM_NODE_PG_USERNAME: databaseUsername,
-    PLATFORM_NODE_PG_PASSWORD: databasePassword,
+    PLATFORM_SELFHOST_PG_HOST: "127.0.0.1",
+    PLATFORM_SELFHOST_PG_PORT: databasePort,
+    PLATFORM_SELFHOST_PG_DATABASE: platformDatabaseName,
+    PLATFORM_SELFHOST_PG_USERNAME: databaseUsername,
+    PLATFORM_SELFHOST_PG_PASSWORD: databasePassword,
 
-    PLATFORM_NODE_S3_ENDPOINT: `http://127.0.0.1:${minioPort}`,
-    PLATFORM_NODE_S3_BUCKET: yield* value("S3_PUBLIC_BUCKET", "voidhash-public"),
-    PLATFORM_NODE_S3_REGION: yield* value("S3_REGION", "us-east-1"),
-    PLATFORM_NODE_S3_ACCESS_KEY_ID: yield* value("S3_ACCESS_KEY_ID", "voidhash"),
-    PLATFORM_NODE_S3_SECRET_ACCESS_KEY: yield* value("S3_SECRET_ACCESS_KEY", "password"),
+    PLATFORM_SELFHOST_S3_ENDPOINT: `http://127.0.0.1:${minioPort}`,
+    PLATFORM_SELFHOST_S3_BUCKET: yield* value("S3_PUBLIC_BUCKET", "voidhash-public"),
+    PLATFORM_SELFHOST_S3_REGION: yield* value("S3_REGION", "us-east-1"),
+    PLATFORM_SELFHOST_S3_ACCESS_KEY_ID: yield* value("S3_ACCESS_KEY_ID", "voidhash"),
+    PLATFORM_SELFHOST_S3_SECRET_ACCESS_KEY: yield* value("S3_SECRET_ACCESS_KEY", "password"),
 
-    PLATFORM_NODE_SMTP_HOST: "127.0.0.1",
-    PLATFORM_NODE_SMTP_PORT: mailpitSmtpPort,
-    PLATFORM_NODE_MAILPIT_API: `http://127.0.0.1:${mailpitUiPort}`,
+    PLATFORM_SELFHOST_SMTP_HOST: "127.0.0.1",
+    PLATFORM_SELFHOST_SMTP_PORT: mailpitSmtpPort,
+    PLATFORM_SELFHOST_MAILPIT_API: `http://127.0.0.1:${mailpitUiPort}`,
 
     ...chromiumOverride(chromiumExecutablePath),
   };
@@ -279,14 +279,14 @@ const program = Effect.gen(function* () {
   const composeArgs = [
     "compose",
     "-f",
-    "test/integration/docker-compose.yml",
+    "selfhost/docker-compose.yml",
     "-f",
-    "test/integration/docker-compose.dev.yml",
-    // The explicit project directory keeps image build contexts and Compose's
-    // implicit env-file lookup stable.
+    "selfhost/docker-compose.dev.yml",
+    // `--project-directory selfhost` keeps the image build context correct, which
+    // also moves Compose's implicit env-file lookup away from the repo root.
     ...envFileArgs(yield* fileSystem.exists(envFile)),
     "--project-directory",
-    "test/integration",
+    "selfhost",
   ];
 
   // `.env` is the deployment template, so it selects production mode. The stack
@@ -314,7 +314,7 @@ const program = Effect.gen(function* () {
   }
 
   // The suites need the stack, so the runner provisions it rather than failing on
-  // a forgotten `pnpm test:infra:up`. `compose up` is idempotent: already-healthy
+  // a forgotten `pnpm stack:up`. `compose up` is idempotent: already-healthy
   // services are left alone. A missing prerequisite must never look like a pass,
   // so anything unrecoverable here exits non-zero with the command to run.
   const probe = yield* runCaptured(
@@ -329,7 +329,7 @@ const program = Effect.gen(function* () {
   const running = probe.stdout.split("\n").filter((line) => line.trim().endsWith("running")).length;
   if (running === 0) {
     yield* Console.log(
-      "Integration fixture is not running — starting it (first run builds images)…",
+      "Self-host stack is not running — starting it (first run builds images)…",
     );
     const up = yield* runInherit(
       compose(["up", "-d", "--build", "--wait"], {
@@ -340,7 +340,7 @@ const program = Effect.gen(function* () {
     );
     if (up !== 0) {
       yield* Console.error(
-        "\nFailed to start the integration fixture. Run `pnpm test:infra:up` to debug.",
+        "\nFailed to start the self-host stack. Run `pnpm stack:up` to debug.",
       );
       return 1;
     }

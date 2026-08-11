@@ -81,7 +81,7 @@ export function AiPanel() {
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-0 z-40 flex flex-col border-border border-r bg-panel",
+        "fixed bottom-0 left-0 z-40 flex flex-col border-sidebar-border border-r bg-background",
         "transition-transform duration-300 ease-in-out",
         hidden && "-translate-x-full",
       )}

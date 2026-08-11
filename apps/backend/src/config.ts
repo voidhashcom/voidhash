@@ -5,8 +5,8 @@
 // scope in which a `Config` provider could be used.
 // oxlint-disable effect/noGlobals -- synchronous process.env adapter; callers read these config records from synchronous positions before any Effect runtime exists.
 import type { DbConfig } from "@voidhash/db/db";
-import type { SmtpMailerConfig } from "@voidhash/platform-node/Mailer";
-import type { S3ObjectStoreConfig } from "@voidhash/platform-node/ObjectStore";
+import type { SmtpMailerConfig } from "@voidhash/platform-selfhost/Mailer";
+import type { S3ObjectStoreConfig } from "@voidhash/platform-selfhost/ObjectStore";
 import {
   isPlaceholderSecret,
   resolveStandaloneAuthConfig,

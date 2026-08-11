@@ -16,7 +16,7 @@ MIT text.
 ## Which code is AGPL-3.0-only?
 
 The backend, dashboard, Mimic services and tooling, service packages, paywall
-build/render pipeline, and deployment adapters are AGPL-3.0-only. Operators may
+build/render pipeline, and self-host runtime are AGPL-3.0-only. Operators may
 modify and self-host that code, including commercially, subject to the AGPL's
 terms. In particular, the AGPL contains source-availability obligations for
 modified versions used to provide network services.
@@ -30,17 +30,17 @@ from the repository name alone.
 
 ## Is Enterprise code included?
 
-No. Commercial implementation is not included in this repository. Any
-separately distributed Enterprise Software is governed only by terms that
-expressly identify it.
+No. Closed Enterprise implementation remains in the private cloud repository.
+It composes over explicit Community extension points and is not copied into
+this repository or the Community image. Any separately distributed Enterprise
+Software is governed only by terms that expressly identify it.
 
 ## Is self-hosting production supported today?
 
 Not yet. The repository is in private alpha and the latest `main` branch is
-the only security-maintained line. The supported evaluation path deploys the
-Community Alchemy composition to the operator's Cloudflare account and connects
-it to operator-managed PostgreSQL. A production support matrix and version
-table will replace this answer before the first public release.
+the only security-maintained line. The supported path for evaluation is the
+documented Docker Compose configuration. A production support matrix and
+version table will replace this answer before the first public release.
 
 ## How does authentication work, and why only one user?
 

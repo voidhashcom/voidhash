@@ -30,11 +30,9 @@
  *   action SETS it via `setComponentActionBinding` — exact old branching.
  *
  * PARITY COMPROMISES (wire limitations, not the section's intent):
- * - The trigger `Panel.Button` label is a plain string `"<name>  <type>"` rather
- *   than the old name + `ChevronRightIcon` + muted type spans — the wire button
- *   carries one label, no inline glyph between two text runs.
- * - The old popover's `PopoverHeader` (title + close button) is dropped: the wire
- *   `popoverContent` has no header slot, and the editor is reachable directly.
+ * - The trigger `Panel.Button` draws the action name and the muted bound-action
+ *   type (`hint`) at the row's two edges; the old inline `ChevronRightIcon`
+ *   between the two runs has no wire equivalent.
  */
 import type { ComponentAction } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
 import type { ComponentBoundAction } from "@voidhash/mimic-schema";
@@ -144,11 +142,18 @@ export function ComponentActionsPanel(_ctx: PanelContext) {
                   >
                     <Panel.PopoverTrigger>
                       <Panel.Button
-                        label={`${actionName}  ${ACTION_TYPE_LABELS[boundAction.type]}`}
+                        hint={ACTION_TYPE_LABELS[boundAction.type]}
+                        label={actionName}
                         size="sm"
+                        width="full"
                       />
                     </Panel.PopoverTrigger>
-                    <Panel.PopoverContent align="start" side="left">
+                    <Panel.PopoverContent
+                      align="start"
+                      side="left"
+                      title={actionName}
+                      onClose={() => setOpenActionName(null)}
+                    >
                       <Panel.ActionEditorField
                         value={boundAction as unknown as PanelJsonValue}
                         variables={variables as unknown as PanelJsonValue}

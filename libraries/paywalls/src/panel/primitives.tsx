@@ -95,11 +95,19 @@ export interface PanelPopoverTriggerProps extends WithChildren {}
 export interface PanelPopoverContentProps extends WithChildren {
   align?: "start" | "center" | "end";
   side?: "top" | "right" | "bottom" | "left";
+  /** Renders a header row with this title; pair it with `onClose` for the ✕. */
+  title?: string;
+  onClose?: () => void;
 }
 export interface PanelMenuProps {
   items?: ReadonlyArray<PanelOption>;
   value?: string;
   align?: "start" | "center" | "end";
+  /** Trigger glyph; defaults to a chevron when neither `icon` nor `label` is set. */
+  icon?: IconName;
+  label?: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   onSelect?: (value: string) => void;
 }
 
@@ -126,6 +134,7 @@ export interface PanelSelectFieldProps {
   placeholder?: string;
   mixed?: boolean;
   disabled?: boolean;
+  icon?: IconName;
   onChange?: (value: string) => void;
 }
 export interface PanelToggleGroupProps {
@@ -133,6 +142,8 @@ export interface PanelToggleGroupProps {
   options?: ReadonlyArray<PanelOption>;
   mixed?: boolean;
   disabled?: boolean;
+  /** `"full"` stretches the segmented control; the default hugs its content. */
+  width?: WidthToken;
   onChange?: (value: string) => void;
 }
 export interface PanelSwitchFieldProps {
@@ -144,9 +155,13 @@ export interface PanelSwitchFieldProps {
 }
 export interface PanelButtonProps {
   label?: string;
+  /** Muted secondary text, pushed to the trailing edge of a `width="full"` button. */
+  hint?: string;
   icon?: IconName;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** `"full"` stretches the button across its container (list-row triggers). */
+  width?: WidthToken;
   disabled?: boolean;
   onClick?: () => void;
 }

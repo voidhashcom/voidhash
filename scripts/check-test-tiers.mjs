@@ -1,6 +1,6 @@
 // Enforces the repository's test-tier layout.
 //
-//   *.integration.test.ts  needs the integration fixture; runs under `pnpm test:integration`
+//   *.integration.test.ts  needs the self-host stack; runs under `pnpm test:integration`
 //   *.test.ts              needs nothing; runs under `pnpm test`
 //
 // The rule this exists to protect: a test's tier follows from its filename, and

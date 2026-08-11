@@ -128,8 +128,11 @@ export function FlexAlignmentInput({
     alignItems === itemAlignItems && justifyContent === itemJustify;
 
   return (
-    <>
-      <div className="flex flex-1 shrink-0 rounded-sm bg-input/60">
+    // The grid and its options menu are one unit: a fixed-width, self-stretching
+    // block that sits beside the direction/gap column, so the panel keeps the
+    // two-column shape regardless of what wraps it.
+    <div className="flex shrink-0 items-stretch gap-1">
+      <div className="flex min-h-16 w-22 shrink-0 overflow-hidden rounded-sm bg-input/60">
         {/* Shows a 3x3 grid of alignment options. */}
         {!isSpaceBetween && !isStretch && (
           <div className="flex flex-1 flex-col">
@@ -303,7 +306,7 @@ export function FlexAlignmentInput({
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="icon-sm" variant="ghost">
+          <Button className="self-start" size="icon-sm" variant="ghost">
             <Settings2Icon className="size-3.5" />
           </Button>
         </DropdownMenuTrigger>
@@ -332,6 +335,6 @@ export function FlexAlignmentInput({
           </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </>
+    </div>
   );
 }

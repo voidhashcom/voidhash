@@ -47,7 +47,7 @@ export function LeftPanel() {
   return (
     <div
       className={cn(
-        "fixed bottom-0 z-40 flex flex-col border-border border-r bg-panel",
+        "fixed bottom-0 z-40 flex flex-col border-sidebar-border border-r bg-background",
         // Suspended while a resize handle is dragged so `left` tracks the AI
         // panel's live width instead of easing behind it.
         !resizeActive && "transition-[transform,left] duration-300 ease-in-out",

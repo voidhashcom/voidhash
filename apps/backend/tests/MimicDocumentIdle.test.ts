@@ -7,13 +7,16 @@ import {
   type DurableEntityAlarmControlShape,
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
-import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
+import { makeMemoryDurableEntityHost } from "@voidhash/platform-selfhost/MemoryDurableEntity";
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
 
 import { dispatchMimicDocumentIdleAlarms } from "../src/mimic/MimicNodeWebSocket.ts";
 
-const address = makeDurableEntityAddress("mimic-document", "collection-1:document-1");
+const address = makeDurableEntityAddress(
+  "mimic-document",
+  "collection-1:document-1",
+);
 
 const control: DurableEntityAlarmControlShape = {
   listDueAlarms: () => Effect.succeed([{ address, scheduledTime: 0 }]),
@@ -87,9 +90,13 @@ describe("Mimic Node idle alarm dispatch", () => {
           { collectionId: "collection-1", documentId: "document-1", seq: 7 },
         ]);
         expect(
-          yield* entities.run(address, (entity) => entity.keyValue.get(IDLE_NOTIFIED_SEQ_KEY)),
+          yield* entities.run(address, (entity) =>
+            entity.keyValue.get(IDLE_NOTIFIED_SEQ_KEY),
+          ),
         ).toBe(7);
-        expect(yield* entities.run(address, (entity) => entity.alarm.get)).toBeUndefined();
+        expect(
+          yield* entities.run(address, (entity) => entity.alarm.get),
+        ).toBeUndefined();
       }),
     ));
 
@@ -121,9 +128,13 @@ describe("Mimic Node idle alarm dispatch", () => {
 
         expect(published).toEqual([]);
         expect(
-          yield* entities.run(address, (entity) => entity.keyValue.get(IDLE_NOTIFIED_SEQ_KEY)),
+          yield* entities.run(address, (entity) =>
+            entity.keyValue.get(IDLE_NOTIFIED_SEQ_KEY),
+          ),
         ).toBe(7);
-        expect(yield* entities.run(address, (entity) => entity.alarm.get)).toBeUndefined();
+        expect(
+          yield* entities.run(address, (entity) => entity.alarm.get),
+        ).toBeUndefined();
       }),
     ));
 });

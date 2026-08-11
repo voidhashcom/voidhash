@@ -1,7 +1,7 @@
 import { defineConfig } from "vite-plus";
 
 // The integration suite runs against a provisioned environment: locally the
-// Node test fixture (`pnpm test:integration`), downstream whatever the
+// self-host stack (`pnpm test:integration`), downstream whatever the
 // composition's globalSetup provides. Files run sequentially — they share one
 // database and one seeded fixture container.
 //
