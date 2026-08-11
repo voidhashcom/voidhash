@@ -120,7 +120,10 @@ export type IconName =
   | "user"
   | "users"
   | "externalLink"
-  | "mousePointer";
+  | "mousePointer"
+  | "alignLeft"
+  | "alignCenter"
+  | "alignRight";
 
 /** Every icon token as a runtime list; the validator derives its `Set` from it. */
 export const PANEL_ICON_NAME_LIST = [
@@ -182,6 +185,9 @@ export const PANEL_ICON_NAME_LIST = [
   "users",
   "externalLink",
   "mousePointer",
+  "alignLeft",
+  "alignCenter",
+  "alignRight",
 ] as const satisfies ReadonlyArray<IconName>;
 
 /**
@@ -300,7 +306,11 @@ export interface SelectFieldNode extends PanelNodeBase {
   readonly type: "selectField";
 }
 
-/** A segmented control over `options` (`{value,label?,icon?}`); single value. */
+/**
+ * A segmented control over `options` (`{value,label?,icon?}`); single value.
+ * `width: "full"` stretches the control across its container (the default sizes
+ * it to its content).
+ */
 export interface ToggleGroupNode extends PanelNodeBase {
   readonly type: "toggleGroup";
 }
@@ -543,12 +553,12 @@ export const PANEL_NODE_SPECS = {
     children: true,
   },
   popoverContent: {
-    props: ["align", "side"],
-    events: [],
+    props: ["align", "side", "title"],
+    events: ["onClose"],
     children: true,
   },
   menu: {
-    props: ["items", "value", "align"],
+    props: ["items", "value", "align", "icon", "label", "variant", "size"],
     events: ["onSelect"],
     children: false,
   },
@@ -571,12 +581,12 @@ export const PANEL_NODE_SPECS = {
     children: false,
   },
   selectField: {
-    props: ["value", "options", "placeholder", "mixed", "disabled"],
+    props: ["value", "options", "placeholder", "mixed", "disabled", "icon"],
     events: ["onChange"],
     children: false,
   },
   toggleGroup: {
-    props: ["value", "options", "mixed", "disabled"],
+    props: ["value", "options", "mixed", "disabled", "width"],
     events: ["onChange"],
     children: false,
   },
@@ -586,7 +596,7 @@ export const PANEL_NODE_SPECS = {
     children: false,
   },
   button: {
-    props: ["label", "icon", "variant", "size", "disabled"],
+    props: ["label", "hint", "icon", "variant", "size", "width", "disabled"],
     events: ["onClick"],
     children: false,
   },

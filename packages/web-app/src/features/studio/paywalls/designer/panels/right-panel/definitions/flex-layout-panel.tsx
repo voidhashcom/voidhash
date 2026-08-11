@@ -5,10 +5,11 @@
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` "Layout" → `Panel.Section title="Layout"`.
- * - FLEX subsection: a direction `ToggleGroup` (column/row) + a gap `TextInput`
- *   stacked in a narrow column, beside the `FlexAlignmentInput` →
- *   `Panel.Subsection` > `Panel.Row` > (`Panel.Column` of a `Panel.ToggleGroup` +
- *   `Panel.TextField`) + `Panel.AlignmentGrid`.
+ * - FLEX subsection: a full-width direction `ToggleGroup` (column/row) + a gap
+ *   `TextInput` stacked in a flexible column, beside the fixed-width
+ *   `FlexAlignmentInput` → `Panel.Subsection` > `Panel.Row` > (`Panel.Column`
+ *   `width="full"` of a `Panel.ToggleGroup` + `Panel.TextField`) +
+ *   `Panel.AlignmentGrid`.
  * - DIMENSIONS subsection: two width/height fields → `Panel.Subsection title=
  *   "Dimensions"` > `Panel.Row` > two `Panel.DimensionField`s (axis width/height).
  * - PADDING subsection: uniform (2 fields) OR expanded (4 per-side fields) + an
@@ -204,8 +205,8 @@ export function FlexLayoutPanel(_ctx: PanelContext) {
     <Panel>
       <Panel.Section title="Layout">
         <Panel.Subsection>
-          <Panel.Row align="stretch">
-            <Panel.Column width="auto">
+          <Panel.Row align="start">
+            <Panel.Column gap="sm" width="full">
               <Panel.ResetAffordance
                 label="layout direction"
                 show={active && overrideReset.hasOverride(DIRECTION_KEYS)}
@@ -218,6 +219,7 @@ export function FlexLayoutPanel(_ctx: PanelContext) {
                     { value: "row", icon: "arrowRight" },
                   ]}
                   value={node.flexDirection}
+                  width="full"
                   onChange={(value) => handleChange({ flexDirection: value as FlexDirection })}
                 />
               </Panel.ResetAffordance>
@@ -302,9 +304,9 @@ export function FlexLayoutPanel(_ctx: PanelContext) {
         </Panel.Subsection>
 
         <Panel.Subsection title="Padding">
-          <Panel.Row align="stretch">
+          <Panel.Row align="start">
             {showIndividualPadding && (
-              <Panel.Column width="auto">
+              <Panel.Column gap="sm" width="full">
                 <Panel.Row align="stretch">
                   <Panel.ResetAffordance
                     label="padding left"
@@ -377,7 +379,7 @@ export function FlexLayoutPanel(_ctx: PanelContext) {
             )}
 
             {!showIndividualPadding && (
-              <Panel.Column width="auto">
+              <Panel.Column gap="sm" width="full">
                 <Panel.Row align="stretch">
                   <Panel.ResetAffordance
                     label="padding horizontal"

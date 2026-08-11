@@ -2,6 +2,9 @@ import type { IconName } from "@voidhash/paywalls/schema";
 import { cn } from "@voidhash/ui";
 import {
   AlertTriangleIcon,
+  AlignCenterIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
   ArrowDownIcon,
   ArrowRightIcon,
   ArrowUpCircleIcon,
@@ -159,6 +162,9 @@ export const PANEL_ICON_REGISTRY: Record<IconName, (className?: string) => React
   users: (className) => createElement(UsersIcon as LucideIcon, { className }),
   externalLink: (className) => createElement(ExternalLinkIcon as LucideIcon, { className }),
   mousePointer: (className) => createElement(MousePointerIcon as LucideIcon, { className }),
+  alignLeft: (className) => createElement(AlignLeftIcon as LucideIcon, { className }),
+  alignCenter: (className) => createElement(AlignCenterIcon as LucideIcon, { className }),
+  alignRight: (className) => createElement(AlignRightIcon as LucideIcon, { className }),
 };
 
 /**

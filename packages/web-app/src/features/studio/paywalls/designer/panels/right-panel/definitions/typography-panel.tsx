@@ -25,11 +25,9 @@
  * - Five single-key reset affordances: fontWeight, fontSize, lineHeight,
  *   letterSpacing, textAlign.
  *
- * PARITY COMPROMISES (wire limitations, not the section's intent):
- * - `selectField` carries no icon prop, so the Font Family / Font Weight select
- *   glyphs the old section drew are dropped.
- * - `toggleGroup` options render text labels here (Left/Center/Right) rather than
- *   the old align icons — the wire IconName set has no text-align tokens.
+ * PARITY COMPROMISES (wire limitations, not the section's intent): none — the
+ * Font Family / Font Weight selects carry their glyphs via `selectField.icon`,
+ * and textAlign renders the `alignLeft`/`alignCenter`/`alignRight` icon tokens.
  */
 import type { FontWeight, TextAlign } from "@voidhash/mimic-schema";
 import type { PanelContext } from "@voidhash/paywalls/panel";
@@ -69,9 +67,9 @@ const FONT_WEIGHT_OPTIONS: { value: FontWeight; label: string }[] = [
 const FONT_FAMILY_OPTIONS = [{ label: "Default", value: "geist-variable" }] as const;
 
 const TEXT_ALIGN_OPTIONS = [
-  { value: "left", label: "Left" },
-  { value: "center", label: "Center" },
-  { value: "right", label: "Right" },
+  { value: "left", icon: "alignLeft", label: "Left" },
+  { value: "center", icon: "alignCenter", label: "Center" },
+  { value: "right", icon: "alignRight", label: "Right" },
 ] as const;
 
 const FONT_WEIGHT_KEYS = ["fontWeight"] as const;
@@ -122,6 +120,7 @@ export function TypographyPanel(_ctx: PanelContext) {
         <Panel.Column>
           <Panel.SelectField
             disabled
+            icon="type"
             placeholder="Default"
             options={FONT_FAMILY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
             value={FONT_FAMILY_OPTIONS[0]?.value ?? ""}
@@ -137,6 +136,7 @@ export function TypographyPanel(_ctx: PanelContext) {
               onReset={() => reset(FONT_WEIGHT_KEYS)}
             >
               <Panel.SelectField
+                icon="a"
                 placeholder="Font Weight"
                 mixed={mixedKeys.has("fontWeight")}
                 options={FONT_WEIGHT_OPTIONS}
@@ -225,7 +225,8 @@ export function TypographyPanel(_ctx: PanelContext) {
             <Panel.ToggleGroup
               value={node.textAlign}
               mixed={mixedKeys.has("textAlign")}
-              options={TEXT_ALIGN_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              options={TEXT_ALIGN_OPTIONS.map((o) => ({ value: o.value, icon: o.icon }))}
+              width="full"
               onChange={(value) => handleChange({ textAlign: value as TextAlign })}
             />
           </Panel.ResetAffordance>

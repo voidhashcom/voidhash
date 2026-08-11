@@ -6,9 +6,8 @@
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Variables" → `Panel.Section title="Variables"`.
  * - The header type-picker (old `DropdownMenu` of Text/Number/Boolean/Product,
- *   `+` trigger) → `Panel.SectionActions` > `Panel.Menu` (its `onSelect` starts a
- *   pending variable). PARITY NOTE: the wire `menu` renders a chevron trigger, not
- *   the old `+`.
+ *   `+` trigger) → `Panel.SectionActions` > `Panel.Menu icon="plus"` (its
+ *   `onSelect` starts a pending variable).
  * - Each existing variable → a `Panel.Row` with a controlled `Panel.Popover`
  *   (open when `openVariableId === id`) over a name `Panel.TextField` + a
  *   type-appropriate literal editor (string→text field, number→number field,
@@ -174,6 +173,10 @@ export function VariablesPanel(_ctx: PanelContext) {
       <Panel.Section title="Variables">
         <Panel.SectionActions>
           <Panel.Menu
+            icon="plus"
+            label="Add variable"
+            size="icon-sm"
+            variant="ghost"
             items={[
               { value: "string", label: "Text" },
               { value: "number", label: "Number" },
@@ -252,9 +255,19 @@ function VariableRow({
       <Panel.Popover open={isOpen} onOpenChange={onOpenChange}>
         <Panel.PopoverTrigger>
           {/* No `variant` → the host defaults to the outlined trigger look. */}
-          <Panel.Button label={`${name || "Unnamed"}  ${valueDisplay(value)}`} size="sm" />
+          <Panel.Button
+            hint={valueDisplay(value)}
+            label={name || "Unnamed"}
+            size="sm"
+            width="full"
+          />
         </Panel.PopoverTrigger>
-        <Panel.PopoverContent align="start" side="left">
+        <Panel.PopoverContent
+          align="start"
+          side="left"
+          title="Variable"
+          onClose={() => onOpenChange(false)}
+        >
           <Panel.Field label="Name">
             <Panel.TextField
               kind="text"

@@ -54,11 +54,13 @@ export default defineConfig({
   },
   test: {
     setupFiles: ["./src/test-setup.ts"],
+    // The designer suites mount heavy jsdom component trees in parallel workers;
+    // the 5s default trips on machine load rather than on real hangs.
+    testTimeout: 20_000,
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
       "**/features/studio/paywalls/designer/canvas/helpers/selectable.test.tsx",
-      "**/features/studio/paywalls/designer/panel-runtime/host-renderer.test.tsx",
     ],
   },
 });

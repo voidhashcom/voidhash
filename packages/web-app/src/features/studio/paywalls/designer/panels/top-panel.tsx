@@ -162,7 +162,7 @@ export function TopPanel() {
   return (
     <>
       <div
-        className="fixed top-0 right-0 left-0 z-50 flex items-center justify-between border-border border-b bg-panel px-3"
+        className="fixed top-0 right-0 left-0 z-50 flex items-center justify-between border-sidebar-border border-b bg-background px-3"
         style={{ height: PANEL_DIMENSIONS.TOP_HEIGHT }}
       >
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-sm">

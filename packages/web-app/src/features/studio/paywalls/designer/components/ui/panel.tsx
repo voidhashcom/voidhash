@@ -16,7 +16,7 @@ export function PanelFooter({
   className?: string;
 }) {
   return (
-    <div className={cn("sticky right-0 bottom-0 left-0 bg-panel px-4 pt-4 pb-4", className)}>
+    <div className={cn("sticky right-0 bottom-0 left-0 bg-background px-4 pt-4 pb-4", className)}>
       {children}
     </div>
   );

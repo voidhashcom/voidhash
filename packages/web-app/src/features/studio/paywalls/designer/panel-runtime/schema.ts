@@ -221,6 +221,7 @@ const PopoverTriggerNodeSchema = makeNode("popoverTrigger", {});
 const PopoverContentNodeSchema = makeNode("popoverContent", {
   align: OptionalString,
   side: OptionalString,
+  title: OptionalString,
 });
 const MenuNodeSchema = makeNode("menu", {
   items: Schema.optional(
@@ -228,6 +229,10 @@ const MenuNodeSchema = makeNode("menu", {
   ),
   value: OptionalString,
   align: OptionalString,
+  icon: OptionalIcon,
+  label: OptionalString,
+  variant: OptionalString,
+  size: OptionalString,
 });
 
 // ── Controls ─────────────────────────────────────────────────────────────────
@@ -251,6 +256,7 @@ const SelectFieldNodeSchema = makeNode("selectField", {
   placeholder: OptionalString,
   mixed: OptionalBoolean,
   disabled: OptionalBoolean,
+  icon: OptionalIcon,
 });
 const ToggleGroupNodeSchema = makeNode("toggleGroup", {
   value: Schema.optional(Schema.Union([CappedString, Schema.Null])),
@@ -259,6 +265,7 @@ const ToggleGroupNodeSchema = makeNode("toggleGroup", {
   ),
   mixed: OptionalBoolean,
   disabled: OptionalBoolean,
+  width: OptionalString,
 });
 const SwitchFieldNodeSchema = makeNode("switchField", {
   checked: OptionalBoolean,
@@ -268,9 +275,11 @@ const SwitchFieldNodeSchema = makeNode("switchField", {
 });
 const ButtonNodeSchema = makeNode("button", {
   label: OptionalString,
+  hint: OptionalString,
   icon: OptionalIcon,
   variant: OptionalString,
   size: OptionalString,
+  width: OptionalString,
   disabled: OptionalBoolean,
 });
 const SliderFieldNodeSchema = makeNode("sliderField", {

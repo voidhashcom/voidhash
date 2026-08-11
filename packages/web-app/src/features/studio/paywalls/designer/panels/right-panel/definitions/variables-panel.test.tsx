@@ -72,13 +72,16 @@ describe("VariablesPanel — rows", () => {
     seedVariable(doc, nodeIds[0]!, "noPlan", { key: "product", value: {} });
     harness = mountPanelDefinition(VariablesPanel, doc, { nodeIds: [nodeIds[0]!] });
 
-    const labels = rowButtons(harness).map((b) => b.props.label as string);
-    expect(labels.some((l) => l.startsWith("greeting"))).toBe(true);
-    expect(labels.some((l) => l.startsWith("count") && l.endsWith("3"))).toBe(true);
-    expect(labels.some((l) => l.startsWith("isPro") && l.endsWith("True"))).toBe(true);
+    // The name is the button label; the value renders as the muted trailing hint.
+    const rows = rowButtons(harness).map(
+      (b) => `${b.props.label as string}:${b.props.hint as string}`,
+    );
+    expect(rows.some((r) => r.startsWith("greeting"))).toBe(true);
+    expect(rows).toContain("count:3");
+    expect(rows).toContain("isPro:True");
     // Product with an id shows the "…" sentinel; empty product shows "None".
-    expect(labels.some((l) => l.startsWith("plan") && l.endsWith("…"))).toBe(true);
-    expect(labels.some((l) => l.startsWith("noPlan") && l.endsWith("None"))).toBe(true);
+    expect(rows).toContain("plan:…");
+    expect(rows).toContain("noPlan:None");
   });
 
   test("a boolean variable's value editor is a True/False toggle group", () => {
