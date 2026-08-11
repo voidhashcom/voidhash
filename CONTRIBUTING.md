@@ -29,6 +29,7 @@ for reporting guidance.
 - Preserve end-to-end type safety.
 - Add JSDoc to public functions and keep existing documentation current.
 - Keep infrastructure adapters behind the platform interfaces used by product code.
+- Keep pull requests focused and describe the validation you ran.
 
 ## Development
 
