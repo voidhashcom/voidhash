@@ -53,7 +53,7 @@ import {
   type DimensionState,
 } from "../../../panel-kit/dimension-field";
 import { useDesignerDraft } from "../../../hooks/use-designer-draft";
-import { updateLayoutStyle } from "../../../state/actions";
+import { updateContainerAlignment, updateLayoutStyle } from "../../../state/actions";
 import {
   usePaywallDesignerActions,
   usePaywallDesignerStore,
@@ -252,7 +252,11 @@ export function FlexLayoutPanel(_ctx: PanelContext) {
                 mixed={mixedKeys.has("alignItems") || mixedKeys.has("justifyContent")}
                 onChange={(value) => {
                   const changes = value as { alignItems: AlignItems; justifyContent: JustifyContent };
-                  handleChange({
+                  // Container alignment goes through the virtual-stretch
+                  // expand transform so leaving a stretch container keeps its
+                  // filling children filling (per-child alignSelf: "stretch").
+                  dispatch(updateContainerAlignment)({
+                    nodes: targets,
                     alignItems: changes.alignItems,
                     justifyContent: changes.justifyContent,
                   });

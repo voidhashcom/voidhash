@@ -104,9 +104,11 @@ export function FlexAlignmentInput({
   onChange,
 }: FlexAlignmentInputProps) {
   const isSpaceBetween = justifyContent === "space-between";
-  // Stretch mode reduces the grid to a justify-only strip (alignItems is fixed
-  // to "stretch"); space-between wins if both are set.
-  const isStretch = alignItems === "stretch" && !isSpaceBetween;
+  // Virtual stretch: `alignItems: "stretch"` is not a grid state. Stretched
+  // children span the whole cross axis, so their boxes sit at the cross
+  // start — the grid projects stretch onto `flex-start` for selection, and a
+  // cell is always highlighted.
+  const displayAlignItems: AlignItems = alignItems === "stretch" ? "flex-start" : alignItems;
   const defaultGridItem = GRID.row[0]?.[0];
 
   const getGridItem = (rowIndex: number, columnIndex: number): GridItem => {
@@ -125,7 +127,7 @@ export function FlexAlignmentInput({
   };
 
   const isSelected = (itemAlignItems: AlignItems, itemJustify: JustifyContent) =>
-    alignItems === itemAlignItems && justifyContent === itemJustify;
+    displayAlignItems === itemAlignItems && justifyContent === itemJustify;
 
   return (
     // The grid and its options menu are one unit: a fixed-width, self-stretching
@@ -134,7 +136,7 @@ export function FlexAlignmentInput({
     <div className="flex shrink-0 items-stretch gap-1">
       <div className="flex min-h-16 w-22 shrink-0 overflow-hidden rounded-sm bg-input/60">
         {/* Shows a 3x3 grid of alignment options. */}
-        {!isSpaceBetween && !isStretch && (
+        {!isSpaceBetween && (
           <div className="flex flex-1 flex-col">
             {ALIGN_VALUES.map((_, rowIndex) => (
               <div className="flex flex-1 flex-row" key={`row-${rowIndex}-${flexDirection}`}>
@@ -176,7 +178,7 @@ export function FlexAlignmentInput({
           <div className="flex flex-1 flex-col">
             {ALIGN_VALUES.map((_, rowIndex) => {
               const itemAlignItems = getAlignValue(rowIndex);
-              const selected = itemAlignItems === alignItems;
+              const selected = itemAlignItems === displayAlignItems;
 
               return (
                 <div
@@ -209,7 +211,7 @@ export function FlexAlignmentInput({
           <div className="flex flex-1 flex-row items-center">
             {ALIGN_VALUES.map((_, columnIndex) => {
               const itemAlignItems = getAlignValue(columnIndex);
-              const selected = itemAlignItems === alignItems;
+              const selected = itemAlignItems === displayAlignItems;
 
               return (
                 <div
@@ -237,72 +239,6 @@ export function FlexAlignmentInput({
           </div>
         )}
 
-        {/* Stretch mode: children fill the cross axis, so only the MAIN-axis
-            justify position varies. Row → horizontal justify strip. */}
-        {isStretch && flexDirection === "row" && (
-          <div className="flex flex-1 flex-row items-center">
-            {ALIGN_VALUES.map((_, columnIndex) => {
-              const itemJustify = getAlignValue(columnIndex);
-              const selected = itemJustify === justifyContent;
-
-              return (
-                <div
-                  className={cn(
-                    "group group relative flex h-full w-7 flex-1 flex-col items-center justify-center py-1 text-gray-400 hover:bg-input/80",
-                    selected && "bg-input/80",
-                  )}
-                  key={`stretch-col-${columnIndex}-${flexDirection}`}
-                  onClick={() =>
-                    onChange({
-                      alignItems: "stretch",
-                      justifyContent: itemJustify,
-                    })
-                  }
-                >
-                  {!selected && <DotIndicator />}
-                  <StretchIllustration
-                    alignItems="stretch"
-                    className={cn(selected ? "flex text-white" : "hidden group-hover:flex")}
-                    direction="row"
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Column → vertical justify strip. */}
-        {isStretch && flexDirection === "column" && (
-          <div className="flex flex-1 flex-col">
-            {ALIGN_VALUES.map((_, rowIndex) => {
-              const itemJustify = getAlignValue(rowIndex);
-              const selected = itemJustify === justifyContent;
-
-              return (
-                <div
-                  className={cn(
-                    "group group relative flex w-21 flex-1 flex-row items-center justify-center py-1 text-gray-400 hover:bg-input/80",
-                    selected && "bg-input/80",
-                  )}
-                  key={`stretch-row-${rowIndex}-${flexDirection}`}
-                  onClick={() =>
-                    onChange({
-                      alignItems: "stretch",
-                      justifyContent: itemJustify,
-                    })
-                  }
-                >
-                  {!selected && <DotIndicator />}
-                  <StretchIllustration
-                    alignItems="stretch"
-                    className={cn(selected ? "flex text-white" : "hidden group-hover:flex")}
-                    direction="column"
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -321,17 +257,6 @@ export function FlexAlignmentInput({
             }
           >
             <span>Space between</span>
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={isStretch}
-            onCheckedChange={() =>
-              onChange({
-                alignItems: isStretch ? "flex-start" : "stretch",
-                justifyContent,
-              })
-            }
-          >
-            <span>Stretch</span>
           </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
       </DropdownMenu>

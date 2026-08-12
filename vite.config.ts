@@ -24,7 +24,9 @@ const reactErgonomicRules = {
  * Packages that carry NO `effect` dependency: plain-TypeScript libraries whose public
  * API is synchronous and signals failure by throwing. `mimic-core` is the zero-dependency
  * CRDT engine underneath `mimic`, `mimic-schema`, `ai-shared` and the backend apps;
- * `paywalls` is the standalone paywall runtime.
+ * `paywalls` is the standalone paywall runtime; `paywall-style-engine` is the pure
+ * style/layout engine shared by the designer, the AI edit path and the renderers, whose
+ * whole point is to be a synchronous pure-function layer over `mimic-schema` + csstype.
  *
  * Every `effect/*` rule is off here, because the only way to satisfy them is to add
  * Effect as a dependency and make each library's API effectful — which would change what
@@ -35,6 +37,7 @@ const nonEffectPackages = [
   "libraries/paywalls/**",
   "packages/mimic-core/**",
   "packages/mimic/**",
+  "packages/paywall-style-engine/**",
 ];
 
 const effectRulesOff = Object.fromEntries(Object.keys(recommended).map((rule) => [rule, "off"]));

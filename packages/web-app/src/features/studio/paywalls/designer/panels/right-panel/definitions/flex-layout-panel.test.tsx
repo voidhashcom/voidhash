@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test } from "vite-plus/test";
 /** Flushes React's coalesced re-render/re-emit microtask. */
 const flush = () => act(async () => {});
 
-import { updateLayoutStyle } from "../../../state/actions";
+import { updateContainerAlignment, updateLayoutStyle } from "../../../state/actions";
 import { seededIds } from "../../../state/testing/offline-document";
 import type { PanelNode } from "../../../panel-runtime/schema";
 import { FlexLayoutPanel } from "./flex-layout-panel";
@@ -130,15 +130,22 @@ describe("FlexLayoutPanel — flex behavior", () => {
     expect(harness.undoDepth()).toBe(1);
   });
 
-  test("alignment grid change writes {alignItems, justifyContent} DIRECT (one undo)", () => {
-    const { harness, nodeIds, calls } = mount([{ type: "view", style: layout() }]);
+  test("alignment grid change routes through updateContainerAlignment DIRECT (one undo)", () => {
+    const { harness, nodeIds } = mount([{ type: "view", style: layout() }]);
+    const alignmentCalls: ActionCall<{
+      nodes: unknown;
+      alignItems: string;
+      justifyContent: string;
+    }>[] = [];
+    restoreWatch.push(watchAction(updateContainerAlignment as never, alignmentCalls as never));
     const grid = findNodeByType(harness.tree().root, "alignmentGrid")!;
     harness.dispatch(grid.id, "onChange", [
       { alignItems: "center", justifyContent: "flex-end" },
     ]);
-    expect(calls[0]!.params).toEqual({
+    expect(alignmentCalls[0]!.params).toEqual({
       nodes: [{ nodeId: nodeIds[0], nodeType: "view" }],
-      style: { alignItems: "center", justifyContent: "flex-end" },
+      alignItems: "center",
+      justifyContent: "flex-end",
     });
     expect(harness.draftActive()).toBe(false);
     expect(harness.undoDepth()).toBe(1);
@@ -167,6 +174,18 @@ describe("FlexLayoutPanel — dimensions", () => {
     const [w] = dimensionFields(harness.tree().root);
     expect(w!.props.mode).toBe("custom");
     expect(w!.props.value).toBe(150);
+  });
+
+  test("fixing one axis leaves the other axis' stored dimension untouched", () => {
+    // Regression: the sizing-repair merge used to leak `width: undefined`
+    // into the patch when only height changed, which deleted the stored
+    // width (re-materializing the "auto" default) and flipped W out of Fixed.
+    const { harness, nodeIds } = mount([{ type: "view", style: layout({ width: 375 }) }]);
+    const [, h] = dimensionFields(harness.tree().root);
+    harness.dispatch(h!.id, "onModeChange", ["custom"]);
+    const style = harness.nodeStyle(nodeIds[0]!);
+    expect(style["width"]).toBe(375);
+    expect(typeof style["height"]).toBe("number");
   });
 
   test("width fill in a row parent: onModeChange('custom') resets flex (main axis)", () => {

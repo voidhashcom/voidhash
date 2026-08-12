@@ -228,7 +228,11 @@ export { updateTextFillStyle } from "./features/text-fill-style-actions";
 export { updateTypographyStyle } from "./features/typography-style-actions";
 export { updateBorderStyle } from "./features/border-style-actions";
 export { updateBorderRadiusStyle } from "./features/border-radius-style-actions";
-export { updateLayoutStyle, applyPerNodeLayoutStyle } from "./features/layout-style-actions";
+export {
+  updateLayoutStyle,
+  updateContainerAlignment,
+  applyPerNodeLayoutStyle,
+} from "./features/layout-style-actions";
 export type { PerNodeLayoutStyle } from "./features/layout-style-actions";
 export { updatePathFillStyle } from "./features/path-fill-style-actions";
 export { updatePathStrokeStyle } from "./features/path-stroke-style-actions";

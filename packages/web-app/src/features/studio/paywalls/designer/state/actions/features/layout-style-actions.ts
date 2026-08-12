@@ -1,4 +1,5 @@
-import type { FlexDirection } from "@voidhash/mimic-schema";
+import { isStatefulNodeType, type AlignItems, type FlexDirection, type JustifyContent } from "@voidhash/mimic-schema";
+import { collapseContainerStretch, expandContainerStretch } from "@voidhash/paywall-style-engine";
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
 import { commander } from "../../designer-commander";
@@ -87,6 +88,39 @@ function alignSelfValue(
   }
 }
 
+interface StretchChildTarget {
+  nodeId: string;
+  nodeType: StyleTarget["nodeType"];
+  style: Record<string, unknown>;
+}
+
+/**
+ * A container's children as engine virtual-stretch views, or `null` when any
+ * child carries no style of its own (component/code-component children make
+ * the container ineligible for stretch collapsing).
+ */
+function stretchChildViews(parent: SnapshotNode): StretchChildTarget[] | null {
+  const views: StretchChildTarget[] = [];
+  for (const child of parent.children ?? []) {
+    if (!isStatefulNodeType(child.type)) return null;
+    views.push({
+      nodeId: child.id,
+      nodeType: child.type as StyleTarget["nodeType"],
+      style: { ...(child.data["style"] as Record<string, unknown>) },
+    });
+  }
+  return views;
+}
+
+function mergeUndo(
+  previousStyles: Map<string, StyleUpdateUndoTarget>,
+  undo: Map<string, StyleUpdateUndoTarget>,
+): void {
+  for (const [nodeId, entry] of undo) {
+    if (!previousStyles.has(nodeId)) previousStyles.set(nodeId, entry);
+  }
+}
+
 /** One node's distinct layout-style patch for {@link applyPerNodeLayoutStyle}. */
 export interface PerNodeLayoutStyle {
   target: StyleTarget;
@@ -139,28 +173,97 @@ export const applyPerNodeLayoutStyle = commander.undoableAction<
 
 export const updateLayoutStyle = commander.undoableAction<
   { nodes: StyleTarget[]; style: Partial<LayoutStyle> },
-  { previousStyles: Map<string, StyleUpdateUndoTarget> }
+  { previousStyles: Map<string, StyleUpdateUndoTarget>; touched: StyleTarget[] }
 >(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
-    let styleToApply = params.style;
 
-    // Normalize sizing properties if needed
-    if (hasSizingUpdates(params.style) && params.nodes.length > 0) {
-      const root: SnapshotNode = selectDocumentRoot(state);
+    // Sizing repair is derived PER NODE from that node's own current style and
+    // parent direction — a multi-selection can span row and column parents, so
+    // a single shared patch would write the wrong `flex`/`alignSelf` pairing
+    // on every node but the one it was derived from.
+    const needsSizingRepair = hasSizingUpdates(params.style) && params.nodes.length > 0;
+    const root: SnapshotNode | null =
+      needsSizingRepair || params.style.alignSelf === "stretch"
+        ? selectDocumentRoot(state)
+        : null;
+    const previousStyles = new Map<string, StyleUpdateUndoTarget>();
+    const touched: StyleTarget[] = [...params.nodes];
 
-      // Get the first node's current style and parent direction for normalization
-      const firstTarget = params.nodes[0];
-      if (firstTarget) {
-        const firstNode = findNodeById<SnapshotNode>(root, firstTarget.nodeId);
-        if (firstNode && isStateCapableNode(firstNode)) {
+    for (const target of params.nodes) {
+      let styleToApply = params.style;
+
+      // Virtual stretch, collapse direction: a per-child Fill (alignSelf:
+      // "stretch") that makes EVERY child of the container explicitly stretch
+      // canonicalizes to the CSS identity — parent alignItems: "stretch" with
+      // the redundant child markers cleared. Planned BEFORE the write from the
+      // committed snapshot, so the child never round-trips through "stretch".
+      // Skipped while a state override is being edited (parent/sibling
+      // coupling across state layers is undefined).
+      if (
+        root &&
+        styleToApply.alignSelf === "stretch" &&
+        getSelectedStateIdForNode(state.stateOverrideSelection, target.nodeId) === null
+      ) {
+        const parent = findParentNode<SnapshotNode>(root, target.nodeId);
+        if (parent && isFlexParent(parent) && isStateCapableNode(parent)) {
+          const children = stretchChildViews(parent);
+          const plan = children
+            ? collapseContainerStretch(
+                { ...(parent.data["style"] as Record<string, unknown>) },
+                children,
+                new Map([[target.nodeId, { alignSelf: "stretch" }]]),
+              )
+            : null;
+          if (plan && children) {
+            styleToApply = { ...styleToApply, alignSelf: "auto" };
+            if (Object.keys(plan.parentPatch).length > 0) {
+              const parentTarget: StyleTarget = {
+                nodeId: parent.id,
+                nodeType: parent.type as StyleTarget["nodeType"],
+              };
+              touched.push(parentTarget);
+              mergeUndo(
+                previousStyles,
+                applyStyleUpdate(
+                  mimic,
+                  [parentTarget],
+                  plan.parentPatch,
+                  state.stateOverrideSelection,
+                  ctx.transaction,
+                ),
+              );
+            }
+            for (const child of children) {
+              const childPatch = plan.childPatches.get(child.nodeId);
+              if (!childPatch || child.nodeId === target.nodeId) continue;
+              const childTarget: StyleTarget = { nodeId: child.nodeId, nodeType: child.nodeType };
+              touched.push(childTarget);
+              mergeUndo(
+                previousStyles,
+                applyStyleUpdate(
+                  mimic,
+                  [childTarget],
+                  childPatch,
+                  state.stateOverrideSelection,
+                  ctx.transaction,
+                ),
+              );
+            }
+          }
+        }
+      }
+
+      if (root && needsSizingRepair) {
+        const node = findNodeById<SnapshotNode>(root, target.nodeId);
+        if (node && isStateCapableNode(node)) {
           const selectedStateId = getSelectedStateIdForNode(
             state.stateOverrideSelection,
-            firstTarget.nodeId,
+            target.nodeId,
           );
-          const currentStyle = resolveEffectiveStyle(firstNode, selectedStateId);
-          const parentDirection = getParentFlexDirection(root, firstTarget.nodeId);
+          const currentStyle = resolveEffectiveStyle(node, selectedStateId);
+          const parentDirection = getParentFlexDirection(root, target.nodeId);
 
           // `null` width/height/flex updates are legacy "clear" inputs from
           // the panels; normalizeFlexSizing treats them as explicit values.
@@ -180,22 +283,103 @@ export const updateLayoutStyle = commander.undoableAction<
             parentDirection,
           );
 
-          styleToApply = { ...params.style, ...normalizedUpdates };
+          // Merge ONLY the keys the repair actually produced. The repair input
+          // materializes all four sizing keys (absent ones as `undefined`), and
+          // an `undefined` that leaks into the patch reads as "delete this
+          // field" downstream — deleting e.g. width re-materializes its schema
+          // default and silently flips the OTHER axis out of Fixed.
+          const merged: Record<string, unknown> = { ...params.style };
+          for (const [key, value] of Object.entries(normalizedUpdates)) {
+            if (value !== undefined) merged[key] = value;
+          }
+          styleToApply = merged as Partial<LayoutStyle>;
         }
       }
-    }
 
-    return {
-      previousStyles: applyStyleUpdate<LayoutStyle>(
+      const nodeUndo = applyStyleUpdate<LayoutStyle>(
         mimic,
-        params.nodes,
+        [target],
         styleToApply,
         state.stateOverrideSelection,
         ctx.transaction,
-      ),
-    };
+      );
+      mergeUndo(previousStyles, nodeUndo);
+    }
+
+    return { previousStyles, touched };
   },
   (ctx, params, result) => {
-    undoStyleUpdate(ctx.getState().mimic, params.nodes, result.previousStyles, ctx.transaction);
+    undoStyleUpdate(ctx.getState().mimic, result.touched, result.previousStyles, ctx.transaction);
+  },
+);
+
+/**
+ * Sets a container's alignment through the engine's virtual-stretch EXPAND
+ * transform: leaving `alignItems: "stretch"` first marks every
+ * container-driven filling child with an explicit `alignSelf: "stretch"`, so
+ * the layout does not move and each child's Fill stays individually
+ * revocable. One undo entry covers the parent and every touched child. State
+ * override edits write the plain alignment to the override layer only.
+ */
+export const updateContainerAlignment = commander.undoableAction<
+  { nodes: StyleTarget[]; alignItems: AlignItems; justifyContent: JustifyContent },
+  { previousStyles: Map<string, StyleUpdateUndoTarget>; touched: StyleTarget[] }
+>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    const { mimic } = state;
+    const root: SnapshotNode = selectDocumentRoot(state);
+    const previousStyles = new Map<string, StyleUpdateUndoTarget>();
+    const touched: StyleTarget[] = [];
+
+    for (const target of params.nodes) {
+      const node = findNodeById<SnapshotNode>(root, target.nodeId);
+      const stateId = getSelectedStateIdForNode(state.stateOverrideSelection, target.nodeId);
+      let parentPatch: Record<string, unknown> = {
+        alignItems: params.alignItems,
+        justifyContent: params.justifyContent,
+      };
+      let childPatches: ReadonlyMap<string, Record<string, unknown>> = new Map();
+      let children: StretchChildTarget[] = [];
+
+      if (node && isStateCapableNode(node) && stateId === null) {
+        children = stretchChildViews(node) ?? [];
+        const plan = expandContainerStretch(
+          { ...(node.data["style"] as Record<string, unknown>) },
+          children,
+          params.alignItems,
+        );
+        parentPatch = { ...plan.parentPatch, justifyContent: params.justifyContent };
+        childPatches = plan.childPatches;
+      }
+
+      touched.push(target);
+      mergeUndo(
+        previousStyles,
+        applyStyleUpdate(mimic, [target], parentPatch, state.stateOverrideSelection, ctx.transaction),
+      );
+
+      for (const child of children) {
+        const childPatch = childPatches.get(child.nodeId);
+        if (!childPatch) continue;
+        const childTarget: StyleTarget = { nodeId: child.nodeId, nodeType: child.nodeType };
+        touched.push(childTarget);
+        mergeUndo(
+          previousStyles,
+          applyStyleUpdate(
+            mimic,
+            [childTarget],
+            childPatch,
+            state.stateOverrideSelection,
+            ctx.transaction,
+          ),
+        );
+      }
+    }
+
+    return { previousStyles, touched };
+  },
+  (ctx, params, result) => {
+    undoStyleUpdate(ctx.getState().mimic, result.touched, result.previousStyles, ctx.transaction);
   },
 );

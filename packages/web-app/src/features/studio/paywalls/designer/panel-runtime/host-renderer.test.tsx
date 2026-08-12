@@ -627,7 +627,7 @@ describe("host-renderer — event dispatch", () => {
     });
   });
 
-  test("alignmentGrid in stretch mode emits {alignItems: 'stretch', justifyContent}", () => {
+  test("alignmentGrid with a stretch parent renders the plain grid; a cell click emits its explicit alignment", () => {
     const tree = decodeOrThrow({
       version: PANEL_TREE_VERSION,
       root: {
@@ -652,13 +652,17 @@ describe("host-renderer — event dispatch", () => {
     });
     const { transport, dispatched } = stubTransport(tree);
     const { container } = renderPanel(<PanelTreeView transport={transport} />);
-    // Stretch mode renders the justify-only strip; clicking a cell keeps
-    // alignItems stretch and writes the picked justifyContent.
+    // Virtual stretch: `alignItems: "stretch"` is no longer a grid state —
+    // the grid renders as 3x3 with no selection, and picking a cell emits
+    // that cell's explicit alignment (the host expands filling children).
     const cell = container.querySelector(".group.relative");
     expect(cell).toBeTruthy();
     fireEvent.click(cell!);
     const change = dispatched.find((e) => e.name === "onChange");
-    expect(change?.args[0]).toMatchObject({ alignItems: "stretch" });
+    expect(change?.args[0]).toMatchObject({
+      alignItems: "flex-start",
+      justifyContent: "flex-start",
+    });
   });
 
   /**

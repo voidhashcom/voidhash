@@ -1,5 +1,12 @@
 import type { AlignItems, AlignSelf, FlexDirection } from "@voidhash/mimic-schema";
 import {
+  deriveAxisSizing,
+  fixedAlignSelf,
+  hugAlignSelf as engineHugAlignSelf,
+  sizingModePatch,
+  stretchDirectionFor as engineStretchDirectionFor,
+} from "@voidhash/paywall-style-engine";
+import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -52,24 +59,18 @@ export interface DimensionFieldProps {
 
 /**
  * The parent flex direction under which this axis is stretched via `alignSelf`
- * (rather than `flex: 1`). Width stretches in a column parent, height in a row
- * parent; along the main axis, fill is expressed as `flex: 1`.
+ * (rather than `flex: 1`). Delegates to the style engine's sizing model.
  */
 export function stretchDirectionFor(axis: DimensionAxis): FlexDirection {
-  return axis === "width" ? "column" : "row";
+  return engineStretchDirectionFor(axis);
 }
 
 /**
- * Derives the fill/hug/custom mode for one axis from a node's flex sizing style,
- * its parent's flex direction, and the parent's `alignItems`. Exported so a panel
- * DEFINITION can compute the wire `mode` for a `dimensionField` node author-side.
- *
- * CSS ground truth: a child fills its CROSS axis iff its resolved alignment is
- * stretch AND its cross size is `auto`. So on the cross axis a numeric size wins
- * (custom, checked first); an `auto` size fills when `alignSelf` is `"stretch"`,
- * or when `alignSelf` is `"auto"` and the parent's `alignItems` is `"stretch"`;
- * otherwise it hugs. On the MAIN axis `flex: 1` fills, `auto` hugs, numeric is
- * custom.
+ * Derives the fill/hug/custom mode for one axis via the style engine's
+ * {@link deriveAxisSizing} (the single owner of the CSS sizing ground truth).
+ * Exported so a panel DEFINITION can compute the wire `mode` for a
+ * `dimensionField` node author-side. The engine calls the numeric mode
+ * `"fixed"`; the panel vocabulary keeps its historical `"custom"` name.
  */
 export function getDimensionState(
   axis: DimensionAxis,
@@ -77,53 +78,27 @@ export function getDimensionState(
   parentDirection: FlexDirection,
   parentAlignItems: AlignItems = "stretch",
 ): DimensionState {
-  const stretchDirection = stretchDirectionFor(axis);
-  const size = node[axis];
-
-  if (parentDirection === stretchDirection) {
-    // Cross axis.
-    if (size !== "auto") {
-      return "custom";
-    }
-    if (
-      node.alignSelf === "stretch" ||
-      (node.alignSelf === "auto" && parentAlignItems === "stretch")
-    ) {
-      return "fill";
-    }
-    return "hug";
-  }
-
-  // Main axis.
-  if (node.flex === 1) {
-    return "fill";
-  }
-  if (size === "auto") {
-    return "hug";
-  }
-  return "custom";
+  const sizing = deriveAxisSizing(axis, node as Record<string, unknown>, {
+    direction: parentDirection,
+    alignItems: parentAlignItems,
+  });
+  return sizing.mode === "fixed" ? "custom" : sizing.mode;
 }
 
 /**
- * The `alignSelf` to write when switching a CROSS-axis dimension to Hug:
- * preserve an explicit non-stretch alignment; otherwise opt out of a
- * stretch-by-default parent with `"flex-start"` (so Hug is actually reachable —
- * an `"auto"` child would keep stretching); otherwise `"auto"`.
+ * The `alignSelf` to write when switching a CROSS-axis dimension to Hug.
+ * Delegates to the style engine.
  */
 export function hugAlignSelf(currentAlignSelf: AlignSelf, parentAlignItems: AlignItems): AlignSelf {
-  if (currentAlignSelf !== "auto" && currentAlignSelf !== "stretch") {
-    return currentAlignSelf;
-  }
-  return parentAlignItems === "stretch" ? "flex-start" : "auto";
+  return engineHugAlignSelf(currentAlignSelf, parentAlignItems);
 }
 
 /**
  * The `alignSelf` to write when giving a CROSS-axis dimension a numeric (Fixed)
- * size: numeric size defeats stretch, so clear an `auto`/`stretch` alignSelf to
- * `"auto"` while preserving any explicit alignment the author chose.
+ * size. Delegates to the style engine.
  */
 export function customAlignSelf(currentAlignSelf: AlignSelf): AlignSelf {
-  return currentAlignSelf === "stretch" || currentAlignSelf === "auto" ? "auto" : currentAlignSelf;
+  return fixedAlignSelf(currentAlignSelf);
 }
 
 /** A flex-sizing style patch a fill/hug/custom mode switch writes. */
@@ -136,10 +111,10 @@ export interface DimensionModeWrite {
 }
 
 /**
- * The style patch to write when a dimension axis switches fill/hug/custom mode —
- * the single source of truth for the CSS-correct `alignSelf`/`flex` pairing on
- * both axes, shared by the kit component and the wire panel definitions so they
- * never drift.
+ * The style patch to write when a dimension axis switches fill/hug/custom mode.
+ * Delegates to the style engine's {@link sizingModePatch} — the single owner of
+ * the CSS-correct `alignSelf`/`flex` pairing on both axes — shared by the kit
+ * component and the wire panel definitions so they never drift.
  */
 export function dimensionModeWrite(
   axis: DimensionAxis,
@@ -151,31 +126,11 @@ export function dimensionModeWrite(
     currentAlignSelf: AlignSelf;
   },
 ): DimensionModeWrite {
-  const isStretchParent = opts.parentDirection === stretchDirectionFor(axis);
-  const patch: DimensionModeWrite = {};
-
-  if (mode === "fill") {
-    patch[axis] = "auto";
-    if (isStretchParent) patch.alignSelf = "stretch";
-    else patch.flex = 1;
-    return patch;
-  }
-
-  if (mode === "hug") {
-    patch[axis] = "auto";
-    if (isStretchParent) {
-      patch.alignSelf = hugAlignSelf(opts.currentAlignSelf, opts.parentAlignItems);
-    } else {
-      patch.flex = undefined;
-    }
-    return patch;
-  }
-
-  // custom
-  patch[axis] = opts.effectivePx;
-  if (isStretchParent) patch.alignSelf = customAlignSelf(opts.currentAlignSelf);
-  else patch.flex = undefined;
-  return patch;
+  return sizingModePatch(axis, mode === "custom" ? "fixed" : mode, {
+    fixedPx: opts.effectivePx,
+    parent: { direction: opts.parentDirection, alignItems: opts.parentAlignItems },
+    currentAlignSelf: opts.currentAlignSelf,
+  }) as DimensionModeWrite;
 }
 
 /**

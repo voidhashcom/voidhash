@@ -61,6 +61,7 @@
     "@voidhash/paywall-builtins": "workspace:*",
     "@voidhash/paywall-renderer-preact": "workspace:*",
     "@voidhash/paywall-renderer-web-core": "workspace:*",
+    "@voidhash/paywall-style-engine": "workspace:*",
     "@voidhash/paywall-workspace": "workspace:*",
     "@voidhash/paywalls": "workspace:*",
     "@voidhash/rpc": "workspace:*",

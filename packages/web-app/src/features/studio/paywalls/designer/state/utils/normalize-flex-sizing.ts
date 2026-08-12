@@ -1,4 +1,5 @@
 import type { FlexDirection } from "@voidhash/mimic-schema";
+import { repairFlexSizing } from "@voidhash/paywall-style-engine";
 
 interface FlexSizingProps {
   /** `"auto"` = hug contents (the stored style shape). */
@@ -14,59 +15,44 @@ interface FlexSizingProps {
 }
 
 /**
- * Normalizes flex sizing properties to prevent conflicts.
- * Call this when updating width, height, flex, or alignSelf.
+ * Normalizes flex sizing properties to prevent conflicts. Call this when
+ * updating width, height, flex, or alignSelf — per node, against that node's
+ * OWN current style and parent direction.
  *
- * Rules:
- * - Numeric width + column parent -> clear alignSelf: "stretch" to "auto"
- * - Numeric width + row parent -> clear flex (delete the field)
- * - Numeric height + row parent -> clear alignSelf: "stretch" to "auto"
- * - Numeric height + column parent -> clear flex (delete the field)
- *
- * Under stretch-by-default (`alignItems: "stretch"` is the schema default), an
- * `alignSelf: "auto"` child with an auto cross size ALSO fills its cross axis —
- * container-driven stretch. This normalizer only touches the EXPLICIT
- * `alignSelf: "stretch"` marker, which is intentional: giving a numeric cross
- * size defeats stretch regardless of container alignment, so clearing an
- * explicit "stretch" to "auto" (and leaving container-driven "auto" alone) keeps
- * the stored style honest without fighting the CSS-correct default.
+ * The invariant repair itself lives in the style engine
+ * ({@link repairFlexSizing}): a fixed cross-axis size clears an explicit
+ * `alignSelf: "stretch"` (container-driven stretch via `"auto"` is left
+ * alone), and a fixed main-axis size deletes `flex`. This adapter keeps the
+ * legacy call signature and null-clear sentinel for the existing call sites.
  */
 export function normalizeFlexSizing(
   updates: FlexSizingProps,
   current: FlexSizingProps,
   parentDirection: FlexDirection | null,
 ): FlexSizingProps {
-  const result = { ...updates };
-
-  // If setting numeric width, clear fill indicators
-  if (updates.width !== undefined && typeof updates.width === "number") {
-    if (parentDirection === "column") {
-      // In column, alignSelf: stretch = fill width
-      if ((updates.alignSelf ?? current.alignSelf) === "stretch") {
-        result.alignSelf = "auto";
-      }
-    } else if (parentDirection === "row") {
-      // In row, flex = fill width
-      if ((updates.flex ?? current.flex) != null) {
-        result.flex = null;
-      }
-    }
+  if (parentDirection === null) {
+    return { ...updates };
   }
 
-  // If setting numeric height, clear fill indicators
-  if (updates.height !== undefined && typeof updates.height === "number") {
-    if (parentDirection === "row") {
-      // In row, alignSelf: stretch = fill height
-      if ((updates.alignSelf ?? current.alignSelf) === "stretch") {
-        result.alignSelf = "auto";
-      }
-    } else if (parentDirection === "column") {
-      // In column, flex = fill height
-      if ((updates.flex ?? current.flex) != null) {
-        result.flex = null;
-      }
-    }
+  const patch: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) patch[key] = value;
   }
 
+  const { patch: repaired } = repairFlexSizing(patch, {
+    style: current as Record<string, unknown>,
+    // The repair only reads the direction; alignItems is irrelevant to it.
+    parent: { direction: parentDirection, alignItems: "stretch" },
+  });
+
+  const result: FlexSizingProps = { ...updates };
+  if ("alignSelf" in repaired && repaired["alignSelf"] !== patch["alignSelf"]) {
+    result.alignSelf = repaired["alignSelf"] as FlexSizingProps["alignSelf"];
+  }
+  // The engine clears a conflicting flex by writing an `undefined` field
+  // deletion; the legacy vocabulary spells that clear `null`.
+  if ("flex" in repaired && repaired["flex"] === undefined) {
+    result.flex = null;
+  }
   return result;
 }
