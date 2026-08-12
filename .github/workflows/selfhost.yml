@@ -1,28 +1,41 @@
-name: Node Integration Fixture
+# The Compose-stack tiers of `pnpm verify`: the host-side integration tier and
+# the two end-to-end smoke tiers against the built selfhost image — the OSS
+# analog of "smoke against the real deployed artifact". The unit tier runs in
+# Repository CI.
+name: Selfhost Stack
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
+    paths-ignore:
+      - docs/**
+      - "**.md"
   push:
     branches:
       - main
+    paths-ignore:
+      - docs/**
+      - "**.md"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: node-integration-${{ github.head_ref || github.ref }}
+  group: selfhost-stack-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   COMPOSE_PROJECT_NAME: voidhash-node-ci-${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-  smoke:
+  stack:
+    name: Integration and e2e tiers
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 40
+    # A healthy run takes ~5 minutes; the budget is headroom for a cold image
+    # build, not for hangs — the per-step timeouts below catch those first.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +52,16 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+
+      # On a hit the install step below skips the browser download and only
+      # refreshes the system dependencies.
+      - name: Restore Playwright browser cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Install Chromium
         run: pnpm exec playwright-core install --with-deps chromium
@@ -59,29 +82,36 @@ jobs:
           grep -E '^[A-Z][A-Z0-9_]*=' .env >> "$GITHUB_ENV"
 
       - name: Start stateful stores
+        timeout-minutes: 5
         run: docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration up -d minio --wait --wait-timeout 180
 
       - name: Initialize object store
+        timeout-minutes: 3
         run: docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration run --rm minio-init
 
       # The dev overlay publishes PostgreSQL and the compiler, which the
       # host-side integration tier connects to.
       - name: Build and start Community Compose
+        timeout-minutes: 12
         run: docker compose -f test/integration/docker-compose.yml -f test/integration/docker-compose.dev.yml --env-file .env --project-directory test/integration up --build --wait --wait-timeout 180
 
       - name: Reclaim image build cache
         run: docker builder prune --all --force
 
       # Same scripts developers run locally; this workflow owns the stack the
-      # two tiers need. With the unit tier in Repository CI, this completes the
-      # coverage of `pnpm verify`.
+      # three tiers need. With the unit tier in Repository CI, this completes
+      # the coverage of `pnpm verify`. Each tier carries its own timeout so a
+      # wedged suite fails in minutes instead of holding the job to its budget.
       - name: Integration tier
+        timeout-minutes: 8
         run: pnpm test:integration
 
       - name: End-to-end tier
+        timeout-minutes: 6
         run: pnpm test:e2e
 
       - name: End-to-end tier (release)
+        timeout-minutes: 6
         run: pnpm test:e2e:release
 
       # These two run even when the environment step never did, so they stay off
