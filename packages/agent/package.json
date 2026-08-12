@@ -24,6 +24,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck-go": "tsgo --noEmit",
     "test": "vp test run -c vitest.mts",
+    "test:platform": "pnpm test && pnpm test:workerd",
     "test:workerd": "pnpm test:workerd:bundle && pnpm test:workerd:do",
     "test:workerd:bundle": "wrangler deploy tests/workerd-probe.ts --name voidhash-agent-workerd-probe --dry-run --outdir .cache/workerd --compatibility-date 2026-03-17 --compatibility-flags nodejs_compat",
     "test:workerd:do": "node tests/run-workerd-do-probe.mjs"

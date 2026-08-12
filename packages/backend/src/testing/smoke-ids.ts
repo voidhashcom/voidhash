@@ -13,7 +13,35 @@ const normalizeRunId = (runId: string): string => {
   return "default";
 };
 
-export const makeSmokeIds = (runId: string) => {
+/**
+ * The fixture identifiers a smoke run addresses. Fields are plain strings on
+ * purpose: the deployed-stage smoke tier substitutes the real organization and
+ * project ids the stage minted for its run, which no template-literal type
+ * derived from the run id could describe.
+ */
+export interface SmokeIds {
+  readonly adminEmail: string;
+  readonly adminMemberId: string;
+  readonly adminUserId: string;
+  readonly apiKeyId: string;
+  readonly invitedEmail: string;
+  readonly invitedUserId: string;
+  readonly normalEmail: string;
+  readonly normalMemberId: string;
+  readonly normalUserId: string;
+  readonly organizationId: string;
+  readonly organizationSlug: string;
+  readonly projectId: string;
+  readonly projectSlug: string;
+  readonly workosAdminMembershipId: string;
+  readonly workosAdminUserId: string;
+  readonly workosInvitedUserId: string;
+  readonly workosNormalMembershipId: string;
+  readonly workosNormalUserId: string;
+  readonly workosOrganizationId: string;
+}
+
+export const makeSmokeIds = (runId: string): SmokeIds => {
   const suffix = normalizeRunId(runId);
 
   return constant({
@@ -40,8 +68,6 @@ export const makeSmokeIds = (runId: string) => {
     workosOrganizationId: `workos_org_${suffix}`,
   });
 };
-
-export type SmokeIds = ReturnType<typeof makeSmokeIds>;
 
 export const smokeIdsFromEmail = (email: string): SmokeIds | undefined => {
   const match = /^smoke-(?:admin|user|invite)-([a-z0-9]+)@example\.test$/.exec(email);

@@ -39,6 +39,11 @@
       "dependsOn": ["build"],
       "outputs": []
     },
+    "test:platform": {
+      "cache": false,
+      "dependsOn": [],
+      "outputs": []
+    },
     "typecheck": {
       "outputs": [],
       "cache": false

@@ -7,6 +7,7 @@
   "exports": {
     "./AuthSessionResolver": "./src/AuthSessionResolver.ts",
     "./BackendApp": "./src/BackendApp.ts",
+    "./BackendRpcGroups": "./src/BackendRpcGroups.ts",
     "./GooglePubSubPushVerifier": "./src/GooglePubSubPushVerifier.ts",
     "./McpOAuth": "./src/McpOAuth.ts",
     "./PaywallSnapshotHtmlRenderer": "./src/PaywallSnapshotHtmlRenderer.ts",
@@ -16,7 +17,9 @@
     "./ai/WorkspaceAgentModels": "./src/ai/WorkspaceAgentModels.ts",
     "./ai/WorkspaceAgentServices": "./src/ai/WorkspaceAgentServices.ts",
     "./ai/WorkspaceAgentSessionFactory": "./src/ai/WorkspaceAgentSessionFactory.ts",
-    "./routes/event-capture": "./src/routes/event-capture.ts"
+    "./routes/event-capture": "./src/routes/event-capture.ts",
+    "./testing/rpc-smoke-cases": "./src/testing/rpc-smoke-cases.ts",
+    "./testing/smoke-ids": "./src/testing/smoke-ids.ts"
   },
   "scripts": {
     "test": "vp test run -c vitest.unit.mts",

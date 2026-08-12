@@ -11,7 +11,7 @@ export const integrationSuites = [
   { name: "platform", directory: "packages/platform/node" },
   { name: "backend", directory: "apps/backend" },
   { name: "core", directory: "packages/core" },
-  { name: "backend-smoke", directory: "packages/backend" },
+  { name: "backend-rpc", directory: "packages/backend" },
   { name: "agent", directory: "packages/agent" },
   { name: "db", directory: "packages/db" },
 ];

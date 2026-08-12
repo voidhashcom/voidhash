@@ -1,25 +1,28 @@
 /**
- * Backend RPC smoke, run IN-PROCESS against the real backend
- * stack provisioned once by `packages/core/test/_testing/globalSetup.ts` (the
- * same deploy the core service integration tests use). Nothing is deployed or
- * called over the wire here:
+ * The integration-tier backend RPC + webhook suite. It covers the whole backend
+ * request surface — every RPC in `BackendRpcGroups` plus the raw webhook and
+ * SDK routes — and runs IN-PROCESS against the backend stack provisioned once by
+ * `packages/testing/src/integration/globalSetup.ts` (the same deploy the core
+ * service integration tests use). Nothing is deployed or called over the wire
+ * here:
  *
  *  - **RPC cases** dispatch through the production handler graph
  *    (`buildBackendRpcServices`) via `RpcTest.makeClient(RpcGroups)` — an
- *    in-memory client↔server with no HTTP/serialization. The `rpcSmokeCases`
- *    manifest, its payloads, and the `runRpcSmokeCase` runner are reused
- *    unchanged; only the transport differs from the old over-the-wire client.
+ *    in-memory client↔server with no HTTP/serialization.
  *  - **Raw route cases** feed synthetic requests to the real
  *    `buildBackendFetch` route graph via a synthetic `HttpServerRequest`.
  *
- * Infra is real where the deployed stack is real: PostgreSQL
- * are built from the gated `testConnections`. Only the genuine external/platform
- * seams are doubled — `OrgDirectoryPort` is faked so organization RPCs never
- * touch a real directory; payment providers use local stubs; the webhook manager
- * stays a thin DB-backed stub (the production
- * `webhook-rpcs.ts` passes `projectId: ""`, which the tolerant stub accepts).
- * The smoke fixture is seeded in-process via `seedSmokeData` (formerly the
- * `/__test/seed` route).
+ * Infra is real where the deployed stack is real: PostgreSQL is built from the
+ * gated `testConnections`. Only the genuine external/platform seams are doubled,
+ * which is what keeps the suite hermetic — identity is the standalone provider
+ * (no WorkOS call), `OrgDirectoryPort` is faked so organization RPCs never touch
+ * a real directory, payment providers use local stubs, and the webhook manager
+ * stays a thin DB-backed stub (the production `webhook-rpcs.ts` passes
+ * `projectId: ""`, which the tolerant stub accepts). The fixture is seeded
+ * in-process via `seedSmokeData`.
+ *
+ * The over-the-wire counterpart that verifies a DEPLOYED stage lives in the
+ * separate smoke tier; this suite stays in-process and in the integration tier.
  */
 import { constant } from "@voidhash/lib/lang";
 import { Config, Effect, Formatter, Layer, Random, Schema } from "effect";
@@ -73,7 +76,7 @@ import { seedSmokeData } from "./testing/smoke-seed.ts";
  * production/preview stage (where `testConnections` is intentionally withheld).
  */
 /** Signing key for the standalone session tokens this smoke mints. */
-const SMOKE_AUTH_SECRET = "rpc-smoke-standalone-auth-secret";
+const SMOKE_AUTH_SECRET = "backend-rpc-standalone-auth-secret";
 
 const requireTestConnections = (): BackendTestConnections => {
   const tc = inject("coreStackOutput")?.testConnections ?? null;
@@ -81,7 +84,7 @@ const requireTestConnections = (): BackendTestConnections => {
     return Effect.runSync(
       Effect.die(
         new Error(
-          "rpc-smoke: shared deploy output missing or testConnections is null — globalSetup failed, or it ran on a production/preview stage.",
+          "backend-rpc: shared deploy output missing or testConnections is null — globalSetup failed, or it ran on a production/preview stage.",
         ),
       ),
     );
@@ -101,7 +104,7 @@ const SmokePaywallArtifactStoreLive = Layer.sync(PaywallArtifactStore, () => {
     { readonly body: Uint8Array; readonly contentType: string | null }
   >();
   return PaywallArtifactStore.of({
-    bucketName: "rpc-smoke-paywall-artifacts",
+    bucketName: "backend-rpc-paywall-artifacts",
     getObject: (key) => Effect.succeed(objects.get(key) ?? null),
     head: (key) => {
       const object = objects.get(key);
@@ -244,11 +247,11 @@ const runRpcSmokeCase = (
 
 /**
  * Run id that namespaces the seeded fixtures so independent runs against the
- * shared database don't collide; set `VOIDHASH_RPC_SMOKE_RUN_ID` to reproduce a
- * specific run.
+ * shared database don't collide; set `VOIDHASH_BACKEND_RPC_RUN_ID` to reproduce
+ * a specific run.
  */
 const rawRunId = Effect.runSync(
-  Config.string("VOIDHASH_RPC_SMOKE_RUN_ID").pipe(
+  Config.string("VOIDHASH_BACKEND_RPC_RUN_ID").pipe(
     Config.withDefault(""),
     Effect.orDie,
     Effect.flatMap((configured) => {

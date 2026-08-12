@@ -1,3 +1,22 @@
+/**
+ * The single per-RPC happy-path case manifest. Two suites consume it, and both
+ * must keep working when a case is added here:
+ *
+ *  - the integration-tier in-process suite
+ *    (`src/backend-rpc.integration.test.ts`), which dispatches the cases through
+ *    `RpcTest.makeClient` against the sidecar deploy, and
+ *  - the deployed-stage smoke suite (`apps/backend/test/smoke/`, mono side),
+ *    which dispatches the same cases over real HTTP against a deployed stage.
+ *
+ * Cases are ORDER-DEPENDENT: they thread ids through the mutable
+ * {@link RpcSmokeContext} (`afterSuccess` writes what a later case reads), so a
+ * runner must execute them sequentially in manifest order.
+ *
+ * Any resource a case creates OUTSIDE the run-scoped project (organizations and
+ * projects) must be named `smoke-${runId}-…`. The deployed suite's leak sweeper
+ * recognises stale runs by that prefix and by the timestamp encoded in `runId`;
+ * a differently named organization or project can never be reaped.
+ */
 import { constant } from "@voidhash/lib/lang";
 import { Effect } from "effect";
 
@@ -123,14 +142,14 @@ export const rpcSmokeCases = [
       context.extraOrganizationId = expectStringField(result, "CreateOrganization", "id");
     },
     expected: success,
-    payload: ({ runId }) => ({ name: `Smoke Extra Org ${runId}` }),
+    payload: ({ runId }) => ({ name: `smoke-${runId}-extra-org` }),
     role: "admin",
     tag: "CreateOrganization",
   },
   {
     expected: success,
     payload: ({ extraOrganizationId, runId }) => ({
-      name: `Smoke Extra Org Updated ${runId}`,
+      name: `smoke-${runId}-extra-org-updated`,
       organizationId: extraOrganizationId,
     }),
     role: "admin",
@@ -145,7 +164,7 @@ export const rpcSmokeCases = [
   {
     expected: success,
     payload: ({ ids, runId }) => ({
-      name: `Smoke Extra Project ${runId}`,
+      name: `smoke-${runId}-extra-project`,
       organizationId: ids.organizationId,
     }),
     role: "admin",
@@ -161,7 +180,7 @@ export const rpcSmokeCases = [
     expected: success,
     payload: ({ ids, runId }) => ({
       id: ids.projectId,
-      name: `Smoke Extra Project Updated ${runId}`,
+      name: `smoke-${runId}-project-updated`,
     }),
     role: "admin",
     tag: "UpdateProject",
@@ -789,8 +808,12 @@ export const rpcSmokeCases = [
   },
 ] satisfies ReadonlyArray<RpcSmokeCase>;
 
-/** Existing RPC smoke coverage debt; entries may only be removed as cases are added. */
-const knownMissingRpcSmokeTags = new Set([
+/**
+ * Existing RPC smoke coverage debt; entries may only be removed as cases are
+ * added. Exported so the deployed-stage smoke tier's endpoint registry check can
+ * report an unmapped RPC as *tracked debt* instead of a silent gap.
+ */
+export const knownMissingRpcSmokeTags = new Set([
   "ListAgentSessions",
   "GetAgentSession",
   "DeleteAgentSession",

@@ -19,7 +19,8 @@
     "start:compiler": "tsx src/compiler/main.ts",
     "start:mimic": "tsx src/mimic/main.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vp test run -c vitest.mts"
+    "test": "vp test run -c vitest.mts",
+    "test:platform": "pnpm test"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
