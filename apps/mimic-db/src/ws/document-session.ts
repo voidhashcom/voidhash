@@ -107,7 +107,11 @@ export const isolateSessionHook = <A>(
   label: string,
 ): Effect.Effect<A | void> =>
   effect.pipe(
-    Effect.catchCause((cause) => Effect.logError(`mimic session hook ${label} failed`, cause)),
+    Effect.catchCause((cause) =>
+      Effect.logError(`mimic session hook ${label} failed`, cause).pipe(
+        Effect.annotateLogs({ "voidhash.mimic.session_hook": label }),
+      ),
+    ),
   );
 
 /** Fans a message out to authenticated sessions only. */

@@ -226,7 +226,11 @@ export const ensureDocumentTables = (config: PgDocumentConfig): Effect.Effect<vo
     Effect.provide(clientLayer(config)),
     Effect.scoped,
     // Log the structured SQL failure before `orDie` turns it into a defect.
-    Effect.tapError((error) => Effect.logError("mimic-db: ensuring document tables failed", error)),
+    Effect.tapError((error) =>
+      Effect.logError("mimic-db: ensuring document tables failed", error).pipe(
+        Effect.annotateLogs({ "voidhash.mimic.operation": "ensureDocumentTables" }),
+      ),
+    ),
     Effect.orDie,
   );
 
@@ -243,13 +247,23 @@ export const makePgDocumentStore = (
   documentId: string,
 ): DocumentStoreApi => {
   const layer = clientLayer(config);
-  const run = <A, E>(effect: Effect.Effect<A, E, SqlClient.SqlClient>): Effect.Effect<A> =>
+  const run = <A, E>(
+    operation: string,
+    effect: Effect.Effect<A, E, SqlClient.SqlClient>,
+  ): Effect.Effect<A> =>
     effect.pipe(
       Effect.provide(layer),
       Effect.scoped,
       // Log the structured SQL failure before `orDie` turns it into a defect.
+      // The store operation + document id are annotated (not folded into the
+      // message) so the failures stay groupable in the logs pipeline.
       Effect.tapError((error) =>
-        Effect.logError("mimic-db: Postgres document-store operation failed", error),
+        Effect.logError("mimic-db: Postgres document-store operation failed", error).pipe(
+          Effect.annotateLogs({
+            "voidhash.mimic.operation": operation,
+            "voidhash.mimic.document_id": documentId,
+          }),
+        ),
       ),
       Effect.orDie,
     );
@@ -257,6 +271,7 @@ export const makePgDocumentStore = (
   return {
     readMeta: () =>
       run(
+        "readMeta",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           const rows = yield* sql<MetaSqlRow>`
@@ -280,6 +295,7 @@ export const makePgDocumentStore = (
 
     initialize: (collectionId, value, schemaVersion, migrationVersion) =>
       run(
+        "initialize",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           yield* sql`DELETE FROM mimic_document_commands WHERE document_id = ${documentId}`;
@@ -298,6 +314,7 @@ export const makePgDocumentStore = (
 
     loadLatestSnapshot: () =>
       run(
+        "loadLatestSnapshot",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           const rows = yield* sql<SnapshotSqlRow>`
@@ -317,6 +334,7 @@ export const makePgDocumentStore = (
 
     listCommandsAfter: (seq) =>
       run(
+        "listCommandsAfter",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           const rows = yield* sql<CommandSqlRow>`
@@ -337,6 +355,7 @@ export const makePgDocumentStore = (
 
     appendCommands: (fromSeq, commands: readonly Command[], txId) =>
       run(
+        "appendCommands",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           yield* Effect.forEach(
@@ -353,6 +372,7 @@ export const makePgDocumentStore = (
 
     writeSnapshot: (seq, value, schemaVersion) =>
       run(
+        "writeSnapshot",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           // Upsert: migrate-on-load rewrites the snapshot at the current seq
@@ -368,6 +388,7 @@ export const makePgDocumentStore = (
 
     commitMigration: (seq, value, schemaVersion, migrationVersion) =>
       run(
+        "commitMigration",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           yield* sql.withTransaction(
@@ -390,6 +411,7 @@ export const makePgDocumentStore = (
 
     setMeta: (patch) =>
       run(
+        "setMeta",
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
           if (patch.currentSeq !== undefined) {

@@ -680,6 +680,11 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
         }) {
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.paywall_location.slug", input.locationSlug);
+          // Every return path stamps a resolution outcome: an SDK miss answers
+          // 200 + null, so without it a dark location is indistinguishable from
+          // a served one in telemetry.
+          const annotateResolution = (resolution: "found" | "location_missing" | "no_showing") =>
+            Effect.annotateCurrentSpan("voidhash.paywall_location.resolution", resolution);
           const location = yield* db.query.paywallLocations.findFirst({
             where: {
               projectId: input.projectId,
@@ -688,6 +693,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             },
           });
           if (!location) {
+            yield* annotateResolution("location_missing");
             return null;
           }
           yield* Effect.annotateCurrentSpan("voidhash.paywall_location.id", location.id);
@@ -700,6 +706,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
               with: { paywall: true, paywallRelease: true },
             });
           if (!activeShowing) {
+            yield* annotateResolution("no_showing");
             return null;
           }
           yield* Effect.annotateCurrentSpan(
@@ -718,6 +725,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
           // runtime); we return the context it needs.
           if (showingLabel === "feature_flag") {
             if (!activeShowing.featureFlagId) {
+              yield* annotateResolution("no_showing");
               return null;
             }
             const assignment = yield* experimentService.assignVariant({
@@ -727,6 +735,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
               distinctId: input.distinctId,
             });
             if (!assignment) {
+              yield* annotateResolution("no_showing");
               return null;
             }
             const entryFrom = (payload: unknown): ExperimentPaywallEntry | undefined => {
@@ -757,6 +766,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
               entry = entryFrom(assignment.controlPayload);
             }
             if (!entry) {
+              yield* annotateResolution("no_showing");
               return null;
             }
 
@@ -781,6 +791,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
               });
             }
             if (!release || !release.paywall || release.paywall.projectId !== input.projectId) {
+              yield* annotateResolution("no_showing");
               return null;
             }
             yield* Effect.annotateCurrentSpan("voidhash.paywall.id", release.paywall.id);
@@ -809,6 +820,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
                 runtimeConfig: release.runtimeConfig,
               },
             };
+            yield* annotateResolution("found");
             return {
               location: locationView,
               showing: toShowingView(synthetic, assetConfig),
@@ -817,9 +829,11 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
           }
 
           if (showingLabel !== "paywall_release") {
+            yield* annotateResolution("no_showing");
             return null;
           }
           if (!activeShowing.paywall || !activeShowing.paywallRelease) {
+            yield* annotateResolution("no_showing");
             return null;
           }
           if (activeShowing.paywallId) {
@@ -831,6 +845,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
               activeShowing.paywallReleaseId,
             );
           }
+          yield* annotateResolution("found");
           return {
             location: locationView,
             showing: toShowingView(activeShowing, assetConfig),

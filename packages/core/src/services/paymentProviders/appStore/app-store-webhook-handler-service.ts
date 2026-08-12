@@ -175,6 +175,9 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           if (!notificationDecodeResult.ok) {
             const error = notificationDecodeResult.error;
             if (hasErrorTag(error, "VerificationError")) {
+              yield* Effect.annotateCurrentSpan({
+                "app_store.webhook_result": "verification_rejected",
+              });
               yield* Effect.logWarning(
                 "App Store notification rejected as terminal verification failure",
                 {

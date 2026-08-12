@@ -191,7 +191,7 @@ export interface BackendRuntimeLayers<
   readonly auth: Layer.Layer<
     AuthMiddleware,
     never,
-    Db | IdentityProvider | LocalUserSessionService
+    ApiKeyService | Db | IdentityProvider | LocalUserSessionService
   >;
   /**
    * Raw routes contributed by the composition root, mounted alongside the

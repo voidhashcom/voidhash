@@ -85,8 +85,15 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
       const httpClient = yield* HttpClient.HttpClient;
 
       /** Sign and POST the payload, capturing the outcome. Never fails. */
-      const send = (input: DeliverWebhookInput): Effect.Effect<SendWebhookResult> =>
-        Effect.gen(function* () {
+      const send = Effect.fn("webhookDelivery.attempt")(
+        function* (input: DeliverWebhookInput) {
+          yield* Effect.annotateCurrentSpan("voidhash.webhook.delivery.id", input.deliveryId);
+          yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.webhook.delivery.attempt_number",
+            input.attemptNumber,
+          );
+          yield* Effect.annotateCurrentSpan("voidhash.webhook.event_type", input.eventType);
           const nowMillis = yield* Clock.currentTimeMillis;
           const timestamp = Math.floor(nowMillis / 1000).toString();
           const payloadString = encodeJsonBody(input.payload);
@@ -117,7 +124,7 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
 
           // A transport failure (or the 30s cap) is not a defect: it is captured
           // as a non-succeeded result so the workflow can decide to retry.
-          return yield* post.pipe(
+          const result: SendWebhookResult = yield* post.pipe(
             Effect.timeout(REQUEST_TIMEOUT),
             Effect.catch((error) =>
               Effect.gen(function* () {
@@ -131,7 +138,24 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
               }),
             ),
           );
-        });
+
+          if (result.statusCode !== null) {
+            yield* Effect.annotateCurrentSpan(
+              "voidhash.webhook.delivery.status_code",
+              result.statusCode,
+            );
+          }
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.webhook.delivery.duration_ms",
+            result.durationMs,
+          );
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.webhook.delivery.succeeded",
+            result.succeeded,
+          );
+          return result;
+        },
+      );
 
       /** Persist the result of a single attempt against the delivery. */
       const recordAttempt = (input: DeliverWebhookInput, result: SendWebhookResult) =>
@@ -192,8 +216,21 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
         });
 
       /** Mark the delivery exhausted once the retry schedule is depleted. */
-      const markExhausted = (input: DeliverWebhookInput) =>
-        Effect.gen(function* () {
+      const markExhausted = Effect.fn("webhookDelivery.exhausted")(
+        function* (input: DeliverWebhookInput) {
+          yield* Effect.annotateCurrentSpan("voidhash.webhook.delivery.id", input.deliveryId);
+          yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.webhook.delivery.attempt_number",
+            input.attemptNumber,
+          );
+          yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.exhausted", "true");
+          yield* Effect.logError("webhook delivery exhausted", {
+            attemptNumber: input.attemptNumber,
+            deliveryId: input.deliveryId,
+            endpointId: input.endpointId,
+            eventType: input.eventType,
+          });
           const completedAt = yield* DateTime.nowAsDate;
           yield* db
             .update(webhookDeliveries)
@@ -209,7 +246,8 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
             .update(webhookEndpoints)
             .set({ consecutiveFailures: input.attemptNumber })
             .where(eq(webhookEndpoints.id, input.endpointId));
-        });
+        },
+      );
 
       /**
        * Retry time for `attemptNumber`, or `null` once the backoff schedule is

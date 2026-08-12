@@ -115,6 +115,12 @@ export const makeIdleNotifier = (deps: IdleNotifyDeps): IdleNotifier => {
         yield* Effect.logError(
           `mimic idle-notify publish failed for ${deps.collectionId}:${deps.documentId}`,
           published.failure,
+        ).pipe(
+          Effect.annotateLogs({
+            "voidhash.mimic.operation": "idleNotify.publish",
+            "voidhash.mimic.collection_id": deps.collectionId,
+            "voidhash.mimic.document_id": deps.documentId,
+          }),
         );
         return;
       }

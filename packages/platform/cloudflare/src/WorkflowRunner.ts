@@ -80,8 +80,26 @@ const provideRuntime = <A, E, R>(
     Effect.provideService(WorkflowRunner, runner),
   );
 
+/** Observability wiring for the Cloudflare Workflows adapter. */
+export interface WorkflowRunnerTelemetryOptions {
+  /**
+   * Exporter layer provided around each workflow run body AND around each
+   * durable step.
+   *
+   * The per-STEP provide is the load-bearing one: steps are separated by
+   * durable sleeps and instance evictions, so a run-scoped exporter would be
+   * frozen (and its buffer lost) at the first durable boundary. Defaults to
+   * `Layer.empty`, which leaves workflows on Effect's free no-op tracer.
+   */
+  readonly telemetry?: Layer.Layer<never>;
+}
+
 /** Builds a Cloudflare Workflows adapter for one Worker initialization. */
-export const make = (runtimeContext: BaseRuntimeContext): WorkflowRunnerShape => {
+export const make = (
+  runtimeContext: BaseRuntimeContext,
+  options: WorkflowRunnerTelemetryOptions = {},
+): WorkflowRunnerShape => {
+  const telemetry = options.telemetry ?? Layer.empty;
   const handles = new Map<string, Handle>();
   let runner: WorkflowRunnerShape;
 
@@ -113,6 +131,14 @@ export const make = (runtimeContext: BaseRuntimeContext): WorkflowRunnerShape =>
                       ),
                       runtimeContext,
                       runner,
+                    ).pipe(
+                      Effect.withSpan(`workflow.step ${workflow.name}/${options.name}`, {
+                        attributes: {
+                          "voidhash.workflow.name": workflow.name,
+                          "voidhash.workflow.step": options.name,
+                        },
+                      }),
+                      Effect.provide(telemetry),
                     ),
                   ),
                 ),
@@ -132,7 +158,16 @@ export const make = (runtimeContext: BaseRuntimeContext): WorkflowRunnerShape =>
             Effect.orDie,
           );
           return yield* Schema.encodeUnknownEffect(workflow.success)(result).pipe(Effect.orDie);
-        })) as Cloudflare.WorkflowImpl<unknown, unknown>);
+        }).pipe(
+          // Cloudflare replays the whole body on every resume, so this span
+          // measures the CURRENT invocation rather than wall-clock run time —
+          // its value is the run OUTCOME (a failed run fails the span). Step
+          // spans carry the per-step timings and flush at their own boundaries.
+          Effect.withSpan(`workflow.run ${workflow.name}`, {
+            attributes: { "voidhash.workflow.name": workflow.name },
+          }),
+          Effect.provide(telemetry),
+        )) as Cloudflare.WorkflowImpl<unknown, unknown>);
 
       // oxlint-disable-next-line effect/noAs -- `register` in `WorkflowRunnerShape` is generic over the workflow definition, which this adapter has already erased to `Cloudflare.WorkflowImpl<unknown, unknown>`; the resulting effect cannot be re-related to the port's type parameter without a cast. `satisfies` cannot widen an erased type back into a generic position.
       return catchRunnerCause(
@@ -239,8 +274,17 @@ export const make = (runtimeContext: BaseRuntimeContext): WorkflowRunnerShape =>
   return runner;
 };
 
+/**
+ * Provides a Cloudflare workflow runner from the current Alchemy runtime,
+ * optionally exporting a `workflow.run` / `workflow.step` span per invocation.
+ */
+export const makeLayer = (
+  options: WorkflowRunnerTelemetryOptions = {},
+): Layer.Layer<WorkflowRunner, never, RuntimeContext> =>
+  Layer.effect(
+    WorkflowRunner,
+    RuntimeContext.pipe(Effect.map((runtimeContext) => make(runtimeContext, options))),
+  );
+
 /** Provides a Cloudflare workflow runner from the current Alchemy runtime. */
-export const layer: Layer.Layer<WorkflowRunner, never, RuntimeContext> = Layer.effect(
-  WorkflowRunner,
-  RuntimeContext.pipe(Effect.map(make)),
-);
+export const layer: Layer.Layer<WorkflowRunner, never, RuntimeContext> = makeLayer();
