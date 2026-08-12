@@ -22,6 +22,7 @@ import {
 import * as Workflow from "@voidhash/platform/Workflow";
 import { DeliverWebhook } from "../../workflows/definitions.ts";
 import { generateId } from "../../utils/generate-id.ts";
+import { checkProjectPermission } from "../../utils/permissions.ts";
 import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
 import { type WebhookEventType, isValidWebhookEvent } from "./event-types.ts";
 
@@ -165,10 +166,39 @@ const validateUrl = (url: string): WebhookValidationError | null => {
 const deliveriesWhere = (input: {
   readonly projectId: string;
   readonly endpointId?: string;
-}): { webhookEndpointId: string } | { projectId: string } => {
-  if (input.endpointId) return { webhookEndpointId: input.endpointId };
+}): { projectId: string; webhookEndpointId?: string } => {
+  if (input.endpointId) {
+    return { projectId: input.projectId, webhookEndpointId: input.endpointId };
+  }
   return { projectId: input.projectId };
 };
+
+const endpointLookupWhere = (input: {
+  readonly projectId: string;
+  readonly endpointId: string;
+}): { id: string; projectId?: string } => {
+  if (input.projectId) {
+    return { id: input.endpointId, projectId: input.projectId };
+  }
+  return { id: input.endpointId };
+};
+
+const deliveryLookupWhere = (input: {
+  readonly projectId: string;
+  readonly deliveryId: string;
+}): { id: string; projectId?: string } => {
+  if (input.projectId) {
+    return { id: input.deliveryId, projectId: input.projectId };
+  }
+  return { id: input.deliveryId };
+};
+
+const authorizeProject = (projectId: string, action: string) =>
+  checkProjectPermission(
+    projectId,
+    "project:all",
+    `You are not authorized to ${action} webhooks for this project`,
+  );
 
 const validateEvents = (events: ReadonlyArray<string>): WebhookValidationError | null => {
   const invalid = events.filter((event) => !isValidWebhookEvent(event));
@@ -204,6 +234,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           readonly description?: string;
         }) {
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
+          yield* authorizeProject(input.projectId, "create");
 
           const urlError = validateUrl(input.url);
           if (urlError) return yield* Effect.fail(urlError);
@@ -279,8 +310,18 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           readonly status?: "active" | "disabled";
           readonly description?: string | null;
         }) {
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
+
+          const existing = yield* db.query.webhookEndpoints.findFirst({
+            where: endpointLookupWhere(input),
+          });
+          if (!existing) {
+            return yield* Effect.fail(
+              new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
+            );
+          }
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", existing.projectId);
+          yield* authorizeProject(existing.projectId, "update");
 
           if (input.url) {
             const urlError = validateUrl(input.url);
@@ -289,18 +330,6 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           if (input.events) {
             const eventsError = validateEvents(input.events);
             if (eventsError) return yield* Effect.fail(eventsError);
-          }
-
-          const existing = yield* db.query.webhookEndpoints.findFirst({
-            where: {
-              id: input.endpointId,
-              projectId: input.projectId,
-            },
-          });
-          if (!existing) {
-            return yield* Effect.fail(
-              new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
-            );
           }
 
           const updates: Partial<typeof webhookEndpoints.$inferInsert> = {};
@@ -323,7 +352,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
           yield* auditLog
             .append({
-              projectId: input.projectId,
+              projectId: existing.projectId,
               entityType: AuditLogEntityType.WebhookEndpoint,
               entityId: input.endpointId,
               action: AuditLogAction.Updated,
@@ -332,10 +361,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             .pipe(Effect.ignore);
 
           const updated = yield* db.query.webhookEndpoints.findFirst({
-            where: {
-              id: input.endpointId,
-              projectId: input.projectId,
-            },
+            where: { id: input.endpointId, projectId: existing.projectId },
           });
           if (!updated) {
             return yield* Effect.fail(
@@ -363,26 +389,24 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
       const deleteEndpoint = Effect.fn("webhookManager.deleteEndpoint")(
         function* (input: { readonly projectId: string; readonly endpointId: string }) {
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
 
           const existing = yield* db.query.webhookEndpoints.findFirst({
-            where: {
-              id: input.endpointId,
-              projectId: input.projectId,
-            },
+            where: endpointLookupWhere(input),
           });
           if (!existing) {
             return yield* Effect.fail(
               new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
             );
           }
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", existing.projectId);
+          yield* authorizeProject(existing.projectId, "delete");
 
           yield* db.delete(webhookEndpoints).where(eq(webhookEndpoints.id, input.endpointId));
 
           yield* auditLog
             .append({
-              projectId: input.projectId,
+              projectId: existing.projectId,
               entityType: AuditLogEntityType.WebhookEndpoint,
               entityId: input.endpointId,
               action: AuditLogAction.Deleted,
@@ -404,20 +428,18 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
       const getEndpointById = Effect.fn("webhookManager.getEndpointById")(
         function* (input: { readonly projectId: string; readonly endpointId: string }) {
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
 
           const endpoint = yield* db.query.webhookEndpoints.findFirst({
-            where: {
-              id: input.endpointId,
-              projectId: input.projectId,
-            },
+            where: endpointLookupWhere(input),
           });
           if (!endpoint) {
             return yield* Effect.fail(
               new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
             );
           }
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", endpoint.projectId);
+          yield* authorizeProject(endpoint.projectId, "read");
           yield* Effect.annotateCurrentSpan(
             "voidhash.webhook.endpoint.status",
             mapEndpointStatus(endpoint.status),
@@ -440,6 +462,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
       const getEndpoints = Effect.fn("webhookManager.getEndpoints")(
         function* (input: { readonly projectId: string }) {
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
+          yield* authorizeProject(input.projectId, "list");
 
           const endpoints = yield* db.query.webhookEndpoints.findMany({
             where: { projectId: input.projectId },
@@ -462,20 +485,18 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
       const rotateSecret = Effect.fn("webhookManager.rotateSecret")(
         function* (input: { readonly projectId: string; readonly endpointId: string }) {
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
 
           const existing = yield* db.query.webhookEndpoints.findFirst({
-            where: {
-              id: input.endpointId,
-              projectId: input.projectId,
-            },
+            where: endpointLookupWhere(input),
           });
           if (!existing) {
             return yield* Effect.fail(
               new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
             );
           }
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", existing.projectId);
+          yield* authorizeProject(existing.projectId, "rotate");
 
           const newSecret = generateSecret();
           yield* db
@@ -485,7 +506,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
           yield* auditLog
             .append({
-              projectId: input.projectId,
+              projectId: existing.projectId,
               entityType: AuditLogEntityType.WebhookEndpoint,
               entityId: input.endpointId,
               action: AuditLogAction.Updated,
@@ -516,6 +537,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           if (input.endpointId)
             yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
+          yield* authorizeProject(input.projectId, "list");
 
           const limit = input.limit ?? 50;
           const deliveries = yield* db.query.webhookDeliveries.findMany({
@@ -540,20 +562,18 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
       const getDeliveryById = Effect.fn("webhookManager.getDeliveryById")(
         function* (input: { readonly projectId: string; readonly deliveryId: string }) {
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.delivery.id", input.deliveryId);
 
           const delivery = yield* db.query.webhookDeliveries.findFirst({
-            where: {
-              id: input.deliveryId,
-              projectId: input.projectId,
-            },
+            where: deliveryLookupWhere(input),
           });
           if (!delivery) {
             return yield* Effect.fail(
               new WebhookDeliveryNotFoundError({ deliveryId: input.deliveryId }),
             );
           }
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", delivery.projectId);
+          yield* authorizeProject(delivery.projectId, "read");
           yield* Effect.annotateCurrentSpan("voidhash.webhook.event_type", delivery.eventType);
           yield* Effect.annotateCurrentSpan(
             "voidhash.webhook.endpoint.id",
@@ -598,20 +618,18 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
       const retryDelivery = Effect.fn("webhookManager.retryDelivery")(
         function* (input: { readonly projectId: string; readonly deliveryId: string }) {
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.delivery.id", input.deliveryId);
 
           const delivery = yield* db.query.webhookDeliveries.findFirst({
-            where: {
-              id: input.deliveryId,
-              projectId: input.projectId,
-            },
+            where: deliveryLookupWhere(input),
           });
           if (!delivery) {
             return yield* Effect.fail(
               new WebhookDeliveryNotFoundError({ deliveryId: input.deliveryId }),
             );
           }
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", delivery.projectId);
+          yield* authorizeProject(delivery.projectId, "retry");
           yield* Effect.annotateCurrentSpan("voidhash.webhook.event_type", delivery.eventType);
           yield* Effect.annotateCurrentSpan(
             "voidhash.webhook.endpoint.id",
@@ -685,20 +703,18 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
       const testEndpoint = Effect.fn("webhookManager.testEndpoint")(
         function* (input: { readonly projectId: string; readonly endpointId: string }) {
-          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
 
           const endpoint = yield* db.query.webhookEndpoints.findFirst({
-            where: {
-              id: input.endpointId,
-              projectId: input.projectId,
-            },
+            where: endpointLookupWhere(input),
           });
           if (!endpoint) {
             return yield* Effect.fail(
               new WebhookEndpointNotFoundError({ endpointId: input.endpointId }),
             );
           }
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", endpoint.projectId);
+          yield* authorizeProject(endpoint.projectId, "test");
 
           const deliveryId = generateId("webhookDelivery");
           const eventOccurredAt = yield* DateTime.nowAsDate;
@@ -719,7 +735,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             eventType,
             id: deliveryId,
             payload,
-            projectId: input.projectId,
+            projectId: endpoint.projectId,
             status: WebhookDeliveryStatus.Pending,
             webhookEndpointId: endpoint.id,
           });
@@ -744,7 +760,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             maxAttempts: 5,
             nextAttemptAt: null,
             payload,
-            projectId: input.projectId,
+            projectId: endpoint.projectId,
             status: WebhookDeliveryStatus.Pending,
             webhookEndpointId: endpoint.id,
           });

@@ -1,4 +1,3 @@
-import { Schema } from "effect";
 import { HttpApiMiddleware } from "effect/unstable/httpapi";
 
 import { ApiAuthSession } from "./Auth.ts";
@@ -8,5 +7,5 @@ export class AuthMiddleware extends HttpApiMiddleware.Service<
   AuthMiddleware,
   { provides: ApiAuthSession }
 >()("Http/AuthenticationMiddleware", {
-  error: Schema.Union([ApiAuthenticationError, ApiNotAuthenticatedError]),
+  error: [ApiAuthenticationError, ApiNotAuthenticatedError],
 }) {}

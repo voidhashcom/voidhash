@@ -1,5 +1,6 @@
 import { WebhookManagerService } from "@voidhash/core/services";
 import {
+  RpcActionForbiddenError,
   RpcWebhookDeliveryNotFoundError,
   RpcWebhookEndpointNotFoundError,
   RpcWebhookServiceError,
@@ -23,6 +24,8 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookServiceError: (error) =>
                 Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
               WebhookValidationError: (error) =>
@@ -33,10 +36,12 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
         webhookManagerService
           .deleteEndpoint({
             endpointId,
-            projectId: "", // projectId will be extracted from the auth context in the service
+            projectId: "",
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookEndpointNotFoundError: (error) =>
                 Effect.fail(new RpcWebhookEndpointNotFoundError({ endpointId: error.endpointId })),
               WebhookServiceError: (error) =>
@@ -47,10 +52,12 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
         webhookManagerService
           .getDeliveryById({
             deliveryId,
-            projectId: "", // projectId will be extracted from auth
+            projectId: "",
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookDeliveryNotFoundError: (error) =>
                 Effect.fail(new RpcWebhookDeliveryNotFoundError({ deliveryId: error.deliveryId })),
               WebhookServiceError: (error) =>
@@ -61,10 +68,12 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
         webhookManagerService
           .getEndpointById({
             endpointId,
-            projectId: "", // projectId will be extracted from auth
+            projectId: "",
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookEndpointNotFoundError: (error) =>
                 Effect.fail(new RpcWebhookEndpointNotFoundError({ endpointId: error.endpointId })),
               WebhookServiceError: (error) =>
@@ -79,6 +88,8 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookServiceError: (error) =>
                 Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
             }),
@@ -86,6 +97,8 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
       ListWebhookEndpoints: ({ projectId }) =>
         webhookManagerService.getEndpoints({ projectId }).pipe(
           Effect.catchTags({
+            ActionForbiddenError: (error) =>
+              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             WebhookServiceError: (error) =>
               Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
           }),
@@ -94,10 +107,12 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
         webhookManagerService
           .retryDelivery({
             deliveryId,
-            projectId: "", // projectId will be extracted from auth
+            projectId: "",
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookDeliveryNotFoundError: (error) =>
                 Effect.fail(new RpcWebhookDeliveryNotFoundError({ deliveryId: error.deliveryId })),
               WebhookServiceError: (error) =>
@@ -110,10 +125,12 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
         webhookManagerService
           .rotateSecret({
             endpointId,
-            projectId: "", // projectId will be extracted from auth
+            projectId: "",
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookEndpointNotFoundError: (error) =>
                 Effect.fail(new RpcWebhookEndpointNotFoundError({ endpointId: error.endpointId })),
               WebhookServiceError: (error) =>
@@ -124,10 +141,12 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
         webhookManagerService
           .testEndpoint({
             endpointId,
-            projectId: "", // projectId will be extracted from auth
+            projectId: "",
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookEndpointNotFoundError: (error) =>
                 Effect.fail(new RpcWebhookEndpointNotFoundError({ endpointId: error.endpointId })),
               WebhookServiceError: (error) =>
@@ -141,12 +160,14 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
             endpointId,
             events,
             name,
-            projectId: "", // projectId will be extracted from auth
+            projectId: "",
             status,
             url,
           })
           .pipe(
             Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               WebhookEndpointNotFoundError: (error) =>
                 Effect.fail(new RpcWebhookEndpointNotFoundError({ endpointId: error.endpointId })),
               WebhookServiceError: (error) =>

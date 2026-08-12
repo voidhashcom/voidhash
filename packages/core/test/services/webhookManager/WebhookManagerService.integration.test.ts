@@ -4,9 +4,9 @@
  * PlanetScale DB; only the project schema cache is an in-memory stub).
  *
  * `WebhookManagerService` is the CRUD surface for outbound webhook endpoints and
- * their delivery history. Like {@link WebhookDeliveryService} it carries no auth
- * or permission guard — every public method scopes by `projectId` directly —
- * so there is no forbidden-path test here. Instead each test drives the service
+ * their delivery history. Every public method enforces `project:all`; ID-only
+ * operations may derive the project from the stored endpoint or delivery so RPC
+ * contracts do not have to duplicate that scope. Each test drives the service
  * end-to-end and verifies the *persisted* side effects rather than just the
  * return value:
  *  - the `webhook_endpoint` / `webhook_delivery` row written / updated / removed
@@ -33,6 +33,7 @@ import { Clock, DateTime, Deferred, Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
 
 import { WebhookManagerService } from "@voidhash/core/services/webhookManager/WebhookManagerService";
+import { ActionForbiddenError } from "@voidhash/core/domain/auth/Auth";
 import {
   WebhookDeliveryNotFoundError,
   WebhookEndpointNotFoundError,
@@ -611,6 +612,37 @@ describe("WebhookManagerService.getEndpointById", () => {
         // status int 3 (Failed) maps to "failed".
         expect(dto.status).toBe("failed");
         expect(dto.events).toEqual(["person.created"]);
+      }),
+    ).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "derives and authorizes the project for an ID-only lookup",
+    withWebhookCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* WebhookManagerService;
+        const endpoint = yield* insertEndpoint();
+        track.endpointIds.push(endpoint.id);
+
+        const dto = yield* svc.getEndpointById({ endpointId: endpoint.id, projectId: "" });
+        expect(dto.id).toBe(endpoint.id);
+        expect(dto.projectId).toBe(projectId);
+      }),
+    ).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "forbids an ID-only lookup outside the authenticated project",
+    withWebhookCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* WebhookManagerService;
+        const endpoint = yield* insertEndpoint({ projectId: `${projectId}-other` });
+        track.endpointIds.push(endpoint.id);
+
+        const error = yield* Effect.flip(
+          svc.getEndpointById({ endpointId: endpoint.id, projectId: "" }),
+        );
+        expect(error).toBeInstanceOf(ActionForbiddenError);
       }),
     ).pipe(Effect.provide(WebhookManagerService.layer), CoreAuthSession.authenticate()),
   );
