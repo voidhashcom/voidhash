@@ -4,7 +4,6 @@ import { RuntimeContext } from "alchemy/RuntimeContext";
 import { EventCaptureApi } from "@voidhash/api-contracts/event-capture";
 import {
   BackendComponentCompilerStubLive,
-  BackendMimicHostStubLive,
   BackendNoopIdentityProjectionPublisherLive,
   BackendPaymentProviderStubsLive,
   BackendSnapshotImageRendererStubLive,
@@ -12,6 +11,7 @@ import {
   NoBackendRpcExtension,
   buildBackendFetch,
 } from "@voidhash/backend/BackendApp";
+import { makeMimicHostLive } from "@voidhash/backend/MimicHostLive";
 import { RpcAuthLive } from "@voidhash/backend/RpcMiddlewares";
 import { EventCaptureGroupLive } from "@voidhash/backend/routes/event-capture";
 import { AnalyticsEventStore } from "@voidhash/core/services/analytics/AnalyticsEventStore";
@@ -211,7 +211,7 @@ export default Cloudflare.Worker(
       publicFileStore,
       BackendPaymentProviderStubsLive,
       BackendNoopIdentityProjectionPublisherLive,
-      BackendMimicHostStubLive,
+      makeMimicHostLive(environment),
       BackendComponentCompilerStubLive,
       BackendSnapshotImageRendererStubLive,
       ProjectSchemaCacheLive,

@@ -1,152 +1,74 @@
-# mimic-db — Durable Objects rewrite
+# mimic-db Cloudflare deployment
 
-This app was rewritten from an **Effect Cluster** topology (gateway/worker shards,
-MySQL persistence, MySQL-backed message/runner storage, Node `vm` migration
-sandbox) onto **Cloudflare Durable Objects**, provisioned with **Alchemy**, with
-migrations executed in a **Cloudflare Sandbox** container and applied **lazily on
-document load** instead of an eager "migration push" over every document.
+`@voidhash/mimic-db` owns both the portable document engine and its production
+Cloudflare adapter. The adapter is provisioned with Alchemy and is shared by any
+deployment that supplies a Hyperdrive connection and a migration registry.
 
-## What changed
+## Topology
 
-| Before (Effect Cluster)                                | After (Durable Objects)                                                                                            |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `gateway` + `worker` roles, `ShardingConfig`           | one `MimicDocumentObject` DO **per document** (`collectionId:documentId`)                                          |
-| MySQL (`@effect/sql-mysql2`) for all state             | control plane in `MimicHostObject` SQLite; **document snapshots + command log back in MySQL** (via Hyperdrive)     |
-| `SqlMessageStorage`/`SqlRunnerStorage` cluster tables  | none — the DO is the coordination/realtime primitive, MySQL is the durable system of record                        |
-| WebSocket gateway + HTTP fanout (`GatewayFanoutRpc`)   | hibernatable WebSockets **on the document DO**; fanout is local                                                    |
-| `node:vm` (`Script`/`createContext`) migration sandbox | in-process `evaluateBundledMigration` (`new Function`, **no `node:vm`/quickjs**) — see "Migration execution" below |
-| eager "migration push" iterates every document         | `MimicHostObject` records new schema versions; each document **migrates itself on load**                           |
-| standalone/gateway/worker Node entrypoints             | `MimicDbWorker` Cloudflare Worker (one fetch entrypoint)                                                           |
-| deployed standalone; backend points at external URL    | **provisioned from `packages/backend`** alchemy stack; service binding + `MIMIC_HOST_URL`                              |
-
-## Preserved contracts (so clients/backend keep working)
-
-- **RPC** — the exact `MimicRpcGroup` from `@voidhash/mimic-server/rpc`,
-  served at `/rpc/v1` over NDJSON with HTTP Basic auth. Handlers
-  (`src/api/handlers/*`) and the Basic-auth middleware (`src/api/middleware/auth.ts`)
-  are unchanged — they depend only on `HostServiceTag`.
-- **WebSocket** — same JSON protocol (`src/ws/protocol.ts`): `auth` → `auth_result` +
-  `snapshot` + `presence_snapshot`, then `submit`/`ping`/`presence_*` and server
-  `transaction`/`pong`/`error`/`presence_*`. Route
-  `/ws/v1/databases/:db/collections/:col/documents/:doc`.
-- **`HostService`** — same interface (`src/app/hostService.ts`); only the
-  implementation backing it changed.
-
-## Architecture
-
-```
-                         ┌──────────────────────── MimicDbWorker (fetch) ───────────────────────┐
-client ──HTTP /rpc/v1──► │  RpcServer(MimicRpcGroup) ──► HostService (DurableHostServiceLive)    │
-client ──WS  /ws/v1───►  │  WebSocket upgrade ─────────────────────────────────────────────┐    │
-                         └─────────────┬───────────────────────────────────────────────────┼────┘
-                            control ops │ document ops                                       │ ws upgrade
-                                        ▼                                                     ▼
-                          ┌── MimicHostObject (DO) ──┐                 ┌── MimicDocumentObject (DO, per doc) ──┐
-                          │ SQLite control plane:    │  schema/migrate │ SQLite: meta + snapshots + commands   │
-                          │ databases, collections,  │ ◄────chain──────┤ • migrate-on-load (Sandbox)           │
-                          │ schema_versions(+source), │                 │ • applyBatch transactions             │
-                          │ users, grants, tokens,    │                 │ • hibernatable WS fanout (local)      │
-                          │ document_index, migrations│                 └───────────────┬───────────────────────┘
-                          └───────────────────────────┘                                  │ runMigration(source,value)
-                                                                                         ▼
-                                                                          ┌── MimicMigrationSandbox (Container) ──┐
-                                                                          │ isolated exec of bundled migration JS │
-                                                                          └───────────────────────────────────────┘
+```text
+                          MimicDbWorker
+             /rpc/v1                           /ws/v1
+                │                                 │
+                ▼                                 ▼
+      MimicHostObject (singleton)       MimicDocumentObject (per document)
+      Durable Object SQLite             hibernatable WebSockets
+      databases / collections           serialized transactions
+      users / grants / tokens            presence and idle alarms
+                │                                 │
+                └──────────────┬──────────────────┘
+                               ▼
+                    Hyperdrive → PostgreSQL
+                    snapshots + command log
 ```
 
-## Testable core
+- `/rpc/v1` serves `MimicRpcGroup` over NDJSON with HTTP Basic authentication.
+- `/ws/v1/databases/:db/collections/:collection/documents/:document` forwards
+  WebSocket upgrades to the document Durable Object.
+- `MimicHostObject` stores control-plane state in Durable Object SQLite and
+  bootstraps registry-owned databases, collections, schemas, and the root user.
+- Each `MimicDocumentObject` serializes one document's updates, owns its live
+  sessions, and persists snapshots and commands through Hyperdrive.
 
-The hard logic lives in `src/core/` behind small `Effect` service seams so it runs
-both inside DOs (`SqlControlStoreLive` / `SqlDocumentStoreLive` over `SqlStorage`,
-`SandboxMigrationExecutorLive`) and in-process for `pnpm dev` + tests
-(`MemoryControlStoreLive` / `MemoryDocumentStoreLive`, `LocalMigrationExecutorLive`).
+The public protocol and `HostService` remain platform-neutral. Cloudflare code
+lives under `src/cloudflare`, while the core, HTTP, and WebSocket modules remain
+testable without workerd.
 
-- `core/store.ts` — `ControlStore` + `DocumentStore` service contracts.
-- `core/memory-store.ts` / `core/sql-store.ts` — the two backends.
-- `core/migration-executor.ts` — `MigrationExecutor` (Sandbox vs local `new Function`
-  eval; **no `node:vm`**).
-- `core/control-engine.ts` — control-plane logic over `ControlStore`.
-- `core/document-engine.ts` — load / **migrate-on-load** / submit / snapshot over
-  `DocumentStore` + `MigrationExecutor`.
-- `core/local-host-service.ts` — `LocalHostServiceLive`: composes the engines with an
-  in-process per-document registry; satisfies `HostServiceTag` for dev + tests.
+## Alchemy composition
 
-`LocalHostServiceLive` faithfully simulates per-document isolation in one process,
-which is exactly what the integration tests exercise (`tests/integration/*`).
+`makeMimicDbWorker` accepts deployment-specific resources:
 
-## Document persistence: MySQL (not Workers SQLite)
+- a Cloudflare Hyperdrive connection;
+- the migration registry imported into the Worker bundle;
+- an optional idle-notification queue; and
+- optional Worker environment and telemetry hooks.
 
-Durable document state — **snapshots** and the command log — lives in **MySQL**
-(the shared PlanetScale DB, reached via the same Cloudflare **Hyperdrive** binding
-the backend uses), not the Durable Object's SQLite. The DO is purely the
-per-document concurrency + realtime + migrate-on-load primitive; MySQL is the
-system of record.
+The Community stack in `apps/backend/stack.ts` deploys the Worker, binds it to
+the backend as `MIMIC_HOST`, configures `MIMIC_DB_URL` and the shared root
+password, binds the public mimic URL for WebSocket tokens, and restricts CORS to
+the web application origin. The backend uses the live `MimicSDK` adapter from
+`@voidhash/backend/MimicHostLive`; its stub remains only for in-process tests.
 
-- `core/mysql-store.ts` — `makeMysqlDocumentStore(config, documentId)` implements the
-  same `DocumentStoreApi` the in-memory backend does (tables `mimic_documents`,
-  `mimic_document_snapshots`, `mimic_document_commands`, keyed by `document_id`, no
-  FKs to the control plane). `ensureDocumentTables` creates them idempotently on DO
-  boot (`IF NOT EXISTS`; on Vitess/PlanetScale prefer pre-creating via the migration
-  pipeline).
-- Hyperdrive host/password are **per Worker invocation**, so `resolveMysqlConfig`
-  reads fresh credentials and `MimicDocumentObject` builds a fresh store+engine **per
-  operation** — never caching a connection for the DO's lifetime (mirrors
-  `@voidhash/core`'s `makeScopedDbLayer`).
-- The DO binds the shared `Hyperdrive` resource from `@voidhash/core/infrastructure`
-  (`Cloudflare.Hyperdrive.bind` + `Cloudflare.HyperdriveBindingLive`).
-- The control plane (databases/collections/schema-versions/users/grants/tokens/
-  document-index) still lives in `MimicHostObject`'s DO SQLite — only document
-  snapshots/commands moved to MySQL.
+## Configuration
 
-## Migration execution
+The deployment requires `MIMIC_ROOT_PASSWORD` for `production` and `preview`
+stages. Ephemeral and local stages default to `password`. Runtime bindings are:
 
-Bundled data-migrations run **in-process** in the document DO via
-`evaluateBundledMigration` (`new Function`, not `node:vm`/quickjs). The original
-plan was a `MimicMigrationSandbox` Cloudflare Container for isolation, but
-**Hyperdrive cannot bind to a Worker that also has a Container** (alchemy
-propagates the Worker's Hyperdrive binding to the Container runtime, which
-`HyperdriveBindingPolicy` rejects), so a Container and the MySQL Hyperdrive
-binding cannot coexist in this Worker. `MimicMigrationSandbox.ts` is kept
-unwired as a reference. Follow-up: host the sandbox in a **dedicated container
-Worker** and call it from the document DO via a service binding so migration
-code runs isolated (Workers also restrict `new Function` at request time).
+- `ROOT_PASSWORD` and optional `ROOT_USERNAME` for bootstrap authentication;
+- `CORS_ORIGINS` for RPC and WebSocket origin checks;
+- `MIMIC_PUBLIC_BASE_URL` for absolute `ws://` or `wss://` token URLs; and
+- `MIMIC_DOCUMENT_*` tuning values documented in `src/config.ts`.
 
-## Local dev (`pnpm dev` / `alchemy dev`)
+Local Alchemy development serves mimic-db on port `5001`; the backend connects
+directly to that loopback URL. Deployed stages use the Cloudflare service
+binding, avoiding a public-network hop between Workers.
 
-`pnpm dev` boots the whole Alchemy stack (backend, www, analyticsPipeline, and
-**MimicDbWorker**) through the local Cloudflare dev sidecar. Two things this
-worker required to boot:
+## Verification
 
-- **`.ts` import specifiers.** Alchemy's dev loader resolves `.ts` source with
-  native Node (no `.js`→`.ts` remap), like `@voidhash/core`. `mimic-core`,
-  `mimic-server`, and mimic-db's reused files used `.js` specifiers (legacy
-  published-package convention) and were converted to `.ts` (their build
-  tsconfigs gained `allowImportingTsExtensions` + `rewriteRelativeImportExtensions`).
-- **Lazy Durable Object stubs.** `namespace.getByName(...)` reads a runtime env
-  binding that only exists per-request — calling it at Worker init crashes the
-  plan. The control-store stub is resolved lazily (a forwarding proxy) and the
-  document stub only inside request handlers.
+- `pnpm --filter @voidhash/mimic-db typecheck`
+- `pnpm --filter @voidhash/mimic-db test`
+- `pnpm --filter @voidhash/backend typecheck`
+- `pnpm --filter @voidhash/backend-app typecheck`
 
-Verified: `Done: 8 succeeded`, `MimicDbWorker Started`, and `GET
-http://localhost:1340/health` → `200`.
-
-## Verification status
-
-- ✅ `pnpm typecheck` — whole package (core + Durable Objects + worker + Alchemy).
-- ✅ `pnpm test` — 10 tests: control CRUD, document create/submit/version-conflict,
-  **lazy migrate-on-load** via both schema reconcile and a bundled data migration
-  (through the Sandbox-shaped `MigrationExecutor`), single-use document tokens, and
-  the `node:vm`/QuickJS-replacement executor itself.
-- ⚠️ A live Cloudflare deploy (real DOs + the `MimicMigrationSandbox` container) is
-  **not** runtime-verified here — it needs `CLOUDFLARE_API_TOKEN` and a container
-  image build. The cloud shell reuses the same engine code the tests cover and
-  follows the repo's proven patterns (`AnalyticsIngestShardDO`, the alchemy-effect
-  DO/Container/WebSocket fixtures). Deploy with `pnpm alchemy deploy`; the worker URL
-  is exposed as the `mimicDbUrl` stack output and bound to the backend as `MIMIC_HOST`.
-
-## Provisioning from the backend
-
-`alchemy.run.ts` (the backend's stack) deploys `MimicDbWorker`, binds it to
-`BackendService` as the `MIMIC_HOST` service binding, and exposes its URL as the
-`mimicDbUrl` output. Point the backend's `MIMIC_HOST_URL` (consumed by
-`internal/packages/core/.../mimic-host`) at that URL.
+A live deployment additionally requires Cloudflare credentials and the database
+origin variables used by the Community Hyperdrive resource.

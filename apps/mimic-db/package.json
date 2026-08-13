@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./app/*": "./src/app/*.ts",
+    "./cloudflare/*": "./src/cloudflare/*.ts",
     "./config": "./src/config.ts",
     "./core/*": "./src/core/*.ts",
     "./document/*": "./src/document/*.ts",
@@ -27,6 +28,8 @@
     "@voidhash/mimic-core": "workspace:*",
     "@voidhash/mimic-server": "workspace:*",
     "@voidhash/platform": "workspace:*",
+    "@voidhash/platform-cloudflare": "workspace:*",
+    "alchemy": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {

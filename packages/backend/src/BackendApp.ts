@@ -507,9 +507,8 @@ export const BackendPublicFileStoreStubLive = Layer.succeed(PublicFileStore, {
 /**
  * Succeeding stub {@link MimicHost} for harnesses that run the backend graph
  * outside a Cloudflare Worker (test layers, in-process RPC smoke). The
- * deployed worker provides the live mimic-db adapter instead
- * (`stacks/backend/infrastructure/MimicHost.ts`). Unlike the artifact-store
- * stub above, this one succeeds with a fixed fake token so the
+ * deployed worker provides the live mimic-db adapter instead. Unlike the
+ * artifact-store stub above, this one succeeds with a fixed fake token so the
  * `RequestPaywallEditToken` handler chain (permission check → ensure → mint)
  * is exercised end-to-end in process.
  */

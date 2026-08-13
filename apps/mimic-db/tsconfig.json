@@ -3,6 +3,8 @@
   "compilerOptions": {
     "types": ["bun"],
     "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "resolveJsonModule": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,

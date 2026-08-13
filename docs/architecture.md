@@ -23,7 +23,8 @@ flowchart TD
 
 - `libraries/` contains MIT SDKs embedded in customer applications.
 - `apps/backend` and `apps/www` are the AGPL service entry points, and
-  `apps/mimic-db` supplies the document-sync engine they compose.
+  `apps/mimic-db` supplies the document-sync engine and reusable Cloudflare
+  Worker/Durable Object deployment they compose.
   `packages/backend` is the backend library, while
   `@voidhash/web-app` is the shared web source package they compose.
 - `@voidhash/web-app` owns shared web features and separate shared and
@@ -39,10 +40,10 @@ flowchart TD
   Durable Object capabilities.
 - `packages/core`, `packages/db`, `packages/rpc`, and the remaining service
   packages own portable application and domain behavior.
-Runtime backends are selected per primitive, not per provider, so a deployment
-can move one primitive to a managed service without touching the others. Every
-adapter is validated against the shared conformance suite in
-`@voidhash/platform/conformance`.
+  Runtime backends are selected per primitive, not per provider, so a deployment
+  can move one primitive to a managed service without touching the others. Every
+  adapter is validated against the shared conformance suite in
+  `@voidhash/platform/conformance`.
 
 The publication-boundary check rejects non-Community package scopes and
 incomplete package license metadata from this repository.
@@ -51,8 +52,12 @@ incomplete package license metadata from this repository.
 
 Cloudflare adapters live in this repository and deploy the same application
 primitives through Alchemy. Product services continue to import
-provider-neutral interfaces; only composition roots and
-`@voidhash/platform-cloudflare` import Alchemy or Cloudflare APIs.
+provider-neutral interfaces; only composition roots and Cloudflare adapter
+modules import Alchemy or Cloudflare APIs.
+
+The Community stack deploys mimic-db alongside the backend, connects the two
+Workers with a Cloudflare service binding, and shares the stack's Hyperdrive
+connection for durable document storage.
 
 ## Repository boundary
 
