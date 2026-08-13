@@ -1,4 +1,4 @@
-import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
+import { makeMemoryDurableEntityHost } from "@voidhash/platform/MemoryDurableEntity";
 import { Effect, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 

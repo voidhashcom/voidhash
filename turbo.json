@@ -13,20 +13,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/*", "!.next/cache/**"],
       "env": [
-        "NEXT_PUBLIC_APP_NAME",
-        "NEXT_PUBLIC_APP_DOMAIN",
-        "NEXT_PUBLIC_VERCEL_ENV",
-        "BETTER_AUTH_SECRET",
-        "DATABASE_HOST",
-        "DATABASE_USERNAME",
-        "DATABASE_PASSWORD",
-        "DATABASE_NAME",
-        "VOIDHASH_SECRET_KEY",
-        "GITHUB_CLIENT_ID",
-        "GITHUB_CLIENT_SECRET",
-        "AXIOM_TOKEN",
-        "AXIOM_LOGS_DATASET",
-        "AXIOM_LOG_LEVEL"
+        "VITE_APP_API_URL",
+        "VITE_APP_ENV",
+        "VITE_EXAMPLE_SERVER_URL",
+        "VOIDHASH_NODE_BUNDLE"
       ]
     },
     "clean": {},

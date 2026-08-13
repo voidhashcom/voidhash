@@ -24,10 +24,10 @@ export class StandaloneAuthTokenError extends Schema.TaggedErrorClass<Standalone
 )("StandaloneAuthTokenError", { message: Schema.String }) {}
 
 /**
- * Signing key used when `VOIDHASH_AUTH_SECRET` is unset. Reachable only in
- * `SELFHOST_MODE=local-evaluation` — production refuses to start without a real
- * secret — and it lets a split-process dev setup (www and backend in separate
- * processes) agree on a key with zero configuration.
+ * Signing key used when `VOIDHASH_AUTH_SECRET` is unset. It exists so a
+ * split-process dev setup (www and backend in separate Workers) agrees on a key
+ * with zero configuration; it is public knowledge, so every live deployment must
+ * set a real secret.
  */
 export const STANDALONE_AUTH_DEFAULT_SECRET = "voidhash-local-evaluation-auth-secret";
 

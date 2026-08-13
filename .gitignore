@@ -302,3 +302,6 @@ yalc.lock
 **/tsconfig.tsbuildinfo
 
 resources/
+
+# PGlite local database (pnpm db:pglite)
+.pglite/

@@ -1,6 +1,12 @@
 # Standalone auth: self-host without WorkOS
 
-> **Status: implemented.** Supersedes and replaces `docs/dev-auth-design.md`
+> **Status: implemented, with one part superseded.** The auth provider described
+> here is current. The `SELFHOST_MODE` gating and the Docker Compose self-host
+> stack it refers to have since been removed along with the Node runtime; the
+> only supported composition is the Alchemy/Cloudflare one in
+> `docs/cloudflare-deployment.md`. Read those parts as historical context.
+>
+> Supersedes and replaces `docs/dev-auth-design.md`
 > (the "make WorkOS optional" dev-auth design), which is deleted. The port
 > structure that work introduced is the foundation here; the local provider it
 > added is redesigned from a development-only convenience into the one and only

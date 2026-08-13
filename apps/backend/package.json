@@ -5,58 +5,24 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./Backend": "./src/backend/Backend.ts",
-    "./CompilerClient": "./src/compiler/CompilerClient.ts",
-    "./compiler/main": "./src/compiler/main.ts",
-    "./migrations": "./src/migrations.ts",
-    "./MimicNode": "./src/mimic/MimicNode.ts",
-    "./PgControlStore": "./src/mimic/PgControlStore.ts"
+    "./stack": "./stack.ts"
   },
   "scripts": {
-    "migrate": "tsx src/migrate.ts",
-    "start": "tsx src/main.ts",
-    "start:compiler": "tsx src/compiler/main.ts",
-    "start:mimic": "tsx src/mimic/main.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vp test run -c vitest.mts",
-    "test:platform": "pnpm test"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@effect/platform-node": "catalog:",
-    "@effect/sql-pg": "catalog:",
-    "@voidhash/agent": "workspace:*",
     "@voidhash/api-contracts": "workspace:*",
-    "@voidhash/app-store-server-sdk": "workspace:*",
     "@voidhash/backend": "workspace:*",
     "@voidhash/core": "workspace:*",
-    "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
-    "@voidhash/mimic-core": "workspace:*",
-    "@voidhash/mimic-db": "workspace:*",
-    "@voidhash/mimic-schema": "workspace:*",
-    "@voidhash/paywall-renderer-preact": "workspace:*",
-    "@voidhash/paywall-renderer-web-core": "workspace:*",
-    "@voidhash/paywalls": "workspace:*",
     "@voidhash/platform": "workspace:*",
-    "@voidhash/platform-node": "workspace:*",
-    "effect": "catalog:",
-    "esbuild": "^0.25.10",
-    "jose": "catalog:",
-    "preact": "^10.25.4",
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "srvx": "0.11.15",
-    "tsx": "^4.19.3",
-    "ws": "^8.20.0"
+    "@voidhash/platform-cloudflare": "workspace:*",
+    "alchemy": "catalog:",
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@types/node": "^24.0.12",
-    "@types/ws": "^8.18.1",
-    "@voidhash/mimic-core": "workspace:*",
-    "@voidhash/platform-cloudflare": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
-    "alchemy": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

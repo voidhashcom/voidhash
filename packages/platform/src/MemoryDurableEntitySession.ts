@@ -2,18 +2,18 @@ import type { DurableEntitySession } from "@voidhash/platform/DurableEntity";
 import { Effect } from "effect";
 
 /** Minimal server-side WebSocket surface needed by the entity session adapter. */
-export interface NodeWebSocketLike {
+export interface DurableEntitySocketLike {
   readonly send: (message: string | Uint8Array) => unknown;
   readonly close: (code?: number, reason?: string) => unknown;
 }
 
 /**
- * Wraps a Node WebSocket connection as a runtime-neutral durable entity
+ * Wraps a WebSocket-like connection as a runtime-neutral durable entity
  * session. Attachments remain in memory for the connection lifetime.
  */
-export const makeNodeDurableEntitySession = (
+export const makeMemoryDurableEntitySession = (
   id: string,
-  socket: NodeWebSocketLike,
+  socket: DurableEntitySocketLike,
   initialAttachment?: unknown,
 ): DurableEntitySession => {
   let attachment = initialAttachment;

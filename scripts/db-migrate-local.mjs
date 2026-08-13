@@ -91,7 +91,17 @@ const readConfig = Effect.gen(function* () {
   const database = yield* direct("NAME", "voidhash");
   const user = yield* direct("USERNAME", "voidhash");
   const password = yield* direct("PASSWORD", "password");
-  return { host, port: Number.parseInt(port, 10), database, user, password };
+  const ssl = yield* direct("SSL", "false");
+  return {
+    host,
+    port: Number.parseInt(port, 10),
+    database,
+    user,
+    password,
+    // `pg` treats any truthy value as "negotiate TLS", so an explicit `false`
+    // has to become the boolean, not the string "false".
+    ssl: ssl.trim().toLowerCase() === "true",
+  };
 }).pipe(Effect.mapError(toMigrateError));
 
 /** Folder names carry a generation timestamp, so lexicographic order is apply order. */
@@ -152,6 +162,7 @@ const bootstrap = (config, dbIdent) =>
       user: config.user,
       password: config.password,
       database: "postgres",
+      ssl: config.ssl,
     },
     (conn) =>
       Effect.gen(function* () {
@@ -214,6 +225,7 @@ const migrate = (config, tableIdent) =>
         user: config.user,
         password: config.password,
         database: config.database,
+        ssl: config.ssl,
       },
       (conn) =>
         Effect.gen(function* () {
@@ -272,7 +284,11 @@ const program = Effect.gen(function* () {
   const dbIdent = `"${config.database.replaceAll('"', '""')}"`;
   const tableIdent = `"${MIGRATIONS_TABLE}"`;
 
-  yield* bootstrap(config, dbIdent);
+  // `postgres` is the maintenance database and always exists, so there is
+  // nothing to create. Skipping is also what makes `pnpm db:pglite` work:
+  // PGlite serves exactly one database, named `postgres`, and accepts a
+  // `CREATE DATABASE` that silently produces an unreachable entry.
+  if (config.database !== "postgres") yield* bootstrap(config, dbIdent);
   yield* migrate(config, tableIdent);
 });
 

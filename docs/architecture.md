@@ -2,7 +2,7 @@
 
 Voidhash has one canonical Community codebase and one deployment composition.
 This repository contains every MIT and AGPL Community component, including the
-reusable Alchemy, Cloudflare, and Node platform adapters. Application services
+reusable Alchemy and Cloudflare platform adapters. Application services
 depend on provider-neutral contracts and deployment composition stays at the
 repository edge.
 
@@ -12,11 +12,9 @@ flowchart TD
   Platform["@voidhash/platform<br/>provider-neutral contracts"]
   Cloud["@voidhash/platform-cloudflare<br/>Alchemy + Workers primitives"]
   Deploy["apps/backend/stack.ts<br/>Community composition"]
-  Node["@voidhash/platform-node<br/>retained optional adapters"]
 
   Community --> Platform
   Platform --> Cloud
-  Platform -.-> Node
   Cloud --> Deploy
   Community --> Deploy
 ```
@@ -24,8 +22,9 @@ flowchart TD
 ## Community packages
 
 - `libraries/` contains MIT SDKs embedded in customer applications.
-- `apps/backend`, `apps/www`, and `apps/mimic-db` are the AGPL service entry
-  points. `packages/backend` is the backend library, while
+- `apps/backend` and `apps/www` are the AGPL service entry points, and
+  `apps/mimic-db` supplies the document-sync engine they compose.
+  `packages/backend` is the backend library, while
   `@voidhash/web-app` is the shared web source package they compose.
 - `@voidhash/web-app` owns shared web features and separate shared and
   Community route sets. `apps/www` is the thin Community entrypoint that selects
@@ -40,10 +39,6 @@ flowchart TD
   Durable Object capabilities.
 - `packages/core`, `packages/db`, `packages/rpc`, and the remaining service
   packages own portable application and domain behavior.
-- `@voidhash/platform-node` retains Node implementations of the same contracts
-  for portability and conformance testing. It is not a supported deployment
-  composition.
-
 Runtime backends are selected per primitive, not per provider, so a deployment
 can move one primitive to a managed service without touching the others. Every
 adapter is validated against the shared conformance suite in

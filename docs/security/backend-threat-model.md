@@ -52,9 +52,9 @@ submitting component source.
 8. Deployment configuration to Cloudflare resources and the PostgreSQL origin.
 
 The Community composition deploys application services through Alchemy using
-Cloudflare Workers, Durable Objects, Queues, Workflows, R2, and Hyperdrive. The
-optional Node adapters and Compose services under `test/integration` are test
-fixtures, not a supported production boundary.
+Cloudflare Workers, Durable Objects, Queues, Workflows, R2, and Hyperdrive. It
+is the only supported composition; the Node self-host runtime that previously
+sat beside it has been removed.
 
 ## Authentication and sessions
 
@@ -115,10 +115,10 @@ Trust rests on the root password and on transport security, so the controls are:
   deliberately trades XSS-hardening for a single token pipeline; a successful
   XSS on the dashboard origin already implies session compromise.
 
-The documented evaluation defaults (`root` / `voidhash` and the shared signing
-secret) are public knowledge and reachable only under
-`SELFHOST_MODE=local-evaluation`, which is reserved for the loopback-only Node
-integration fixture.
+The documented development defaults (`root` / `voidhash` and the shared signing
+secret) are public knowledge. They exist so a loopback development stack needs
+no configuration, and every live deployment must replace them — see
+`.env.example`.
 
 ## API keys and credential storage
 

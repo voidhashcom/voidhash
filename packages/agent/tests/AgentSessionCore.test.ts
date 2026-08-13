@@ -5,8 +5,8 @@ import {
   type Context as PiContext,
   type Model,
 } from "@earendil-works/pi-ai";
-import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
-import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurableEntitySession";
+import { makeMemoryDurableEntityHost } from "@voidhash/platform/MemoryDurableEntity";
+import { makeMemoryDurableEntitySession } from "@voidhash/platform/MemoryDurableEntitySession";
 import { Clock, Deferred, Effect, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -150,7 +150,7 @@ describe("AgentSessionCore", () => {
             resolveModel: (provider, modelId) => resolveTestModel(model, provider, modelId),
           },
         });
-        const durableSession = makeNodeDurableEntitySession("connection-1", {
+        const durableSession = makeMemoryDurableEntitySession("connection-1", {
           send: (frame) => frames.push(String(frame)),
           close: () => undefined,
         });
@@ -219,7 +219,7 @@ describe("AgentSessionCore", () => {
             resolveModel: () => model,
           },
         });
-        const session = makeNodeDurableEntitySession("connection-1", {
+        const session = makeMemoryDurableEntitySession("connection-1", {
           send: () => undefined,
           close: () => undefined,
         });
@@ -238,7 +238,7 @@ describe("AgentSessionCore", () => {
 
         const intruder = {
           ...connection,
-          session: makeNodeDurableEntitySession("connection-2", {
+          session: makeMemoryDurableEntitySession("connection-2", {
             send: () => undefined,
             close: () => undefined,
           }),
@@ -270,7 +270,7 @@ describe("AgentSessionCore", () => {
           },
         });
         const frames: string[] = [];
-        const firstSession = makeNodeDurableEntitySession("connection-model-1", {
+        const firstSession = makeMemoryDurableEntitySession("connection-model-1", {
           send: () => undefined,
           close: () => undefined,
         });
@@ -295,7 +295,7 @@ describe("AgentSessionCore", () => {
         now += 51;
         yield* core.onAlarm(firstConnection.sessionId);
 
-        const secondSession = makeNodeDurableEntitySession("connection-model-2", {
+        const secondSession = makeMemoryDurableEntitySession("connection-model-2", {
           send: (frame) => frames.push(String(frame)),
           close: () => undefined,
         });

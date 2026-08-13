@@ -20,9 +20,9 @@ export type StandaloneAuthEnv = Record<string, string | undefined>;
 export const DEFAULT_ROOT_USERNAME = "root";
 
 /**
- * Root password used when `VOIDHASH_ROOT_PASSWORD` is unset. Reachable only in
- * `SELFHOST_MODE=local-evaluation`, which the README restricts to loopback;
- * production refuses to start without a real value.
+ * Root password used when `VOIDHASH_ROOT_PASSWORD` is unset. This default is
+ * public knowledge and appropriate only for loopback development; every live
+ * deployment must set a real value.
  */
 export const DEFAULT_ROOT_PASSWORD = "voidhash";
 

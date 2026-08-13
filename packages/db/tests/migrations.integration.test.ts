@@ -49,11 +49,26 @@ const withClient = <A, E, R>(
     (client) => Effect.ignore(Effect.promise(() => client.end())),
   );
 
+const servesPglite = (adminConfig: ClientConfig) =>
+  withClient(adminConfig, (client) =>
+    query<{ readonly version: string }>(client, "select version()").pipe(
+      Effect.map(({ rows }) => rows[0]?.version.includes("PGlite") ?? false),
+    ),
+  ).pipe(
+    // An unreachable server is not this probe's failure to report; the test
+    // below fails with the real connection error.
+    Effect.orElseSucceed(() => false),
+  );
+
 describe("application database migrations", () => {
   it("serializes concurrent runners and records an idempotent later run", () =>
     Effect.runPromise(
       Effect.gen(function* () {
         const adminConfig = yield* loadAdminConfig;
+        // PGlite serves exactly one database and cannot provide the isolated
+        // throwaway database this test requires.
+        if (yield* servesPglite(adminConfig)) return;
+
         const databaseName = yield* makeDatabaseName;
         const config: DbConfig = {
           databaseName,

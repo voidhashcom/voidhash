@@ -2,10 +2,9 @@
  * The complete environment contract for the core integration suite.
  *
  * This is the seam between the open-core tests and whatever composition runs
- * them: the Community `globalSetup` derives these values from the local Node
- * test fixture, while downstream compositions provision their own
- * infrastructure and inject the same shape. Tests
- * never know which composition produced it.
+ * them: the Community `globalSetup` derives these values from the environment,
+ * while downstream compositions provision their own infrastructure and inject
+ * the same shape. Tests never know which composition produced it.
  */
 export interface CoreTestConnections {
   readonly db: {
@@ -28,8 +27,8 @@ export interface CoreStackOutput {
 
 /**
  * Builds the contract from environment variables, matching the names the
- * Node test fixture (repo-root `.env`) and `scripts/run-local-integration.mjs`
- * already use. Defaults target the local Compose fixture.
+ * repo-root `.env` and `scripts/run-integration.mjs` already use. Defaults
+ * target the local development database.
  */
 export const coreTestConnectionsFromEnv = (
   // oxlint-disable-next-line effect/noGlobals -- synchronous config adapter: the default argument is evaluated at call sites that run before any Effect runtime exists (vitest globalSetup and the local integration runner).

@@ -16,6 +16,8 @@
     "./MemoryWorkflowRunner": "./src/MemoryWorkflowRunner.ts",
     "./TestWorkflowRunner": "./src/TestWorkflowRunner.ts",
     "./DurableEntity": "./src/DurableEntity.ts",
+    "./MemoryDurableEntity": "./src/MemoryDurableEntity.ts",
+    "./MemoryDurableEntitySession": "./src/MemoryDurableEntitySession.ts",
     "./KeyValueStore": "./src/KeyValueStore.ts",
     "./Mailer": "./src/Mailer.ts",
     "./ObjectStore": "./src/ObjectStore.ts",

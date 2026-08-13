@@ -5,9 +5,9 @@ import { coreTestConnectionsFromEnv, type CoreStackOutput } from "./CoreTestConn
 import { cleanupFixture, seedFixture } from "./CoreTestSeed.ts";
 
 /**
- * Community composition of the core integration environment: the local
- * Node test fixture. Connections are derived from the environment (see
- * the repo-root `.env.example` and `scripts/run-local-integration.mjs`), the shared
+ * Community composition of the core integration environment. Connections are
+ * derived from the environment (see the repo-root `.env.example` and
+ * `scripts/run-integration.mjs`, which serves PGlite by default), the shared
  * fixture is seeded, and the contract is shared with every test file via
  * vitest's `provide`/`inject`.
  *
@@ -31,8 +31,8 @@ export default function setup({
         Effect.catchCause((cause) =>
           Effect.die(
             new Error(
-              "Core integration setup could not seed the fixture. Is the integration fixture running? " +
-                "Start it with `pnpm test:infra:up` or point DATABASE_* at a migrated database.",
+              "Core integration setup could not seed the fixture. Is a migrated database running? " +
+                "Run `pnpm test:integration`, or point DATABASE_* at a migrated database.",
               { cause },
             ),
           ),

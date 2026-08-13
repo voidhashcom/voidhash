@@ -15,7 +15,7 @@ import { Cause, Console, Data, Effect, FileSystem, Path, Schema, Stream } from "
 import { ChildProcess } from "effect/unstable/process";
 import { fileURLToPath } from "node:url";
 
-const adapters = ["@voidhash/platform-cloudflare", "@voidhash/platform-node"];
+const adapters = ["@voidhash/platform-cloudflare"];
 
 const sourceLike = /\.[cm]?[jt]sx?$/;
 const isTestFile = (path) =>

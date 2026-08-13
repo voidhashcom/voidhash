@@ -27,10 +27,9 @@ env:
   # local and CI invocations are the same command.
   TURBO_CONCURRENCY: 2
 
-# Two parallel lanes instead of one serial job: the purchase/restore contract
-# chain (React Native specs plus an Android gradle compile) no longer blocks
-# the verify tier. Both lanes belong to this one workflow, so anything keyed
-# off the overall Repository CI conclusion is unaffected.
+# Parallel lanes keep the integration and purchase/restore contracts from
+# blocking the verify tier. All lanes belong to this workflow, so anything
+# keyed off the overall Repository CI conclusion is unaffected.
 jobs:
   # The purchase/restore lane only exercises the React Native library, the
   # paywalls artifact it builds, and the RN example app's Android project — so
@@ -108,11 +107,55 @@ jobs:
 
       # The same command developers run locally; it already includes the
       # publication-boundary, platform-seam and test-tier checks. The
-      # stack-backed tiers (`test:integration`, `test:e2e`) run in the Selfhost
-      # Stack workflow, which owns the Compose lifecycle; together they cover
-      # `pnpm verify`.
+      # database-backed tier runs in the `integration` job below; together they
+      # cover `pnpm verify`.
       - name: Verify (lint + typecheck + unit tier)
         run: pnpm verify:quick
+
+  integration:
+    name: Integration tier
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    # A real PostgreSQL, not PGlite: PGlite multiplexes pooled connections onto a
+    # single backend, so a statement error can discard work another connection
+    # committed. The suites must fail on regressions, not on that.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: voidhash
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: voidhash
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voidhash -d voidhash"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.3
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Integration tier
+        run: pnpm test:integration
 
   # Only the work the verify lane does NOT already cover: the Nitrogen specs,
   # the Android purchase-coordinator gradle test and the example app's native
