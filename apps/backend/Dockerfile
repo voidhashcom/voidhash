@@ -9,11 +9,11 @@ RUN apt-get update \
 
 WORKDIR /repo
 COPY . .
-RUN corepack pnpm@11.1.3 install --frozen-lockfile --filter @voidhash/backend-app... --filter @voidhash/www... --ignore-scripts --config.node-linker=isolated
-RUN VITE_APP_API_URL= VITE_APP_ENV=production VOIDHASH_NODE_BUNDLE=true corepack pnpm@11.1.3 exec turbo build --filter @voidhash/www
-RUN rm -rf /out && corepack pnpm@11.1.3 --config.ignore-scripts=true --config.node-linker=isolated --filter @voidhash/backend-app deploy --prod --legacy /out
+RUN corepack pnpm@11.21.0 install --frozen-lockfile --filter @voidhash/backend-app... --filter @voidhash/www... --ignore-scripts --config.node-linker=isolated
+RUN VITE_APP_API_URL= VITE_APP_ENV=production VOIDHASH_NODE_BUNDLE=true corepack pnpm@11.21.0 exec turbo build --filter @voidhash/www
+RUN rm -rf /out && corepack pnpm@11.21.0 --config.ignore-scripts=true --config.node-linker=isolated --filter @voidhash/backend-app deploy --prod --legacy /out
 RUN node scripts/check-node-runtime-boundary.mjs /out
-RUN rm -rf /www && corepack pnpm@11.1.3 --config.ignore-scripts=true --config.node-linker=hoisted --config.allow-unused-patches=true --filter @voidhash/www deploy --prod --legacy /www
+RUN rm -rf /www && corepack pnpm@11.21.0 --config.ignore-scripts=true --config.node-linker=hoisted --config.allow-unused-patches=true --filter @voidhash/www deploy --prod --legacy /www
 RUN node scripts/check-node-runtime-boundary.mjs /www
 
 FROM node:24-bookworm-slim AS runtime

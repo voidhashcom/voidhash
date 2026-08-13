@@ -134,7 +134,7 @@ const deployAndInspect = Effect.gen(function* () {
     ChildProcess.make(
       "corepack",
       [
-        "pnpm@11.1.3",
+        "pnpm@11.21.0",
         "--config.ignore-scripts=true",
         "--config.node-linker=isolated",
         "--config.block-exotic-subdeps=false",

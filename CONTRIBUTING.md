@@ -37,7 +37,7 @@ Voidhash uses Node.js 24 and pnpm 11. From the repository root:
 
 ```sh
 corepack enable
-corepack prepare pnpm@11.1.3 --activate
+corepack prepare pnpm@11.21.0 --activate
 pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm test
