@@ -27,6 +27,9 @@ import {
 } from "@/features/studio/lib/tanstack-query/organizations";
 
 export const Route = createFileRoute("/studio/_authenticated/create-organization/")({
+  // The parent is `ssr: "data-only"` for its auth loader; this screen stays
+  // fully client-only.
+  ssr: false,
   component: CreateOrganizationPage,
 });
 

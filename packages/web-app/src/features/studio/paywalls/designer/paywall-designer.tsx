@@ -1,7 +1,6 @@
 "use client";
 
 import { Logo } from "@voidhash/ui";
-import { useEffect, useState } from "react";
 import { useStore } from "zustand/react";
 
 import { AiPanel } from "../designer/ai-panel/ai-panel";
@@ -10,6 +9,7 @@ import { PreviewCanvas } from "../designer/canvas/preview-canvas";
 import { CodeEditorProvider } from "../designer/code-mode/code-editor-context";
 import { CodeModeWorkspace } from "../designer/code-mode/code-mode-workspace";
 import { DevModeView } from "../designer/dev-mode/dev-mode-view";
+import { DesignerLoadingScreen } from "../designer/loading-screen";
 import {
   PaywallDesignerStoreProvider,
   usePaywallDesignerStore,
@@ -62,22 +62,6 @@ function DesignerContent() {
   );
 }
 
-/**
- * Store-free loading visual, shown both before the store exists (token mint
- * in flight) and while the document snapshot has not arrived yet.
- */
-function LoadingScreen() {
-  return (
-    <div className="flex h-screen flex-col gap-8 w-screen items-center fixed inset-0 z-1000 justify-center bg-background">
-      <Logo variant="symbol" color="mono" className="h-10 w-10" />
-      <div className="relative">
-        <div className="h-1 w-42 bg-secondary rounded-full" />
-        <div className="h-1 left-0 top-0 bg-foreground rounded-full absolute animate-[designer-loading_10s_ease-in-out] fill-mode-forwards" />
-      </div>
-    </div>
-  );
-}
-
 /** Store-free error screen for terminal transport/token failures. */
 function ErrorScreen({ retry }: { error: Error; retry: () => void }) {
   return (
@@ -100,46 +84,14 @@ function ErrorScreen({ retry }: { error: Error; retry: () => void }) {
   );
 }
 
-/**
- * Gates the designer on document readiness: pre-ready, the document has no
- * snapshot and writes throw, so nothing snapshot-consuming may mount. The
- * loading overlay lingers briefly after readiness for a smooth reveal.
- */
-function DesignerReadyGate({ children }: { children: React.ReactNode }) {
-  const store = usePaywallDesignerStore();
-  const isReady = useStore(store, (state) => state.mimic.isReady);
-  const [revealed, setRevealed] = useState(false);
-
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      setRevealed(true);
-    }, 200);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [isReady]);
-
-  return (
-    <>
-      {!revealed && <LoadingScreen />}
-      {isReady && children}
-    </>
-  );
-}
-
 export function DesignerDetailPage({ paywallId }: { paywallId: string }) {
   return (
     <PaywallDesignerStoreProvider
       paywallId={paywallId}
-      renderLoading={() => <LoadingScreen />}
+      renderLoading={() => <DesignerLoadingScreen />}
       renderError={(error, retry) => <ErrorScreen error={error} retry={retry} />}
     >
-      <DesignerReadyGate>
-        <DesignerContent />
-      </DesignerReadyGate>
+      <DesignerContent />
     </PaywallDesignerStoreProvider>
   );
 }

@@ -4,6 +4,9 @@ import { Logo, SidebarProvider, useIsMobile } from "@voidhash/ui";
 import { redirectToSignOut } from "@/features/auth/lib/sign-out";
 
 export const Route = createFileRoute("/studio/_authenticated/_dashboard")({
+  // The parent is `ssr: "data-only"` for its auth loader; the dashboard tree
+  // itself stays fully client-only.
+  ssr: false,
   component: RouteComponent,
 });
 

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import type { User as RpcUser } from "@voidhash/rpc";
 import { Spinner } from "@voidhash/ui";
 import { Effect, Result } from "effect";
@@ -10,6 +10,7 @@ import {
 } from "@/features/auth/lib/session";
 import { AuthProvider } from "@/features/studio/components/auth-context";
 import { DefaultCatchBoundary } from "@/features/studio/components/default-cache-boundary";
+import { DesignerLoadingScreen } from "@/features/studio/paywalls/designer/loading-screen";
 import { DashboardShellSkeleton } from "@/features/studio/shell/components/skeleton";
 import { WaitlistGate } from "@/features/studio/waitlist/waitlist-gate";
 import { queryKeys } from "@/features/studio/lib/tanstack-query";
@@ -26,6 +27,11 @@ type AuthenticationError = {
   message?: string;
 };
 
+// `Rpc/AuthenticationError` is a failed authentication attempt;
+// `Rpc/NotAuthenticatedError` is the absence of any session. Both send the
+// user to the login screen.
+const AUTHENTICATION_ERROR_TAGS = new Set(["Rpc/AuthenticationError", "Rpc/NotAuthenticatedError"]);
+
 const isAuthenticationError = (error: unknown): error is AuthenticationError => {
   if (!error || typeof error !== "object") {
     return false;
@@ -33,8 +39,9 @@ const isAuthenticationError = (error: unknown): error is AuthenticationError => 
 
   const authError = error as AuthenticationError;
   return (
-    authError._tag === "Rpc/AuthenticationError" ||
-    authError.failure?._tag === "Rpc/AuthenticationError"
+    (authError._tag !== undefined && AUTHENTICATION_ERROR_TAGS.has(authError._tag)) ||
+    (authError.failure?._tag !== undefined &&
+      AUTHENTICATION_ERROR_TAGS.has(authError.failure._tag))
   );
 };
 
@@ -101,10 +108,12 @@ const getSessionFallbackUser = (user: SessionUser) =>
   }) satisfies typeof RpcUser.Type;
 
 export const Route = createFileRoute("/studio/_authenticated")({
-  ssr: false,
+  // Data-only SSR folds the CurrentUser fetch into the initial document
+  // request (the session cookie is already unsealed there by the auth
+  // middleware), so a cold load hydrates with the user instead of spending
+  // two client round-trips behind a skeleton. Components stay client-only.
+  ssr: "data-only",
   loader: async ({ context, location }) => {
-    const sessionUser = await getSessionUser();
-
     const redirectToLogin = (): never => {
       const nextPath = `${location.pathname}${location.searchStr}${location.hash}`;
       const searchParams = new URLSearchParams({ next: nextPath });
@@ -115,21 +124,24 @@ export const Route = createFileRoute("/studio/_authenticated")({
       );
     };
 
-    const authenticatedUser = sessionUser ?? redirectToLogin();
-
-    // Read through the query cache so an optimistic write (e.g. right after
-    // creating an organization) is honored without a network round-trip, and
-    // so intra-app navigations within `staleTime` don't re-block on a
-    // CurrentUser fetch + full-screen skeleton. `getCurrentUser` stays the
-    // fetcher, so the error shapes handled below are unchanged.
+    // Fetch the current user immediately — the identity-provider session is
+    // only consulted on the failure paths below, so the happy path costs a
+    // single round-trip. In the browser, read through the query cache so an
+    // optimistic write (e.g. right after creating an organization) is honored
+    // and intra-app navigations within `staleTime` don't re-block on a
+    // CurrentUser fetch; during SSR, fetch directly — the module-level query
+    // cache is shared across requests on the server, so it must never hold
+    // per-user data there.
     const cached = await Effect.runPromise(
       Effect.tryPromise({
         try: () =>
-          context.queryClient.ensureQueryData({
-            queryFn: () => getCurrentUser(),
-            queryKey: queryKeys.user.getUser(),
-            staleTime: 30_000,
-          }),
+          import.meta.env.SSR
+            ? getCurrentUser()
+            : context.queryClient.ensureQueryData({
+                queryFn: () => getCurrentUser(),
+                queryKey: queryKeys.user.getUser(),
+                staleTime: 30_000,
+              }),
         catch: (error) => error,
       }).pipe(Effect.result),
     );
@@ -139,8 +151,11 @@ export const Route = createFileRoute("/studio/_authenticated")({
 
     const error = cached.failure;
     if (isDatabaseAuthenticationError(error)) {
-      const user = getSessionFallbackUser(authenticatedUser);
-      context.queryClient.setQueryData(queryKeys.user.getUser(), user);
+      const sessionUser = (await getSessionUser()) ?? redirectToLogin();
+      const user = getSessionFallbackUser(sessionUser);
+      if (!import.meta.env.SSR) {
+        context.queryClient.setQueryData(queryKeys.user.getUser(), user);
+      }
       return user;
     }
 
@@ -151,9 +166,22 @@ export const Route = createFileRoute("/studio/_authenticated")({
   },
   component: RouteComponent,
   errorComponent: AuthErrorComponent,
-  pendingComponent: DashboardShellSkeleton,
+  pendingComponent: AuthenticatedPending,
   pendingMs: 0,
 });
+
+/**
+ * Route-aware pending visual: designer destinations get the designer's
+ * loading screen so the load reads as one continuous phase, everything else
+ * gets the dashboard shell skeleton.
+ */
+function AuthenticatedPending() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.includes("/design/")) {
+    return <DesignerLoadingScreen />;
+  }
+  return <DashboardShellSkeleton />;
+}
 
 function RouteComponent() {
   const data = Route.useLoaderData();

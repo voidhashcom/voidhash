@@ -9,12 +9,25 @@ import {
   type PresenceInput,
 } from "@voidhash/mimic-schema";
 import { Effect } from "effect";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { create } from "zustand";
 
-import { managedRuntime, VoidhashRpc } from "@/features/studio/lib/effect-query";
-
 import { SHOW_GRID } from "../constants";
+import {
+  mintPaywallEditSession,
+  prefetchPaywallEditSession,
+  releasePaywallEditSession,
+  type PaywallEditSession,
+} from "../edit-session";
+import { resetDesignerLoadingProgress } from "../loading-screen";
 import {
   clampAiPanelWidth,
   clampLeftPanelWidth,
@@ -52,28 +65,20 @@ const initialCodeComponents: CodeComponentsState = {
 // ============================================================================
 
 /**
- * Mints a fresh single-use edit token for the paywall document. Called once
- * on mount for the document `url` and again by the transport's token callback
- * on every (re)connect — tokens are single-use, so they are never reused.
- */
-function requestPaywallEditToken(paywallId: string) {
-  return managedRuntime.runPromise(
-    VoidhashRpc.use((rpc) => rpc.RequestPaywallEditToken({ paywallId })),
-  );
-}
-
-/**
  * Creates the client document for a paywall, connecting to the mimic host at
- * the given document URL. The transport re-mints a token per (re)connect.
+ * the session's document URL. The first connect consumes the session's
+ * (single-use) pre-minted token; every later token request — reconnects, or a
+ * first connect that raced the token's expiry — mints fresh.
  * `onAuthFailure` fires on every in-band auth failure — initial connect AND
  * reconnects — which terminally stops the transport's reconnect loop.
  */
 export function createPaywallDesignerDocument(options: {
   paywallId: string;
-  url: string;
+  session: PaywallEditSession;
   initialPresence: PresenceInput;
   onAuthFailure?: (error: Error) => void;
 }) {
+  let initialToken: string | null = options.session.token;
   return createClientDocument({
     presence: {
       initial: options.initialPresence,
@@ -83,8 +88,16 @@ export function createPaywallDesignerDocument(options: {
     transport: new WebSocketTransport({
       onAuthFailure: options.onAuthFailure,
       reconnectDelayMs: 5000,
-      token: async () => (await requestPaywallEditToken(options.paywallId)).token,
-      url: options.url,
+      token: async () => {
+        if (initialToken !== null) {
+          const token = initialToken;
+          initialToken = null;
+          releasePaywallEditSession(options.paywallId);
+          return token;
+        }
+        return (await mintPaywallEditSession(options.paywallId)).token;
+      },
+      url: options.session.url,
     }),
   });
 }
@@ -221,7 +234,12 @@ export const PaywallStoreContext = createContext<PaywallDesignerStoreType | null
 interface PaywallDesignerStoreProviderProps {
   paywallId: string;
   children: React.ReactNode;
-  /** Rendered while the edit token is being minted (no store exists yet). */
+  /**
+   * Rendered as a full-screen overlay from mount until the document snapshot
+   * has arrived (plus a short reveal linger). Kept in a stable slot across
+   * every internal phase change so the same element instance survives from
+   * token mint to reveal.
+   */
   renderLoading: () => React.ReactNode;
   /** Rendered on terminal transport/token failure, with a retry that re-creates the store. */
   renderError: (error: Error, retry: () => void) => React.ReactNode;
@@ -262,6 +280,28 @@ function createInitialPresence(): PresenceInput {
   };
 }
 
+/**
+ * How long the loading overlay lingers after the document snapshot arrives,
+ * so the editor never flashes in mid-paint.
+ */
+const REVEAL_DELAY_MS = 50;
+
+/**
+ * Subscribes to the document-ready flag of a store that may not exist yet;
+ * reads as not-ready while the store is still being created.
+ */
+function useMimicIsReady(store: PaywallDesignerStoreType | null) {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => store?.subscribe(onStoreChange) ?? (() => {}),
+    [store],
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => store?.getState().mimic.isReady ?? false,
+    () => false,
+  );
+}
+
 export function PaywallDesignerStoreProvider({
   paywallId,
   children,
@@ -269,11 +309,14 @@ export function PaywallDesignerStoreProvider({
   renderError,
 }: PaywallDesignerStoreProviderProps) {
   const [phase, setPhase] = useState<ProviderPhase>({ status: "loading" });
+  const [revealed, setRevealed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const initialPresenceRef = useRef<PresenceInput | null>(null);
   initialPresenceRef.current ??= createInitialPresence();
 
   const retry = useCallback(() => {
+    resetDesignerLoadingProgress();
+    setRevealed(false);
     setPhase({ status: "loading" });
     setAttempt((current) => current + 1);
   }, []);
@@ -283,9 +326,12 @@ export function PaywallDesignerStoreProvider({
     let document: PaywallDesignerDocumentInstance | null = null;
 
     setPhase({ status: "loading" });
+    setRevealed(false);
 
     void (async () => {
-      const { url } = await requestPaywallEditToken(paywallId);
+      // Usually already resolved: the designer route's loader starts this
+      // mint in parallel with the auth loader and the chunk download.
+      const session = await prefetchPaywallEditSession(paywallId);
       if (cancelled) {
         return;
       }
@@ -304,7 +350,7 @@ export function PaywallDesignerStoreProvider({
           setPhase({ status: "error", error });
         },
         paywallId,
-        url,
+        session,
       });
       const store = createPaywallDesignerStore(document);
       setPhase({ status: "ready", store });
@@ -328,14 +374,38 @@ export function PaywallDesignerStoreProvider({
     };
   }, [paywallId, attempt]);
 
-  if (phase.status === "loading") {
-    return <>{renderLoading()}</>;
-  }
-  if (phase.status === "error") {
-    return <>{renderError(phase.error, retry)}</>;
-  }
+  const store = phase.status === "ready" ? phase.store : null;
+  const isReady = useMimicIsReady(store);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setRevealed(true);
+      resetDesignerLoadingProgress();
+    }, REVEAL_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isReady]);
+
+  useEffect(() => () => resetDesignerLoadingProgress(), []);
+
+  // The overlay occupies a stable first slot across all phases so its element
+  // never remounts (which would restart the progress animation). Children
+  // mount underneath it as soon as the snapshot is ready — pre-ready, the
+  // document has no snapshot and writes throw, so nothing snapshot-consuming
+  // may mount earlier.
+  const showLoading = phase.status === "loading" || (phase.status === "ready" && !revealed);
   return (
-    <PaywallStoreContext.Provider value={phase.store}>{children}</PaywallStoreContext.Provider>
+    <>
+      {showLoading ? renderLoading() : null}
+      {phase.status === "error" ? renderError(phase.error, retry) : null}
+      {store !== null && isReady ? (
+        <PaywallStoreContext.Provider value={store}>{children}</PaywallStoreContext.Provider>
+      ) : null}
+    </>
   );
 }
 
