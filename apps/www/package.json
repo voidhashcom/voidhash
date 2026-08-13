@@ -11,7 +11,6 @@
     "preview": "vp preview",
     "typecheck": "pnpm run generate:docs && tsc --noEmit",
     "generate:docs": "fumadocs-mdx src/features/source.config.ts .source",
-    "generate:openapi": "pnpm --filter @voidhash/web-app generate:openapi",
     "test:components": "pnpm --filter @voidhash/web-app test:components"
   },
   "dependencies": {

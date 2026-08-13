@@ -10,13 +10,10 @@
 
 import { Route as rootRouteImport } from './../../../packages/web-app/src/routes/__root'
 import { Route as StudioRouteRouteImport } from './../../../packages/web-app/src/routes/shared/studio/route'
-import { Route as DocsRouteRouteImport } from './../../../packages/web-app/src/routes/shared/docs/route'
 import { Route as AuthRouteRouteImport } from './../../../packages/web-app/src/routes/shared/auth/route'
 import { Route as MarketingRouteRouteImport } from './../../../packages/web-app/src/routes/shared/_marketing/route'
-import { Route as DocsIndexRouteImport } from './../../../packages/web-app/src/routes/shared/docs/index'
 import { Route as AuthIndexRouteImport } from './../../../packages/web-app/src/routes/shared/auth/index'
 import { Route as MarketingIndexRouteImport } from './../../../packages/web-app/src/routes/community/_marketing/index'
-import { Route as DocsSplatRouteImport } from './../../../packages/web-app/src/routes/shared/docs/$'
 import { Route as AuthVerifyEmailRouteImport } from './../../../packages/web-app/src/routes/community/auth/verify-email'
 import { Route as AuthSignUpRouteImport } from './../../../packages/web-app/src/routes/community/auth/sign-up'
 import { Route as AuthResetPasswordRouteImport } from './../../../packages/web-app/src/routes/community/auth/reset-password'
@@ -27,8 +24,6 @@ import { Route as StudioAuthenticatedRouteRouteImport } from './../../../package
 import { Route as StudioAuthenticatedIndexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/index'
 import { Route as AuthDevicesIndexRouteImport } from './../../../packages/web-app/src/routes/shared/auth/devices/index'
 import { Route as StudioAuthenticatedWaitlistRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/waitlist'
-import { Route as DocsApiSearchRouteImport } from './../../../packages/web-app/src/routes/shared/docs/api/search'
-import { Route as DocsApiProxyRouteImport } from './../../../packages/web-app/src/routes/shared/docs/api/proxy'
 import { Route as ApiAuthSignOutRouteImport } from './../../../packages/web-app/src/routes/community/api/auth/sign-out'
 import { Route as ApiAuthSignInRouteImport } from './../../../packages/web-app/src/routes/community/api/auth/sign-in'
 import { Route as ApiAuthSessionRouteImport } from './../../../packages/web-app/src/routes/community/api/auth/session'
@@ -75,11 +70,6 @@ const StudioRouteRoute = StudioRouteRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocsRouteRoute = DocsRouteRouteImport.update({
-  id: '/docs',
-  path: '/docs',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRouteRoute = AuthRouteRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -88,11 +78,6 @@ const AuthRouteRoute = AuthRouteRouteImport.update({
 const MarketingRouteRoute = MarketingRouteRouteImport.update({
   id: '/_marketing',
   getParentRoute: () => rootRouteImport,
-} as any)
-const DocsIndexRoute = DocsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DocsRouteRoute,
 } as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
@@ -103,11 +88,6 @@ const MarketingIndexRoute = MarketingIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MarketingRouteRoute,
-} as any)
-const DocsSplatRoute = DocsSplatRouteImport.update({
-  id: '/$',
-  path: '/$',
-  getParentRoute: () => DocsRouteRoute,
 } as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -161,16 +141,6 @@ const StudioAuthenticatedWaitlistRoute =
     path: '/waitlist',
     getParentRoute: () => StudioAuthenticatedRouteRoute,
   } as any)
-const DocsApiSearchRoute = DocsApiSearchRouteImport.update({
-  id: '/api/search',
-  path: '/api/search',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
-const DocsApiProxyRoute = DocsApiProxyRouteImport.update({
-  id: '/api/proxy',
-  path: '/api/proxy',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
 const ApiAuthSignOutRoute = ApiAuthSignOutRouteImport.update({
   id: '/api/auth/sign-out',
   path: '/api/auth/sign-out',
@@ -513,7 +483,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebh
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
-  '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -521,14 +490,10 @@ export interface FileRoutesByFullPath {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/docs/$': typeof DocsSplatRoute
   '/auth/': typeof AuthIndexRoute
-  '/docs/': typeof DocsIndexRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
-  '/docs/api/proxy': typeof DocsApiProxyRoute
-  '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/': typeof StudioAuthenticatedIndexRoute
@@ -577,15 +542,11 @@ export interface FileRoutesByTo {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/docs/$': typeof DocsSplatRoute
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthIndexRoute
-  '/docs': typeof DocsIndexRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
-  '/docs/api/proxy': typeof DocsApiProxyRoute
-  '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices': typeof AuthDevicesIndexRoute
   '/studio/create-organization': typeof StudioAuthenticatedCreateOrganizationIndexRoute
@@ -627,7 +588,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_marketing': typeof MarketingRouteRouteWithChildren
   '/auth': typeof AuthRouteRouteWithChildren
-  '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/studio/_authenticated': typeof StudioAuthenticatedRouteRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -636,16 +596,12 @@ export interface FileRoutesById {
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/auth/sign-up': typeof AuthSignUpRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
-  '/docs/$': typeof DocsSplatRoute
   '/_marketing/': typeof MarketingIndexRoute
   '/auth/': typeof AuthIndexRoute
-  '/docs/': typeof DocsIndexRoute
   '/studio/_authenticated/_dashboard': typeof StudioAuthenticatedDashboardRouteRouteWithChildren
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
   '/api/auth/sign-out': typeof ApiAuthSignOutRoute
-  '/docs/api/proxy': typeof DocsApiProxyRoute
-  '/docs/api/search': typeof DocsApiSearchRoute
   '/studio/_authenticated/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/_authenticated/': typeof StudioAuthenticatedIndexRoute
@@ -691,7 +647,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/docs'
     | '/studio'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -699,14 +654,10 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/docs/$'
     | '/auth/'
-    | '/docs/'
     | '/api/auth/session'
     | '/api/auth/sign-in'
     | '/api/auth/sign-out'
-    | '/docs/api/proxy'
-    | '/docs/api/search'
     | '/studio/waitlist'
     | '/auth/devices/'
     | '/studio/'
@@ -755,15 +706,11 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/docs/$'
     | '/'
     | '/auth'
-    | '/docs'
     | '/api/auth/session'
     | '/api/auth/sign-in'
     | '/api/auth/sign-out'
-    | '/docs/api/proxy'
-    | '/docs/api/search'
     | '/studio/waitlist'
     | '/auth/devices'
     | '/studio/create-organization'
@@ -804,7 +751,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_marketing'
     | '/auth'
-    | '/docs'
     | '/studio'
     | '/studio/_authenticated'
     | '/auth/forgot-password'
@@ -813,16 +759,12 @@ export interface FileRouteTypes {
     | '/auth/reset-password'
     | '/auth/sign-up'
     | '/auth/verify-email'
-    | '/docs/$'
     | '/_marketing/'
     | '/auth/'
-    | '/docs/'
     | '/studio/_authenticated/_dashboard'
     | '/api/auth/session'
     | '/api/auth/sign-in'
     | '/api/auth/sign-out'
-    | '/docs/api/proxy'
-    | '/docs/api/search'
     | '/studio/_authenticated/waitlist'
     | '/auth/devices/'
     | '/studio/_authenticated/'
@@ -867,7 +809,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   MarketingRouteRoute: typeof MarketingRouteRouteWithChildren
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
-  DocsRouteRoute: typeof DocsRouteRouteWithChildren
   StudioRouteRoute: typeof StudioRouteRouteWithChildren
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
   ApiAuthSignInRoute: typeof ApiAuthSignInRoute
@@ -881,13 +822,6 @@ declare module '@tanstack/react-router' {
       path: '/studio'
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/docs': {
-      id: '/docs'
-      path: '/docs'
-      fullPath: '/docs'
-      preLoaderRoute: typeof DocsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -904,13 +838,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/docs/': {
-      id: '/docs/'
-      path: '/'
-      fullPath: '/docs/'
-      preLoaderRoute: typeof DocsIndexRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
     '/auth/': {
       id: '/auth/'
       path: '/'
@@ -924,13 +851,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRouteRoute
-    }
-    '/docs/$': {
-      id: '/docs/$'
-      path: '/$'
-      fullPath: '/docs/$'
-      preLoaderRoute: typeof DocsSplatRouteImport
-      parentRoute: typeof DocsRouteRoute
     }
     '/auth/verify-email': {
       id: '/auth/verify-email'
@@ -1001,20 +921,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio/waitlist'
       preLoaderRoute: typeof StudioAuthenticatedWaitlistRouteImport
       parentRoute: typeof StudioAuthenticatedRouteRoute
-    }
-    '/docs/api/search': {
-      id: '/docs/api/search'
-      path: '/api/search'
-      fullPath: '/docs/api/search'
-      preLoaderRoute: typeof DocsApiSearchRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
-    '/docs/api/proxy': {
-      id: '/docs/api/proxy'
-      path: '/api/proxy'
-      fullPath: '/docs/api/proxy'
-      preLoaderRoute: typeof DocsApiProxyRouteImport
-      parentRoute: typeof DocsRouteRoute
     }
     '/api/auth/sign-out': {
       id: '/api/auth/sign-out'
@@ -1337,24 +1243,6 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
   AuthRouteRouteChildren,
 )
 
-interface DocsRouteRouteChildren {
-  DocsSplatRoute: typeof DocsSplatRoute
-  DocsIndexRoute: typeof DocsIndexRoute
-  DocsApiProxyRoute: typeof DocsApiProxyRoute
-  DocsApiSearchRoute: typeof DocsApiSearchRoute
-}
-
-const DocsRouteRouteChildren: DocsRouteRouteChildren = {
-  DocsSplatRoute: DocsSplatRoute,
-  DocsIndexRoute: DocsIndexRoute,
-  DocsApiProxyRoute: DocsApiProxyRoute,
-  DocsApiSearchRoute: DocsApiSearchRoute,
-}
-
-const DocsRouteRouteWithChildren = DocsRouteRoute._addFileChildren(
-  DocsRouteRouteChildren,
-)
-
 interface StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren {
   StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
   StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute: typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
@@ -1533,7 +1421,6 @@ const StudioRouteRouteWithChildren = StudioRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   MarketingRouteRoute: MarketingRouteRouteWithChildren,
   AuthRouteRoute: AuthRouteRouteWithChildren,
-  DocsRouteRoute: DocsRouteRouteWithChildren,
   StudioRouteRoute: StudioRouteRouteWithChildren,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
   ApiAuthSignInRoute: ApiAuthSignInRoute,

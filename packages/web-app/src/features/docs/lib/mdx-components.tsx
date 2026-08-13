@@ -7,14 +7,9 @@ import { Step, Steps } from "fumadocs-ui/components/steps";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 import defaultMdxComponents from "fumadocs-ui/mdx";
-import { type ComponentProps, lazy } from "react";
+import type { ComponentProps } from "react";
 
 import { DOCS_PATH } from "@/lib/paths";
-
-// Lazy so the OpenAPI reference renderer (Scalar playground, shiki) is only
-// pulled into the bundle for generated API pages, not every doc/guide page.
-const loadOpenAPIPage = () => import("./openapi-page");
-const OpenAPIPage = lazy(loadOpenAPIPage);
 
 /**
  * Renders links authored inside MDX. Root-relative hrefs (e.g. `/foo`) are
@@ -37,8 +32,12 @@ export function DocsMdxLink(props: ComponentProps<"a">) {
 
 /**
  * Shared MDX component registry used to render documentation content both on
- * the public docs site (`/docs/$`) and inside in-app guide sheets, so a guide
+ * the hosted docs site and inside the studio's in-app guide sheets, so a guide
  * looks identical in either place. Register any custom MDX component here once.
+ *
+ * Components that only ever appear on generated API Reference pages (the
+ * OpenAPI renderer) are added by the docs site's own registry instead, so the
+ * studio never pulls that bundle in.
  */
 export const docsMdxComponents = {
   ...defaultMdxComponents,
@@ -53,10 +52,6 @@ export const docsMdxComponents = {
   Tab,
   Tabs,
   TypeTable,
-  // Generated OpenAPI pages render `<OpenAPIPage>`; `APIPage` is the legacy
-  // (v10) alias the generator still emits for backward compatibility.
-  OpenAPIPage,
-  APIPage: OpenAPIPage,
   a: DocsMdxLink,
   iframe: (props: ComponentProps<"iframe">) => (
     <iframe {...props} className="h-[500px] w-full" />

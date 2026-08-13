@@ -19,6 +19,7 @@ declare module "virtual:voidhash-web/auth-server" {
 declare module "virtual:voidhash-web/edition" {
   export {
     advancedAnalyticsAvailable,
+    docsSiteUrl,
     isOrganizationWaitlisted,
     organizationSettingsNavItems,
     PaywallThumbnailAdminSlot,

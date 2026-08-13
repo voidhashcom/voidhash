@@ -13,19 +13,21 @@ import {
 import { CircleHelpIcon, ExternalLinkIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
+import { docsSiteUrl } from "virtual:voidhash-web/edition";
+
 import { GuideBody } from "@/features/docs/lib/guide-content";
-import { DOCS_PATH } from "@/lib/paths";
 
 /**
  * A reusable "Where to find?" affordance. Renders an inline link-style button
  * that opens a Sheet showing a documentation guide (authored as MDX under the
  * docs collection) so users can learn where to obtain a value without leaving
- * the form. The same guide is published at `/docs/<guide>` for SEO, linked from
- * the sheet footer.
+ * the form. The same guide is published on the docs site, linked from the sheet
+ * footer; community deployments link out to the public site because the docs
+ * site itself is hosted-only.
  *
  * The guide MDX chunk is only fetched the first time the sheet is opened.
  *
- * @param guide - Guide slug, matching its public path at `/docs/<guide>`
+ * @param guide - Guide slug, matching its published path under the docs site
  *   (e.g. `guides/payment-providers/apple-app-store/bundle-id`).
  * @param fieldLabel - The field name, used in the sheet title.
  * @param label - Trigger text. Defaults to "Where to find?".
@@ -74,7 +76,7 @@ export function WhereToFindGuide({
         <div className="border-t p-4">
           <a
             className="inline-flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
-            href={`${DOCS_PATH}/${guide}`}
+            href={`${docsSiteUrl}/${guide}`}
             rel="noreferrer"
             target="_blank"
           >

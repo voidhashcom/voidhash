@@ -11,7 +11,6 @@
     "./*": "./src/*"
   },
   "scripts": {
-    "generate:openapi": "bun scripts/generate-openapi.ts",
     "test:components": "vp test run -c vitest.mts",
     "typecheck": "tsc --noEmit"
   },
@@ -39,8 +38,6 @@
     "@react-three/drei": "^10.1.2",
     "@react-three/fiber": "^9.1.2",
     "@react-three/postprocessing": "^3.0.4",
-    "@scalar/api-client-react": "^2.0.36",
-    "@scalar/openapi-upgrader": "0.2.11",
     "@t3-oss/env-core": "^0.13.8",
     "@tanstack/query-core": "5.100.11",
     "@tanstack/react-query": "catalog:",
@@ -76,7 +73,6 @@
     "fractional-indexing-jittered": "^1.0.0",
     "fumadocs-core": "16.11.5",
     "fumadocs-mdx": "15.2.0",
-    "fumadocs-openapi": "11.2.2",
     "fumadocs-ui": "16.11.5",
     "h3-v2": "npm:h3@2.0.1-rc.18",
     "lucide-react": "catalog:",

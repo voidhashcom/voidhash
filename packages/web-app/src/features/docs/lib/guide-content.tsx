@@ -5,7 +5,7 @@ import { lazy, Suspense, useMemo } from "react";
 
 const docMap = browserCollections.docs.raw;
 
-import { DocsBody } from "@/features/docs/components/layout/page";
+import { DocsBody } from "@/features/docs/components/docs-body";
 import { docsMdxComponents } from "@/features/docs/lib/mdx-components";
 
 /** Strips the generated doc-map decorations from a key: `./a/b.mdx` -> `a/b`. */

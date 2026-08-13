@@ -13,3 +13,10 @@ export { PaywallThumbnailAdminSlot } from "../../features/studio/paywalls/design
 
 /** Community exposes only the built-in PostgreSQL analytics pages. */
 export const advancedAnalyticsAvailable = false;
+
+/**
+ * Where published documentation pages live. The docs site itself is hosted-only,
+ * so community deployments link out to the public site rather than to a local
+ * route; guide content still renders in-app from the bundled MDX collection.
+ */
+export const docsSiteUrl = "https://voidhash.com/docs";

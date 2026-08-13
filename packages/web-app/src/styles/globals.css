@@ -4,9 +4,7 @@
 @import "tw-animate-css";
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
-@import "fumadocs-openapi/css/preset.css";
 @import "@voidhash/ui/styles/brand-theme.css";
-@import "../features/docs/styles/globals.css";
 
 @source "../../../../packages/ui";
 @source "../../../../packages/features";
