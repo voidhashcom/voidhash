@@ -1,10 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { lazy, Suspense, type ComponentType } from "react";
 
-import { prefetchPaywallEditSession } from "@/features/studio/paywalls/designer/edit-session";
 import { DesignerLoadingScreen } from "@/features/studio/paywalls/designer/loading-screen";
 
 const loadPaywallDesigner = () => import("@/features/studio/paywalls/designer/paywall-designer");
+
+// The compiler removes this body from the server build. Keeping both imports
+// inside the client boundary prevents the paywall designer's editor-only WASM
+// and worker assets from becoming modules in the deployed Cloudflare Worker.
+const preloadPaywallDesignerRoute = createIsomorphicFn().client(
+  ({ paywallId, preload }: { paywallId: string; preload: boolean }) => {
+    const loadPaywallEditSession = () =>
+      import("@/features/studio/paywalls/designer/edit-session");
+    void loadPaywallDesigner();
+    if (!preload) {
+      void loadPaywallEditSession().then(
+        ({ prefetchPaywallEditSession }) => prefetchPaywallEditSession(paywallId),
+      );
+    }
+  },
+);
 
 const DesignerDetailPage = import.meta.env.SSR
   ? null
@@ -23,14 +39,11 @@ export const Route = createFileRoute(
   ssr: false,
   // Runs in parallel with the `_authenticated` auth loader, so the designer
   // chunk and the document edit session load concurrently with the auth
-  // round-trip instead of queueing behind it. Hover preloads only warm the
+  // round-trip instead of queueing behind them. Hover preloads only warm the
   // chunk — edit tokens are single-use mints, so one is only minted for a
   // committed navigation.
   loader: ({ params, preload }) => {
-    void loadPaywallDesigner();
-    if (!preload) {
-      void prefetchPaywallEditSession(params.id);
-    }
+    preloadPaywallDesignerRoute({ paywallId: params.id, preload });
   },
   component: DesignerDetailPageComponent,
 });
