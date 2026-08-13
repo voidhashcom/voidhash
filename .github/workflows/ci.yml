@@ -32,6 +32,44 @@ env:
 # the verify tier. Both lanes belong to this one workflow, so anything keyed
 # off the overall Repository CI conclusion is unaffected.
 jobs:
+  # The purchase/restore lane only exercises the React Native library, the
+  # paywalls artifact it builds, and the RN example app's Android project — so
+  # PRs touching none of those skip its gradle chain. Pushes always run it.
+  gate:
+    name: Gate (paths)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      purchase_restore: ${{ steps.paths.outputs.run }}
+    steps:
+      - name: Decide whether the purchase/restore lane runs
+        id: paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
+            --jq '.[].filename')
+          # Not `grep -q`: under pipefail an early-exiting grep can SIGPIPE the
+          # producer and turn a match into a false negative on huge file lists.
+          if printf '%s\n' "$changed" | grep -E \
+            '^libraries/|^examples/react-native-example/|^package\.json$|^pnpm-lock\.yaml$|^pnpm-workspace\.yaml$|^\.github/workflows/ci\.yml$' \
+            > /dev/null; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Skipping purchase/restore lane::No change under libraries/, the RN example app or the workspace manifests."
+          fi
+
   verify:
     name: Verify (checks, lint, typecheck, unit tier)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -76,9 +114,14 @@ jobs:
       - name: Verify (lint + typecheck + unit tier)
         run: pnpm verify:quick
 
+  # Only the work the verify lane does NOT already cover: the Nitrogen specs,
+  # the Android purchase-coordinator gradle test and the example app's native
+  # compile. The RN/backend unit suites and every package typecheck run once,
+  # in the verify lane's turbo graph.
   purchase-restore:
     name: Purchase and restore contracts
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    needs: gate
+    if: needs.gate.outputs.purchase_restore == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
     steps:
@@ -100,6 +143,21 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # The wrapper downloads the gradle distribution from services.gradle.org
+      # on every fresh runner, and a regional 503 there fails the whole lane.
+      # Caching the wrapper dists and the dependency modules removes that
+      # external single point of failure (after one seeded run) along with the
+      # download time.
+      - name: Restore gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper
+            ~/.gradle/caches/modules-2
+          key: gradle-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Validate purchase and restore contracts
         run: pnpm test:purchase-restore

@@ -45,8 +45,7 @@
       "outputs": []
     },
     "typecheck": {
-      "outputs": [],
-      "cache": false
+      "outputs": []
     },
     "deploy": {
       "cache": false

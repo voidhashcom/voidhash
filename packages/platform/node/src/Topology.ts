@@ -1,4 +1,5 @@
-import type { Config, Layer } from "effect";
+import { NodeCrypto } from "@effect/platform-node";
+import { type Config, Layer } from "effect";
 import type { SqlClient } from "effect/unstable/sql";
 import {
   MessageStorage,
@@ -33,7 +34,7 @@ export const SingleNodeClusterLive = (options?: {
   SingleRunner.layer({
     shardingConfig: options?.shardingConfig,
     runnerStorage: options?.runnerStorage ?? "sql",
-  });
+  }).pipe(Layer.provide(NodeCrypto.layer));
 
 /**
  * Fully in-memory cluster with no SQL dependency, for tests and ephemeral
