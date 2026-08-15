@@ -8,38 +8,41 @@ live in `packages/platform/cloudflare`.
 
 ## Local development
 
-Start PostgreSQL, apply the Community migrations, and run Alchemy:
+Run Alchemy:
 
 ```sh
 cp .env.example .env
-pnpm db:pglite &          # or: docker compose up -d standalone_postgres
-pnpm db:migrate
 pnpm dev
 ```
 
-### PGlite or PostgreSQL
+### Development database
 
-`pnpm db:pglite` serves [PGlite](https://pglite.dev) — PostgreSQL compiled to
-WebAssembly — over the real PostgreSQL wire protocol, so Hyperdrive, the
-migration CLI, and every driver in the tree talk to it exactly as they would to
-a server. It needs no Docker and stores its data in `.pglite/`.
+With `DATABASE_MODE` omitted or set to `pglite`, the development stack
+provisions [PGlite](https://pglite.dev) as an Alchemy resource. It uses PGlite's
+[Node filesystem](https://pglite.dev/docs/filesystems), persists its data in
+`.pglite/`, serves the real PostgreSQL wire protocol on port `5432`, and applies
+pending Community migrations before the Workers start. The resource output
+feeds the local Hyperdrive binding directly, so this mode needs no database
+credentials in `.env`.
 
-Three differences matter when using it:
+Set `DATABASE_MODE=pg` to use the `DATABASE_*` PostgreSQL origin instead.
+That server must already be reachable. Alchemy applies pending migrations
+before the Workers start and feeds the connection to the local Hyperdrive
+binding. `DATABASE_DIRECT_*` can select a separate directly reachable migration
+socket. `DATABASE_SSL=true` enables TLS. The mode setting affects only
+`pnpm dev`; live deployments always use the configured PostgreSQL origin.
+
+Three differences from a standalone PostgreSQL server matter:
 
 - It exposes exactly one database and ignores the database name, username, and
-  password a client connects with, so the stock `DATABASE_*` values work
-  unchanged. Setting `DATABASE_NAME=postgres` additionally skips the migration
-  CLI's `CREATE DATABASE` step, which PGlite accepts but cannot honour.
+  password a client connects with. The Alchemy resource therefore consistently
+  binds the built-in `postgres` database and credentials.
 - It does not speak TLS. The Hyperdrive development origin already sets
-  `sslmode=disable`, and `DATABASE_SSL=false` covers the migration CLI.
+  `sslmode=disable`.
 - It is a single PostgreSQL backend behind a multiplexer, so concurrent clients
-  share one session and transactions serialise globally. The `db:pglite` script
-  therefore passes `--max-connections=100`; never run it on the default of `1`,
-  which refuses the second connection. Session-scoped advisory locks provide no
-  mutual exclusion between clients, and `SET` leaks across them.
-
-Use `docker compose up -d standalone_postgres` when you want the PostgreSQL
-major version, session isolation, and locking semantics of a live deployment.
+  share one session and transactions serialise globally. The managed socket
+  server accepts up to 100 clients; session-scoped advisory locks provide no
+  mutual exclusion between them, and `SET` leaks across them.
 
 ### Tests
 
@@ -65,7 +68,8 @@ Cloudflare Hyperdrive can reach. Copy `.env.example` to `.env`, then configure:
 - `VOIDHASH_BACKEND_DOMAIN` and `VOIDHASH_WWW_DOMAIN` with hostnames whose
   Cloudflare zones already exist in that account.
 - `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, and
-  `DATABASE_PASSWORD` for the PostgreSQL origin.
+  `DATABASE_PASSWORD` for the live PostgreSQL origin. `pnpm dev` reads these
+  only when `DATABASE_MODE=pg`.
 - Production values for the root account and session-signing settings.
 
 Run migrations against the configured origin, then deploy:

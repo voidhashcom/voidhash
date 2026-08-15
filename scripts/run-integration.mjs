@@ -120,7 +120,7 @@ const program = Effect.gen(function* () {
   const selected = selectSuites(requested);
 
   // A server that is already up is always reused, so a developer running
-  // `pnpm db:pglite` or Docker keeps their data across runs.
+  // A development PGlite resource or Docker keeps its data across runs.
   if (yield* isListening(connection)) {
     yield* Console.log(
       `run-integration: reusing the server on ${connection.host}:${connection.port}`,
@@ -154,11 +154,10 @@ const program = Effect.gen(function* () {
   } else {
     yield* Console.log("run-integration: starting standalone_postgres");
     const composeCode = yield* exitCode(
-      ChildProcess.make(
-        "docker",
-        ["compose", "up", "-d", "--wait", "standalone_postgres"],
-        { cwd: repoRoot, ...inherit },
-      ),
+      ChildProcess.make("docker", ["compose", "up", "-d", "--wait", "standalone_postgres"], {
+        cwd: repoRoot,
+        ...inherit,
+      }),
     );
     if (composeCode !== 0 || !(yield* waitForDatabase(connection))) {
       yield* Console.error(
@@ -207,9 +206,6 @@ const program = Effect.gen(function* () {
 });
 
 NodeRuntime.runMain(
-  Effect.scoped(program).pipe(
-    Effect.flatMap(exitWith),
-    Effect.provide(NodeServices.layer),
-  ),
+  Effect.scoped(program).pipe(Effect.flatMap(exitWith), Effect.provide(NodeServices.layer)),
   { disableErrorReporting: true },
 );

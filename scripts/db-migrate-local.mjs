@@ -1,9 +1,9 @@
 // Applies the drizzle-generated migrations under
-// `packages/db/src/alchemy-migrations` to the local Docker Postgres.
+// `packages/db/src/alchemy-migrations` to a directly reachable Postgres server.
 //
 // Alchemy applies these same files to the remote PlanetScale Postgres branch
-// (alchemy/Planetscale/Postgres/PostgresMigrations). Local development talks to
-// the `standalone_postgres` container instead, which Alchemy never touches, so
+// (alchemy/Planetscale/Postgres/PostgresMigrations). The local PGlite Alchemy
+// resource invokes this script before exposing its connection to Workers, so
 // this script reproduces the runner's apply logic 1:1:
 //   - track applied files in an `__alchemy_migrations` table
 //     (id TEXT, name TEXT, applied_at TIMESTAMPTZ),
@@ -17,10 +17,10 @@
 // `drizzle-kit migrate` command can't apply them — hence the custom runner.
 //
 // Usage:
-//   pnpm db:migrate:local            # apply pending migrations
-//   pnpm db:migrate:local --force    # allow a non-local DATABASE_HOST
+//   pnpm db:migrate            # apply pending migrations
+//   pnpm db:migrate --force    # allow a non-local DATABASE_HOST
 //
-// Connection is read from env with local-dev defaults:
+// Connection is read from env with standalone-Postgres defaults:
 //   DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432 DATABASE_NAME=voidhash
 //   DATABASE_USERNAME=voidhash DATABASE_PASSWORD=password
 // Each `DATABASE_DIRECT_*` override wins over its `DATABASE_*` counterpart, for
@@ -149,10 +149,10 @@ const withClient = (options, use) =>
   );
 
 /**
- * Ensure the dev database exists. The Docker image normally creates it via
- * `POSTGRES_DB`, so this is a best-effort backstop. `CREATE DATABASE` cannot run
- * inside a transaction or against the target database itself, so we connect to
- * the always-present `postgres` maintenance database.
+ * Ensure the target database exists. A standalone Postgres image normally
+ * creates it via `POSTGRES_DB`, so this is a best-effort backstop. `CREATE
+ * DATABASE` cannot run inside a transaction or against the target database
+ * itself, so we connect to the always-present `postgres` maintenance database.
  */
 const bootstrap = (config, dbIdent) =>
   withClient(
@@ -248,7 +248,9 @@ const migrate = (config, tableIdent) =>
           for (const { name, file } of migrations) {
             if (applied.has(name)) continue;
 
-            const sql = yield* fileSystem.readFileString(file).pipe(Effect.mapError(toMigrateError));
+            const sql = yield* fileSystem
+              .readFileString(file)
+              .pipe(Effect.mapError(toMigrateError));
             const migrationId = String(nextSeq).padStart(5, "0");
             nextSeq += 1;
 
@@ -272,7 +274,7 @@ const program = Effect.gen(function* () {
   if (!isLocalHost(config.host) && !force) {
     yield* Console.error(
       `Refusing to migrate non-local host "${config.host}". This script is for ` +
-        `the local Docker Postgres only; remote branches are migrated by Alchemy. ` +
+        `local Postgres-compatible servers only; remote branches are migrated by Alchemy. ` +
         `Pass --force to override.`,
     );
     return yield* new MigrateError({ message: `non-local host "${config.host}"`, silent: true });
@@ -285,9 +287,9 @@ const program = Effect.gen(function* () {
   const tableIdent = `"${MIGRATIONS_TABLE}"`;
 
   // `postgres` is the maintenance database and always exists, so there is
-  // nothing to create. Skipping is also what makes `pnpm db:pglite` work:
-  // PGlite serves exactly one database, named `postgres`, and accepts a
-  // `CREATE DATABASE` that silently produces an unreachable entry.
+  // nothing to create. PGlite serves exactly one database, named `postgres`,
+  // and accepts a `CREATE DATABASE` that silently produces an unreachable
+  // entry, so the Alchemy-managed development resource selects this path.
   if (config.database !== "postgres") yield* bootstrap(config, dbIdent);
   yield* migrate(config, tableIdent);
 });
@@ -301,7 +303,6 @@ const reportFailure = (error) =>
 
 // Error reporting stays off so a failure prints only the single line above, and
 // `runMain` still exits non-zero on the tagged failure.
-NodeRuntime.runMain(
-  program.pipe(Effect.catch(reportFailure), Effect.provide(NodeServices.layer)),
-  { disableErrorReporting: true },
-);
+NodeRuntime.runMain(program.pipe(Effect.catch(reportFailure), Effect.provide(NodeServices.layer)), {
+  disableErrorReporting: true,
+});

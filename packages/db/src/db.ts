@@ -33,7 +33,7 @@ const getDefaultSsl = (host: string): boolean | ConnectionOptions | undefined =>
 
 /**
  * Plain connection config consumed by {@link Db.layer}. Built from the bound
- * Cloudflare Hyperdrive origin (or the local docker Postgres in dev / tests).
+ * Cloudflare Hyperdrive origin (or a local PGlite/Postgres server in dev and tests).
  */
 export interface DbConfig {
   readonly host: string;

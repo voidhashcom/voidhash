@@ -4,6 +4,7 @@ import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
+import { DevelopmentDatabase } from "./PGlite.ts";
 
 const logicalId = "CommunityDatabaseHyperdrive";
 
@@ -36,18 +37,29 @@ const databaseOrigin = Effect.gen(function* () {
  * Hyperdrive connection shared by the Community Worker and managed compositions.
  *
  * Live deployments read their origin from the `DATABASE_*` deployment
- * configuration. Alchemy development uses the same fields and defaults to the
- * local PostgreSQL service.
+ * configuration. Alchemy development uses PGlite by default, while
+ * `DATABASE_MODE=pg` selects that configured PostgreSQL origin. Either
+ * connection is passed directly to the local Hyperdrive binding.
  */
 export const DatabaseHyperdrive: Effect.Effect<Cloudflare.Hyperdrive.Connection, never, any> =
   Effect.gen(function* () {
+    if (globalThis.__ALCHEMY_RUNTIME__) return runtimeReference;
+
     const context = yield* Effect.serviceOption(Alchemy.AlchemyContext);
     if (Option.isNone(context)) return runtimeReference;
+
+    if (context.value.dev) {
+      const origin = yield* DevelopmentDatabase;
+      return yield* Cloudflare.Hyperdrive.Connection(logicalId, {
+        caching: { disabled: true },
+        origin,
+        dev: origin,
+      });
+    }
 
     const origin = yield* databaseOrigin.pipe(Effect.orDie);
     return yield* Cloudflare.Hyperdrive.Connection(logicalId, {
       caching: { disabled: true },
       origin,
-      dev: { ...origin, sslmode: "disable" },
     });
   });

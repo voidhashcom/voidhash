@@ -184,6 +184,7 @@ dist
 .notes/
 
 .db/
+.pglite/
 
 *.sqlite
 *.db

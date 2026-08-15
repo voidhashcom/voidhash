@@ -48,7 +48,6 @@
     "openapi:generate:prod": "pnpm openapi:generate -- api.voidhash.com",
     "db:generate": "node ./scripts/db-generate.mjs",
     "db:migrate": "node ./scripts/db-migrate-local.mjs",
-    "db:pglite": "mkdir -p .pglite && pglite-server --db=./.pglite/dev --port=5432 --max-connections=100",
     "sync:plugins": "tsx ./scripts/sync-plugins.ts",
     "sync:plugins:check": "tsx ./scripts/sync-plugins.ts --check",
     "check:publication": "node ./scripts/check-publication-boundary.mjs",

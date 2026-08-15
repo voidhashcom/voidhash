@@ -50,15 +50,17 @@ documents the local and live Alchemy workflow.
 Linting and formatting go through vite-plus: `pnpm lint` (`vp check`) and
 `pnpm format` (`vp check --fix`).
 
-Start PostgreSQL, apply migrations, and launch the Community Alchemy stack:
+Launch the Community Alchemy stack:
 
 ```sh
 cp .env.example .env
-docker compose up -d standalone_postgres
-pnpm db:migrate
 pnpm dev
 ```
 
+Alchemy uses a persistent PGlite database in `.pglite/` by default, applies
+pending migrations, and injects its connection into the local Hyperdrive
+binding. Set `DATABASE_MODE=pg` to use and migrate an already-running
+PostgreSQL origin instead.
 Alchemy serves the backend on `http://localhost:8787` and the web application
 on `http://localhost:3000`. Ports are strict so local links cannot silently move
 between runs.

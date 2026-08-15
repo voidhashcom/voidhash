@@ -3,6 +3,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
@@ -28,11 +29,20 @@ export interface CommunityStackOutput {
   readonly wwwUrl: string;
 }
 
+const stackState = Layer.unwrap(
+  Alchemy.AlchemyContext.pipe(
+    Effect.map((context) => {
+      if (context.dev) return Alchemy.localState();
+      return Cloudflare.state();
+    }),
+  ),
+);
+
 export default Alchemy.Stack(
   "VoidhashCommunity",
   {
     providers: Cloudflare.providers(),
-    state: Cloudflare.state(),
+    state: stackState,
   },
   Effect.gen(function* () {
     const { stage } = yield* Alchemy.Stack;
