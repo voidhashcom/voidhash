@@ -152,6 +152,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build integration dependencies
+        run: pnpm --filter @voidhash/paywalls build
+
       - name: Integration tier
         run: pnpm test:integration
 
