@@ -1,0 +1,85 @@
+---
+title: Connect Google Play
+description: Configure Google Play Developer API access for purchase validation and subscriptions.
+icon: Play
+---
+
+Connect Google Play after the Android app and subscription products exist in Play Console.
+
+## Configure API access
+
+<Steps>
+
+<Step>
+### Enable the Developer API
+
+Create or choose a Google Cloud project, then enable the **Google Play Android Developer API**.
+Google no longer requires linking that Cloud project to the Play developer account.
+
+Follow Google's [Developer API setup](https://developers.google.com/android-publisher/getting_started).
+
+</Step>
+
+<Step>
+### Create a service account
+
+In Google Cloud, create a service account and a JSON key. Keep the downloaded key private.
+
+In Play Console, open **Users and permissions**, invite the service account email, and grant:
+
+- **View financial data, orders, and cancellation survey responses**; and
+- **Manage orders and subscriptions**.
+
+Scope access to the app where possible.
+
+</Step>
+
+<Step>
+### Add the provider in Voidhash
+
+In Studio, open **Settings → Payment providers → Google Play**. Enter the Android application ID
+from Gradle, such as `com.example.app`, then upload the service account JSON key.
+
+Save the configuration and enable the provider.
+
+</Step>
+
+<Step>
+### Connect products
+
+Open each Voidhash product and add the matching Google Play subscription product. Select the base
+plan or offer that should be available in the app.
+
+</Step>
+
+</Steps>
+
+## Real-time developer notifications
+
+RTDN keeps subscription state current when the app is not running. To configure it:
+
+1. Create a Pub/Sub topic in Google Cloud.
+2. Grant `google-play-developer-notifications@system.gserviceaccount.com` the **Pub/Sub Publisher**
+   role on that topic.
+3. In Play Console, open **Monetize → Monetization setup** and enable real-time notifications.
+4. Enter the full topic name: `projects/{project_id}/topics/{topic_name}`.
+5. Send a test message, then save.
+6. Enter the same topic name in the provider's optional RTDN field in Voidhash.
+
+Google's [Play Billing setup guide](https://developer.android.com/google/play/billing/getting-ready#configure-rtdn)
+has the current Pub/Sub instructions.
+
+Use the optional forwarding URL only when your backend also needs the raw Google event.
+
+## Verify
+
+1. Publish the app to an internal test track.
+2. Add the tester account and install the Play-distributed build.
+3. Confirm `useProducts()` returns the expected localized product.
+4. Complete a test purchase and check for an active grant in `useCurrentPerson()`.
+5. Send an RTDN test message and verify the provider remains healthy.
+
+<Callout type="info" title="Use a Play-distributed build">
+  Google Play Billing behavior depends on the installed package, signing key, tester account, and
+  track. A locally sideloaded build is not a reliable end-to-end subscription test.
+</Callout>

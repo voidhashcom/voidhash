@@ -1,15 +1,62 @@
 ---
 title: Introduction
-description: Introduction to Voidhash.
+description: Voidhash is the open-source subscription platform for React Native apps.
 icon: BookOpen
 ---
 
-Voidhash is an in-app purchases and subscription management platform designed for **React Native**. Implementing in-app purchases has always been about as enjoyable as debugging production code at 3 AM. With Voidhash, you get server-side receipt validation, CRM, analytics, and more in under 5 minutes. Built by developers who've felt your pain. And the best part? It's Open Source.
+Voidhash connects your React Native app to the App Store and Google Play. Use it to build paywalls,
+validate purchases, keep subscription state in sync, and decide what each customer can access.
 
-## Features
+## How it fits together
 
-- Google Play and App Store support
-- Server-side receipt validation
-- Person Management
-- Analytics
-- Powerful CLI
+| Part                 | What it does                                                                      |
+| -------------------- | --------------------------------------------------------------------------------- |
+| **Studio**           | Configure products and perks, design paywalls, and review customers and revenue.  |
+| **React Native SDK** | Display paywalls, make and restore purchases, and read access state in your app.  |
+| **Voidhash backend** | Validate store transactions and keep subscriptions and entitlements current.      |
+| **CLI**              | Connect a local project, generate typed slugs, and deploy code-authored paywalls. |
+
+Your app ships only a **publishable key** (`vh_pk_...`). Store credentials and secret keys stay on
+the server.
+
+## Start here
+
+The [React Native quickstart](/quickstart) is the shortest path from an existing app to a working
+paywall and entitlement check.
+
+Before you start, you need:
+
+- an Expo development build or a bare React Native app;
+- a Voidhash project and its publishable key;
+- an App Store or Google Play subscription product; and
+- a deep-link scheme for your app.
+
+<Callout type="warn" title="Expo Go is not supported">
+  The SDK includes native StoreKit and Google Play Billing modules. Use an Expo development build or
+  a bare React Native app.
+</Callout>
+
+## Explore
+
+<Cards>
+  <Card
+    title="Display a paywall"
+    description="Resolve a paywall by location and present it from your app."
+    href="/docs/paywalls"
+  />
+  <Card
+    title="Check access"
+    description="Gate features using active perk grants."
+    href="/entitlements"
+  />
+  <Card
+    title="React Native SDK"
+    description="See the client, hooks, configuration, and error model."
+    href="/docs/react-native"
+  />
+  <Card
+    title="API Reference"
+    description="Build server integrations with the HTTP API."
+    href="/docs/api/overview"
+  />
+</Cards>

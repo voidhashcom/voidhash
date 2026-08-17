@@ -1,10 +1,11 @@
 title: API Reference
+description: Authenticate and call the Voidhash HTTP API.
 icon: Code
 pages:
-  - "---Overview---"
+  - "---Essentials---"
   - overview
   - authentication
-  - "---Reference---"
+  - "---Endpoints---"
   - reference
-  - "---Event Capture---"
+  - "---Analytics---"
   - event-capture

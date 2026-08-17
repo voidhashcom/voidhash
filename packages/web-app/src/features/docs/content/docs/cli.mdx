@@ -1,0 +1,91 @@
+---
+title: CLI
+description: Connect projects, generate types, preview paywalls, and deploy from the terminal.
+icon: SquareTerminal
+---
+
+Install `voidhash-cli` as a development dependency and run it with your package runner:
+
+```package-install
+npm install voidhash-cli --save-dev
+```
+
+```bash
+npx voidhash-cli --help
+```
+
+## Commands
+
+| Command                       | Use                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------- |
+| `init`                        | Sign in, select a project, and create local config, client, and generated types. |
+| `auth login`                  | Sign in through the browser.                                                     |
+| `auth status`                 | Show the current CLI identity.                                                   |
+| `auth logout`                 | Remove the stored login.                                                         |
+| `auth token --project <slug>` | Print headers for MCP or another authenticated tool.                             |
+| `types generate`              | Refresh `voidhash.gen.d.ts` from the project schema.                             |
+| `types check`                 | Fail when committed types are behind the server schema.                          |
+| `studio`                      | Preview code-authored paywalls locally.                                          |
+| `deploy`                      | Build and upload code-authored paywalls.                                         |
+| `config`                      | Inspect or change CLI URLs, credentials, and profiles.                           |
+
+## Initialize an app
+
+```bash
+npx voidhash-cli init
+```
+
+The interactive command creates `voidhash.config.ts`, `src/lib/voidhash.ts`, and
+`voidhash.gen.d.ts`. It does not install packages or create a local schema.
+
+## Keep types in sync
+
+```bash
+npx voidhash-cli types generate
+```
+
+Commit the generated declaration. Add this CI check to catch dashboard changes that have not been
+pulled into the repository:
+
+```bash
+npx voidhash-cli types check
+```
+
+## Preview and deploy code paywalls
+
+```bash
+npx voidhash-cli studio
+```
+
+Studio reads paywalls and components from the project's `.voidhash` directory. When the preview is
+ready, validate without uploading:
+
+```bash
+npx voidhash-cli deploy --dry-run
+```
+
+Then deploy:
+
+```bash
+npx voidhash-cli deploy
+```
+
+## Profiles
+
+Use a profile to keep environment-specific CLI settings separate:
+
+```bash
+npx voidhash-cli config set api_url https://example.test --profile staging
+npx voidhash-cli types generate --profile staging
+```
+
+The base configuration lives in `~/.voidhash`; project selection lives in the committed
+`voidhash.config.ts`.
+
+## Troubleshooting
+
+- **Not logged in** — run `npx voidhash-cli auth login`.
+- **Project config missing** — run `npx voidhash-cli init` from the app root.
+- **Generated types are stale** — run `npx voidhash-cli types generate` and commit the file.
+- **No paywalls found during deploy** — add a paywall under `.voidhash/paywalls`, or use Studio's
+  visual paywall workflow instead.

@@ -26,6 +26,9 @@ type DocCollection<
   dir: string | string[];
   files?: string[];
   async?: Async;
+  postprocess?: {
+    includeProcessedMarkdown?: boolean;
+  };
   schema?: CollectionSchema<
     Schema,
     {

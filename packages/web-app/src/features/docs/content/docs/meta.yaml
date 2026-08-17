@@ -1,15 +1,25 @@
-title: Documentation
+title: Voidhash
+description: Build, ship, and measure in-app subscriptions with Voidhash.
 root: true
 pages:
   - "---Get started---"
   - introduction
-  - installation
-  - basic-usage
-  - sdks-and-apis
-  - "---Learn---"
-  - concepts
+  - quickstart
+  - "---Build---"
+  - paywalls
+  - products-and-perks
+  - entitlements
+  - identify-users
+  - purchases
+  - analytics
+  - feature-flags
+  - "---SDK---"
   - react-native
+  - observer-mode
+  - "---Resources---"
   - cli
   - mcp
-  - guides
+  - "---Store setup---"
+  - apple-app-store
+  - google-play
   - api

@@ -1,0 +1,57 @@
+---
+title: Evaluate feature flags
+description: Gate React Native features with remotely evaluated flags and variants.
+icon: Flag
+---
+
+Feature flags are evaluated for the current person. Use them for staged rollouts, experiments, and
+remote configuration.
+
+## Evaluate flags in React
+
+Keep the requested key array stable so the hook does not re-run on every render:
+
+```tsx
+const FLAG_KEYS = ["new-onboarding", "pricing-test"];
+
+export function HomeScreen() {
+  const { getVariant, isEnabled, isLoading } = voidhash.useFeatureFlags(FLAG_KEYS);
+
+  if (isLoading) return null;
+
+  const pricing = getVariant("pricing-test");
+
+  return (
+    <Home
+      newOnboarding={isEnabled("new-onboarding")}
+      pricingVariant={pricing?.enabled ? pricing.variantKey : null}
+    />
+  );
+}
+```
+
+The hook returns:
+
+| Value                           | Purpose                                                              |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `data.flags`                    | All evaluated results.                                               |
+| `isEnabled(key)`                | Whether a flag is enabled. Unknown and loading flags return `false`. |
+| `getVariant(key)`               | The enabled state, variant key, and optional payload, or `null`.     |
+| `isLoading`, `error`, `refetch` | Request state and retry control.                                     |
+
+Validate a variant payload before using it; payloads are untyped JSON.
+
+## Evaluate outside React
+
+```ts
+const { flags } = await voidhash.client.getFeatureFlags(["express-checkout"]);
+const expressCheckout = flags.find((flag) => flag.key === "express-checkout");
+```
+
+## Identity behavior
+
+Flag results are scoped to the current person. The SDK clears them after `identify()`, `reset()`,
+or `signOut()` so one customer never sees another customer's assignment.
+
+Choose a safe default while a flag is loading or unavailable. For paid access, use
+[entitlement grants](/entitlements) rather than a feature flag.

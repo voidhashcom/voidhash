@@ -1,0 +1,77 @@
+---
+title: Identify customers
+description: Link anonymous purchase history to accounts in your authentication system.
+icon: UserRoundCheck
+---
+
+Voidhash creates and persists an anonymous distinct ID on first launch. Purchases and events work
+before sign-in. If your app has accounts, call `identify()` after authentication so access follows
+the customer across devices.
+
+## Identify after sign-in
+
+Pass a stable identifier from your backend, plus optional profile fields:
+
+```ts
+await voidhash.client.identify(user.id, {
+  email: user.email,
+  name: user.name,
+});
+```
+
+Use an opaque, unique ID such as a UUID. Do not use an email address or sequential database ID as
+the primary identifier.
+
+When an anonymous customer signs in, Voidhash moves their purchase history and entitlements to the
+identified person. Events captured before the switch remain attributed to the anonymous identity.
+
+## Sign out
+
+Reset Voidhash after your own sign-out completes:
+
+```ts
+await auth.signOut();
+await voidhash.client.signOut();
+```
+
+`signOut()` flushes pending events under the old identity and starts a fresh anonymous session. Use
+`reset()` only when you need the same identity reset without recording a sign-out event.
+
+## Set customer attributes
+
+For background updates, send attributes through the analytics queue:
+
+```ts
+await voidhash.client.setPersonAttributes({
+  email: "ada@example.com",
+  name: "Ada Lovelace",
+  plan_source: "referral",
+});
+```
+
+Call `await voidhash.client.flush()` when delivery must complete immediately. If you need the
+updated person in the same request, use `setPersonAttributesSync()` instead.
+
+Attribute values can be strings, numbers, booleans, or `null`. `email` and `name` map to built-in
+person fields; other keys become custom traits.
+
+## Read the distinct ID
+
+```ts
+const distinctId = await voidhash.client.getDistinctId();
+```
+
+This is useful in support logs and when correlating a client session with your backend.
+
+## Anonymous or identified?
+
+| App model         | Recommended setup                                            |
+| ----------------- | ------------------------------------------------------------ |
+| No accounts       | Keep the automatically generated anonymous identity.         |
+| Optional accounts | Let purchases work anonymously, then identify after sign-in. |
+| Account required  | Identify immediately after restoring your app session.       |
+
+## Next steps
+
+- [Check the identified customer's access](/entitlements)
+- [Capture analytics events and traits](/analytics)

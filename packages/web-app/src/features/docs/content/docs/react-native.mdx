@@ -1,0 +1,106 @@
+---
+title: React Native SDK
+description: Client configuration, hooks, and runtime behavior for @voidhash/react-native.
+icon: Smartphone
+---
+
+`@voidhash/react-native` supports Expo development builds and bare React Native apps on iOS and
+Android. Start with the [quickstart](/quickstart) if you have not installed it yet.
+
+## Create the client
+
+Create one client for the lifetime of the app:
+
+```ts title="src/lib/voidhash.ts"
+import { createVoidhashClient } from "@voidhash/react-native";
+
+export const voidhash = createVoidhashClient("vh_pk_...", {
+  debug: __DEV__,
+});
+```
+
+The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
+
+## Client options
+
+| Option       | Default                       | Use                                                                        |
+| ------------ | ----------------------------- | -------------------------------------------------------------------------- |
+| `scheme`     | Expo app scheme               | Purchase callback scheme. Required when Expo config cannot provide one.    |
+| `distinctId` | Persisted or new anonymous ID | Seed the initial customer identity. Usually omit it and call `identify()`. |
+| `debug`      | `false`                       | Enable additional SDK diagnostics.                                         |
+| `readOnly`   | `false`                       | Observe and sync transactions without owning purchases.                    |
+| `baseUrl`    | `https://api.voidhash.com`    | Override the API origin for self-hosted deployments.                       |
+| `ingestUrl`  | Same origin as `baseUrl`      | Override only the analytics origin.                                        |
+
+## Provider
+
+Mount `<voidhash.Provider>` once. It initializes identity, schema, person state, store adapters, and
+the transaction observer. Hooks wait until initialization completes.
+
+```tsx
+<voidhash.Provider>
+  <App />
+</voidhash.Provider>
+```
+
+## Hooks
+
+| Hook                                   | Use                                                          |
+| -------------------------------------- | ------------------------------------------------------------ |
+| `usePaywallByLocation(slug, options?)` | Preload and present the paywall assigned to a location.      |
+| `useProducts()`                        | Read store-backed product metadata.                          |
+| `usePurchase(options?)`                | Purchase a product from custom UI.                           |
+| `useCurrentPerson()`                   | Read entitlements, subscription state, and purchase history. |
+| `useFeatureFlags(keys?)`               | Evaluate flags and variants for the current person.          |
+| `useVoidhash()`                        | Read provider state and the underlying client.               |
+
+## Imperative client
+
+The `voidhash.client` object exposes the same core workflows outside React:
+
+```ts
+await voidhash.client.identify(user.id, {});
+const products = await voidhash.client.getProducts();
+const person = await voidhash.client.getCurrentPerson();
+await voidhash.client.restorePurchases();
+voidhash.client.capture("screen_viewed", { screen: "home" });
+```
+
+## Generated slug types
+
+Run this after changing products, perks, or paywall locations in Studio:
+
+```bash
+npx voidhash-cli types generate
+```
+
+The generated declaration augments the SDK's slug types. Without it, the SDK still works but slugs
+fall back to `string`.
+
+## Error handling
+
+Hooks expose `error`; promise-returning client methods reject on failure. Keep transport failures
+separate from negative product state:
+
+```tsx
+const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
+
+if (isLoading) return <LoadingScreen />;
+if (error) return <RetryScreen onRetry={refetch} />;
+return <Account person={person} />;
+```
+
+Error messages include a stable uppercase operation code, such as
+`FAILED_TO_GET_CURRENT_PERSON`. Match known codes when recovery differs, and report the full error
+for everything else.
+
+## Platform helpers
+
+iOS exposes two additional client methods:
+
+```ts
+await voidhash.client.iosPresentCodeRedemptionSheet();
+await voidhash.client.iosShowManageSubscriptions();
+```
+
+Guard them with `Platform.OS === "ios"`.

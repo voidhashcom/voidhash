@@ -1,0 +1,86 @@
+---
+title: Check access
+description: Gate features using the current customer's active perk grants.
+icon: KeyRound
+---
+
+The current person snapshot contains entitlements, subscription state, and purchase history. Use
+**entitlement grants** to decide what the customer can access.
+
+## Read the current person
+
+```tsx
+const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
+```
+
+`data` is an empty object until the first snapshot loads, so use optional chaining for nested
+fields.
+
+## Gate a feature
+
+A perk is available when its grant is `active`:
+
+```tsx title="hooks/use-has-perk.ts"
+import { voidhash } from "../lib/voidhash";
+
+export function useHasPerk(perkId: string) {
+  const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
+
+  const hasPerk =
+    person.entitlements?.grants.some(
+      (grant) => grant.perkId === perkId && grant.status === "active",
+    ) ?? false;
+
+  return { error, hasPerk, isLoading, refetch };
+}
+```
+
+```tsx
+const { hasPerk, isLoading } = useHasPerk("premium");
+
+if (isLoading) return null;
+return hasPerk ? <PremiumContent /> : <UpgradePrompt />;
+```
+
+<Callout type="info" title="Gate on perks, not subscription status">
+  Subscription status cannot tell you which features a product unlocks, and it misses access from
+  one-time purchases or manual grants. Active perk grants are the access-control source of truth.
+</Callout>
+
+## Grant fields
+
+| Field       | Meaning                                                      |
+| ----------- | ------------------------------------------------------------ |
+| `perkId`    | The perk slug configured in Studio.                          |
+| `status`    | `active` or `expired`.                                       |
+| `source`    | `subscription`, `purchase`, or `manual`.                     |
+| `sourceId`  | The subscription, purchase, or manual grant that created it. |
+| `expiresAt` | Expiration time, or `null` for access without an expiry.     |
+
+Use `subscriptions.current` for account UI such as the current plan or renewal state. Use
+`purchases.history` when you need to show past transactions.
+
+## Refresh behavior
+
+The SDK refreshes the person after purchases, restores, and identity changes. To explicitly request
+the latest value, call the hook's `refetch()` or bypass the cache outside React:
+
+```ts
+const freshPerson = await voidhash.client.getCurrentPerson(true);
+```
+
+## Handle failures deliberately
+
+Do not interpret a network error as proof that the customer has no access. Keep the loading and
+error states separate from `hasPerk`, and choose a fallback appropriate for the feature:
+
+```tsx
+if (isLoading) return <LoadingScreen />;
+if (error) return <RetryScreen onRetry={refetch} />;
+return hasPerk ? <PremiumContent /> : <UpgradePrompt />;
+```
+
+## Next steps
+
+- [Identify customers across devices](/identify-users)
+- [Make and restore purchases](/purchases)

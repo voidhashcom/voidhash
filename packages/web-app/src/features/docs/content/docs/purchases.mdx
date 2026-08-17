@@ -1,0 +1,87 @@
+---
+title: Make and restore purchases
+description: Build a custom purchase UI with store-backed products.
+icon: ShoppingBag
+---
+
+Hosted paywalls already handle purchase and restore actions. Use the APIs on this page when you
+build your own React Native purchase screen.
+
+## Load products
+
+```tsx
+const { data: products, error, isLoading } = voidhash.useProducts();
+const monthly = products.get("monthly");
+```
+
+`monthly` is `null` when the store does not return that product. This commonly means the product is
+not available in the current sandbox account, country, app version, or provider configuration.
+
+Render the store-provided `displayPrice`:
+
+```tsx
+if (!monthly) return null;
+
+return <Text>{monthly.displayPrice}</Text>;
+```
+
+## Start a purchase
+
+```tsx
+const { purchase, error, isLoading } = voidhash.usePurchase({
+  onSuccess: () => {
+    navigation.goBack();
+  },
+  onError: (purchaseError) => {
+    console.warn("Purchase failed", purchaseError);
+  },
+});
+
+<Button
+  disabled={!monthly || isLoading}
+  title={isLoading ? "Purchasing…" : `Continue for ${monthly?.displayPrice ?? ""}`}
+  onPress={() => {
+    if (monthly) purchase(monthly);
+  }}
+/>;
+```
+
+The SDK opens the native store flow, sends the transaction to Voidhash for server validation, and
+refreshes the current person after success. `useCurrentPerson()` then receives the new entitlement
+grants.
+
+<Callout type="warn" title="Grant access from Voidhash state">
+  A successful store dialog is not the entitlement check. Unlock the feature only after the
+  refreshed person contains an active grant.
+</Callout>
+
+## Restore purchases
+
+Apps should expose a visible restore action:
+
+```tsx
+<Button
+  title="Restore purchases"
+  onPress={async () => {
+    await voidhash.client.restorePurchases();
+  }}
+/>
+```
+
+Restore reconciles store transactions with Voidhash and refreshes the current person. It does not
+create a second purchase.
+
+## Common failure cases
+
+- **Product is `null`** — verify the store product mapping and the current sandbox environment.
+- **Purchase already in progress** — disable repeated taps while `isLoading` is true.
+- **Customer cancels** — treat cancellation as an expected outcome, not an app crash.
+- **Purchase succeeds but access is absent** — retry the person fetch and verify the product grants
+  the expected perk in Studio.
+- **Restore finds nothing** — confirm the device uses the same App Store or Google Play account as
+  the original purchase.
+
+## Next steps
+
+- [Check active entitlement grants](/entitlements)
+- [Use observer mode during a migration](/observer-mode)

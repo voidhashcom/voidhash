@@ -1,0 +1,46 @@
+---
+title: Migrate in observer mode
+description: Add Voidhash without taking ownership of an existing purchase flow.
+icon: ScanEye
+---
+
+Observer mode lets an existing billing SDK keep control of purchases while Voidhash observes store
+transactions and builds customer and entitlement state.
+
+## Enable observer mode
+
+```ts title="src/lib/voidhash.ts"
+import { createVoidhashClient } from "@voidhash/react-native";
+
+export const voidhash = createVoidhashClient("vh_pk_...", {
+  readOnly: true,
+});
+```
+
+In this mode, Voidhash:
+
+- starts the transaction observer;
+- sends observed transactions to the server;
+- refreshes person and entitlement state; and
+- does not finish or acknowledge transactions with the store.
+
+Your existing billing integration remains responsible for initiating and completing purchases.
+
+## APIs blocked in observer mode
+
+`client.purchase()` and `setPersonAttributesSync()` are blocked because they perform writes owned by
+the normal Voidhash flow. Hosted paywall purchase actions also fail for the same reason.
+
+Reading products, customers, entitlements, feature flags, and paywall assignments remains
+available. Queued analytics and `setPersonAttributes()` also continue to work.
+
+## Migration sequence
+
+1. Add Voidhash with `readOnly: true` while the existing SDK remains unchanged.
+2. Confirm purchases and entitlements appear for sandbox customers.
+3. Compare Voidhash state with the existing source of truth.
+4. Move purchase UI to Voidhash.
+5. Remove the previous billing SDK and set `readOnly: false`.
+
+Do not let two SDKs finish the same store transaction. Switch ownership as one release step and
+test new purchases, renewals, cancellations, and restores on both platforms.

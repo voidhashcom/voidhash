@@ -1,0 +1,73 @@
+---
+title: Products and perks
+description: Model what customers buy and what each purchase unlocks.
+icon: PackageOpen
+---
+
+Voidhash separates the item sold by a store from the access it grants:
+
+- A **product** is something a customer buys, such as a monthly subscription.
+- A **perk** is a capability your app can unlock, such as `premium` or `remove-ads`.
+
+Products can grant multiple perks, and the same perk can be attached to multiple products. Your app
+checks perks instead of hard-coding product IDs, so access logic stays stable when pricing changes.
+
+## Create a perk
+
+In Studio, open **Perks** and choose **Add perk**. Give it a readable name and a stable slug:
+
+| Name           | Slug used in code |
+| -------------- | ----------------- |
+| Premium access | `premium`         |
+| Remove ads     | `remove-ads`      |
+
+Use lowercase letters, numbers, underscores, and hyphens. Treat a slug as permanent after it ships.
+
+## Create a product
+
+Open **Products** and choose **Add product**. Voidhash currently supports subscription products.
+After creating one:
+
+1. attach every perk the product should unlock;
+2. connect the matching product from each enabled payment provider; and
+3. add the product to a paywall.
+
+The Voidhash slug is your cross-platform identifier. The App Store and Google Play product IDs may
+be different; the provider mappings connect both to the same Voidhash product.
+
+<Callout type="warn" title="Pricing comes from the store">
+  Always render `displayPrice` from the SDK. Do not hard-code a price or currency in the app or
+  paywall.
+</Callout>
+
+## Read products in React Native
+
+Use `useProducts()` when you build a custom purchase screen:
+
+```tsx
+const { data: products, error, isLoading } = voidhash.useProducts();
+
+const monthly = products.get("monthly");
+const availableProducts = products.toList();
+```
+
+Each available product contains store-backed values including `displayName`, `displayPrice`,
+`price`, `currency`, and `platform`. `get(slug)` returns `null` when the product is not available on
+the current store account or environment.
+
+## Keep generated types current
+
+The dashboard is the schema source of truth. Pull its slugs into TypeScript after catalog changes:
+
+```bash
+npx voidhash-cli types generate
+```
+
+Commit `voidhash.gen.d.ts` so every developer and CI job uses the same product, perk, and location
+types. `npx voidhash-cli types check` fails when the committed file is behind the server schema.
+
+## Next steps
+
+- [Check perk access](/entitlements)
+- [Display a hosted paywall](/paywalls)
+- [Make purchases from custom UI](/purchases)

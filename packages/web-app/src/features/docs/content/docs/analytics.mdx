@@ -1,0 +1,70 @@
+---
+title: Capture analytics
+description: Track product events and customer traits with the React Native SDK.
+icon: ChartNoAxesCombined
+---
+
+The SDK attributes events to the current person and sends them in background batches. No separate
+analytics package is required.
+
+## Capture an event
+
+```ts
+voidhash.client.capture("upgrade_button_clicked", {
+  source: "settings",
+  plan: "monthly",
+});
+```
+
+`capture()` is synchronous. It queues the event and returns immediately, including when the
+provider is still initializing.
+
+Use clear, stable event names. Names beginning with `$` are reserved for Voidhash events.
+
+## Automatic events
+
+The SDK records common lifecycle events for you:
+
+- `$app_installed`
+- `$app_updated`
+- `$app_opened`
+- `$app_backgrounded`
+- `$app_became_active`
+- `$sign_out`
+
+Paywalls also send their analytics through the same queue and include the paywall location.
+
+## Flush before a boundary
+
+Events flush automatically in batches. Force delivery only when the app is about to cross an
+important boundary:
+
+```ts
+await voidhash.client.flush();
+```
+
+Identity methods flush at the correct time automatically, so events captured before `identify()`
+or `signOut()` stay attached to the previous identity.
+
+## Update customer traits
+
+```ts
+await voidhash.client.setPersonAttributes({
+  email: "ada@example.com",
+  onboarding_completed: true,
+});
+```
+
+This queues a trait update with analytics. Use `setPersonAttributesSync()` when you need an
+immediate server response and updated person snapshot.
+
+## Event capture API
+
+Backend and non-React-Native clients can send individual events or batches through the
+[Event Capture API](/api/event-capture). Use the project's publishable token in the request body;
+do not send a secret key to the ingestion endpoint.
+
+## Next steps
+
+- [Identify customers before and after sign-in](/identify-users)
+- [Review the Event Capture endpoints](/api/event-capture)

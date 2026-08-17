@@ -1,0 +1,84 @@
+---
+title: Display a paywall
+description: Publish a paywall to a location and present it from your React Native app.
+icon: PanelsTopLeft
+---
+
+A **paywall** is the screen a customer sees. A **location** is the stable slug your app asks for,
+such as `onboarding` or `settings-upsell`. Keeping those separate lets you replace a paywall without
+shipping a new app version.
+
+## Publish a paywall
+
+In Studio:
+
+1. Create or open a paywall.
+2. Add the products customers can purchase.
+3. Preview the paywall on both platforms, then publish it.
+4. Open **Settings → Paywall locations**.
+5. Create a location and assign the published paywall to it.
+
+The location slug is immutable because it becomes part of your app code. Use a name that describes
+where the paywall appears, not what the current design looks like.
+
+## Present it
+
+`usePaywallByLocation` resolves and preloads the assigned paywall. Call `show()` when the customer
+reaches the location:
+
+```tsx
+const paywall = voidhash.usePaywallByLocation("settings-upsell", {
+  onPurchase: ({ productId }) => {
+    console.log("Purchased", productId);
+  },
+  onRestore: () => {
+    console.log("Purchases restored");
+  },
+  onError: (error, { action }) => {
+    console.warn(`Paywall ${action} failed`, error);
+  },
+});
+
+const shown = await paywall.show();
+```
+
+`show()` resolves to:
+
+- `true` when the native presenter opened; or
+- `false` when the SDK is not ready or the location has no published paywall.
+
+Hosted paywalls send purchase and restore actions through the SDK. After a successful transaction,
+Voidhash refreshes the person snapshot and dismisses the paywall.
+
+## Change a paywall safely
+
+To update what customers see, publish the new paywall and assign it to the existing location. The
+app keeps asking for the same slug and receives the new release.
+
+Clearing or archiving a location makes future `show()` calls return `false`. Keep a fallback in the
+app for important entry points:
+
+```tsx
+const shown = await paywall.show();
+
+if (!shown) {
+  navigation.navigate("Plans");
+}
+```
+
+## Typed location slugs
+
+Run type generation after adding or renaming locations:
+
+```bash
+npx voidhash-cli types generate
+```
+
+The generated `voidhash.gen.d.ts` changes `usePaywallByLocation` from accepting any string to the
+known location slugs in your project.
+
+## Next steps
+
+- [Configure products and perks](/products-and-perks)
+- [Check access after a purchase](/entitlements)
+- [Build a custom purchase screen](/purchases)

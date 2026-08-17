@@ -1,9 +1,4 @@
-import {
-  defineConfig,
-  defineDocs,
-  frontmatterSchema,
-  metaSchema,
-} from "../fumadocs-config.ts";
+import { defineConfig, defineDocs, frontmatterSchema, metaSchema } from "../fumadocs-config.ts";
 import { voidhashShikiDark, voidhashShikiLight } from "./lib/shiki-theme.ts";
 
 // You can customise Zod schemas for frontmatter and `meta.json` here
@@ -11,6 +6,9 @@ import { voidhashShikiDark, voidhashShikiLight } from "./lib/shiki-theme.ts";
 export const docs = defineDocs({
   dir: "src/features/docs/content/docs",
   docs: {
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
     schema: frontmatterSchema,
   },
   meta: {

@@ -1,0 +1,200 @@
+---
+title: React Native quickstart
+description: Add Voidhash to an Expo or React Native app and show your first paywall.
+icon: Rocket
+---
+
+This guide takes an existing app from installation to a paywall and access check.
+
+<Steps>
+
+<Step>
+### Install the SDK
+
+Install the SDK, its native peers, and the CLI:
+
+```package-install
+npm install @voidhash/react-native react-native-nitro-modules@0.26.4 @react-native-async-storage/async-storage effect expo-constants expo-linking
+```
+
+```package-install
+npm install voidhash-cli --save-dev
+```
+
+For iOS, install pods after adding the packages:
+
+```bash
+npx pod-install
+```
+
+</Step>
+
+<Step>
+### Connect your project
+
+Run the interactive initializer from your app's root:
+
+```bash
+npx voidhash-cli init
+```
+
+The command signs you in, connects the directory to a Voidhash project, and creates:
+
+- `voidhash.config.ts` with your team and project slugs;
+- `src/lib/voidhash.ts` with the project's publishable key; and
+- `voidhash.gen.d.ts` with typed product, perk, and paywall-location slugs.
+
+It does not change your dependencies or create a local product schema. Products and paywall
+locations are managed in Studio.
+
+</Step>
+
+<Step>
+### Add a deep-link scheme
+
+The SDK uses your app's scheme for purchase callbacks. Expo projects can set it in `app.json`:
+
+```json title="app.json"
+{
+  "expo": {
+    "scheme": "myapp"
+  }
+}
+```
+
+For bare React Native, pass the same value when creating the client:
+
+```ts title="src/lib/voidhash.ts"
+import { createVoidhashClient } from "@voidhash/react-native";
+
+export const voidhash = createVoidhashClient("vh_pk_...", {
+  scheme: "myapp",
+});
+```
+
+Expo Router apps should also prevent callback links from becoming routes:
+
+```ts title="app/+native-intent.ts"
+import { expoRouterWithVoidhashCallback } from "@voidhash/react-native";
+
+export function redirectSystemPath(options: { path: string; initial: boolean }) {
+  return expoRouterWithVoidhashCallback(options);
+}
+```
+
+</Step>
+
+<Step>
+### Configure one offer in Studio
+
+Create the smallest complete catalog:
+
+1. In **Settings → Payment providers**, connect App Store or Google Play.
+2. Create a perk such as `premium`.
+3. Create a product and attach both the perk and its matching store product.
+4. Create a paywall that includes the product, then publish it.
+5. Create a paywall location such as `onboarding` and assign the published paywall.
+
+Run type generation after changing product, perk, or location slugs:
+
+```bash
+npx voidhash-cli types generate
+```
+
+See [Products and perks](/products-and-perks) and [Paywalls](/paywalls) for the model behind these
+steps.
+
+</Step>
+
+<Step>
+### Wrap your app
+
+Mount the generated provider once at the app root:
+
+```tsx title="app/_layout.tsx"
+import { Stack } from "expo-router";
+
+import { voidhash } from "../src/lib/voidhash";
+
+export default function RootLayout() {
+  return (
+    <voidhash.Provider>
+      <Stack />
+    </voidhash.Provider>
+  );
+}
+```
+
+The provider initializes the native store connection, loads the project schema, restores the
+current identity, and starts observing transactions.
+
+</Step>
+
+<Step>
+### Show the paywall
+
+Resolve the paywall by location and call `show()`:
+
+```tsx title="app/upgrade.tsx"
+import { Button } from "react-native";
+
+import { voidhash } from "../src/lib/voidhash";
+
+export default function UpgradeScreen() {
+  const paywall = voidhash.usePaywallByLocation("onboarding");
+
+  return (
+    <Button
+      title="View plans"
+      onPress={async () => {
+        const shown = await paywall.show();
+        if (!shown) {
+          console.warn("No paywall is published at onboarding");
+        }
+      }}
+    />
+  );
+}
+```
+
+The SDK handles product loading, purchase and restore actions, and dismissal for a hosted paywall.
+
+</Step>
+
+<Step>
+### Check access
+
+Gate features on an active perk grant:
+
+```tsx
+const { data: person, isLoading } = voidhash.useCurrentPerson();
+
+const hasPremium =
+  person.entitlements?.grants.some(
+    (grant) => grant.perkId === "premium" && grant.status === "active",
+  ) ?? false;
+```
+
+The person snapshot refreshes after a successful purchase or restore, so React re-renders with the
+new grant. See [Check access](/entitlements) for a reusable hook.
+
+</Step>
+
+</Steps>
+
+## Run the app
+
+Because the SDK contains native modules, rebuild the app after installation:
+
+```bash
+npx expo run:ios
+```
+
+Use `npx expo run:android` for Android. If you use EAS, create a new development build instead.
+
+## Next steps
+
+- [Display and target paywalls](/paywalls)
+- [Identify signed-in customers](/identify-users)
+- [Build a custom purchase screen](/purchases)
+- [Review the SDK reference](/react-native)
