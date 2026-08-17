@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: Connect projects, generate types, preview paywalls, and deploy from the terminal.
+description: Connect projects and generate types from the terminal.
 icon: SquareTerminal
 ---
 
@@ -25,8 +25,6 @@ npx voidhash-cli --help
 | `auth token --project <slug>` | Print headers for MCP or another authenticated tool.                             |
 | `types generate`              | Refresh `voidhash.gen.d.ts` from the project schema.                             |
 | `types check`                 | Fail when committed types are behind the server schema.                          |
-| `studio`                      | Preview code-authored paywalls locally.                                          |
-| `deploy`                      | Build and upload code-authored paywalls.                                         |
 | `config`                      | Inspect or change CLI URLs, credentials, and profiles.                           |
 
 ## Initialize an app
@@ -51,25 +49,6 @@ pulled into the repository:
 npx voidhash-cli types check
 ```
 
-## Preview and deploy code paywalls
-
-```bash
-npx voidhash-cli studio
-```
-
-Studio reads paywalls and components from the project's `.voidhash` directory. When the preview is
-ready, validate without uploading:
-
-```bash
-npx voidhash-cli deploy --dry-run
-```
-
-Then deploy:
-
-```bash
-npx voidhash-cli deploy
-```
-
 ## Profiles
 
 Use a profile to keep environment-specific CLI settings separate:
@@ -87,5 +66,3 @@ The base configuration lives in `~/.voidhash`; project selection lives in the co
 - **Not logged in** — run `npx voidhash-cli auth login`.
 - **Project config missing** — run `npx voidhash-cli init` from the app root.
 - **Generated types are stale** — run `npx voidhash-cli types generate` and commit the file.
-- **No paywalls found during deploy** — add a paywall under `.voidhash/paywalls`, or use Studio's
-  visual paywall workflow instead.

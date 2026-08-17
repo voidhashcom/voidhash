@@ -1353,7 +1353,7 @@ export const appStoreTransactions = pgTable(
 export interface DesignFileMetadata {}
 
 // Paywall source enum — how the paywall is authored.
-// 1 = visual editor, 2 = code (CLI deploy, see docs/specs/paywall-deploy-contract.md)
+// 1 = Studio, 2 = code deploy (see docs/specs/paywall-deploy-contract.md)
 export const PaywallSource = constant({
   editor: 1,
   code: 2,

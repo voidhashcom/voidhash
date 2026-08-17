@@ -50,7 +50,6 @@ const effectRulesOff = Object.fromEntries(Object.keys(recommended).map((rule) =>
  */
 const reactSurfaces = [
   "apps/mimic-admin/**",
-  "apps/studio/**",
   "apps/www/**",
   "examples/**",
   "libraries/react-native/**",

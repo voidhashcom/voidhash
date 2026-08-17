@@ -6,7 +6,7 @@ esbuild.buildSync({
   },
   bundle: true,
   entryPoints: ["./src/cli/index.ts"],
-  external: ["esbuild", "@voidhash/studio", "@voidhash/paywalls", "vite", "typescript"],
+  external: ["esbuild"],
   format: "cjs",
   outfile: "dist/index.cjs",
   platform: "node",

@@ -14,7 +14,7 @@ component manifest, preview node tree) are specified in
 
 ## Authoring a paywall
 
-`.voidhash/paywalls/*.tsx`
+Use this API from Voidhash Studio's code editor:
 
 ```tsx
 import {
@@ -69,7 +69,7 @@ export default createPaywall({
 
 ## Reusable components
 
-`.voidhash/components/*.tsx`
+Reusable components use the same Studio workspace:
 
 ```tsx
 import { defineComponent, Pressable, Slot, Text } from "@voidhash/paywalls";
@@ -241,8 +241,8 @@ the same envelopes are posted to the parent frame as
 - `renderToNodeTree(element, { config, state })` (from
   `@voidhash/paywalls/tree`) — renders components (real hooks included) to the
   §3 preview node tree via a custom `react-reconciler` host. **This is the one
-  render-to-preview-tree path** — the CLI runs it in Node, the studio sandbox
-  runs the same code (bundled with react) inside its iframe. It is **async**:
+  render-to-preview-tree path** — Studio's sandbox runs it in the browser, and
+  Node-based tooling can run the same implementation. It is **async**:
   the reconciler commits, one passive-effect flush + one macrotask tick settle
   the tree, then the committed `PaywallNodeTree` is read back. `<Slot/>` becomes
   a `{ type: "slot" }` node; components that never stabilize within that one
@@ -311,6 +311,6 @@ The sandbox bootstrap freezes `Date.now` / `Math.random` / `performance.now` /
 
 `@voidhash/paywalls/jsx-runtime` and `@voidhash/paywalls/jsx-dev-runtime`
 re-export `react/jsx-runtime` so `jsxImportSource: "@voidhash/paywalls"` resolves
-everywhere (sandbox, CLI, user projects) — author code imports only
+throughout Studio's authoring pipeline — author code imports only
 `@voidhash/paywalls`. The root entry also re-exports React's hooks (`useState`,
 `useEffect`, `useMemo`, `useCallback`, `useRef`) for the same reason.

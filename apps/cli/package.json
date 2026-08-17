@@ -37,14 +37,11 @@
     "@effect/platform-node": "4.0.0-beta.100",
     "@voidhash/generated-clients": "workspace:*",
     "@voidhash/lib": "workspace:*",
-    "@voidhash/shared": "workspace:*",
-    "@voidhash/studio": "workspace:*",
     "better-auth": "catalog:",
     "effect": "4.0.0-beta.100",
     "esbuild": "^0.25.10",
     "esbuild-register": "^3.6.0",
-    "nanoid": "^5.1.5",
-    "typescript": "5.6.3"
+    "nanoid": "^5.1.5"
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",
@@ -54,6 +51,7 @@
     "esbuild": "^0.25.10",
     "tsup": "^8.5.1",
     "tsx": "^4.19.3",
+    "typescript": "5.6.3",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.7"
   }

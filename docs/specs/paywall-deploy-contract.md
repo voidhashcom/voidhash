@@ -1,14 +1,14 @@
 # Paywall Deploy Contract (Phase 1)
 
 **Status:** Implementation contract for PRD "Paywall Code Components" Phase 1.
-**Implementors:** `voidhash` (SDK `@voidhash/paywalls`, `voidhash-cli`, studio, `@voidhash/react-native`, backend, and www).
+**Implementors:** `voidhash` (SDK `@voidhash/paywalls`, Studio, `@voidhash/react-native`, backend, and www).
 **Rule:** this file is the wire-format source of truth. Every implementation validates against schemas that mirror this document exactly. Breaking changes bump `schemaVersion`.
 
 ---
 
 ## 1. Deploy manifest — `schemaVersion: 2`
 
-Produced by `voidhash-cli deploy` at `.voidhash/.build/manifest.json`. Supersedes the v1 manifest (whole file, not additive).
+Produced by code-paywall deployment tooling. Supersedes the v1 manifest (whole file, not additive).
 
 ```jsonc
 {
@@ -108,7 +108,7 @@ File entry shapes (same as v1): `DeployFile = { path, bytes, sha256 }`, `DeployA
   - component `manifest` and `previews[].file`: `application/json` only.
   - `assets[]`: `image/*` or `font/*` types from the allowlist only — never `text/html` or `text/javascript`.
 - At least one paywall **or** one component.
-- `components[].previews` non-empty (the CLI always emits a `default` tree).
+- `components[].previews` non-empty (deployment tooling always emits a `default` tree).
 - `previews[].state` matches `^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$` — state names become serving object keys and URL path segments (§5.1).
 - Each decoded preview tree's `state` field (§3) equals its `previews[].state` entry. This binds the state→file mapping into the `contentHash` transitively; without it, the same file set with swapped state assignments would collide under one immutable `contentHash`.
 
@@ -121,7 +121,7 @@ The paywall `contentHash` is the deployable identity: storage prefix, cache key,
 
 ## 2. Component manifest (`manifest.json` artifact)
 
-Emitted per component by the CLI (extracted from `defineComponent` in a local node process — never on the server). Validated server-side at finalize.
+Emitted per component by the authoring pipeline and validated server-side at finalize.
 
 ```jsonc
 {
@@ -153,7 +153,7 @@ Prop kinds: `string | number | boolean | select | image | ref | component | arra
 | `string`    | —                                                                                                         | allowed (`"color"` for now) | `string`                         |
 | `number`    | —                                                                                                         | not allowed                 | `number`                         |
 | `boolean`   | —                                                                                                         | not allowed                 | `boolean`                        |
-| `select`    | `options`: **non-empty** `string[]` (empty options are a build error in the CLI and rejected at finalize) | not allowed                 | `string`                         |
+| `select`    | `options`: **non-empty** `string[]` (empty options are a build error and rejected at finalize) | not allowed                 | `string`                         |
 | `image`     | —                                                                                                         | not allowed                 | `string` (URL / asset reference) |
 | `ref`       | `refType`: `"product"` only in P1                                                                         | not allowed                 | —                                |
 | `component` | —                                                                                                         | not allowed                 | —                                |
@@ -163,7 +163,7 @@ Prop kinds: `string | number | boolean | select | image | ref | component | arra
 
 ## 3. Preview node tree (`previews/<state>.json` artifact)
 
-The component SSR-ed at CLI build time against the preview state's fixtures, rendered to a tree of closed primitives. Never HTML.
+The component is rendered against the preview state's fixtures during the build, producing a tree of closed primitives. Never HTML.
 
 ```jsonc
 {
@@ -192,7 +192,7 @@ Keys limited to the RN-compatible vocabulary: flexbox (`flex`, `flexDirection`, 
 
 ## 4. Deploy HTTP API (`voidhash` backend)
 
-Base: the existing v1 API host. All three endpoints are part of the authenticated studio/CLI surface: header `x-api-key` accepting the same credentials as `/api/v1/auth/session` (CLI user key from device login, or a `vh_sk_` secret key). The authenticated session must include a project whose `slug == manifest.project` within an organization whose `slug == manifest.team`; otherwise `403`.
+Base: the existing v1 API host. All three endpoints are part of the authenticated Studio/custom-tooling surface: header `x-api-key` accepting a user key or a `vh_sk_` secret key. The authenticated session must include a project whose `slug == manifest.project` within an organization whose `slug == manifest.team`; otherwise `403`.
 
 ### 4.1 Create deploy
 
@@ -203,7 +203,7 @@ Body: <DeployManifest>            // §1, validated against schemaVersion 2
 → 201 { "deployId": "pw_dep_…", "missing": ["<sha256>", …] }
 ```
 
-`missing` = subset of manifest file hashes the server does not already have stored **for this project**. Idempotent: re-POSTing a manifest whose canonical hash matches an existing deploy of the same project — of **any** status; the (project, canonical manifest hash) pair is unique per project — returns that deploy. A pending match resumes uploading via the returned `missing` list; a ready match returns `missing: []`. Unknown `schemaVersion` → `400` with a "upgrade the CLI" message.
+`missing` = subset of manifest file hashes the server does not already have stored **for this project**. Idempotent: re-POSTing a manifest whose canonical hash matches an existing deploy of the same project — of **any** status; the (project, canonical manifest hash) pair is unique per project — returns that deploy. A pending match resumes uploading via the returned `missing` list; a ready match returns `missing: []`. Unknown `schemaVersion` → `400` with an upgrade-tooling message.
 
 ### 4.2 Upload blob
 
@@ -228,7 +228,7 @@ POST /api/v1/paywall-deploys/:deployId/finalize
 }
 ```
 
-Finalize is the immutable commit point. Server-side validation (trusts nothing): every referenced blob present; recompute every sha256 + every `contentHash`; schema-validate component manifests (§2) and preview trees (§3) from the stored blobs; enforce §1.1 caps. Any failure → `409 { missing: [...] }` for incompleteness, `422` with details for validation failures; the deploy stays pending and can be retried. On a `409` whose `missing` hashes map back to manifest files, the CLI re-uploads exactly those blobs and retries finalize once; a second failure surfaces as an error. Finalizing an already-`ready` deploy is a fully re-validated no-op: it re-copies the idempotent serving objects and returns the current release/component summaries (releases are reused when the latest released `contentHash` matches, so no new versions are created).
+Finalize is the immutable commit point. Server-side validation (trusts nothing): every referenced blob present; recompute every sha256 + every `contentHash`; schema-validate component manifests (§2) and preview trees (§3) from the stored blobs; enforce §1.1 caps. Any failure → `409 { missing: [...] }` for incompleteness, `422` with details for validation failures; the deploy stays pending and can be retried. On a `409` whose `missing` hashes map back to manifest files, the client can re-upload exactly those blobs and retry finalize. Finalizing an already-`ready` deploy is a fully re-validated no-op: it re-copies the idempotent serving objects and returns the current release/component summaries (releases are reused when the latest released `contentHash` matches, so no new versions are created).
 
 Effects on success, per paywall in the manifest:
 

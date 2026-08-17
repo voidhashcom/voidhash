@@ -82,15 +82,6 @@ const PACKAGES = [
     build: false,
     internal: true,
   },
-  // Studio ships as source (src + index.html + vite.config.ts) that the CLI
-  // drives through Vite at runtime, so it packs without a build.
-  {
-    dir: "apps/studio",
-    name: "@voidhash/studio",
-    project: "studio",
-    build: false,
-    internal: true,
-  },
   {
     dir: "libraries/paywalls",
     name: "@voidhash/paywalls",
