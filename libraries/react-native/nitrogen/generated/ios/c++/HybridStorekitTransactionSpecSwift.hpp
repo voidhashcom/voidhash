@@ -159,7 +159,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Methods
-    
+
 
   private:
     NitroVoidhash::HybridStorekitTransactionSpec_cxx _swiftPart;

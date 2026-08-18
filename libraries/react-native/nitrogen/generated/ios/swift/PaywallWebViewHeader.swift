@@ -32,7 +32,7 @@ public extension PaywallWebViewHeader {
       self.__name = std.string(newValue)
     }
   }
-  
+
   var value: String {
     @inline(__always)
     get {

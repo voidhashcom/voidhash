@@ -3,6 +3,8 @@ import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
 import { VoidhashClient, type VoidhashClientOptions } from "./client";
+import { createNativeMeasurementRuntimeAdapter } from "./core/measurement/native-adapter";
+import { resolveMeasurementEndpoints } from "./core/measurement/endpoints";
 import { SchemeNotSetError } from "./errors";
 import { voidhashProviderFactory } from "./react/components/provider";
 import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve-app-store-product";
@@ -25,10 +27,17 @@ import { purchaseHookFactory } from "./react/hooks/use-purchase";
  *   `voidhash.gen.d.ts` (run `voidhash-cli types generate`).
  */
 export function createVoidhashClient(publishableKey: string, options: VoidhashClientOptions = {}) {
-  const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
+  const resolvedEndpoints = resolveMeasurementEndpoints(
+    options.endpoints ?? {
+      api: options.baseUrl,
+      ingest: options.ingestUrl,
+    },
+    debug,
+  );
+  const baseUrl = resolvedEndpoints.api;
   const distinctId = options.distinctId ?? null;
-  const ingestUrl = options.ingestUrl;
+  const ingestUrl = resolvedEndpoints.ingest;
   const readOnly = options.readOnly ?? false;
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
   const scheme =
@@ -56,6 +65,15 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     platform,
     debug,
     options.unstable_internalSchema,
+    {
+      consent: options.consent,
+      links: options.links,
+      measurement: options.measurement,
+      notifications: options.notifications,
+      endpoints: options.endpoints,
+      nativeAdapter: createNativeMeasurementRuntimeAdapter(),
+    },
+    resolvedEndpoints,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

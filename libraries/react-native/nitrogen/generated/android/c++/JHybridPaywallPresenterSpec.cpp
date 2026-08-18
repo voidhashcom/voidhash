@@ -35,7 +35,7 @@ namespace margelo::nitro::voidhash {
   }
 
   // Properties
-  
+
 
   // Methods
   std::shared_ptr<Promise<bool>> JHybridPaywallPresenterSpec::preload(const std::string& locationSlug, const std::string& htmlUrl) {

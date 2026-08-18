@@ -23,6 +23,7 @@ import { ProductService } from "../../src/core/products/product-service";
 import type { RuntimeProductDefinition } from "../../src/core/schema/runtime";
 import { SchemaManager } from "../../src/core/schema/schema-manager";
 import { SdkConfiguration } from "../../src/core/sdk-configuration";
+import { UnifiedMeasurementRuntime } from "../../src/core/measurement/runtime";
 import { TransactionService } from "../../src/core/transactions/transaction-service";
 import { createTestSchema } from "./test-schema";
 
@@ -273,6 +274,7 @@ export interface EffectTestHarnessOptions {
   baseUrl?: string;
   cacheAdapter: ReturnType<typeof createInMemoryCacheAdapter>["adapter"];
   debug?: boolean;
+  dedupeStore?: Map<string, boolean>;
   fetch?: typeof globalThis.fetch;
   ingestUrl?: string;
   lifecycleAdapter?: ReturnType<typeof createLifecycleAdapterDouble>;
@@ -299,6 +301,22 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
   const atomRegistry = options.atomRegistry ?? AtomRegistry.make();
 
   const lifecycle = options.lifecycleAdapter ?? createLifecycleAdapterDouble();
+  const dedupeStore = options.dedupeStore ?? new Map<string, boolean>();
+  const measurementRuntime = new UnifiedMeasurementRuntime({
+    adapter: {
+      checkAndSetDedupe: async (namespace, key) => {
+        const namespaced = `${namespace}:${key}`;
+        if (dedupeStore.has(namespaced)) return false;
+        dedupeStore.set(namespaced, true);
+        return true;
+      },
+      hasDedupe: async (namespace, key) => dedupeStore.has(`${namespace}:${key}`),
+    },
+    baseUrl: options.baseUrl ?? "https://api.voidhash.test",
+    ingestUrl: options.ingestUrl,
+    platform: options.platform?.platform === "android" ? "android" : "ios",
+    publishableKey: options.publishableKey ?? "pk_test",
+  });
 
   const baseLayer = pipe(
     PersonAttributeManager.Default,
@@ -333,6 +351,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
         ingestUrl: options.ingestUrl,
         publishableKey: options.publishableKey ?? "pk_test",
         readOnly: options.readOnly ?? false,
+        measurementRuntime,
       }),
     ),
   );

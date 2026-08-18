@@ -85,6 +85,16 @@ email claim, and service-account identity before reading the Pub/Sub envelope;
 missing authentication is rejected and missing server configuration fails
 closed with a retryable response.
 
+### Measurement configuration signing
+
+SDK collector configuration is signed with the Ed25519 PKCS#8 key configured by
+`MEASUREMENT_CONFIG_PRIVATE_KEY_PKCS8`. Set a stable public identifier in
+`MEASUREMENT_CONFIG_KEY_ID` and a positive monotonic
+`MEASUREMENT_CONFIG_VERSION`. To rotate keys, deploy clients trusting both the
+old and new public keys, switch the server key and key ID, increment the version,
+then remove the old client trust only after the supported client window has
+elapsed. Never reuse or decrease a version, including after a rollback.
+
 ## Smoke test
 
 From a workspace checkout with dependencies installed:

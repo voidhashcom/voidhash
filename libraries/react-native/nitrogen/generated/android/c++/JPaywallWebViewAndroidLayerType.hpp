@@ -44,7 +44,7 @@ namespace margelo::nitro::voidhash {
       static const auto fieldNONE = clazz->getStaticField<JPaywallWebViewAndroidLayerType>("NONE");
       static const auto fieldSOFTWARE = clazz->getStaticField<JPaywallWebViewAndroidLayerType>("SOFTWARE");
       static const auto fieldHARDWARE = clazz->getStaticField<JPaywallWebViewAndroidLayerType>("HARDWARE");
-      
+
       switch (value) {
         case PaywallWebViewAndroidLayerType::NONE:
           return clazz->getStaticFieldValue(fieldNONE);

@@ -42,7 +42,7 @@ abstract class HybridGoogleBillingPricingPhasesSpec: HybridObject() {
   abstract val pricingPhaseList: Array<HybridGoogleBillingPricingPhaseSpec>
 
   // Methods
-  
+
 
   private external fun initHybrid(): HybridData
 

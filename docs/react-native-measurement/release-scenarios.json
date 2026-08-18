@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scenarios": [
+    { "id": 1, "name": "fresh install, conversion, and deep-link not found", "automatedCase": "creates install evidence first and starts only one automatic session" },
+    { "id": 2, "name": "background deep link", "automatedCase": "normalizes allowlisted links, projects routes, emits once, and dedupes" },
+    { "id": 3, "name": "foreground deep link", "automatedCase": "normalizes allowlisted links, projects routes, emits once, and dedupes" },
+    { "id": 4, "name": "rich event serialization", "automatedCase": "captures identity and configuration per item instead of reading globals at flush" },
+    { "id": 5, "name": "identity, currency, and context round trip", "automatedCase": "captures identity and configuration per item instead of reading globals at flush" },
+    { "id": 6, "name": "stop and resume suppression", "automatedCase": "distinguishes upload pause from deletion and keeps the installation identity" },
+    { "id": 7, "name": "offline first install and delayed referrer", "automatedCase": "retries an offline wrapped link and emits only the eventual result" },
+    { "id": 8, "name": "consent-gated route before session", "automatedCase": "preserves consent tri-state values and snapshots revisions at capture time" },
+    { "id": 9, "name": "click, install, deferred route, first event, and attribution", "automatedCase": "signs, records before redirect, stamps Android referrer, and resolves once" },
+    { "id": 10, "name": "push open and re-engagement attribution", "automatedCase": "attributes push and deep-link re-engagement without creating an install decision" },
+    { "id": 11, "name": "purchase and ad-revenue validation and dedupe", "automatedCase": "records purchase observation once with receipt material only in protected evidence" },
+    { "id": 12, "name": "reinstall, update, backup restore, and device transfer", "automatedCase": "testDedupeAndInboxAreDurableAndIdempotent" },
+    { "id": 13, "name": "store renewal and refund while app is closed", "automatedCase": "parks an early notification and converges on replay without duplicates" },
+    { "id": 14, "name": "partner postback allow, deny, and deletion", "automatedCase": "evaluates policy at send time and anonymizes identity" }
+  ]
+}

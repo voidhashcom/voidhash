@@ -96,7 +96,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Methods
-    
+
 
   private:
     NitroVoidhash::HybridStorekitProductSpec_cxx _swiftPart;

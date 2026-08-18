@@ -44,7 +44,7 @@ namespace margelo::nitro::voidhash {
       static const auto fieldNEVER = clazz->getStaticField<JPaywallWebViewMixedContentMode>("NEVER");
       static const auto fieldALWAYS = clazz->getStaticField<JPaywallWebViewMixedContentMode>("ALWAYS");
       static const auto fieldCOMPATIBILITY = clazz->getStaticField<JPaywallWebViewMixedContentMode>("COMPATIBILITY");
-      
+
       switch (value) {
         case PaywallWebViewMixedContentMode::NEVER:
           return clazz->getStaticFieldValue(fieldNEVER);

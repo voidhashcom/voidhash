@@ -56,7 +56,7 @@ namespace margelo::nitro::voidhash {
   }
 
   // Properties
-  
+
 
   // Methods
   std::shared_ptr<Promise<bool>> JHybridGoogleBillingSpec::initConnection(const std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>& /* purchase */)>>& onPurchase) {

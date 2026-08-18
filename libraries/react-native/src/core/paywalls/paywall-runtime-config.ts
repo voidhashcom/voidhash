@@ -6,6 +6,18 @@ import type {
 import type { Product, SubscriptionProduct } from "../entities/product";
 import type { PaywallReleaseRuntime } from "./paywall-service";
 
+const toBridgeVariables = (
+  variables: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, string | number | boolean>> =>
+  Object.fromEntries(
+    Object.entries(variables).filter(
+      (entry): entry is [string, string | number | boolean] =>
+        typeof entry[1] === "string" ||
+        typeof entry[1] === "number" ||
+        typeof entry[1] === "boolean",
+    ),
+  );
+
 const PERIOD_BY_NORMALIZED_INTERVAL: Readonly<Record<string, PaywallRuntimeConfigProductPeriod>> = {
   // ISO-8601 billing periods (Play Billing `billingPeriod`).
   p1m: "month",
@@ -81,7 +93,7 @@ export function buildPaywallRuntimeConfig(options: {
 
   return {
     products,
-    variables: options.runtime.variables,
+    variables: toBridgeVariables(options.runtime.variables),
     locale: options.locale,
     platform: options.platform === "unknown" ? undefined : options.platform,
     defaultSelectedProductId: products[0]?.id,

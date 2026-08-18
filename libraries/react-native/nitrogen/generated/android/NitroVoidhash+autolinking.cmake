@@ -47,6 +47,8 @@ target_sources(
   ../nitrogen/generated/shared/c++/HybridStorekitProductSubscriptionSpec.cpp
   ../nitrogen/generated/shared/c++/HybridStorekitProductSubscriptionPeriodSpec.cpp
   ../nitrogen/generated/shared/c++/HybridStorekitTransactionSpec.cpp
+  ../nitrogen/generated/shared/c++/HybridMeasurementSpec.cpp
+  ../nitrogen/generated/shared/c++/HybridNotificationsSpec.cpp
   # Android-specific Nitrogen C++ sources
   ../nitrogen/generated/android/c++/JHybridPaywallPresenterSpec.cpp
   ../nitrogen/generated/android/c++/JHybridPaywallWebViewSpec.cpp
@@ -62,6 +64,8 @@ target_sources(
   ../nitrogen/generated/android/c++/JHybridGoogleBillingPricingPhaseSpec.cpp
   ../nitrogen/generated/android/c++/JHybridGoogleBillingPricingPhasesSpec.cpp
   ../nitrogen/generated/android/c++/JHybridGoogleBillingSubscriptionOfferDetailsSpec.cpp
+  ../nitrogen/generated/android/c++/JHybridMeasurementSpec.cpp
+  ../nitrogen/generated/android/c++/JHybridNotificationsSpec.cpp
 )
 
 # Define a flag to check if we are building properly

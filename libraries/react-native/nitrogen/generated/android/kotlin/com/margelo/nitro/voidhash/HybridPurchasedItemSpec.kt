@@ -42,7 +42,7 @@ abstract class HybridPurchasedItemSpec: HybridObject() {
   @set:DoNotStrip
   @set:Keep
   abstract var type: PurchasedItemType
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
@@ -50,7 +50,7 @@ abstract class HybridPurchasedItemSpec: HybridObject() {
   abstract var sku: String
 
   // Methods
-  
+
 
   private external fun initHybrid(): HybridData
 

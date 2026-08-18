@@ -40,25 +40,25 @@ abstract class HybridGoogleBillingSubscriptionOfferDetailsSpec: HybridObject() {
   @get:DoNotStrip
   @get:Keep
   abstract val basePlanId: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val offerId: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val offerToken: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val offerTags: Array<String>
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val pricingPhases: HybridGoogleBillingPricingPhasesSpec
 
   // Methods
-  
+
 
   private external fun initHybrid(): HybridData
 

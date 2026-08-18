@@ -39,7 +39,7 @@ public protocol HybridStorekitTransactionSpec_protocol: HybridObject {
   var currencyIos: String? { get }
 
   // Methods
-  
+
 }
 
 /// See ``HybridStorekitTransactionSpec``

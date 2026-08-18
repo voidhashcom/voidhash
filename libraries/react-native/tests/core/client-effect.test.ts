@@ -833,6 +833,7 @@ describe("VoidhashEffectClient", () => {
   it("resumes native finalization from persistent state after a runtime restart", async () => {
     const schema = createTestSchema();
     const cache = createInMemoryCacheAdapter();
+    const dedupeStore = new Map<string, boolean>();
     const firstApi = createApiClientDouble();
     const firstPayment = createPaymentAdapterDouble({
       acknowledgePurchaseShouldFailTimes: 1,
@@ -840,6 +841,7 @@ describe("VoidhashEffectClient", () => {
     const firstHarness = createEffectTestHarness({
       apiClient: firstApi.apiClient,
       cacheAdapter: cache.adapter,
+      dedupeStore,
       paymentAdapter: firstPayment.paymentAdapter,
     });
     const transaction = new Transaction(
@@ -865,6 +867,7 @@ describe("VoidhashEffectClient", () => {
     const secondHarness = createEffectTestHarness({
       apiClient: secondApi.apiClient,
       cacheAdapter: cache.adapter,
+      dedupeStore,
       paymentAdapter: secondPayment.paymentAdapter,
     });
 
@@ -1161,6 +1164,7 @@ describe("VoidhashEffectClient", () => {
   const analyticsEvents: ReadonlyArray<AnalyticsIngestEvent> = [
     {
       context: {},
+      distinct_id: "analytics-user",
       event_id: "evt_1",
       event_name: "cta-button-clicked",
       event_ts: "2026-01-01T00:00:00.000Z",

@@ -11,7 +11,7 @@ import NitroModules
 /// See ``HybridVoidhashSpec``
 public protocol HybridVoidhashSpec_protocol: HybridObject {
   // Properties
-  
+
 
   // Methods
   func purchase(sku: String) throws -> Promise<(any HybridPurchasedItemSpec)>

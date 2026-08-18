@@ -14,6 +14,8 @@ let package = Package(
             exclude: [
                 "HybridPaywallPresenter.swift",
                 "HybridPaywallWebView.swift",
+                "HybridMeasurement.swift",
+                "HybridNotifications.swift",
                 "HybridPurchasedItem.swift",
                 "HybridStorekit.swift",
                 "HybridStorekitProduct.swift",
@@ -24,7 +26,21 @@ let package = Package(
                 "HybridVoidhash.swift",
                 "ProductStore.swift",
             ],
-            sources: ["TransactionRetentionStore.swift"]
+            sources: [
+                "TransactionRetentionStore.swift",
+                "measurement/ConversionValueEngine.swift",
+                "measurement/AppleIdentifierPolicy.swift",
+                "measurement/AppleSystemIdentifiers.swift",
+                "measurement/MeasurementStore.swift",
+                "measurement/MeasurementDelivery.swift",
+                "measurement/LinkCollector.swift",
+                "measurement/PushCollector.swift",
+            ],
+            linkerSettings: [
+                .linkedLibrary("sqlite3"),
+                .linkedFramework("Security"),
+                .linkedFramework("CryptoKit"),
+            ]
         ),
         .testTarget(
             name: "VoidhashPurchaseCoordinatorTests",

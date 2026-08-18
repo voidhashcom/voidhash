@@ -15,7 +15,7 @@ public protocol HybridStorekitProductSubscriptionPeriodSpec_protocol: HybridObje
   var value: Double { get }
 
   // Methods
-  
+
 }
 
 /// See ``HybridStorekitProductSubscriptionPeriodSpec``

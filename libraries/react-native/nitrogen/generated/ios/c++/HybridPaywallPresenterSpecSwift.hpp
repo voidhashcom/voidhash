@@ -54,7 +54,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Properties
-    
+
 
   public:
     // Methods

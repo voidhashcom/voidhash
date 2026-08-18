@@ -32,7 +32,7 @@ public extension PaywallWebViewProgressEvent {
       self.__progress = newValue
     }
   }
-  
+
   var url: String {
     @inline(__always)
     get {
@@ -43,7 +43,7 @@ public extension PaywallWebViewProgressEvent {
       self.__url = std.string(newValue)
     }
   }
-  
+
   var loading: Bool {
     @inline(__always)
     get {
@@ -54,7 +54,7 @@ public extension PaywallWebViewProgressEvent {
       self.__loading = newValue
     }
   }
-  
+
   var title: String {
     @inline(__always)
     get {
@@ -65,7 +65,7 @@ public extension PaywallWebViewProgressEvent {
       self.__title = std.string(newValue)
     }
   }
-  
+
   var canGoBack: Bool {
     @inline(__always)
     get {
@@ -76,7 +76,7 @@ public extension PaywallWebViewProgressEvent {
       self.__canGoBack = newValue
     }
   }
-  
+
   var canGoForward: Bool {
     @inline(__always)
     get {
@@ -87,7 +87,7 @@ public extension PaywallWebViewProgressEvent {
       self.__canGoForward = newValue
     }
   }
-  
+
   var lockIdentifier: Double {
     @inline(__always)
     get {

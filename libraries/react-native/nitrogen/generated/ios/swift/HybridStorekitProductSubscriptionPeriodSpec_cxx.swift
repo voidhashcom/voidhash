@@ -85,7 +85,7 @@ public class HybridStorekitProductSubscriptionPeriodSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -103,7 +103,7 @@ public class HybridStorekitProductSubscriptionPeriodSpec_cxx {
       return self.__implementation.unit.rawValue
     }
   }
-  
+
   public final var value: Double {
     @inline(__always)
     get {
@@ -112,5 +112,5 @@ public class HybridStorekitProductSubscriptionPeriodSpec_cxx {
   }
 
   // Methods
-  
+
 }

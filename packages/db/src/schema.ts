@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  bytea,
   index,
   integer,
   jsonb,
@@ -189,6 +190,114 @@ export const captureProjectPolicies = pgTable(
     ),
   },
   (table) => [index("capture_project_policy_force_route_idx").on(table.forceRoute)],
+);
+
+export const protectedMeasurementEvidence = pgTable(
+  "protected_measurement_evidence",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    blobId: varchar("blob_id", { length: 255 }).notNull(),
+    projectId: varchar("project_id", { length: 255 })
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    installationId: varchar("installation_id", { length: 255 }).notNull(),
+    purpose: varchar("purpose", { length: 64 }).notNull(),
+    consentRevision: bigint("consent_revision", { mode: "number" }).notNull(),
+    retentionClass: varchar("retention_class", { length: 32 }).notNull(),
+    encryptionKeyVersion: integer("encryption_key_version").notNull(),
+    deletionState: varchar("deletion_state", { length: 32 }).notNull(),
+    ciphertext: bytea("ciphertext"),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("protected_measurement_evidence_project_blob_uidx").on(
+      table.projectId,
+      table.blobId,
+    ),
+    index("protected_measurement_evidence_project_purpose_idx").on(
+      table.projectId,
+      table.purpose,
+    ),
+    index("protected_measurement_evidence_project_installation_idx").on(
+      table.projectId,
+      table.installationId,
+    ),
+  ],
+);
+
+export const measurementDeletionRequests = pgTable(
+  "measurement_deletion_request",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    requestId: varchar("request_id", { length: 255 }).notNull(),
+    projectId: varchar("project_id", { length: 255 })
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    installationId: varchar("installation_id", { length: 255 }).notNull(),
+    personId: varchar("person_id", { length: 255 }),
+    requestedAt: timestamp("requested_at", { withTimezone: true, precision: 3 }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true, precision: 3 }).notNull(),
+    deletedProtectedEvidence: integer("deleted_protected_evidence").notNull(),
+    status: varchar("status", { length: 32 }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("measurement_deletion_request_project_request_uidx").on(
+      table.projectId,
+      table.requestId,
+    ),
+    index("measurement_deletion_request_project_installation_idx").on(
+      table.projectId,
+      table.installationId,
+    ),
+  ],
+);
+
+/** Immutable project-scoped definitions backing signed short links. */
+export const measurementLinks = pgTable(
+  "measurement_link",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    projectId: varchar("project_id", { length: 255 })
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    idempotencyKey: varchar("idempotency_key", { length: 255 }),
+    definition: jsonb("definition").$type<Record<string, unknown>>().notNull(),
+    signedToken: text("signed_token").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, precision: 3 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("measurement_link_project_idempotency_uidx")
+      .on(table.projectId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} is not null`),
+    index("measurement_link_project_created_idx").on(table.projectId, table.createdAt),
+  ],
+);
+
+/** Append-only, privacy-bounded click evidence recorded before redirecting. */
+export const measurementLinkClicks = pgTable(
+  "measurement_link_click",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    projectId: varchar("project_id", { length: 255 })
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    linkId: varchar("link_id", { length: 255 }).notNull(),
+    context: jsonb("context").$type<Record<string, unknown>>().notNull(),
+    deferredTokenHash: varchar("deferred_token_hash", { length: 64 }).notNull(),
+    deferredExpiresAt: timestamp("deferred_expires_at", { withTimezone: true, precision: 3 }).notNull(),
+    installationId: varchar("installation_id", { length: 255 }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, precision: 3 }),
+    occurredAt: timestamp("occurred_at", { withTimezone: true, precision: 3 }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("measurement_link_click_deferred_hash_uidx").on(table.deferredTokenHash),
+    index("measurement_link_click_project_link_idx").on(table.projectId, table.linkId),
+  ],
 );
 
 export const apiKeys = pgTable(

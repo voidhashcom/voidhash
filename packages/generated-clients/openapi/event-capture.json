@@ -1,31 +1,35 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "Api", "version": "0.0.1" },
+  "info": {
+    "title": "Api",
+    "version": "0.0.1"
+  },
   "paths": {
     "/i/v1/capture": {
       "post": {
-        "tags": ["event_capture"],
+        "tags": [
+          "event_capture"
+        ],
         "operationId": "event_capture.capture",
         "parameters": [],
         "security": [],
         "responses": {
-          "200": {
+          "202": {
             "description": "CaptureAcceptedResponse",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureAcceptedResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                }
               }
             }
           },
           "400": {
-            "description": "CaptureInvalidRequestError | The request or response did not match the expected schema",
+            "description": "CaptureInvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    { "$ref": "#/components/schemas/CaptureInvalidRequestError" },
-                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
-                  ]
+                  "$ref": "#/components/schemas/CaptureInvalidRequestError"
                 }
               }
             }
@@ -34,7 +38,9 @@
             "description": "CaptureUnauthorizedError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureUnauthorizedError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
+                }
               }
             }
           },
@@ -42,7 +48,9 @@
             "description": "CapturePayloadTooLargeError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CapturePayloadTooLargeError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CapturePayloadTooLargeError"
+                }
               }
             }
           },
@@ -50,7 +58,9 @@
             "description": "CaptureRateLimitedError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureRateLimitedError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureRateLimitedError"
+                }
               }
             }
           },
@@ -58,7 +68,9 @@
             "description": "CaptureInternalServerError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureInternalServerError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
+                }
               }
             }
           },
@@ -66,7 +78,9 @@
             "description": "CaptureDependencyUnavailableError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureDependencyUnavailableError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
+                }
               }
             }
           }
@@ -77,31 +91,78 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "uuid": { "type": "string", "allOf": [{ "minLength": 1 }] },
-                  "event": { "type": "string", "allOf": [{ "minLength": 1 }] },
+                  "uuid": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "event": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
                   "context": {
                     "type": "object",
-                    "additionalProperties": { "$ref": "#/components/schemas/Union_" }
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/Union_"
+                    }
                   },
                   "properties": {
                     "type": "object",
-                    "additionalProperties": { "$ref": "#/components/schemas/Union_1" }
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/Union_1"
+                    }
                   },
-                  "distinct_id": { "type": "string", "allOf": [{ "minLength": 1 }] },
+                  "distinct_id": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
                   "session_id": {
                     "anyOf": [
-                      { "type": "string", "allOf": [{ "minLength": 1 }] },
-                      { "type": "null" }
+                      {
+                        "type": "string",
+                        "allOf": [
+                          {
+                            "minLength": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "timestamp": {
                     "anyOf": [
-                      { "type": "string", "allOf": [{ "format": "date-time" }] },
-                      { "type": "null" }
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
-                  "sent_at": { "type": "string", "allOf": [{ "format": "date-time" }] },
-                  "token": { "type": "string", "allOf": [{ "minLength": 1 }] }
+                  "sent_at": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  }
                 },
                 "required": [
                   "uuid",
@@ -122,28 +183,29 @@
     },
     "/i/v1/batch": {
       "post": {
-        "tags": ["event_capture"],
+        "tags": [
+          "event_capture"
+        ],
         "operationId": "event_capture.batch",
         "parameters": [],
         "security": [],
         "responses": {
-          "200": {
+          "202": {
             "description": "CaptureAcceptedResponse",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureAcceptedResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                }
               }
             }
           },
           "400": {
-            "description": "CaptureInvalidRequestError | The request or response did not match the expected schema",
+            "description": "CaptureInvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    { "$ref": "#/components/schemas/CaptureInvalidRequestError" },
-                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
-                  ]
+                  "$ref": "#/components/schemas/CaptureInvalidRequestError"
                 }
               }
             }
@@ -152,7 +214,9 @@
             "description": "CaptureUnauthorizedError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureUnauthorizedError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
+                }
               }
             }
           },
@@ -160,7 +224,9 @@
             "description": "CapturePayloadTooLargeError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CapturePayloadTooLargeError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CapturePayloadTooLargeError"
+                }
               }
             }
           },
@@ -168,7 +234,9 @@
             "description": "CaptureRateLimitedError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureRateLimitedError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureRateLimitedError"
+                }
               }
             }
           },
@@ -176,7 +244,9 @@
             "description": "CaptureInternalServerError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureInternalServerError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
+                }
               }
             }
           },
@@ -184,7 +254,9 @@
             "description": "CaptureDependencyUnavailableError",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CaptureDependencyUnavailableError" }
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
+                }
               }
             }
           }
@@ -201,31 +273,75 @@
                       {
                         "type": "object",
                         "properties": {
-                          "uuid": { "type": "string", "allOf": [{ "minLength": 1 }] },
-                          "event": { "type": "string", "allOf": [{ "minLength": 1 }] },
+                          "uuid": {
+                            "type": "string",
+                            "allOf": [
+                              {
+                                "minLength": 1
+                              }
+                            ]
+                          },
+                          "event": {
+                            "type": "string",
+                            "allOf": [
+                              {
+                                "minLength": 1
+                              }
+                            ]
+                          },
                           "context": {
                             "type": "object",
-                            "additionalProperties": { "$ref": "#/components/schemas/Union_" }
+                            "additionalProperties": {
+                              "$ref": "#/components/schemas/Union_"
+                            }
                           },
                           "properties": {
                             "type": "object",
-                            "additionalProperties": { "$ref": "#/components/schemas/Union_1" }
+                            "additionalProperties": {
+                              "$ref": "#/components/schemas/Union_1"
+                            }
                           },
-                          "distinct_id": { "type": "string", "allOf": [{ "minLength": 1 }] },
+                          "distinct_id": {
+                            "type": "string",
+                            "allOf": [
+                              {
+                                "minLength": 1
+                              }
+                            ]
+                          },
                           "session_id": {
                             "anyOf": [
-                              { "type": "string", "allOf": [{ "minLength": 1 }] },
-                              { "type": "null" }
+                              {
+                                "type": "string",
+                                "allOf": [
+                                  {
+                                    "minLength": 1
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
                             ]
                           },
                           "timestamp": {
                             "anyOf": [
-                              { "type": "string", "allOf": [{ "format": "date-time" }] },
-                              { "type": "null" }
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
                             ]
                           }
                         },
-                        "required": ["uuid", "event", "context", "properties", "distinct_id"],
+                        "required": [
+                          "uuid",
+                          "event",
+                          "context",
+                          "properties",
+                          "distinct_id"
+                        ],
                         "additionalProperties": false
                       }
                     ],
@@ -233,43 +349,484 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "uuid": { "type": "string", "allOf": [{ "minLength": 1 }] },
-                        "event": { "type": "string", "allOf": [{ "minLength": 1 }] },
+                        "uuid": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "event": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
                         "context": {
                           "type": "object",
-                          "additionalProperties": { "$ref": "#/components/schemas/Union_" }
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/Union_"
+                          }
                         },
                         "properties": {
                           "type": "object",
-                          "additionalProperties": { "$ref": "#/components/schemas/Union_1" }
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/Union_1"
+                          }
                         },
-                        "distinct_id": { "type": "string", "allOf": [{ "minLength": 1 }] },
+                        "distinct_id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
                         "session_id": {
                           "anyOf": [
-                            { "type": "string", "allOf": [{ "minLength": 1 }] },
-                            { "type": "null" }
+                            {
+                              "type": "string",
+                              "allOf": [
+                                {
+                                  "minLength": 1
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "timestamp": {
                           "anyOf": [
-                            { "type": "string", "allOf": [{ "format": "date-time" }] },
-                            { "type": "null" }
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         }
                       },
-                      "required": ["uuid", "event", "context", "properties", "distinct_id"],
+                      "required": [
+                        "uuid",
+                        "event",
+                        "context",
+                        "properties",
+                        "distinct_id"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "sent_at": { "type": "string", "allOf": [{ "format": "date-time" }] },
-                  "token": { "type": "string", "allOf": [{ "minLength": 1 }] }
+                  "sent_at": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  }
                 },
-                "required": ["events", "sent_at", "token"],
+                "required": [
+                  "events",
+                  "sent_at",
+                  "token"
+                ],
                 "additionalProperties": false
               }
             }
           },
           "required": true
+        }
+      }
+    },
+    "/i/v1/measurement/protected": {
+      "post": {
+        "tags": [
+          "event_capture"
+        ],
+        "operationId": "event_capture.protected",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "202": {
+            "description": "ProtectedEvidenceAcceptedResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedEvidenceAcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CaptureInvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CaptureUnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ProtectedEvidenceConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedEvidenceConflictError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CapturePayloadTooLargeError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapturePayloadTooLargeError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "CaptureInternalServerError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CaptureDependencyUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blobId": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "ciphertext": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "consentRevision": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "minimum": 0
+                      }
+                    ]
+                  },
+                  "deletionState": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "deletion-requested",
+                      "deleted"
+                    ]
+                  },
+                  "encryptionKeyVersion": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  },
+                  "installationId": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "advertising-identifier",
+                      "diagnostic-authorization",
+                      "email",
+                      "install-referrer",
+                      "link-capture",
+                      "partner-context",
+                      "phone",
+                      "purchase-receipt",
+                      "push-token"
+                    ]
+                  },
+                  "retentionClass": {
+                    "type": "string",
+                    "enum": [
+                      "ephemeral",
+                      "installation",
+                      "legal",
+                      "transaction"
+                    ]
+                  },
+                  "token": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "blobId",
+                  "ciphertext",
+                  "consentRevision",
+                  "deletionState",
+                  "encryptionKeyVersion",
+                  "installationId",
+                  "purpose",
+                  "retentionClass",
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/i/v1/measurement/delete": {
+      "post": {
+        "tags": [
+          "event_capture"
+        ],
+        "operationId": "event_capture.deleteMeasurementData",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "202": {
+            "description": "MeasurementDeletionAcceptedResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementDeletionAcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CaptureInvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CaptureUnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CaptureRateLimitedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureRateLimitedError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "CaptureInternalServerError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CaptureDependencyUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "personId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "allOf": [
+                          {
+                            "minLength": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "requestId": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "requestedAt": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "installationId",
+                  "requestId",
+                  "requestedAt",
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/i/v1/measurement/config": {
+      "get": {
+        "tags": [
+          "event_capture"
+        ],
+        "operationId": "event_capture.getMeasurementConfiguration",
+        "parameters": [
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "allOf": [
+                {
+                  "minLength": 1
+                }
+              ]
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SignedMeasurementConfigurationResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedMeasurementConfigurationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CaptureUnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "CaptureInternalServerError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CaptureDependencyUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -278,103 +835,620 @@
     "schemas": {
       "Union_": {
         "anyOf": [
-          { "type": "string" },
-          { "type": "number" },
-          { "type": "boolean" },
-          { "type": "null" },
-          { "type": "array", "items": { "$ref": "#/components/schemas/Union_" } },
-          { "type": "object", "additionalProperties": { "$ref": "#/components/schemas/Union_" } }
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Union_"
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Union_"
+            }
+          }
         ]
       },
       "Union_1": {
         "anyOf": [
-          { "type": "string" },
-          { "type": "number" },
-          { "type": "boolean" },
-          { "type": "null" },
-          { "type": "array", "items": { "$ref": "#/components/schemas/Union_1" } },
-          { "type": "object", "additionalProperties": { "$ref": "#/components/schemas/Union_1" } }
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Union_1"
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Union_1"
+            }
+          }
         ]
+      },
+      "CaptureRejectedRecord": {
+        "type": "object",
+        "properties": {
+          "recordId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "malformed_envelope",
+              "unsupported_schema_version",
+              "payload_too_large",
+              "invalid_project_scope",
+              "duplicate",
+              "invalid_context",
+              "reserved_event",
+              "policy_rejected"
+            ]
+          }
+        },
+        "required": [
+          "recordId",
+          "reason"
+        ],
+        "additionalProperties": false
       },
       "CaptureAcceptedResponse": {
         "type": "object",
-        "properties": { "accepted": { "type": "integer" }, "rejected": { "type": "integer" } },
-        "required": ["accepted", "rejected"],
+        "properties": {
+          "accepted": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "allOf": [
+                {
+                  "minLength": 1
+                }
+              ]
+            }
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureRejectedRecord"
+            }
+          }
+        },
+        "required": [
+          "accepted",
+          "rejected"
+        ],
         "additionalProperties": false
       },
       "CaptureInvalidRequestError": {
         "type": "object",
         "properties": {
-          "_tag": { "type": "string", "enum": ["CaptureInvalidRequestError"] },
-          "error": { "type": "string", "allOf": [{ "minLength": 1 }] },
-          "code": { "type": "string", "enum": ["invalid_request"] }
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureInvalidRequestError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid_request"
+            ]
+          }
         },
-        "required": ["_tag", "error", "code"],
-        "additionalProperties": false
-      },
-      "effect_HttpApiSchemaError": {
-        "type": "object",
-        "properties": {
-          "_tag": { "type": "string", "enum": ["HttpApiSchemaError"] },
-          "message": { "type": "string" }
-        },
-        "required": ["_tag", "message"],
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
         "additionalProperties": false
       },
       "CaptureUnauthorizedError": {
         "type": "object",
         "properties": {
-          "_tag": { "type": "string", "enum": ["CaptureUnauthorizedError"] },
-          "error": { "type": "string", "allOf": [{ "minLength": 1 }] },
-          "code": { "type": "string", "enum": ["unauthorized"] }
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureUnauthorizedError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "unauthorized"
+            ]
+          }
         },
-        "required": ["_tag", "error", "code"],
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
         "additionalProperties": false
       },
       "CapturePayloadTooLargeError": {
         "type": "object",
         "properties": {
-          "_tag": { "type": "string", "enum": ["CapturePayloadTooLargeError"] },
-          "error": { "type": "string", "allOf": [{ "minLength": 1 }] },
-          "code": { "type": "string", "enum": ["payload_too_large"] }
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CapturePayloadTooLargeError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "payload_too_large"
+            ]
+          }
         },
-        "required": ["_tag", "error", "code"],
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
         "additionalProperties": false
       },
       "CaptureRateLimitedError": {
         "type": "object",
         "properties": {
-          "_tag": { "type": "string", "enum": ["CaptureRateLimitedError"] },
-          "error": { "type": "string", "allOf": [{ "minLength": 1 }] },
-          "code": { "type": "string", "enum": ["rate_limited"] },
-          "retry_after_ms": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureRateLimitedError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "rate_limited"
+            ]
+          },
+          "retry_after_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
         },
-        "required": ["_tag", "error", "code"],
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
         "additionalProperties": false
       },
       "CaptureDependencyUnavailableError": {
         "type": "object",
         "properties": {
-          "_tag": { "type": "string", "enum": ["CaptureDependencyUnavailableError"] },
-          "error": { "type": "string", "allOf": [{ "minLength": 1 }] },
-          "code": { "type": "string", "enum": ["dependency_unavailable"] }
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureDependencyUnavailableError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "dependency_unavailable"
+            ]
+          }
         },
-        "required": ["_tag", "error", "code"],
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
         "additionalProperties": false
       },
       "CaptureInternalServerError": {
         "type": "object",
         "properties": {
-          "_tag": { "type": "string", "enum": ["CaptureInternalServerError"] },
-          "error": { "type": "string", "allOf": [{ "minLength": 1 }] },
-          "code": { "type": "string", "enum": ["internal_error"] }
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureInternalServerError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "internal_error"
+            ]
+          }
         },
-        "required": ["_tag", "error", "code"],
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "ProtectedEvidenceAcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "blobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "accepted",
+          "blobId"
+        ],
+        "additionalProperties": false
+      },
+      "ProtectedEvidenceConflictError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "ProtectedEvidenceConflictError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "protected_evidence_conflict"
+            ]
+          }
+        },
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "MeasurementDeletionAcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "deletedProtectedEvidence": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "requestId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          }
+        },
+        "required": [
+          "accepted",
+          "deletedProtectedEvidence",
+          "requestId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "SignedMeasurementConfigurationResponse": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "type": "string"
+          },
+          "keyId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "properties": {
+              "collectors": {
+                "type": "object",
+                "properties": {
+                  "appleAttributionEnabled": {
+                    "type": "boolean"
+                  },
+                  "linkAllowedDomains": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "allOf": [
+                        {
+                          "minLength": 1
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "appleAttributionEnabled",
+                  "linkAllowedDomains"
+                ],
+                "additionalProperties": false
+              },
+              "conversionRules": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "coarseValue": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "eventName": {
+                      "type": "string",
+                      "allOf": [
+                        {
+                          "minLength": 1
+                        }
+                      ]
+                    },
+                    "fineValue": {
+                      "type": "integer",
+                      "allOf": [
+                        {
+                          "minimum": 0
+                        },
+                        {
+                          "maximum": 63
+                        }
+                      ]
+                    },
+                    "lockWindow": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "minimumCount": {
+                      "type": "integer",
+                      "allOf": [
+                        {
+                          "exclusiveMinimum": 0
+                        }
+                      ]
+                    },
+                    "window": {
+                      "type": "integer",
+                      "allOf": [
+                        {
+                          "minimum": 1
+                        },
+                        {
+                          "maximum": 3
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "eventName",
+                    "fineValue",
+                    "minimumCount",
+                    "window"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "schemaVersion": {
+                "type": "number",
+                "enum": [
+                  1
+                ]
+              },
+              "storage": {
+                "type": "object",
+                "properties": {
+                  "maxOutboxBytes": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  },
+                  "maxOutboxRecords": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  },
+                  "maxProtectedBytes": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "maxOutboxBytes",
+                  "maxOutboxRecords",
+                  "maxProtectedBytes"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "collectors",
+              "conversionRules",
+              "schemaVersion",
+              "storage"
+            ],
+            "additionalProperties": false
+          },
+          "projectId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "signature": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          }
+        },
+        "required": [
+          "expiresAt",
+          "keyId",
+          "payload",
+          "projectId",
+          "signature",
+          "version"
+        ],
         "additionalProperties": false
       }
     },
     "securitySchemes": {}
   },
   "security": [],
-  "tags": [{ "name": "event_capture" }]
+  "tags": [
+    {
+      "name": "event_capture"
+    }
+  ]
 }

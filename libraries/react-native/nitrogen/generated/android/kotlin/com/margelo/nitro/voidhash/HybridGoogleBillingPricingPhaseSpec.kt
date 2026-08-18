@@ -40,29 +40,29 @@ abstract class HybridGoogleBillingPricingPhaseSpec: HybridObject() {
   @get:DoNotStrip
   @get:Keep
   abstract val formattedPrice: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val priceCurrencyCode: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val billingPeriod: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val billingCycleCount: Double
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val priceAmountMicros: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val recurrenceMode: Double
 
   // Methods
-  
+
 
   private external fun initHybrid(): HybridData
 

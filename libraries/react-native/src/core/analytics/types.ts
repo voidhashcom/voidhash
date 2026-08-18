@@ -7,11 +7,16 @@ export interface QueuedAnalyticsEvent {
   readonly eventTimestamp: string;
   readonly id: string;
   readonly properties: Record<string, unknown>;
+  readonly context: Record<string, unknown>;
+  readonly distinctId: string;
+  readonly sessionId?: string;
 }
 
 export interface AnalyticsIngestEvent {
   /** Shared metadata attached to every event (for example app, device, or SDK context). */
   readonly context: Record<string, unknown>;
+  /** Identity captured with this individual event, never resolved at batch time. */
+  readonly distinct_id: string;
   /** Unique identifier for this event instance. */
   readonly event_id: string;
   /** Canonical event name used for analytics processing. */
@@ -21,7 +26,7 @@ export interface AnalyticsIngestEvent {
   /** Event-specific payload fields for this event name. */
   readonly properties: Record<string, unknown>;
   /** Identifier that groups events belonging to the same user session. */
-  readonly session_id: string;
+  readonly session_id?: string;
 }
 
 /**

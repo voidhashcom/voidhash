@@ -32,7 +32,7 @@ public extension StorekitProductPurchaseOffer {
       self.__id = std.string(newValue)
     }
   }
-  
+
   var type: Double {
     @inline(__always)
     get {
@@ -43,7 +43,7 @@ public extension StorekitProductPurchaseOffer {
       self.__type = newValue
     }
   }
-  
+
   var paymentMode: String {
     @inline(__always)
     get {

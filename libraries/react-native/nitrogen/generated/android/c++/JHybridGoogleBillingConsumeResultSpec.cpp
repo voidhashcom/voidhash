@@ -57,6 +57,6 @@ namespace margelo::nitro::voidhash {
   }
 
   // Methods
-  
+
 
 } // namespace margelo::nitro::voidhash

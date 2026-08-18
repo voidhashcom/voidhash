@@ -20,7 +20,7 @@ public protocol HybridStorekitProductOfferSpec_protocol: HybridObject {
   var displayPrice: String { get }
 
   // Methods
-  
+
 }
 
 /// See ``HybridStorekitProductOfferSpec``

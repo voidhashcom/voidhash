@@ -85,7 +85,7 @@ public class HybridStorekitProductSubscriptionSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -112,7 +112,7 @@ public class HybridStorekitProductSubscriptionSpec_cxx {
       }()
     }
   }
-  
+
   public final var promotionalOffers: bridge.std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec__ {
     @inline(__always)
     get {
@@ -128,14 +128,14 @@ public class HybridStorekitProductSubscriptionSpec_cxx {
       }()
     }
   }
-  
+
   public final var subscriptionGroupID: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.subscriptionGroupID)
     }
   }
-  
+
   public final var subscriptionPeriod: bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_ {
     @inline(__always)
     get {
@@ -147,5 +147,5 @@ public class HybridStorekitProductSubscriptionSpec_cxx {
   }
 
   // Methods
-  
+
 }

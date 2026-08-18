@@ -87,11 +87,33 @@ export const CaptureBatchRequest = Schema.Struct({
   token: Schema.NonEmptyString,
 });
 
+/** Stable reasons a record can be permanently rejected by ingestion. */
+export const CaptureRecordRejectionReason = Schema.Literals([
+  "malformed_envelope",
+  "unsupported_schema_version",
+  "payload_too_large",
+  "invalid_project_scope",
+  "duplicate",
+  "invalid_context",
+  "reserved_event",
+  "policy_rejected",
+]);
+
+export type CaptureRecordRejectionReason = typeof CaptureRecordRejectionReason.Type;
+
+/** A single record that was not accepted by the capture pipeline. */
+export class CaptureRejectedRecord extends Schema.Class<CaptureRejectedRecord>(
+  "CaptureRejectedRecord",
+)({
+  recordId: Schema.NonEmptyString,
+  reason: CaptureRecordRejectionReason,
+}) {}
+
 export class CaptureAcceptedResponse extends Schema.Class<CaptureAcceptedResponse>(
   "CaptureAcceptedResponse",
 )({
-  accepted: Schema.Int,
-  rejected: Schema.Int,
+  accepted: Schema.Array(Schema.NonEmptyString),
+  rejected: Schema.Array(CaptureRejectedRecord),
 }) {}
 
 const CaptureAcceptedApiResponse = CaptureAcceptedResponse.pipe(HttpApiSchema.status(202));
@@ -105,6 +127,79 @@ export class CaptureInvalidRequestError extends Schema.TaggedErrorClass<CaptureI
   { httpApiStatus: 400 },
 ) {}
 
+/** Purposes accepted by the isolated protected-evidence vault. */
+export const ProtectedEvidencePurpose = Schema.Literals([
+  "advertising-identifier",
+  "diagnostic-authorization",
+  "email",
+  "install-referrer",
+  "link-capture",
+  "partner-context",
+  "phone",
+  "purchase-receipt",
+  "push-token",
+]);
+
+export const ProtectedEvidenceRetentionClass = Schema.Literals([
+  "ephemeral",
+  "installation",
+  "legal",
+  "transaction",
+]);
+
+export const ProtectedEvidenceDeletionState = Schema.Literals([
+  "active",
+  "deletion-requested",
+  "deleted",
+]);
+
+/** Encrypted evidence uploaded independently from public measurement records. */
+export const ProtectedEvidenceRequest = Schema.Struct({
+  blobId: Schema.NonEmptyString,
+  ciphertext: Schema.NonEmptyString,
+  consentRevision: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(0))),
+  deletionState: ProtectedEvidenceDeletionState,
+  encryptionKeyVersion: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
+  installationId: Schema.NonEmptyString,
+  purpose: ProtectedEvidencePurpose,
+  retentionClass: ProtectedEvidenceRetentionClass,
+  token: Schema.NonEmptyString,
+});
+
+export class ProtectedEvidenceAcceptedResponse extends Schema.Class<ProtectedEvidenceAcceptedResponse>(
+  "ProtectedEvidenceAcceptedResponse",
+)({
+  accepted: Schema.Literal(true),
+  blobId: Schema.NonEmptyString,
+}) {}
+
+export class ProtectedEvidenceConflictError extends Schema.TaggedErrorClass<ProtectedEvidenceConflictError>()(
+  "ProtectedEvidenceConflictError",
+  {
+    ...CaptureErrorResponseFields,
+    code: Schema.Literal("protected_evidence_conflict"),
+  },
+  { httpApiStatus: 409 },
+) {}
+
+/** Project-scoped deletion request containing opaque subject identifiers only. */
+export const MeasurementDeletionRequest = Schema.Struct({
+  installationId: Schema.NonEmptyString,
+  personId: Schema.optional(Schema.NonEmptyString),
+  requestId: Schema.NonEmptyString,
+  requestedAt: DateValidFromString,
+  token: Schema.NonEmptyString,
+});
+
+export class MeasurementDeletionAcceptedResponse extends Schema.Class<MeasurementDeletionAcceptedResponse>(
+  "MeasurementDeletionAcceptedResponse",
+)({
+  accepted: Schema.Literal(true),
+  deletedProtectedEvidence: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(0))),
+  requestId: Schema.NonEmptyString,
+  status: Schema.Literal("completed"),
+}) {}
+
 export class CaptureUnauthorizedError extends Schema.TaggedErrorClass<CaptureUnauthorizedError>()(
   "CaptureUnauthorizedError",
   {
@@ -113,6 +208,46 @@ export class CaptureUnauthorizedError extends Schema.TaggedErrorClass<CaptureUna
   },
   { httpApiStatus: 401 },
 ) {}
+
+export const MeasurementConversionRule = Schema.Struct({
+  coarseValue: Schema.optional(Schema.Literals(["low", "medium", "high"])),
+  eventName: Schema.NonEmptyString,
+  fineValue: Schema.Int.pipe(
+    Schema.check(Schema.isGreaterThanOrEqualTo(0)),
+    Schema.check(Schema.isLessThanOrEqualTo(63)),
+  ),
+  lockWindow: Schema.optional(Schema.Boolean),
+  minimumCount: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
+  window: Schema.Int.pipe(
+    Schema.check(Schema.isGreaterThanOrEqualTo(1)),
+    Schema.check(Schema.isLessThanOrEqualTo(3)),
+  ),
+});
+
+export const MeasurementConfigurationPayload = Schema.Struct({
+  collectors: Schema.Struct({
+    appleAttributionEnabled: Schema.Boolean,
+    linkAllowedDomains: Schema.Array(Schema.NonEmptyString),
+  }),
+  conversionRules: Schema.Array(MeasurementConversionRule),
+  schemaVersion: Schema.Literal(1),
+  storage: Schema.Struct({
+    maxOutboxBytes: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
+    maxOutboxRecords: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
+    maxProtectedBytes: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
+  }),
+});
+
+export class SignedMeasurementConfigurationResponse extends Schema.Class<SignedMeasurementConfigurationResponse>(
+  "SignedMeasurementConfigurationResponse",
+)({
+  expiresAt: DateValidFromString,
+  keyId: Schema.NonEmptyString,
+  payload: MeasurementConfigurationPayload,
+  projectId: Schema.NonEmptyString,
+  signature: Schema.NonEmptyString,
+  version: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
+}) {}
 
 export class CapturePayloadTooLargeError extends Schema.TaggedErrorClass<CapturePayloadTooLargeError>()(
   "CapturePayloadTooLargeError",
@@ -189,6 +324,44 @@ export const EventCaptureApi = HttpApi.make("EventCaptureApi").add(
         ],
         payload: CaptureBatchRequest,
         success: CaptureAcceptedApiResponse,
+      }),
+    )
+    .add(
+      HttpApiEndpoint.post("protected", "/measurement/protected", {
+        error: [
+          CaptureInvalidRequestError,
+          CaptureUnauthorizedError,
+          CapturePayloadTooLargeError,
+          ProtectedEvidenceConflictError,
+          CaptureDependencyUnavailableError,
+          CaptureInternalServerError,
+        ],
+        payload: ProtectedEvidenceRequest,
+        success: ProtectedEvidenceAcceptedResponse.pipe(HttpApiSchema.status(202)),
+      }),
+    )
+    .add(
+      HttpApiEndpoint.post("deleteMeasurementData", "/measurement/delete", {
+        error: [
+          CaptureInvalidRequestError,
+          CaptureUnauthorizedError,
+          CaptureRateLimitedError,
+          CaptureDependencyUnavailableError,
+          CaptureInternalServerError,
+        ],
+        payload: MeasurementDeletionRequest,
+        success: MeasurementDeletionAcceptedResponse.pipe(HttpApiSchema.status(202)),
+      }),
+    )
+    .add(
+      HttpApiEndpoint.get("getMeasurementConfiguration", "/measurement/config", {
+        error: [
+          CaptureUnauthorizedError,
+          CaptureDependencyUnavailableError,
+          CaptureInternalServerError,
+        ],
+        headers: Schema.Struct({ "x-publishable-key": Schema.NonEmptyString }),
+        success: SignedMeasurementConfigurationResponse,
       }),
     )
     .prefix("/i/v1"),

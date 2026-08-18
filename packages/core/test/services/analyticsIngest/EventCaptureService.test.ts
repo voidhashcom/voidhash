@@ -48,7 +48,7 @@ const captureEvent = (
 ): typeof CaptureEvent.Type => ({
   uuid: "evt_uuid_1",
   event: "page_view",
-  context: { library: "web" },
+  context: { library: "web", schemaVersion: 1 },
   properties: { plan: "pro" },
   distinct_id: "user_42",
   ...overrides,
@@ -244,7 +244,7 @@ describe("makeEnvelope", () => {
     expect(envelope.token).toBe("vh_pk_abcd1234");
     expect(envelope.event).toBe("page_view");
     expect(envelope.distinctId).toBe("user_42");
-    expect(envelope.context).toStrictEqual({ library: "web" });
+    expect(envelope.context).toStrictEqual({ library: "web", schemaVersion: 1 });
     expect(envelope.routing).toStrictEqual(route());
     // sentAt (2s) is preferred over receivedAt (5s) since no event.timestamp.
     expect(envelope.eventTimestamp).toBe("2026-01-01T00:00:02.000Z");

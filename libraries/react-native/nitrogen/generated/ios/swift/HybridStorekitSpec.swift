@@ -11,7 +11,7 @@ import NitroModules
 /// See ``HybridStorekitSpec``
 public protocol HybridStorekitSpec_protocol: HybridObject {
   // Properties
-  
+
 
   // Methods
   func initConnection(onTransaction: ((_ transaction: (any HybridStorekitTransactionSpec)) -> Void)?) throws -> Promise<Bool>

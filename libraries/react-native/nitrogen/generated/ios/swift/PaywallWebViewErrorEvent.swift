@@ -50,7 +50,7 @@ public extension PaywallWebViewErrorEvent {
       }()
     }
   }
-  
+
   var code: Double {
     @inline(__always)
     get {
@@ -61,7 +61,7 @@ public extension PaywallWebViewErrorEvent {
       self.__code = newValue
     }
   }
-  
+
   var description: String {
     @inline(__always)
     get {
@@ -72,7 +72,7 @@ public extension PaywallWebViewErrorEvent {
       self.__description = std.string(newValue)
     }
   }
-  
+
   var url: String {
     @inline(__always)
     get {
@@ -83,7 +83,7 @@ public extension PaywallWebViewErrorEvent {
       self.__url = std.string(newValue)
     }
   }
-  
+
   var loading: Bool {
     @inline(__always)
     get {
@@ -94,7 +94,7 @@ public extension PaywallWebViewErrorEvent {
       self.__loading = newValue
     }
   }
-  
+
   var title: String {
     @inline(__always)
     get {
@@ -105,7 +105,7 @@ public extension PaywallWebViewErrorEvent {
       self.__title = std.string(newValue)
     }
   }
-  
+
   var canGoBack: Bool {
     @inline(__always)
     get {
@@ -116,7 +116,7 @@ public extension PaywallWebViewErrorEvent {
       self.__canGoBack = newValue
     }
   }
-  
+
   var canGoForward: Bool {
     @inline(__always)
     get {
@@ -127,7 +127,7 @@ public extension PaywallWebViewErrorEvent {
       self.__canGoForward = newValue
     }
   }
-  
+
   var lockIdentifier: Double {
     @inline(__always)
     get {

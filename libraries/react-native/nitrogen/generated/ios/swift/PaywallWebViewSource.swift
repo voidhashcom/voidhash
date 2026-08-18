@@ -86,7 +86,7 @@ public extension PaywallWebViewSource {
       }()
     }
   }
-  
+
   var method: String? {
     @inline(__always)
     get {
@@ -109,7 +109,7 @@ public extension PaywallWebViewSource {
       }()
     }
   }
-  
+
   var body: String? {
     @inline(__always)
     get {
@@ -132,7 +132,7 @@ public extension PaywallWebViewSource {
       }()
     }
   }
-  
+
   var headers: [PaywallWebViewHeader]? {
     @inline(__always)
     get {
@@ -161,7 +161,7 @@ public extension PaywallWebViewSource {
       }()
     }
   }
-  
+
   var html: String? {
     @inline(__always)
     get {
@@ -184,7 +184,7 @@ public extension PaywallWebViewSource {
       }()
     }
   }
-  
+
   var baseUrl: String? {
     @inline(__always)
     get {

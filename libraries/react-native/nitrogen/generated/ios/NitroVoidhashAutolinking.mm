@@ -14,6 +14,8 @@
 #include "HybridStorekitSpecSwift.hpp"
 #include "HybridPaywallWebViewSpecSwift.hpp"
 #include "HybridPaywallPresenterSpecSwift.hpp"
+#include "HybridMeasurementSpecSwift.hpp"
+#include "HybridNotificationsSpecSwift.hpp"
 
 @interface NitroVoidhashAutolinking : NSObject
 @end
@@ -49,6 +51,20 @@
     "PaywallPresenter",
     []() -> std::shared_ptr<HybridObject> {
       std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createPaywallPresenter();
+      return hybridObject;
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "Measurement",
+    []() -> std::shared_ptr<HybridObject> {
+      std::shared_ptr<margelo::nitro::voidhash::HybridMeasurementSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createMeasurement();
+      return hybridObject;
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "Notifications",
+    []() -> std::shared_ptr<HybridObject> {
+      std::shared_ptr<margelo::nitro::voidhash::HybridNotificationsSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createNotifications();
       return hybridObject;
     }
   );

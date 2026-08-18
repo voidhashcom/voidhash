@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "wontDo": ["PRIV-03", "PRIV-09", "PRIV-10", "CONS-03", "PUR-02", "PUR-03"],
+  "groups": [
+    {
+      "rows": ["LIFE-01", "LIFE-02", "LIFE-03", "LIFE-04", "LIFE-05", "LIFE-06", "EVT-01", "EVT-02", "EVT-03", "EVT-04", "EVT-05", "EVT-06", "ID-01", "ID-02", "ID-03", "ATTR-02", "ATTR-03", "ATTR-04", "ATTR-05", "ATTR-06", "LINK-02", "LINK-03", "LINK-04", "LINK-05", "LINK-06", "LINK-07", "LINK-08", "OWN-01", "OWN-02", "OWN-03", "OWN-04", "OWN-05", "PUSH-01", "PUSH-02", "REV-01", "REV-02", "PUR-01", "PUR-04", "PC-01", "PC-02", "PC-03", "PC-05", "PC-06", "PC-07", "PC-08", "PC-09", "PC-10", "PC-11", "CFG-06", "CFG-07", "DIAG-01", "DIAG-02", "DIAG-03", "DIAG-05"],
+      "testFile": "libraries/react-native/tests/core/measurement-runtime.test.ts",
+      "testCase": "describe(\"UnifiedMeasurementRuntime\""
+    },
+    {
+      "rows": ["ID-04", "ID-05"],
+      "testFile": "libraries/react-native/tests/core/protected-identity.test.ts",
+      "testCase": "describe(\"protected identity\""
+    },
+    {
+      "rows": ["ATTR-01"],
+      "testFile": "packages/core/test/domain/measurement/Attribution.test.ts",
+      "testCase": "describe(\"attribution engine\""
+    },
+    {
+      "rows": ["ATTR-07", "ATTR-08"],
+      "testFile": "libraries/react-native/android/src/test/java/com/margelo/nitro/voidhash/measurement/MeasurementStoreTest.kt",
+      "testCase": "optionalAndConfiguredReferrerProvidersExposeExplicitCapabilities"
+    },
+    {
+      "rows": ["ATTR-09", "PRIV-05", "PRIV-06"],
+      "testFile": "libraries/react-native/ios-tests/AppleIdentifierPolicyTests.swift",
+      "testCase": "AppleIdentifierPolicyTests"
+    },
+    {
+      "rows": ["ATTR-10", "ATTR-11"],
+      "testFile": "packages/core/test/domain/measurement/ApplePostback.test.ts",
+      "testCase": "describe(\"Apple postback ingest domain\""
+    },
+    {
+      "rows": ["LINK-01", "LINK-09"],
+      "testFile": "libraries/react-native/ios-tests/LinkCollectorTests.swift",
+      "testCase": "testLinksAreEncryptedOrderedAndDuplicateCallbacksAreSuppressed"
+    },
+    {
+      "rows": ["PUSH-03"],
+      "testFile": "packages/core/test/domain/measurement/UninstallInference.test.ts",
+      "testCase": "describe(\"uninstall inference\""
+    },
+    {
+      "rows": ["PRIV-01", "PRIV-02"],
+      "testFile": "packages/core/test/domain/measurement/PartnerPostback.test.ts",
+      "testCase": "evaluates policy at send time and anonymizes identity"
+    },
+    {
+      "rows": ["PRIV-04", "PRIV-07", "PRIV-08", "PRIV-11", "CONS-01", "CONS-02"],
+      "testFile": "libraries/react-native/tests/core/measurement-policy.test.ts",
+      "testCase": "describe(\"measurement policy\""
+    },
+    {
+      "rows": ["PC-04", "CFG-01", "CFG-02", "CFG-03", "CFG-04", "CFG-05"],
+      "testFile": "libraries/react-native/tests/core/expo-plugin-validation.test.ts",
+      "testCase": "describe(\"Voidhash Expo plugin validation\""
+    },
+    {
+      "rows": ["DIAG-04"],
+      "testFile": "libraries/react-native/tests/core/measurement-hardening.test.ts",
+      "testCase": "describe(\"measurement hardening matrix\""
+    }
+  ]
+}

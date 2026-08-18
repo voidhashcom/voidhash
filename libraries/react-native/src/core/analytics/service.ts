@@ -8,7 +8,6 @@ import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { CacheManager } from "../caching/cache-manager";
 import { IdentityManager } from "../identity/identity-manager";
 import { SdkConfiguration } from "../sdk-configuration";
-import { getNonce } from "../utils/crypto";
 import { AUTOMATIC_EVENTS } from "./constants";
 import { AnalyticsIngestEvent, AnalyticsSendFailure, QueuedAnalyticsEvent } from "./types";
 import {
@@ -100,7 +99,6 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
       const queueRef = yield* Ref.make<ReadonlyArray<QueuedAnalyticsEvent>>([]);
       const latch = yield* Latch.make(false);
-      const sessionId = getNonce();
       const getStandardizedProperties = getAnalyticsStandardizedProperties();
       let flushCallback: (() => void) | null = null;
 
@@ -148,11 +146,10 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
         Effect.gen(function* () {
           if (events.length === 0) return;
 
-          const distinctId = yield* identityManager.getDistinctId();
           yield* eventCaptureClient.eventCaptureBatch({
             events: events.map((event) => ({
               context: event.context,
-              distinct_id: distinctId,
+              distinct_id: event.distinct_id,
               event: event.event_name,
               properties: event.properties,
               session_id: event.session_id,
@@ -163,24 +160,24 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             token: sdkConfiguration.publishableKey,
           });
         }).pipe(
-          Effect.catchTags({
-            CaptureDependencyUnavailableError: (err) => failRetryable(err.response.status),
-            CaptureInternalServerError: (err) => failRetryable(err.response.status),
-            CapturePayloadTooLargeError: (err) => failNonRetryable(err.response.status),
-            CaptureRateLimitedError: (err) =>
-              failRetryable(
-                err.response.status,
-                parseRetryAfterMs(err.response.headers["retry-after"]) ??
-                  err.data.retry_after_ms ??
+          Effect.catch((cause) => {
+            if (cause._tag === "CaptureRateLimitedError") {
+              return failRetryable(
+                cause.response.status,
+                parseRetryAfterMs(cause.response.headers["retry-after"]) ??
+                  cause.data.retry_after_ms ??
                   undefined,
-              ),
-            CaptureUnauthorizedError: (err) => failNonRetryable(err.response.status),
-            EventCaptureBatch400: (err) => failNonRetryable(err.response.status),
-          }),
-          // Unmapped status codes (e.g. 408/502/504) surface as
-          // `HttpClientError`; treat network errors and the retryable subset
-          // as retryable, everything else as non-retryable.
-          Effect.catchTag("HttpClientError", (cause) => {
+              );
+            }
+            if (
+              cause._tag === "CaptureDependencyUnavailableError" ||
+              cause._tag === "CaptureInternalServerError"
+            ) {
+              return failRetryable(cause.response.status);
+            }
+            if (cause._tag !== "HttpClientError") {
+              return failNonRetryable(cause.response.status);
+            }
             const status = cause.response?.status;
             if (status === undefined) {
               return Effect.fail(
@@ -251,10 +248,9 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
       const processQueuedBatch = (
         queuedBatch: ReadonlyArray<QueuedAnalyticsEvent>,
-        standardizedProperties: Record<string, unknown>,
       ): Effect.Effect<void> => {
         const ingestBatch = queuedBatch.map((event) =>
-          mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties, sessionId),
+          mapQueuedAnalyticsEventToIngestEvent(event),
         );
 
         return sendWithInlineRetry(ingestBatch).pipe(
@@ -262,8 +258,8 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             if (failure.status === 413 && queuedBatch.length > 1) {
               const midpoint = Math.ceil(queuedBatch.length / 2);
               return Effect.gen(function* () {
-                yield* processQueuedBatch(queuedBatch.slice(0, midpoint), standardizedProperties);
-                yield* processQueuedBatch(queuedBatch.slice(midpoint), standardizedProperties);
+                yield* processQueuedBatch(queuedBatch.slice(0, midpoint));
+                yield* processQueuedBatch(queuedBatch.slice(midpoint));
               });
             }
 
@@ -289,10 +285,16 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
       };
 
       const capture = (eventName: string, properties: Record<string, unknown> = {}) =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
           const normalized = eventName.trim();
           if (!normalized) return;
-          const queued = createQueuedAnalyticsEvent(normalized, properties);
+          const distinctId = yield* identityManager.getDistinctId();
+          const standardized = yield* getStandardizedProperties();
+          const snapshot = sdkConfiguration.measurementRuntime.getAnalyticsCaptureSnapshot(
+            distinctId,
+            standardized,
+          );
+          const queued = createQueuedAnalyticsEvent(normalized, properties, snapshot);
           // Direct mutation inside `Effect.sync` is safe: the Effect runtime
           // guarantees no other fiber crosses this sync boundary.
           const next = [...queueRef.ref.current, queued];
@@ -306,11 +308,9 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
       const flush = () =>
         Effect.gen(function* () {
-          const standardizedProperties = yield* getStandardizedProperties();
-
           let batch = yield* takeDueBatch();
           while (batch.length > 0) {
-            yield* processQueuedBatch(batch, standardizedProperties);
+            yield* processQueuedBatch(batch);
             batch = yield* takeDueBatch();
           }
         });
@@ -321,12 +321,18 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
           properties: Record<string, unknown>;
         }>,
       ) =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
           const additions: QueuedAnalyticsEvent[] = [];
+          const distinctId = yield* identityManager.getDistinctId();
+          const standardized = yield* getStandardizedProperties();
+          const snapshot = sdkConfiguration.measurementRuntime.getAnalyticsCaptureSnapshot(
+            distinctId,
+            standardized,
+          );
           for (const event of events) {
             const normalized = event.eventName.trim();
             if (!normalized) continue;
-            additions.push(createQueuedAnalyticsEvent(normalized, event.properties));
+            additions.push(createQueuedAnalyticsEvent(normalized, event.properties, snapshot));
           }
           if (additions.length === 0) return;
           queueRef.ref.current = [...queueRef.ref.current, ...additions];
@@ -351,14 +357,29 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
           const additions: QueuedAnalyticsEvent[] = [];
           if (!previousAppRelease) {
-            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_INSTALLED, {}));
+            const distinctId = yield* identityManager.getDistinctId();
+            const snapshot = sdkConfiguration.measurementRuntime.getAnalyticsCaptureSnapshot(
+              distinctId,
+              standardizedProps,
+            );
+            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_INSTALLED, {}, snapshot));
           } else if (
             previousAppRelease.appBuild !== currentAppRelease.appBuild ||
             previousAppRelease.appVersion !== currentAppRelease.appVersion
           ) {
-            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_UPDATED, {}));
+            const distinctId = yield* identityManager.getDistinctId();
+            const snapshot = sdkConfiguration.measurementRuntime.getAnalyticsCaptureSnapshot(
+              distinctId,
+              standardizedProps,
+            );
+            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_UPDATED, {}, snapshot));
           }
-          additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_OPENED, {}));
+          const distinctId = yield* identityManager.getDistinctId();
+          const snapshot = sdkConfiguration.measurementRuntime.getAnalyticsCaptureSnapshot(
+            distinctId,
+            standardizedProps,
+          );
+          additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_OPENED, {}, snapshot));
 
           queueRef.ref.current = [...queueRef.ref.current, ...additions];
 

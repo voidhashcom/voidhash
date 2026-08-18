@@ -44,7 +44,7 @@ namespace margelo::nitro::voidhash {
       static const auto fieldNEVER = clazz->getStaticField<JPaywallWebViewOverScrollModeType>("NEVER");
       static const auto fieldALWAYS = clazz->getStaticField<JPaywallWebViewOverScrollModeType>("ALWAYS");
       static const auto fieldCONTENT = clazz->getStaticField<JPaywallWebViewOverScrollModeType>("CONTENT");
-      
+
       switch (value) {
         case PaywallWebViewOverScrollModeType::NEVER:
           return clazz->getStaticFieldValue(fieldNEVER);
