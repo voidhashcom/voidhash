@@ -305,6 +305,14 @@ export function ProjectSidebar({
               {
                 isActive: () =>
                   pathname.startsWith(
+                    `/studio/${organizationSlug}/${projectSlug}/settings/events`,
+                  ),
+                title: "Events",
+                url: `/studio/${organizationSlug}/${projectSlug}/settings/events`,
+              },
+              {
+                isActive: () =>
+                  pathname.startsWith(
                     `/studio/${organizationSlug}/${projectSlug}/settings/webhooks`,
                   ),
                 title: "Webhooks",

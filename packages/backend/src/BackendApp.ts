@@ -17,6 +17,7 @@ import {
   AppStorePaymentProviderConfigLive,
   AppStorePaymentProviderServiceLive,
   AppStoreTransactionVerifier,
+  EventAdmissionService,
   ExperimentService,
   FeatureFlagService,
   FeedbackServiceLive,
@@ -134,6 +135,7 @@ import { PaywallServingRouteLayer } from "./routes/paywall-serving.ts";
 import { PublicFileServingRouteLayer } from "./routes/public-file-serving.ts";
 import { AnalyticsRpcsLive } from "./rpcs/analytics-rpcs.ts";
 import { ApiKeyRpcsLive } from "./rpcs/api-key-rpcs.ts";
+import { EventAdmissionRpcsLive } from "./rpcs/event-admission-rpcs.ts";
 import { ExperimentRpcsLive } from "./rpcs/experiment-rpcs.ts";
 import { FeatureFlagRpcsLive } from "./rpcs/feature-flag-rpcs.ts";
 import { FeedbackRpcsLive } from "./rpcs/feedback-rpcs.ts";
@@ -213,6 +215,11 @@ export interface BackendRuntimeLayers<
   readonly infrastructure: Layer.Layer<InfraServices, never, RInfrastructure>;
   /** Overrides the community PostgreSQL analytics reader for hosted runtimes. */
   readonly analyticsService?: Layer.Layer<AnalyticsService, never, RInfrastructure>;
+  /**
+   * Overrides the event-admission service so hosted runtimes resolve the cloud
+   * registry defaults (all built-ins on) instead of the self-hosted ones.
+   */
+  readonly eventAdmission?: Layer.Layer<EventAdmissionService, never, RInfrastructure>;
   readonly features: BackendFeatureComposition<RFeatureRpcs, RFeatureServices>;
   readonly routes?: Layer.Layer<never, never, HttpRouter.HttpRouter | RInfrastructure>;
   readonly webhookManager?: Layer.Layer<WebhookManagerService, never, RInfrastructure>;
@@ -729,12 +736,14 @@ const buildBackendServiceGraph = <
     | "pushDeliveryDispatch"
     | "mcpOAuth"
     | "analyticsService"
+    | "eventAdmission"
   >,
 ) => {
   const RpcHandlersLayer = Layer.mergeAll(
     AgentSessionRpcsLive,
     AnalyticsRpcsLive,
     ApiKeyRpcsLive,
+    EventAdmissionRpcsLive,
     ExperimentRpcsLive,
     FeatureFlagRpcsLive,
     FeedbackRpcsLive,
@@ -804,6 +813,7 @@ const buildBackendServiceGraph = <
     ExperimentServiceLayer,
     FeatureFlagService.layer,
     InternalFeatureFlagService.layer,
+    layers.eventAdmission ?? EventAdmissionService.layer("oss"),
     layers.mcpOAuth ?? McpOAuthUnconfiguredLive,
     // Push notifications: the per-(project, provider) config CRUD consumes the
     // two delivery-provider tags (supplied by BackendPushProvidersLive below)
@@ -896,6 +906,7 @@ export const buildBackendAgentServices = <
     | "pushDeliveryDispatch"
     | "mcpOAuth"
     | "analyticsService"
+    | "eventAdmission"
   >,
 ) => {
   const graph = buildBackendServiceGraph(layers);

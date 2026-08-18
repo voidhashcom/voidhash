@@ -9,6 +9,7 @@ export * from "./analytics.ts";
 export * from "./ApiKey.ts";
 export * from "./AuditLog.ts";
 export * from "./common.ts";
+export * from "./EventAdmission.ts";
 export * from "./Experiment.ts";
 export * from "./FeatureFlag.ts";
 export * from "./Feedback.ts";

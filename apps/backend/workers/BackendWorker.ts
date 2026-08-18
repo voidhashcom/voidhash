@@ -172,7 +172,10 @@ export default Cloudflare.Worker(
       Layer.provide(Layer.succeed(RuntimeContext, runtimeContext)),
     );
     const workflowEvents = AnalyticsEventStore.layer.pipe(Layer.provide(workflowDb));
-    const workflowDispatch = AnalyticsDispatchService.layer.pipe(Layer.provide(workflowEvents));
+    const workflowDispatch = AnalyticsDispatchService.layer.pipe(
+      Layer.provide(workflowEvents),
+      Layer.provide(workflowDb),
+    );
     const workflowInfrastructure = Layer.mergeAll(workflowDb, workflowDispatch);
 
     yield* Effect.forEach(

@@ -2,6 +2,7 @@ export * from "./agent-sessions";
 export * from "./api-keys";
 export * from "./analytics";
 export * from "./persons";
+export * from "./event-admission";
 export * from "./experiments";
 export * from "./feature-flags";
 export * from "./feedback";

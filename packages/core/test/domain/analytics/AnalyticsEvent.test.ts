@@ -2,8 +2,6 @@ import {
   analyticsEventFromCapture,
   analyticsEventFromHostedProcessed,
   analyticsEventFromInternal,
-  COMMUNITY_CAPTURE_EVENT_NAMES,
-  isCommunityCaptureEventName,
 } from "@voidhash/core/domain/analytics/AnalyticsEvent";
 import type { InternalAnalyticsEvent } from "@voidhash/core/domain/internalAnalytics/InternalAnalyticsEvents";
 import { DateTime } from "effect";
@@ -39,21 +37,6 @@ const revenueEvent = (): InternalAnalyticsEvent => ({
 });
 
 describe("shared analytics event contract", () => {
-  it("defines the complete Community SDK allow-list", () => {
-    expect(COMMUNITY_CAPTURE_EVENT_NAMES).toEqual([
-      "$app_installed",
-      "$app_updated",
-      "$app_opened",
-      "$app_backgrounded",
-      "$app_became_active",
-      "$sign_out",
-    ]);
-    expect(isCommunityCaptureEventName("$app_opened")).toBe(true);
-    expect(isCommunityCaptureEventName("checkout_started")).toBe(false);
-    expect(isCommunityCaptureEventName("$identify")).toBe(false);
-    expect(isCommunityCaptureEventName("$purchase.completed")).toBe(false);
-  });
-
   it("keeps capture IDs and event IDs stable across SDK retries", () => {
     const input = {
       event: {

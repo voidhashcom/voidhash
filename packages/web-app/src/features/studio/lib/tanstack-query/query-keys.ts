@@ -169,10 +169,17 @@ const analyticsKeys = {
     [...analyticsKeys.all, "voidql-insights", options] as const,
 };
 
+const eventAdmissionKeys = {
+  all: ["eventAdmission"] as const,
+  policy: (options: { projectId: string }) =>
+    [...eventAdmissionKeys.all, "policy", options] as const,
+};
+
 export const queryKeys = {
   agentSession: agentSessionKeys,
   analytics: analyticsKeys,
   apiKey: apiKeyKeys,
+  eventAdmission: eventAdmissionKeys,
   person: personKeys,
   experiment: experimentKeys,
   featureFlag: featureFlagKeys,

@@ -8,10 +8,13 @@ import { constant } from "@voidhash/lib/lang";
 import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import { Context, Effect, Layer, Schema } from "effect";
 
+import { analyticsEventFromCapture } from "../../domain/analytics/AnalyticsEvent.ts";
 import {
-  analyticsEventFromCapture,
-  isCommunityCaptureEventName,
-} from "../../domain/analytics/AnalyticsEvent.ts";
+  admitEvent,
+  emptyEventAdmissionPolicy,
+  type EventAdmissionPolicy,
+} from "../../domain/analytics/EventAdmission.ts";
+import { isReservedRevenueEventName } from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
 import { AnalyticsEventStore } from "../analytics/AnalyticsEventStore.ts";
 
 export class EventCaptureServiceError extends Schema.TaggedErrorClass<EventCaptureServiceError>(
@@ -103,7 +106,11 @@ const makeEventCaptureService = Effect.gen(function* () {
       }
 
       const [policy] = yield* db
-        .select({ ingestEnabled: captureProjectPolicies.ingestEnabled })
+        .select({
+          builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
+          customEventBlocklist: captureProjectPolicies.customEventBlocklist,
+          ingestEnabled: captureProjectPolicies.ingestEnabled,
+        })
         .from(captureProjectPolicies)
         .where(eq(captureProjectPolicies.projectId, apiKeyRecord.projectId))
         .limit(1);
@@ -117,7 +124,16 @@ const makeEventCaptureService = Effect.gen(function* () {
         );
       }
 
-      const supported = input.events.filter((event) => isCommunityCaptureEventName(event.event));
+      const admissionPolicy: EventAdmissionPolicy = policy ?? emptyEventAdmissionPolicy;
+
+      // Revenue events are server-trusted: they are minted from verified store
+      // receipts, so a publishable key must never be able to forge one even when
+      // the project has the revenue group enabled.
+      const supported = input.events.filter(
+        (event) =>
+          !isReservedRevenueEventName(event.event) &&
+          admitEvent({ edition: "oss", eventName: event.event, policy: admissionPolicy }).admitted,
+      );
       const records = supported.map((event) =>
         analyticsEventFromCapture({
           event,
@@ -168,10 +184,10 @@ const makeEventCaptureService = Effect.gen(function* () {
 });
 
 /**
- * Community capture implementation. It accepts only the built-in lifecycle
- * events and inserts them synchronously into PostgreSQL. Unsupported and
- * custom events are intentionally counted as rejected without entering a
- * queue, workflow, identity processor, or dead-letter path.
+ * Community capture implementation. Admission is decided by the project's
+ * event-admission policy (see `domain/analytics/EventAdmission.ts`) and admitted
+ * events are inserted synchronously into PostgreSQL. Rejected events are counted
+ * without entering a queue, workflow, identity processor, or dead-letter path.
  */
 export class EventCaptureService extends Context.Service<
   EventCaptureService,

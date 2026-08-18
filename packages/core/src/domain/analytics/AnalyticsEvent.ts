@@ -1,30 +1,10 @@
 import type { CaptureEvent } from "@voidhash/api-contracts/event-capture";
-import { constant } from "@voidhash/lib/lang";
 import { DateTime, Schema } from "effect";
 
 import {
   sourceTopicForInternalAnalyticsEvent,
   type InternalAnalyticsEvent,
 } from "../internalAnalytics/InternalAnalyticsEvents.ts";
-
-/** SDK events retained by the Community analytics implementation. */
-export const COMMUNITY_CAPTURE_EVENT_NAMES = constant([
-  "$app_installed",
-  "$app_updated",
-  "$app_opened",
-  "$app_backgrounded",
-  "$app_became_active",
-  "$sign_out",
-]);
-
-export type CommunityCaptureEventName = (typeof COMMUNITY_CAPTURE_EVENT_NAMES)[number];
-
-const communityCaptureEventNames: ReadonlySet<string> = new Set(COMMUNITY_CAPTURE_EVENT_NAMES);
-
-/** Whether a public SDK event is supported by Community analytics. */
-export const isCommunityCaptureEventName = (
-  eventName: string,
-): eventName is CommunityCaptureEventName => communityCaptureEventNames.has(eventName);
 
 export const AnalyticsEventSource = Schema.Literals(["sdk", "revenue", "internal"]);
 export type AnalyticsEventSource = typeof AnalyticsEventSource.Type;

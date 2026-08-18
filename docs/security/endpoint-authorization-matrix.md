@@ -62,6 +62,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Analytics | `ListRecentAnalyticsEvents`, `QueryAnalyticsInsights` |
 | ApiKey | `CreateSecretKey`, `ListApiKeys`, `GetApiKeyById`, `RotateSecretKey`, `DeleteApiKey`, `CreateUserApiKey`, `ListUserApiKeys`, `RevokeUserApiKey` |
 | Person | `CreatePerson`, `ListPersons`, `GetPersonById`, `GetPersonByDistinctId` |
+| EventAdmission | `GetEventAdmissionPolicy`, `SetBuiltinEventAdmission`, `SetCustomEventBlocked` |
 | Experiment | `ListExperiments`, `GetExperiment`, `CreateExperiment`, `SaveExperimentSetup`, `StartExperiment`, `PauseExperiment`, `ConcludeExperiment`, `ArchiveExperiment`, `RestoreExperiment`, `GetExperimentResults` |
 | FeatureFlag | `ListFeatureFlags`, `GetFeatureFlag`, `CreateFeatureFlag`, `UpdateFeatureFlag`, `ArchiveFeatureFlag`, `RestoreFeatureFlag`, `UpsertFeatureFlagOverride`, `ArchiveFeatureFlagOverride`, `ListFeatureFlagOverridesByFlag`, `ListFeatureFlagOverridesByPerson`, `UpsertFeatureFlagTarget`, `ArchiveFeatureFlagTarget`, `UpdateFeatureFlagVariants` |
 | Feedback | `SubmitFeedback` |
@@ -88,6 +89,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | --- | --- | --- | --- |
 | Analytics | Project permission before event reads or built-in revenue queries; PostgreSQL reads remain project-scoped. | Community PostgreSQL analytics integration suite | Integrated |
 | ApiKey, Person, Organization, PaymentProviderConfiguration, PaymentProviderProduct, PaywallDeploy, PaywallLocation, Paywall, Perk, ProductPerk, Product, Project, Webhook, FeatureFlag | Project/organization permission followed by stored ownership checks for nested IDs. | Corresponding database-backed core service integration suites | Integrated |
+| EventAdmission | Project permission is checked before every read and write of the project's capture policy; the registry key and custom event name are validated server-side. | `EventAdmission.test.ts` plus the Community PostgreSQL analytics integration suite, which drives capture through a stored policy | Unit |
 | PaywallComponent | Delegates to the project-authorized deploy service. | Paywall deploy integration suite | Integrated |
 | AgentSession, PaywallAsset, PaywallWorkspace | Project membership/permission and stored parent ownership are checked before every read or mutation. Client-minted session ID collisions are bound to the persisted user and project scope. | `AgentSessionIndexService.test.ts`, `agent-session-rpcs.test.ts`, `PaywallAssetAuthorization.integration.test.ts`, `PaywallWorkspaceAuthorization.integration.test.ts`, plus service and RPC unit tests | Integrated |
 | User, Feedback | Acting user comes only from the authenticated session; feedback project context derives its organization from the same session project. | `UserAuthorization.integration.test.ts`, `FeedbackAuthorization.integration.test.ts`, plus service tests | Integrated |

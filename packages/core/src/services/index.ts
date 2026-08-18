@@ -1,6 +1,7 @@
 export * from "./analytics/AnalyticsService.ts";
 export * from "./analytics/AnalyticsEventStore.ts";
 export * from "./analyticsIngest/AnalyticsDispatchService.ts";
+export * from "./analyticsIngest/EventAdmissionService.ts";
 export * from "./analyticsIngest/EventCaptureService.ts";
 export * from "./apiKeys/ApiKeyService.ts";
 export * from "./auditLog/AuditLogPort.ts";

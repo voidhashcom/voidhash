@@ -6,7 +6,7 @@ import {
   type CaptureRequest,
   EventCaptureService,
 } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
-import { analyticsEvents, apiKeys, Db, eq } from "@voidhash/db";
+import { analyticsEvents, apiKeys, captureProjectPolicies, Db, eq } from "@voidhash/db";
 import { Clock, DateTime, Effect, Layer } from "effect";
 import { expect } from "vitest";
 
@@ -75,15 +75,32 @@ const withCleanup = <A, E, R>(
     ),
   );
 
+/**
+ * Restore the project's admission policy after a test that overrides it. The
+ * fixture project owns no `capture_project_policy` row by default, so the reset
+ * deletes rather than restores.
+ */
+const withDefaultAdmissionPolicy = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  effect.pipe(
+    Effect.ensuring(
+      Effect.gen(function* () {
+        const db = yield* Db;
+        yield* db
+          .delete(captureProjectPolicies)
+          .where(eq(captureProjectPolicies.projectId, CoreTestFixture.projectId));
+      }).pipe(Effect.ignore),
+    ),
+  );
+
 test(
-  "OSS capture synchronously stores allow-listed events and rejects all others",
+  "OSS capture stores custom events by default and rejects opted-out built-ins",
   Effect.gen(function* () {
     const db = yield* Db;
     const now = yield* DateTime.nowAsDate;
     const apiKeyId = yield* unique("oss_capture_key");
     const token = `vh_pk_${apiKeyId}`;
-    const supportedId = yield* unique("oss_supported_event");
     const customId = yield* unique("oss_custom_event");
+    const lifecycleId = yield* unique("oss_lifecycle_event");
     const reservedId = yield* unique("oss_reserved_event");
 
     yield* db.insert(apiKeys).values({
@@ -97,14 +114,16 @@ test(
     });
 
     yield* withCleanup(
-      [supportedId, customId, reservedId],
+      [customId, lifecycleId, reservedId],
       apiKeyId,
       Effect.gen(function* () {
         const capture = yield* EventCaptureService;
         const request: CaptureRequest = {
           events: [
-            captureEvent(supportedId, "$app_opened"),
             captureEvent(customId, "checkout_started"),
+            // Disabled by default self-hosted, and revenue can never be forged
+            // from a publishable key.
+            captureEvent(lifecycleId, "$app_opened"),
             captureEvent(reservedId, "$purchase.completed"),
           ],
           request: {
@@ -122,10 +141,10 @@ test(
         const rows = yield* db
           .select()
           .from(analyticsEvents)
-          .where(eq(analyticsEvents.eventId, supportedId));
+          .where(eq(analyticsEvents.eventId, customId));
         expect(rows).toHaveLength(1);
         expect(rows[0]).toMatchObject({
-          eventName: "$app_opened",
+          eventName: "checkout_started",
           identityMode: "personless",
           source: "sdk",
         });
@@ -135,7 +154,70 @@ test(
 );
 
 test(
-  "OSS trusted dispatch upserts revenue and skips non-revenue internal events",
+  "OSS capture follows the project's admission policy for built-in and blocked events",
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const now = yield* DateTime.nowAsDate;
+    const apiKeyId = yield* unique("oss_policy_key");
+    const token = `vh_pk_${apiKeyId}`;
+    const lifecycleId = yield* unique("oss_policy_lifecycle_event");
+    const blockedId = yield* unique("oss_policy_blocked_event");
+
+    yield* db.insert(apiKeys).values({
+      end: token.slice(-8),
+      id: apiKeyId,
+      isPublic: true,
+      key: token,
+      name: "OSS admission policy integration key",
+      prefix: "vh_pk",
+      projectId: CoreTestFixture.projectId,
+    });
+
+    yield* withCleanup(
+      [lifecycleId, blockedId],
+      apiKeyId,
+      withDefaultAdmissionPolicy(
+        Effect.gen(function* () {
+          yield* db.insert(captureProjectPolicies).values({
+            builtinEventOverrides: { $app_opened: true },
+            customEventBlocklist: ["checkout_started"],
+            projectId: CoreTestFixture.projectId,
+          });
+
+          const capture = yield* EventCaptureService;
+          const result = yield* capture.captureEvents({
+            events: [
+              captureEvent(lifecycleId, "$app_opened"),
+              captureEvent(blockedId, "checkout_started"),
+            ],
+            request: {
+              headers: {},
+              receivedAt: now,
+              requestId: yield* unique("oss_policy_request"),
+              sentAt: now,
+              token,
+            },
+          });
+          expect(result).toEqual({ accepted: 1, rejected: 1 });
+
+          const admittedRows = yield* db
+            .select()
+            .from(analyticsEvents)
+            .where(eq(analyticsEvents.eventId, lifecycleId));
+          const blockedRows = yield* db
+            .select()
+            .from(analyticsEvents)
+            .where(eq(analyticsEvents.eventId, blockedId));
+          expect(admittedRows).toHaveLength(1);
+          expect(blockedRows).toHaveLength(0);
+        }).pipe(Effect.provide(captureLive)),
+      ),
+    );
+  }),
+);
+
+test(
+  "OSS trusted dispatch upserts revenue and skips built-ins the project opted out of",
   Effect.gen(function* () {
     const db = yield* Db;
     const now = yield* DateTime.nowAsDate;
@@ -178,6 +260,50 @@ test(
         });
         expect(exposureRows).toHaveLength(0);
       }).pipe(Effect.provide(dispatchLive)),
+    );
+  }),
+);
+
+test(
+  "OSS trusted dispatch stores an opted-in built-in",
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const now = yield* DateTime.nowAsDate;
+    const exposureId = yield* unique("oss_admitted_exposure_event");
+
+    yield* withCleanup(
+      [exposureId],
+      undefined,
+      withDefaultAdmissionPolicy(
+        Effect.gen(function* () {
+          yield* db.insert(captureProjectPolicies).values({
+            builtinEventOverrides: { "$experiment.exposed": true },
+            projectId: CoreTestFixture.projectId,
+          });
+
+          const dispatch = yield* AnalyticsDispatchService;
+          yield* dispatch.dispatchTrusted([
+            {
+              context: {},
+              distinctId: "device-1",
+              eventId: exposureId,
+              eventName: "$experiment.exposed",
+              occurredAt: now,
+              organizationId: CoreTestFixture.organizationId,
+              personId: null,
+              projectId: CoreTestFixture.projectId,
+              properties: { experimentId: "experiment-1", variantKey: "control" },
+              token: "internal",
+            },
+          ]);
+
+          const rows = yield* db
+            .select()
+            .from(analyticsEvents)
+            .where(eq(analyticsEvents.eventId, exposureId));
+          expect(rows).toHaveLength(1);
+        }).pipe(Effect.provide(dispatchLive)),
+      ),
     );
   }),
 );

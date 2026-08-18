@@ -208,6 +208,28 @@ export const rpcSmokeCases = [
   },
   {
     expected: success,
+    payload: ({ ids }) => ({ projectId: ids.projectId }),
+    role: "admin",
+    tag: "GetEventAdmissionPolicy",
+  },
+  {
+    expected: success,
+    payload: ({ ids }) => ({ enabled: true, key: "$app_opened", projectId: ids.projectId }),
+    role: "admin",
+    tag: "SetBuiltinEventAdmission",
+  },
+  {
+    expected: success,
+    payload: ({ ids, runId }) => ({
+      blocked: true,
+      eventName: `smoke_${runId}_blocked_event`,
+      projectId: ids.projectId,
+    }),
+    role: "admin",
+    tag: "SetCustomEventBlocked",
+  },
+  {
+    expected: success,
     payload: ({ apiKeyId }) => ({ apiKeyId }),
     role: "admin",
     tag: "GetApiKeyById",

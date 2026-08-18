@@ -43,6 +43,7 @@ import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlug
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments.index'
 import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings.index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/events'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.$id'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRouteImport } from './../../../packages/web-app/src/routes/shared/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons.$id'
@@ -290,6 +291,15 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerk
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
   )
+const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute =
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRouteImport.update(
+    {
+      id: '/settings/events',
+      path: '/settings/events',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRouteImport.update(
     {
@@ -516,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/studio/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
   '/studio/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
   '/studio/$organizationSlug/$projectSlug/settings/api-keys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  '/studio/$organizationSlug/$projectSlug/settings/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute
   '/studio/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
   '/studio/$organizationSlug/~/settings/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
   '/studio/$organizationSlug/$projectSlug/experiments/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
@@ -566,6 +577,7 @@ export interface FileRoutesByTo {
   '/studio/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
   '/studio/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
   '/studio/$organizationSlug/$projectSlug/settings/api-keys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  '/studio/$organizationSlug/$projectSlug/settings/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute
   '/studio/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
   '/studio/$organizationSlug/~/settings': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
   '/studio/$organizationSlug/$projectSlug/experiments': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
@@ -624,6 +636,7 @@ export interface FileRoutesById {
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/events': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
   '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsDotindexRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
@@ -680,6 +693,7 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/persons/$id'
     | '/studio/$organizationSlug/$projectSlug/products/$id'
     | '/studio/$organizationSlug/$projectSlug/settings/api-keys'
+    | '/studio/$organizationSlug/$projectSlug/settings/events'
     | '/studio/$organizationSlug/$projectSlug/settings/perks'
     | '/studio/$organizationSlug/~/settings/'
     | '/studio/$organizationSlug/$projectSlug/experiments/'
@@ -730,6 +744,7 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/persons/$id'
     | '/studio/$organizationSlug/$projectSlug/products/$id'
     | '/studio/$organizationSlug/$projectSlug/settings/api-keys'
+    | '/studio/$organizationSlug/$projectSlug/settings/events'
     | '/studio/$organizationSlug/$projectSlug/settings/perks'
     | '/studio/$organizationSlug/~/settings'
     | '/studio/$organizationSlug/$projectSlug/experiments'
@@ -787,6 +802,7 @@ export interface FileRouteTypes {
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/events'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks'
     | '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/'
@@ -1055,6 +1071,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport
       parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
     }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/events': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/events'
+      path: '/settings/events'
+      fullPath: '/studio/$organizationSlug/$projectSlug/settings/events'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
     '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys': {
       id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/api-keys'
       path: '/settings/api-keys'
@@ -1276,6 +1299,7 @@ interface StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRou
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsDotidRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsDotindexRoute
@@ -1324,6 +1348,8 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteCh
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsDotidRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute,
+    StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute:
+      StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsEventsRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsDotindexRoute:

@@ -194,6 +194,20 @@ export const captureProjectPolicies = pgTable(
     processorHistoricalMinAgeHours: integer("processor_historical_min_age_hours")
       .notNull()
       .default(48),
+    /**
+     * Explicit on/off overrides for the built-in (`$`-prefixed) event registry,
+     * keyed by admission key. An absent key falls back to the edition default in
+     * `@voidhash/core`'s `EventAdmission` registry.
+     */
+    builtinEventOverrides: jsonb("builtin_event_overrides")
+      .$type<Readonly<Record<string, boolean>>>()
+      .notNull()
+      .default({}),
+    /** Custom (non-`$`) event names refused admission for this project. */
+    customEventBlocklist: jsonb("custom_event_blocklist")
+      .$type<readonly string[]>()
+      .notNull()
+      .default([]),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
       currentTimestamp(),

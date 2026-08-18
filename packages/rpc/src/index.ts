@@ -23,6 +23,7 @@ import { UserRpcsDef } from "./groups/UserRpcsDef.ts";
 import { WebhookRpcsDef } from "./groups/WebhookRpcsDef.ts";
 import { FeatureFlagRpcsDef } from "./groups/FeatureFlagRpcsDef.ts";
 import { FeedbackRpcsDef } from "./groups/FeedbackRpcsDef.ts";
+import { EventAdmissionRpcsDef } from "./groups/EventAdmissionRpcsDef.ts";
 import { ExperimentRpcsDef } from "./groups/ExperimentRpcsDef.ts";
 
 export const RpcGroups = RpcGroup.make().merge(
@@ -30,6 +31,7 @@ export const RpcGroups = RpcGroup.make().merge(
   AnalyticsRpcsDef,
   ApiKeyRpcsDef,
   PersonRpcsDef,
+  EventAdmissionRpcsDef,
   ExperimentRpcsDef,
   FeatureFlagRpcsDef,
   FeedbackRpcsDef,
@@ -78,6 +80,7 @@ export * from "./groups/VoidQlRpcsDef.ts";
 export * from "./groups/WebhookRpcsDef.ts";
 export * from "./groups/FeatureFlagRpcsDef.ts";
 export * from "./groups/FeedbackRpcsDef.ts";
+export * from "./groups/EventAdmissionRpcsDef.ts";
 export * from "./groups/ExperimentRpcsDef.ts";
 export * from "./experimentTreatmentTypes.ts";
 export * from "./internalFeatureFlags.ts";
