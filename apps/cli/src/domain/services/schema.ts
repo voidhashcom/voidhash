@@ -52,9 +52,9 @@ const make = Effect.gen(function* effect() {
         });
       }
 
-
       for (const product of response.products) {
         schema.products.set(product.slug, {
+          duration: product.duration,
           name: product.name,
           perks: [...product.perks],
           providers: product.providers.flatMap((provider) => {

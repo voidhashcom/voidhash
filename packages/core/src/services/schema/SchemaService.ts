@@ -1,6 +1,6 @@
 import { constant } from "@voidhash/lib/lang";
 import { Context, Effect, Layer, Schema } from "effect";
-import type { ProductTypeValue } from "@voidhash/lib";
+import type { ProductTypeValue, SubscriptionDurationValue } from "@voidhash/lib";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -29,7 +29,7 @@ import {
   computeSchemaVersion,
   mapDbProviderIdToSchemaProviderId,
 } from "./helpers.ts";
-import { dbProductTypeToLabel } from "../products/helpers.ts";
+import { dbProductTypeToLabel, dbSubscriptionDurationToLabel } from "../products/helpers.ts";
 
 export interface ProjectSchemaCacheStub {
   readonly get: () => Effect.Effect<unknown>;
@@ -67,6 +67,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  */
 /** `products.type` is a plain smallint column mirroring the `ProductType` enum. */
 const asProductType = (type: any): ProductTypeValue => type;
+const asSubscriptionDuration = (duration: any): SubscriptionDurationValue | null => duration;
 
 /** `payment_provider_configuration_product.configuration` is an untyped JSON column. */
 const asConfigurationRecord = (configuration: any): Record<string, unknown> => configuration;
@@ -262,6 +263,7 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
               .sort((a, b) => a.providerId.localeCompare(b.providerId));
             return {
               name: product.name,
+              duration: dbSubscriptionDurationToLabel(asSubscriptionDuration(product.duration)),
               perks: perksForProduct,
               providers: providersForProduct,
               slug: product.slug,
@@ -304,6 +306,7 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
             (row) =>
               new SchemaProduct({
                 name: row.name,
+                duration: row.duration,
                 perks: row.perks,
                 providers: row.providers.map((p) => new SchemaProductProvider(p)),
                 slug: row.slug,

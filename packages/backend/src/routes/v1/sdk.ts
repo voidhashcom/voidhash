@@ -15,6 +15,7 @@ import {
   SdkSchemaProduct,
   SdkSubscriptionHistoryEntry,
   SdkSyncTransactionResponse,
+  SdkDevelopmentPurchaseResponse,
   VoidhashV1Api,
 } from "@voidhash/api-contracts";
 import {
@@ -36,6 +37,7 @@ import type {
 } from "@voidhash/core/domain/sdkPerson/SdkPerson";
 import {
   FeatureFlagService,
+  DevelopmentPaymentProviderService,
   InternalFeatureFlagService,
   NotificationTokenService,
   PaywallLocationService,
@@ -44,7 +46,9 @@ import {
   SdkService,
   type SdkServiceError,
 } from "@voidhash/core/services";
+import { getDevelopmentPrice } from "@voidhash/core/services/paymentProviders/development/pricing";
 import { Db } from "@voidhash/db";
+import type { ProductTypeValue, SubscriptionDurationValue } from "@voidhash/lib";
 import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import { constant } from "@voidhash/lib/lang";
 import { DateTime, Effect, Option, Schema } from "effect";
@@ -83,6 +87,9 @@ const optionalClientEventId = (
   if (!clientEventId) return {};
   return { clientEventId };
 };
+
+const asProductType = (value: any): ProductTypeValue => value;
+const asSubscriptionDuration = (value: any): SubscriptionDurationValue | null => value;
 
 const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
   new SdkPerson({
@@ -165,9 +172,16 @@ export const mapSdkTransactionSubmission = (
   };
 };
 
+/** Returns whether an SDK request is allowed to write development purchase data. */
+export const isDevelopmentPurchaseRequest = (headers: {
+  readonly "x-environment"?: "production" | "development" | "all";
+  readonly "x-is-debug-build": "true" | "false";
+}) => headers["x-environment"] === "development" && headers["x-is-debug-build"] === "true";
+
 export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers) =>
   Effect.gen(function* () {
     const sdkService = yield* SdkService;
+    const developmentPaymentProviderService = yield* DevelopmentPaymentProviderService;
     const featureFlagService = yield* FeatureFlagService;
     const paywallLocationService = yield* PaywallLocationService;
     const schemaService = yield* SchemaService;
@@ -320,6 +334,59 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
           }),
         ),
       )
+      .handle("developmentPurchase", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const req = yield* HttpServerRequest.HttpServerRequest;
+            const parsedHeaders = yield* Schema.decodeUnknownEffect(SdkHeaders)(req.headers).pipe(
+              Effect.mapError((error) => new ApiSdkValidationError({ message: error.message })),
+            );
+            if (!isDevelopmentPurchaseRequest(parsedHeaders)) {
+              return yield* Effect.fail(
+                new ApiSdkValidationError({
+                  message:
+                    "Development purchases require development environment and a debug build",
+                }),
+              );
+            }
+            const session = yield* AuthSession;
+            const projectId = session?.projects[0]?.id;
+            const distinctId = session?.person?.distinctId;
+            if (!projectId || !distinctId) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "Missing SDK project or person identity",
+                  message: "Missing SDK project or person identity",
+                }),
+              );
+            }
+            const parsedPurchaseDate = DateTime.make(payload.purchaseDate);
+            if (Option.isNone(parsedPurchaseDate)) {
+              return yield* Effect.fail(
+                new ApiSdkValidationError({ message: "Invalid purchase date" }),
+              );
+            }
+            const purchaseDate = DateTime.toDateUtc(parsedPurchaseDate.value);
+            const result = yield* developmentPaymentProviderService.processSdkPurchase({
+              devTransactionId: payload.devTransactionId,
+              distinctId,
+              productSlug: payload.productSlug,
+              projectId,
+              purchaseDate,
+              quantity: payload.quantity,
+            });
+            return new SdkDevelopmentPurchaseResponse({
+              accepted: true,
+              warning: result.warning,
+            });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            DevelopmentPaymentProviderServiceError: (error) =>
+              Effect.fail(new ApiSdkServiceError({ cause: error.message })),
+          }),
+        ),
+      )
       .handle("resolvePaywall", ({ payload }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
@@ -394,6 +461,10 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               }
 
               const schema = yield* schemaService.getProjectSchemaForSdk(projectId);
+              const dbProducts = yield* dbService.query.products.findMany({
+                where: { projectId },
+              });
+              const dbProductBySlug = new Map(dbProducts.map((product) => [product.slug, product]));
 
               const notModified = schemaNotModifiedResponse(
                 Option.getOrUndefined(ifNoneMatch),
@@ -426,8 +497,33 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
                 for (const provider of product.providers) {
                   providers[provider.providerId] = provider.configuration;
                 }
+                const dbProduct = dbProductBySlug.get(product.slug);
+                if (!dbProduct) {
+                  continue;
+                }
+                const developmentPrice = getDevelopmentPrice(
+                  asProductType(dbProduct.type),
+                  asSubscriptionDuration(dbProduct.duration),
+                );
                 products[product.slug] = new SdkSchemaProduct({
-                  configuration: { perks: perksRecord, providers },
+                  configuration: {
+                    perks: perksRecord,
+                    providers: {
+                      ...providers,
+                      development: {
+                        currencyCode: developmentPrice.currencyCode,
+                        duration: developmentPrice.duration,
+                        period: developmentPrice.period,
+                        periodCount: developmentPrice.periodCount,
+                        price: developmentPrice.amount / 100,
+                        priceInMinorUnits: developmentPrice.amount,
+                        productId: product.slug,
+                        warning: developmentPrice.warning,
+                      },
+                    },
+                  },
+                  duration: product.duration,
+                  id: dbProduct.id,
                   properties: { name: product.name },
                   slug: product.slug,
                   type: product.type,
@@ -442,6 +538,8 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
           );
         }).pipe(
           Effect.catchTags({
+            EffectDrizzleQueryError: (e) =>
+              Effect.fail(new ApiSchemaServiceError({ cause: String(e.cause) })),
             SchemaServiceError: (e) => Effect.fail(new ApiSchemaServiceError({ cause: e.cause })),
           }),
         ),

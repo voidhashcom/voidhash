@@ -142,6 +142,7 @@ export class PaywallLocation extends Schema.Class<PaywallLocation>("PaywallLocat
 export const ProductType = Schema.Literals(["subscription", "one-time", "one-time-consumable"]);
 
 export class Product extends Schema.Class<Product>("Product")({
+  duration: Schema.NullOr(Schema.Number),
   id: Schema.String,
   name: Schema.String,
   projectId: Schema.String,
@@ -228,6 +229,7 @@ const CommonSdkHeaders = Schema.Struct({
   "x-sdk": Schema.Literals(["react-native", "web"]),
   "x-sdk-version": Schema.String,
   "x-storefront": Schema.optional(Schema.String),
+  "x-environment": Schema.optional(Schema.Literals(["production", "development", "all"])),
 });
 
 export const SdkHeaders = Schema.Struct({
@@ -360,6 +362,22 @@ export class SdkSyncTransactionResponse extends Schema.Class<SdkSyncTransactionR
   accepted: Schema.Boolean,
 }) {}
 
+export class SdkDevelopmentPurchaseBody extends Schema.Class<SdkDevelopmentPurchaseBody>(
+  "SdkDevelopmentPurchaseBody",
+)({
+  devTransactionId: Schema.String,
+  productSlug: Schema.String,
+  purchaseDate: Schema.Number,
+  quantity: Schema.optional(Schema.Number),
+}) {}
+
+export class SdkDevelopmentPurchaseResponse extends Schema.Class<SdkDevelopmentPurchaseResponse>(
+  "SdkDevelopmentPurchaseResponse",
+)({
+  accepted: Schema.Boolean,
+  warning: Schema.NullOr(Schema.String),
+}) {}
+
 export const SdkSubscriptionHistoryStatus = Schema.Literals([
   "active",
   "canceled",
@@ -486,6 +504,9 @@ export class SchemaProductProvider extends Schema.Class<SchemaProductProvider>(
 }) {}
 
 export class SchemaProduct extends Schema.Class<SchemaProduct>("SchemaProduct")({
+  duration: Schema.NullOr(
+    Schema.Literals(["weekly", "monthly", "quarterly", "semi-annual", "annual"]),
+  ),
   name: Schema.String,
   /** Perk slugs (not IDs), ascending. */
   perks: Schema.Array(Schema.String),
@@ -555,6 +576,18 @@ const SdkSchemaProductConfiguration = Schema.Struct({
    */
   providers: Schema.Struct({
     appleAppStore: Schema.optional(SchemaProviderConfiguration),
+    development: Schema.Struct({
+      currencyCode: Schema.Literal("USD"),
+      duration: Schema.NullOr(
+        Schema.Literals(["weekly", "monthly", "quarterly", "semi-annual", "annual"]),
+      ),
+      period: Schema.Literals(["week", "month", "year", "lifetime"]),
+      periodCount: Schema.Number,
+      price: Schema.Number,
+      priceInMinorUnits: Schema.Number,
+      productId: Schema.String,
+      warning: Schema.NullOr(Schema.String),
+    }),
     googlePlay: Schema.optional(SchemaProviderConfiguration),
   }),
 });
@@ -562,6 +595,10 @@ const SdkSchemaProductConfiguration = Schema.Struct({
 export class SdkSchemaProduct extends Schema.Class<SdkSchemaProduct>("SdkSchemaProduct")({
   configuration: SdkSchemaProductConfiguration,
   properties: SdkSchemaProductProperties,
+  id: Schema.String,
+  duration: Schema.NullOr(
+    Schema.Literals(["weekly", "monthly", "quarterly", "semi-annual", "annual"]),
+  ),
   slug: Schema.String,
   type: Schema.Literals(["subscription", "one-time", "one-time-consumable"]),
 }) {}

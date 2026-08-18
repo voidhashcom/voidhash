@@ -42,8 +42,7 @@ function createClientMock() {
  * The mock stays a plain bag of `vi.fn()`s so assertions read each spy as a
  * standalone value; the client shape is only asserted at the call boundary.
  */
-const asClient = (mock: ReturnType<typeof createClientMock>) =>
-  mock as unknown as VoidhashClient;
+const asClient = (mock: ReturnType<typeof createClientMock>) => mock as unknown as VoidhashClient;
 
 function createPresenterMock() {
   return {
@@ -51,6 +50,9 @@ function createPresenterMock() {
     postMessage: vi.fn(),
   };
 }
+
+const postedEnvelopes = (presenter: ReturnType<typeof createPresenterMock>) =>
+  presenter.postMessage.mock.calls.map((call) => JSON.parse(call[1] as string));
 
 describe("usePaywallByLocation bridge coordinator", () => {
   // oxlint-disable-next-line effect/noTestLifecycleHooks -- vitest module-mock reset: `vi.clearAllMocks` plus the per-test default return values operate on hoisted `vi.mock` factories, which live outside any Effect scope; effect-bun-test scoped tests cannot reach them.
@@ -91,6 +93,11 @@ describe("usePaywallByLocation bridge coordinator", () => {
       method: "native",
     });
     expect(presenter.postMessage).toHaveBeenCalled();
+    expect(postedEnvelopes(presenter).map((envelope) => envelope.payload.status)).toEqual([
+      "purchasing",
+      "purchased",
+      "success",
+    ]);
     expect(presenter.dismiss).toHaveBeenCalled();
     expect(openExternalUrl).not.toHaveBeenCalled();
   });
@@ -162,8 +169,50 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    const response = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
+    const envelopes = postedEnvelopes(presenter);
+    const response = envelopes.find((envelope) => envelope.type === "response");
     expect(response.payload.status).toBe("error");
+    expect(envelopes.map((envelope) => envelope.payload.status)).toEqual([
+      "purchasing",
+      "failed",
+      "error",
+    ]);
+    expect(presenter.dismiss).not.toHaveBeenCalled();
+  });
+
+  it("emits cancelled when the purchase adapter reports user cancellation", async () => {
+    const client = createClientMock();
+    const presenter = createPresenterMock();
+
+    client.getProducts.mockResolvedValue({
+      monthly: {
+        id: "prod_monthly",
+        slug: "monthly",
+      },
+    } as never);
+    client.purchase.mockRejectedValue({
+      _tag: "UserCancelledError",
+      message: "Purchase cancelled",
+    } as never);
+
+    await __internal_handlePaywallBridgeEventForTests({
+      client: asClient(client),
+      locationKey: "home",
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
+      presenter,
+      rawBridgeEvent: JSON.stringify({
+        payload: { productId: "prod_monthly" },
+        requestId: "req_purchase_cancelled",
+        type: "purchase",
+        version: 1,
+      }),
+    });
+
+    expect(postedEnvelopes(presenter).map((envelope) => envelope.payload.status)).toEqual([
+      "purchasing",
+      "cancelled",
+      "error",
+    ]);
     expect(presenter.dismiss).not.toHaveBeenCalled();
   });
 
@@ -225,7 +274,11 @@ describe("usePaywallByLocation bridge coordinator", () => {
     });
 
     expect(client.restorePurchases).toHaveBeenCalledTimes(1);
-    expect(presenter.postMessage).toHaveBeenCalledTimes(1);
+    expect(postedEnvelopes(presenter).map((envelope) => envelope.payload.status)).toEqual([
+      "restoring",
+      "restored",
+      "success",
+    ]);
     expect(presenter.dismiss).toHaveBeenCalledTimes(1);
   });
 
@@ -679,7 +732,9 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    const busyResponse = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
+    const busyResponse = postedEnvelopes(presenter).find(
+      (envelope) => envelope.payload.error?.code === "ACTION_BUSY",
+    );
     expect(busyResponse.payload.error.code).toBe("ACTION_BUSY");
     expect(onError).toHaveBeenCalledWith(expect.any(Error), {
       action: "purchase",

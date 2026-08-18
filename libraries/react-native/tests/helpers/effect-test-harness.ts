@@ -48,6 +48,7 @@ const payloadDistinctId = (request: ApiSdkCall): string => {
 };
 
 export interface ApiClientDoubleState {
+  readonly developmentPurchaseCalls: ApiSdkCall[];
   readonly evaluateFeatureFlagsCalls: ApiSdkCall[];
   readonly getPersonCalls: ApiSdkCall[];
   readonly getSchemaCalls: ApiSdkCall[];
@@ -57,11 +58,14 @@ export interface ApiClientDoubleState {
 }
 
 export interface ApiClientDoubleOptions {
+  developmentPurchaseEffect?: (
+    request: ApiSdkCall,
+  ) => Effect.Effect<{ accepted: boolean; warning: string | null }, Error>;
   evaluateFeatureFlagsResult?: FeatureFlagsResult;
   getPersonResult?: SdkPerson;
   /**
    * Simulate the server's `GET /sdk/person` 404 for a not-yet-persisted
-   * person (the `ApiSdkPersonNotFoundError` the generated client surfaces).
+   * person (the `ApiSdkPersonNotFoundErrorJsonEncoding` the generated client surfaces).
    */
   getPersonShouldNotFound?: boolean;
   getSchemaResult?: ReturnType<typeof createTestSchema>;
@@ -83,6 +87,7 @@ export function createSdkPerson(distinctId: string) {
 
 export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
   const state: ApiClientDoubleState = {
+    developmentPurchaseCalls: [],
     evaluateFeatureFlagsCalls: [],
     getPersonCalls: [],
     getSchemaCalls: [],
@@ -93,6 +98,13 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
 
   const apiClient = {
     sdk: {
+      developmentPurchase: (request: ApiSdkCall) => {
+        state.developmentPurchaseCalls.push(request);
+        if (options.developmentPurchaseEffect) {
+          return options.developmentPurchaseEffect(request);
+        }
+        return Effect.succeed({ accepted: true, warning: null });
+      },
       getSchema: (request: ApiSdkCall) => {
         state.getSchemaCalls.push(request);
         if (options.getSchemaShouldFail) {
@@ -119,7 +131,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
         state.getPersonCalls.push(request);
         if (options.getPersonShouldNotFound) {
           return Effect.fail({
-            _tag: "ApiSdkPersonNotFoundError",
+            _tag: "ApiSdkPersonNotFoundErrorJsonEncoding",
             message: JSON.stringify({
               _tag: "Api/SdkPersonNotFoundError",
               message: "Person not found",
@@ -280,6 +292,7 @@ export interface EffectTestHarnessOptions {
   baseUrl?: string;
   cacheAdapter: ReturnType<typeof createInMemoryCacheAdapter>["adapter"];
   debug?: boolean;
+  developmentMode?: boolean;
   fetch?: typeof globalThis.fetch;
   ingestUrl?: string;
   lifecycleAdapter?: ReturnType<typeof createLifecycleAdapterDouble>;
@@ -337,6 +350,8 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
       Layer.succeed(SdkConfiguration, {
         baseUrl: options.baseUrl ?? "https://api.voidhash.test",
         debug: options.debug ?? false,
+        developmentMode: options.developmentMode ?? false,
+        environmentMode: options.developmentMode ? "development" : "production",
         ingestUrl: options.ingestUrl,
         publishableKey: options.publishableKey ?? "pk_test",
         readOnly: options.readOnly ?? false,

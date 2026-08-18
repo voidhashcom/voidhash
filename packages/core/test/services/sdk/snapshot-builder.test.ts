@@ -9,6 +9,7 @@ import {
   PersonIdentityKind,
   PersonIdentityMigrationJobStatus,
   PersonUnlockedPerkStatus,
+  ProviderEnvironment,
 } from "@voidhash/db";
 import { DateTime } from "effect";
 
@@ -59,117 +60,114 @@ const FUTURE = at("2026-12-31T00:00:00.000Z");
 
 const product = (
   overrides: Partial<DbPaymentProviderConfigurationProduct> = {},
-): DbPaymentProviderConfigurationProduct =>
-  ({
-    configuration: null,
-    createdAt: PAST,
-    id: "ppcp-1",
-    isActive: true,
-    paymentProviderConfigurationId: "ppc-1",
-    productId: "prod-1",
-    providerProductKey: "com.app.product",
-    updatedAt: PAST,
-    ...overrides,
-  });
+): DbPaymentProviderConfigurationProduct => ({
+  configuration: null,
+  createdAt: PAST,
+  id: "ppcp-1",
+  isActive: true,
+  paymentProviderConfigurationId: "ppc-1",
+  productId: "prod-1",
+  providerProductKey: "com.app.product",
+  updatedAt: PAST,
+  ...overrides,
+});
 
-const subscription = (overrides: Partial<SubscriptionWithProduct> = {}): SubscriptionWithProduct =>
-  ({
-    id: "sub-1",
-    personId: "person-target",
-    status: SubscriptionStatus.Active,
-    initialTransactionId: "tx-init",
-    latestTransactionId: "tx-latest",
-    storeSubscriptionId: "store-sub-1",
-    paymentProviderConfigurationProductId: "ppcp-1",
-    providerEnvironment: 1,
-    isTrial: false,
-    startsAt: PAST,
-    expiresAt: FUTURE,
-    purchasedAt: PAST,
-    cancelAtPeriodEnd: false,
-    canceledAt: null,
-    cancellationReason: null,
-    lastEventOccurredAt: null,
-    billingRetryAt: null,
-    gracePeriodExpiresAt: null,
-    extendedTo: null,
-    pendingPriceAmount: null,
-    pendingPriceCurrency: null,
-    pendingPriceEffectiveAt: null,
-    pendingProductChangeId: null,
-    redeemedOfferId: null,
-    redeemedOfferAt: null,
-    createdAt: PAST,
-    updatedAt: PAST,
-    paymentProviderConfigurationProduct: product(),
-    ...overrides,
-  });
+const subscription = (
+  overrides: Partial<SubscriptionWithProduct> = {},
+): SubscriptionWithProduct => ({
+  id: "sub-1",
+  personId: "person-target",
+  status: SubscriptionStatus.Active,
+  initialTransactionId: "tx-init",
+  latestTransactionId: "tx-latest",
+  storeSubscriptionId: "store-sub-1",
+  paymentProviderConfigurationProductId: "ppcp-1",
+  providerEnvironment: 1,
+  isTrial: false,
+  startsAt: PAST,
+  expiresAt: FUTURE,
+  purchasedAt: PAST,
+  cancelAtPeriodEnd: false,
+  canceledAt: null,
+  cancellationReason: null,
+  lastEventOccurredAt: null,
+  billingRetryAt: null,
+  gracePeriodExpiresAt: null,
+  extendedTo: null,
+  pendingPriceAmount: null,
+  pendingPriceCurrency: null,
+  pendingPriceEffectiveAt: null,
+  pendingProductChangeId: null,
+  redeemedOfferId: null,
+  redeemedOfferAt: null,
+  createdAt: PAST,
+  updatedAt: PAST,
+  paymentProviderConfigurationProduct: product(),
+  ...overrides,
+});
 
-const purchase = (overrides: Partial<DbPurchase> = {}): DbPurchase =>
-  ({
-    id: "purchase-1",
-    personId: "person-target",
-    providerKey: "provider-key-1",
-    type: PurchaseType.OneTime,
-    paymentProviderConfigurationProductId: "ppcp-1",
-    providerEnvironment: 1,
-    refundedAt: null,
-    refundReason: null,
-    revokedAt: null,
-    revocationReason: null,
-    lastEventOccurredAt: null,
-    createdAt: PAST,
-    updatedAt: PAST,
-    ...overrides,
-  });
+const purchase = (overrides: Partial<DbPurchase> = {}): DbPurchase => ({
+  id: "purchase-1",
+  personId: "person-target",
+  providerKey: "provider-key-1",
+  type: PurchaseType.OneTime,
+  paymentProviderConfigurationProductId: "ppcp-1",
+  providerEnvironment: 1,
+  refundedAt: null,
+  refundReason: null,
+  revokedAt: null,
+  revocationReason: null,
+  lastEventOccurredAt: null,
+  createdAt: PAST,
+  updatedAt: PAST,
+  ...overrides,
+});
 
-const grant = (overrides: Partial<DbPersonUnlockedPerk> = {}): DbPersonUnlockedPerk =>
-  ({
-    id: "perk-grant-1",
-    status: PersonUnlockedPerkStatus.Active,
-    personId: "person-target",
-    perkId: "perk-1",
-    unlockedByPurchaseId: null,
-    unlockedBySubscriptionId: null,
-    expiresAt: null,
-    createdAt: PAST,
-    updatedAt: PAST,
-    ...overrides,
-  });
+const grant = (overrides: Partial<DbPersonUnlockedPerk> = {}): DbPersonUnlockedPerk => ({
+  id: "perk-grant-1",
+  status: PersonUnlockedPerkStatus.Active,
+  personId: "person-target",
+  perkId: "perk-1",
+  unlockedByPurchaseId: null,
+  unlockedBySubscriptionId: null,
+  expiresAt: null,
+  environment: 1,
+  createdAt: PAST,
+  updatedAt: PAST,
+  ...overrides,
+});
 
-const person = (overrides: Partial<DbPerson> = {}): DbPerson =>
-  ({
-    id: "person-target",
-    name: "Person Row Name",
-    email: "row@example.com",
-    traits: null,
-    traitsMeta: null,
-    origin: 1,
-    projectId: "project-1",
-    mergedIntoPersonId: null,
-    primaryDistinctId: null,
-    firstSeenAt: null,
-    lastSeenAt: null,
-    archivedAt: null,
-    deletedAt: null,
-    deletionReason: null,
-    createdAt: PAST,
-    updatedAt: PAST,
-    ...overrides,
-  });
+const person = (overrides: Partial<DbPerson> = {}): DbPerson => ({
+  id: "person-target",
+  name: "Person Row Name",
+  email: "row@example.com",
+  traits: null,
+  traitsMeta: null,
+  origin: 1,
+  projectId: "project-1",
+  mergedIntoPersonId: null,
+  primaryDistinctId: null,
+  firstSeenAt: null,
+  lastSeenAt: null,
+  archivedAt: null,
+  deletedAt: null,
+  deletionReason: null,
+  createdAt: PAST,
+  updatedAt: PAST,
+  ...overrides,
+});
 
-const personIdentity = (overrides: Partial<DbPersonIdentity> = {}): DbPersonIdentity =>
-  ({
-    id: "identity-1",
-    projectId: "project-1",
-    distinctId: "prev-distinct",
-    personId: "person-source",
-    kind: PersonIdentityKind.Anonymous,
-    version: 0,
-    createdAt: PAST,
-    updatedAt: PAST,
-    ...overrides,
-  });
+const personIdentity = (overrides: Partial<DbPersonIdentity> = {}): DbPersonIdentity => ({
+  id: "identity-1",
+  projectId: "project-1",
+  distinctId: "prev-distinct",
+  personId: "person-source",
+  kind: PersonIdentityKind.Anonymous,
+  version: 0,
+  createdAt: PAST,
+  updatedAt: PAST,
+  ...overrides,
+});
 
 const migrationJob = (
   overrides: Partial<SnapshotMigrationJobRow> = {},
@@ -665,11 +663,41 @@ describe("dedupeGrants", () => {
     expect(result[0]?.id).toBe("g-active");
   });
 
-  it("keeps distinct grants that differ only by source", () => {
+  it("deduplicates a perk across sources", () => {
     const fromSub = grant({ id: "g-sub", perkId: "perk-x", unlockedBySubscriptionId: "sub-1" });
     const fromManual = grant({ id: "g-manual", perkId: "perk-x" });
-    const result = dedupeGrants([fromSub, fromManual]);
-    expect(result).toHaveLength(2);
+    expect(dedupeGrants([fromSub, fromManual])).toHaveLength(1);
+  });
+
+  it("prefers production when active grants from multiple environments are visible", () => {
+    const development = grant({
+      environment: ProviderEnvironment.Development,
+      id: "g-development",
+      perkId: "perk-x",
+    });
+    const production = grant({
+      environment: ProviderEnvironment.Production,
+      id: "g-production",
+      perkId: "perk-x",
+    });
+
+    expect(dedupeGrants([development, production])).toEqual([production]);
+  });
+
+  it("prefers an active development grant over an expired production grant", () => {
+    const production = grant({
+      environment: ProviderEnvironment.Production,
+      id: "g-production",
+      perkId: "perk-x",
+      status: PersonUnlockedPerkStatus.Expired,
+    });
+    const development = grant({
+      environment: ProviderEnvironment.Development,
+      id: "g-development",
+      perkId: "perk-x",
+    });
+
+    expect(dedupeGrants([production, development])).toEqual([development]);
   });
 });
 

@@ -33,6 +33,7 @@ interface ReactNativeSdkHeaders {
   readonly "x-sdk": "web" | "react-native";
   readonly "x-sdk-version": string;
   readonly "x-storefront"?: string | undefined;
+  readonly "x-environment": "production" | "development";
 }
 
 export const getCommonSdkHeaders = (): Effect.Effect<
@@ -57,7 +58,8 @@ export const getCommonSdkHeaders = (): Effect.Effect<
       "x-client-locale": clientLocale,
       "x-client-version": appVersion,
       "x-is-backgrounded": "false",
-      "x-is-debug-build": platformProvider.isDebugBuild ? "true" : "false",
+      "x-is-debug-build":
+        sdkConfig.developmentMode || platformProvider.isDebugBuild ? "true" : "false",
       "x-nonce": getNonce(),
       "x-observer-mode": sdkConfig.readOnly ? "true" : "false",
       "x-platform": platformProvider.platform,
@@ -71,5 +73,6 @@ export const getCommonSdkHeaders = (): Effect.Effect<
       "x-sdk": "react-native",
       "x-sdk-version": SDK_VERSION,
       "x-storefront": undefined, // Not supported, default to false
+      "x-environment": sdkConfig.environmentMode,
     };
   });

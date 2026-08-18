@@ -1,0 +1,46 @@
+import { RpcClient } from "effect/unstable/rpc";
+
+import { VoidhashRpc, eq } from "../effect-query";
+
+export const getDevelopmentModeSettingsOptions = (projectId: string) =>
+  eq.queryOptions({
+    queryFn: () => VoidhashRpc.request((rpc) => rpc.GetDevelopmentModeSettings({ projectId })),
+    queryKey: ["development-mode", "settings", projectId],
+  });
+
+export const getDevelopmentModeStateOptions = (options: { personId: string; projectId: string }) =>
+  eq.queryOptions({
+    queryFn: () =>
+      VoidhashRpc.request((rpc) =>
+        rpc
+          .GetDevelopmentModeState(options)
+          .pipe(RpcClient.withHeaders({ "x-environment": "development" })),
+      ),
+    queryKey: ["development-mode", "person", options.projectId, options.personId],
+  });
+
+export const applyDevelopmentLifecycleActionOptions = () =>
+  eq.mutationOptions({
+    mutationFn: (input: {
+      action: "expire" | "revoke" | "renew" | "refund" | "grace_period";
+      actionId: string;
+      projectId: string;
+      targetId: string;
+      targetType: "subscription" | "purchase";
+    }) => VoidhashRpc.request((rpc) => rpc.ApplyDevelopmentLifecycleAction(input)),
+    mutationKey: ["development-mode", "lifecycle"],
+  });
+
+export const setDevelopmentPurchasesEnabledOptions = () =>
+  eq.mutationOptions({
+    mutationFn: (input: { enabled: boolean; projectId: string }) =>
+      VoidhashRpc.request((rpc) => rpc.SetDevelopmentPurchasesEnabled(input)),
+    mutationKey: ["development-mode", "enabled"],
+  });
+
+export const resetDevelopmentDataOptions = () =>
+  eq.mutationOptions({
+    mutationFn: (input: { projectId: string }) =>
+      VoidhashRpc.request((rpc) => rpc.ResetDevelopmentData(input)),
+    mutationKey: ["development-mode", "reset"],
+  });

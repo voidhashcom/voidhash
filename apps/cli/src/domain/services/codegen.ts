@@ -94,7 +94,7 @@ const make = Effect.gen(function* effect() {
         " * Use it like `<voidhash.Provider>` and `voidhash.useProducts()`. The",
         " * publishable key is safe to ship in client code.",
         " */",
-        `export const voidhash = createVoidhashClient("${options.publishableKey}");`,
+        `export const voidhash = createVoidhashClient("${options.publishableKey}", { dev: true });`,
         "",
       ];
       yield* fileSystem.writeFileString(filePath, lines.join("\n"));

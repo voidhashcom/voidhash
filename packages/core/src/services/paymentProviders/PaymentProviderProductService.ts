@@ -181,7 +181,12 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
                 paymentProviderConfigurations.id,
               ),
             )
-            .where(eq(products.projectId, projectId))
+            .where(
+              and(
+                eq(products.projectId, projectId),
+                not(eq(paymentProviderConfigurations.providerId, "development")),
+              ),
+            )
             .orderBy(asc(paymentProviderConfigurationProducts.createdAt));
           return rows.map((row) => ({
             configuration: row.payment_provider_configuration_product.configuration,
@@ -220,10 +225,34 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             "project:all",
             `User ${session?.user?.id} is not authorized to access provider products for product ${productId}`,
           );
-          return yield* db.query.paymentProviderConfigurationProducts.findMany({
-            orderBy: { createdAt: "asc" },
-            where: { productId },
-          });
+          const rows = yield* db
+            .select({
+              configuration: paymentProviderConfigurationProducts.configuration,
+              createdAt: paymentProviderConfigurationProducts.createdAt,
+              id: paymentProviderConfigurationProducts.id,
+              isActive: paymentProviderConfigurationProducts.isActive,
+              paymentProviderConfigurationId:
+                paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+              productId: paymentProviderConfigurationProducts.productId,
+              providerProductKey: paymentProviderConfigurationProducts.providerProductKey,
+              updatedAt: paymentProviderConfigurationProducts.updatedAt,
+            })
+            .from(paymentProviderConfigurationProducts)
+            .innerJoin(
+              paymentProviderConfigurations,
+              eq(
+                paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+                paymentProviderConfigurations.id,
+              ),
+            )
+            .where(
+              and(
+                eq(paymentProviderConfigurationProducts.productId, productId),
+                not(eq(paymentProviderConfigurations.providerId, "development")),
+              ),
+            )
+            .orderBy(asc(paymentProviderConfigurationProducts.createdAt));
+          return rows;
         },
         (effect) =>
           effect.pipe(
@@ -249,6 +278,17 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
               new PaymentProviderProductNotFoundError({
                 message: "Provider product not found",
               }),
+            );
+          }
+          const providerConfiguration = yield* db.query.paymentProviderConfigurations.findFirst({
+            where: {
+              id: providerProduct.paymentProviderConfigurationId,
+              providerId: { ne: "development" },
+            },
+          });
+          if (!providerConfiguration) {
+            return yield* Effect.fail(
+              new PaymentProviderProductNotFoundError({ message: "Provider product not found" }),
             );
           }
           yield* Effect.annotateCurrentSpan("voidhash.product.id", providerProduct.productId);
@@ -311,7 +351,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
               }),
             );
           }
-          if (!providerConfiguration) {
+          if (!providerConfiguration || providerConfiguration.providerId === "development") {
             return yield* Effect.fail(
               new PaymentProviderProductValidationError({
                 message: `Payment provider configuration ${input.paymentProviderConfigurationId} not found`,
@@ -445,7 +485,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
               }),
             );
           }
-          if (!providerConfiguration) {
+          if (!providerConfiguration || providerConfiguration.providerId === "development") {
             return yield* Effect.fail(
               new PaymentProviderProductValidationError({
                 message: `Payment provider configuration ${input.paymentProviderConfigurationId} not found`,
@@ -592,7 +632,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
               }),
             );
           }
-          if (!providerConfiguration) {
+          if (!providerConfiguration || providerConfiguration.providerId === "development") {
             return yield* Effect.fail(
               new PaymentProviderProductValidationError({
                 message: `Payment provider configuration ${providerProduct.paymentProviderConfigurationId} not found`,
@@ -662,6 +702,16 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             with: { product: true },
           });
           if (!providerProduct) {
+            return yield* Effect.fail(
+              new PaymentProviderProductValidationError({
+                message: `Payment provider product ${input.id} not found`,
+              }),
+            );
+          }
+          const providerConfiguration = yield* db.query.paymentProviderConfigurations.findFirst({
+            where: { id: providerProduct.paymentProviderConfigurationId },
+          });
+          if (!providerConfiguration || providerConfiguration.providerId === "development") {
             return yield* Effect.fail(
               new PaymentProviderProductValidationError({
                 message: `Payment provider product ${input.id} not found`,

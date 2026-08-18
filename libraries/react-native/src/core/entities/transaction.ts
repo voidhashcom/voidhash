@@ -16,6 +16,7 @@ export class Transaction {
   readonly currency?: string;
   readonly appAccountToken?: string;
   readonly purchaseState: "purchased" | "pending" | "unspecified";
+  readonly store: "app-store" | "google-play" | "development";
 
   constructor(
     id: string,
@@ -36,6 +37,7 @@ export class Transaction {
       currency?: string;
       appAccountToken?: string;
       purchaseState?: "purchased" | "pending" | "unspecified";
+      store?: "app-store" | "google-play" | "development";
     },
   ) {
     this.id = id;
@@ -55,5 +57,6 @@ export class Transaction {
     this.currency = options?.currency;
     this.appAccountToken = options?.appAccountToken;
     this.purchaseState = options?.purchaseState ?? "purchased";
+    this.store = options?.store ?? (platform === "ios" ? "app-store" : "google-play");
   }
 }

@@ -155,6 +155,7 @@ export const projects = pgTable(
   {
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
     createdByUserId: varchar("created_by", { length: 255 }),
+    developmentPurchasesEnabled: boolean("development_purchases_enabled").notNull().default(true),
     id: varchar("id", { length: 255 }).primaryKey(),
     logo: text("logo"),
     name: varchar("name", { length: 255 }).notNull(),
@@ -534,6 +535,15 @@ export const PersonUnlockedPerkStatus = constant({
 export type PersonUnlockedPerkStatusValue =
   (typeof PersonUnlockedPerkStatus)[keyof typeof PersonUnlockedPerkStatus];
 
+export const ProviderEnvironment = constant({
+  Production: 1,
+  Sandbox: 2,
+  Development: 3,
+});
+
+export type ProviderEnvironmentValue =
+  (typeof ProviderEnvironment)[keyof typeof ProviderEnvironment];
+
 export const personUnlockedPerks = pgTable(
   "person_unlocked_perk",
   {
@@ -541,6 +551,7 @@ export const personUnlockedPerks = pgTable(
     status: smallint("status").notNull().default(PersonUnlockedPerkStatus.Active),
     personId: varchar("person_id", { length: 255 }).notNull(),
     perkId: varchar("perk_id", { length: 255 }).notNull(),
+    environment: smallint("environment").notNull().default(ProviderEnvironment.Production),
     // Controls the lifetime of the perk
     unlockedByPurchaseId: varchar("unlocked_by_purchase_id", {
       length: 255,
@@ -554,7 +565,13 @@ export const personUnlockedPerks = pgTable(
       currentTimestamp(),
     ),
   },
-  (table) => [uniqueIndex("person_id_perk_id_idx").on(table.personId, table.perkId)],
+  (table) => [
+    uniqueIndex("person_id_perk_id_environment_idx").on(
+      table.personId,
+      table.perkId,
+      table.environment,
+    ),
+  ],
 );
 
 export const personExternalIdentifiers = pgTable(
@@ -678,6 +695,7 @@ export const products = pgTable(
     projectId: varchar("project_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
     type: smallint("type").notNull().default(ProductType.Subscription),
+    duration: smallint("duration"),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
       currentTimestamp(),
     ),
@@ -753,15 +771,6 @@ export const checkoutSessions = pgTable("checkout_session", {
     currentTimestamp(),
   ),
 });
-
-// App Store
-export const ProviderEnvironment = constant({
-  Production: 1,
-  Sandbox: 2,
-});
-
-export type ProviderEnvironmentValue =
-  (typeof ProviderEnvironment)[keyof typeof ProviderEnvironment];
 
 export const purchases = pgTable(
   "purchase",

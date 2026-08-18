@@ -17,12 +17,26 @@ export interface RuntimeGooglePlayProductConfiguration {
   readonly basePlanId?: string;
 }
 
+export interface RuntimeDevelopmentProductConfiguration {
+  readonly currencyCode: "USD";
+  readonly duration: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
+  readonly period: "week" | "month" | "year" | "lifetime";
+  readonly periodCount: number;
+  readonly price: number;
+  readonly priceInMinorUnits: number;
+  readonly productId: string;
+  readonly warning: string | null;
+}
+
 export interface RuntimeProductProviders {
   readonly appleAppStore?: RuntimeAppleAppStoreProductConfiguration;
+  readonly development?: RuntimeDevelopmentProductConfiguration;
   readonly googlePlay?: RuntimeGooglePlayProductConfiguration;
 }
 
 export interface RuntimeProductDefinition {
+  readonly id?: string;
+  readonly duration?: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
   readonly slug: string;
   readonly type: "subscription" | "one-time" | "one-time-consumable";
   readonly properties: { readonly name: string };

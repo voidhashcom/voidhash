@@ -37,6 +37,9 @@ export class SchemaProductProvider extends Schema.Class<SchemaProductProvider>(
 }) {}
 
 export class SchemaProduct extends Schema.Class<SchemaProduct>("SchemaProduct")({
+  duration: Schema.NullOr(
+    Schema.Literals(["weekly", "monthly", "quarterly", "semi-annual", "annual"]),
+  ),
   slug: Schema.String,
   name: Schema.String,
   type: Schema.Literals(["subscription", "one-time", "one-time-consumable"]),

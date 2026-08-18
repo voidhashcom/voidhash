@@ -42,6 +42,7 @@ const resolveExampleApiUrl = (baseUrl: string) => {
 // `process.env.EXPO_PUBLIC_*` must stay a literal member expression: Expo's Babel
 // plugin inlines it at build time, so it cannot be read through Effect's Config.
 const configuredApiUrl = process.env.EXPO_PUBLIC_VOIDHASH_API_URL;
+const devEnabled = process.env.EXPO_PUBLIC_VOIDHASH_DEV !== "false";
 
 const resolveConfiguredApiUrl = () => {
   if (!configuredApiUrl) return undefined;
@@ -63,5 +64,6 @@ const baseUrlOption = (): { baseUrl?: string } => {
  */
 export const voidhash = createVoidhashClient("vh_pk_QrGDcbcCbCcWHjOouLZipyEBoBrDKoAb", {
   debug: true,
+  dev: devEnabled,
   ...baseUrlOption(),
 });

@@ -61,6 +61,14 @@ interface ReactNativeSdkHeaders {
   readonly "x-sdk": "web" | "react-native";
   readonly "x-sdk-version": string;
   readonly "x-storefront"?: string | undefined;
+  readonly "x-environment": "production" | "development";
+}
+
+export interface ReactNativeDevelopmentPurchaseRequest {
+  readonly devTransactionId: string;
+  readonly productSlug: string;
+  readonly purchaseDate: number;
+  readonly quantity?: number;
 }
 
 const normalizeFeatureFlagsResponse = (
@@ -132,31 +140,32 @@ export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
         params: request.headers as Parameters<typeof client.sdkSyncTransaction>[0]["params"],
         payload: request.payload as SdkSyncTransactionRequest,
       }),
+    developmentPurchase: (request: {
+      headers: ReactNativeSdkHeaders;
+      payload: ReactNativeDevelopmentPurchaseRequest;
+    }) =>
+      client.sdkDevelopmentPurchase({
+        params: request.headers as Parameters<typeof client.sdkDevelopmentPurchase>[0]["params"],
+        payload: request.payload,
+      }),
   },
 });
 
 const make = Effect.gen(function* effect() {
   const sdkConfiguration = yield* SdkConfiguration;
   const httpClient = yield* HttpClient.HttpClient;
+  const configuredHttpClient = (
+    sdkConfiguration.debug ? withHttpDebugLogging(httpClient) : httpClient
+  ).pipe(
+    HttpClient.mapRequest((request) =>
+      HttpClientRequest.prependUrl(request, sdkConfiguration.baseUrl).pipe(
+        HttpClientRequest.setHeader("x-environment", sdkConfiguration.environmentMode),
+      ),
+    ),
+  );
   return bindReactNativeSdkClient(
     makeCoreClient(httpClient as VoidhashCoreClient["httpClient"], {
-      transformClient: sdkConfiguration.debug
-        ? (client) =>
-            Effect.succeed(
-              withHttpDebugLogging(client).pipe(
-                HttpClient.mapRequest((request) =>
-                  HttpClientRequest.prependUrl(request, sdkConfiguration.baseUrl),
-                ),
-              ),
-            )
-        : (client) =>
-            Effect.succeed(
-              client.pipe(
-                HttpClient.mapRequest((request) =>
-                  HttpClientRequest.prependUrl(request, sdkConfiguration.baseUrl),
-                ),
-              ),
-            ),
+      transformClient: () => Effect.succeed(configuredHttpClient),
     }),
   );
 });

@@ -23,6 +23,7 @@ import {
 } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
+import { RequestEnvironmentMode } from "../requestEnvironment/RequestEnvironmentMode.ts";
 
 /**
  * Catch-all service error. Wraps `DatabaseError` and other infrastructural
@@ -51,6 +52,7 @@ type SyncPerkOperation =
   | {
       readonly status: "subscription-create";
       readonly perkId: string;
+      readonly environment: number;
       readonly unlockedBySubscriptionId: string;
       readonly expiresAt: Date | null;
     }
@@ -58,34 +60,46 @@ type SyncPerkOperation =
       readonly status: "subscription-reactivate";
       readonly id: string;
       readonly perkId: string;
+      readonly environment: number;
       readonly unlockedBySubscriptionId: string;
       readonly expiresAt: Date | null;
     }
   | {
       readonly status: "purchase-create";
       readonly perkId: string;
+      readonly environment: number;
       readonly purchaseId: string;
     }
   | {
       readonly status: "purchase-reactivate";
       readonly id: string;
       readonly perkId: string;
+      readonly environment: number;
       readonly purchaseId: string;
     }
   | {
       readonly status: "expire";
       readonly id: string;
       readonly perkId: string;
+      readonly environment: number;
     };
 
 type DesiredPerkEntitlement =
-  | { readonly source: "purchase"; readonly perkId: string; readonly purchaseId: string }
+  | {
+      readonly source: "purchase";
+      readonly perkId: string;
+      readonly purchaseId: string;
+      readonly environment: number;
+    }
   | {
       readonly source: "subscription";
       readonly perkId: string;
       readonly subscriptionId: string;
       readonly expiresAt: Date | null;
+      readonly environment: number;
     };
+
+const entitlementKey = (environment: number, perkId: string) => `${environment}:${perkId}`;
 
 const sameDate = (left: Date | null, right: Date | null) =>
   left === right || (left !== null && right !== null && left.getTime() === right.getTime());
@@ -184,19 +198,25 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
           return rows.map((row) => row.product_perk);
         });
 
-        const desiredByPerkId = new Map<string, DesiredPerkEntitlement>();
+        const desiredByEnvironmentAndPerk = new Map<string, DesiredPerkEntitlement>();
 
         for (const purchase of activePurchases) {
           for (const productPerk of unlockablePerks) {
             if (
               productPerk.productId === purchase.paymentProviderConfigurationProduct.productId &&
-              !desiredByPerkId.has(productPerk.perkId)
+              !desiredByEnvironmentAndPerk.has(
+                entitlementKey(purchase.providerEnvironment, productPerk.perkId),
+              )
             ) {
-              desiredByPerkId.set(productPerk.perkId, {
-                perkId: productPerk.perkId,
-                purchaseId: purchase.id,
-                source: "purchase",
-              });
+              desiredByEnvironmentAndPerk.set(
+                entitlementKey(purchase.providerEnvironment, productPerk.perkId),
+                {
+                  environment: purchase.providerEnvironment,
+                  perkId: productPerk.perkId,
+                  purchaseId: purchase.id,
+                  source: "purchase",
+                },
+              );
             }
           }
         }
@@ -209,35 +229,46 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
             if (
               productPerk.productId ===
                 subscription.paymentProviderConfigurationProduct.productId &&
-              !desiredByPerkId.has(productPerk.perkId)
+              !desiredByEnvironmentAndPerk.has(
+                entitlementKey(subscription.providerEnvironment, productPerk.perkId),
+              )
             ) {
-              desiredByPerkId.set(productPerk.perkId, {
-                expiresAt: subscription.expiresAt,
-                perkId: productPerk.perkId,
-                source: "subscription",
-                subscriptionId: subscription.id,
-              });
+              desiredByEnvironmentAndPerk.set(
+                entitlementKey(subscription.providerEnvironment, productPerk.perkId),
+                {
+                  environment: subscription.providerEnvironment,
+                  expiresAt: subscription.expiresAt,
+                  perkId: productPerk.perkId,
+                  source: "subscription",
+                  subscriptionId: subscription.id,
+                },
+              );
             }
           }
         }
 
-        const desiredPerkIds = [...desiredByPerkId.keys()];
+        const desiredPerkIds = [...desiredByEnvironmentAndPerk.values()].map(
+          (entitlement) => entitlement.perkId,
+        );
         yield* Effect.annotateCurrentSpan("voidhash.perk.count", desiredPerkIds.length);
         yield* Effect.annotateCurrentSpan(
           "voidhash.perk.ids",
           desiredPerkIds.slice(0, 20).join(","),
         );
 
-        const desiredOperations = [...desiredByPerkId.values()].flatMap(
+        const desiredOperations = [...desiredByEnvironmentAndPerk.values()].flatMap(
           (entitlement): SyncPerkOperation[] => {
             const existingPerk = unlockedPerks.find(
-              (unlockedPerk) => unlockedPerk.perkId === entitlement.perkId,
+              (unlockedPerk) =>
+                unlockedPerk.perkId === entitlement.perkId &&
+                unlockedPerk.environment === entitlement.environment,
             );
             if (!existingPerk) {
               if (entitlement.source === "purchase") {
                 return [
                   {
                     perkId: entitlement.perkId,
+                    environment: entitlement.environment,
                     purchaseId: entitlement.purchaseId,
                     status: "purchase-create",
                   },
@@ -246,6 +277,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               return [
                 {
                   expiresAt: entitlement.expiresAt,
+                  environment: entitlement.environment,
                   perkId: entitlement.perkId,
                   status: "subscription-create",
                   unlockedBySubscriptionId: entitlement.subscriptionId,
@@ -263,6 +295,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                 return [
                   {
                     id: existingPerk.id,
+                    environment: entitlement.environment,
                     perkId: entitlement.perkId,
                     purchaseId: entitlement.purchaseId,
                     status: "purchase-reactivate",
@@ -281,6 +314,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               return [
                 {
                   expiresAt: entitlement.expiresAt,
+                  environment: entitlement.environment,
                   id: existingPerk.id,
                   perkId: entitlement.perkId,
                   status: "subscription-reactivate",
@@ -298,11 +332,14 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               unlockedPerk.status === PersonUnlockedPerkStatus.Active &&
               (unlockedPerk.unlockedByPurchaseId !== null ||
                 unlockedPerk.unlockedBySubscriptionId !== null) &&
-              !desiredByPerkId.has(unlockedPerk.perkId),
+              !desiredByEnvironmentAndPerk.has(
+                entitlementKey(unlockedPerk.environment, unlockedPerk.perkId),
+              ),
           )
           .map(
             (unlockedPerk): SyncPerkOperation => ({
               id: unlockedPerk.id,
+              environment: unlockedPerk.environment,
               perkId: unlockedPerk.perkId,
               status: "expire",
             }),
@@ -339,6 +376,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               case "subscription-create": {
                 const newPerk: InsertPersonUnlockedPerk = {
                   personId,
+                  environment: operation.environment,
                   expiresAt: operation.expiresAt,
                   id: generateId("personUnlockedPerk"),
                   perkId: operation.perkId,
@@ -373,6 +411,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               case "purchase-create": {
                 const newPerk: InsertPersonUnlockedPerk = {
                   expiresAt: null,
+                  environment: operation.environment,
                   id: generateId("personUnlockedPerk"),
                   perkId: operation.perkId,
                   personId,
@@ -418,6 +457,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
         if (session?.user?.id) {
           yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
         }
+        const environmentMode = yield* RequestEnvironmentMode;
         const [person, perks] = yield* Effect.all(
           [
             Effect.gen(function* () {
@@ -427,7 +467,10 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
             Effect.gen(function* () {
               const db = yield* Db;
               return yield* db.query.personUnlockedPerks.findMany({
-                where: { personId },
+                where: {
+                  personId,
+                  environment: { in: [...environmentMode.providerEnvironments] },
+                },
               });
             }),
           ],

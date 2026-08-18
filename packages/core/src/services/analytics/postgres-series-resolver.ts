@@ -89,7 +89,10 @@ const matchesFilters = (event: StoredAnalyticsEvent, filters: CompiledAnalyticsF
   const productId = stringProperty(event, "product_id", "productId", "product.id");
   if (filters.productIds?.length && !filters.productIds.includes(productId)) return false;
   const environment = numberProperty(event, "provider_environment", "providerEnvironment");
-  if (filters.providerEnvironments?.length && !filters.providerEnvironments.includes(environment)) {
+  if (
+    filters.providerEnvironments !== undefined &&
+    !filters.providerEnvironments.includes(environment)
+  ) {
     return false;
   }
   const status = numberProperty(event, "subscription_status", "subscriptionStatus");

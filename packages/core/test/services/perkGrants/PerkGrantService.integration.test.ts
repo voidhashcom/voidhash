@@ -31,6 +31,10 @@ import { Clock, DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
 
 import { PerkGrantService } from "@voidhash/core/services";
+import {
+  RequestEnvironmentMode,
+  resolveRequestEnvironmentMode,
+} from "@voidhash/core/services/requestEnvironment/RequestEnvironmentMode";
 import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
 import { PersonNotFoundError } from "@voidhash/core/domain/person/Person";
 import { generateId } from "@voidhash/core/utils/generate-id";
@@ -261,6 +265,7 @@ const seedSubscription = (
     readonly configurationProductId: string;
     readonly status: number;
     readonly expiresAt: Date | null;
+    readonly providerEnvironment?: number;
   },
 ) =>
   Effect.gen(function* () {
@@ -274,6 +279,7 @@ const seedSubscription = (
       latestTransactionId: uniqueKey("sub-latest", now.getTime()),
       paymentProviderConfigurationProductId: args.configurationProductId,
       personId: args.personId,
+      providerEnvironment: args.providerEnvironment ?? ProviderEnvironment.Production,
       purchasedAt: now,
       startsAt: now,
       status: args.status,
@@ -291,6 +297,7 @@ const seedPurchase = (
     readonly configurationProductId: string;
     readonly refundedAt?: Date | null;
     readonly revokedAt?: Date | null;
+    readonly providerEnvironment?: number;
   },
 ) =>
   Effect.gen(function* () {
@@ -301,7 +308,7 @@ const seedPurchase = (
       id,
       paymentProviderConfigurationProductId: args.configurationProductId,
       personId: args.personId,
-      providerEnvironment: ProviderEnvironment.Production,
+      providerEnvironment: args.providerEnvironment ?? ProviderEnvironment.Production,
       providerKey: uniqueKey("pur", nowMillis),
       refundedAt: args.refundedAt ?? null,
       revokedAt: args.revokedAt ?? null,
@@ -321,6 +328,7 @@ const seedUnlockedPerk = (
     readonly unlockedBySubscriptionId?: string | null;
     readonly unlockedByPurchaseId?: string | null;
     readonly expiresAt?: Date | null;
+    readonly environment?: number;
   },
 ) =>
   Effect.gen(function* () {
@@ -328,6 +336,7 @@ const seedUnlockedPerk = (
     const id = generateId("personUnlockedPerk");
     yield* db.insert(personUnlockedPerks).values({
       expiresAt: args.expiresAt ?? null,
+      environment: args.environment ?? ProviderEnvironment.Production,
       id,
       perkId: args.perkId,
       personId: args.personId,
@@ -368,6 +377,88 @@ const asUnauthorized = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   effect.pipe(CoreAuthSession.authenticate(sessionWithoutProjectAccess()));
 
 describe("PerkGrantService.syncUnlockedPerks", () => {
+  test(
+    "reconciles production and development grants independently",
+    withGraphCleanup((created) =>
+      Effect.gen(function* () {
+        const service = yield* PerkGrantService;
+        const { configurationProductId, perkId, personId } = yield* seedEntitlementGraph(
+          created,
+          "mixed-environments",
+        );
+        yield* seedPurchase(created, {
+          configurationProductId,
+          personId,
+          providerEnvironment: ProviderEnvironment.Production,
+        });
+        const developmentSubscriptionId = yield* seedSubscription(created, {
+          configurationProductId,
+          expiresAt: null,
+          personId,
+          providerEnvironment: ProviderEnvironment.Development,
+          status: SubscriptionStatus.Active,
+        });
+
+        yield* inTransaction((tx) => service.syncUnlockedPerks(tx, personId));
+
+        const initial = yield* findUnlockedPerks(personId);
+        expect(initial).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              environment: ProviderEnvironment.Production,
+              perkId,
+              status: PersonUnlockedPerkStatus.Active,
+            }),
+            expect.objectContaining({
+              environment: ProviderEnvironment.Development,
+              perkId,
+              status: PersonUnlockedPerkStatus.Active,
+            }),
+          ]),
+        );
+
+        const db = yield* Db;
+        yield* db
+          .update(subscriptions)
+          .set({ status: SubscriptionStatus.Canceled })
+          .where(eq(subscriptions.id, developmentSubscriptionId));
+        yield* inTransaction((tx) => service.syncUnlockedPerks(tx, personId));
+
+        const reconciled = yield* findUnlockedPerks(personId);
+        expect(
+          reconciled.find((grant) => grant.environment === ProviderEnvironment.Production)?.status,
+        ).toBe(PersonUnlockedPerkStatus.Active);
+        expect(
+          reconciled.find((grant) => grant.environment === ProviderEnvironment.Development)?.status,
+        ).toBe(PersonUnlockedPerkStatus.Expired);
+
+        const production = yield* service.getPersonUnlockedPerks(personId);
+        const development = yield* service
+          .getPersonUnlockedPerks(personId)
+          .pipe(
+            Effect.provideService(
+              RequestEnvironmentMode,
+              resolveRequestEnvironmentMode("development"),
+            ),
+          );
+        const all = yield* service
+          .getPersonUnlockedPerks(personId)
+          .pipe(
+            Effect.provideService(RequestEnvironmentMode, resolveRequestEnvironmentMode("all")),
+          );
+        expect(production.map((grant) => grant.environment)).toEqual([
+          ProviderEnvironment.Production,
+        ]);
+        expect(development.map((grant) => grant.environment)).toEqual([
+          ProviderEnvironment.Development,
+        ]);
+        expect(new Set(all.map((grant) => grant.environment))).toEqual(
+          new Set([ProviderEnvironment.Production, ProviderEnvironment.Development]),
+        );
+      }),
+    ).pipe(Effect.provide(PerkGrantService.layer), CoreAuthSession.authenticate()),
+  );
+
   test(
     "grants a perk for an active subscription, propagating its expiresAt",
     withGraphCleanup((created) =>

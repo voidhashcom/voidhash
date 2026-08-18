@@ -6,6 +6,7 @@ import {
   RpcProductNotFoundError,
   RpcProductServiceError,
   RpcProductSlugAlreadyExistsError,
+  RpcProductValidationError,
 } from "../errors/product.ts";
 import { AuthMiddleware } from "../middlewares.ts";
 
@@ -16,9 +17,11 @@ export const ProductType = Schema.Union([
 ]);
 
 export const Product = Schema.Struct({
+  duration: Schema.NullOr(Schema.Number),
   id: Schema.String,
   name: Schema.String,
   projectId: Schema.String,
+  slug: Schema.String,
   type: ProductType,
 });
 
@@ -42,11 +45,14 @@ export class ProductRpcsDef extends RpcGroup.make(
       RpcActionForbiddenError,
       RpcProductServiceError,
       RpcProductSlugAlreadyExistsError,
+      RpcProductValidationError,
     ]),
     payload: Schema.Struct({
       name: Schema.String,
       projectId: Schema.String,
       slug: Schema.String,
+      type: Schema.Number,
+      duration: Schema.optional(Schema.Number),
     }),
     success: Schema.Struct({
       id: Schema.String,

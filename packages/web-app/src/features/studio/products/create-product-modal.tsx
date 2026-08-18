@@ -2,9 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ProductType, ProductTypeLabels } from "@voidhash/lib";
+import {
+  ProductType,
+  ProductTypeLabels,
+  SubscriptionDuration,
+  SubscriptionDurationLabels,
+} from "@voidhash/lib";
 import { createSlug } from "@voidhash/core/utils";
-import { Badge, InfoTooltip, RadioGroup, RadioGroupItem } from "@voidhash/ui";
+import { InfoTooltip, RadioGroup, RadioGroupItem } from "@voidhash/ui";
 import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
@@ -14,14 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@voidhash/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@voidhash/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@voidhash/ui/form";
 import { Input } from "@voidhash/ui/input";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -42,6 +40,7 @@ const createProductSchema = z.object({
     .regex(/^[a-z0-9_-]+$/, "Slug must contain only lowercase letters, numbers and hyphens"),
 
   type: z.nativeEnum(ProductType),
+  duration: z.nativeEnum(SubscriptionDuration),
 });
 
 type CreateProductForm = z.infer<typeof createProductSchema>;
@@ -75,11 +74,13 @@ export function CreateProductModal({
       name: "",
       slug: "",
       type: ProductType.Subscription,
+      duration: SubscriptionDuration.Monthly,
     },
     resolver: zodResolver(createProductSchema),
   });
 
   const name = form.watch("name");
+  const productType = form.watch("type");
 
   // Automatically generate slug if name is changed and slug is not touched
   useEffect(() => {
@@ -112,7 +113,13 @@ export function CreateProductModal({
   };
 
   const onSubmit = (data: CreateProductForm) => {
-    createProduct({ name: data.name, slug: data.slug, projectId });
+    createProduct({
+      duration: data.type === ProductType.Subscription ? data.duration : undefined,
+      name: data.name,
+      projectId,
+      slug: data.slug,
+      type: data.type,
+    });
   };
 
   return (
@@ -162,7 +169,7 @@ export function CreateProductModal({
                     <RadioGroup
                       className="flex flex-col space-y-1"
                       defaultValue={field.value?.toString()}
-                      onValueChange={field.onChange}
+                      onValueChange={(value) => field.onChange(Number(value))}
                     >
                       <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl>
@@ -172,29 +179,24 @@ export function CreateProductModal({
                           <span>{ProductTypeLabels[ProductType.Subscription]}</span>
                         </FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0 opacity-50">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl>
-                          <RadioGroupItem disabled={true} value={ProductType.OneTime.toString()} />
+                          <RadioGroupItem value={ProductType.OneTime.toString()} />
                         </FormControl>
                         <FormLabel className="font-normal">
                           <span className="flex items-center gap-2">
                             <span>{ProductTypeLabels[ProductType.OneTime]}</span>
-                            <Badge variant="outline">Coming Soon</Badge>
                           </span>
                           <InfoTooltip info="One-time products can only be purchased once per person. For example: Lifetime access to a course." />
                         </FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0 opacity-50">
+                      <FormItem className="flex items-center space-x-3 space-y-0">
                         <FormControl>
-                          <RadioGroupItem
-                            disabled={true}
-                            value={ProductType.OneTimeConsumable.toString()}
-                          />
+                          <RadioGroupItem value={ProductType.OneTimeConsumable.toString()} />
                         </FormControl>
                         <FormLabel className="font-normal">
                           <span className="flex items-center gap-2">
                             <span>{ProductTypeLabels[ProductType.OneTimeConsumable]}</span>
-                            <Badge variant="outline">Coming Soon</Badge>
                           </span>
                           <InfoTooltip info="One-time consumable products can be purchased multiple times. For example: Battle passes, in-game currency, etc." />
                         </FormLabel>
@@ -205,6 +207,40 @@ export function CreateProductModal({
                 </FormItem>
               )}
             />
+
+            {productType === ProductType.Subscription && (
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Billing duration</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        className="grid grid-cols-2 gap-2"
+                        value={field.value.toString()}
+                        onValueChange={(value) => field.onChange(Number(value))}
+                      >
+                        {Object.values(SubscriptionDuration).map((duration) => (
+                          <FormItem
+                            className="flex items-center space-x-2 space-y-0"
+                            key={duration}
+                          >
+                            <FormControl>
+                              <RadioGroupItem value={duration.toString()} />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {SubscriptionDurationLabels[duration]}
+                            </FormLabel>
+                          </FormItem>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter className="flex sm:justify-between gap-2">
               <Button

@@ -1,13 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { QueryAnalyticsInsightsResponseType } from "@voidhash/rpc";
-import {
-  Card,
-  CardContent,
-  Page,
-  PageHeader,
-  PageHeaderTitle,
-} from "@voidhash/ui";
+import { Card, CardContent, Page, PageHeader, PageHeaderTitle, Switch } from "@voidhash/ui";
 
 import {
   buildMetricCards,
@@ -49,6 +43,7 @@ export const ProjectAnalyticsPage = ({
   const { user } = useAuth();
   const [dateRange, setDateRange] = useState<DateRange>("last_7d");
   const [granularity, setGranularity] = useState<Granularity>("daily");
+  const [includeTestData, setIncludeTestData] = useState(false);
   const activeOrganization = user.organizations.find(
     (organization) => organization.slug === organizationSlug,
   );
@@ -67,6 +62,7 @@ export const ProjectAnalyticsPage = ({
         organizationId: activeOrganization.id,
         projectId: project.id,
       }),
+      includeTestData ? "all" : "production",
     ),
   );
 
@@ -89,12 +85,18 @@ export const ProjectAnalyticsPage = ({
     <Page>
       <PageHeader
         rightActions={
-          <DateRangeFilter
-            dateRange={dateRange}
-            granularity={granularity}
-            onDateRangeChange={setDateRange}
-            onGranularityChange={setGranularity}
-          />
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Switch checked={includeTestData} onCheckedChange={setIncludeTestData} />
+              Include test data
+            </label>
+            <DateRangeFilter
+              dateRange={dateRange}
+              granularity={granularity}
+              onDateRangeChange={setDateRange}
+              onGranularityChange={setGranularity}
+            />
+          </div>
         }
       >
         <PageHeaderTitle>{title}</PageHeaderTitle>

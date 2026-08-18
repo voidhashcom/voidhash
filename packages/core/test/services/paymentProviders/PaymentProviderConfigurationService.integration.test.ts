@@ -33,10 +33,7 @@ import { stringOr } from "@voidhash/lib/lang";
 import { Clock, DateTime, Effect, Layer } from "effect";
 import { describe, expect } from "vitest";
 
-import {
-  PaymentProviderConfigurationService,
-  ProjectSchemaCache,
-} from "@voidhash/core/services";
+import { PaymentProviderConfigurationService, ProjectSchemaCache } from "@voidhash/core/services";
 import {
   AppStorePaymentProvider,
   GooglePlayPaymentProvider,
@@ -96,8 +93,7 @@ const makeProviderStub = <TKind extends PaymentProviderKind>(
   type: "web-checkout",
   defaultGlobalConfiguration: () => Effect.succeed({ default: true, provider: id }),
   defaultProductConfiguration: () => Effect.succeed({}),
-  createGlobalKey: (configuration) =>
-    Effect.succeed(stringOr(configuration.key, "stub-key")),
+  createGlobalKey: (configuration) => Effect.succeed(stringOr(configuration.key, "stub-key")),
   createProductKey: () => Effect.succeed("stub-product-key"),
   validateGlobalConfiguration: (configuration) =>
     Effect.succeed({
@@ -162,7 +158,7 @@ const deletedAtField = (deletedAt: Date | null | undefined): { deletedAt?: Date 
  */
 const insertConfigRow = (input: {
   readonly id: string;
-  readonly providerId: PaymentProviderKind;
+  readonly providerId: PaymentProviderKind | "development";
   readonly paymentProviderKey: string;
   readonly enabled?: boolean;
   readonly deletedAt?: Date | null;
@@ -388,6 +384,7 @@ describe("PaymentProviderConfigurationService.getPaymentProviderConfigurations",
 
         const liveId = `pp_conf_${yield* uniqueKey("list-live")}`;
         const deletedId = `pp_conf_${yield* uniqueKey("list-deleted")}`;
+        const developmentId = `pp_conf_${yield* uniqueKey("list-development")}`;
         yield* insertConfigRow({
           id: liveId,
           providerId: "stripe",
@@ -401,10 +398,17 @@ describe("PaymentProviderConfigurationService.getPaymentProviderConfigurations",
           deletedAt: yield* DateTime.nowAsDate,
         });
         track(deletedId);
+        yield* insertConfigRow({
+          id: developmentId,
+          providerId: "development",
+          paymentProviderKey: yield* uniqueKey("list-development-key"),
+        });
+        track(developmentId);
 
         const list = yield* service.getPaymentProviderConfigurations(projectId);
         expect(list.some((config) => config.id === liveId)).toBe(true);
         expect(list.some((config) => config.id === deletedId)).toBe(false);
+        expect(list.some((config) => config.id === developmentId)).toBe(false);
       }),
     ).pipe(Effect.provide(ServiceUnderTest), CoreAuthSession.authenticate()),
   );
@@ -422,6 +426,25 @@ describe("PaymentProviderConfigurationService.getPaymentProviderConfigurations",
 });
 
 describe("PaymentProviderConfigurationService.getPaymentProviderConfigurationById", () => {
+  test(
+    "does not expose a development provider configuration by id",
+    withConfigCleanup((track) =>
+      Effect.gen(function* () {
+        const service = yield* PaymentProviderConfigurationService;
+        const id = `pp_conf_${yield* uniqueKey("by-id-development")}`;
+        yield* insertConfigRow({
+          id,
+          providerId: "development",
+          paymentProviderKey: yield* uniqueKey("by-id-development-key"),
+        });
+        track(id);
+
+        const error = yield* Effect.flip(service.getPaymentProviderConfigurationById(id));
+        expect(error).toBeInstanceOf(PaymentProviderConfigurationNotFoundError);
+      }),
+    ).pipe(Effect.provide(ServiceUnderTest), CoreAuthSession.authenticate()),
+  );
+
   test(
     "returns the matching configuration row",
     withConfigCleanup((track) =>

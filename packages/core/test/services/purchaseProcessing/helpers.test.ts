@@ -18,9 +18,11 @@ describe("providerEnvironmentLabel", () => {
     expect(providerEnvironmentLabel(ProviderEnvironment.Production)).toBe("production");
   });
 
-  it("treats any non-Sandbox value as production", () => {
-    // The helper is a binary classifier: only the Sandbox value is "sandbox",
-    // every other numeric code (including unknown ones) falls through to "production".
+  it("maps the Development environment to 'development'", () => {
+    expect(providerEnvironmentLabel(ProviderEnvironment.Development)).toBe("development");
+  });
+
+  it("treats unknown values as production", () => {
     expect(providerEnvironmentLabel(0)).toBe("production");
     expect(providerEnvironmentLabel(999)).toBe("production");
   });

@@ -26,6 +26,7 @@ export * from "./PaywallWorkspace.ts";
 export * from "./perk.ts";
 export * from "./person.ts";
 export * from "./product.ts";
+export * from "./development-mode.ts";
 export * from "./ProductPerk.ts";
 export * from "./project.ts";
 export * from "./user.ts";

@@ -7,6 +7,7 @@ import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-e
 import { ProjectDelete } from "./project-delete";
 import { ProjectNameForm } from "./project-name";
 import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
+import { DevelopmentModeSettings } from "./development-mode-settings";
 
 export function ProjectSettingsGeneralPage() {
   const { projectSlug } = useParams({ strict: false });
@@ -23,6 +24,7 @@ export function ProjectSettingsGeneralPage() {
         projectId={project.id}
         projectName={project.name}
       />
+      <DevelopmentModeSettings projectId={project.id} />
       <ProjectDelete projectId={project.id} />
     </ProjectSettingsGeneralLayout>
   );

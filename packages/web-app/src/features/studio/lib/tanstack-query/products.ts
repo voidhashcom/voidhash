@@ -1,6 +1,7 @@
 import { queryKeys } from "@/features/studio/lib/tanstack-query";
 
 import { VoidhashRpc, eq } from "../effect-query";
+import type { ProductTypeValue, SubscriptionDurationValue } from "@voidhash/lib";
 
 export const listProductsOptions = (options: { projectId: string }) =>
   eq.queryOptions({
@@ -21,8 +22,13 @@ export const getProductOptions = (options: { productId: string }) =>
 
 export const createProductOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: { projectId: string; name: string; slug: string }) =>
-      VoidhashRpc.request((rpc) => rpc.CreateProduct(variables)),
+    mutationFn: (variables: {
+      projectId: string;
+      name: string;
+      slug: string;
+      type: ProductTypeValue;
+      duration?: SubscriptionDurationValue;
+    }) => VoidhashRpc.request((rpc) => rpc.CreateProduct(variables)),
     mutationKey: ["createProduct"],
   });
 

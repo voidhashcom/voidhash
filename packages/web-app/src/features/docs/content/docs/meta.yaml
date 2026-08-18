@@ -5,6 +5,7 @@ pages:
   - "---Get started---"
   - introduction
   - quickstart
+  - development-mode
   - "---Build---"
   - paywalls
   - products-and-perks

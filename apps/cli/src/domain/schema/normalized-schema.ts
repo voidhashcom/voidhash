@@ -32,6 +32,9 @@ export type ProductProviderConfig = typeof ProductProviderConfigSchema.Type;
 // ========================================================
 
 export const NormalizedProductSchema = Schema.Struct({
+  duration: Schema.NullOr(
+    Schema.Literals(["weekly", "monthly", "quarterly", "semi-annual", "annual"]),
+  ),
   name: Schema.String,
   perks: Schema.Array(Schema.String), // perk slugs
   providers: Schema.Array(ProductProviderConfigSchema),
@@ -91,6 +94,7 @@ export function createInitialNormalizedSchema(): NormalizedSchema {
         "monthly_sub",
         {
           slug: "monthly_sub",
+          duration: "monthly",
           name: "Monthly",
           type: "subscription",
           perks: ["all-access"],
@@ -101,6 +105,7 @@ export function createInitialNormalizedSchema(): NormalizedSchema {
         "yearly_sub",
         {
           slug: "yearly_sub",
+          duration: "annual",
           name: "Yearly",
           type: "subscription",
           perks: ["all-access"],

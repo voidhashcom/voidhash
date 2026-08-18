@@ -82,6 +82,8 @@ import {
   SdkSyncPersonAttributesBody,
   SdkSyncTransactionBody,
   SdkSyncTransactionResponse,
+  SdkDevelopmentPurchaseBody,
+  SdkDevelopmentPurchaseResponse,
   Session,
   UnregisterDeviceBody,
   UpdateWebhookEndpointBody,
@@ -383,6 +385,14 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("syncTransaction", "/sync-transaction", {
           payload: SdkSyncTransactionBody,
           success: SdkSyncTransactionResponse,
+          headers: SdkHeaders,
+          error: [ApiAuthenticationError, ApiSdkServiceError, ApiSdkValidationError],
+        }),
+      )
+      .add(
+        HttpApiEndpoint.post("developmentPurchase", "/development/purchase", {
+          payload: SdkDevelopmentPurchaseBody,
+          success: SdkDevelopmentPurchaseResponse,
           headers: SdkHeaders,
           error: [ApiAuthenticationError, ApiSdkServiceError, ApiSdkValidationError],
         }),

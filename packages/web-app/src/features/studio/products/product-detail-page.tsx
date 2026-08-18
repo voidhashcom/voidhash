@@ -143,6 +143,12 @@ export const ProductDetailPage = () => {
         </div>
       </div>
       <div className="mx-auto max-w-4xl">
+        {product.type === "subscription" && product.duration === null && (
+          <div className="mt-8 rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+            This legacy subscription has no billing duration. Development purchases simulate it as
+            monthly; recreate the product to choose an explicit duration.
+          </div>
+        )}
         <div className="mt-8">
           <h2 className="font-normal text-2xl tracking-right">Perks</h2>
           <p className="mt-2 text-muted-foreground">Configure what perks this product unlocks.</p>

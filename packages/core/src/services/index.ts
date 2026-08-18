@@ -30,6 +30,8 @@ export * from "./paymentProviders/appStore/app-store-webhook-handler-service.ts"
 export * from "./paymentProviders/appStore/payment-provider-service-queries.ts";
 export * from "./paymentProviders/appStore/transaction-verifier.ts";
 export * from "./paymentProviders/GooglePlayPaymentProviderService.ts";
+export * from "./paymentProviders/DevelopmentPaymentProviderService.ts";
+export * from "./paymentProviders/development/pricing.ts";
 export * from "./paymentProviders/googlePlay/payment-provider-service.ts";
 export * from "./paymentProviders/googlePlay/webhook-handler-service.ts";
 export * from "./paymentProviders/googlePlay/payment-provider-service-queries.ts";
@@ -111,6 +113,7 @@ export * from "./projects/ProjectService.ts";
 export * from "./purchaseProcessing/PurchaseLedgerWorkerService.ts";
 export * from "./purchaseProcessing/PurchaseProcessingService.ts";
 export * from "./purchases/PurchaseService.ts";
+export * from "./requestEnvironment/RequestEnvironmentMode.ts";
 export * from "./schema/SchemaCacheInvalidationService.ts";
 export * from "./schema/SchemaService.ts";
 export * from "./sdk/SdkService.ts";

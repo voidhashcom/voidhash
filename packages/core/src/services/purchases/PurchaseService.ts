@@ -5,6 +5,7 @@ import { AuthSession } from "../../domain/auth/Auth.ts";
 import { PersonNotFoundError } from "../../domain/person/Person.ts";
 import { Db } from "@voidhash/db";
 import { checkProjectPermission } from "../../utils/permissions.ts";
+import { RequestEnvironmentMode } from "../requestEnvironment/RequestEnvironmentMode.ts";
 
 /**
  * Catch-all service error. Wraps `DatabaseError` (and other infrastructural
@@ -31,6 +32,7 @@ export class PurchaseService extends Context.Service<PurchaseService>()("Purchas
       function* (personId: string) {
         yield* Effect.annotateCurrentSpan("voidhash.person.id", personId);
         const session = yield* AuthSession;
+        const environmentMode = yield* RequestEnvironmentMode;
         if (session?.method) {
           yield* Effect.annotateCurrentSpan("voidhash.auth.method", session.method);
         }
@@ -54,7 +56,10 @@ export class PurchaseService extends Context.Service<PurchaseService>()("Purchas
           `User ${session?.user?.id} is not authorized to access person ${personId} for project ${person.projectId}`,
         );
         const personPurchases = yield* db.query.purchases.findMany({
-          where: { personId },
+          where: {
+            personId,
+            providerEnvironment: { in: [...environmentMode.providerEnvironments] },
+          },
         });
         yield* Effect.annotateCurrentSpan("voidhash.purchase.count", personPurchases.length);
         if (personPurchases[0]?.providerKey) {

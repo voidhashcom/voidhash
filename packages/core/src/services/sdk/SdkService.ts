@@ -19,6 +19,7 @@ import {
   PersonIdentityService,
 } from "../personIdentity/PersonIdentityService.ts";
 import { PurchaseService } from "../purchases/PurchaseService.ts";
+import { RequestEnvironmentMode } from "../requestEnvironment/RequestEnvironmentMode.ts";
 import { elevateProjectAccess } from "./elevate-auth.ts";
 import {
   ACTIVE_MIGRATION_STATUSES,
@@ -230,6 +231,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
       readonly identityResult?: PersonIdentityResult;
     }) {
       const session = yield* AuthSession;
+      const environmentMode = yield* RequestEnvironmentMode;
 
       yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
       yield* Effect.annotateCurrentSpan("voidhash.person.distinct_id", input.distinctId);
@@ -306,7 +308,10 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
             if (existingPersonIds.length === 0) return empty;
             const rows: ReadonlyArray<SubscriptionWithProduct> =
               yield* db.query.subscriptions.findMany({
-                where: { personId: { in: [...existingPersonIds] } },
+                where: {
+                  personId: { in: [...existingPersonIds] },
+                  providerEnvironment: { in: [...environmentMode.providerEnvironments] },
+                },
                 with: {
                   paymentProviderConfigurationProduct: true,
                 },

@@ -1,4 +1,4 @@
-import { Exit } from "effect";
+import { Effect, Exit } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 import { vi } from "vitest";
 import { describe, expect, it } from "./helpers/effect-vitest";
@@ -44,7 +44,7 @@ import { VoidhashClient } from "../src/client";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "../src/errors";
 import { createTestSchema } from "./helpers/test-schema";
 
-function createClient(readOnly = false, unstableSwallowErrors = false) {
+function createClient(readOnly = false, unstableSwallowErrors = false, dev = false) {
   return new VoidhashClient(
     null,
     "voidhash",
@@ -57,10 +57,27 @@ function createClient(readOnly = false, unstableSwallowErrors = false) {
     "ios",
     false,
     createTestSchema(),
+    dev,
   );
 }
 
 describe("VoidhashClient", () => {
+  describe("dev mode", () => {
+    it("disables dev mode in release builds even when requested", () =>
+      Effect.sync(() => {
+        vi.stubGlobal("__DEV__", false);
+        const client = createClient(false, false, true);
+
+        expect((client as unknown as { developmentMode: boolean }).developmentMode).toBe(false);
+      }).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            vi.unstubAllGlobals();
+          }),
+        ),
+      ));
+  });
+
   describe("unstable_swallowErrors", () => {
     it("swallows flush errors when unstable_swallowErrors is enabled", async () => {
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {

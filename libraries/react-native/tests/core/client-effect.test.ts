@@ -45,7 +45,9 @@ describe("VoidhashEffectClient", () => {
     await withCleanup(
       async () => {
         await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-before-init")),
+          Effect.flatMap(CacheManager, (manager) =>
+            manager.set("distinctId", "cached-before-init"),
+          ),
         );
 
         const initializedClient = await harness.runtime.runPromise(
@@ -59,7 +61,9 @@ describe("VoidhashEffectClient", () => {
         // Init no longer auto-syncs attributes; identify is the only POST.
         expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
         expect(apiDouble.state.identifyCalls).toHaveLength(1);
-        expect(apiDouble.state.identifyCalls[0]?.headers["x-distinct-id"]).toBe("cached-before-init");
+        expect(apiDouble.state.identifyCalls[0]?.headers["x-distinct-id"]).toBe(
+          "cached-before-init",
+        );
         expect(apiDouble.state.identifyCalls[0]?.payload).toMatchObject({
           distinctId: "user-after-init",
         });
@@ -272,7 +276,9 @@ describe("VoidhashEffectClient", () => {
         const inputKeys = ["b", "a"];
         const inputSnapshot = [...inputKeys];
 
-        const first = await harness.runtime.runPromise(initializedClient.getFeatureFlags(inputKeys));
+        const first = await harness.runtime.runPromise(
+          initializedClient.getFeatureFlags(inputKeys),
+        );
         const second = await harness.runtime.runPromise(
           initializedClient.getFeatureFlags(["a", "b"]),
         );
@@ -673,6 +679,73 @@ describe("VoidhashEffectClient", () => {
     );
   });
 
+  it("routes development transactions to the development endpoint and refreshes test state", async () => {
+    const schema = createTestSchema();
+    const transaction = new Transaction(
+      "dev-transaction",
+      "dev-transaction",
+      "monthly_sub",
+      1_776_513_600_000,
+      1,
+      true,
+      "ios",
+      { store: "development" },
+    );
+    const apiDouble = createApiClientDouble();
+    const paymentDouble = createPaymentAdapterDouble({ buyProductTransaction: transaction });
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      developmentMode: true,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema }),
+    );
+    const product = new SubscriptionProduct(
+      "prod_monthly",
+      "monthly_sub",
+      "Monthly",
+      "Development purchase",
+      "Monthly",
+      "$9.99",
+      9.99,
+      "USD",
+      "subscription",
+      "ios",
+      "month",
+      { providerProductId: "monthly_sub" },
+    );
+
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(initializedClient.purchase(product, { method: "native" }));
+
+        expect(apiDouble.state.developmentPurchaseCalls).toHaveLength(1);
+        expect(apiDouble.state.developmentPurchaseCalls[0]).toMatchObject({
+          headers: {
+            "x-environment": "development",
+            "x-is-debug-build": "true",
+          },
+          payload: {
+            devTransactionId: "dev-transaction",
+            productSlug: "monthly_sub",
+            purchaseDate: 1_776_513_600_000,
+            quantity: 1,
+          },
+        });
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(0);
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
+        expect(apiDouble.state.getPersonCalls).toHaveLength(1);
+        expect(apiDouble.state.getPersonCalls[0]?.headers["x-environment"]).toBe("development");
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
+  });
+
   it("purchases a non-consumable one-time product through the same lifecycle", async () => {
     const schema = createTestSchema();
     const apiDouble = createApiClientDouble();
@@ -947,7 +1020,9 @@ describe("VoidhashEffectClient", () => {
         const secondClient = await secondHarness.runtime.runPromise(
           VoidhashEffectClient.makeInitializedClient({ schema }),
         );
-        await secondHarness.runtime.runPromise(secondClient.processObservedTransaction(transaction));
+        await secondHarness.runtime.runPromise(
+          secondClient.processObservedTransaction(transaction),
+        );
 
         expect(firstApi.state.syncTransactionCalls).toHaveLength(1);
         expect(secondApi.state.syncTransactionCalls).toHaveLength(0);
@@ -988,7 +1063,9 @@ describe("VoidhashEffectClient", () => {
         await harness.runtime.runPromise(initializedClient.processObservedTransaction(transaction));
 
         expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
-        expect(paymentDouble.state.acknowledgePurchaseProductTypes).toEqual(["one-time-consumable"]);
+        expect(paymentDouble.state.acknowledgePurchaseProductTypes).toEqual([
+          "one-time-consumable",
+        ]);
       },
       async () => {
         await harness.runtime.dispose();
@@ -1822,7 +1899,9 @@ describe("VoidhashEffectClient", () => {
       await withCleanup(
         async () => {
           await harness.runtime.runPromise(
-            Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "user-signing-out")),
+            Effect.flatMap(CacheManager, (manager) =>
+              manager.set("distinctId", "user-signing-out"),
+            ),
           );
 
           await harness.runtime.runPromise(initializedClient.signOut());

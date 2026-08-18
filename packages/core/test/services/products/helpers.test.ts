@@ -1,8 +1,16 @@
 import { constant } from "@voidhash/lib/lang";
 import { describe, expect, it } from "vite-plus/test";
-import { ProductType, type ProductTypeValue } from "@voidhash/lib";
+import {
+  ProductType,
+  SubscriptionDuration,
+  type ProductTypeValue,
+  type SubscriptionDurationValue,
+} from "@voidhash/lib";
 
-import { dbProductTypeToLabel } from "../../../src/services/products/helpers.ts";
+import {
+  dbProductTypeToLabel,
+  dbSubscriptionDurationToLabel,
+} from "../../../src/services/products/helpers.ts";
 
 /**
  * Simulates a corrupt/unknown DB value reaching the exhaustiveness guard: the
@@ -40,4 +48,20 @@ describe("dbProductTypeToLabel", () => {
   it("throws for a zero product type value", () => {
     expect(() => dbProductTypeToLabel(corruptProductType(0))).toThrow("Invalid product type: 0");
   });
+});
+
+describe("dbSubscriptionDurationToLabel", () => {
+  it.each([
+    [SubscriptionDuration.Weekly, "weekly"],
+    [SubscriptionDuration.Monthly, "monthly"],
+    [SubscriptionDuration.Quarterly, "quarterly"],
+    [SubscriptionDuration.SemiAnnual, "semi-annual"],
+    [SubscriptionDuration.Annual, "annual"],
+    [null, null],
+  ] satisfies ReadonlyArray<readonly [SubscriptionDurationValue | null, string | null]>)(
+    "maps duration %s to %s",
+    (duration, label) => {
+      expect(dbSubscriptionDurationToLabel(duration)).toBe(label);
+    },
+  );
 });

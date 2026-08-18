@@ -232,7 +232,7 @@ const insertProduct = (track: (kind: "product", id: string) => void) =>
 /** Insert a payment-provider configuration under the fixture project; returns its id. */
 const insertConfiguration = (
   track: (kind: "configuration", id: string) => void,
-  providerId: "stripe" | "apple-app-store" | "google-play" = "stripe",
+  providerId: "stripe" | "apple-app-store" | "google-play" | "development" = "stripe",
 ) =>
   Effect.gen(function* () {
     const db = yield* Db;
@@ -246,6 +246,25 @@ const insertConfiguration = (
       providerId,
     });
     track("configuration", id);
+    return id;
+  });
+
+const insertRawProviderProduct = (
+  track: (kind: "providerProduct", id: string) => void,
+  input: { readonly configurationId: string; readonly productId: string },
+) =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const id = generateId("paymentProviderProduct");
+    yield* db.insert(paymentProviderConfigurationProducts).values({
+      configuration: {},
+      id,
+      isActive: true,
+      paymentProviderConfigurationId: input.configurationId,
+      productId: input.productId,
+      providerProductKey: uniqueKey("raw-provider-key"),
+    });
+    track("providerProduct", id);
     return id;
   });
 
@@ -887,6 +906,11 @@ describe("PaymentProviderProductService.getProviderProductsByProjectId", () => {
           productId,
         });
         track("providerProduct", created.id);
+        const developmentConfigId = yield* insertConfiguration(track, "development");
+        const developmentMappingId = yield* insertRawProviderProduct(track, {
+          configurationId: developmentConfigId,
+          productId,
+        });
 
         const list = yield* service.getProviderProductsByProjectId(projectId);
         const match = list.find((entry) => entry.id === created.id);
@@ -894,6 +918,7 @@ describe("PaymentProviderProductService.getProviderProductsByProjectId", () => {
         expect(match?.productId).toBe(productId);
         expect(match?.paymentProviderConfigurationId).toBe(configId);
         expect(match?.providerId).toBe("stripe");
+        expect(list.some((entry) => entry.id === developmentMappingId)).toBe(false);
       }),
     ).pipe(CoreAuthSession.authenticate()),
   );
@@ -933,6 +958,11 @@ describe("PaymentProviderProductService.getProviderProductsByProductId", () => {
           productId,
         });
         track("providerProduct", b.id);
+        const developmentConfigId = yield* insertConfiguration(track, "development");
+        const developmentMappingId = yield* insertRawProviderProduct(track, {
+          configurationId: developmentConfigId,
+          productId,
+        });
 
         const list = yield* service.getProviderProductsByProductId(productId);
         expect(list.some((entry) => entry.id === a.id && entry.providerProductKey === keyA)).toBe(
@@ -941,6 +971,7 @@ describe("PaymentProviderProductService.getProviderProductsByProductId", () => {
         expect(list.some((entry) => entry.id === b.id && entry.providerProductKey === keyB)).toBe(
           true,
         );
+        expect(list.some((entry) => entry.id === developmentMappingId)).toBe(false);
       }),
     ).pipe(CoreAuthSession.authenticate()),
   );

@@ -36,9 +36,11 @@ const resolveTransactionProductSlug = (
     }
 
     const provider =
-      transaction.platform === "ios"
-        ? productDefinition.configuration.providers.appleAppStore
-        : productDefinition.configuration.providers.googlePlay;
+      transaction.store === "development"
+        ? productDefinition.configuration.providers.development
+        : transaction.platform === "ios"
+          ? productDefinition.configuration.providers.appleAppStore
+          : productDefinition.configuration.providers.googlePlay;
 
     return provider?.productId === transaction.productId;
   });
@@ -55,9 +57,11 @@ const resolveTransactionProductDefinition = (
       return true;
     }
     const provider =
-      transaction.platform === "ios"
-        ? productDefinition.configuration.providers.appleAppStore
-        : productDefinition.configuration.providers.googlePlay;
+      transaction.store === "development"
+        ? productDefinition.configuration.providers.development
+        : transaction.platform === "ios"
+          ? productDefinition.configuration.providers.appleAppStore
+          : productDefinition.configuration.providers.googlePlay;
     return provider?.productId === transaction.productId;
   });
 
@@ -154,7 +158,11 @@ export class TransactionService extends Context.Service<TransactionService>()(
               return;
             }
 
-            if (transaction.platform === "android" && !transaction.purchaseToken) {
+            if (
+              transaction.store !== "development" &&
+              transaction.platform === "android" &&
+              !transaction.purchaseToken
+            ) {
               yield* Effect.logWarning(
                 "Skipping observed Android transaction without purchase token",
                 {
@@ -168,17 +176,30 @@ export class TransactionService extends Context.Service<TransactionService>()(
               const commonHeaders = yield* getCommonSdkHeaders();
               const distinctId = yield* identityManager.getDistinctId();
 
-              yield* apiClient.sdk.syncTransaction({
-                headers: {
-                  ...commonHeaders,
-                  "x-distinct-id": distinctId,
-                },
-                payload: mapTransactionToSyncPayload(transaction, schema.products),
-              });
+              const headers = { ...commonHeaders, "x-distinct-id": distinctId };
+              if (transaction.store === "development") {
+                yield* apiClient.sdk.developmentPurchase({
+                  headers,
+                  payload: {
+                    devTransactionId: transaction.transactionId,
+                    productSlug: resolveTransactionProductSlug(transaction, schema.products),
+                    purchaseDate: transaction.purchaseDate,
+                    quantity: transaction.quantity,
+                  },
+                });
+              } else {
+                yield* apiClient.sdk.syncTransaction({
+                  headers,
+                  payload: mapTransactionToSyncPayload(transaction, schema.products),
+                });
+              }
 
               yield* cacheManager.set(
                 processedCacheKey,
-                { backendAccepted: true, storeFinalized: transaction.isAcknowledged },
+                {
+                  backendAccepted: true,
+                  storeFinalized: transaction.store === "development" || transaction.isAcknowledged,
+                },
                 { ttl: PROCESSED_TRANSACTION_TTL_MS },
               );
             }
@@ -187,7 +208,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
               return;
             }
 
-            if (!transaction.isAcknowledged) {
+            if (transaction.store !== "development" && !transaction.isAcknowledged) {
               yield* paymentAdapter.acknowledgePurchase(
                 transaction,
                 resolveTransactionProductDefinition(transaction, schema.products)?.type,

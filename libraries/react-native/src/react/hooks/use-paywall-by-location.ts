@@ -11,6 +11,7 @@ import {
   createPaywallBridgeConfigureMessage,
   createPaywallBridgeErrorResponse,
   createPaywallBridgeSuccessResponse,
+  createPaywallBridgeStatusMessage,
 } from "../../internal/paywall-bridge/protocol";
 import { PaywallPresenter } from "../../nitro";
 import type { VoidhashContext } from "../components/provider";
@@ -105,7 +106,29 @@ function findProductByBridgeProductId(
   }
 
   const bySlug = productList.find((product) => product.slug === productId);
-  return bySlug ?? null;
+  if (bySlug) return bySlug;
+  return productList.find((product) => product.providerProductId === productId) ?? null;
+}
+
+function isPurchaseCancellation(error: unknown): boolean {
+  let current = error;
+  const visited = new Set<unknown>();
+  while (current && !visited.has(current)) {
+    visited.add(current);
+    if (
+      typeof current === "object" &&
+      current !== null &&
+      "_tag" in current &&
+      current._tag === "UserCancelledError"
+    ) {
+      return true;
+    }
+    current =
+      typeof current === "object" && current !== null && "cause" in current
+        ? current.cause
+        : undefined;
+  }
+  return false;
 }
 
 interface PaywallPresenterBridgeAdapter {
@@ -172,7 +195,9 @@ async function sendConfigureMessage(options: {
           createPaywallBridgeConfigureMessage(
             {
               products: [],
-              variables: runtime.variables ?? {},
+              variables: (runtime.variables ?? {}) as Parameters<
+                typeof createPaywallBridgeConfigureMessage
+              >[0]["variables"],
               platform: getBridgePlatform(),
             },
             requestId,
@@ -276,6 +301,12 @@ async function handlePaywallBridgeEvent(options: {
 
   const runBridgeAction = async () => {
     if (bridgeEvent.type === "purchase") {
+      presenter.postMessage(
+        locationKey,
+        createPaywallBridgeStatusMessage("purchasing", bridgeEvent.requestId, {
+          productId: bridgeEvent.payload.productId,
+        }),
+      );
       const products = await client.getProducts();
       const product = findProductByBridgeProductId(products, bridgeEvent.payload.productId);
 
@@ -285,6 +316,12 @@ async function handlePaywallBridgeEvent(options: {
           action: "purchase",
           requestId: bridgeEvent.requestId,
         });
+        presenter.postMessage(
+          locationKey,
+          createPaywallBridgeStatusMessage("failed", bridgeEvent.requestId, {
+            error: productNotFoundMessage,
+          }),
+        );
         presenter.postMessage(
           locationKey,
           createPaywallBridgeErrorResponse(
@@ -307,6 +344,12 @@ async function handlePaywallBridgeEvent(options: {
       });
       presenter.postMessage(
         locationKey,
+        createPaywallBridgeStatusMessage("purchased", bridgeEvent.requestId, {
+          productId: product.id,
+        }),
+      );
+      presenter.postMessage(
+        locationKey,
         createPaywallBridgeSuccessResponse("purchase", bridgeEvent.requestId, {
           productId: product.id,
         }),
@@ -315,10 +358,18 @@ async function handlePaywallBridgeEvent(options: {
       return;
     }
 
+    presenter.postMessage(
+      locationKey,
+      createPaywallBridgeStatusMessage("restoring", bridgeEvent.requestId),
+    );
     await client.restorePurchases();
     paywallOptions?.onRestore?.({
       requestId: bridgeEvent.requestId,
     });
+    presenter.postMessage(
+      locationKey,
+      createPaywallBridgeStatusMessage("restored", bridgeEvent.requestId),
+    );
     presenter.postMessage(
       locationKey,
       createPaywallBridgeSuccessResponse("restore", bridgeEvent.requestId),
@@ -332,6 +383,14 @@ async function handlePaywallBridgeEvent(options: {
       Effect.catch((error) =>
         Effect.sync(() => {
           const errorPayload = getErrorPayload(error);
+          presenter.postMessage(
+            locationKey,
+            createPaywallBridgeStatusMessage(
+              isPurchaseCancellation(error) ? "cancelled" : "failed",
+              bridgeEvent.requestId,
+              { error: errorPayload.message },
+            ),
+          );
           paywallOptions?.onError?.(new Error(errorPayload.message), {
             action: bridgeEvent.type,
             requestId: bridgeEvent.requestId,

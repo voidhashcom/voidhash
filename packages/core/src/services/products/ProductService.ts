@@ -1,4 +1,9 @@
-import type { ProductTypeValue } from "@voidhash/lib";
+import {
+  ProductType,
+  SubscriptionDuration,
+  type ProductTypeValue,
+  type SubscriptionDurationValue,
+} from "@voidhash/lib";
 import { constant } from "@voidhash/lib/lang";
 import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
@@ -6,6 +11,7 @@ import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
   ProductNotFoundError,
   ProductSlugAlreadyExistsError,
+  ProductValidationError,
 } from "../../domain/product/Product.ts";
 import { AuditLogAction, AuditLogEntityType, Db, eq, products } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
@@ -25,6 +31,19 @@ export class ProductServiceError extends Schema.TaggedErrorClass<ProductServiceE
 
 /** `products.type` is a plain smallint column mirroring the `ProductType` enum. */
 const asProductType = (type: any): ProductTypeValue => type;
+const asSubscriptionDuration = (duration: any): SubscriptionDurationValue | null => duration;
+
+const isProductType = (value: number): value is ProductTypeValue =>
+  value === ProductType.Subscription ||
+  value === ProductType.OneTime ||
+  value === ProductType.OneTimeConsumable;
+
+const isSubscriptionDuration = (value: number): value is SubscriptionDurationValue =>
+  value === SubscriptionDuration.Weekly ||
+  value === SubscriptionDuration.Monthly ||
+  value === SubscriptionDuration.Quarterly ||
+  value === SubscriptionDuration.SemiAnnual ||
+  value === SubscriptionDuration.Annual;
 
 /**
  * `ProductService` orchestrates the product catalog aggregate. Five
@@ -73,6 +92,7 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
           (product) =>
             ({
               id: product.id,
+              duration: asSubscriptionDuration(product.duration),
               name: product.name,
               projectId: product.projectId,
               slug: product.slug,
@@ -120,6 +140,7 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
         );
         return {
           id: product.id,
+          duration: asSubscriptionDuration(product.duration),
           name: product.name,
           projectId: product.projectId,
           slug: product.slug,
@@ -140,6 +161,8 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
         readonly projectId: string;
         readonly name: string;
         readonly slug: string;
+        readonly type?: number;
+        readonly duration?: number;
       }) {
         const session = yield* AuthSession;
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
@@ -164,7 +187,30 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
           `User ${session?.user?.id} is not authorized to create products for project ${input.projectId}`,
         );
 
+        const productType = input.type ?? ProductType.Subscription;
+        let duration = input.duration;
+        if (input.type === undefined && input.duration === undefined) {
+          duration = SubscriptionDuration.Monthly;
+        }
+        if (!isProductType(productType)) {
+          return yield* Effect.fail(
+            new ProductValidationError({ message: "Unknown product type" }),
+          );
+        }
+        if (
+          productType === ProductType.Subscription &&
+          (duration === undefined || !isSubscriptionDuration(duration))
+        ) {
+          return yield* Effect.fail(
+            new ProductValidationError({ message: "Subscription products require a duration" }),
+          );
+        }
+
         const productId = generateId("product");
+        let storedDuration: number | null = null;
+        if (productType === ProductType.Subscription) {
+          storedDuration = duration ?? null;
+        }
         yield* Effect.annotateCurrentSpan("voidhash.product.id", productId);
 
         yield* db.transaction((tx) =>
@@ -180,6 +226,8 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
               name: input.name,
               projectId: input.projectId,
               slug: input.slug,
+              type: productType,
+              duration: storedDuration,
             });
           }),
         );
@@ -190,7 +238,14 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
             entityType: AuditLogEntityType.Product,
             entityId: productId,
             action: AuditLogAction.Created,
-            changes: { snapshot: { name: input.name, slug: input.slug } },
+            changes: {
+              snapshot: {
+                duration: storedDuration,
+                name: input.name,
+                slug: input.slug,
+                type: productType,
+              },
+            },
           })
           .pipe(Effect.ignore);
 

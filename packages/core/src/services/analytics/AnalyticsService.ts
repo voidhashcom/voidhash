@@ -24,6 +24,7 @@ import {
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { checkOrganizationPermission, checkProjectPermission } from "../../utils/permissions.ts";
 import { AnalyticsEventStore } from "./AnalyticsEventStore.ts";
+import { RequestEnvironmentMode } from "../requestEnvironment/RequestEnvironmentMode.ts";
 import { resolvePostgresAnalyticsSeries } from "./postgres-series-resolver.ts";
 
 const DEFAULT_LIMIT = 100;
@@ -112,6 +113,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
     const queryAnalyticsInsights = Effect.fn("queryAnalyticsInsights")(
       function* (input: QueryAnalyticsInsightsInput) {
         const session = yield* AuthSession;
+        const environmentMode = yield* RequestEnvironmentMode;
         const results: Array<{
           insightId: BuiltInInsightId;
           key: string;
@@ -137,6 +139,13 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
             filter: query.filter,
             supportedFields: insight.supportedFilterFields,
           });
+          if (insight.supportedFilterFields.includes("provider.environment")) {
+            compiledFilter.providerEnvironments = (
+              compiledFilter.providerEnvironments ?? [...environmentMode.providerEnvironments]
+            ).filter((environment) =>
+              environmentMode.providerEnvironments.some((allowed) => allowed === environment),
+            );
+          }
           const granularity = query.granularity ?? insight.defaultGranularity;
           if (!insight.supportedGranularities.includes(granularity)) {
             return yield* Effect.fail(

@@ -75,22 +75,26 @@ const withCleanup = <A, E, R>(
     ),
   );
 
-/**
- * Restore the project's admission policy after a test that overrides it. The
- * fixture project owns no `capture_project_policy` row by default, so the reset
- * deletes rather than restores.
- */
+/** Runs a test with registry defaults, then restores the fixture's prior policy. */
 const withDefaultAdmissionPolicy = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  effect.pipe(
-    Effect.ensuring(
-      Effect.gen(function* () {
-        const db = yield* Db;
-        yield* db
-          .delete(captureProjectPolicies)
-          .where(eq(captureProjectPolicies.projectId, CoreTestFixture.projectId));
-      }).pipe(Effect.ignore),
-    ),
-  );
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const previous = yield* db.query.captureProjectPolicies.findFirst({
+      where: { projectId: CoreTestFixture.projectId },
+    });
+    const clear = db
+      .delete(captureProjectPolicies)
+      .where(eq(captureProjectPolicies.projectId, CoreTestFixture.projectId));
+    yield* clear;
+    return yield* effect.pipe(
+      Effect.ensuring(
+        Effect.gen(function* () {
+          yield* clear;
+          if (previous) yield* db.insert(captureProjectPolicies).values(previous);
+        }).pipe(Effect.ignore),
+      ),
+    );
+  });
 
 test(
   "OSS capture stores custom events by default and rejects opted-out built-ins",
@@ -116,39 +120,41 @@ test(
     yield* withCleanup(
       [customId, lifecycleId, reservedId],
       apiKeyId,
-      Effect.gen(function* () {
-        const capture = yield* EventCaptureService;
-        const request: CaptureRequest = {
-          events: [
-            captureEvent(customId, "checkout_started"),
-            // Disabled by default self-hosted, and revenue can never be forged
-            // from a publishable key.
-            captureEvent(lifecycleId, "$app_opened"),
-            captureEvent(reservedId, "$purchase.completed"),
-          ],
-          request: {
-            headers: {},
-            receivedAt: now,
-            requestId: yield* unique("oss_capture_request"),
-            sentAt: now,
-            token,
-          },
-        };
-        const result = yield* capture.captureEvents(request);
-        expect(result).toEqual({ accepted: 1, rejected: 2 });
+      withDefaultAdmissionPolicy(
+        Effect.gen(function* () {
+          const capture = yield* EventCaptureService;
+          const request: CaptureRequest = {
+            events: [
+              captureEvent(customId, "checkout_started"),
+              // Disabled by default self-hosted, and revenue can never be forged
+              // from a publishable key.
+              captureEvent(lifecycleId, "$app_opened"),
+              captureEvent(reservedId, "$purchase.completed"),
+            ],
+            request: {
+              headers: {},
+              receivedAt: now,
+              requestId: yield* unique("oss_capture_request"),
+              sentAt: now,
+              token,
+            },
+          };
+          const result = yield* capture.captureEvents(request);
+          expect(result).toEqual({ accepted: 1, rejected: 2 });
 
-        yield* capture.captureEvents(request);
-        const rows = yield* db
-          .select()
-          .from(analyticsEvents)
-          .where(eq(analyticsEvents.eventId, customId));
-        expect(rows).toHaveLength(1);
-        expect(rows[0]).toMatchObject({
-          eventName: "checkout_started",
-          identityMode: "personless",
-          source: "sdk",
-        });
-      }).pipe(Effect.provide(captureLive)),
+          yield* capture.captureEvents(request);
+          const rows = yield* db
+            .select()
+            .from(analyticsEvents)
+            .where(eq(analyticsEvents.eventId, customId));
+          expect(rows).toHaveLength(1);
+          expect(rows[0]).toMatchObject({
+            eventName: "checkout_started",
+            identityMode: "personless",
+            source: "sdk",
+          });
+        }).pipe(Effect.provide(captureLive)),
+      ),
     );
   }),
 );
@@ -240,26 +246,28 @@ test(
     yield* withCleanup(
       [eventId, exposureId],
       undefined,
-      Effect.gen(function* () {
-        const dispatch = yield* AnalyticsDispatchService;
-        yield* dispatch.dispatchTrusted([revenue, revenue, exposure]);
-        const rows = yield* db
-          .select()
-          .from(analyticsEvents)
-          .where(eq(analyticsEvents.eventId, eventId));
-        const exposureRows = yield* db
-          .select()
-          .from(analyticsEvents)
-          .where(eq(analyticsEvents.eventId, exposureId));
+      withDefaultAdmissionPolicy(
+        Effect.gen(function* () {
+          const dispatch = yield* AnalyticsDispatchService;
+          yield* dispatch.dispatchTrusted([revenue, revenue, exposure]);
+          const rows = yield* db
+            .select()
+            .from(analyticsEvents)
+            .where(eq(analyticsEvents.eventId, eventId));
+          const exposureRows = yield* db
+            .select()
+            .from(analyticsEvents)
+            .where(eq(analyticsEvents.eventId, exposureId));
 
-        expect(rows).toHaveLength(1);
-        expect(rows[0]).toMatchObject({
-          eventName: "$purchase.completed",
-          identityMode: "full",
-          source: "revenue",
-        });
-        expect(exposureRows).toHaveLength(0);
-      }).pipe(Effect.provide(dispatchLive)),
+          expect(rows).toHaveLength(1);
+          expect(rows[0]).toMatchObject({
+            eventName: "$purchase.completed",
+            identityMode: "full",
+            source: "revenue",
+          });
+          expect(exposureRows).toHaveLength(0);
+        }).pipe(Effect.provide(dispatchLive)),
+      ),
     );
   }),
 );

@@ -304,6 +304,42 @@ export const rpcSmokeCases = [
   },
   {
     expected: success,
+    payload: ({ ids }) => ({ projectId: ids.projectId }),
+    role: "admin",
+    tag: "GetDevelopmentModeSettings",
+  },
+  {
+    expected: success,
+    payload: ({ ids, personId }) => ({ personId, projectId: ids.projectId }),
+    role: "admin",
+    tag: "GetDevelopmentModeState",
+  },
+  {
+    expected: error("Rpc/DevelopmentModeServiceError"),
+    payload: ({ ids, runId }) => ({
+      action: "expire",
+      actionId: `smoke-${runId}`,
+      projectId: ids.projectId,
+      targetId: `missing-development-subscription-${runId}`,
+      targetType: "subscription",
+    }),
+    role: "admin",
+    tag: "ApplyDevelopmentLifecycleAction",
+  },
+  {
+    expected: success,
+    payload: ({ ids }) => ({ enabled: true, projectId: ids.projectId }),
+    role: "admin",
+    tag: "SetDevelopmentPurchasesEnabled",
+  },
+  {
+    expected: success,
+    payload: ({ ids }) => ({ projectId: ids.projectId }),
+    role: "admin",
+    tag: "ResetDevelopmentData",
+  },
+  {
+    expected: success,
     payload: ({ ids }) => ({ includeArchived: true, projectId: ids.projectId }),
     role: "admin",
     tag: "ListFeatureFlags",
@@ -434,9 +470,11 @@ export const rpcSmokeCases = [
     },
     expected: success,
     payload: ({ ids, runId }) => ({
+      duration: 2,
       name: "Smoke Product",
       projectId: ids.projectId,
       slug: `smoke-product-${runId}`,
+      type: 1,
     }),
     role: "admin",
     tag: "CreateProduct",
@@ -895,7 +933,9 @@ export const assertRpcSmokeManifestCoverage = () => {
     problems.push(`Unexpected missing smoke RPC cases: ${unexpectedMissing.join(", ")}`);
   }
   if (resolvedBaseline.length) {
-    problems.push(`Resolved smoke baseline entries must be removed: ${resolvedBaseline.join(", ")}`);
+    problems.push(
+      `Resolved smoke baseline entries must be removed: ${resolvedBaseline.join(", ")}`,
+    );
   }
   if (stale.length) {
     problems.push(`Stale smoke RPC cases: ${stale.join(", ")}`);

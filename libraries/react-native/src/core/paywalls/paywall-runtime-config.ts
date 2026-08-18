@@ -81,7 +81,7 @@ export function buildPaywallRuntimeConfig(options: {
 
   return {
     products,
-    variables: options.runtime.variables,
+    variables: options.runtime.variables as PaywallRuntimeConfig["variables"],
     locale: options.locale,
     platform: options.platform === "unknown" ? undefined : options.platform,
     defaultSelectedProductId: products[0]?.id,

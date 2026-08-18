@@ -12,6 +12,7 @@ import {
   PersonIdentityKind,
   PersonIdentityMigrationJobStatus,
   PersonUnlockedPerkStatus,
+  ProviderEnvironment,
 } from "@voidhash/db";
 import {
   SdkPersonSnapshot,
@@ -370,15 +371,9 @@ export const dedupePurchases = (rows: ReadonlyArray<DbPurchase>): ReadonlyArray<
 export const dedupeGrants = (
   rows: ReadonlyArray<DbPersonUnlockedPerk>,
 ): ReadonlyArray<DbPersonUnlockedPerk> => {
-  const buildKey = (row: DbPersonUnlockedPerk) => {
-    const source = grantSource(row);
-    const sourceId = row.unlockedBySubscriptionId ?? row.unlockedByPurchaseId ?? "";
-    return `${row.perkId}:${source}:${sourceId}`;
-  };
-
   const byKey = new Map<string, DbPersonUnlockedPerk>();
   for (const row of rows) {
-    const key = buildKey(row);
+    const key = row.perkId;
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, row);
@@ -387,6 +382,14 @@ export const dedupeGrants = (
     const existingActive = existing.status === PersonUnlockedPerkStatus.Active;
     const candidateActive = row.status === PersonUnlockedPerkStatus.Active;
     if (!existingActive && candidateActive) {
+      byKey.set(key, row);
+      continue;
+    }
+    if (
+      existingActive === candidateActive &&
+      (row.environment ?? ProviderEnvironment.Production) <
+        (existing.environment ?? ProviderEnvironment.Production)
+    ) {
       byKey.set(key, row);
     }
   }

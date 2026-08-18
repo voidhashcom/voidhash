@@ -16,6 +16,11 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
   auth: {
     session: () => client.authSession(),
   },
+  notifications: {
+    sendNotification: (request: {
+      payload: Parameters<VoidhashCoreClient["notificationsSendNotification"]>[0];
+    }) => client.notificationsSendNotification(request.payload),
+  },
   organizations: {
     createOrganization: (request: {
       payload: Parameters<VoidhashCoreClient["organizationsCreateOrganization"]>[0];
@@ -27,6 +32,17 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
   },
   paymentProviderProducts: {
     listPaymentProviderProducts: () => client.paymentProviderProductsListPaymentProviderProducts(),
+  },
+  paywallDeploys: {
+    createDeploy: (request: {
+      payload: Parameters<VoidhashCoreClient["paywallDeploysCreateDeploy"]>[0];
+    }) => client.paywallDeploysCreateDeploy(request.payload),
+    finalizeDeploy: (request: { params: { readonly deployId: string } }) =>
+      client.paywallDeploysFinalizeDeploy(request.params["deployId"]),
+    uploadBlob: (request: {
+      params: Parameters<VoidhashCoreClient["paywallDeploysUploadBlob"]>[0];
+      payload: Parameters<VoidhashCoreClient["paywallDeploysUploadBlob"]>[1];
+    }) => client.paywallDeploysUploadBlob(request.params, request.payload),
   },
   paywallLocations: {
     listPaywallLocations: () => client.paywallLocationsListPaywallLocations(),

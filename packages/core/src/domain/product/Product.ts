@@ -14,3 +14,8 @@ export class ProductNotFoundError extends Schema.TaggedErrorClass<ProductNotFoun
 export class ProductSlugAlreadyExistsError extends Schema.TaggedErrorClass<ProductSlugAlreadyExistsError>(
   "ProductSlugAlreadyExistsError",
 )("ProductSlugAlreadyExistsError", { slug: Schema.String }) {}
+
+/** Product type and subscription-duration combination is invalid. */
+export class ProductValidationError extends Schema.TaggedErrorClass<ProductValidationError>(
+  "ProductValidationError",
+)("ProductValidationError", { message: Schema.String }) {}

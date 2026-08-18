@@ -25,9 +25,11 @@ import { FeatureFlagRpcsDef } from "./groups/FeatureFlagRpcsDef.ts";
 import { FeedbackRpcsDef } from "./groups/FeedbackRpcsDef.ts";
 import { EventAdmissionRpcsDef } from "./groups/EventAdmissionRpcsDef.ts";
 import { ExperimentRpcsDef } from "./groups/ExperimentRpcsDef.ts";
+import { DevelopmentModeRpcsDef } from "./groups/DevelopmentModeRpcsDef.ts";
 
 export const RpcGroups = RpcGroup.make().merge(
   AgentSessionRpcsDef,
+  DevelopmentModeRpcsDef,
   AnalyticsRpcsDef,
   ApiKeyRpcsDef,
   PersonRpcsDef,
@@ -82,6 +84,7 @@ export * from "./groups/FeatureFlagRpcsDef.ts";
 export * from "./groups/FeedbackRpcsDef.ts";
 export * from "./groups/EventAdmissionRpcsDef.ts";
 export * from "./groups/ExperimentRpcsDef.ts";
+export * from "./groups/DevelopmentModeRpcsDef.ts";
 export * from "./experimentTreatmentTypes.ts";
 export * from "./internalFeatureFlags.ts";
 export * from "./middlewares.ts";

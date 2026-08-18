@@ -39,7 +39,7 @@ const make = Effect.gen(function* effect() {
             "x-distinct-id": distinctId,
           },
         })
-        .pipe(Effect.catchTag("ApiSdkPersonNotFoundError", () => Effect.succeed(null)));
+        .pipe(Effect.catchTag("ApiSdkPersonNotFoundErrorJsonEncoding", () => Effect.succeed(null)));
       if (result === null) {
         return null;
       }

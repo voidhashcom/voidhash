@@ -7,6 +7,7 @@ import { ProjectDelete } from "@/features/studio/projects/settings/general/proje
 import { ProjectNameForm } from "@/features/studio/projects/settings/general/project-name";
 import { ProjectSettingsGeneralLayout } from "@/features/studio/projects/settings/general/project-settings-general-layout";
 import { ProjectSettingsGeneralPageSkeleton } from "@/features/studio/projects/settings/general/project-settings-general-page-skeleton";
+import { DevelopmentModeSettings } from "@/features/studio/projects/settings/general/development-mode-settings";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 
@@ -44,6 +45,7 @@ function ProjectSettingsGeneralPage() {
         projectId={project.id}
         projectName={project.name}
       />
+      <DevelopmentModeSettings projectId={project.id} />
       <ProjectDelete projectId={project.id} />
     </ProjectSettingsGeneralLayout>
   );

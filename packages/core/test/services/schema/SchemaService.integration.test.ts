@@ -62,7 +62,10 @@ const projectId = CoreTestFixture.projectId;
 /** Monotonic counter so slugs stay unique even within the same millisecond. */
 let slugSeq = 0;
 const uniqueSlug = (label: string): Effect.Effect<string> =>
-  Effect.map(Clock.currentTimeMillis, (nowMillis) => `it-schema-${label}-${nowMillis}-${slugSeq++}`);
+  Effect.map(
+    Clock.currentTimeMillis,
+    (nowMillis) => `it-schema-${label}-${nowMillis}-${slugSeq++}`,
+  );
 
 /** `Date` at `millis` since the epoch — the `new Date(millis)` seam. */
 const dateAtMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
@@ -278,6 +281,7 @@ const expectedVersion = (projection: {
   perks: ReadonlyArray<{ slug: string; name: string }>;
   locations: ReadonlyArray<{ slug: string; name: string; description: string | null }>;
   products: ReadonlyArray<{
+    duration: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
     slug: string;
     name: string;
     type: "subscription";
@@ -288,6 +292,7 @@ const expectedVersion = (projection: {
   Effect.gen(function* () {
     const products = [...projection.products]
       .map((product) => ({
+        duration: product.duration,
         name: product.name,
         perks: [...product.perks].sort(),
         providers: [...product.providers]
@@ -744,6 +749,7 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
           const fromSchema = schema.products.find((p) => p.slug === product.slug);
           if (!fromSchema) {
             return {
+              duration: null,
               slug: product.slug,
               name: product.name,
               type: constant("subscription"),
@@ -752,6 +758,7 @@ describe("SchemaService schema assembly (via getProjectSchema)", () => {
             };
           }
           return {
+            duration: fromSchema.duration,
             slug: product.slug,
             name: product.name,
             type: constant("subscription"),

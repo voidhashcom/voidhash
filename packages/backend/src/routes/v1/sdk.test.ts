@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { mapSdkTransactionSubmission } from "./sdk.ts";
+import { isDevelopmentPurchaseRequest, mapSdkTransactionSubmission } from "./sdk.ts";
 
 describe("SDK transaction route mapping", () => {
   it("forwards the Android native product id as the Google Play product hint", () => {
@@ -53,4 +53,27 @@ describe("SDK transaction route mapping", () => {
       transactionId: "transaction-id",
     });
   });
+});
+
+describe("development purchase request guard", () => {
+  it("accepts only the development environment from a debug build", () => {
+    expect(
+      isDevelopmentPurchaseRequest({
+        "x-environment": "development",
+        "x-is-debug-build": "true",
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    { "x-is-debug-build": "true" },
+    { "x-environment": "production", "x-is-debug-build": "true" },
+    { "x-environment": "all", "x-is-debug-build": "true" },
+    { "x-environment": "development", "x-is-debug-build": "false" },
+  ] satisfies ReadonlyArray<Parameters<typeof isDevelopmentPurchaseRequest>[0]>)(
+    "rejects non-development or non-debug headers",
+    (headers) => {
+      expect(isDevelopmentPurchaseRequest(headers)).toBe(false);
+    },
+  );
 });

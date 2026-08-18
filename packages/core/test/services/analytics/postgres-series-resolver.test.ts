@@ -11,6 +11,7 @@ const event = (
   sequence: number,
   eventName: string,
   grossAmountUsd: number,
+  providerEnvironment = 1,
 ): StoredAnalyticsEvent => ({
   captureId: `capture-${sequence}`,
   context: {},
@@ -24,7 +25,7 @@ const event = (
   previousDistinctId: null,
   processedAt: timestamp,
   projectId: "project-1",
-  properties: { grossAmountUsd },
+  properties: { grossAmountUsd, providerEnvironment },
   requestId: `request-${sequence}`,
   requestPath: "/internal/analytics",
   schemaVersion: 1,
@@ -47,5 +48,26 @@ describe("OSS PostgreSQL revenue analytics", () => {
     });
 
     expect(series).toEqual([{ timestamp: date("2026-08-01T00:00:00.000Z"), value: 7.5 }]);
+  });
+
+  it("excludes development revenue from production mode and includes it in all mode", () => {
+    const events = [
+      event(1, "$purchase.completed", 1_000, 1),
+      event(2, "$purchase.completed", 2_000, 2),
+      event(3, "$purchase.completed", 4_000, 3),
+    ];
+    const query = (providerEnvironments: number[]) =>
+      resolvePostgresAnalyticsSeries({
+        end: date("2026-08-02T00:00:00.000Z"),
+        events,
+        filters: { projectIds: ["project-1"], providerEnvironments },
+        granularity: "day",
+        insightId: "builtin/revenue",
+        start: date("2026-08-01T00:00:00.000Z"),
+      });
+
+    expect(query([1, 2])[0]?.value).toBe(30);
+    expect(query([1, 2, 3])[0]?.value).toBe(70);
+    expect(query([])).toEqual([]);
   });
 });

@@ -10,7 +10,12 @@ import { Schema } from "effect";
  * a closed enum at the domain level — every code path that branches on
  * provider lists exactly these three.
  */
-export const PaymentProviderId = Schema.Literals(["apple-app-store", "google-play", "stripe"]);
+export const PaymentProviderId = Schema.Literals([
+  "apple-app-store",
+  "development",
+  "google-play",
+  "stripe",
+]);
 export type PaymentProviderId = typeof PaymentProviderId.Type;
 
 /** Configuration row not found. */

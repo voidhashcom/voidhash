@@ -16,6 +16,7 @@ export interface SchemaProjection {
     readonly description: string | null;
   }>;
   readonly products: ReadonlyArray<{
+    readonly duration?: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
     readonly slug: string;
     readonly name: string;
     readonly type: "subscription" | "one-time" | "one-time-consumable";
@@ -60,6 +61,7 @@ export const computeSchemaVersion = (projection: SchemaProjection): Effect.Effec
     // insertion order for non-integer string keys, byte-for-byte as the CLI does.
     const products = [...projection.products]
       .map((product) => ({
+        duration: product.duration ?? null,
         name: product.name,
         perks: [...product.perks].sort(),
         providers: [...product.providers]

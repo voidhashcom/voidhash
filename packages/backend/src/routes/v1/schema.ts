@@ -13,10 +13,7 @@ import {
   SchemaVersion,
   VoidhashV1Api,
 } from "@voidhash/api-contracts";
-import {
-  ApiActionForbiddenError,
-  ApiSchemaServiceError,
-} from "@voidhash/api-contracts/errors";
+import { ApiActionForbiddenError, ApiSchemaServiceError } from "@voidhash/api-contracts/errors";
 import { SchemaService } from "@voidhash/core/services";
 import { extractAuthorizedProjectId } from "@voidhash/core/utils";
 import { constant } from "@voidhash/lib/lang";
@@ -91,6 +88,7 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
                   products: schema.products.map(
                     (product) =>
                       new SchemaProduct({
+                        duration: product.duration,
                         name: product.name,
                         perks: product.perks,
                         providers: product.providers.map(

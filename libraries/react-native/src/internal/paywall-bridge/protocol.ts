@@ -109,6 +109,39 @@ export interface PaywallBridgeResponseEnvelope {
   };
 }
 
+export type PaywallBridgeStatus =
+  | "purchasing"
+  | "purchased"
+  | "cancelled"
+  | "failed"
+  | "restoring"
+  | "restored";
+
+export interface PaywallBridgeStatusEnvelope {
+  version: typeof PAYWALL_BRIDGE_VERSION;
+  type: "status";
+  requestId?: string;
+  payload: {
+    status: PaywallBridgeStatus;
+    productId?: string;
+    error?: string;
+  };
+}
+
+/** Serializes an in-progress or terminal purchase status for the paywall runtime. */
+export function createPaywallBridgeStatusMessage(
+  status: PaywallBridgeStatus,
+  requestId?: string,
+  options?: { productId?: string; error?: string },
+): string {
+  return toAsciiSafeJson({
+    payload: { status, ...options },
+    requestId,
+    type: "status",
+    version: PAYWALL_BRIDGE_VERSION,
+  } satisfies PaywallBridgeStatusEnvelope);
+}
+
 export function createPaywallBridgeSuccessResponse(
   action: PaywallBridgeActionType,
   requestId?: string,

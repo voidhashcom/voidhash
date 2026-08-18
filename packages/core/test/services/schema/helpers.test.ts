@@ -55,7 +55,7 @@ const empty = (): SchemaProjection => ({
 // (`apps/cli/src/utils/schema/version.ts`) uses. These pin the byte-level
 // contract: if the field/sort order ever drifts from the CLI, these break.
 const EMPTY_HASH = "sha256:3f90ef2a787d32c6dfe6a60ffe6e9aed5dfc614bc6e26d0d433cc64b9a0acbc5";
-const POPULATED_HASH = "sha256:5f6001dfe6a80394f6a724810d3b5bcf1c294b1631b9c5fb4796e8e61206e981";
+const POPULATED_HASH = "sha256:f0fcfa9de610b5338a0172233d7c59efcfb8cb9f98ab720149e423d89abfc949";
 
 describe("mapDbProviderIdToSchemaProviderId", () => {
   it("maps 'apple-app-store' to 'appleAppStore'", () => {
@@ -149,52 +149,52 @@ describe("computeSchemaVersion", () => {
     }),
   );
 
-  it.effect("is order-independent: products, perks, locations, perk slugs and providers are sorted before hashing", () =>
-    Effect.gen(function* () {
-      const ordered = projection({
-        perks: [
-          { slug: "a-perk", name: "A Perk" },
-          { slug: "z-perk", name: "Z Perk" },
-        ],
-        locations: [
-          { slug: "a-loc", name: "A Loc", description: null },
-          { slug: "b-loc", name: "B Loc", description: "desc-b" },
-        ],
-        products: [
-          {
-            slug: "basic",
-            name: "Basic",
-            type: "subscription",
-            perks: ["a-perk"],
-            providers: [],
-          },
-          {
-            slug: "pro",
-            name: "Pro",
-            type: "subscription",
-            perks: ["a-perk", "z-perk"],
-            providers: [
-              { providerId: "appleAppStore", configuration: { sku: "a" } },
-              { providerId: "googlePlay", configuration: { sku: "g" } },
-            ],
-          },
-        ],
-      });
-      // `projection()` supplies the same content but with products, perks,
-      // locations, perk slugs and providers all in the opposite order.
-      const shuffled = yield* computeSchemaVersion(projection());
-      const sorted = yield* computeSchemaVersion(ordered);
-      expect(shuffled).toBe(sorted);
-      expect(sorted).toBe(POPULATED_HASH);
-    }),
+  it.effect(
+    "is order-independent: products, perks, locations, perk slugs and providers are sorted before hashing",
+    () =>
+      Effect.gen(function* () {
+        const ordered = projection({
+          perks: [
+            { slug: "a-perk", name: "A Perk" },
+            { slug: "z-perk", name: "Z Perk" },
+          ],
+          locations: [
+            { slug: "a-loc", name: "A Loc", description: null },
+            { slug: "b-loc", name: "B Loc", description: "desc-b" },
+          ],
+          products: [
+            {
+              slug: "basic",
+              name: "Basic",
+              type: "subscription",
+              perks: ["a-perk"],
+              providers: [],
+            },
+            {
+              slug: "pro",
+              name: "Pro",
+              type: "subscription",
+              perks: ["a-perk", "z-perk"],
+              providers: [
+                { providerId: "appleAppStore", configuration: { sku: "a" } },
+                { providerId: "googlePlay", configuration: { sku: "g" } },
+              ],
+            },
+          ],
+        });
+        // `projection()` supplies the same content but with products, perks,
+        // locations, perk slugs and providers all in the opposite order.
+        const shuffled = yield* computeSchemaVersion(projection());
+        const sorted = yield* computeSchemaVersion(ordered);
+        expect(shuffled).toBe(sorted);
+        expect(sorted).toBe(POPULATED_HASH);
+      }),
   );
 
   it.effect("ignores enabledProviders — it is not part of the hashed payload", () =>
     Effect.gen(function* () {
       const withProviders = yield* computeSchemaVersion(projection());
-      const withoutProviders = yield* computeSchemaVersion(
-        projection({ enabledProviders: [] }),
-      );
+      const withoutProviders = yield* computeSchemaVersion(projection({ enabledProviders: [] }));
       expect(withoutProviders).toBe(withProviders);
     }),
   );

@@ -1,0 +1,59 @@
+---
+title: Development purchase mode
+description: Test purchases and lifecycle changes without App Store or Google Play setup.
+icon: FlaskConical
+---
+
+Development purchase mode gives React Native debug builds a complete fake-store flow backed by
+real Voidhash purchase processing. Purchases, subscriptions, grants, and revenue events are tagged
+as `development`, so they never appear in production customer state or revenue unless you
+explicitly include test data.
+
+## Enable it
+
+Create a product and attach its perks in Studio. Subscription products require a billing duration,
+which controls their simulated renewal and expiry dates. You do not need to connect App Store
+Connect or Google Play Console.
+
+Enable the SDK option:
+
+```ts title="src/lib/voidhash.ts"
+import { createVoidhashClient } from "@voidhash/react-native";
+
+export const voidhash = createVoidhashClient("vh_pk_...", {
+  dev: true,
+});
+```
+
+The SDK displays a confirmation sheet, waits briefly to simulate processing, and refreshes the
+person snapshot after the backend accepts the purchase. The SDK only honors `dev: true` in a debug
+build. Release builds always use the real store adapter, and the fake-store adapter is dynamically
+loaded only from the internal debug branch. Set `dev: false` to exercise the real store from a
+debug build.
+
+## Fixed test prices
+
+| Product                | USD price |
+| ---------------------- | --------: |
+| Weekly subscription    |     $4.99 |
+| Monthly subscription   |     $9.99 |
+| Quarterly subscription |    $24.99 |
+| Six-month subscription |    $39.99 |
+| Annual subscription    |    $49.99 |
+| Non-consumable         |    $19.99 |
+| Consumable             |     $4.99 |
+
+Legacy subscriptions without a duration are simulated as monthly and return a warning.
+
+## Simulate lifecycle events
+
+Open a person in Studio to renew, expire, revoke, refund, or place a development subscription into
+a three-day grace period. Each action is idempotent. Development badges distinguish every test
+row, and the analytics revenue pages have an **Include test data** switch.
+
+Project settings can disable new development purchases or reset all development purchases,
+subscriptions, grants, transactions, and purchase-ledger records. Reset never touches production
+or sandbox data.
+
+Development purchase mode is currently React Native-only. The web SDK has no purchase adapter, so
+web paywalls continue to use their existing checkout integration.

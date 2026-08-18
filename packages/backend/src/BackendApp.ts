@@ -21,6 +21,7 @@ import {
   ExperimentService,
   FeatureFlagService,
   FeedbackServiceLive,
+  DevelopmentPaymentProviderService,
   FirebaseCloudMessagingServiceConfigLive,
   FxRateService,
   GooglePlayPaymentProvider,
@@ -134,6 +135,7 @@ import { StripeWebhookNotificationRouteLayer } from "./routes/webhook-endpoints/
 import { PaywallServingRouteLayer } from "./routes/paywall-serving.ts";
 import { PublicFileServingRouteLayer } from "./routes/public-file-serving.ts";
 import { AnalyticsRpcsLive } from "./rpcs/analytics-rpcs.ts";
+import { DevelopmentModeRpcsLive } from "./rpcs/development-mode-rpcs.ts";
 import { ApiKeyRpcsLive } from "./rpcs/api-key-rpcs.ts";
 import { EventAdmissionRpcsLive } from "./rpcs/event-admission-rpcs.ts";
 import { ExperimentRpcsLive } from "./rpcs/experiment-rpcs.ts";
@@ -742,6 +744,7 @@ const buildBackendServiceGraph = <
   const RpcHandlersLayer = Layer.mergeAll(
     AgentSessionRpcsLive,
     AnalyticsRpcsLive,
+    DevelopmentModeRpcsLive,
     ApiKeyRpcsLive,
     EventAdmissionRpcsLive,
     ExperimentRpcsLive,
@@ -856,6 +859,10 @@ const buildBackendServiceGraph = <
 
   const DomainServicesLayer = Layer.mergeAll(
     BaseDomainServicesLayer,
+    DevelopmentPaymentProviderService.layer.pipe(
+      Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
+      Layer.provide(SupportServicesLayer),
+    ),
     SdkService.layer.pipe(
       Layer.provide(BaseDomainServicesLayer),
       Layer.provide(SupportServicesLayer),

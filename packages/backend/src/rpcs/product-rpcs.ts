@@ -5,6 +5,7 @@ import {
   RpcProductNotFoundError,
   RpcProductServiceError,
   RpcProductSlugAlreadyExistsError,
+  RpcProductValidationError,
 } from "@voidhash/rpc";
 import { Effect } from "effect";
 
@@ -21,6 +22,8 @@ export const ProductRpcsLive = ProductRpcsDef.toLayer(
               Effect.fail(new RpcProductServiceError({ cause: error.cause })),
             ProductSlugAlreadyExistsError: (error) =>
               Effect.fail(new RpcProductSlugAlreadyExistsError({ slug: error.slug })),
+            ProductValidationError: (error) =>
+              Effect.fail(new RpcProductValidationError({ message: error.message })),
           }),
         ),
       DeleteProduct: (input) =>

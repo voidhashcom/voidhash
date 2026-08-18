@@ -15,7 +15,7 @@ Create one client for the lifetime of the app:
 import { createVoidhashClient } from "@voidhash/react-native";
 
 export const voidhash = createVoidhashClient("vh_pk_...", {
-  debug: __DEV__,
+  dev: true,
 });
 ```
 
@@ -28,9 +28,13 @@ The publishable key is safe to include in the app. Never ship `vh_sk_...` secret
 | `scheme`     | Expo app scheme               | Purchase callback scheme. Required when Expo config cannot provide one.    |
 | `distinctId` | Persisted or new anonymous ID | Seed the initial customer identity. Usually omit it and call `identify()`. |
 | `debug`      | `false`                       | Enable additional SDK diagnostics.                                         |
+| `dev`        | `false`                       | Use isolated fake-store purchases in debug builds; ignored in releases.    |
 | `readOnly`   | `false`                       | Observe and sync transactions without owning purchases.                    |
 | `baseUrl`    | `https://api.voidhash.com`    | Override the API origin for self-hosted deployments.                       |
 | `ingestUrl`  | Same origin as `baseUrl`      | Override only the analytics origin.                                        |
+
+See [Development purchase mode](/development-mode) for its debug-only safety boundary and Studio
+lifecycle controls.
 
 ## Provider
 

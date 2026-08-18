@@ -28,6 +28,7 @@ import { purchaseHookFactory } from "./react/hooks/use-purchase";
 export function createVoidhashClient(publishableKey: string, options: VoidhashClientOptions = {}) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
+  const dev = options.dev ?? false;
   const distinctId = options.distinctId ?? null;
   const ingestUrl = options.ingestUrl;
   const readOnly = options.readOnly ?? false;
@@ -57,6 +58,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     platform,
     debug,
     options.unstable_internalSchema,
+    dev,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

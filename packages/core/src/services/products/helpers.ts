@@ -1,4 +1,9 @@
-import { ProductType, type ProductTypeValue } from "@voidhash/lib";
+import {
+  ProductType,
+  SubscriptionDuration,
+  type ProductTypeValue,
+  type SubscriptionDurationValue,
+} from "@voidhash/lib";
 import { Effect } from "effect";
 
 /**
@@ -9,12 +14,40 @@ import { Effect } from "effect";
 export type ProductTypeLabel = "subscription" | "one-time" | "one-time-consumable";
 
 export interface ProductView {
+  readonly duration: SubscriptionDurationValue | null;
   readonly id: string;
   readonly name: string;
   readonly projectId: string;
   readonly slug: string;
   readonly type: ProductTypeLabel;
 }
+
+export type SubscriptionDurationLabel =
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "semi-annual"
+  | "annual";
+
+/** Converts the stored subscription duration to its portable schema label. */
+export const dbSubscriptionDurationToLabel = (
+  duration: SubscriptionDurationValue | null,
+): SubscriptionDurationLabel | null => {
+  switch (duration) {
+    case null:
+      return null;
+    case SubscriptionDuration.Weekly:
+      return "weekly";
+    case SubscriptionDuration.Monthly:
+      return "monthly";
+    case SubscriptionDuration.Quarterly:
+      return "quarterly";
+    case SubscriptionDuration.SemiAnnual:
+      return "semi-annual";
+    case SubscriptionDuration.Annual:
+      return "annual";
+  }
+};
 
 /**
  * A value outside the `ProductType` union can only reach here from a corrupt DB

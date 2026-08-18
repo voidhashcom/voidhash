@@ -19,6 +19,7 @@ import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifec
 import { ApiClient } from "./core/networking/api-client";
 import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
+import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
@@ -33,6 +34,8 @@ import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
 export interface VoidhashClientOptions {
   baseUrl?: string;
   debug?: boolean;
+  /** Enables isolated test purchases in debug builds. Release builds always ignore this option. */
+  dev?: boolean;
   distinctId?: string;
   ingestUrl?: string;
   readOnly?: boolean;
@@ -53,9 +56,22 @@ const CreateEffectRuntime = (
   ingestUrl: string | undefined,
   publishableKey: string,
   readOnly: boolean,
+  developmentMode: boolean,
   atomRegistry: AtomRegistry.AtomRegistry,
-) =>
-  ManagedRuntime.make(
+) => {
+  // oxlint-disable effect/noDynamicImports -- This debug-only edge must stay dynamic so Metro can omit the adapter from release bundles.
+  const paymentAdapterLayer: Layer.Layer<PaymentAdapter> =
+    __DEV__ && developmentMode
+      ? (
+          require("./core/payment-adapters/development-payment-adapter") as {
+            DevelopmentPaymentAdapter: Layer.Layer<PaymentAdapter>;
+          }
+        ).DevelopmentPaymentAdapter
+      : platform === "ios"
+        ? AppStoreAdapter
+        : GooglePlayAdapter;
+  // oxlint-enable effect/noDynamicImports
+  return ManagedRuntime.make(
     pipe(
       PersonAttributeManager.Default,
       Layer.provideMerge(ProductService.layer),
@@ -72,13 +88,15 @@ const CreateEffectRuntime = (
       Layer.provideMerge(AsyncStorageCacheAdapter),
       Layer.provideMerge(ApiClient.Default),
       Layer.provideMerge(FetchHttpClient.layer),
-      Layer.provideMerge(platform === "ios" ? AppStoreAdapter : GooglePlayAdapter),
+      Layer.provideMerge(paymentAdapterLayer),
       Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
       Layer.provideMerge(ReactNativePlatformProvider),
       Layer.provideMerge(
         Layer.succeed(SdkConfiguration, {
           baseUrl,
           debug,
+          developmentMode,
+          environmentMode: developmentMode ? "development" : "production",
           ingestUrl,
           publishableKey,
           readOnly,
@@ -86,6 +104,7 @@ const CreateEffectRuntime = (
       ),
     ),
   );
+};
 
 const toErrorWithMessage = (code: string, unknownCause: unknown) => {
   const cause = unknownCause instanceof Error ? unknownCause : new Error(String(unknownCause));
@@ -115,6 +134,7 @@ export class VoidhashClient {
   private internalSchema: RuntimeSchema | undefined;
   private unstableSwallowErrors: boolean;
   private atomRegistry: AtomRegistry.AtomRegistry;
+  private developmentMode: boolean;
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
 
@@ -133,9 +153,11 @@ export class VoidhashClient {
     platform: Exclude<PlatformInfo["platform"], "unknown">,
     debug = false,
     internalSchema?: RuntimeSchema,
+    dev = false,
   ) {
     this.initialDistinctId = initialDistinctId;
     this.readOnly = readOnly;
+    this.developmentMode = __DEV__ && dev;
     this.scheme = scheme;
     this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
@@ -147,6 +169,7 @@ export class VoidhashClient {
       ingestUrl,
       publishableKey,
       readOnly,
+      this.developmentMode,
       atomRegistry,
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();

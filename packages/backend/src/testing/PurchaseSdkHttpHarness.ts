@@ -12,6 +12,7 @@ import {
   PersonIdentityService,
   SchemaService,
   SdkService,
+  DevelopmentPaymentProviderService,
 } from "@voidhash/core/services";
 import { Db } from "@voidhash/db";
 import { Context, Effect, Layer } from "effect";
@@ -38,6 +39,7 @@ const unusedSdkRouteServices = Layer.effectContext(
   Effect.sync(() =>
     Context.makeUnsafe<
       | FeatureFlagService
+      | DevelopmentPaymentProviderService
       | InternalFeatureFlagService
       | NotificationTokenService
       | PaywallLocationService
@@ -45,6 +47,7 @@ const unusedSdkRouteServices = Layer.effectContext(
     >(
       new Map([
         [FeatureFlagService.key, {}],
+        [DevelopmentPaymentProviderService.key, {}],
         [InternalFeatureFlagService.key, {}],
         [NotificationTokenService.key, {}],
         [PaywallLocationService.key, {}],

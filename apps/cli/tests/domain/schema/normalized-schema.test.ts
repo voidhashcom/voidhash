@@ -41,6 +41,7 @@ describe("createEmptyNormalizedSchema", () => {
     });
     schema.perks.set("test-perk", { slug: "test-perk", name: "Test Perk" });
     schema.products.set("test-product", {
+      duration: "monthly",
       slug: "test-product",
       name: "Test Product",
       type: "subscription",

@@ -14,6 +14,8 @@ export function createTestSchema(): RuntimeSchema {
     locations: {},
     products: {
       monthly_sub: {
+        duration: "monthly",
+        id: "prod_monthly",
         slug: "monthly_sub",
         type: "subscription",
         properties: { name: "Monthly" },
@@ -21,11 +23,23 @@ export function createTestSchema(): RuntimeSchema {
           perks: { "all-access": true },
           providers: {
             appleAppStore: { productId: "com.voidhash.monthly.ios" },
+            development: {
+              currencyCode: "USD",
+              duration: "monthly",
+              period: "month",
+              periodCount: 1,
+              price: 9.99,
+              priceInMinorUnits: 999,
+              productId: "monthly_sub",
+              warning: null,
+            },
             googlePlay: { productId: "com.voidhash.monthly.android" },
           },
         },
       },
       yearly_sub: {
+        duration: "annual",
+        id: "prod_yearly",
         slug: "yearly_sub",
         type: "subscription",
         properties: { name: "Yearly" },
@@ -33,6 +47,16 @@ export function createTestSchema(): RuntimeSchema {
           perks: { "all-access": true },
           providers: {
             appleAppStore: { productId: "com.voidhash.yearly.ios" },
+            development: {
+              currencyCode: "USD",
+              duration: "annual",
+              period: "year",
+              periodCount: 1,
+              price: 49.99,
+              priceInMinorUnits: 4999,
+              productId: "yearly_sub",
+              warning: null,
+            },
             googlePlay: {
               productId: "com.voidhash.yearly.android",
               basePlanId: "yearly-base",
@@ -41,6 +65,8 @@ export function createTestSchema(): RuntimeSchema {
         },
       },
       coins: {
+        duration: null,
+        id: "prod_coins",
         slug: "coins",
         type: "one-time-consumable",
         properties: { name: "Coins" },
@@ -48,6 +74,16 @@ export function createTestSchema(): RuntimeSchema {
           perks: {},
           providers: {
             appleAppStore: { productId: "com.voidhash.coins.ios" },
+            development: {
+              currencyCode: "USD",
+              duration: null,
+              period: "lifetime",
+              periodCount: 1,
+              price: 4.99,
+              priceInMinorUnits: 499,
+              productId: "coins",
+              warning: null,
+            },
             googlePlay: { productId: "com.voidhash.coins.android" },
           },
         },

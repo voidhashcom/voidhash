@@ -99,6 +99,7 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
             where: {
               projectId,
               deletedAt: { isNull: true },
+              providerId: { ne: "development" },
             },
           });
         },
@@ -121,7 +122,7 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
             yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
           }
           const configuration = yield* db.query.paymentProviderConfigurations.findFirst({
-            where: { id },
+            where: { id, providerId: { ne: "development" } },
           });
           if (!configuration) {
             return yield* Effect.fail(
@@ -238,7 +239,7 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
           }
 
           const existing = yield* db.query.paymentProviderConfigurations.findFirst({
-            where: { id: input.id },
+            where: { id: input.id, providerId: { ne: "development" } },
           });
           if (!existing) {
             return yield* Effect.fail(
@@ -350,7 +351,10 @@ export class PaymentProviderConfigurationService extends Context.Service<Payment
             yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
           }
           const existing = yield* db.query.paymentProviderConfigurations.findFirst({
-            where: { id: input.paymentProviderConfigurationId },
+            where: {
+              id: input.paymentProviderConfigurationId,
+              providerId: { ne: "development" },
+            },
           });
           if (!existing) {
             return yield* Effect.fail(

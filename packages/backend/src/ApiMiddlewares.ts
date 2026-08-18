@@ -5,11 +5,12 @@ import {
   type ApiSecretKeySession,
   type ApiUserSession,
 } from "@voidhash/api-contracts";
-import {
-  ApiAuthenticationError,
-  ApiNotAuthenticatedError,
-} from "@voidhash/api-contracts/errors";
+import { ApiAuthenticationError, ApiNotAuthenticatedError } from "@voidhash/api-contracts/errors";
 import { ApiKeyService } from "@voidhash/core/services";
+import {
+  RequestEnvironmentMode,
+  resolveRequestEnvironmentMode,
+} from "@voidhash/core/services/requestEnvironment/RequestEnvironmentMode";
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import { LocalUserSessionService } from "@voidhash/core/services/auth/LocalUserSessionService";
 import { IdentityLinkBackfillService } from "@voidhash/core/services/auth/IdentityLinkBackfillService";
@@ -286,11 +287,16 @@ export const AuthMiddlewareLive = Layer.effect(
     return AuthMiddleware.of((httpEffect) =>
       Effect.gen(function* () {
         const req = yield* HttpServerRequest.HttpServerRequest;
+        const environmentMode = resolveRequestEnvironmentMode(
+          Option.getOrUndefined(HttpHeaders.get(req.headers, "x-environment")),
+        );
         const selected = yield* selectAuthMethod(req, identityProvider.cookieName);
         const session = yield* Effect.provideService(authenticateSelectedMethod(selected), Db, db);
         return yield* withIdentity(
           session,
-          Effect.provideService(httpEffect, ApiAuthSession, session),
+          Effect.provideService(httpEffect, ApiAuthSession, session).pipe(
+            Effect.provideService(RequestEnvironmentMode, environmentMode),
+          ),
         );
       }),
     );

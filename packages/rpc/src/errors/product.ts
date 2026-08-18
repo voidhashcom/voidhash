@@ -23,3 +23,7 @@ export class RpcProductSlugAlreadyExistsError extends Schema.TaggedErrorClass<Rp
 export class RpcProductServiceError extends Schema.TaggedErrorClass<RpcProductServiceError>(
   "RpcProductServiceError",
 )("Rpc/ProductServiceError", { cause: Schema.String }) {}
+
+export class RpcProductValidationError extends Schema.TaggedErrorClass<RpcProductValidationError>(
+  "RpcProductValidationError",
+)("Rpc/ProductValidationError", { message: Schema.String }) {}

@@ -15,9 +15,11 @@ import { createJsonResponse, decodeJson, installFetchMock } from "./helpers";
 const EXPECTED_GROUPS = [
   "apiKeys",
   "auth",
+  "notifications",
   "organizations",
   "paymentProviderConfigurations",
   "paymentProviderProducts",
+  "paywallDeploys",
   "paywallLocations",
   "perks",
   "persons",
@@ -380,7 +382,7 @@ describe("@voidhash/node", () => {
           _tag: tagOf(effectError),
         });
         expect(promiseError).toMatchObject({
-          _tag: "ApiActionForbiddenError",
+          _tag: "ApiActionForbiddenErrorJsonEncoding",
         });
       }),
     ));

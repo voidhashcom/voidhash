@@ -33,6 +33,7 @@
  */
 import { DateTime, Effect } from "effect";
 import { describe, expect } from "vitest";
+import { ProductType, SubscriptionDuration } from "@voidhash/lib";
 
 import { generateId } from "@voidhash/core/utils";
 import { ProductService, ProjectSchemaCache } from "@voidhash/core/services";
@@ -41,6 +42,7 @@ import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/au
 import {
   ProductNotFoundError,
   ProductSlugAlreadyExistsError,
+  ProductValidationError,
 } from "@voidhash/core/domain/product/Product";
 import {
   AuditLogAction,
@@ -194,10 +196,61 @@ describe("ProductService.createProduct", () => {
         expect(createdEntry?.entityType).toBe(AuditLogEntityType.Product);
         expect(createdEntry?.actorUserId).toBe(CoreTestFixture.userId);
         expect(createdEntry?.actorType).toBe(AuditLogActorType.User);
-        expect(createdEntry?.changes).toEqual({ snapshot: { name, slug } });
+        expect(createdEntry?.changes).toEqual({
+          snapshot: {
+            duration: SubscriptionDuration.Monthly,
+            name,
+            slug,
+            type: ProductType.Subscription,
+          },
+        });
 
         const cached = yield* cache.getByName(projectId).get();
         expect(cached).toBeNull();
+      }),
+    ).pipe(Effect.provide(ProductService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "requires a duration for explicitly typed subscriptions",
+    Effect.gen(function* () {
+      const productService = yield* ProductService;
+      const slug = uniqueSlug("missing-duration");
+
+      const error = yield* Effect.flip(
+        productService.createProduct({
+          name: "Missing duration",
+          projectId,
+          slug,
+          type: ProductType.Subscription,
+        }),
+      );
+
+      expect(error).toBeInstanceOf(ProductValidationError);
+      expect(yield* countProductsWithSlug(slug)).toBe(0);
+    }).pipe(Effect.provide(ProductService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "persists the selected subscription duration",
+    withProductCleanup((track) =>
+      Effect.gen(function* () {
+        const productService = yield* ProductService;
+        const slug = uniqueSlug("quarterly");
+
+        const created = yield* productService.createProduct({
+          duration: SubscriptionDuration.Quarterly,
+          name: "Quarterly",
+          projectId,
+          slug,
+          type: ProductType.Subscription,
+        });
+        track(created.id);
+
+        expect(yield* findProductRow(created.id)).toMatchObject({
+          duration: SubscriptionDuration.Quarterly,
+          type: ProductType.Subscription,
+        });
       }),
     ).pipe(Effect.provide(ProductService.layer), CoreAuthSession.authenticate()),
   );
@@ -418,7 +471,10 @@ describe("ProductService.updateProduct", () => {
     Effect.gen(function* () {
       const productService = yield* ProductService;
       const error = yield* Effect.flip(
-        productService.updateProduct({ id: `product_missing_${generateId("test")}`, name: "Ghost" }),
+        productService.updateProduct({
+          id: `product_missing_${generateId("test")}`,
+          name: "Ghost",
+        }),
       );
       expect(error).toBeInstanceOf(ProductNotFoundError);
     }).pipe(Effect.provide(ProductService.layer), CoreAuthSession.authenticate()),

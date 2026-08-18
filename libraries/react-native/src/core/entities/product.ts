@@ -10,6 +10,7 @@ export class Product {
   readonly type: string;
   readonly platform: "ios" | "android";
   readonly googlePlayOfferToken?: string;
+  readonly providerProductId?: string;
 
   constructor(
     id: string,
@@ -22,7 +23,7 @@ export class Product {
     currency: string,
     type: string,
     platform: "ios" | "android",
-    options?: { googlePlayOfferToken?: string },
+    options?: { googlePlayOfferToken?: string; providerProductId?: string },
   ) {
     this.id = id;
     this.slug = slug;
@@ -35,6 +36,7 @@ export class Product {
     this.type = type;
     this.platform = platform;
     this.googlePlayOfferToken = options?.googlePlayOfferToken;
+    this.providerProductId = options?.providerProductId;
   }
 }
 
@@ -53,7 +55,7 @@ export class SubscriptionProduct extends Product {
     type: string,
     platform: "ios" | "android",
     interval: string,
-    options?: { googlePlayOfferToken?: string },
+    options?: { googlePlayOfferToken?: string; providerProductId?: string },
   ) {
     super(
       id,

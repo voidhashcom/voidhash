@@ -1,5 +1,9 @@
 import { Db } from "@voidhash/db";
 import { ApiKeyService } from "@voidhash/core/services/apiKeys/ApiKeyService";
+import {
+  RequestEnvironmentMode,
+  resolveRequestEnvironmentMode,
+} from "@voidhash/core/services/requestEnvironment/RequestEnvironmentMode";
 import type { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import { LocalUserSessionService } from "@voidhash/core/services/auth/LocalUserSessionService";
@@ -81,7 +85,21 @@ export const RpcAuthLive = (authTokenVerifier: AuthTokenVerifier["Service"]) =>
         pipe(
           resolveSession(headers),
           Effect.flatMap((session) =>
-            withIdentity(session, Effect.provideService(effect, AuthSession, session)),
+            withHttpRequestHeaders(headers).pipe(
+              Effect.flatMap((requestHeaders) =>
+                withIdentity(
+                  session,
+                  Effect.provideService(effect, AuthSession, session).pipe(
+                    Effect.provideService(
+                      RequestEnvironmentMode,
+                      resolveRequestEnvironmentMode(
+                        Option.getOrUndefined(HttpHeaders.get(requestHeaders, "x-environment")),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       );
