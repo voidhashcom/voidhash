@@ -1,4 +1,13 @@
 import { apiCoreSuite, mobileCoreSuite } from "./core-suites";
+import {
+  apiApiKeysSuite,
+  apiAuthSuite,
+  apiCatalogSuite,
+  apiNotificationsSuite,
+  apiPaywallDeploysSuite,
+  apiProjectsOrgsSuite,
+  apiWebhooksSuite,
+} from "./api-suites";
 import type { ConformanceSuite } from "../types";
 
 /** Suite used by harness self-tests to exercise multi-response (retry) steps. */
@@ -20,6 +29,13 @@ export const testRetrySuite: ConformanceSuite = {
 
 const SUITES: ReadonlyArray<ConformanceSuite> = [
   apiCoreSuite,
+  apiAuthSuite,
+  apiProjectsOrgsSuite,
+  apiApiKeysSuite,
+  apiWebhooksSuite,
+  apiCatalogSuite,
+  apiNotificationsSuite,
+  apiPaywallDeploysSuite,
   mobileCoreSuite,
   testRetrySuite,
 ];

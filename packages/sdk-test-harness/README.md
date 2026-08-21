@@ -43,10 +43,32 @@ The iOS and Android runners are fully generic: they read step descriptors from
 the control plane and never encode fixture data locally, so suites evolve
 without touching them.
 
+## Suites
+
+| Suite | Scope |
+| --- | --- |
+| `api/core` | Schema + version, products, person create/fetch/list, entitlements, not-found mapping, 401 mapping |
+| `api/auth` | Secret-key session introspection, invalid-key 401, forbidden-action 403 |
+| `api/projects-orgs` | Organization & project create/list |
+| `api/api-keys` | Secret key lifecycle (create/list/get/rotate/delete) + not-found mapping |
+| `api/webhooks` | Endpoint CRUD, rotate-secret, test, delete; delivery list/get/retry; validation + not-found mapping |
+| `api/catalog` | Perks, paywall locations, product perks, payment provider configurations/products |
+| `api/notifications` | Server-to-server push send + not-enabled conflict |
+| `api/paywall-deploys` | Deploy create (201), blob upload (binary PUT), finalize; hash-mismatch + incomplete-deploy errors |
+| `mobile/core` | Publishable-key SDK flows: schema, identify, traits, flags, paywalls, transaction sync, 404 mapping |
+
+A completeness guard (`tests/completeness.test.ts`) derives every
+management-API endpoint from the committed OpenAPI document
+(`packages/generated-clients/openapi/core.json`, everything outside `/sdk/*`)
+and fails when an endpoint has no `api/*` suite step — or when a suite targets
+a path the contract does not define. Adding a server endpoint without conformance
+coverage breaks CI.
+
 ## Adding a suite
 
 Export a new `ConformanceSuite` from `src/suites/`, register it in
 `src/suites/index.ts`, and add its endpoints to playback by declaring them in
 the suite's step paths (playback routes are derived automatically). Then map
 the step ids to real SDK calls in each language-specific runner that drives an
-actual SDK (TS runners); generic runners pick suites up automatically.
+actual SDK (TS runners); generic runners pick suites up automatically. The
+completeness guard keeps the suite set honest against the contract.

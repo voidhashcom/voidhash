@@ -64,14 +64,11 @@ const toTypeLiteral = (schema) => {
 };
 
 const formatParamsType = ({ methodName, parameterNames, parameterTypes }) => {
-  if (parameterNames.length === 1) {
-    const members = parameterNames
-      .map((name, index) => `readonly ${jsonLiteral(name)}: ${parameterTypes[index]}`)
-      .join("; ");
-    return `{ ${members} }`;
-  }
+  const members = parameterNames
+    .map((name, index) => `readonly ${jsonLiteral(name)}: ${parameterTypes[index]}`)
+    .join("; ");
 
-  return `Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[0]`;
+  return `{ ${members} }`;
 };
 
 const formatRequestType = ({ methodName, parameterNames, parameterTypes, hasBody, hasParams }) => {
@@ -85,19 +82,13 @@ const formatRequestType = ({ methodName, parameterNames, parameterTypes, hasBody
 
   const paramsType = formatParamsType({ methodName, parameterNames, parameterTypes });
 
+  // Binary bodies (octet-stream, e.g. deploy blob upload) are not representable
+  // by the generated core client, so they are not surfaced as `payload`.
   if (!hasBody) {
     return `{ params: ${paramsType} }`;
   }
 
   return `{ params: ${paramsType}; payload: Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[1] }`;
-};
-
-const formatParamsExpression = (parameterNames) => {
-  if (parameterNames.length === 1) {
-    return `request.params[${jsonLiteral(parameterNames[0])}]`;
-  }
-
-  return `request.params`;
 };
 
 const formatCall = ({ methodName, parameterNames, hasBody, hasParams }) => {
@@ -109,13 +100,14 @@ const formatCall = ({ methodName, parameterNames, hasBody, hasParams }) => {
     return `client.${methodName}(request.payload)`;
   }
 
-  const paramsExpression = formatParamsExpression(parameterNames);
-
-  if (!hasBody) {
-    return `client.${methodName}(${paramsExpression})`;
+  // Multi-param operations take their path parameters positionally on the
+  // generated client.
+  const args = parameterNames.map((name) => `request.params[${jsonLiteral(name)}]`);
+  if (hasBody) {
+    args.push("request.payload");
   }
 
-  return `client.${methodName}(${paramsExpression}, request.payload)`;
+  return `client.${methodName}(${args.join(", ")})`;
 };
 
 const collectGroups = (spec) => {
@@ -145,7 +137,12 @@ const collectGroups = (spec) => {
       );
       const parameterNames = parameters.map((parameter) => parameter.name);
       const parameterTypes = parameters.map((parameter) => toTypeLiteral(parameter.schema));
-      const hasBody = Boolean(operation.requestBody);
+      // Only JSON request bodies are representable by the generated core
+      // client; binary bodies (octet-stream) are skipped.
+      const bodyContent = operation.requestBody?.content ?? {};
+      const hasBody = Object.keys(bodyContent).some((contentType) =>
+        contentType.includes("application/json"),
+      );
       const hasParams = parameterNames.length > 0;
       const requestType = formatRequestType({
         hasBody,

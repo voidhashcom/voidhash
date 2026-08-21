@@ -7,7 +7,10 @@ import type { ActualRequest } from "./verify";
 
 const jsonResponse = (body: Json | undefined, status: number) => {
   if (body === undefined) {
-    return HttpServerResponse.json({}, { status });
+    // Void-success endpoints (e.g. DELETE /api-keys/:id → Schema.Void) decode
+    // an empty payload; `{}` would fail strict void decoding in typed clients.
+    // `text()` returns a bare response, so it must be wrapped as an Effect.
+    return Effect.succeed(HttpServerResponse.text("", { status }));
   }
   return HttpServerResponse.json(body, { status });
 };
