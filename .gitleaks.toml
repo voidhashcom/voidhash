@@ -2,13 +2,15 @@
 useDefault = true
 
 [[allowlists]]
-description = "UUID-shaped App Store and React Native SDK test tokens"
+description = "UUID-shaped App Store and mobile SDK test tokens"
 condition = "AND"
 targetRules = ["generic-api-key"]
 regexTarget = "secret"
 regexes = ['''(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''']
 paths = [
   '''(?:^|/)libraries/react-native/tests/''',
+  '''(?:^|/)libraries/android/sdk/src/test/''',
+  '''(?:^|/)libraries/ios/Tests/''',
   '''(?:^|/)packages/app-store-server-sdk/tests/''',
 ]
 
