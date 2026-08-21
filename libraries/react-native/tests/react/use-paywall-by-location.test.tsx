@@ -1,8 +1,10 @@
+import { Result } from "better-result";
 import { Deferred, Effect } from "effect";
 import { vi } from "vitest";
 // The real `@voidhash/paywalls` runtime encoder, used to prove the SDK handles
 // the exact wire bytes a deployed bundle emits.
 import { createEventEnvelope, serializeEnvelope } from "../../../paywalls/src/runtime/envelope";
+import { VoidhashError } from "../../src/errors";
 import type { VoidhashClient } from "../../src/client";
 import type { VoidhashContext } from "../../src/react/components/provider";
 import {
@@ -35,7 +37,7 @@ function createClientMock() {
   return {
     capture: vi.fn(),
     getProducts: vi.fn(),
-    internal_buildPaywallRuntimeConfig: vi.fn(),
+    internal: { buildPaywallRuntimeConfig: vi.fn() },
     purchase: vi.fn(),
     restorePurchases: vi.fn(),
   };
@@ -87,13 +89,15 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const presenter = createPresenterMock();
     const openExternalUrl = vi.fn().mockResolvedValue(undefined);
 
-    client.getProducts.mockResolvedValue({
-      monthly: {
-        id: "prod_monthly",
-        slug: "monthly",
-      },
-    } as never);
-    client.purchase.mockResolvedValue(undefined as never);
+    client.getProducts.mockResolvedValue(
+      Result.ok({
+        monthly: {
+          id: "prod_monthly",
+          slug: "monthly",
+        },
+      }) as never,
+    );
+    client.purchase.mockResolvedValue(Result.ok({ status: "completed" }) as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -110,9 +114,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    expect(client.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: "prod_monthly" }), {
-      method: "native",
-    });
+    expect(client.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: "prod_monthly" }));
     expect(presenter.postMessage).toHaveBeenCalled();
     expect(postedEnvelopes(presenter).map((envelope) => envelope.payload.status)).toEqual([
       "purchasing",
@@ -129,13 +131,15 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const onPurchase = vi.fn();
     const onError = vi.fn();
 
-    client.getProducts.mockResolvedValue({
-      monthly: {
-        id: "prod_monthly",
-        slug: "monthly",
-      },
-    } as never);
-    client.purchase.mockResolvedValue(undefined as never);
+    client.getProducts.mockResolvedValue(
+      Result.ok({
+        monthly: {
+          id: "prod_monthly",
+          slug: "monthly",
+        },
+      }) as never,
+    );
+    client.purchase.mockResolvedValue(Result.ok({ status: "completed" }) as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -167,13 +171,17 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
 
-    client.getProducts.mockResolvedValue({
-      monthly: {
-        id: "prod_monthly",
-        slug: "monthly",
-      },
-    } as never);
-    client.purchase.mockRejectedValue(new Error("purchase failed") as never);
+    client.getProducts.mockResolvedValue(
+      Result.ok({
+        monthly: {
+          id: "prod_monthly",
+          slug: "monthly",
+        },
+      }) as never,
+    );
+    client.purchase.mockResolvedValue(
+      Result.err(new VoidhashError("FAILED_TO_PURCHASE", "purchase failed")) as never,
+    );
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -205,16 +213,15 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
 
-    client.getProducts.mockResolvedValue({
-      monthly: {
-        id: "prod_monthly",
-        slug: "monthly",
-      },
-    } as never);
-    client.purchase.mockRejectedValue({
-      _tag: "UserCancelledError",
-      message: "Purchase cancelled",
-    } as never);
+    client.getProducts.mockResolvedValue(
+      Result.ok({
+        monthly: {
+          id: "prod_monthly",
+          slug: "monthly",
+        },
+      }) as never,
+    );
+    client.purchase.mockResolvedValue(Result.ok({ status: "cancelled" }) as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -232,7 +239,6 @@ describe("usePaywallByLocation bridge coordinator", () => {
     expect(postedEnvelopes(presenter).map((envelope) => envelope.payload.status)).toEqual([
       "purchasing",
       "cancelled",
-      "error",
     ]);
     expect(presenter.dismiss).not.toHaveBeenCalled();
   });
@@ -242,12 +248,14 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const presenter = createPresenterMock();
     const onError = vi.fn();
 
-    client.getProducts.mockResolvedValue({
-      monthly: {
-        id: "prod_monthly",
-        slug: "monthly",
-      },
-    } as never);
+    client.getProducts.mockResolvedValue(
+      Result.ok({
+        monthly: {
+          id: "prod_monthly",
+          slug: "monthly",
+        },
+      }) as never,
+    );
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -280,7 +288,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
 
-    client.restorePurchases.mockResolvedValue(undefined as never);
+    client.restorePurchases.mockResolvedValue(Result.ok(undefined) as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -309,7 +317,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const onRestore = vi.fn();
     const onError = vi.fn();
 
-    client.restorePurchases.mockResolvedValue(undefined as never);
+    client.restorePurchases.mockResolvedValue(Result.ok(undefined) as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -338,13 +346,17 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const presenter = createPresenterMock();
     const onError = vi.fn();
 
-    client.getProducts.mockResolvedValue({
-      monthly: {
-        id: "prod_monthly",
-        slug: "monthly",
-      },
-    } as never);
-    client.purchase.mockRejectedValue(new Error("purchase failed") as never);
+    client.getProducts.mockResolvedValue(
+      Result.ok({
+        monthly: {
+          id: "prod_monthly",
+          slug: "monthly",
+        },
+      }) as never,
+    );
+    client.purchase.mockResolvedValue(
+      Result.err(new VoidhashError("FAILED_TO_PURCHASE", "purchase failed")) as never,
+    );
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -376,7 +388,9 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const presenter = createPresenterMock();
     const onError = vi.fn();
 
-    client.restorePurchases.mockRejectedValue(new Error("restore failed") as never);
+    client.restorePurchases.mockResolvedValue(
+      Result.err(new VoidhashError("FAILED_TO_RESTORE_PURCHASES", "restore failed")) as never,
+    );
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -461,7 +475,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
       htmlUrl: "https://cdn.example/p/5b00934c/index.html",
       runtime,
     });
-    client.internal_buildPaywallRuntimeConfig.mockResolvedValue(runtimeConfig as never);
+    client.internal.buildPaywallRuntimeConfig.mockResolvedValue(Result.ok(runtimeConfig) as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client: asClient(client),
@@ -475,7 +489,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    expect(client.internal_buildPaywallRuntimeConfig).toHaveBeenCalledWith(runtime);
+    expect(client.internal.buildPaywallRuntimeConfig).toHaveBeenCalledWith(runtime);
     expect(presenter.postMessage).toHaveBeenCalledTimes(1);
     const envelope = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
     expect(envelope).toEqual({
@@ -509,7 +523,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
         variables: { accentColor: "#16a34a" },
       },
     });
-    client.internal_buildPaywallRuntimeConfig.mockResolvedValue(runtimeConfig as never);
+    client.internal.buildPaywallRuntimeConfig.mockResolvedValue(Result.ok(runtimeConfig) as never);
 
     // Simulates the native presenters in the preload-then-show flow: the
     // bundle's one-shot `ready` fired during preload, before show() attached
@@ -580,7 +594,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
 
     expect(shown).toBe(false);
     await Effect.runPromise(Effect.sleep(0));
-    expect(client.internal_buildPaywallRuntimeConfig).not.toHaveBeenCalled();
+    expect(client.internal.buildPaywallRuntimeConfig).not.toHaveBeenCalled();
     expect(visualEditorPresenter.postMessage).not.toHaveBeenCalled();
     expect(failedShowPresenter.postMessage).not.toHaveBeenCalled();
   });
@@ -605,7 +619,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    expect(client.internal_buildPaywallRuntimeConfig).not.toHaveBeenCalled();
+    expect(client.internal.buildPaywallRuntimeConfig).not.toHaveBeenCalled();
     expect(presenter.postMessage).not.toHaveBeenCalled();
   });
 
@@ -622,8 +636,10 @@ describe("usePaywallByLocation bridge coordinator", () => {
         variables: { accentColor: "#16a34a" },
       },
     });
-    client.internal_buildPaywallRuntimeConfig.mockRejectedValue(
-      new Error("store unavailable") as never,
+    client.internal.buildPaywallRuntimeConfig.mockResolvedValue(
+      Result.err(
+        new VoidhashError("FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG", "store unavailable"),
+      ) as never,
     );
 
     await expect(
@@ -707,17 +723,22 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const presenter = createPresenterMock();
     const onError = vi.fn();
 
-    client.getProducts.mockResolvedValue({
-      monthly: {
-        id: "prod_monthly",
-        slug: "monthly",
-      },
-    } as never);
+    client.getProducts.mockResolvedValue(
+      Result.ok({
+        monthly: {
+          id: "prod_monthly",
+          slug: "monthly",
+        },
+      }) as never,
+    );
 
     const purchaseGate = Deferred.makeUnsafe<void>();
     const resolvePurchase = () => Deferred.doneUnsafe(purchaseGate, Effect.void);
     client.purchase.mockImplementation(
-      () => Effect.runPromise(Deferred.await(purchaseGate)) as never,
+      () =>
+        Effect.runPromise(Deferred.await(purchaseGate)).then(() =>
+          Result.ok({ status: "completed" }),
+        ) as never,
     );
 
     const firstRequest = __internal_handlePaywallBridgeEventForTests({
@@ -885,7 +906,7 @@ describe("usePaywallByLocation show() result", () => {
       client: asClient(client),
       locationKey: "home",
       onBridgeEvent: vi.fn(),
-      preloadPaywall: vi.fn().mockRejectedValue(preloadError),
+      preloadPaywall: vi.fn().mockResolvedValue(preloadError),
       presenter: createShowPresenterMock(),
       voidhashContext: createVoidhashContextMock(),
     });
@@ -1013,7 +1034,7 @@ describe("usePaywallByLocation background preloading", () => {
       __internal_runBackgroundPreloadForTests({
         locationKey: "home",
         onPreloadError,
-        preloadPaywall: vi.fn().mockRejectedValue(preloadError),
+        preloadPaywall: vi.fn().mockResolvedValue(preloadError),
       }),
     ).resolves.toBeUndefined();
 
@@ -1033,7 +1054,7 @@ describe("usePaywallByLocation background preloading", () => {
     await __internal_runBackgroundPreloadForTests({
       locationKey: "home",
       onPreloadError,
-      preloadPaywall: vi.fn().mockRejectedValue("cdn is down"),
+      preloadPaywall: vi.fn().mockResolvedValue(new Error("cdn is down")),
     });
 
     expect(onPreloadError).toHaveBeenCalledWith(expect.any(Error));

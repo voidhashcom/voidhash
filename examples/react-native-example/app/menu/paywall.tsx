@@ -42,7 +42,9 @@ export default function PaywallScreen() {
     (operation: string) =>
       Effect.runPromise(
         Effect.gen(function* () {
-          const snapshot = yield* Effect.promise(() => client.getCurrentPerson(true));
+          const snapshot = yield* Effect.promise(() =>
+            client.getCurrentPerson({ forceFetch: true }).then((result) => result.unwrapOr(null)),
+          );
           setStatusMessage(
             `${operation}\nBackend snapshot: ${Inspectable.toStringUnknown(snapshot)}`,
           );
@@ -90,7 +92,7 @@ export default function PaywallScreen() {
     setIsReconciling(true);
     return Effect.runPromise(
       Effect.gen(function* () {
-        yield* attempt(() => client.restorePurchases());
+        yield* attempt(() => client.restorePurchases().then((result) => result.unwrap()));
         yield* attempt(() => refreshBackendEvidence("Direct restore completed"));
       }).pipe(
         Effect.catchTag("PaywallActionError", (error) =>
@@ -111,7 +113,9 @@ export default function PaywallScreen() {
     setIsReconciling(true);
     return Effect.runPromise(
       Effect.gen(function* () {
-        const products = yield* attempt(() => client.getProducts());
+        const products = yield* attempt(() =>
+          client.getProducts().then((result) => result.unwrap()),
+        );
         setStatusMessage(`Native products: ${Inspectable.toStringUnknown(products)}`);
       }).pipe(
         Effect.catchTag("PaywallActionError", (error) =>

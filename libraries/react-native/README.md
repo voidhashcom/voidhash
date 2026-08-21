@@ -200,12 +200,25 @@ createVoidhashClient("vh_pk_...", {
 });
 ```
 
-Swallowed (warn, do not reject): `init()`, `end()`, `identify(...)`, `reset()`, `signOut()`,
+Swallowed (warn, return `Result.ok`): `init()`, `end()`, `identify(...)`, `reset()`, `signOut()`,
 `setPersonAttributes(...)`, `restorePurchases()`, `flush()`, `iosPresentCodeRedemptionSheet()`,
 `iosShowManageSubscriptions()`.
 
-Still strict (reject on failure): `getCurrentPerson(...)`, `getFeatureFlags(...)`,
-`getPaywallForLocation(...)`, `getProducts()`, `purchase(...)`, `setPersonAttributesSync(...)`.
+Strict (return `Result.err` on failure): `getCurrentPerson(...)`, `getFeatureFlags(...)`,
+`getPaywallForLocation(...)`, `getProducts()`, `hasPerk(...)`, `setPersonAttributesSync(...)`,
+`purchase(...)`.
+
+Every fallible client method returns a [`Result`](https://better-result.dev) from better-result and
+never rejects:
+
+```ts
+const products = await client.getProducts();
+if (products.isOk()) {
+  render(products.value);
+} else if (products.error.code === "FAILED_TO_GET_PRODUCTS") {
+  retry(products.error);
+}
+```
 
 This flag is intentionally unstable and best used for background/observer-style alpha integrations.
 It is not recommended for core purchase flow handling.

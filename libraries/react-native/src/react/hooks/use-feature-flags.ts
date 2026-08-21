@@ -24,7 +24,7 @@ export function featureFlagsHookFactory(
     // hooks asking for the same keys (in any order) share an atom, and hooks
     // asking for different keys can't trample each other.
     const flagsAtom = useMemo(() => featureFlagsForKeysAtom(flagKeys), [flagKeys]);
-    const flags = useAtomValue(client.internal_getAtomRegistry(), flagsAtom);
+    const flags = useAtomValue(client.internal.getAtomRegistry(), flagsAtom);
 
     const isEnabled = useCallback(
       (key: string) => flags?.flags.find((f) => f.key === key)?.enabled ?? false,

@@ -1,3 +1,4 @@
+import { Result } from "better-result";
 import { Effect, Exit } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 import { vi } from "vitest";
@@ -42,9 +43,15 @@ vi.mock("../src/core/platform/react-native-platform-provider", async () => {
 
 import { VoidhashClient } from "../src/client";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "../src/errors";
+import { PurchasePendingError, UserCancelledError } from "../src/core/payment-adapters/errors";
 import { createTestSchema } from "./helpers/test-schema";
 
-function createClient(readOnly = false, unstableSwallowErrors = false, dev = false, enabled = true) {
+function createClient(
+  readOnly = false,
+  unstableSwallowErrors = false,
+  dev = false,
+  enabled = true,
+) {
   return new VoidhashClient(
     null,
     "voidhash",
@@ -68,6 +75,22 @@ function stubInitializedClient(client: VoidhashClient, initializedClient: Record
   (client as unknown as Record<string, unknown>).effectRuntime = {
     runPromiseExit: vi.fn().mockResolvedValue(Exit.succeed(undefined)),
   };
+}
+
+async function expectOk<T>(promise: Promise<Result<T, VoidhashError>>): Promise<T> {
+  const result = await promise;
+  if (!result.isOk()) {
+    expect.fail(`expected Ok, got Err: ${result.error.message}`);
+  }
+  return result.value;
+}
+
+async function expectErr(promise: Promise<Result<unknown, VoidhashError>>): Promise<VoidhashError> {
+  const result = await promise;
+  if (result.isOk()) {
+    expect.fail("expected Err, got Ok");
+  }
+  return result.error;
 }
 
 describe("VoidhashClient", () => {
@@ -101,7 +124,7 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
-      await expect(client.flush()).resolves.toBeUndefined();
+      await expectOk(client.flush());
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in flush",
         expect.any(VoidhashError),
@@ -123,9 +146,7 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
-      await expect(
-        client.identify("new-user", { email: "new@voidhash.test" }),
-      ).resolves.toBeUndefined();
+      await expectOk(client.identify("new-user", { email: "new@voidhash.test" }));
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in identify",
         expect.any(VoidhashError),
@@ -146,7 +167,7 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
-      await expect(client.restorePurchases()).resolves.toBeUndefined();
+      await expectOk(client.restorePurchases());
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in restorePurchases",
         expect.any(VoidhashError),
@@ -167,7 +188,7 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
-      await expect(client.init()).resolves.toBeUndefined();
+      await expectOk(client.init());
       expect(client.isInitialized).toBe(false);
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in init",
@@ -176,15 +197,13 @@ describe("VoidhashClient", () => {
       warnSpy.mockRestore();
     });
 
-    it("swallows ensureInitialized errors in side-effect methods when unstable_swallowErrors is enabled", async () => {
+    it("swallows not-initialized errors in side-effect methods when unstable_swallowErrors is enabled", async () => {
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         return;
       });
       const client = createClient(false, true);
 
-      await expect(
-        client.identify("new-user", { email: "new@voidhash.test" }),
-      ).resolves.toBeUndefined();
+      await expectOk(client.identify("new-user", { email: "new@voidhash.test" }));
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in identify",
         expect.any(VoidhashError),
@@ -202,11 +221,8 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
-      await expect(client.getProducts()).rejects.toEqual(
-        expect.objectContaining<Partial<VoidhashError>>({
-          message: expect.stringContaining("FAILED_TO_GET_PRODUCTS"),
-        }),
-      );
+      const error = await expectErr(client.getProducts());
+      expect(error.code).toBe("FAILED_TO_GET_PRODUCTS");
     });
 
     it("keeps purchase strict even when unstable_swallowErrors is enabled", async () => {
@@ -219,23 +235,58 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
-      await expect(
-        client.purchase(
-          {
-            id: "monthly-id",
-          } as never,
-          {},
-        ),
-      ).rejects.toEqual(
-        expect.objectContaining<Partial<VoidhashError>>({
-          message: expect.stringContaining("FAILED_TO_PURCHASE"),
-        }),
+      const error = await expectErr(client.purchase({ id: "monthly-id" } as never));
+      expect(error.code).toBe("FAILED_TO_PURCHASE");
+    });
+  });
+
+  describe("purchase results", () => {
+    it("maps a user cancellation to the cancelled status instead of an error", async () => {
+      const client = createClient();
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        purchase: () => "purchase-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: vi
+          .fn()
+          .mockResolvedValue(Exit.fail(new UserCancelledError({ message: "cancelled" }))),
+      };
+
+      await expect(client.purchase({ id: "monthly-id" } as never)).resolves.toEqual(
+        Result.ok({ status: "cancelled" }),
+      );
+    });
+
+    it("maps a pending purchase to the pending status", async () => {
+      const client = createClient();
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        purchase: () => "purchase-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: vi
+          .fn()
+          .mockResolvedValue(Exit.fail(new PurchasePendingError({ message: "pending" }))),
+      };
+
+      await expect(client.purchase({ id: "monthly-id" } as never)).resolves.toEqual(
+        Result.ok({ status: "pending" }),
+      );
+    });
+
+    it("resolves completed on success", async () => {
+      const client = createClient();
+      stubInitializedClient(client, { purchase: () => "purchase-effect" });
+
+      await expect(client.purchase({ id: "monthly-id" } as never)).resolves.toEqual(
+        Result.ok({ status: "completed" }),
       );
     });
   });
 
   describe("readOnly mode", () => {
-    it("throws when purchasing in read-only mode", async () => {
+    it("fails purchasing in read-only mode with a structured error", async () => {
       const client = createClient(true);
 
       (client as unknown as Record<string, unknown>).initializedClient = {
@@ -245,17 +296,12 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.succeed(undefined)),
       };
 
-      await expect(
-        client.purchase(
-          {
-            id: "monthly-id",
-          } as never,
-          {},
-        ),
-      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+      const error = await expectErr(client.purchase({ id: "monthly-id" } as never));
+      expect(error).toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+      expect(error.code).toBe("READ_ONLY_PURCHASE_NOT_ALLOWED");
     });
 
-    it("keeps read-only purchase rejection strict when unstable_swallowErrors is enabled", async () => {
+    it("keeps read-only purchase failure strict when unstable_swallowErrors is enabled", async () => {
       const client = createClient(true, true);
 
       (client as unknown as Record<string, unknown>).initializedClient = {
@@ -265,14 +311,8 @@ describe("VoidhashClient", () => {
         runPromiseExit: vi.fn().mockResolvedValue(Exit.succeed(undefined)),
       };
 
-      await expect(
-        client.purchase(
-          {
-            id: "monthly-id",
-          } as never,
-          {},
-        ),
-      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+      const result = await client.purchase({ id: "monthly-id" } as never);
+      expect(result.isErr()).toBe(true);
     });
 
     it("allows purchasing after setReadOnly(false) flips the client to owner mode", async () => {
@@ -280,42 +320,46 @@ describe("VoidhashClient", () => {
       stubInitializedClient(client, { purchase: () => "purchase-effect" });
 
       expect(client.isReadOnly).toBe(true);
-      await expect(
-        client.purchase({ id: "monthly-id" } as never, {}),
-      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+      const blocked = await client.purchase({ id: "monthly-id" } as never);
+      expect(blocked.isErr()).toBe(true);
 
       client.setReadOnly(false);
 
       expect(client.isReadOnly).toBe(false);
-      await expect(client.purchase({ id: "monthly-id" } as never, {})).resolves.toBeUndefined();
+      await expect(client.purchase({ id: "monthly-id" } as never)).resolves.toEqual(
+        Result.ok({ status: "completed" }),
+      );
     });
 
     it("blocks purchasing again after setReadOnly(true) flips the client to observer mode", async () => {
       const client = createClient(false);
       stubInitializedClient(client, { purchase: () => "purchase-effect" });
 
-      await expect(client.purchase({ id: "monthly-id" } as never, {})).resolves.toBeUndefined();
+      await expect(client.purchase({ id: "monthly-id" } as never)).resolves.toEqual(
+        Result.ok({ status: "completed" }),
+      );
 
       client.setReadOnly(true);
 
-      await expect(
-        client.purchase({ id: "monthly-id" } as never, {}),
-      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+      const blocked = await client.purchase({ id: "monthly-id" } as never);
+      expect(blocked.isErr()).toBe(true);
     });
 
     it("gates setPersonAttributesSync on the current mode", async () => {
       const client = createClient(true);
       stubInitializedClient(client, { setPersonAttributesSync: () => "sync-effect" });
 
-      await expect(client.setPersonAttributesSync({ email: "a@voidhash.test" })).rejects.toBeInstanceOf(
-        ReadOnlyModePurchaseNotAllowedError,
-      );
+      const blocked = await client.setPersonAttributesSync({ email: "a@voidhash.test" });
+      expect(blocked.isErr()).toBe(true);
+      if (blocked.isErr()) {
+        expect(blocked.error).toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+      }
 
       client.setReadOnly(false);
 
       await expect(
         client.setPersonAttributesSync({ email: "a@voidhash.test" }),
-      ).resolves.toBeUndefined();
+      ).resolves.toBeTruthy();
     });
 
     it("publishes the switch to the SdkConfiguration the Effect layer reads", () => {
@@ -334,43 +378,137 @@ describe("VoidhashClient", () => {
     });
   });
 
+  describe("hasPerk", () => {
+    const activeGrant = { perkId: "premium", status: "active" };
+    const expiredGrant = { perkId: "premium", status: "expired" };
+
+    function stubPersonResponses(
+      client: VoidhashClient,
+      options: {
+        fresh?: unknown;
+        cached?: unknown;
+        freshFails?: boolean;
+      },
+    ) {
+      stubInitializedClient(client, {
+        getCachedPerson: () => "cached-person-effect",
+        getCurrentPerson: () => "person-effect",
+      });
+      const runPromiseExit = vi.fn().mockImplementation(async () => {
+        if (options.freshFails) {
+          return Exit.fail(new Error("offline"));
+        }
+        return Exit.succeed(options.fresh ?? null);
+      });
+      // The second call in a stale fallback reads the cache.
+      if (options.freshFails && options.cached !== undefined) {
+        runPromiseExit.mockResolvedValueOnce(Exit.fail(new Error("offline")));
+        runPromiseExit.mockResolvedValueOnce(Exit.succeed(options.cached));
+      }
+      (client as unknown as Record<string, unknown>).effectRuntime = { runPromiseExit };
+    }
+
+    it("answers from a fresh snapshot when the refresh succeeds", async () => {
+      const client = createClient();
+      stubPersonResponses(client, { fresh: { entitlements: { grants: [activeGrant] } } });
+
+      await expect(client.hasPerk("premium")).resolves.toEqual(
+        Result.ok({ grant: activeGrant, hasAccess: true, isStale: false }),
+      );
+    });
+
+    it("answers false for an expired or missing grant", async () => {
+      const client = createClient();
+      stubPersonResponses(client, { fresh: { entitlements: { grants: [expiredGrant] } } });
+
+      await expect(client.hasPerk("premium")).resolves.toEqual(
+        Result.ok({ grant: null, hasAccess: false, isStale: false }),
+      );
+    });
+
+    it("falls back to the cached snapshot and flags staleness when the refresh fails", async () => {
+      const client = createClient();
+      stubPersonResponses(client, {
+        cached: { entitlements: { grants: [activeGrant] } },
+        fresh: { entitlements: { grants: [] } },
+        freshFails: true,
+      });
+
+      await expect(client.hasPerk("premium")).resolves.toEqual(
+        Result.ok({ grant: activeGrant, hasAccess: true, isStale: true }),
+      );
+    });
+
+    it("fails with the refresh error when there is no cached evidence of access", async () => {
+      const client = createClient();
+      stubPersonResponses(client, {
+        cached: { entitlements: { grants: [] } },
+        freshFails: true,
+      });
+
+      const error = await expectErr(client.hasPerk("premium"));
+      expect(error.code).toBe("FAILED_TO_GET_CURRENT_PERSON");
+    });
+
+    it("fails with the refresh error when allowStale is false", async () => {
+      const client = createClient();
+      stubPersonResponses(client, {
+        cached: { entitlements: { grants: [activeGrant] } },
+        freshFails: true,
+      });
+
+      const error = await expectErr(client.hasPerk("premium", { allowStale: false }));
+      expect(error.code).toBe("FAILED_TO_GET_CURRENT_PERSON");
+    });
+
+    it("answers no access on a disabled client", async () => {
+      const client = createClient(false, false, false, false);
+
+      await expect(client.hasPerk("premium")).resolves.toEqual(
+        Result.ok({ grant: null, hasAccess: false, isStale: false }),
+      );
+    });
+  });
+
   describe("disabled mode", () => {
     it("resolves init and end as no-ops and stays uninitialized", async () => {
       const client = createClient(false, false, false, false);
 
       expect(client.isEnabled).toBe(false);
-      await expect(client.init()).resolves.toBeUndefined();
+      await expectOk(client.init());
       expect(client.isInitialized).toBe(false);
-      await expect(client.end()).resolves.toBeUndefined();
+      await expectOk(client.end());
     });
 
     it("resolves every side-effect method without throwing", async () => {
       const client = createClient(false, false, false, false);
 
-      await expect(
-        client.identify("user", { email: "user@voidhash.test" }),
-      ).resolves.toBeUndefined();
-      await expect(client.setPersonAttributes({ name: "User" })).resolves.toBeUndefined();
-      await expect(client.reset()).resolves.toBeUndefined();
-      await expect(client.signOut()).resolves.toBeUndefined();
-      await expect(client.purchase({ id: "monthly-id" } as never, {})).resolves.toBeUndefined();
-      await expect(client.restorePurchases()).resolves.toBeUndefined();
-      await expect(client.flush()).resolves.toBeUndefined();
-      await expect(client.iosPresentCodeRedemptionSheet()).resolves.toBeUndefined();
-      await expect(client.iosShowManageSubscriptions()).resolves.toBeUndefined();
+      await expectOk(client.identify("user", { email: "user@voidhash.test" }));
+      await expectOk(client.setPersonAttributes({ name: "User" }));
+      await expectOk(client.reset());
+      await expectOk(client.signOut());
+      await expect(client.purchase({ id: "monthly-id" } as never)).resolves.toEqual(
+        Result.ok({ status: "disabled" }),
+      );
+      await expectOk(client.restorePurchases());
+      await expectOk(client.flush());
+      await expectOk(client.iosPresentCodeRedemptionSheet());
+      await expectOk(client.iosShowManageSubscriptions());
       expect(() => client.capture("cta_seen")).not.toThrow();
     });
 
     it("answers reads with their empty shape", async () => {
       const client = createClient(false, false, false, false);
 
-      await expect(client.getCurrentPerson()).resolves.toBeNull();
-      await expect(client.getDistinctId()).resolves.toBeNull();
-      await expect(client.setPersonAttributesSync({ name: "User" })).resolves.toBeNull();
-      await expect(client.getProducts()).resolves.toEqual({});
-      await expect(client.getFeatureFlags()).resolves.toEqual({ flags: [] });
-      await expect(client.getPaywallForLocation("home")).resolves.toBeNull();
-      expect(client.internal_getSchema()).toBeNull();
+      await expect(client.getCurrentPerson()).resolves.toEqual(Result.ok(null));
+      await expect(client.getDistinctId()).resolves.toEqual(Result.ok(null));
+      await expect(client.setPersonAttributesSync({ name: "User" })).resolves.toEqual(
+        Result.ok(null),
+      );
+      await expect(client.getProducts()).resolves.toEqual(Result.ok({}));
+      await expect(client.getFeatureFlags()).resolves.toEqual(Result.ok({ flags: [] }));
+      await expect(client.getPaywallForLocation("home")).resolves.toEqual(Result.ok(null));
+      expect(client.internal.getSchema()).toBeNull();
     });
 
     it("never runs an effect, so nothing is queued, persisted or sent", async () => {

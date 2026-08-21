@@ -116,7 +116,9 @@ function createFetchDouble() {
 
 /** Disposes the runtime the client owns privately — it has no public teardown. */
 const disposeRuntime = (client: VoidhashClient) =>
-  (client as unknown as { effectRuntime: { dispose: () => Promise<void> } }).effectRuntime.dispose();
+  (
+    client as unknown as { effectRuntime: { dispose: () => Promise<void> } }
+  ).effectRuntime.dispose();
 
 describe("VoidhashClient init", () => {
   it("resolves through the real code path and wires automatic lifecycle events", async () => {
@@ -125,14 +127,16 @@ describe("VoidhashClient init", () => {
 
     // Regression: wiring the lifecycle events used to run an asynchronous
     // effect with `runSync`, so `init()` marked the client initialized and
-    // then rejected, leaving a half-live client behind.
-    await expect(client.init()).resolves.toBeUndefined();
+    // then failed, leaving a half-live client behind.
+    const initResult = await client.init();
+    expect(initResult.isOk()).toBe(true);
 
     expect(client.isInitialized).toBe(true);
     expect(nativeStore.initConnectionCalls).toBe(1);
     expect(appState.addEventListener).toHaveBeenCalledWith("change", expect.any(Function));
 
-    await expect(client.end()).resolves.toBeUndefined();
+    const endResult = await client.end();
+    expect(endResult.isOk()).toBe(true);
     expect(client.isInitialized).toBe(false);
 
     await disposeRuntime(client);

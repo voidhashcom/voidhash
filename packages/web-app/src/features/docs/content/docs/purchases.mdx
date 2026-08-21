@@ -14,8 +14,9 @@ const { data: products, error, isLoading } = voidhash.useProducts();
 const monthly = products.get("monthly");
 ```
 
-`monthly` is `null` when the store does not return that product. This commonly means the product is
-not available in the current sandbox account, country, app version, or provider configuration.
+`data` is a `Map` keyed by the project's product slugs. `monthly` is `null` when the store does not
+return that product. This commonly means the product is not available in the current sandbox
+account, country, app version, or provider configuration.
 
 Render the store-provided `displayPrice`:
 
@@ -26,6 +27,9 @@ return <Text>{monthly.displayPrice}</Text>;
 ```
 
 ## Start a purchase
+
+`purchase()` resolves to a better-result `Result` and never rejects — cancellation is an `Ok`
+outcome, not an error:
 
 ```tsx
 const { purchase, error, isLoading } = voidhash.usePurchase({
@@ -40,11 +44,28 @@ const { purchase, error, isLoading } = voidhash.usePurchase({
 <Button
   disabled={!monthly || isLoading}
   title={isLoading ? "Purchasing…" : `Continue for ${monthly?.displayPrice ?? ""}`}
-  onPress={() => {
-    if (monthly) purchase(monthly);
+  onPress={async () => {
+    if (!monthly) return;
+
+    const result = await purchase(monthly);
+    if (result.isOk() && result.value.status === "cancelled") {
+      // The customer dismissed the store sheet. Expected — no error.
+    }
   }}
 />;
 ```
+
+The `Ok` outcome is one of:
+
+| Status        | Meaning                                                                        |
+| ------------- | ------------------------------------------------------------------------------ |
+| `completed`   | Validated by Voidhash; the person snapshot has been refreshed.                 |
+| `cancelled`   | The customer dismissed the native store sheet.                                 |
+| `pending`     | The purchase needs external action; access arrives once it reconciles.         |
+| `disabled`    | The client was created with `enabled: false`.                                  |
+
+The `Err` channel carries a coded [`VoidhashError`](/errors) — typically
+`FAILED_TO_PURCHASE`, or `READ_ONLY_PURCHASE_NOT_ALLOWED` in observer mode.
 
 The SDK opens the native store flow, sends the transaction to Voidhash for server validation, and
 refreshes the current person after success. `useCurrentPerson()` then receives the new entitlement
@@ -75,7 +96,7 @@ create a second purchase.
 
 - **Product is `null`** — verify the store product mapping and the current sandbox environment.
 - **Purchase already in progress** — disable repeated taps while `isLoading` is true.
-- **Customer cancels** — treat cancellation as an expected outcome, not an app crash.
+- **Customer cancels** — handle the `cancelled` outcome as an expected result, not an app crash.
 - **Purchase succeeds but access is absent** — retry the person fetch and verify the product grants
   the expected perk in Studio.
 - **Restore finds nothing** — confirm the device uses the same App Store or Google Play account as

@@ -11,45 +11,90 @@ This page covers checks inside the app. Anything a customer could reach by calli
 directly must also be checked on the server — see
 [Check access from your backend](/backend-entitlements).
 
-## Read the current person
-
-```tsx
-const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
-```
-
-`data` is an empty object until the first snapshot loads, so use optional chaining for nested
-fields.
-
 ## Gate a feature
 
-A perk is available when its grant is `active`:
-
-```tsx title="hooks/use-has-perk.ts"
-import { voidhash } from "../lib/voidhash";
-
-export function useHasPerk(perkId: string) {
-  const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
-
-  const hasPerk =
-    person.entitlements?.grants.some(
-      (grant) => grant.perkId === perkId && grant.status === "active",
-    ) ?? false;
-
-  return { error, hasPerk, isLoading, refetch };
-}
-```
+Use `useHasPerk` to check whether the current customer holds an active grant for a perk:
 
 ```tsx
-const { hasPerk, isLoading } = useHasPerk("premium");
+const { hasAccess, isLoading } = voidhash.useHasPerk("premium");
 
 if (isLoading) return null;
-return hasPerk ? <PremiumContent /> : <UpgradePrompt />;
+return hasAccess ? <PremiumContent /> : <UpgradePrompt />;
+```
+
+The hook returns:
+
+| Field       | Meaning                                                                              |
+| ----------- | ------------------------------------------------------------------------------------ |
+| `hasAccess` | `true` when the person holds an active grant for the perk.                            |
+| `grant`     | The active grant behind `hasAccess`, or `null`.                                       |
+| `isLoading` | `true` until the first snapshot has loaded.                                           |
+| `isStale`   | `true` when `hasAccess` was served from cache because a refresh failed.               |
+| `error`     | The refresh error, if any.                                                            |
+| `refetch`   | Force a refresh.                                                                      |
+
+Outside React, use the imperative counterpart:
+
+```ts
+const { hasAccess, isStale } = await voidhash.client.hasPerk("premium");
 ```
 
 <Callout type="info" title="Gate on perks, not subscription status">
   Subscription status cannot tell you which features a product unlocks, and it misses access from
   one-time purchases or manual grants. Active perk grants are the access-control source of truth.
 </Callout>
+
+## Offline and failure behavior
+
+A failed refresh (offline, server error) is **not** proof that the customer has no access. Both
+check APIs therefore fail open with known-good data:
+
+- If a cached snapshot shows an active grant, `hasAccess` stays `true` and `isStale` is set.
+- If there is no cached evidence of access, `client.hasPerk` fails with the refresh error instead
+  of answering a confident "no"; the hook reports `hasAccess: false` with `error` set.
+
+Choose a fallback appropriate for each feature:
+
+```tsx
+const { hasAccess, isStale, error, refetch } = voidhash.useHasPerk("premium");
+
+if (isStale) {
+  // Cached access while offline — usually fine to keep serving content.
+}
+if (!hasAccess && error) {
+  return <RetryScreen onRetry={refetch} />;
+}
+return hasAccess ? <PremiumContent /> : <UpgradePrompt />;
+```
+
+To require fresh confirmation — for example before unlocking a consumable — pass
+`{ allowStale: false }` to the imperative check:
+
+```ts
+const result = await voidhash.client.hasPerk("premium", { allowStale: false });
+if (result.isErr()) {
+  // Could not confirm access right now.
+}
+```
+
+## Read the current person
+
+When you need more than a single perk check, read the full snapshot:
+
+```tsx
+const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
+```
+
+`data` is the person snapshot, or `null` until the first snapshot loads or while the client is
+disabled. See [the SDK reference](/react-native#usecurrentperson) for the full shape.
+
+For advanced cases you can still filter grants directly — prefer `useHasPerk` for gating:
+
+```tsx
+const premiumGrant = person?.entitlements.grants.find(
+  (grant) => grant.perkId === "premium" && grant.status === "active",
+);
+```
 
 ## Grant fields
 
@@ -66,22 +111,13 @@ Use `subscriptions.current` for account UI such as the current plan or renewal s
 
 ## Refresh behavior
 
-The SDK refreshes the person after purchases, restores, and identity changes. To explicitly request
-the latest value, call the hook's `refetch()` or bypass the cache outside React:
+The SDK refreshes the person after purchases, restores, and identity changes. Reads use a
+stale-while-revalidate cache: a snapshot younger than five minutes is served immediately while a
+fresh copy is fetched in the background; older snapshots trigger a network fetch first. To force
+a network round-trip, call the hook's `refetch()` or bypass the cache outside React:
 
 ```ts
-const freshPerson = await voidhash.client.getCurrentPerson(true);
-```
-
-## Handle failures deliberately
-
-Do not interpret a network error as proof that the customer has no access. Keep the loading and
-error states separate from `hasPerk`, and choose a fallback appropriate for the feature:
-
-```tsx
-if (isLoading) return <LoadingScreen />;
-if (error) return <RetryScreen onRetry={refetch} />;
-return hasPerk ? <PremiumContent /> : <UpgradePrompt />;
+const freshPerson = await voidhash.client.getCurrentPerson({ forceFetch: true });
 ```
 
 ## Next steps

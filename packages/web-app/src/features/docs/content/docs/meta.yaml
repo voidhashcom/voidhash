@@ -18,6 +18,7 @@ pages:
   - webhooks
   - "---SDK---"
   - react-native
+  - errors
   - observer-mode
   - "---Resources---"
   - cli

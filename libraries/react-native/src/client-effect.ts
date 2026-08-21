@@ -225,6 +225,22 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           return person;
         }),
 
+      getCachedPerson: () =>
+        Effect.gen(function* getCachedPerson() {
+          const identityManager = yield* IdentityManager;
+          const personInfoManager = yield* PersonInfoManager;
+          const distinctId = yield* identityManager.getDistinctId();
+          return yield* personInfoManager.getPerson(distinctId, "cache");
+        }),
+
+      resetPersonCache: () =>
+        Effect.gen(function* resetPersonCache() {
+          const identityManager = yield* IdentityManager;
+          const personInfoManager = yield* PersonInfoManager;
+          const distinctId = yield* identityManager.getDistinctId();
+          return yield* personInfoManager.resetCache(distinctId);
+        }),
+
       getDistinctId: () =>
         Effect.gen(function* getDistinctId() {
           const identityManager = yield* IdentityManager;
@@ -289,12 +305,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           return yield* transactionService.processObservedTransaction(transaction, options.schema);
         }),
 
-      purchase: (
-        product: Product,
-        _options: {
-          method?: "native";
-        },
-      ) =>
+      purchase: (product: Product) =>
         Effect.gen(function* purchase() {
           const transactionService = yield* TransactionService;
           yield* transactionService.purchase(product, options.schema);

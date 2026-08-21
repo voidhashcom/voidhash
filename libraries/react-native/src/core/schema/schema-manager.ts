@@ -22,7 +22,7 @@ const generateSchemaCacheKey = (appVersion: string) => `schema:${appVersion}`;
 
 const toFetchError = (cause: unknown): FailedToFetchSchemaError => {
   const errorCause = cause instanceof Error ? cause : new Error(String(cause));
-  return new FailedToFetchSchemaError("Failed to fetch schema at init", errorCause);
+  return new FailedToFetchSchemaError("Failed to fetch schema at init", { cause: errorCause });
 };
 
 interface ResolveSchemaArgs {

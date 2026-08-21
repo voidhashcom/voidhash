@@ -2,8 +2,10 @@ import { Cause, Effect, Exit } from "effect";
 import React, { useCallback, useEffect } from "react";
 import { AppState, Linking, Platform } from "react-native";
 
+import type { SdkResolvedPaywall } from "@voidhash/generated-clients";
 import type { VoidhashClient } from "../../client";
 import type { Product } from "../../core/entities/product";
+import { VoidhashError } from "../../errors";
 import type { PaywallReleaseRuntime } from "../../core/paywalls/paywall-service";
 import type { LocationSlug } from "../../core/schema/registry";
 import { parsePaywallBridgeEnvelope } from "../../internal/paywall-bridge/parser";
@@ -95,7 +97,7 @@ function normalizeLocation(locationSlug: string): string {
 }
 
 function getResolvedPaywallEntry(
-  resolvedPaywall: Awaited<ReturnType<VoidhashClient["getPaywallForLocation"]>> | null | undefined,
+  resolvedPaywall: SdkResolvedPaywall | null | undefined,
 ): ResolvedPaywallEntry | null {
   if (!resolvedPaywall) {
     return null;
@@ -117,14 +119,6 @@ function toPaywallError(value: unknown): Error {
   return value instanceof Error ? value : new Error(String(value));
 }
 
-/** Runs a preload, returning the normalized failure instead of rejecting. */
-async function runPreload(preloadPaywall: () => Promise<void>): Promise<Error | null> {
-  return await preloadPaywall().then(
-    () => null,
-    (error: unknown) => toPaywallError(error),
-  );
-}
-
 /**
  * Runs a preload that nobody is awaiting (hook mount, app-foreground). Failures
  * are reported and dropped instead of escaping as an unhandled rejection: the
@@ -133,9 +127,9 @@ async function runPreload(preloadPaywall: () => Promise<void>): Promise<Error | 
 async function runBackgroundPreload(options: {
   locationKey: string;
   onPreloadError?: (error: Error) => void;
-  preloadPaywall: () => Promise<void>;
+  preloadPaywall: () => Promise<Error | null>;
 }): Promise<void> {
-  const error = await runPreload(options.preloadPaywall);
+  const error = await options.preloadPaywall();
   if (!error) {
     return;
   }
@@ -151,23 +145,9 @@ async function runBackgroundPreload(options: {
 export async function __internal_runBackgroundPreloadForTests(options: {
   locationKey: string;
   onPreloadError?: (error: Error) => void;
-  preloadPaywall: () => Promise<void>;
+  preloadPaywall: () => Promise<Error | null>;
 }) {
   await runBackgroundPreload(options);
-}
-
-function getErrorPayload(error: unknown): { code: string; message: string } {
-  if (error instanceof Error) {
-    return {
-      code: "ACTION_FAILED",
-      message: error.message,
-    };
-  }
-
-  return {
-    code: "ACTION_FAILED",
-    message: "Unknown paywall bridge action error",
-  };
 }
 
 function findProductByBridgeProductId(
@@ -186,27 +166,6 @@ function findProductByBridgeProductId(
   const bySlug = productList.find((product) => product.slug === productId);
   if (bySlug) return bySlug;
   return productList.find((product) => product.providerProductId === productId) ?? null;
-}
-
-function isPurchaseCancellation(error: unknown): boolean {
-  let current = error;
-  const visited = new Set<unknown>();
-  while (current && !visited.has(current)) {
-    visited.add(current);
-    if (
-      typeof current === "object" &&
-      current !== null &&
-      "_tag" in current &&
-      current._tag === "UserCancelledError"
-    ) {
-      return true;
-    }
-    current =
-      typeof current === "object" && current !== null && "cause" in current
-        ? current.cause
-        : undefined;
-  }
-  return false;
 }
 
 interface PaywallPresenterBridgeAdapter {
@@ -240,32 +199,38 @@ async function sendConfigureMessage(options: {
     return;
   }
 
-  const exit = await Effect.runPromiseExit(
-    Effect.tryPromise({
-      try: () => client.internal_buildPaywallRuntimeConfig(runtime),
-      catch: (error) => error,
-    }).pipe(
-      Effect.flatMap((runtimeConfig) =>
-        Effect.try({
-          try: () =>
-            presenter.postMessage(
-              locationKey,
-              createPaywallBridgeConfigureMessage(runtimeConfig, requestId),
-            ),
-          catch: (error) => error,
-        }),
-      ),
-    ),
-  );
+  const runtimeConfigResult = await client.internal.buildPaywallRuntimeConfig(runtime);
 
-  if (Exit.isSuccess(exit)) {
-    return;
+  if (runtimeConfigResult.isOk()) {
+    const postExit = Effect.runSyncExit(
+      Effect.try({
+        try: () =>
+          presenter.postMessage(
+            locationKey,
+            createPaywallBridgeConfigureMessage(runtimeConfigResult.value, requestId),
+          ),
+        catch: (error) => error,
+      }),
+    );
+    if (Exit.isSuccess(postExit)) {
+      return;
+    }
+    // This warning is intentionally surfaced in all environments.
+    console.warn(
+      "[voidhash] failed to send paywall configure message",
+      Cause.squash(postExit.cause),
+    );
+  } else {
+    // This warning is intentionally surfaced in all environments.
+    console.warn(
+      "[voidhash] failed to build the paywall runtime config",
+      runtimeConfigResult.error,
+    );
   }
 
-  // This warning is intentionally surfaced in all environments.
-  console.warn("[voidhash] failed to send paywall configure message", Cause.squash(exit.cause));
-
-  Effect.runSync(
+  // Degraded configure envelope — empty products, the release's variables
+  // passed through — so the paywall is never left configless forever.
+  const fallbackExit = Effect.runSyncExit(
     Effect.try({
       try: () =>
         presenter.postMessage(
@@ -282,18 +247,16 @@ async function sendConfigureMessage(options: {
           ),
         ),
       catch: (fallbackError) => fallbackError,
-    }).pipe(
-      Effect.catch((fallbackError) =>
-        Effect.sync(() => {
-          // This warning is intentionally surfaced in all environments.
-          console.warn(
-            "[voidhash] failed to send fallback paywall configure message",
-            fallbackError,
-          );
-        }),
-      ),
-    ),
+    }),
   );
+
+  if (!Exit.isSuccess(fallbackExit)) {
+    // This warning is intentionally surfaced in all environments.
+    console.warn(
+      "[voidhash] failed to send fallback paywall configure message",
+      Cause.squash(fallbackExit.cause),
+    );
+  }
 }
 
 async function handlePaywallBridgeEvent(options: {
@@ -377,7 +340,12 @@ async function handlePaywallBridgeEvent(options: {
     return;
   }
 
-  const runBridgeAction = async () => {
+  /**
+   * Runs the purchase/restore action, returning the failure instead of
+   * throwing. `null` means the action completed (or was cancelled by the
+   * customer) and all envelopes have been posted.
+   */
+  const runBridgeAction = async (): Promise<VoidhashError | null> => {
     if (bridgeEvent.type === "purchase") {
       presenter.postMessage(
         locationKey,
@@ -385,36 +353,37 @@ async function handlePaywallBridgeEvent(options: {
           productId: bridgeEvent.payload.productId,
         }),
       );
-      const products = await client.getProducts();
-      const product = findProductByBridgeProductId(products, bridgeEvent.payload.productId);
+      const productsResult = await client.getProducts();
+      if (productsResult.isErr()) {
+        return productsResult.error;
+      }
+      const product = findProductByBridgeProductId(
+        productsResult.value,
+        bridgeEvent.payload.productId,
+      );
 
       if (!product) {
-        const productNotFoundMessage = `Product not found: ${bridgeEvent.payload.productId}`;
-        paywallOptions?.onError?.(new Error(productNotFoundMessage), {
-          action: "purchase",
-          requestId: bridgeEvent.requestId,
-        });
-        presenter.postMessage(
-          locationKey,
-          createPaywallBridgeStatusMessage("failed", bridgeEvent.requestId, {
-            error: productNotFoundMessage,
-          }),
+        return new VoidhashError(
+          "FAILED_TO_PURCHASE",
+          `Product not found: ${bridgeEvent.payload.productId}`,
         );
-        presenter.postMessage(
-          locationKey,
-          createPaywallBridgeErrorResponse(
-            "purchase",
-            "ACTION_FAILED",
-            productNotFoundMessage,
-            bridgeEvent.requestId,
-          ),
-        );
-        return;
       }
 
-      await client.purchase(product, {
-        method: "native",
-      });
+      const result = await client.purchase(product);
+
+      if (result.isErr()) {
+        return result.error;
+      }
+
+      if (result.value.status === "cancelled") {
+        presenter.postMessage(
+          locationKey,
+          createPaywallBridgeStatusMessage("cancelled", bridgeEvent.requestId, {
+            productId: product.id,
+          }),
+        );
+        return null;
+      }
 
       paywallOptions?.onPurchase?.({
         productId: product.id,
@@ -433,14 +402,17 @@ async function handlePaywallBridgeEvent(options: {
         }),
       );
       await presenter.dismiss();
-      return;
+      return null;
     }
 
     presenter.postMessage(
       locationKey,
       createPaywallBridgeStatusMessage("restoring", bridgeEvent.requestId),
     );
-    await client.restorePurchases();
+    const restoreResult = await client.restorePurchases();
+    if (restoreResult.isErr()) {
+      return restoreResult.error;
+    }
     paywallOptions?.onRestore?.({
       requestId: bridgeEvent.requestId,
     });
@@ -453,35 +425,44 @@ async function handlePaywallBridgeEvent(options: {
       createPaywallBridgeSuccessResponse("restore", bridgeEvent.requestId),
     );
     await presenter.dismiss();
+    return null;
+  };
+
+  const postActionFailure = (actionError: VoidhashError | Error) => {
+    presenter.postMessage(
+      locationKey,
+      createPaywallBridgeStatusMessage("failed", bridgeEvent.requestId, {
+        error: actionError.message,
+      }),
+    );
+    paywallOptions?.onError?.(actionError, {
+      action: bridgeEvent.type,
+      requestId: bridgeEvent.requestId,
+    });
+    presenter.postMessage(
+      locationKey,
+      createPaywallBridgeErrorResponse(
+        bridgeEvent.type,
+        "ACTION_FAILED",
+        actionError.message,
+        bridgeEvent.requestId,
+      ),
+    );
   };
 
   inFlightActionByLocation.add(locationKey);
   await Effect.runPromise(
     Effect.tryPromise({ try: () => runBridgeAction(), catch: (error) => error }).pipe(
-      Effect.catch((error) =>
+      Effect.flatMap((actionError) =>
+        actionError === null
+          ? Effect.void
+          : Effect.sync(() => {
+              postActionFailure(actionError);
+            }),
+      ),
+      Effect.catch((unexpectedError) =>
         Effect.sync(() => {
-          const errorPayload = getErrorPayload(error);
-          presenter.postMessage(
-            locationKey,
-            createPaywallBridgeStatusMessage(
-              isPurchaseCancellation(error) ? "cancelled" : "failed",
-              bridgeEvent.requestId,
-              { error: errorPayload.message },
-            ),
-          );
-          paywallOptions?.onError?.(new Error(errorPayload.message), {
-            action: bridgeEvent.type,
-            requestId: bridgeEvent.requestId,
-          });
-          presenter.postMessage(
-            locationKey,
-            createPaywallBridgeErrorResponse(
-              bridgeEvent.type,
-              errorPayload.code,
-              errorPayload.message,
-              bridgeEvent.requestId,
-            ),
-          );
+          postActionFailure(toPaywallError(unexpectedError));
         }),
       ),
       Effect.ensuring(
@@ -563,7 +544,7 @@ interface ShowPaywallForLocationOptions {
   client: VoidhashClient;
   locationKey: string;
   onBridgeEvent: (rawBridgeEvent: string) => void;
-  preloadPaywall: () => Promise<void>;
+  preloadPaywall: () => Promise<Error | null>;
   presenter: PaywallPresenterShowAdapter | null | undefined;
   voidhashContext: VoidhashContext | null;
 }
@@ -599,7 +580,7 @@ async function showPaywallForLocation(
   }
 
   if (!resolvedPaywallByLocation.has(locationKey)) {
-    const preloadError = await runPreload(preloadPaywall);
+    const preloadError = await preloadPaywall();
     if (preloadError) {
       return { error: preloadError, status: "failed" };
     }
@@ -682,21 +663,35 @@ export function paywallByLocationHookFactory(
       onPreloadErrorRef.current = onPreloadError;
     }, [onPreloadError]);
 
-    const preloadPaywall = useCallback(async () => {
-      if (!(isReady && PaywallPresenter)) {
-        return;
+    /** Returns the preload failure instead of throwing, so callers decide how to report it. */
+    const preloadPaywall = useCallback(async (): Promise<Error | null> => {
+      const presenter = PaywallPresenter;
+      if (!(isReady && presenter)) {
+        return null;
       }
 
-      const resolvedPaywall = await client.getPaywallForLocation(locationSlug);
-      const resolvedEntry = getResolvedPaywallEntry(resolvedPaywall);
+      const resolvedPaywallResult = await client.getPaywallForLocation(locationSlug);
+      if (resolvedPaywallResult.isErr()) {
+        return resolvedPaywallResult.error;
+      }
+      const resolvedEntry = getResolvedPaywallEntry(resolvedPaywallResult.value);
 
       if (!resolvedEntry) {
         resolvedPaywallByLocation.delete(locationKey);
-        return;
+        return null;
       }
 
       resolvedPaywallByLocation.set(locationKey, resolvedEntry);
-      await PaywallPresenter.preload(locationKey, resolvedEntry.htmlUrl);
+      const preloadExit = await Effect.runPromiseExit(
+        Effect.tryPromise({
+          try: () => presenter.preload(locationKey, resolvedEntry.htmlUrl),
+          catch: (error) => error,
+        }),
+      );
+      if (Exit.isSuccess(preloadExit)) {
+        return null;
+      }
+      return toPaywallError(Cause.squash(preloadExit.cause));
     }, [client, isReady, locationKey, locationSlug]);
 
     const preloadInBackground = useCallback(() => {

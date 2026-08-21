@@ -67,10 +67,14 @@ describe("PersonInfoManager", () => {
     await withCleanup(
       async () => {
         const result = await harness.runtime.runPromise(
-          Effect.flatMap(PersonInfoManager, (manager) => manager.getPerson("fetched-user", "fetch")),
+          Effect.flatMap(PersonInfoManager, (manager) =>
+            manager.getPerson("fetched-user", "fetch"),
+          ),
         );
         const cached = await harness.runtime.runPromise(
-          Effect.flatMap(PersonInfoManager, (manager) => manager.getPersonFromCache("fetched-user")),
+          Effect.flatMap(PersonInfoManager, (manager) =>
+            manager.getPersonFromCache("fetched-user"),
+          ),
         );
 
         if (result === null) {

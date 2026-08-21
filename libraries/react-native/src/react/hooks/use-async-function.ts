@@ -1,7 +1,9 @@
+import type { Result } from "better-result";
 import { Cause, Effect, Exit } from "effect";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
-import { UnknownVoidhashError, VoidhashError } from "../../errors";
+import type { VoidhashError } from "../../errors";
+import { UnknownVoidhashError } from "../../errors";
 
 interface State<T> {
   data?: T | undefined;
@@ -23,8 +25,13 @@ type UseAsyncFunctionReturn<T> = State<T> & {
   refetch: () => Promise<void>;
 };
 
+/**
+ * Drives a `Promise<Result<T, VoidhashError>>` client call as hook state.
+ * The `Err` channel becomes `error`; unexpected exceptions are normalized
+ * into an `Err`-shaped state as well.
+ */
 function useAsyncFunction<T = unknown>(
-  asyncFn: () => Promise<T>,
+  asyncFn: () => Promise<Result<T, VoidhashError>>,
   options?: UseAsyncFunctionOptions,
 ): UseAsyncFunctionReturn<T> {
   // Used to prevent state update if the component is unmounted
@@ -69,19 +76,19 @@ function useAsyncFunction<T = unknown>(
     }
 
     if (Exit.isSuccess(exit)) {
-      dispatch({ payload: exit.value, type: "executed" });
+      const result = exit.value;
+      if (result.isOk()) {
+        dispatch({ payload: result.value, type: "executed" });
+      } else {
+        dispatch({ payload: result.error, type: "error" });
+      }
       return;
     }
 
-    const error = Cause.squash(exit.cause);
-
-    if (error instanceof VoidhashError) {
-      dispatch({ payload: error, type: "error" });
-    }
-
+    const unexpected = Cause.squash(exit.cause);
     dispatch({
       payload: new UnknownVoidhashError(
-        error instanceof Error ? error : new Error(error as string),
+        unexpected instanceof Error ? unexpected : new Error(String(unexpected)),
       ),
       type: "error",
     });

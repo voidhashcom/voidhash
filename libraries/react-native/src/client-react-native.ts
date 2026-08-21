@@ -12,6 +12,7 @@ import { useRetrieveGooglePlayProduct } from "./react/hooks/google-play/use-retr
 import { useRetrieveGooglePlayProducts } from "./react/hooks/google-play/use-retrieve-google-play-products";
 import { currentPersonHookFactory } from "./react/hooks/use-person";
 import { featureFlagsHookFactory } from "./react/hooks/use-feature-flags";
+import { hasPerkHookFactory } from "./react/hooks/use-has-perk";
 import { paywallByLocationHookFactory } from "./react/hooks/use-paywall-by-location";
 import { productsHookFactory } from "./react/hooks/use-products";
 import { purchaseHookFactory } from "./react/hooks/use-purchase";
@@ -84,6 +85,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     },
     useCurrentPerson: currentPersonHookFactory(client, context),
     useFeatureFlags: featureFlagsHookFactory(client, context),
+    useHasPerk: hasPerkHookFactory(client, context),
     usePaywallByLocation: paywallByLocationHookFactory(client, context),
     useProducts: productsHookFactory(client, context),
     usePurchase: purchaseHookFactory(client),

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 
 import type { VoidhashClient } from "../../client";
 import { currentPersonAtom } from "../../core/reactivity/client-state";
@@ -19,15 +19,11 @@ export function currentPersonHookFactory(
       enabled: voidhashContext?.isInitialized,
     });
 
-    const person = useAtomValue(client.internal_getAtomRegistry(), currentPersonAtom);
-
-    // Preserve the previous return shape: `data` spreads the person fields,
-    // so callers reading e.g. `data.email` keep working and `null` becomes
-    // `{}` rather than `null`.
-    const data = useMemo(() => ({ ...person }), [person]);
+    const person = useAtomValue(client.internal.getAtomRegistry(), currentPersonAtom);
 
     return {
-      data,
+      /** `null` until the first snapshot loads or while the client is disabled. */
+      data: person,
       error,
       isLoading,
       refetch,

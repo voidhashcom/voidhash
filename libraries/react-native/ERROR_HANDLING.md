@@ -68,26 +68,27 @@ ERROR_CODE: descriptive message
 
 ### In TypeScript/JavaScript
 
-Errors live in `src/errors.ts`. `VoidhashError` is the base class; the payment adapters branch on
-the native message prefix and raise the matching subclass:
+Errors live in `src/errors.ts`. `VoidhashError` is the base class and carries a stable
+`code` property typed as `VoidhashErrorCode`. Every fallible client method returns a
+better-result `Result<T, VoidhashError>` and never rejects:
 
 ```typescript
-import { ProductNotFoundError, VoidhashError } from "./errors";
+import { VoidhashError } from "./errors";
 
-if (error.message.startsWith("INVALID_PRODUCT_ID")) {
-  return new ProductNotFoundError("Product not found in store", error);
+const result = await client.getCurrentPerson({ forceFetch: true });
+if (result.isErr() && result.error.code === "FAILED_TO_GET_CURRENT_PERSON") {
+  // branch on the failing operation
 }
 ```
 
 Subclasses: `FailedToInitializeNativeAdapterError`, `FailedToEndNativeAdapterError`,
 `FailedToFetchSchemaError`, `NotInitializedError`, `SchemeNotSetError`,
-`UnsupportedPlatformError`, `FailedToBuyProductError`, `ProductNotFoundError`,
-`PurchasePendingError`, `PurchaseCancelledError`, `ReadOnlyModePurchaseNotAllowedError`,
-`UnknownVoidhashError`.
+`UnsupportedPlatformError`, `ReadOnlyModePurchaseNotAllowedError`,
+`UnknownVoidhashError`. Each subclass pins its own code.
 
-Client methods additionally prefix a stable uppercase operation code onto the message, such as
-`FAILED_TO_GET_CURRENT_PERSON`, so a caller can branch on the failing operation as well as on the
-native cause.
+Client methods wrap every failure in a `VoidhashError` whose code names the failing
+operation, such as `FAILED_TO_GET_CURRENT_PERSON` — match on `error.code`, not on the
+message text. The full code list is exported as `VOIDHASH_ERROR_CODES`.
 
 ### In iOS (Swift)
 
@@ -127,6 +128,6 @@ To add a new error code:
 1. Throw it from the native module with the `CODE: message` shape — `RuntimeError.error(withMessage:)`
    on iOS, `Error(...)` on Android — using the same code on both platforms.
 2. Map it in the matching payment adapter under `src/core/payment-adapters/`, branching on
-   `error.message.startsWith("CODE")` and raising the appropriate `VoidhashError` subclass from
-   `src/errors.ts`. Add a subclass there when no existing one fits.
+   `error.message.startsWith("CODE")` and raising the appropriate tagged error from
+   `src/core/payment-adapters/errors.ts`. Add a subclass there when no existing one fits.
 3. Update this documentation.

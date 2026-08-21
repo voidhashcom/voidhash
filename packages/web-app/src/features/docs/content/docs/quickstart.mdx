@@ -179,19 +179,18 @@ The SDK handles product loading, purchase and restore actions, and dismissal for
 <Step>
 ### Check access
 
-Gate features on an active perk grant:
+Gate features with `useHasPerk`:
 
 ```tsx
-const { data: person, isLoading } = voidhash.useCurrentPerson();
+const { hasAccess, isLoading } = voidhash.useHasPerk("premium");
 
-const hasPremium =
-  person.entitlements?.grants.some(
-    (grant) => grant.perkId === "premium" && grant.status === "active",
-  ) ?? false;
+if (isLoading) return null;
+return hasAccess ? <PremiumContent /> : <UpgradePrompt />;
 ```
 
 The person snapshot refreshes after a successful purchase or restore, so React re-renders with the
-new grant. See [Check access](/entitlements) for a reusable hook.
+new grant. See [Check access](/entitlements) for offline behavior and the imperative
+`client.hasPerk()`.
 
 </Step>
 

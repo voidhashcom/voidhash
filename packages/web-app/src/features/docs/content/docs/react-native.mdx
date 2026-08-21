@@ -125,9 +125,53 @@ if (status === "failed") {
 | `usePaywallByLocation(slug, options?)` | Preload and present the paywall assigned to a location.      |
 | `useProducts()`                        | Read store-backed product metadata.                          |
 | `usePurchase(options?)`                | Purchase a product from custom UI.                           |
+| `useHasPerk(slug)`                     | Check whether the current person holds an active perk grant. |
 | `useCurrentPerson()`                   | Read entitlements, subscription state, and purchase history. |
 | `useFeatureFlags(keys?)`               | Evaluate flags and variants for the current person.          |
 | `useVoidhash()`                        | Read provider state and the underlying client.               |
+
+### useHasPerk
+
+The fastest way to gate a feature. See [Check access](/entitlements) for offline behavior:
+
+```tsx
+const { hasAccess, grant, isLoading, isStale, error, refetch } = voidhash.useHasPerk("premium");
+```
+
+### useCurrentPerson
+
+Returns `{ data, error, isLoading, refetch }`. `data` is the full person snapshot, or `null` until
+the first snapshot loads or while the client is disabled:
+
+```ts
+type Person = {
+  personId: string;
+  distinctId: string;
+  name: string | null;
+  email: string | null;
+  entitlements: { grants: Grant[] };
+  subscriptions: {
+    current: {
+      productId: string | null;
+      status: string;
+      subscriptionId: string | null;
+      expiresAt: Date | null;
+    } | null;
+    history: SubscriptionEntry[];
+  };
+  purchases: { history: PurchaseEntry[] };
+  snapshotContext: {
+    mode: "persisted" | "temporary_pending_transfer";
+    includedPersonIds: string[];
+    migrationJobId: string | null;
+  };
+};
+```
+
+Reads use a stale-while-revalidate cache: snapshots younger than five minutes are served from cache
+while a fresh copy loads in the background; the cached copy survives up to two days so
+[access checks fail open offline](/entitlements#offline-and-failure-behavior). The SDK refreshes
+the snapshot after purchases, restores, and identity changes.
 
 ### usePaywallByLocation
 
@@ -165,12 +209,16 @@ See [Display a paywall](/paywalls) for what each status means and how to fall ba
 The `voidhash.client` object exposes the same core workflows outside React:
 
 ```ts
-await voidhash.client.identify(user.id, {});
+await voidhash.client.identify(user.id);
 const products = await voidhash.client.getProducts();
 const person = await voidhash.client.getCurrentPerson();
+const { hasAccess } = await voidhash.client.hasPerk("premium");
 await voidhash.client.restorePurchases();
 voidhash.client.capture("screen_viewed", { screen: "home" });
 ```
+
+`getCurrentPerson({ forceFetch: true })` skips the cache. `identify()` takes optional
+`{ email, name }` attributes.
 
 ## Generated slug types
 
@@ -185,8 +233,8 @@ fall back to `string`.
 
 ## Error handling
 
-Hooks expose `error`; promise-returning client methods reject on failure. Keep transport failures
-separate from negative product state:
+Hooks expose `error`; client methods return a better-result `Result` and never reject. Keep
+transport failures separate from negative product state:
 
 ```tsx
 const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
@@ -196,9 +244,9 @@ if (error) return <RetryScreen onRetry={refetch} />;
 return <Account person={person} />;
 ```
 
-Error messages include a stable uppercase operation code, such as
-`FAILED_TO_GET_CURRENT_PERSON`. Match known codes when recovery differs, and report the full error
-for everything else.
+Every error carries a stable `code`, such as `FAILED_TO_GET_CURRENT_PERSON`. Match on
+`result.error.code` when recovery differs, and report the full error for everything else. The
+complete code list with recovery guidance lives on the [Errors](/errors) page.
 
 ## Platform helpers
 

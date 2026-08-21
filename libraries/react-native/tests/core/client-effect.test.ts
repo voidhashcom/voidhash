@@ -661,11 +661,7 @@ describe("VoidhashEffectClient", () => {
 
     await withCleanup(
       async () => {
-        await harness.runtime.runPromise(
-          initializedClient.purchase(monthlyProduct, {
-            method: "native",
-          }),
-        );
+        await harness.runtime.runPromise(initializedClient.purchase(monthlyProduct));
 
         expect(paymentDouble.state.buyProductCalls).toHaveLength(1);
         expect(paymentDouble.state.buyProductCalls[0]?.product.slug).toBe("monthly_sub");
@@ -720,7 +716,7 @@ describe("VoidhashEffectClient", () => {
 
     await withCleanup(
       async () => {
-        await harness.runtime.runPromise(initializedClient.purchase(product, { method: "native" }));
+        await harness.runtime.runPromise(initializedClient.purchase(product));
 
         expect(apiDouble.state.developmentPurchaseCalls).toHaveLength(1);
         expect(apiDouble.state.developmentPurchaseCalls[0]).toMatchObject({
@@ -774,7 +770,7 @@ describe("VoidhashEffectClient", () => {
         const initializedClient = await harness.runtime.runPromise(
           VoidhashEffectClient.makeInitializedClient({ schema }),
         );
-        await harness.runtime.runPromise(initializedClient.purchase(product, { method: "native" }));
+        await harness.runtime.runPromise(initializedClient.purchase(product));
 
         expect(paymentDouble.state.buyProductCalls[0]?.product).toBe(product);
         expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
@@ -819,9 +815,7 @@ describe("VoidhashEffectClient", () => {
           VoidhashEffectClient.makeInitializedClient({ schema }),
         );
 
-        await harness.runtime.runPromise(
-          initializedClient.purchase(monthlyProduct, { method: "native" }),
-        );
+        await harness.runtime.runPromise(initializedClient.purchase(monthlyProduct));
 
         expect(paymentDouble.state.buyProductCalls[0]?.appAccountToken).toBe(
           "3501e751-7582-58f9-9c1d-533c7466049f",
@@ -915,7 +909,15 @@ describe("VoidhashEffectClient", () => {
       VoidhashEffectClient.makeInitializedClient({ schema }),
     );
     const observedTransaction = (transactionId: string) =>
-      new Transaction(transactionId, transactionId, "monthly-id", 1_700_000_000_000, 1, false, "ios");
+      new Transaction(
+        transactionId,
+        transactionId,
+        "monthly-id",
+        1_700_000_000_000,
+        1,
+        false,
+        "ios",
+      );
 
     await withCleanup(
       async () => {
@@ -977,9 +979,7 @@ describe("VoidhashEffectClient", () => {
 
     await withCleanup(
       async () => {
-        await harness.runtime.runPromise(
-          initializedClient.purchase(monthlyProduct, { method: "native" }),
-        );
+        await harness.runtime.runPromise(initializedClient.purchase(monthlyProduct));
 
         expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
       },
@@ -1038,9 +1038,7 @@ describe("VoidhashEffectClient", () => {
         );
         await vi.waitFor(() => expect(apiDouble.state.syncTransactionCalls).toHaveLength(1));
 
-        const purchased = harness.runtime.runPromise(
-          initializedClient.purchase(monthlyProduct, { method: "native" }),
-        );
+        const purchased = harness.runtime.runPromise(initializedClient.purchase(monthlyProduct));
         await vi.waitFor(() => expect(paymentDouble.state.buyProductCalls).toHaveLength(1));
         await Effect.runPromise(Effect.sleep(5));
 

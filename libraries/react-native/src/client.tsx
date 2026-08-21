@@ -1,3 +1,4 @@
+import { Result } from "better-result";
 import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import { AtomRegistry } from "effect/unstable/reactivity";
@@ -23,11 +24,13 @@ import { ApiClient } from "./core/networking/api-client";
 import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
+import { PurchasePendingError, UserCancelledError } from "./core/payment-adapters/errors";
+import { findActiveGrant, type EntitlementGrant } from "./core/entitlements/find-grant";
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
 import { type ProductsBySlug, ProductService } from "./core/products/product-service";
-import type { LocationSlug, ProductSlug } from "./core/schema/registry";
+import type { LocationSlug, PerkSlug, ProductSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
 import {
@@ -36,7 +39,12 @@ import {
   makeSdkConfiguration,
 } from "./core/sdk-configuration";
 import { TransactionService } from "./core/transactions/transaction-service";
-import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
+import {
+  type VoidhashErrorCode,
+  NotInitializedError,
+  ReadOnlyModePurchaseNotAllowedError,
+  VoidhashError,
+} from "./errors";
 import type { PaywallRuntimeConfig } from "./internal/paywall-bridge/protocol";
 
 export interface VoidhashClientOptions {
@@ -124,11 +132,46 @@ const DISABLED_FEATURE_FLAGS: FeatureFlagsResult = { flags: [] };
 /** Paywall runtime config answer of a disabled client. */
 const DISABLED_PAYWALL_RUNTIME_CONFIG: PaywallRuntimeConfig = { products: [], variables: {} };
 
-const toErrorWithMessage = (code: string, unknownCause: unknown) => {
+/** Matches an Effect `Data.TaggedError` by tag without importing its class. */
+const isTaggedError = (value: unknown, tag: string): boolean =>
+  typeof value === "object" && value !== null && "_tag" in value && value._tag === tag;
+
+const toErrorWithMessage = (code: VoidhashErrorCode, unknownCause: unknown) => {
   const cause = unknownCause instanceof Error ? unknownCause : new Error(String(unknownCause));
 
-  return new VoidhashError(`${code}: ${cause.message}`, cause);
+  return new VoidhashError(code, `${code}: ${cause.message}`, { cause });
 };
+
+/**
+ * Successful outcome of a {@link VoidhashClient.purchase} call. The failure
+ * channel is the `Err` of the returned `Result` — cancellation and deferral
+ * are expected outcomes, not errors.
+ *
+ * - `completed`: the transaction was validated by Voidhash and the person
+ *   snapshot has been refreshed.
+ * - `cancelled`: the customer dismissed the native store sheet.
+ * - `pending`: the purchase needs external action (e.g. approval) before it
+ *   completes; access arrives once the transaction observer reconciles it.
+ * - `disabled`: the client was created with `enabled: false`.
+ */
+export type PurchaseOutcome =
+  | { status: "completed" }
+  | { status: "cancelled" }
+  | { status: "pending" }
+  | { status: "disabled" };
+
+/** Answer to an entitlement check for one perk. */
+export interface HasPerkResult {
+  /** The active grant behind `hasAccess`, or `null` when there is none. */
+  grant: EntitlementGrant | null;
+  hasAccess: boolean;
+  /**
+   * True when `hasAccess` was served from the cached snapshot because a
+   * refresh failed (offline, server error). Only ever `true` together with
+   * `hasAccess: true` and a non-null `grant`.
+   */
+  isStale: boolean;
+}
 
 type UninitializedEffectClient = ReturnType<typeof VoidhashEffectClient.makeUnitializedClient>;
 
@@ -140,7 +183,7 @@ type InitializedEffectClient = Effect.Success<
 
 export class VoidhashClient {
   private _isInitialized = false;
-  private analyticsFlushInFlight: Promise<void> | null = null;
+  private analyticsFlushInFlight: Promise<Result<void, VoidhashError>> | null = null;
   private appLifecycleSubscription: { remove: () => void } | null = null;
   private preInitAnalyticsBuffer: Array<{
     eventName: string;
@@ -199,21 +242,25 @@ export class VoidhashClient {
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
 
-  private async runSideEffect(operation: string, effect: () => Promise<void>) {
-    await Effect.runPromise(
-      Effect.tryPromise({ try: () => effect(), catch: (error) => error }).pipe(
-        Effect.catch((error) => {
-          if (!this.unstableSwallowErrors) {
-            return Effect.die(error);
-          }
-
-          // This warning is intentionally surfaced in all environments.
-          return Effect.sync(() => {
-            console.warn(`[voidhash] swallowed error in ${operation}`, error);
-          });
-        }),
-      ),
+  private async runSideEffect(
+    operation: string,
+    effect: () => Promise<Result<void, VoidhashError>>,
+  ): Promise<Result<void, VoidhashError>> {
+    const exit = await Effect.runPromiseExit(
+      Effect.tryPromise({ try: () => effect(), catch: (error) => error }),
     );
+
+    const result: Result<void, VoidhashError> = Exit.isSuccess(exit)
+      ? exit.value
+      : Result.err(toErrorWithMessage("UNKNOWN", Cause.squash(exit.cause)));
+
+    if (result.isErr() && this.unstableSwallowErrors) {
+      // This warning is intentionally surfaced in all environments.
+      console.warn(`[voidhash] swallowed error in ${operation}`, result.error);
+      return Result.ok(undefined);
+    }
+
+    return result;
   }
 
   /**
@@ -221,23 +268,26 @@ export class VoidhashClient {
    * server (or uses the injected internal schema if one was provided for tests).
    * Resolves immediately without touching the store, the network or the
    * cache when the client was created with `enabled: false`.
-   * @throws {FailedToInitializeNativeAdapterError} If the payment adapter fails to initialize
    */
-  async init() {
+  async init(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("init", async () => {
-      const initializedClient = await this.runEffect(
+    return this.runSideEffect("init", async () => {
+      const initializedClientResult = await this.toResult(
         this.unitializedClient.init({
           distinctId: this.initialDistinctId ?? undefined,
           internalSchema: this.internalSchema,
         }),
         "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
       );
+      if (initializedClientResult.isErr()) {
+        return Result.err(initializedClientResult.error);
+      }
+      const initializedClient = initializedClientResult.value;
 
-      await this.runEffect(
+      const observerResult = await this.toResult(
         initializedClient.startTransactionObserver((transaction) => {
           void this.effectRuntime.runPromiseExit(
             initializedClient.processObservedTransaction(transaction),
@@ -245,6 +295,9 @@ export class VoidhashClient {
         }),
         "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
       );
+      if (observerResult.isErr()) {
+        return Result.err(observerResult.error);
+      }
 
       void this.effectRuntime.runPromiseExit(initializedClient.reconcileObservedTransactions());
 
@@ -263,46 +316,64 @@ export class VoidhashClient {
         this.preInitAnalyticsBuffer = [];
       }
 
-      await this.runEffect(
+      const startupEventsResult = await this.toResult(
         initializedClient.captureAutomaticStartupEvents(),
         "FAILED_TO_CAPTURE_STARTUP_EVENTS",
-      ).catch((error) => {
+      );
+      if (startupEventsResult.isErr()) {
         // This warning is intentionally surfaced in all environments.
-        console.warn("[voidhash] failed to capture automatic startup analytics", error);
-      });
+        console.warn(
+          "[voidhash] failed to capture automatic startup analytics",
+          startupEventsResult.error,
+        );
+      }
 
       // Awaited rather than run synchronously: `LifecycleAdapter.subscribe` is
       // an Effect the adapter owns, and an asynchronous implementation would
-      // die under `runSync` — rejecting `init()` long after the client was
+      // die under `runSync` — failing `init()` long after the client was
       // marked initialized and leaving a half-live client behind.
-      this.appLifecycleSubscription = await this.runEffect(
+      const lifecycleResult = await this.toResult(
         initializedClient.setupAutomaticLifecycleEvents((eventName) => {
           this.capture(eventName);
         }),
         "FAILED_TO_SETUP_LIFECYCLE_EVENTS",
       );
+      if (lifecycleResult.isErr()) {
+        return Result.err(lifecycleResult.error);
+      }
+      this.appLifecycleSubscription = lifecycleResult.value;
 
       this.triggerBackgroundFlush("flush analytics after init");
+      return Result.ok(undefined);
     });
   }
 
   /**
    * Ends the voidhash client. No-ops on a disabled client, which never
    * acquired anything to tear down.
-   * @throws {FailedToEndNativeAdapterError} If the payment adapter fails to end
    */
-  async end() {
+  async end(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("end", async () => {
-      this.ensureInitialized();
+    return this.runSideEffect("end", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+
       await this.flush();
-      await this.runEffect(this.initializedClient!.end(), "FAILED_TO_END_VOIDHASH_CLIENT");
+      const endResult = await this.toResult(
+        this.initializedClient.end(),
+        "FAILED_TO_END_VOIDHASH_CLIENT",
+      );
+      if (endResult.isErr()) {
+        return Result.err(endResult.error);
+      }
       this.appLifecycleSubscription?.remove();
       this.appLifecycleSubscription = null;
       this._isInitialized = false;
+      return Result.ok(undefined);
     });
   }
 
@@ -354,18 +425,72 @@ export class VoidhashClient {
   }
 
   /**
-   * Returns currently identified person. Returns `null` while disabled.
+   * Returns the current person snapshot, or `null` before the first snapshot
+   * exists. Serves a fresh cache entry when available
+   * (stale-while-revalidate); pass `{ forceFetch: true }` to skip the cache.
+   * Answers `Ok(null)` while disabled.
    */
-  async getCurrentPerson(forceFetch = false) {
+  async getCurrentPerson(options: { forceFetch?: boolean } = {}) {
     if (!this.enabled) {
-      return null;
+      return Result.ok(null);
     }
 
-    this.ensureInitialized();
-    return this.runEffect(
-      this.initializedClient!.getCurrentPerson(forceFetch),
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+    return this.toResult(
+      this.initializedClient.getCurrentPerson(options.forceFetch ?? false),
       "FAILED_TO_GET_CURRENT_PERSON",
     );
+  }
+
+  /**
+   * Checks whether the current person holds an active grant for a perk.
+   *
+   * Refreshes the person snapshot first; if that fails (offline, server
+   * error) the answer falls back to the cached snapshot and `isStale` is set,
+   * so apps fail open with known-good data instead of silently denying
+   * access. Pass `{ allowStale: false }` to fail with the refresh error
+   * instead.
+   */
+  async hasPerk(
+    perkSlug: PerkSlug,
+    options: { allowStale?: boolean } = {},
+  ): Promise<Result<HasPerkResult, VoidhashError>> {
+    if (!this.enabled) {
+      return Result.ok({ grant: null, hasAccess: false, isStale: false });
+    }
+
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+
+    const refreshResult = await this.toResult(
+      this.initializedClient.getCurrentPerson(true),
+      "FAILED_TO_GET_CURRENT_PERSON",
+    );
+
+    if (refreshResult.isOk()) {
+      const grant = findActiveGrant(refreshResult.value, perkSlug);
+      return Result.ok({ grant, hasAccess: grant !== null, isStale: false });
+    }
+
+    const refreshError = refreshResult.error;
+    if (options.allowStale === false) {
+      return Result.err(refreshError);
+    }
+
+    const cachedResult = await this.toResult(
+      this.initializedClient.getCachedPerson(),
+      "FAILED_TO_GET_CURRENT_PERSON",
+    );
+    const grant = findActiveGrant(cachedResult.isOk() ? cachedResult.value : null, perkSlug);
+    if (grant === null) {
+      // No cached evidence of access — surface the refresh failure rather
+      // than answering a confident "no" from nothing.
+      return Result.err(refreshError);
+    }
+    return Result.ok({ grant, hasAccess: true, isStale: true });
   }
 
   /**
@@ -374,15 +499,17 @@ export class VoidhashClient {
    * The update rides the analytics queue (fire-and-forget) — call `flush()` if
    * you need it delivered promptly.
    */
-  async setPersonAttributes(attributes: PersonAttributes) {
+  async setPersonAttributes(attributes: PersonAttributes): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("setPersonAttributes", async () => {
-      this.ensureInitialized();
-      await this.runEffect(
-        this.initializedClient!.setPersonAttributes(attributes),
+    return this.runSideEffect("setPersonAttributes", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(
+        this.initializedClient.setPersonAttributes(attributes),
         "FAILED_TO_SET_PERSON_ATTRIBUTES",
       );
     });
@@ -391,32 +518,36 @@ export class VoidhashClient {
   /**
    * Sets person attributes synchronously and returns the updated person
    * snapshot. Performs a network round-trip, so this is a write — it is blocked
-   * in read-only mode, mirroring `purchase`. Returns `null` while disabled.
+   * in read-only mode, mirroring `purchase`. Answers `Ok(null)` while disabled.
    */
   async setPersonAttributesSync(attributes: PersonAttributes) {
     if (!this.enabled) {
-      return null;
+      return Result.ok(null);
     }
 
-    this.ensureInitialized();
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
     if (this.isReadOnly) {
-      return Effect.runSync(Effect.die(new ReadOnlyModePurchaseNotAllowedError()));
+      return Result.err(new ReadOnlyModePurchaseNotAllowedError());
     }
 
-    return this.runEffect(
-      this.initializedClient!.setPersonAttributesSync(attributes),
+    return this.toResult(
+      this.initializedClient.setPersonAttributesSync(attributes),
       "FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC",
     );
   }
 
-  /** Returns the current distinct id, or `null` while disabled. */
+  /** Returns the current distinct id, or `Ok(null)` while disabled. */
   async getDistinctId() {
     if (!this.enabled) {
-      return null;
+      return Result.ok(null);
     }
 
-    this.ensureInitialized();
-    return this.runEffect(this.initializedClient!.getDistinctId(), "FAILED_TO_GET_DISTINCT_ID");
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+    return this.toResult(this.initializedClient.getDistinctId(), "FAILED_TO_GET_DISTINCT_ID");
   }
 
   /**
@@ -427,16 +558,18 @@ export class VoidhashClient {
     options: {
       email?: string;
       name?: string;
-    },
-  ) {
+    } = {},
+  ): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("identify", async () => {
-      this.ensureInitialized();
-      await this.runEffect(
-        this.initializedClient!.identify(externalUserId, options),
+    return this.runSideEffect("identify", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(
+        this.initializedClient.identify(externalUserId, options),
         "FAILED_TO_IDENTIFY",
       );
     });
@@ -445,14 +578,16 @@ export class VoidhashClient {
   /**
    * Resets the current identity to a fresh anonymous distinct id.
    */
-  async reset() {
+  async reset(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("reset", async () => {
-      this.ensureInitialized();
-      await this.runEffect(this.initializedClient!.reset(), "FAILED_TO_RESET");
+    return this.runSideEffect("reset", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(this.initializedClient.reset(), "FAILED_TO_RESET");
     });
   }
 
@@ -461,14 +596,16 @@ export class VoidhashClient {
    * flushes it under the signing-out identity, then resets to a fresh
    * anonymous distinct id.
    */
-  async signOut() {
+  async signOut(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("signOut", async () => {
-      this.ensureInitialized();
-      await this.runEffect(this.initializedClient!.signOut(), "FAILED_TO_SIGN_OUT");
+    return this.runSideEffect("signOut", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(this.initializedClient.signOut(), "FAILED_TO_SIGN_OUT");
     });
   }
 
@@ -477,47 +614,33 @@ export class VoidhashClient {
    */
   async getFeatureFlags(flagKeys?: string[]) {
     if (!this.enabled) {
-      return DISABLED_FEATURE_FLAGS;
+      return Result.ok(DISABLED_FEATURE_FLAGS);
     }
 
-    this.ensureInitialized();
-    return this.runEffect(
-      this.initializedClient!.getFeatureFlags(flagKeys),
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+    return this.toResult(
+      this.initializedClient.getFeatureFlags(flagKeys),
       "FAILED_TO_GET_FEATURE_FLAGS",
     );
   }
 
   /**
    * Resolves the currently assigned paywall showing for a location slug.
-   * Resolves to `null` while disabled.
+   * Answers `Ok(null)` while disabled.
    */
   async getPaywallForLocation(locationSlug: LocationSlug) {
     if (!this.enabled) {
-      return null;
+      return Result.ok(null);
     }
 
-    this.ensureInitialized();
-    return this.runEffect(
-      this.initializedClient!.getPaywallForLocation(locationSlug),
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+    return this.toResult(
+      this.initializedClient.getPaywallForLocation(locationSlug),
       "FAILED_TO_GET_PAYWALL_FOR_LOCATION",
-    );
-  }
-
-  /**
-   * Builds the paywall-deploy contract §7.1 runtime config for a code-release
-   * paywall (native store product metadata, variables passthrough, platform +
-   * locale). Used by `usePaywallByLocation` to answer the bundle's `ready`
-   * event with a `configure` envelope.
-   */
-  async internal_buildPaywallRuntimeConfig(runtime: PaywallReleaseRuntime) {
-    if (!this.enabled) {
-      return DISABLED_PAYWALL_RUNTIME_CONFIG;
-    }
-
-    this.ensureInitialized();
-    return this.runEffect(
-      this.initializedClient!.buildPaywallRuntimeConfig(runtime),
-      "FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG",
     );
   }
 
@@ -531,49 +654,64 @@ export class VoidhashClient {
     if (!this.enabled) {
       // A disabled client never talks to the store, so no slug resolves. The
       // cast mirrors `ProductService`'s own slug-keyed map construction.
-      return {} as ProductsBySlug;
+      return Result.ok({} as ProductsBySlug);
     }
 
-    this.ensureInitialized();
-    return this.runEffect(this.initializedClient!.getProducts(), "FAILED_TO_GET_PRODUCTS");
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+    return this.toResult(this.initializedClient.getProducts(), "FAILED_TO_GET_PRODUCTS");
   }
 
   /**
    * Purchases a product. Blocked in observer mode — the check reads the mode
    * in effect when the purchase starts, so a `setReadOnly()` landing later
-   * doesn't abandon it. No-ops while disabled.
+   * doesn't abandon it. Resolves to a `Result`; cancellation and deferral are
+   * `Ok` outcomes, every failure is an `Err` carrying a coded
+   * {@link VoidhashError}. Answers `Ok({ status: "disabled" })` while disabled.
    */
-  async purchase(
-    product: Product,
-    _options: {
-      method?: "native";
-    },
-  ) {
+  async purchase(product: Product): Promise<Result<PurchaseOutcome, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok({ status: "disabled" });
     }
 
-    this.ensureInitialized();
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
     if (this.isReadOnly) {
-      return Effect.runSync(Effect.die(new ReadOnlyModePurchaseNotAllowedError()));
+      return Result.err(new ReadOnlyModePurchaseNotAllowedError());
     }
 
-    await this.runEffect(this.initializedClient!.purchase(product, _options), "FAILED_TO_PURCHASE");
+    const exit = await this.effectRuntime.runPromiseExit(this.initializedClient.purchase(product));
+    if (Exit.isSuccess(exit)) {
+      return Result.ok({ status: "completed" });
+    }
+
+    const cause = Cause.squash(exit.cause);
+    if (cause instanceof UserCancelledError || isTaggedError(cause, "UserCancelledError")) {
+      return Result.ok({ status: "cancelled" });
+    }
+    if (cause instanceof PurchasePendingError || isTaggedError(cause, "PurchasePendingError")) {
+      return Result.ok({ status: "pending" });
+    }
+    return Result.err(toErrorWithMessage("FAILED_TO_PURCHASE", cause));
   }
 
   /**
    * Restores purchases by reconciling pending/past store transactions and
    * refreshing person state.
    */
-  async restorePurchases() {
+  async restorePurchases(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("restorePurchases", async () => {
-      this.ensureInitialized();
-      await this.runEffect(
-        this.initializedClient!.restorePurchases(),
+    return this.runSideEffect("restorePurchases", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(
+        this.initializedClient.restorePurchases(),
         "FAILED_TO_RESTORE_PURCHASES",
       );
     });
@@ -604,27 +742,30 @@ export class VoidhashClient {
    * Flushes queued analytics events. Nothing is ever queued while disabled, so
    * this no-ops.
    */
-  async flush() {
+  async flush(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("flush", async () => {
+    return this.runSideEffect("flush", async () => {
       if (this.analyticsFlushInFlight) {
         await this.analyticsFlushInFlight;
-        return;
+        return Result.ok(undefined);
       }
 
-      if (!this.initializedClient) return;
+      if (!this.initializedClient) {
+        return Result.ok(undefined);
+      }
 
-      this.analyticsFlushInFlight = this.runEffect(
+      const inFlight = this.toResult(
         this.initializedClient.flush(),
         "FAILED_TO_FLUSH_ANALYTICS",
       ).finally(() => {
         this.analyticsFlushInFlight = null;
       });
+      this.analyticsFlushInFlight = inFlight;
 
-      await this.analyticsFlushInFlight;
+      return inFlight;
     });
   }
 
@@ -632,29 +773,33 @@ export class VoidhashClient {
   // IOS only methods
   // ===============================
 
-  async iosPresentCodeRedemptionSheet() {
+  async iosPresentCodeRedemptionSheet(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("iosPresentCodeRedemptionSheet", async () => {
-      this.ensureInitialized();
-      await this.runEffect(
-        this.initializedClient!.iosPresentCodeRedemptionSheet(),
+    return this.runSideEffect("iosPresentCodeRedemptionSheet", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(
+        this.initializedClient.iosPresentCodeRedemptionSheet(),
         "FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET",
       );
     });
   }
 
-  async iosShowManageSubscriptions() {
+  async iosShowManageSubscriptions(): Promise<Result<void, VoidhashError>> {
     if (!this.enabled) {
-      return;
+      return Result.ok(undefined);
     }
 
-    await this.runSideEffect("iosShowManageSubscriptions", async () => {
-      this.ensureInitialized();
-      await this.runEffect(
-        this.initializedClient!.iosShowManageSubscriptions(),
+    return this.runSideEffect("iosShowManageSubscriptions", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(
+        this.initializedClient.iosShowManageSubscriptions(),
         "FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS",
       );
     });
@@ -664,66 +809,77 @@ export class VoidhashClient {
   // Internal helpers
   // ===============================
 
-  internal_getAtomRegistry() {
-    return this.atomRegistry;
-  }
+  /**
+   * Internal surface used by the SDK's React bindings and paywall bridge.
+   * Not part of the public API — may change or disappear at any time.
+   */
+  readonly internal = {
+    getAtomRegistry: () => this.atomRegistry,
+    getSchema: (): RuntimeSchema | null => this.initializedClient?.getSchema() ?? null,
+    getSuccessCallbackBaseUrl: () => `${this.scheme}://voidhash/callback/success`,
+    getErrorCallbackBaseUrl: () => `${this.scheme}://voidhash/callback/error`,
+    buildPaywallRuntimeConfig: (runtime: PaywallReleaseRuntime) =>
+      this.buildPaywallRuntimeConfig(runtime),
+  };
 
   /**
-   * Returns the runtime schema fetched at init time. Returns `null` when the
-   * client hasn't been initialized yet. Used by hooks that need to resolve
-   * slugs to product metadata.
+   * Builds the paywall-deploy contract §7.1 runtime config for a code-release
+   * paywall (native store product metadata, variables passthrough, platform +
+   * locale). Used by `usePaywallByLocation` to answer the bundle's `ready`
+   * event with a `configure` envelope.
    */
-  internal_getSchema(): RuntimeSchema | null {
-    return this.initializedClient?.getSchema() ?? null;
-  }
+  private async buildPaywallRuntimeConfig(runtime: PaywallReleaseRuntime) {
+    if (!this.enabled) {
+      return Result.ok(DISABLED_PAYWALL_RUNTIME_CONFIG);
+    }
 
-  internal_getSuccessCallbackBaseUrl() {
-    return `${this.scheme}://voidhash/callback/success`;
-  }
-
-  internal_getErrorCallbackBaseUrl() {
-    return `${this.scheme}://voidhash/callback/error`;
+    if (!this.initializedClient) {
+      return Result.err(new NotInitializedError());
+    }
+    return this.toResult(
+      this.initializedClient.buildPaywallRuntimeConfig(runtime),
+      "FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG",
+    );
   }
 
   private triggerBackgroundFlush(operation: string) {
-    void this.flush().catch((error) => {
-      // This warning is intentionally surfaced in all environments.
-      console.warn(`[voidhash] failed to ${operation}`, error);
+    void this.flush().then((result) => {
+      if (result.isErr()) {
+        // This warning is intentionally surfaced in all environments.
+        console.warn(`[voidhash] failed to ${operation}`, result.error);
+      }
     });
   }
 
-  // Effect requires service type parameter
-  private async runEffect<T>(
+  /** Runs an Effect to completion, mapping every failure to a coded `VoidhashError`. */
+  private async toResult<T>(
     effect: Effect.Effect<T, unknown, any>,
-    errorCode: string,
-  ): Promise<T> {
-    const result = await this.effectRuntime.runPromiseExit(effect);
-    if (Exit.isSuccess(result)) return result.value;
-    return Effect.runSync(Effect.die(toErrorWithMessage(errorCode, Cause.squash(result.cause))));
-  }
-
-  private ensureInitialized() {
-    if (!this.initializedClient) {
-      return Effect.runSync(
-        Effect.die(
-          new VoidhashError(
-            "VOIDHASH_CLIENT_NOT_INITIALIZED",
-            new Error("ProductManager is not initialized"),
-          ),
-        ),
-      );
-    }
+    errorCode: VoidhashErrorCode,
+  ): Promise<Result<T, VoidhashError>> {
+    const exit = await this.effectRuntime.runPromiseExit(effect);
+    if (Exit.isSuccess(exit)) return Result.ok(exit.value);
+    return Result.err(toErrorWithMessage(errorCode, Cause.squash(exit.cause)));
   }
 
   // ===============================
   // Person helpers
   // ===============================
 
-  /**
-   * Resets the cache.
-   */
-  async resetCache() {
-    // TODO: Implement
+  /** Clears the cached person snapshot. The next read refetches from the server. */
+  async resetCache(): Promise<Result<void, VoidhashError>> {
+    if (!this.enabled) {
+      return Result.ok(undefined);
+    }
+
+    return this.runSideEffect("resetCache", async () => {
+      if (!this.initializedClient) {
+        return Result.err(new NotInitializedError());
+      }
+      return this.toResult(
+        this.initializedClient.resetPersonCache(),
+        "FAILED_TO_RESET_PERSON_CACHE",
+      );
+    });
   }
 }
 
