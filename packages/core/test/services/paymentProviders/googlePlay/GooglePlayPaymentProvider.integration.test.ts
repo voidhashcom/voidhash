@@ -27,6 +27,7 @@ import {
   PersonIdentityService,
   PurchaseProcessingService,
 } from "@voidhash/core/services";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import {
   type GooglePlayRecordInput,
   GooglePlayPaymentProvider,
@@ -88,7 +89,7 @@ const uniq = (label: string) => `it-gp-${label}-${nowDate().getTime()}-${seq++}`
 const GooglePlayEngineLive = GooglePlayPaymentProvider.layer.pipe(
   Layer.provideMerge(
     Layer.mergeAll(
-      PurchaseProcessingService.layer,
+      PurchaseProcessingService.layer.pipe(Layer.provide(WebhookEventPublisher.noop)),
       PersonIdentityService.layer,
       FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
       PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),

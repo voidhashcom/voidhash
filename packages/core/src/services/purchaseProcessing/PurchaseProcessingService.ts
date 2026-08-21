@@ -19,7 +19,7 @@
 
 import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
 import { constant, pick } from "@voidhash/lib/lang";
-import { Brand, Context, DateTime, Effect, Layer, Option, Predicate, Schema } from "effect";
+import { Brand, Cause, Context, DateTime, Effect, Layer, Option, Predicate, Schema } from "effect";
 
 import type { InternalAnalyticsEvent } from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
 import type { PaymentProviderId } from "../../domain/paymentProvider/PaymentProviderConfiguration.ts";
@@ -52,6 +52,7 @@ import {
 } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
 import { PerkGrantService } from "../perkGrants/PerkGrantService.ts";
+import { WebhookEventPublisher } from "../webhookDispatch/WebhookEventPublisher.ts";
 import { subscriptionStatusForInactiveEvent } from "./helpers.ts";
 import { decodePurchaseProcessingResult, encodePurchaseProcessingResult } from "./result-codec.ts";
 import {
@@ -74,6 +75,26 @@ import {
   toStartedAnalyticsInputs,
   toSubscriptionTransferredAnalyticsInputs,
 } from "./revenue-analytics-mapper.ts";
+import {
+  type WebhookEventMapperContext,
+  type WebhookLifecycleEvent,
+  toPurchaseCompletedWebhookEvent,
+  toPurchaseRefundedWebhookEvent,
+  toSubscriptionCancelledWebhookEvent,
+  toSubscriptionCreatedWebhookEvent,
+  toSubscriptionExpiredWebhookEvent,
+  toSubscriptionRenewedWebhookEvent,
+} from "./webhook-event-mapper.ts";
+
+/**
+ * Deferred webhook payload construction. The mappers throw on invalid input,
+ * so the transaction only decides *whether* to emit and captures the raw
+ * inputs; the payload itself is built after the commit.
+ */
+type WebhookEventBuilder = () => WebhookLifecycleEvent;
+
+/** Shared empty emission list, so early transaction returns stay well-typed. */
+const NO_WEBHOOK_EVENTS: readonly (WebhookEventBuilder | null)[] = [];
 
 export class PurchaseProcessingServiceError extends Schema.TaggedErrorClass<PurchaseProcessingServiceError>(
   "PurchaseProcessingServiceError",
@@ -467,6 +488,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
     make: Effect.gen(function* () {
       const db = yield* Db;
       const perkGrantService = yield* PerkGrantService;
+      const webhookEvents = yield* WebhookEventPublisher;
 
       // ==================== Inline DB query helpers ====================
 
@@ -736,9 +758,80 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
         }
         return {
           configurationProduct: configurationProductOp.value,
+          // Kept alongside `personId` so the webhook mappers never issue their
+          // own person lookup just to stamp the public distinct id.
+          distinctId: personOp.value.primaryDistinctId ?? personOp.value.id,
           personId: personOp.value.id,
         };
       });
+
+      /**
+       * Subject identity for the outbound webhook payload, assembled from the
+       * already-resolved configuration-product mapping and person row.
+       */
+      const _webhookContext = (ctx: {
+        readonly configurationProduct: {
+          readonly productId: string;
+          readonly providerProductKey: string;
+          readonly product?: { readonly slug: string } | null;
+        };
+        readonly distinctId: string;
+      }): WebhookEventMapperContext => ({
+        distinctId: ctx.distinctId,
+        productId: ctx.configurationProduct.productId,
+        productSlug: ctx.configurationProduct.product?.slug ?? null,
+        providerProductId: ctx.configurationProduct.providerProductKey,
+      });
+
+      /**
+       * Defers payload construction: the mappers instantiate an `api-contracts`
+       * class and schema-encode it, and both throw on invalid input. Returning
+       * a thunk keeps that work out of the surrounding `Db.transaction`, so a
+       * payload defect can never roll back the purchase it describes.
+       */
+      const _webhookEventWhen = (
+        changed: boolean,
+        build: () => WebhookLifecycleEvent,
+      ): WebhookEventBuilder | null => {
+        if (!changed) return null;
+        return build;
+      };
+
+      /**
+       * Best-effort fan-out of the action's lifecycle events, called only after
+       * the surrounding `Db.transaction` has committed so a rolled-back write
+       * can never produce a delivered webhook. Builders are forced in order, so
+       * an action that emits more than one event (a renewal that also created
+       * the subscription) publishes them deterministically. A `null` builder is
+       * an action that changed no state (duplicate notification, watermark
+       * rejection, or an already existing row) and stays silent; a builder that
+       * throws degrades to the same logged warning as a failed dispatch.
+       */
+      const _publishWebhookEvents = (
+        projectId: string,
+        builders: readonly (WebhookEventBuilder | null)[],
+      ) =>
+        Effect.forEach(
+          builders,
+          (build) => {
+            if (build === null) return Effect.void;
+            return Effect.sync(build).pipe(
+              Effect.flatMap((event) =>
+                webhookEvents.publish({
+                  eventType: event.eventType,
+                  payload: event.payload,
+                  projectId,
+                }),
+              ),
+              Effect.catchCause((cause) =>
+                Effect.logWarning(
+                  `Failed to build a webhook event payload for project ${projectId}: ${Cause.pretty(cause)}`,
+                ),
+              ),
+            );
+          },
+          { discard: true },
+        );
 
       const _syncPurchasePerks = Effect.fn("_syncPurchasePerks")(function* (
         tx: DbTransaction,
@@ -1071,11 +1164,11 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           const productId = ctx.configurationProduct.id;
           const personId = ctx.personId;
 
-          return yield* db.transaction((tx) =>
+          const outcome = yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const ledgerClaim = yield* _reservePurchaseLedger(tx, input);
               if (ledgerClaim._tag === "duplicate") {
-                return ledgerClaim.result;
+                return { events: NO_WEBHOOK_EVENTS, result: ledgerClaim.result };
               }
               const [transaction, existingSubscription] = yield* Effect.all([
                 _findOrCreateTransaction(tx, {
@@ -1129,7 +1222,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
               }
               const changedGrantIds = yield* _syncPurchasePerks(tx, personId);
 
-              return yield* _enqueueAnalyticsAndBuildResult(tx, {
+              const result = yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
                   toStartedAnalyticsInputs(input, { personId, transactionId: transaction.id }, cfg),
                 buildResult: (analyticsEventIds) =>
@@ -1152,8 +1245,26 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 reservation: ledgerClaim.reservation,
                 source: input.source,
               });
+
+              // A start that landed on an existing subscription row is a
+              // re-observation of a series we already track, not a new one.
+              return {
+                events: [
+                  _webhookEventWhen(!subscriptionAlreadyExisted, () =>
+                    toSubscriptionCreatedWebhookEvent(
+                      input,
+                      { purchasedAt: input.purchasedAt, subscriptionId },
+                      _webhookContext(ctx),
+                    ),
+                  ),
+                ],
+                result,
+              };
             }),
           );
+
+          yield* _publishWebhookEvents(input.projectId, outcome.events);
+          return outcome.result;
         },
         (effect, input) =>
           _withPurchaseActionObservability(effect, input).pipe(
@@ -1179,11 +1290,11 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           const productId = ctx.configurationProduct.id;
           const personId = ctx.personId;
 
-          return yield* db.transaction((tx) =>
+          const outcome = yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const ledgerClaim = yield* _reservePurchaseLedger(tx, input);
               if (ledgerClaim._tag === "duplicate") {
-                return ledgerClaim.result;
+                return { events: NO_WEBHOOK_EVENTS, result: ledgerClaim.result };
               }
               const transaction = yield* _findOrCreateTransaction(tx, {
                 money: input.money,
@@ -1218,6 +1329,8 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 return Option.fromNullishOr(pendingProductMatch);
               });
               let subscriptionId: string;
+              let projectionAdvanced: boolean;
+              let subscriptionNewlyInserted: boolean;
               if (Option.isNone(existing)) {
                 const subscription: InsertSubscription = {
                   cancelAtPeriodEnd: false,
@@ -1244,6 +1357,8 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 };
                 yield* db.insert(subscriptions).values(subscription);
                 subscriptionId = subscription.id;
+                projectionAdvanced = true;
+                subscriptionNewlyInserted = true;
               } else {
                 const completesPendingProductChange =
                   existing.value.pendingProductChangeId === productId;
@@ -1282,10 +1397,12 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   );
                 }
                 subscriptionId = existing.value.id;
+                projectionAdvanced = updated.affectedRows > 0;
+                subscriptionNewlyInserted = false;
               }
               const changedGrantIds = yield* _syncPurchasePerks(tx, personId);
 
-              return yield* _enqueueAnalyticsAndBuildResult(tx, {
+              const result = yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
                   toRenewedAnalyticsInputs(input, { personId, transactionId: transaction.id }, cfg),
                 buildResult: (analyticsEventIds) =>
@@ -1308,8 +1425,34 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 reservation: ledgerClaim.reservation,
                 source: input.source,
               });
+
+              // Stale renewals rejected by the watermark, and renewals whose
+              // charge we had already recorded, advanced nothing.
+              const renewalAdvanced = projectionAdvanced && !transaction.alreadyExisted;
+              // A renewal can be first contact with a subscription — a missed
+              // start notification, or an app migrating onto Voidhash
+              // mid-subscription. Receivers get the creation event first, so
+              // the renewal always lands on a subscription id they have seen.
+              return {
+                events: [
+                  _webhookEventWhen(renewalAdvanced && subscriptionNewlyInserted, () =>
+                    toSubscriptionCreatedWebhookEvent(
+                      input,
+                      { purchasedAt: input.renewedAt, subscriptionId },
+                      _webhookContext(ctx),
+                    ),
+                  ),
+                  _webhookEventWhen(renewalAdvanced, () =>
+                    toSubscriptionRenewedWebhookEvent(input, { subscriptionId }, _webhookContext(ctx)),
+                  ),
+                ],
+                result,
+              };
             }),
           );
+
+          yield* _publishWebhookEvents(input.projectId, outcome.events);
+          return outcome.result;
         },
         (effect, input) =>
           _withPurchaseActionObservability(effect, input).pipe(
@@ -1335,42 +1478,53 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           const productId = ctx.configurationProduct.id;
           const personId = ctx.personId;
 
-          return yield* db.transaction((tx) =>
+          const outcome = yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const ledgerClaim = yield* _reservePurchaseLedger(tx, input);
               if (ledgerClaim._tag === "duplicate") {
-                return ledgerClaim.result;
+                return { events: NO_WEBHOOK_EVENTS, result: ledgerClaim.result };
               }
               const existing = yield* findSubscriptionByStoreSubscriptionId(tx, {
                 paymentProviderConfigurationProductId: productId,
                 storeSubscriptionId,
               });
               if (Option.isNone(existing)) {
-                return yield* _finalizeReservedLedgerResult(
-                  tx,
-                  ledgerClaim.reservation,
-                  new PurchaseProcessingResult({
-                    analyticsEventIds: [],
-                    changedGrantIds: [],
-                    idempotent: false,
-                    personId,
-                    purchaseId: Option.none(),
-                    subscriptionId: Option.none(),
-                    transactionId: Option.none(),
-                  }),
-                );
+                return {
+                  events: NO_WEBHOOK_EVENTS,
+                  result: yield* _finalizeReservedLedgerResult(
+                    tx,
+                    ledgerClaim.reservation,
+                    new PurchaseProcessingResult({
+                      analyticsEventIds: [],
+                      changedGrantIds: [],
+                      idempotent: false,
+                      personId,
+                      purchaseId: Option.none(),
+                      subscriptionId: Option.none(),
+                      transactionId: Option.none(),
+                    }),
+                  ),
+                };
               }
+              const nextStatus = pick(
+                input.cancelAtPeriodEnd,
+                existing.value.status,
+                subscriptionStatusForInactiveEvent(),
+              );
+              // The watermark admits an *equal* `occurredAt`, so the same
+              // cancellation re-observed under a different ledger key (webhook
+              // plus reconciliation, say) still updates the row. Comparing the
+              // pre-update projection keeps the webhook tied to a real change.
+              const alreadyCancelled =
+                existing.value.canceledAt?.getTime() === input.canceledAt.getTime() &&
+                existing.value.cancelAtPeriodEnd === input.cancelAtPeriodEnd;
               const updated = yield* updateSubscriptionIfFresher(tx, {
                 cancelAtPeriodEnd: input.cancelAtPeriodEnd,
                 canceledAt: input.canceledAt,
                 cancellationReason: Option.getOrNull(input.cancellationReason),
                 id: existing.value.id,
                 occurredAt: input.occurredAt,
-                status: pick(
-                  input.cancelAtPeriodEnd,
-                  existing.value.status,
-                  subscriptionStatusForInactiveEvent(),
-                ),
+                status: nextStatus,
                 updatedAt: yield* DateTime.nowAsDate,
               });
               if (updated.affectedRows === 0) {
@@ -1380,7 +1534,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
               }
               const changedGrantIds = yield* _syncPurchasePerks(tx, personId);
 
-              return yield* _enqueueAnalyticsAndBuildResult(tx, {
+              const result = yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
                   toCanceledAnalyticsInputs(
                     input,
@@ -1407,8 +1561,28 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 reservation: ledgerClaim.reservation,
                 source: input.source,
               });
+
+              return {
+                events: [
+                  _webhookEventWhen(updated.affectedRows > 0 && !alreadyCancelled, () =>
+                    toSubscriptionCancelledWebhookEvent(
+                      input,
+                      {
+                        expiresAt: existing.value.expiresAt,
+                        status: nextStatus,
+                        subscriptionId: existing.value.id,
+                      },
+                      _webhookContext(ctx),
+                    ),
+                  ),
+                ],
+                result,
+              };
             }),
           );
+
+          yield* _publishWebhookEvents(input.projectId, outcome.events);
+          return outcome.result;
         },
         (effect, input) =>
           _withPurchaseActionObservability(effect, input).pipe(
@@ -1434,31 +1608,42 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           const productId = ctx.configurationProduct.id;
           const personId = ctx.personId;
 
-          return yield* db.transaction((tx) =>
+          const outcome = yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const ledgerClaim = yield* _reservePurchaseLedger(tx, input);
               if (ledgerClaim._tag === "duplicate") {
-                return ledgerClaim.result;
+                return { events: NO_WEBHOOK_EVENTS, result: ledgerClaim.result };
               }
               const existing = yield* findSubscriptionByStoreSubscriptionId(tx, {
                 paymentProviderConfigurationProductId: productId,
                 storeSubscriptionId,
               });
               if (Option.isNone(existing)) {
-                return yield* _finalizeReservedLedgerResult(
-                  tx,
-                  ledgerClaim.reservation,
-                  new PurchaseProcessingResult({
-                    analyticsEventIds: [],
-                    changedGrantIds: [],
-                    idempotent: false,
-                    personId,
-                    purchaseId: Option.none(),
-                    subscriptionId: Option.none(),
-                    transactionId: Option.none(),
-                  }),
-                );
+                return {
+                  events: NO_WEBHOOK_EVENTS,
+                  result: yield* _finalizeReservedLedgerResult(
+                    tx,
+                    ledgerClaim.reservation,
+                    new PurchaseProcessingResult({
+                      analyticsEventIds: [],
+                      changedGrantIds: [],
+                      idempotent: false,
+                      personId,
+                      purchaseId: Option.none(),
+                      subscriptionId: Option.none(),
+                      transactionId: Option.none(),
+                    }),
+                  ),
+                };
               }
+              // Same equal-`occurredAt` window as cancellation: only a row that
+              // was not already expired at this exact instant is a transition.
+              // Status alone is not enough — an immediate cancellation also
+              // parks the row in the inactive status, and the later expiry of
+              // that subscription is still a distinct lifecycle event.
+              const alreadyExpired =
+                existing.value.status === subscriptionStatusForInactiveEvent() &&
+                existing.value.expiresAt?.getTime() === input.expiredAt.getTime();
               const updated = yield* updateSubscriptionIfFresher(tx, {
                 expiresAt: input.expiredAt,
                 id: existing.value.id,
@@ -1473,7 +1658,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
               }
               const changedGrantIds = yield* _syncPurchasePerks(tx, personId);
 
-              return yield* _enqueueAnalyticsAndBuildResult(tx, {
+              const result = yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
                   toExpiredAnalyticsInputs(
                     input,
@@ -1500,8 +1685,24 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 reservation: ledgerClaim.reservation,
                 source: input.source,
               });
+
+              return {
+                events: [
+                  _webhookEventWhen(updated.affectedRows > 0 && !alreadyExpired, () =>
+                    toSubscriptionExpiredWebhookEvent(
+                      input,
+                      { subscriptionId: existing.value.id },
+                      _webhookContext(ctx),
+                    ),
+                  ),
+                ],
+                result,
+              };
             }),
           );
+
+          yield* _publishWebhookEvents(input.projectId, outcome.events);
+          return outcome.result;
         },
         (effect, input) =>
           _withPurchaseActionObservability(effect, input).pipe(
@@ -1658,11 +1859,11 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           const productId = ctx.configurationProduct.id;
           const personId = ctx.personId;
 
-          return yield* db.transaction((tx) =>
+          const outcome = yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const ledgerClaim = yield* _reservePurchaseLedger(tx, input);
               if (ledgerClaim._tag === "duplicate") {
-                return ledgerClaim.result;
+                return { events: NO_WEBHOOK_EVENTS, result: ledgerClaim.result };
               }
               const transaction = yield* _findOrCreateTransaction(tx, {
                 money: input.money,
@@ -1708,7 +1909,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
               }
               const changedGrantIds = yield* _syncPurchasePerks(tx, personId);
 
-              return yield* _enqueueAnalyticsAndBuildResult(tx, {
+              const result = yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
                   toOneTimePurchaseAnalyticsInputs(
                     input,
@@ -1735,8 +1936,24 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 reservation: ledgerClaim.reservation,
                 source: input.source,
               });
+
+              return {
+                events: [
+                  _webhookEventWhen(!purchaseAlreadyExisted, () =>
+                    toPurchaseCompletedWebhookEvent(
+                      input,
+                      { providerKey, purchaseId },
+                      _webhookContext(ctx),
+                    ),
+                  ),
+                ],
+                result,
+              };
             }),
           );
+
+          yield* _publishWebhookEvents(input.projectId, outcome.events);
+          return outcome.result;
         },
         (effect, input) =>
           _withPurchaseActionObservability(effect, input).pipe(
@@ -1756,13 +1973,18 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           const ctx = yield* _resolveContext(input);
           const personId = ctx.personId;
 
-          return yield* db.transaction((tx) =>
+          const outcome = yield* db.transaction((tx) =>
             Effect.gen(function* () {
               const ledgerClaim = yield* _reservePurchaseLedger(tx, input);
               if (ledgerClaim._tag === "duplicate") {
-                return ledgerClaim.result;
+                return { events: NO_WEBHOOK_EVENTS, result: ledgerClaim.result };
               }
               let money: Option.Option<PurchaseProcessingMoney> = Option.none();
+              // Tracked only for the outbound webhook: `true` once the
+              // transaction row went from "not refunded at this instant" to
+              // refunded. A row already carrying this exact `refundedAt` is a
+              // re-observation, not a transition.
+              let transactionNewlyRefunded = false;
               if (Option.isNone(input.providerTransactionId)) {
                 yield* Effect.logWarning(
                   "refundPurchase: no providerTransactionId; skipping transaction row update",
@@ -1775,6 +1997,9 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 if (Option.isSome(existing)) {
                   money = Option.some(moneyFromStoredTransaction(existing.value));
                 }
+                const transactionAlreadyRefunded =
+                  Option.isSome(existing) &&
+                  existing.value.refundedAt?.getTime() === input.refundedAt.getTime();
                 // Watermark-guarded refund: the UPDATE additionally requires
                 // `last_event_occurred_at IS NULL OR <= occurredAt` so a
                 // late-arriving stale REFUND can't overwrite a fresher
@@ -1804,6 +2029,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   )
                   .returning({ id: transactions.id });
                 const updated = { affectedRows: transactionRefundRows.length };
+                transactionNewlyRefunded = updated.affectedRows > 0 && !transactionAlreadyRefunded;
                 if (updated.affectedRows === 0) {
                   yield* Effect.logWarning(
                     `refundPurchase: no prior transaction row OR watermark rejected (storeTransactionId=${input.providerTransactionId.value}, occurredAt=${input.occurredAt.toISOString()}); analytics will still emit`,
@@ -1812,6 +2038,8 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
               }
               let purchaseId: Option.Option<string> = Option.none();
               let purchaseUpdated = false;
+              /** Webhook-only counterpart of {@link transactionNewlyRefunded}. */
+              let purchaseNewlyRefunded = false;
               const providerKeyOp = resolvePurchaseProviderKey(input);
               if (Option.isNone(providerKeyOp)) {
                 yield* Effect.logWarning(
@@ -1849,6 +2077,9 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                     .returning({ id: purchases.id });
                   const purchaseUpdate = { affectedRows: purchaseRefundRows.length };
                   purchaseUpdated = purchaseUpdate.affectedRows > 0;
+                  purchaseNewlyRefunded =
+                    purchaseUpdated &&
+                    existingPurchase.value.refundedAt?.getTime() !== input.refundedAt.getTime();
                   if (purchaseUpdate.affectedRows === 0) {
                     yield* Effect.logWarning(
                       `refundPurchase: purchase row watermark rejected (providerKey=${providerKeyOp.value}, occurredAt=${input.occurredAt.toISOString()})`,
@@ -1858,7 +2089,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
               }
               const changedGrantIds = yield* _syncPurchasePerksWhen(purchaseUpdated, tx, personId);
 
-              return yield* _enqueueAnalyticsAndBuildResult(tx, {
+              const result = yield* _enqueueAnalyticsAndBuildResult(tx, {
                 buildEvents: (cfg) =>
                   toRefundedAnalyticsInputs({ ...input, money }, { personId }, cfg),
                 buildResult: (analyticsEventIds) =>
@@ -1881,8 +2112,26 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 reservation: ledgerClaim.reservation,
                 source: input.source,
               });
+
+              // Subscription refunds carry no purchase row, so the transaction
+              // row flipping to refunded is an equally valid state change.
+              return {
+                events: [
+                  _webhookEventWhen(purchaseNewlyRefunded || transactionNewlyRefunded, () =>
+                    toPurchaseRefundedWebhookEvent(
+                      input,
+                      { money, purchaseId: Option.getOrNull(purchaseId) },
+                      _webhookContext(ctx),
+                    ),
+                  ),
+                ],
+                result,
+              };
             }),
           );
+
+          yield* _publishWebhookEvents(input.projectId, outcome.events);
+          return outcome.result;
         },
         (effect, input) =>
           _withPurchaseActionObservability(effect, input).pipe(

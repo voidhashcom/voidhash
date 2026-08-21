@@ -738,6 +738,82 @@
         }
       }
     },
+    "/api/v1/persons/{personId}/entitlements": {
+      "get": {
+        "tags": ["persons"],
+        "operationId": "persons.getPersonEntitlements",
+        "parameters": [
+          {
+            "name": "personId",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "PersonEntitlementsResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonEntitlementsResponseJsonEncoding"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Api/NotAuthenticatedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Api_NotAuthenticatedErrorJsonEncoding"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Api_ActionForbiddenErrorJsonEncoding"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/PersonNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Api_PersonNotFoundErrorJsonEncoding"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PersonServiceError | Api/AuthenticationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Api_PersonServiceErrorJsonEncoding"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Api_AuthenticationErrorJsonEncoding"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notifications/send": {
       "post": {
         "tags": ["notifications"],
@@ -6392,6 +6468,60 @@
         "required": ["_tag", "id"],
         "additionalProperties": false
       },
+      "SdkEntitlementGrantJsonEncoding": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perkId": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["subscription", "purchase", "manual"]
+          },
+          "sourceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourcePersonId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "expired"]
+          }
+        },
+        "required": ["expiresAt", "perkId", "source", "sourceId", "sourcePersonId", "status"],
+        "additionalProperties": false
+      },
+      "PersonEntitlementsResponseJsonEncoding": {
+        "type": "object",
+        "properties": {
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SdkEntitlementGrantJsonEncoding"
+            }
+          }
+        },
+        "required": ["grants"],
+        "additionalProperties": false
+      },
       "SendNotificationBodyJsonEncoding": {
         "type": "object",
         "properties": {
@@ -7280,47 +7410,6 @@
           }
         },
         "required": ["_tag", "message"],
-        "additionalProperties": false
-      },
-      "SdkEntitlementGrantJsonEncoding": {
-        "type": "object",
-        "properties": {
-          "expiresAt": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "perkId": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string",
-            "enum": ["subscription", "purchase", "manual"]
-          },
-          "sourceId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "sourcePersonId": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["active", "expired"]
-          }
-        },
-        "required": ["expiresAt", "perkId", "source", "sourceId", "sourcePersonId", "status"],
         "additionalProperties": false
       },
       "SdkPurchaseHistoryEntryJsonEncoding": {

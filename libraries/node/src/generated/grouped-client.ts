@@ -58,6 +58,8 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
       client.personsGetPersonByDistinctId(request.params["distinctId"]),
     getPersonById: (request: { params: { readonly personId: string } }) =>
       client.personsGetPersonById(request.params["personId"]),
+    getPersonEntitlements: (request: { params: { readonly personId: string } }) =>
+      client.personsGetPersonEntitlements(request.params["personId"]),
     listPersons: () => client.personsListPersons(),
   },
   productPerks: {

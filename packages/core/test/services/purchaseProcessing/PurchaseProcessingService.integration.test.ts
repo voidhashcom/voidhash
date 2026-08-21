@@ -39,10 +39,10 @@
  *    assertion proving nothing was written.
  */
 import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
-import { DateTime, Effect, Option, Schema } from "effect";
+import { DateTime, Effect, Layer, Option, Schema } from "effect";
 import { describe, expect } from "vitest";
 
-import { PerkGrantService } from "@voidhash/core/services";
+import { PerkGrantService, WebhookEventPublisher } from "@voidhash/core/services";
 import {
   PurchaseProcessingProductNotMappedError,
   PurchaseProcessingService,
@@ -90,6 +90,16 @@ const uniqueKey = (label: string) =>
 
 const PROVIDER_ID: PaymentProviderId = "apple-app-store";
 const SOURCE: PurchaseEventSource = "webhook";
+
+/**
+ * The service under test with outbound webhooks silenced — this suite asserts
+ * the operational + ledger writes only. Webhook fan-out has its own suite
+ * (`PurchaseProcessingWebhookEvents.integration.test.ts`) that wires the live
+ * publisher instead.
+ */
+const purchaseProcessingLayer = PurchaseProcessingService.layer.pipe(
+  Layer.provide(WebhookEventPublisher.noop),
+);
 
 /** Cents helper for the branded `MinorAmount` domain type at this trusted boundary. */
 const cents = (n: number) => MinorAmount.make(n);
@@ -344,7 +354,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
         expect(resultPayload.analyticsEventIds.length).toBe(2);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -388,7 +398,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
         expect(txRows.length).toBe(0);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -449,7 +459,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
         expect(ledgerRows.length).toBe(1);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -490,7 +500,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
         expect(subRows.length).toBe(0);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -525,7 +535,7 @@ describe("PurchaseProcessingService.startSubscription", () => {
         expect(ledger).toBeUndefined();
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -607,7 +617,7 @@ describe("PurchaseProcessingService.renewSubscription", () => {
         expect(row?.status).toBe(SubscriptionStatus.Active);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -654,7 +664,7 @@ describe("PurchaseProcessingService.renewSubscription", () => {
         expect(row?.lastEventOccurredAt?.getTime()).toBe(freshWatermark.getTime());
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -697,7 +707,7 @@ describe("PurchaseProcessingService.cancelSubscription / expireSubscription", ()
         expect(row?.canceledAt?.getTime()).toBe(canceledAt.getTime());
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -731,7 +741,7 @@ describe("PurchaseProcessingService.cancelSubscription / expireSubscription", ()
         expect((ledger?.eventsPayload ?? []).length).toBe(0);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -768,7 +778,7 @@ describe("PurchaseProcessingService.cancelSubscription / expireSubscription", ()
         expect(row?.expiresAt?.getTime()).toBe(expiredAt.getTime());
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -841,7 +851,7 @@ describe("PurchaseProcessingService.revokeSubscription", () => {
         expect(txRow?.revocationReason).toBe("family_sharing_revoked");
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -883,7 +893,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
         expect(txRow?.grossAmount).toBe(2990);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -931,7 +941,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
         expect(purchaseRow?.refundedAt?.getTime()).toBe(refundedAt.getTime());
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -986,7 +996,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
         expect(purchaseRow?.refundedAt).toBeNull();
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1017,7 +1027,7 @@ describe("PurchaseProcessingService.completeOneTimePurchase / refundPurchase / r
         expect(ledger).toBeUndefined();
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1061,7 +1071,7 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         expect(row?.status).toBe(SubscriptionStatus.Active);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1099,7 +1109,7 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         expect(row?.extendedTo?.getTime()).toBe(extendedTo.getTime());
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1137,7 +1147,7 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         expect(row?.pendingProductChangeId).toBe(newConfigProductId);
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1175,7 +1185,7 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         expect(row?.redeemedOfferAt?.getTime()).toBe(redeemedAt.getTime());
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1215,7 +1225,7 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         expect(row?.pendingPriceEffectiveAt?.getTime()).toBe(effectiveAt.getTime());
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1263,7 +1273,7 @@ describe("PurchaseProcessingService subscription state mutations", () => {
         expect(row?.cancellationReason).toBeNull();
       }),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1348,7 +1358,7 @@ describe("PurchaseProcessingService.transferSubscription", () => {
         );
       }).pipe(Effect.scoped),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1385,7 +1395,7 @@ describe("PurchaseProcessingService.transferSubscription", () => {
         expect(error).toBeInstanceOf(PurchaseProcessingServiceError);
       }).pipe(Effect.scoped),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1461,7 +1471,7 @@ describe("PurchaseProcessingService.transferSubscription", () => {
         expect(row?.personId).toBe(ids.personId);
       }).pipe(Effect.scoped),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1536,7 +1546,7 @@ describe("PurchaseProcessingService.transferPurchase", () => {
         expect(purchaseRow?.personId).toBe(targetPersonId);
       }).pipe(Effect.scoped),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),
@@ -1593,7 +1603,7 @@ describe("PurchaseProcessingService.transferPurchase", () => {
         expect(purchaseRow?.personId).toBe(ids.personId);
       }).pipe(Effect.scoped),
     ).pipe(
-      Effect.provide(PurchaseProcessingService.layer),
+      Effect.provide(purchaseProcessingLayer),
       Effect.provide(PerkGrantService.layer),
       CoreAuthSession.authenticate(),
     ),

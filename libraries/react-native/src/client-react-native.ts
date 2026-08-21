@@ -24,12 +24,16 @@ import { purchaseHookFactory } from "./react/hooks/use-purchase";
  *   fetched on `Provider` mount.
  * - Type safety for product / location / perk slugs comes from the generated
  *   `voidhash.gen.d.ts` (run `voidhash-cli types generate`).
+ * - `options.enabled: false` returns a fully inert client: the provider and
+ *   every hook still mount (so hook order never changes), but nothing
+ *   initializes, and the `scheme` requirement is waived.
  */
 export function createVoidhashClient(publishableKey: string, options: VoidhashClientOptions = {}) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
   const dev = options.dev ?? false;
   const distinctId = options.distinctId ?? null;
+  const enabled = options.enabled ?? true;
   const ingestUrl = options.ingestUrl;
   const readOnly = options.readOnly ?? false;
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
@@ -39,7 +43,10 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
       ? Constants.expoConfig?.scheme
       : Constants.expoConfig?.scheme?.[0]);
 
-  if (!scheme) {
+  // A disabled client never presents a paywall and so never rides the scheme
+  // back into the app: requiring one would force apps that ship the SDK behind
+  // a feature flag to configure a deep-link scheme they don't use yet.
+  if (!scheme && enabled) {
     return Effect.runSync(Effect.die(new SchemeNotSetError()));
   }
 
@@ -48,7 +55,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
 
   const client = new VoidhashClient(
     distinctId,
-    scheme,
+    scheme ?? "",
     baseUrl,
     ingestUrl,
     publishableKey,
@@ -59,6 +66,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     debug,
     options.unstable_internalSchema,
     dev,
+    enabled,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

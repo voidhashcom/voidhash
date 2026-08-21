@@ -900,6 +900,165 @@ describe("VoidhashEffectClient", () => {
     );
   });
 
+  it("processObservedTransaction reads the observer mode in effect when it runs", async () => {
+    const schema = createTestSchema();
+    const apiDouble = createApiClientDouble();
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+      readOnly: true,
+    });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema }),
+    );
+    const observedTransaction = (transactionId: string) =>
+      new Transaction(transactionId, transactionId, "monthly-id", 1_700_000_000_000, 1, false, "ios");
+
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          initializedClient.processObservedTransaction(observedTransaction("tx-observed")),
+        );
+
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
+
+        harness.setReadOnly(false);
+        await harness.runtime.runPromise(
+          initializedClient.processObservedTransaction(observedTransaction("tx-owned")),
+        );
+
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
+        expect(apiDouble.state.syncTransactionCalls[0]?.headers["x-observer-mode"]).toBe("true");
+        expect(apiDouble.state.syncTransactionCalls[1]?.headers["x-observer-mode"]).toBe("false");
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
+  });
+
+  it("finishes an in-flight purchase under the mode it started with", async () => {
+    const schema = createTestSchema();
+    // Switching to observer mode after the purchase started must not strand
+    // the transaction: this SDK bought it, so this SDK finishes it.
+    const apiDouble = createApiClientDouble({
+      syncTransactionEffect: () =>
+        Effect.sync(() => {
+          harness.setReadOnly(true);
+          return { accepted: true };
+        }),
+    });
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema }),
+    );
+    const monthlyProduct = new SubscriptionProduct(
+      "monthly-id",
+      "monthly_sub",
+      "Monthly",
+      "Monthly plan",
+      "Monthly",
+      "$9.99",
+      999,
+      "USD",
+      "subscription",
+      "ios",
+      "month",
+    );
+
+    await withCleanup(
+      async () => {
+        await harness.runtime.runPromise(
+          initializedClient.purchase(monthlyProduct, { method: "native" }),
+        );
+
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
+  });
+
+  it("finishes a pinned purchase that joined the observer callback already in flight", async () => {
+    const schema = createTestSchema();
+    const transaction = new Transaction(
+      "tx-shared",
+      "tx-shared",
+      "monthly-id",
+      1_700_000_000_000,
+      1,
+      false,
+      "ios",
+    );
+    // Parks the shared processing inside the backend sync, so the purchase can
+    // join the in-flight entry and the app can flip to observer mode before the
+    // ownership decision is made.
+    const syncGate = Deferred.makeUnsafe<void>();
+    const apiDouble = createApiClientDouble({
+      syncTransactionEffect: () => Effect.as(Deferred.await(syncGate), { accepted: true }),
+    });
+    const paymentDouble = createPaymentAdapterDouble({ buyProductTransaction: transaction });
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema }),
+    );
+    const monthlyProduct = new SubscriptionProduct(
+      "monthly-id",
+      "monthly_sub",
+      "Monthly",
+      "Monthly plan",
+      "Monthly",
+      "$9.99",
+      999,
+      "USD",
+      "subscription",
+      "ios",
+      "month",
+    );
+
+    await withCleanup(
+      async () => {
+        const observed = harness.runtime.runPromise(
+          initializedClient.processObservedTransaction(transaction),
+        );
+        await vi.waitFor(() => expect(apiDouble.state.syncTransactionCalls).toHaveLength(1));
+
+        const purchased = harness.runtime.runPromise(
+          initializedClient.purchase(monthlyProduct, { method: "native" }),
+        );
+        await vi.waitFor(() => expect(paymentDouble.state.buyProductCalls).toHaveLength(1));
+        await Effect.runPromise(Effect.sleep(5));
+
+        harness.setReadOnly(true);
+        Deferred.doneUnsafe(syncGate, Effect.void);
+
+        await observed;
+        await purchased;
+
+        expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+        expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
+      },
+      async () => {
+        await harness.runtime.dispose();
+      },
+    );
+  });
+
   it("processObservedTransaction dedupes repeated transaction processing", async () => {
     const schema = createTestSchema();
     const apiDouble = createApiClientDouble();

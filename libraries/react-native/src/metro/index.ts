@@ -18,7 +18,8 @@
  * but do not crash Metro — the user can keep developing against the
  * last-known-good `.d.ts`.
  *
- * `voidhash-cli` is an optional peer dependency. If the binary isn't on PATH,
+ * `voidhash-cli` is not a dependency of this package — install it as a dev
+ * dependency to enable the watch integration. If the binary isn't on PATH,
  * `withVoidhash` returns the original Metro config unchanged with a warning.
  */
 

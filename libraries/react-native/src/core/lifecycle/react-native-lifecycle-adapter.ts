@@ -1,4 +1,5 @@
 import { Effect, Layer } from "effect";
+import { AppState } from "react-native";
 
 import { LifecycleAdapter, type LifecycleSubscription } from "./lifecycle-adapter";
 
@@ -13,40 +14,34 @@ interface ReactNativeAppState {
 }
 
 /**
- * Lazily resolve `react-native`'s `AppState` so that the SDK degrades
- * gracefully in environments where React Native isn't installed (e.g. Jest
- * tests, Node-only consumers).
- */
-const loadReactNativeAppState = (): Effect.Effect<ReactNativeAppState | null> =>
-  Effect.tryPromise(() => import("react-native")).pipe(
-    Effect.map(
-      (reactNative) =>
-        (reactNative as { readonly AppState?: ReactNativeAppState }).AppState ?? null,
-    ),
-    Effect.orElseSucceed(() => null),
-  );
-
-/**
  * Default `LifecycleAdapter` implementation that bridges to React Native's
- * `AppState`. Owns the lazy `import("react-native")` so the rest of the
- * SDK can stay React-Native-independent.
+ * `AppState`.
+ *
+ * `subscribe` is deliberately synchronous. It used to resolve `AppState`
+ * through `import("react-native")`, which made the returned effect
+ * asynchronous — `VoidhashClient.init()` runs it while wiring automatic
+ * lifecycle events, so the async effect died there and rejected `init()`
+ * *after* the client had already been marked initialized. `react-native` is a
+ * hard dependency of this package (the platform provider and the paywall hooks
+ * import it statically), so nothing is gained by loading it lazily. The
+ * defensive `AppState` check stays so environments that stub the module out
+ * (unit tests, Node-only consumers) degrade to "no lifecycle events" instead
+ * of throwing.
  */
 export const ReactNativeLifecycleAdapter = Layer.succeed(LifecycleAdapter, {
   subscribe: (listener) =>
-    Effect.gen(function* () {
-      const appState = yield* loadReactNativeAppState();
+    Effect.sync(() => {
+      const appState = AppState as ReactNativeAppState | null | undefined;
       if (!appState || typeof appState.addEventListener !== "function") {
         return null;
       }
 
       let previousState: AppLifecycleState | null = appState.currentState ?? null;
 
-      const subscription = appState.addEventListener("change", (nextState) => {
+      return appState.addEventListener("change", (nextState) => {
         const prior = previousState;
         previousState = nextState;
         listener(nextState, prior);
       });
-
-      return subscription;
     }),
 });

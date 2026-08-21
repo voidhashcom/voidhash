@@ -39,18 +39,18 @@ class HybridStorekitProduct: HybridStorekitProductSpec {
         return product.priceFormatStyle.currencyCode
     }
 
-    var debugDescription: String? {
-        return product.debugDescription
+    var debugDescription: Variant_NullType_String? {
+        return .second(product.debugDescription)
     }
 
     var isFamilyShareable: Bool {
         return product.isFamilyShareable
     }
 
-    var subscription: (any HybridStorekitProductSubscriptionSpec)? {
+    var subscription: Variant_NullType__any_HybridStorekitProductSubscriptionSpec_? {
         guard let subscription = product.subscription else {
             return nil
         }
-        return HybridStorekitProductSubscription(subscription: subscription)
+        return .second(HybridStorekitProductSubscription(subscription: subscription))
     }
 }

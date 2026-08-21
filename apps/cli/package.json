@@ -5,7 +5,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
-    "directory": "packages/db"
+    "directory": "apps/cli"
   },
   "bin": {
     "voidhash-cli": "./dist/bin.cjs"

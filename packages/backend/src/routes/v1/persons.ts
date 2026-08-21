@@ -1,10 +1,16 @@
-import { Person, VoidhashV1Api } from "@voidhash/api-contracts";
+import {
+  Person,
+  PersonEntitlementsResponse,
+  SdkEntitlementGrant,
+  VoidhashV1Api,
+} from "@voidhash/api-contracts";
 import {
   ApiActionForbiddenError,
   ApiPersonNotFoundError,
   ApiPersonServiceError,
 } from "@voidhash/api-contracts/errors";
-import { PersonService } from "@voidhash/core/services";
+import type { SdkPersonSnapshotGrant } from "@voidhash/core/domain/sdkPerson/SdkPerson";
+import { PerkGrantService, PersonService } from "@voidhash/core/services";
 import { extractAuthorizedProjectId } from "@voidhash/core/utils";
 import { PersonOrigin } from "@voidhash/db";
 import { AuthSession } from "@voidhash/rpc";
@@ -26,8 +32,19 @@ const toApiPerson = (person: {
     name: person.name,
   });
 
+const toApiEntitlementGrant = (grant: SdkPersonSnapshotGrant) =>
+  new SdkEntitlementGrant({
+    expiresAt: grant.expiresAt,
+    perkId: grant.perkId,
+    source: grant.source,
+    sourceId: grant.sourceId,
+    sourcePersonId: grant.sourcePersonId,
+    status: grant.status,
+  });
+
 export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (handlers) =>
   Effect.gen(function* () {
+    const perkGrantService = yield* PerkGrantService;
     const personService = yield* PersonService;
     return handlers
       .handle("createPerson", ({ payload }) =>
@@ -101,6 +118,26 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
           Effect.catchTags({
             ActionForbiddenError: (e) =>
               Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+            PersonNotFoundError: (e) => Effect.fail(new ApiPersonNotFoundError({ id: e.id })),
+            PersonServiceError: (e) => Effect.fail(new ApiPersonServiceError({ cause: e.cause })),
+          }),
+        ),
+      )
+      .handle("getPersonEntitlements", ({ params: { personId } }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            // `getPersonById` resolves merge chains and applies the same
+            // not-found / forbidden scoping as the sibling person reads, so the
+            // grants below are always loaded for the canonical person.
+            const person = yield* personService.getPersonById(personId);
+            const grants = yield* perkGrantService.getPersonEntitlementGrants(person!.personId);
+            return new PersonEntitlementsResponse({ grants: grants.map(toApiEntitlementGrant) });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            ActionForbiddenError: (e) =>
+              Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+            PerkGrantServiceError: (e) => Effect.fail(new ApiPersonServiceError({ cause: e.cause })),
             PersonNotFoundError: (e) => Effect.fail(new ApiPersonNotFoundError({ id: e.id })),
             PersonServiceError: (e) => Effect.fail(new ApiPersonServiceError({ cause: e.cause })),
           }),

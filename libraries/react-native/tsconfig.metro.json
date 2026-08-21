@@ -1,0 +1,18 @@
+// The main build emits ESM, which is what Metro and bundlers want for the SDK
+// itself. The `./metro` entry is different: it is required from the consumer's
+// CommonJS `metro.config.js`, and the package has no `"type": "module"`, so an
+// ESM `build/metro/index.js` only loads on Node versions new enough to detect
+// module syntax. This pass re-emits just that entry as CommonJS over the ESM
+// one; the declarations from the main build are kept.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "rootDir": "./src/metro",
+    "outDir": "./build/metro",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["./src/metro"]
+}

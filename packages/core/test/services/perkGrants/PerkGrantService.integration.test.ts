@@ -35,7 +35,11 @@ import {
   RequestEnvironmentMode,
   resolveRequestEnvironmentMode,
 } from "@voidhash/core/services/requestEnvironment/RequestEnvironmentMode";
-import { ActionForbiddenError, type UserSession } from "@voidhash/core/domain/auth/Auth";
+import {
+  ActionForbiddenError,
+  type SecretKeySession,
+  type UserSession,
+} from "@voidhash/core/domain/auth/Auth";
 import { PersonNotFoundError } from "@voidhash/core/domain/person/Person";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import {
@@ -318,6 +322,25 @@ const seedPurchase = (
     return id;
   });
 
+/**
+ * Insert a second perk under the fixture project. Grants are deduped by perk
+ * id, so a test that needs two grants for one person needs two perks.
+ */
+const seedPerk = (created: CreatedIds, label: string) =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const nowMillis = yield* Clock.currentTimeMillis;
+    const id = generateId("perk");
+    yield* db.insert(perks).values({
+      id,
+      name: `Perk ${label}`,
+      projectId,
+      slug: uniqueKey(`perk-${label}`, nowMillis),
+    });
+    created.perks.push(id);
+    return id;
+  });
+
 /** Insert a person_unlocked_perk row directly (to set up reactivate/expire). */
 const seedUnlockedPerk = (
   created: CreatedIds,
@@ -375,6 +398,35 @@ const sessionWithoutProjectAccess = (): UserSession => ({
  */
 const asUnauthorized = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   effect.pipe(CoreAuthSession.authenticate(sessionWithoutProjectAccess()));
+
+/**
+ * A secret-key session scoped to a *different* project — the shape the
+ * management API builds for a project's secret key. Permission checks read the
+ * session alone, so no second project has to be seeded to exercise the
+ * cross-project case.
+ */
+const otherProjectSecretKeySession = (): SecretKeySession => ({
+  cookie: null,
+  method: "secret-key",
+  name: "Other Project API Key",
+  organizations: [],
+  person: null,
+  projects: [
+    {
+      id: `${CoreTestFixture.projectId}_other`,
+      logo: null,
+      name: "Other Integration Test Project",
+      organizationId: `${CoreTestFixture.organizationId}_other`,
+      permissions: ["project:all"],
+      slug: "it-project-other",
+    },
+  ],
+  user: null,
+});
+
+/** Run a single call as another project's secret key. */
+const asOtherProjectSecretKey = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  effect.pipe(CoreAuthSession.authenticate(otherProjectSecretKeySession()));
 
 describe("PerkGrantService.syncUnlockedPerks", () => {
   test(
@@ -853,5 +905,132 @@ describe("PerkGrantService.getPersonUnlockedPerks", () => {
         expect(error.id).toBe(missingId);
       }
     }).pipe(Effect.provide(PerkGrantService.layer), CoreAuthSession.authenticate()),
+  );
+});
+
+/**
+ * Backs `GET /api/v1/persons/{personId}/entitlements` (secret-key auth). The
+ * projection is the SDK snapshot's, so these tests assert the public grant
+ * shape — active grants first — on top of the same permission and not-found
+ * behaviour `getPersonUnlockedPerks` already guarantees.
+ */
+describe("PerkGrantService.getPersonEntitlementGrants", () => {
+  test(
+    "returns active and expired grants in the SDK snapshot shape",
+    withGraphCleanup((created) =>
+      Effect.gen(function* () {
+        const service = yield* PerkGrantService;
+        const { configurationProductId, perkId, personId } = yield* seedEntitlementGraph(
+          created,
+          "entitlements",
+        );
+        const expiredPerkId = yield* seedPerk(created, "entitlements-expired");
+        const expiresAt = dateAtMillis((yield* Clock.currentTimeMillis) + 86_400_000);
+        const subscriptionId = yield* seedSubscription(created, {
+          configurationProductId,
+          expiresAt,
+          personId,
+          status: SubscriptionStatus.Active,
+        });
+        const purchaseId = yield* seedPurchase(created, {
+          configurationProductId,
+          personId,
+        });
+        yield* seedUnlockedPerk(created, {
+          expiresAt,
+          perkId,
+          personId,
+          status: PersonUnlockedPerkStatus.Active,
+          unlockedBySubscriptionId: subscriptionId,
+        });
+        yield* seedUnlockedPerk(created, {
+          perkId: expiredPerkId,
+          personId,
+          status: PersonUnlockedPerkStatus.Expired,
+          unlockedByPurchaseId: purchaseId,
+        });
+
+        const grants = yield* service.getPersonEntitlementGrants(personId);
+
+        expect(
+          grants.map((grant) => ({
+            expiresAt: grant.expiresAt,
+            perkId: grant.perkId,
+            source: grant.source,
+            sourceId: grant.sourceId,
+            sourcePersonId: grant.sourcePersonId,
+            status: grant.status,
+          })),
+        ).toEqual([
+          {
+            expiresAt,
+            perkId,
+            source: "subscription",
+            sourceId: subscriptionId,
+            sourcePersonId: personId,
+            status: "active",
+          },
+          {
+            expiresAt: null,
+            perkId: expiredPerkId,
+            source: "purchase",
+            sourceId: purchaseId,
+            sourcePersonId: personId,
+            status: "expired",
+          },
+        ]);
+      }),
+    ).pipe(Effect.provide(PerkGrantService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "returns an empty list for a person holding no grants",
+    withGraphCleanup((created) =>
+      Effect.gen(function* () {
+        const service = yield* PerkGrantService;
+        const { personId } = yield* seedEntitlementGraph(created, "entitlements-empty");
+
+        expect(yield* service.getPersonEntitlementGrants(personId)).toEqual([]);
+      }),
+    ).pipe(Effect.provide(PerkGrantService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "fails with PersonNotFoundError for an unknown person id",
+    // No cleanup wrapper: a not-found lookup writes nothing.
+    Effect.gen(function* () {
+      const service = yield* PerkGrantService;
+      const missingId = `person_missing_${yield* Clock.currentTimeMillis}`;
+
+      const error = yield* Effect.flip(service.getPersonEntitlementGrants(missingId));
+      expect(error).toBeInstanceOf(PersonNotFoundError);
+      if (error instanceof PersonNotFoundError) {
+        expect(error.id).toBe(missingId);
+      }
+    }).pipe(Effect.provide(PerkGrantService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "forbids a secret key scoped to another project",
+    withGraphCleanup((created) =>
+      Effect.gen(function* () {
+        const service = yield* PerkGrantService;
+        const { perkId, personId } = yield* seedEntitlementGraph(
+          created,
+          "entitlements-cross-project",
+        );
+        yield* seedUnlockedPerk(created, {
+          perkId,
+          personId,
+          status: PersonUnlockedPerkStatus.Active,
+          unlockedByPurchaseId: "pur_cross_project_reference",
+        });
+
+        const error = yield* Effect.flip(
+          asOtherProjectSecretKey(service.getPersonEntitlementGrants(personId)),
+        );
+        expect(error).toBeInstanceOf(ActionForbiddenError);
+      }),
+    ).pipe(Effect.provide(PerkGrantService.layer), CoreAuthSession.authenticate()),
   );
 });

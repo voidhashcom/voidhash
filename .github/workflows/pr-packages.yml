@@ -21,10 +21,10 @@ on:
   push:
     branches: [main]
     paths:
+      - packages/lib/**
       - packages/generated-clients/**
       - packages/shared/**
       - apps/cli/**
-      - apps/studio/**
       - libraries/**
       - package.json
       - pnpm-lock.yaml
@@ -34,10 +34,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
+      - packages/lib/**
       - packages/generated-clients/**
       - packages/shared/**
       - apps/cli/**
-      - apps/studio/**
       - libraries/**
       - package.json
       - pnpm-lock.yaml

@@ -20,6 +20,23 @@ interface TransactionProcessingState {
   readonly storeFinalized: boolean;
 }
 
+/**
+ * Coalescing entry for one store transaction being processed right now.
+ *
+ * `ownerClaimed` is the strongest claim any joined caller made: a purchase this
+ * SDK started pins owner mode, and that pin has to win over the live observer
+ * flag no matter which caller reached `processTransaction` first.
+ * `storeFinalizationPending` records that the running processing synced the
+ * transaction but deliberately skipped the store finish because it read
+ * observer mode, so an owner caller that joined too late can finish it after
+ * the fact without re-syncing.
+ */
+interface InFlightTransaction {
+  readonly deferred: Deferred.Deferred<void, unknown>;
+  ownerClaimed: boolean;
+  storeFinalizationPending: boolean;
+}
+
 const buildTransactionProcessingKey = (transaction: Transaction) =>
   `${transaction.platform}:${transaction.transactionId}:${transaction.purchaseDate}`;
 
@@ -115,14 +132,79 @@ export class TransactionService extends Context.Service<TransactionService>()(
       const paymentAdapter = yield* PaymentAdapter;
       const sdkConfiguration = yield* SdkConfiguration;
 
-      const inFlightTransactions = new Map<string, Deferred.Deferred<void, unknown>>();
+      const inFlightTransactions = new Map<string, InFlightTransaction>();
 
       const refreshPerson = Effect.gen(function* () {
         const distinctId = yield* identityManager.getDistinctId();
         yield* personInfoManager.getPerson(distinctId, "fetch");
       });
 
-      const processTransaction = (transaction: Transaction, schema: RuntimeSchema) =>
+      /**
+       * Finishes/acknowledges a transaction with the store and records the
+       * terminal state in the cache. Never syncs — the caller has already done
+       * that.
+       */
+      const finalizeWithStore = (
+        transaction: Transaction,
+        schema: RuntimeSchema,
+        processedCacheKey: string,
+      ) =>
+        Effect.gen(function* () {
+          if (transaction.store !== "development" && !transaction.isAcknowledged) {
+            yield* paymentAdapter.acknowledgePurchase(
+              transaction,
+              resolveTransactionProductDefinition(transaction, schema.products)?.type,
+            );
+          }
+
+          yield* cacheManager.set(
+            processedCacheKey,
+            { backendAccepted: true, storeFinalized: true },
+            { ttl: PROCESSED_TRANSACTION_TTL_MS },
+          );
+        });
+
+      /**
+       * Runs the store finish that an already-completed processing skipped
+       * because it read observer mode. The pending flag is cleared inside the
+       * same synchronous step that claims it, so concurrent owner callers can
+       * never both acknowledge.
+       */
+      const finalizeSkippedStoreFinalization = (
+        transaction: Transaction,
+        schema: RuntimeSchema,
+        entry: InFlightTransaction,
+        processedCacheKey: string,
+      ) =>
+        Effect.suspend(() => {
+          if (!entry.storeFinalizationPending) {
+            return Effect.void;
+          }
+          entry.storeFinalizationPending = false;
+          return finalizeWithStore(transaction, schema, processedCacheKey);
+        });
+
+      /**
+       * Syncs one store transaction to the backend and — unless the SDK is in
+       * observer mode — finishes/acknowledges it with the store.
+       *
+       * `readOnlyOverride` pins that ownership decision for a purchase this
+       * SDK started, so a `client.setReadOnly(true)` landing mid-purchase
+       * can't leave the transaction unfinished. Every other caller (the
+       * observer callback, reconciliation, restore) omits it and reads the
+       * live flag at the moment the decision is made.
+       *
+       * Concurrent processing of the same transaction is coalesced, and an
+       * owner-mode pin (`readOnlyOverride === false`) wins regardless of which
+       * caller registered first: it upgrades the in-flight entry before the
+       * finish decision when it can, and otherwise finishes the transaction
+       * itself once the shared processing resolves.
+       */
+      const processTransaction = (
+        transaction: Transaction,
+        schema: RuntimeSchema,
+        readOnlyOverride?: boolean,
+      ) =>
         Effect.suspend(() => {
           if (transaction.purchaseState !== "purchased") {
             return Effect.logDebug("Skipping transaction that is not purchased", {
@@ -132,16 +214,28 @@ export class TransactionService extends Context.Service<TransactionService>()(
           }
 
           const transactionProcessingKey = buildTransactionProcessingKey(transaction);
+          const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
           const existing = inFlightTransactions.get(transactionProcessingKey);
           if (existing) {
-            return Deferred.await(existing);
+            if (readOnlyOverride !== false) {
+              return Deferred.await(existing.deferred);
+            }
+
+            existing.ownerClaimed = true;
+            return Effect.flatMap(Deferred.await(existing.deferred), () =>
+              finalizeSkippedStoreFinalization(transaction, schema, existing, processedCacheKey),
+            );
           }
 
           const deferred = Deferred.makeUnsafe<void, unknown>();
-          inFlightTransactions.set(transactionProcessingKey, deferred);
+          const entry: InFlightTransaction = {
+            deferred,
+            ownerClaimed: readOnlyOverride === false,
+            storeFinalizationPending: false,
+          };
+          inFlightTransactions.set(transactionProcessingKey, entry);
 
           const execution = Effect.gen(function* () {
-            const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
             const cachedTransaction = yield* cacheManager.get<boolean | TransactionProcessingState>(
               processedCacheKey,
             );
@@ -204,22 +298,12 @@ export class TransactionService extends Context.Service<TransactionService>()(
               );
             }
 
-            if (sdkConfiguration.readOnly) {
+            if (!entry.ownerClaimed && (readOnlyOverride ?? sdkConfiguration.readOnly)) {
+              entry.storeFinalizationPending = true;
               return;
             }
 
-            if (transaction.store !== "development" && !transaction.isAcknowledged) {
-              yield* paymentAdapter.acknowledgePurchase(
-                transaction,
-                resolveTransactionProductDefinition(transaction, schema.products)?.type,
-              );
-            }
-
-            yield* cacheManager.set(
-              processedCacheKey,
-              { backendAccepted: true, storeFinalized: true },
-              { ttl: PROCESSED_TRANSACTION_TTL_MS },
-            );
+            yield* finalizeWithStore(transaction, schema, processedCacheKey);
           });
 
           return Effect.exit(execution).pipe(
@@ -290,13 +374,17 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
       const purchase = (product: Product, schema: RuntimeSchema) =>
         Effect.gen(function* () {
+          // Pinned at purchase start: a purchase this SDK owns must still be
+          // finished with the store even if the app flips to observer mode
+          // while the store sheet is open.
+          const readOnlyAtPurchaseStart = sdkConfiguration.readOnly;
           const distinctId = yield* identityManager.getDistinctId();
           const transaction = yield* paymentAdapter.buyProduct(
             product,
             undefined,
             deriveAccountToken(distinctId),
           );
-          yield* processTransaction(transaction, schema);
+          yield* processTransaction(transaction, schema, readOnlyAtPurchaseStart);
           yield* refreshPerson;
         });
 

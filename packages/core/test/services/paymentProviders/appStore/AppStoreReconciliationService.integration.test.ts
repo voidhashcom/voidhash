@@ -61,6 +61,7 @@ import { FxRateService } from "@voidhash/core/services/fxRates/FxRateService";
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { IdentityProjectionPublisher } from "@voidhash/core/services/personIdentity/IdentityProjectionPublisher";
 import { PurchaseProcessingService } from "@voidhash/core/services/purchaseProcessing/PurchaseProcessingService";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import { PerkGrantService } from "@voidhash/core/services/perkGrants/PerkGrantService";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { Db, inArray, paymentProviderConfigurations } from "@voidhash/db";
@@ -108,7 +109,12 @@ const TestLayer = AppStoreReconciliationService.layer.pipe(
     AppStorePaymentProvider.layer.pipe(
       Layer.provide(AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer))),
       Layer.provide(FxRateService.layerWithFetcher(stubFxFetcher)),
-      Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
+      Layer.provide(
+        PurchaseProcessingService.layer.pipe(
+          Layer.provide(PerkGrantService.layer),
+          Layer.provide(WebhookEventPublisher.noop),
+        ),
+      ),
       Layer.provide(
         PersonIdentityService.layer.pipe(Layer.provide(IdentityProjectionPublisher.noop)),
       ),

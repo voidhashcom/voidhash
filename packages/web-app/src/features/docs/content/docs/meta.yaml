@@ -10,10 +10,12 @@ pages:
   - paywalls
   - products-and-perks
   - entitlements
+  - backend-entitlements
   - identify-users
   - purchases
   - analytics
   - feature-flags
+  - webhooks
   - "---SDK---"
   - react-native
   - observer-mode

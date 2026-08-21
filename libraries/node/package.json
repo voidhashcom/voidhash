@@ -26,9 +26,9 @@
   ],
   "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -36,8 +36,8 @@
         "default": "./dist/index.mjs"
       },
       "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
       }
     },
     "./effect": {
@@ -46,9 +46,16 @@
         "default": "./dist/effect.mjs"
       },
       "require": {
-        "types": "./dist/effect.d.ts",
-        "default": "./dist/effect.js"
+        "types": "./dist/effect.d.cts",
+        "default": "./dist/effect.cjs"
       }
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "effect": [
+        "./dist/effect.d.cts"
+      ]
     }
   },
   "publishConfig": {
@@ -62,18 +69,15 @@
     "test:watch": "vitest -c vitest.unit.mts"
   },
   "dependencies": {
-    "@voidhash/generated-clients": "workspace:*"
+    "effect": "catalog:"
   },
   "devDependencies": {
+    "@voidhash/generated-clients": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
-    "effect": "catalog:",
     "tsup": "^8.5.1",
     "tsx": "^4.19.3",
     "typescript": "5.6.3",
     "vite-tsconfig-paths": "catalog:",
     "vitest": "^3.2.7"
-  },
-  "peerDependencies": {
-    "effect": "catalog:"
   }
 }

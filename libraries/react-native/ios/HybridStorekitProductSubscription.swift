@@ -11,16 +11,18 @@ class HybridStorekitProductSubscription: HybridStorekitProductSubscriptionSpec {
 
     // MARK: - HybridStorekitProductSubscriptionSpec Properties
 
-    var introductoryOffer: (any HybridStorekitProductOfferSpec)? {
+    var introductoryOffer: Variant_NullType__any_HybridStorekitProductOfferSpec_? {
         guard let offer = subscription.introductoryOffer else {
             return nil
         }
-        return HybridStorekitProductOffer(offer: offer)
+        return .second(HybridStorekitProductOffer(offer: offer))
     }
 
-    var promotionalOffers: [(any HybridStorekitProductOfferSpec)] {
+    var promotionalOffers: [Variant_NullType__any_HybridStorekitProductOfferSpec_] {
         return subscription.promotionalOffers.map { offer in
-            HybridStorekitProductOffer(offer: offer)
+            Variant_NullType__any_HybridStorekitProductOfferSpec_.second(
+                HybridStorekitProductOffer(offer: offer)
+            )
         }
     }
 

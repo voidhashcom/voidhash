@@ -1,0 +1,254 @@
+---
+title: Receive webhooks
+description: Get subscription and purchase changes pushed to your backend as they happen.
+icon: Webhook
+---
+
+Webhooks tell your server when a subscription or purchase changes, without waiting for the customer
+to open the app. Renewals, cancellations, expiries, and refunds all originate at the store, so a
+customer who never launches the app again still produces events your backend needs.
+
+Use webhooks to keep your own database in sync. Keep
+[server-side entitlement checks](/backend-entitlements) as the authority for an access decision:
+webhooks are a push channel, not a lock.
+
+## Create an endpoint
+
+In Studio, open **Settings → Webhooks**, add an endpoint URL, and select the events to subscribe to.
+Copy the signing secret — it looks like `whsec_` followed by 64 hex characters — and store it next
+to your secret key.
+
+The same endpoint can be created from a backend:
+
+```ts title="scripts/create-webhook.ts"
+import { createVoidhashSdk } from "@voidhash/node";
+
+const voidhash = createVoidhashSdk({ secretKey: process.env.VOIDHASH_SECRET_KEY! });
+
+const endpoint = await voidhash.webhooks.createWebhookEndpoint({
+  payload: {
+    name: "production-backend",
+    url: "https://api.example.com/webhooks/voidhash",
+    events: ["subscription.created", "subscription.renewed", "purchase.completed"],
+  },
+});
+
+console.log(endpoint.secret); // whsec_...
+```
+
+The URL must be `http:` or `https:` and at least one event is required. Unknown event names are
+rejected.
+
+## Event catalog
+
+| Event                     | Fires when                                                        | Payload highlights                                                              |
+| ------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `subscription.created`    | A subscription becomes known to Voidhash for a person.            | `subscriptionId`, `startsAt`, `expiresAt`, `purchasedAt`, `isTrial`, `amount`   |
+| `subscription.renewed`    | A renewal advances the subscription's period.                     | `subscriptionId`, `renewedAt`, `startsAt`, `expiresAt`, `isTrial`, `amount`     |
+| `subscription.cancelled`  | Auto-renew is turned off, or access is revoked immediately.       | `canceledAt`, `cancelAtPeriodEnd`, `cancellationReason`, `expiresAt`            |
+| `subscription.expired`    | A subscription's access period ends.                              | `expiredAt`                                                                     |
+| `purchase.completed`      | A non-subscription purchase is recorded.                          | `purchaseId`, `purchaseKind`, `purchasedAt`, `providerKey`, `amount`            |
+| `purchase.refunded`       | A purchase or transaction is refunded.                            | `purchaseId`, `refundedAt`, `refundReason`, `amount`                            |
+| `test.ping`               | You send a test from Studio or call `webhooks.testWebhookEndpoint`. | `message`, `timestamp`                                                         |
+
+<Callout type="info" title="subscription.created is not always a fresh purchase">
+  A subscription becomes known to Voidhash the first time we see it, which is usually its start but
+  can also be a renewal — a start notification we never received, or an app that migrated onto
+  Voidhash mid-subscription. In that case `subscription.created` is delivered first, immediately
+  followed by `subscription.renewed` for the same `subscriptionId`, so every renewal you receive
+  refers to a subscription you have already been told about.
+</Callout>
+
+<Callout type="info" title="person.* events are reserved">
+  `person.created`, `person.updated`, and `person.deleted` can be selected on an endpoint, but
+  nothing emits them yet. Do not build on them until they are announced as delivered.
+</Callout>
+
+### Payload shape
+
+The HTTP body is the bare JSON payload — there is no envelope. The event name is repeated in the
+`X-Webhook-Event` header and in the payload's `type` field.
+
+Every lifecycle payload carries these fields:
+
+| Field               | Type                                                              | Notes                                                       |
+| ------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| `type`              | The event name                                                    | Discriminator for the payload union.                        |
+| `projectId`         | `string`                                                          | Voidhash project the event belongs to.                      |
+| `personId`          | `string`                                                          | Voidhash person id.                                         |
+| `distinctId`        | `string`                                                          | The identifier your app passed to `identify()`.             |
+| `productId`         | `string`                                                          | Voidhash product id.                                        |
+| `productSlug`       | `string \| null`                                                  | The slug configured in Studio, when the product has one.    |
+| `providerProductId` | `string`                                                          | The store's product identifier.                             |
+| `provider`          | `apple-app-store` \| `google-play` \| `stripe` \| `development`   | Which provider drove the transition.                        |
+| `environment`       | `production` \| `sandbox` \| `development`                        | Live, store sandbox, or simulated development purchase.     |
+| `occurredAt`        | ISO-8601 UTC string                                               | When the transition happened.                               |
+
+Subscription events add `subscriptionId`, `status` (`active` or `canceled`),
+`providerSubscriptionId`, and `providerTransactionId` — the two provider ids may be `null`.
+
+Purchase events add `purchaseId` and `providerTransactionId`. On `purchase.refunded`, `purchaseId`
+is `null` when the refund could not be anchored to a stored purchase.
+
+Monetary fields are `{ currency, grossAmount }` with `grossAmount` in minor units, or `null` when
+the provider event reported no amount. `null` means "not reported" and is deliberately not
+zero-filled.
+
+```json title="subscription.renewed"
+{
+  "type": "subscription.renewed",
+  "projectId": "proj_...",
+  "personId": "person_...",
+  "distinctId": "user_123",
+  "productId": "prod_...",
+  "productSlug": "monthly",
+  "providerProductId": "com.example.monthly",
+  "provider": "apple-app-store",
+  "environment": "production",
+  "occurredAt": "2026-08-20T09:12:44.000Z",
+  "subscriptionId": "sub_...",
+  "status": "active",
+  "providerSubscriptionId": "1000000123456789",
+  "providerTransactionId": "1000000987654321",
+  "startsAt": "2026-08-20T09:12:44.000Z",
+  "expiresAt": "2026-09-20T09:12:44.000Z",
+  "renewedAt": "2026-08-20T09:12:44.000Z",
+  "isTrial": false,
+  "amount": { "currency": "USD", "grossAmount": 999 }
+}
+```
+
+## Verify the signature
+
+Voidhash signs every request and sends three headers:
+
+| Header                | Value                                                                 |
+| --------------------- | --------------------------------------------------------------------- |
+| `X-Webhook-Event`     | Event name, for example `purchase.completed`.                         |
+| `X-Webhook-Timestamp` | Unix seconds at signing time.                                         |
+| `X-Webhook-Signature` | `v1=` followed by the hex HMAC-SHA256 of `${timestamp}.${rawBody}`.   |
+
+The HMAC key is the raw UTF-8 endpoint secret. The signature covers the exact bytes that were sent,
+so the request body must not be parsed before verification.
+
+```ts title="server/webhooks.ts"
+import express from "express";
+import { VoidhashWebhookVerificationError, constructWebhookEvent } from "@voidhash/node";
+
+const app = express();
+
+// express.raw() keeps the bytes Voidhash signed. express.json() re-serializes
+// the body and verification will fail.
+app.post("/webhooks/voidhash", express.raw({ type: "application/json" }), (req, res) => {
+  let event;
+
+  try {
+    event = constructWebhookEvent({
+      headers: req.headers,
+      payload: req.body.toString("utf8"),
+      secret: process.env.VOIDHASH_WEBHOOK_SECRET!,
+    });
+  } catch (error) {
+    if (error instanceof VoidhashWebhookVerificationError) {
+      // error.reason: "missing_header" | "invalid_signature"
+      //             | "timestamp_out_of_tolerance" | "invalid_payload"
+      return res.sendStatus(400);
+    }
+    throw error;
+  }
+
+  // Acknowledge fast, then do the work out of band.
+  void handleEvent(event);
+  res.sendStatus(200);
+});
+```
+
+`constructWebhookEvent` returns `{ type, payload, timestamp }`. Names added to the server after your
+SDK release pass through as plain strings, so always give the `switch` on `event.type` a `default`
+branch.
+
+`verifyWebhookSignature({ payload, signature, timestamp, secret })` is also exported when you only
+need the boolean — for example behind a framework that already parsed the headers.
+
+<Callout type="warn" title="Reject, do not retry, a bad signature">
+  Respond `4xx` when verification fails. Voidhash never signs its way out of a rejected request, and
+  retrying a forged one costs you five more deliveries.
+</Callout>
+
+### Replay protection
+
+Both helpers reject a timestamp more than 300 seconds away from the current time, in either
+direction. Override it with `toleranceSeconds` if your infrastructure adds delay, and pass `now` to
+make tests deterministic:
+
+```ts
+constructWebhookEvent({
+  headers: req.headers,
+  payload: rawBody,
+  secret: process.env.VOIDHASH_WEBHOOK_SECRET!,
+  toleranceSeconds: 600,
+});
+```
+
+Keep server clocks synchronized. Clock drift is the most common cause of
+`timestamp_out_of_tolerance` on an otherwise correct integration.
+
+## Delivery semantics
+
+Lifecycle events are emitted only when a state transition actually happened, after the database
+transaction that produced it has committed. A redelivered store notification collapses on the
+purchase ledger's idempotency key before any event is built, so one real transition produces one
+event per subscribed endpoint.
+
+Delivery itself is **at-least-once**. A handler that is slow, or that succeeds but fails to respond
+in time, is delivered again:
+
+- A delivery is attempted up to **5 times**.
+- After a failed attempt the next one is scheduled **5 minutes**, then **30 minutes**, then
+  **2 hours**, then **24 hours** later.
+- Any response outside `2xx`, or a response slower than **30 seconds**, counts as a failed attempt.
+- After the fifth failed attempt the delivery is marked `exhausted` and is not retried again.
+
+Make your handler idempotent. The payloads carry stable identifiers — key on `type` plus
+`subscriptionId` or `purchaseId` plus `occurredAt`, record what you have processed, and ignore
+repeats.
+
+Return `200` as soon as the signature verifies, then process asynchronously. A handler that does
+real work inline is the usual reason a delivery times out and is duplicated.
+
+Deliveries and their per-attempt history are visible in Studio, and readable through
+`webhooks.listWebhookDeliveries`, `webhooks.getWebhookDelivery`, and `webhooks.retryWebhookDelivery`.
+
+## Test an endpoint
+
+Choose **Send Test** from an endpoint's actions menu in Studio, or call the API:
+
+```ts
+await voidhash.webhooks.testWebhookEndpoint({ params: { endpointId: "wh_ep_..." } });
+```
+
+This sends a `test.ping` delivery with the body
+`{ "message": "This is a test webhook delivery", "timestamp": "..." }`. It is signed exactly like a
+real event, so it is the fastest way to confirm that your signature verification, routing, and
+response time are correct before any money is involved.
+
+## Rotate a secret
+
+Rotate immediately if a secret is exposed:
+
+```ts
+const endpoint = await voidhash.webhooks.rotateWebhookSecret({
+  params: { endpointId: "wh_ep_..." },
+});
+
+console.log(endpoint.secret); // new whsec_...
+```
+
+Rotation applies to deliveries created after it. A delivery that was already queued keeps the secret
+it was signed with, so its retries still arrive under the old one. Have the handler accept both
+secrets across the rotation window, then drop the old secret once pending retries have drained.
+
+## Next steps
+
+- [Check access from your backend](/backend-entitlements)
+- [Webhook endpoints in the API reference](/api/reference/webhooks/webhooks.createWebhookEndpoint)

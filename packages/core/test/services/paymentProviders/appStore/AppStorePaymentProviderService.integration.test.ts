@@ -36,6 +36,7 @@ import {
   PurchaseService,
   SdkService,
 } from "@voidhash/core/services";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import type { PublishableKeySession } from "@voidhash/core/domain/auth/Auth";
 import { AppStorePaymentProvider } from "@voidhash/core/services/paymentProviders/appStore/payment-provider";
 import {
@@ -148,7 +149,7 @@ const sdkSession = (distinctId: string): PublishableKeySession => ({
 const AppStoreEngineLive = AppStorePaymentProvider.layer.pipe(
   Layer.provideMerge(
     Layer.mergeAll(
-      PurchaseProcessingService.layer,
+      PurchaseProcessingService.layer.pipe(Layer.provide(WebhookEventPublisher.noop)),
       PersonIdentityService.layer,
       FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
       PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),

@@ -24,6 +24,10 @@ import {
 import { generateId } from "../../utils/generate-id.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
 import { RequestEnvironmentMode } from "../requestEnvironment/RequestEnvironmentMode.ts";
+// The SDK snapshot's grant projection is the canonical one. Importing it here
+// (rather than re-deriving it) is what keeps `sdk.getPerson` and the
+// secret-key entitlements endpoint from ever disagreeing about a person.
+import { dedupeGrants, mapGrant, sortGrants } from "../sdk/snapshot-builder.ts";
 
 /**
  * Catch-all service error. Wraps `DatabaseError` and other infrastructural
@@ -114,6 +118,8 @@ const sameDate = (left: Date | null, right: Date | null) =>
  *   purchase write) and returns the grant ids that were created or updated.
  * - `getPersonUnlockedPerks(personId)` — returns the unlocked perks for a
  *   person, behind a `project:all` permission check.
+ * - `getPersonEntitlementGrants(personId)` — the same rows projected into the
+ *   public grant shape the SDK person snapshot reports.
  *
  * `AuthSession` and `Db` are provided by the application root.
  */
@@ -496,7 +502,23 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
         ),
     );
 
+    /**
+     * A person's entitlement grants in the public SDK shape: the same
+     * `dedupe → map → sort` projection `sdk.getPerson` applies to its snapshot,
+     * over the same environment-scoped rows and behind the same `project:all`
+     * check as {@link getPersonUnlockedPerks}.
+     */
+    const getPersonEntitlementGrants = Effect.fn("getPersonEntitlementGrants")(function* (
+      personId: string,
+    ) {
+      const unlockedPerks = yield* getPersonUnlockedPerks(personId);
+      const grants = sortGrants(dedupeGrants(unlockedPerks).map(mapGrant));
+      yield* Effect.annotateCurrentSpan("voidhash.perk_grant.result.count", grants.length);
+      return grants;
+    });
+
     return constant({
+      getPersonEntitlementGrants,
       getPersonUnlockedPerks,
       syncUnlockedPerks,
     });

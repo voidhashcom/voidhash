@@ -7,7 +7,10 @@ import { AnalyticsService } from "./core/analytics/service";
 import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
 import type { Product } from "./core/entities/product";
-import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
+import {
+  type FeatureFlagsResult,
+  FeatureFlagService,
+} from "./core/feature-flags/feature-flag-service";
 import {
   type PersonAttributes,
   PersonAttributeManager,
@@ -23,13 +26,18 @@ import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
-import { ProductService } from "./core/products/product-service";
+import { type ProductsBySlug, ProductService } from "./core/products/product-service";
 import type { LocationSlug, ProductSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
-import { SdkConfiguration } from "./core/sdk-configuration";
+import {
+  type SdkConfigurationHandle,
+  SdkConfiguration,
+  makeSdkConfiguration,
+} from "./core/sdk-configuration";
 import { TransactionService } from "./core/transactions/transaction-service";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
+import type { PaywallRuntimeConfig } from "./internal/paywall-bridge/protocol";
 
 export interface VoidhashClientOptions {
   baseUrl?: string;
@@ -37,7 +45,25 @@ export interface VoidhashClientOptions {
   /** Enables isolated test purchases in debug builds. Release builds always ignore this option. */
   dev?: boolean;
   distinctId?: string;
+  /**
+   * Ships the SDK fully disabled (default `true`). A disabled client never
+   * connects to the native store, never talks to the network and never
+   * registers listeners: `init()` and every side-effect method resolve as
+   * no-ops, and reads answer with their empty shape. Intended for
+   * feature-flagged rollouts, where mounting the provider unconditionally
+   * avoids hook-order violations.
+   *
+   * Fixed at construction. Enabling the SDK later means creating a new client
+   * — cheap, because a disabled client never builds its Effect runtime and so
+   * holds no store connection, timers or listeners.
+   */
+  enabled?: boolean;
   ingestUrl?: string;
+  /**
+   * Starts the SDK in observer mode: transactions are reported to Voidhash but
+   * never finished/acknowledged with the store, and purchases are blocked. Can
+   * be flipped later with `client.setReadOnly()`.
+   */
   readOnly?: boolean;
   scheme?: string;
   unstable_swallowErrors?: boolean;
@@ -51,13 +77,9 @@ export interface VoidhashClientOptions {
 
 const CreateEffectRuntime = (
   platform: PlatformInfo["platform"],
-  baseUrl: string,
-  debug: boolean,
-  ingestUrl: string | undefined,
-  publishableKey: string,
-  readOnly: boolean,
   developmentMode: boolean,
   atomRegistry: AtomRegistry.AtomRegistry,
+  sdkConfiguration: typeof SdkConfiguration.Service,
 ) => {
   // oxlint-disable effect/noDynamicImports -- This debug-only edge must stay dynamic so Metro can omit the adapter from release bundles.
   const paymentAdapterLayer: Layer.Layer<PaymentAdapter> =
@@ -91,20 +113,16 @@ const CreateEffectRuntime = (
       Layer.provideMerge(paymentAdapterLayer),
       Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
       Layer.provideMerge(ReactNativePlatformProvider),
-      Layer.provideMerge(
-        Layer.succeed(SdkConfiguration, {
-          baseUrl,
-          debug,
-          developmentMode,
-          environmentMode: developmentMode ? "development" : "production",
-          ingestUrl,
-          publishableKey,
-          readOnly,
-        }),
-      ),
+      Layer.provideMerge(Layer.succeed(SdkConfiguration, sdkConfiguration)),
     ),
   );
 };
+
+/** Feature flag answer of a disabled client: no flags were ever evaluated. */
+const DISABLED_FEATURE_FLAGS: FeatureFlagsResult = { flags: [] };
+
+/** Paywall runtime config answer of a disabled client. */
+const DISABLED_PAYWALL_RUNTIME_CONFIG: PaywallRuntimeConfig = { products: [], variables: {} };
 
 const toErrorWithMessage = (code: string, unknownCause: unknown) => {
   const cause = unknownCause instanceof Error ? unknownCause : new Error(String(unknownCause));
@@ -129,7 +147,8 @@ export class VoidhashClient {
     properties: Record<string, unknown>;
   }> = [];
   private initialDistinctId: string | null;
-  private readOnly: boolean;
+  private enabled: boolean;
+  private sdkConfiguration: SdkConfigurationHandle;
   private scheme: string;
   private internalSchema: RuntimeSchema | undefined;
   private unstableSwallowErrors: boolean;
@@ -154,23 +173,28 @@ export class VoidhashClient {
     debug = false,
     internalSchema?: RuntimeSchema,
     dev = false,
+    enabled = true,
   ) {
     this.initialDistinctId = initialDistinctId;
-    this.readOnly = readOnly;
+    this.enabled = enabled;
     this.developmentMode = __DEV__ && dev;
     this.scheme = scheme;
     this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
     this.atomRegistry = atomRegistry;
-    this.effectRuntime = CreateEffectRuntime(
-      platform,
+    this.sdkConfiguration = makeSdkConfiguration({
       baseUrl,
       debug,
+      developmentMode: this.developmentMode,
       ingestUrl,
       publishableKey,
       readOnly,
+    });
+    this.effectRuntime = CreateEffectRuntime(
+      platform,
       this.developmentMode,
       atomRegistry,
+      this.sdkConfiguration.service,
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
@@ -195,9 +219,15 @@ export class VoidhashClient {
   /**
    * Initializes the voidhash client. Fetches the runtime schema from the
    * server (or uses the injected internal schema if one was provided for tests).
+   * Resolves immediately without touching the store, the network or the
+   * cache when the client was created with `enabled: false`.
    * @throws {FailedToInitializeNativeAdapterError} If the payment adapter fails to initialize
    */
   async init() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("init", async () => {
       const initializedClient = await this.runEffect(
         this.unitializedClient.init({
@@ -241,10 +271,15 @@ export class VoidhashClient {
         console.warn("[voidhash] failed to capture automatic startup analytics", error);
       });
 
-      this.appLifecycleSubscription = this.effectRuntime.runSync(
+      // Awaited rather than run synchronously: `LifecycleAdapter.subscribe` is
+      // an Effect the adapter owns, and an asynchronous implementation would
+      // die under `runSync` — rejecting `init()` long after the client was
+      // marked initialized and leaving a half-live client behind.
+      this.appLifecycleSubscription = await this.runEffect(
         initializedClient.setupAutomaticLifecycleEvents((eventName) => {
           this.capture(eventName);
         }),
+        "FAILED_TO_SETUP_LIFECYCLE_EVENTS",
       );
 
       this.triggerBackgroundFlush("flush analytics after init");
@@ -252,10 +287,15 @@ export class VoidhashClient {
   }
 
   /**
-   * Ends the voidhash client.
+   * Ends the voidhash client. No-ops on a disabled client, which never
+   * acquired anything to tear down.
    * @throws {FailedToEndNativeAdapterError} If the payment adapter fails to end
    */
   async end() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("end", async () => {
       this.ensureInitialized();
       await this.flush();
@@ -267,16 +307,60 @@ export class VoidhashClient {
   }
 
   /**
-   * Returns true if the voidhash client is initialized.
+   * Returns true if the voidhash client is initialized. Always false while the
+   * client is disabled.
    */
   get isInitialized() {
     return this._isInitialized;
   }
 
   /**
-   * Returns currently identified person.
+   * Whether this client does anything at all. Fixed at construction through
+   * the `enabled` option; a disabled client no-ops every method.
+   */
+  get isEnabled() {
+    return this.enabled;
+  }
+
+  /**
+   * Whether the SDK currently runs in observer ("read-only") mode. Reflects
+   * the latest {@link VoidhashClient.setReadOnly} call.
+   */
+  get isReadOnly() {
+    return this.sdkConfiguration.isReadOnly();
+  }
+
+  /**
+   * Switches observer mode at runtime, so an app migrating onto Voidhash can
+   * flip from watching another SDK's purchases to owning them without
+   * recreating the client (which would drop the native store connection, the
+   * caches and the analytics queue).
+   *
+   * Takes effect at the next decision point of each JS-side consumer:
+   * - `purchase()` / `setPersonAttributesSync()` gating,
+   * - the transaction observer's finish/acknowledge decision for transactions
+   *   it processes after this call,
+   * - the `x-observer-mode` header of subsequent requests.
+   *
+   * A purchase that already started keeps the mode it started with: switching
+   * to observer mode mid-purchase must not leave that transaction unfinished
+   * with the store. Store transactions already being processed when the call
+   * lands may also complete under the previous mode.
+   *
+   * No-ops in effect on a disabled client — it never processes transactions.
+   */
+  setReadOnly(readOnly: boolean) {
+    this.sdkConfiguration.setReadOnly(readOnly);
+  }
+
+  /**
+   * Returns currently identified person. Returns `null` while disabled.
    */
   async getCurrentPerson(forceFetch = false) {
+    if (!this.enabled) {
+      return null;
+    }
+
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getCurrentPerson(forceFetch),
@@ -291,6 +375,10 @@ export class VoidhashClient {
    * you need it delivered promptly.
    */
   async setPersonAttributes(attributes: PersonAttributes) {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("setPersonAttributes", async () => {
       this.ensureInitialized();
       await this.runEffect(
@@ -303,11 +391,15 @@ export class VoidhashClient {
   /**
    * Sets person attributes synchronously and returns the updated person
    * snapshot. Performs a network round-trip, so this is a write — it is blocked
-   * in read-only mode, mirroring `purchase`.
+   * in read-only mode, mirroring `purchase`. Returns `null` while disabled.
    */
   async setPersonAttributesSync(attributes: PersonAttributes) {
+    if (!this.enabled) {
+      return null;
+    }
+
     this.ensureInitialized();
-    if (this.readOnly) {
+    if (this.isReadOnly) {
       return Effect.runSync(Effect.die(new ReadOnlyModePurchaseNotAllowedError()));
     }
 
@@ -317,7 +409,12 @@ export class VoidhashClient {
     );
   }
 
+  /** Returns the current distinct id, or `null` while disabled. */
   async getDistinctId() {
+    if (!this.enabled) {
+      return null;
+    }
+
     this.ensureInitialized();
     return this.runEffect(this.initializedClient!.getDistinctId(), "FAILED_TO_GET_DISTINCT_ID");
   }
@@ -332,6 +429,10 @@ export class VoidhashClient {
       name?: string;
     },
   ) {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("identify", async () => {
       this.ensureInitialized();
       await this.runEffect(
@@ -345,6 +446,10 @@ export class VoidhashClient {
    * Resets the current identity to a fresh anonymous distinct id.
    */
   async reset() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("reset", async () => {
       this.ensureInitialized();
       await this.runEffect(this.initializedClient!.reset(), "FAILED_TO_RESET");
@@ -357,6 +462,10 @@ export class VoidhashClient {
    * anonymous distinct id.
    */
   async signOut() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("signOut", async () => {
       this.ensureInitialized();
       await this.runEffect(this.initializedClient!.signOut(), "FAILED_TO_SIGN_OUT");
@@ -364,9 +473,13 @@ export class VoidhashClient {
   }
 
   /**
-   * Returns feature flag evaluation results.
+   * Returns feature flag evaluation results. Returns no flags while disabled.
    */
   async getFeatureFlags(flagKeys?: string[]) {
+    if (!this.enabled) {
+      return DISABLED_FEATURE_FLAGS;
+    }
+
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getFeatureFlags(flagKeys),
@@ -376,8 +489,13 @@ export class VoidhashClient {
 
   /**
    * Resolves the currently assigned paywall showing for a location slug.
+   * Resolves to `null` while disabled.
    */
   async getPaywallForLocation(locationSlug: LocationSlug) {
+    if (!this.enabled) {
+      return null;
+    }
+
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getPaywallForLocation(locationSlug),
@@ -392,6 +510,10 @@ export class VoidhashClient {
    * event with a `configure` envelope.
    */
   async internal_buildPaywallRuntimeConfig(runtime: PaywallReleaseRuntime) {
+    if (!this.enabled) {
+      return DISABLED_PAYWALL_RUNTIME_CONFIG;
+    }
+
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.buildPaywallRuntimeConfig(runtime),
@@ -403,15 +525,23 @@ export class VoidhashClient {
    * Returns products available on the current platform.
    * Keys are the project's product slugs (resolved via the generated
    * `voidhash.gen.d.ts`). Values are `null` when the underlying store SDK
-   * doesn't know about that product.
+   * doesn't know about that product. Returns no products while disabled.
    */
   async getProducts() {
+    if (!this.enabled) {
+      // A disabled client never talks to the store, so no slug resolves. The
+      // cast mirrors `ProductService`'s own slug-keyed map construction.
+      return {} as ProductsBySlug;
+    }
+
     this.ensureInitialized();
     return this.runEffect(this.initializedClient!.getProducts(), "FAILED_TO_GET_PRODUCTS");
   }
 
   /**
-   * Purchases a product.
+   * Purchases a product. Blocked in observer mode — the check reads the mode
+   * in effect when the purchase starts, so a `setReadOnly()` landing later
+   * doesn't abandon it. No-ops while disabled.
    */
   async purchase(
     product: Product,
@@ -419,8 +549,12 @@ export class VoidhashClient {
       method?: "native";
     },
   ) {
+    if (!this.enabled) {
+      return;
+    }
+
     this.ensureInitialized();
-    if (this.readOnly) {
+    if (this.isReadOnly) {
       return Effect.runSync(Effect.die(new ReadOnlyModePurchaseNotAllowedError()));
     }
 
@@ -432,6 +566,10 @@ export class VoidhashClient {
    * refreshing person state.
    */
   async restorePurchases() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("restorePurchases", async () => {
       this.ensureInitialized();
       await this.runEffect(
@@ -443,9 +581,14 @@ export class VoidhashClient {
 
   /**
    * Captures a product analytics event.
-   * Events are batched and delivered on size/time thresholds.
+   * Events are batched and delivered on size/time thresholds. Dropped — not
+   * buffered — while disabled.
    */
   capture(eventName: string, properties: Record<string, unknown> = {}) {
+    if (!this.enabled) {
+      return;
+    }
+
     if (!this.initializedClient) {
       const normalized = eventName.trim();
       if (normalized) {
@@ -458,9 +601,14 @@ export class VoidhashClient {
   }
 
   /**
-   * Flushes queued analytics events.
+   * Flushes queued analytics events. Nothing is ever queued while disabled, so
+   * this no-ops.
    */
   async flush() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("flush", async () => {
       if (this.analyticsFlushInFlight) {
         await this.analyticsFlushInFlight;
@@ -485,6 +633,10 @@ export class VoidhashClient {
   // ===============================
 
   async iosPresentCodeRedemptionSheet() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("iosPresentCodeRedemptionSheet", async () => {
       this.ensureInitialized();
       await this.runEffect(
@@ -495,6 +647,10 @@ export class VoidhashClient {
   }
 
   async iosShowManageSubscriptions() {
+    if (!this.enabled) {
+      return;
+    }
+
     await this.runSideEffect("iosShowManageSubscriptions", async () => {
       this.ensureInitialized();
       await this.runEffect(

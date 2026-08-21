@@ -158,6 +158,27 @@ export type PersonsGetPersonByDistinctId500 =
   | ApiPersonServiceErrorJsonEncoding
   | ApiAuthenticationErrorJsonEncoding;
 
+export type SdkEntitlementGrantJsonEncodingSource = "subscription" | "purchase" | "manual";
+
+export type SdkEntitlementGrantJsonEncodingStatus = "active" | "expired";
+
+export interface SdkEntitlementGrantJsonEncoding {
+  readonly expiresAt: string | null;
+  readonly perkId: string;
+  readonly source: SdkEntitlementGrantJsonEncodingSource;
+  readonly sourceId: string | null;
+  readonly sourcePersonId: string;
+  readonly status: SdkEntitlementGrantJsonEncodingStatus;
+}
+
+export interface PersonEntitlementsResponseJsonEncoding {
+  readonly grants: ReadonlyArray<SdkEntitlementGrantJsonEncoding>;
+}
+
+export type PersonsGetPersonEntitlements500 =
+  | ApiPersonServiceErrorJsonEncoding
+  | ApiAuthenticationErrorJsonEncoding;
+
 export type SendNotificationBodyJsonEncodingBadgeEnum = "Infinity" | "-Infinity" | "NaN";
 
 export type SendNotificationBodyJsonEncodingPriorityEnum = "default" | "high";
@@ -592,19 +613,6 @@ export interface SdkGetPersonParams {
   readonly "x-sdk-version": string;
   readonly "x-storefront"?: string | null | undefined;
   readonly "x-environment"?: SdkGetPersonParamsXEnvironmentEnum | null | undefined;
-}
-
-export type SdkEntitlementGrantJsonEncodingSource = "subscription" | "purchase" | "manual";
-
-export type SdkEntitlementGrantJsonEncodingStatus = "active" | "expired";
-
-export interface SdkEntitlementGrantJsonEncoding {
-  readonly expiresAt: string | null;
-  readonly perkId: string;
-  readonly source: SdkEntitlementGrantJsonEncodingSource;
-  readonly sourceId: string | null;
-  readonly sourcePersonId: string;
-  readonly status: SdkEntitlementGrantJsonEncodingStatus;
 }
 
 export type SdkPurchaseHistoryEntryJsonEncodingType = "one_time" | "subscription";
@@ -1703,6 +1711,15 @@ export const make = (
           "500": "PersonsGetPersonByDistinctId500",
         }),
       ),
+    personsGetPersonEntitlements: (personId) =>
+      HttpClientRequest.get(`/api/v1/persons/${personId}/entitlements`).pipe(
+        onRequest(["2xx"], {
+          "401": "ApiNotAuthenticatedErrorJsonEncoding",
+          "403": "ApiActionForbiddenErrorJsonEncoding",
+          "404": "ApiPersonNotFoundErrorJsonEncoding",
+          "500": "PersonsGetPersonEntitlements500",
+        }),
+      ),
     notificationsSendNotification: (options) =>
       HttpClientRequest.post(`/api/v1/notifications/send`).pipe(
         HttpClientRequest.bodyJsonUnsafe(options),
@@ -2457,6 +2474,25 @@ export interface VoidhashCoreClient {
         ApiPersonNotFoundErrorJsonEncoding
       >
     | VoidhashCoreClientError<"PersonsGetPersonByDistinctId500", PersonsGetPersonByDistinctId500>
+  >;
+  readonly personsGetPersonEntitlements: (
+    personId: string,
+  ) => Effect.Effect<
+    PersonEntitlementsResponseJsonEncoding,
+    | HttpClientError.HttpClientError
+    | VoidhashCoreClientError<
+        "ApiNotAuthenticatedErrorJsonEncoding",
+        ApiNotAuthenticatedErrorJsonEncoding
+      >
+    | VoidhashCoreClientError<
+        "ApiActionForbiddenErrorJsonEncoding",
+        ApiActionForbiddenErrorJsonEncoding
+      >
+    | VoidhashCoreClientError<
+        "ApiPersonNotFoundErrorJsonEncoding",
+        ApiPersonNotFoundErrorJsonEncoding
+      >
+    | VoidhashCoreClientError<"PersonsGetPersonEntitlements500", PersonsGetPersonEntitlements500>
   >;
   readonly notificationsSendNotification: (
     options: SendNotificationBodyJsonEncoding,

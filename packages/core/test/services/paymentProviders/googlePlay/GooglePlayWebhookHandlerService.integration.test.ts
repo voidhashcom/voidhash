@@ -21,6 +21,7 @@ import {
   PersonIdentityService,
   PurchaseProcessingService,
 } from "@voidhash/core/services";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { generateId } from "@voidhash/core/utils";
 import { GooglePlayPaymentProviderConfigurationNotFoundError } from "../../../../src/services/paymentProviders/googlePlay/errors.ts";
@@ -50,7 +51,7 @@ const uniq = (label: string) => `it-gpwh-${label}-${generateId("test")}-${seq++}
 const HandlerLive = GooglePlayWebhookHandlerService.layer.pipe(
   Layer.provideMerge(
     Layer.mergeAll(
-      PurchaseProcessingService.layer,
+      PurchaseProcessingService.layer.pipe(Layer.provide(WebhookEventPublisher.noop)),
       PersonIdentityService.layer,
       FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
       PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),

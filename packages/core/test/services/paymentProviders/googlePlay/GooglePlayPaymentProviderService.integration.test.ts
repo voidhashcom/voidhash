@@ -16,6 +16,7 @@ import {
   PurchaseService,
   SdkService,
 } from "@voidhash/core/services";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import type { PublishableKeySession } from "@voidhash/core/domain/auth/Auth";
 import { GooglePlayPaymentProvider } from "@voidhash/core/services/paymentProviders/googlePlay/payment-provider";
 import { GooglePlayServerApi } from "@voidhash/core/services/paymentProviders/googlePlay/sdk-context";
@@ -98,7 +99,7 @@ const sdkSession = (distinctId: string): PublishableKeySession => ({
 const GooglePlayEngineLive = GooglePlayPaymentProvider.layer.pipe(
   Layer.provideMerge(
     Layer.mergeAll(
-      PurchaseProcessingService.layer,
+      PurchaseProcessingService.layer.pipe(Layer.provide(WebhookEventPublisher.noop)),
       PersonIdentityService.layer,
       FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
       PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),

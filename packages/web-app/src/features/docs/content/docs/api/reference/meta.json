@@ -3,6 +3,7 @@
     "auth",
     "api_keys",
     "persons",
+    "notifications",
     "organizations",
     "perks",
     "paywall_deploys",

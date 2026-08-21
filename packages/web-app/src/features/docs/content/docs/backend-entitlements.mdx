@@ -1,0 +1,230 @@
+---
+title: Check access from your backend
+description: Gate server-side features on a customer's active perk grants with the Node SDK.
+icon: ServerCog
+---
+
+Client-side checks decide what to render. Anything a customer could get by calling your API
+directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
+the server as well.
+
+`@voidhash/node` wraps the Voidhash REST API with a typed client and authenticates with a project
+secret key.
+
+```sh
+npm install @voidhash/node
+```
+
+Requires Node 18+ with a global `fetch`. `require()` additionally needs Node 20.19+ or 22.12+,
+because the CommonJS build loads the ESM-only `effect` package; `import` has no such constraint.
+
+<Steps>
+
+<Step>
+### Create a secret key
+
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+
+Store it in an environment variable or your secret manager. A secret key grants full project access:
+never put it in a mobile app, a web bundle, or a repository.
+</Step>
+
+<Step>
+### Create the client
+
+```ts title="server/voidhash.ts"
+import { createVoidhashSdk } from "@voidhash/node";
+
+export const voidhash = createVoidhashSdk({
+  secretKey: process.env.VOIDHASH_SECRET_KEY!,
+});
+```
+
+| Option      | Default                    | Use                                                       |
+| ----------- | -------------------------- | --------------------------------------------------------- |
+| `secretKey` | —                          | Required. Sent as the `x-secret-key` header.              |
+| `baseUrl`   | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.     |
+| `headers`   | `{}`                       | Extra headers added to every request from this client.    |
+
+`createVoidhashSdk` validates eagerly and throws `VoidhashNodeConfigurationError` on a blank
+`secretKey`, an invalid `baseUrl`, a missing global `fetch`, or an `x-secret-key` passed through
+`headers` in any casing.
+</Step>
+
+<Step>
+### Check a perk
+
+```ts title="server/routes/export.ts"
+app.get("/reports/export", async (req, res) => {
+  const hasPremium = await voidhash.entitlements.hasActivePerk({
+    distinctId: req.user.id,
+    perkSlug: "premium",
+  });
+
+  if (!hasPremium) {
+    return res.status(402).json({ error: "premium_required" });
+  }
+
+  return res.json(await buildExport(req.user.id));
+});
+```
+
+`distinctId` is the same identifier your app passed to
+[`identify()`](/identify-users). Pass **exactly one** of `perkId` or `perkSlug` — both or neither
+rejects with `VoidhashNodeConfigurationError` before any request is made.
+
+`perkSlug` costs one extra `perks.listPerks` round trip to resolve. On a hot path, resolve the slug
+to its id once at boot and pass `perkId`.
+</Step>
+
+</Steps>
+
+<Callout type="info" title="An unknown customer has no access">
+  `hasActivePerk` returns `false` for a `distinctId` Voidhash has never seen, and for a `perkSlug`
+  that matches no perk. It does **not** absorb authentication, authorization, `5xx`, or transport
+  failures — those reject, so a mistyped secret key can never be mistaken for "nobody has premium".
+</Callout>
+
+## Read the grants yourself
+
+When you need to render an account page, show an expiry date, or branch on where access came from,
+read the grants directly:
+
+```ts
+const grants = await voidhash.entitlements.getGrantsByDistinctId({
+  distinctId: "user_123",
+});
+```
+
+| Field            | Type                                       | Notes                                       |
+| ---------------- | ------------------------------------------ | ------------------------------------------- |
+| `perkId`         | `string`                                   | Match against the perk you care about.      |
+| `status`         | `"active" \| "expired"`                    | Only `active` grants confer access.         |
+| `expiresAt`      | `string \| null`                           | ISO timestamp; `null` never expires.        |
+| `source`         | `"subscription" \| "purchase" \| "manual"` | How the grant was obtained.                 |
+| `sourceId`       | `string \| null`                           | The subscription or purchase behind it.     |
+| `sourcePersonId` | `string`                                   | Differs from the person on shared plans.    |
+
+Unlike `hasActivePerk`, an unknown `distinctId` is an error here, so the caller decides whether
+"never seen" and "seen, bought nothing" mean the same thing.
+
+The same two calls are available separately when you already hold a `personId`:
+
+```ts
+const person = await voidhash.persons.getPersonByDistinctId({
+  params: { distinctId: "user_123" },
+});
+
+const { grants } = await voidhash.persons.getPersonEntitlements({
+  params: { personId: person.personId },
+});
+```
+
+`Person` is intentionally thin — `personId`, `distinctId`, `email`, `name` — because it identifies
+the customer, it does not describe what they paid for.
+
+## Handle errors deliberately
+
+A rejected API call carries the decoded server error on `error.data`, whose `_tag` is stable.
+Transport failures (DNS, TLS, timeouts) reject with an Effect `HttpClientError` that has no `data`.
+
+```ts
+const serverTag = (error: unknown): string | undefined =>
+  (error as { data?: { _tag?: string } } | null)?.data?._tag;
+
+try {
+  const grants = await voidhash.entitlements.getGrantsByDistinctId({
+    distinctId: "user_123",
+  });
+
+  return grants.some((grant) => grant.perkId === premiumPerkId && grant.status === "active");
+} catch (error) {
+  switch (serverTag(error)) {
+    case "Api/PersonNotFoundError":
+      // Never identified from a client: nothing was ever bought.
+      return false;
+    case "Api/NotAuthenticatedError":
+    case "Api/ActionForbiddenError":
+      // Our key is wrong. Our bug, not the customer's — do not lock them out.
+      throw new Error("Voidhash secret key is invalid or lacks access.");
+    default:
+      throw error;
+  }
+}
+```
+
+Common tags: `Api/NotAuthenticatedError` (401), `Api/ActionForbiddenError` (403),
+`Api/PersonNotFoundError` (404), `Api/WebhookEndpointNotFoundError` (404),
+`Api/WebhookValidationError` (400).
+
+## Live and development data
+
+Grants are scoped to an environment, and the server picks the scope from the `x-environment` request
+header:
+
+| `x-environment`        | Grants returned                                          |
+| ---------------------- | -------------------------------------------------------- |
+| absent or `production` | Real purchases — store production **and** store sandbox  |
+| `development`          | Only simulated purchases made by an SDK in a debug build |
+| `all`                  | Both of the above                                        |
+
+The SDK never sends the header for you, so a plain client always reads production and sandbox
+grants. To read [development purchases](/development-mode), set the header on a separate client:
+
+```ts
+const voidhashDevelopment = createVoidhashSdk({
+  secretKey: process.env.VOIDHASH_SECRET_KEY!,
+  headers: { "x-environment": "development" },
+});
+```
+
+Secret keys are not environment-scoped — which key you use does not change the answer, only the
+header does.
+
+<Callout type="warn" title="Any other value silently means production">
+  An unrecognized `x-environment` value falls back to `production` instead of erroring. Never wire
+  the header directly to something like `NODE_ENV`: a value of `"test"` would quietly read
+  production grants.
+</Callout>
+
+## Caching and failures
+
+The SDK does not cache, retry, or de-duplicate. Every call is a live HTTP round trip.
+
+For a check on every request, cache the result yourself for a short window — 60 seconds is a
+reasonable start — and refresh in the background.
+
+When a call fails with a transport error or a `5xx`, treat the answer as **unknown**, not as *no
+access*. Serve the last known good value, or fail the request. Revoking a paying customer's access
+because of a network blip is worse than a slightly stale cache.
+
+To keep a cache warm without polling, subscribe to [webhooks](/webhooks) and invalidate the cached
+entry when a subscription or purchase event arrives for that person.
+
+## Effect entrypoint
+
+Every method also exists as an `Effect`:
+
+```ts
+import { createVoidhashSdk } from "@voidhash/node/effect";
+
+const voidhash = createVoidhashSdk({ secretKey: process.env.VOIDHASH_SECRET_KEY! });
+
+const program = voidhash.entitlements.hasActivePerk({
+  distinctId: "user_123",
+  perkSlug: "premium",
+});
+```
+
+This entrypoint exposes Effect types across the package boundary, so your app must resolve to the
+same `effect` instance and version the SDK depends on. Effect v4 is still in beta and its types are
+not stable across releases. The default entrypoint has no such constraint — it returns plain
+Promises.
+
+The webhook helpers are Effect-free and exported identically from both entrypoints.
+
+## Next steps
+
+- [Receive webhooks](/webhooks)
+- [Check access in the app](/entitlements)
+- [Persons in the API reference](/api/reference/persons/persons.getPersonEntitlements)

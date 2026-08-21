@@ -31,6 +31,11 @@ const EXPECTED_GROUPS = [
   "webhooks",
 ];
 
+// Hand-written conveniences layered on top of the generated groups.
+const EXPECTED_CONVENIENCE_NAMESPACES = ["entitlements"];
+
+const EXPECTED_NAMESPACES = [...EXPECTED_GROUPS, ...EXPECTED_CONVENIENCE_NAMESPACES];
+
 type HasKey<TValue, TKey extends PropertyKey> = TKey extends keyof TValue ? true : false;
 
 const tagOf = (value: unknown): string | undefined => {
@@ -70,13 +75,16 @@ describe("@voidhash/node", () => {
       secretKey: "vh_sk_test",
     });
 
-    expect(Object.keys(effectClient).sort()).toEqual([...EXPECTED_GROUPS].sort());
-    expect(Object.keys(promiseClient).sort()).toEqual([...EXPECTED_GROUPS].sort());
+    expect(EXPECTED_GROUPS).toHaveLength(16);
+    expect(Object.keys(effectClient).sort()).toEqual([...EXPECTED_NAMESPACES].sort());
+    expect(Object.keys(promiseClient).sort()).toEqual([...EXPECTED_NAMESPACES].sort());
     expect("sdk" in effectClient).toBe(false);
     expect("sdk" in promiseClient).toBe(false);
 
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "sdk">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeClient, "sdk">>().toEqualTypeOf<false>();
+    expectTypeOf<HasKey<VoidhashNodeEffectClient, "entitlements">>().toEqualTypeOf<true>();
+    expectTypeOf<HasKey<VoidhashNodeClient, "entitlements">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "changesets">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "auth">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "schema">>().toEqualTypeOf<true>();
@@ -187,6 +195,47 @@ describe("@voidhash/node", () => {
         ]);
         expect(calls[0]?.method).toBe("GET");
         expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/projects/org_123");
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+      }),
+    ));
+
+  it("supports persons.getPersonEntitlements({ params })", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            grants: [
+              {
+                expiresAt: null,
+                perkId: "perk_1",
+                source: "purchase",
+                sourceId: "purchase_1",
+                sourcePersonId: "person_123",
+                status: "active",
+              },
+            ],
+          }),
+        );
+
+        const client = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+
+        const entitlements = yield* Effect.promise(() =>
+          client.persons.getPersonEntitlements({
+            params: {
+              personId: "person_123",
+            },
+          }),
+        );
+
+        expect(entitlements.grants).toHaveLength(1);
+        expect(entitlements.grants[0]?.perkId).toBe("perk_1");
+        expect(calls[0]?.method).toBe("GET");
+        expect(calls[0]?.url).toBe(
+          "https://api.voidhash.test/api/v1/persons/person_123/entitlements",
+        );
         expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
       }),
     ));

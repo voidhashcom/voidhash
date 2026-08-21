@@ -7,6 +7,10 @@ icon: KeyRound
 The current person snapshot contains entitlements, subscription state, and purchase history. Use
 **entitlement grants** to decide what the customer can access.
 
+This page covers checks inside the app. Anything a customer could reach by calling your API
+directly must also be checked on the server — see
+[Check access from your backend](/backend-entitlements).
+
 ## Read the current person
 
 ```tsx
@@ -82,5 +86,6 @@ return hasPerk ? <PremiumContent /> : <UpgradePrompt />;
 
 ## Next steps
 
+- [Check access from your backend](/backend-entitlements)
 - [Identify customers across devices](/identify-users)
 - [Make and restore purchases](/purchases)

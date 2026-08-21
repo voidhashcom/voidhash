@@ -120,6 +120,7 @@ export * from "./sdk/SdkService.ts";
 export * from "./storage/PublicFileStore.ts";
 export * from "./users/UserService.ts";
 export * from "./webhookDispatch/WebhookDispatchService.ts";
+export * from "./webhookDispatch/WebhookEventPublisher.ts";
 export * from "./webhookManager/WebhookManagerService.ts";
 export * from "./notifications/push-delivery-provider.ts";
 export * from "./notifications/FirebaseCloudMessagingService.ts";

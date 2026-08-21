@@ -5,8 +5,12 @@
     "sdk.identifyPerson",
     "sdk.syncPersonAttributes",
     "sdk.syncTransaction",
+    "sdk.developmentPurchase",
     "sdk.evaluateFeatureFlags",
     "sdk.resolvePaywall",
-    "sdk.getSchema"
+    "sdk.getSchema",
+    "sdk.registerDevice",
+    "sdk.refreshDevice",
+    "sdk.unregisterDevice"
   ]
 }

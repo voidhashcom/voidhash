@@ -14,7 +14,7 @@ class HybridGoogleBillingProductDetail(
     override val platform: String,
     override val currency: String,
     override val displayPrice: String,
-    override val subscriptionOfferDetails: Array<HybridGoogleBillingSubscriptionOfferDetailsSpec>?,
-    override val oneTimePurchaseOfferDetails: HybridGoogleBillingOneTimePurchaseOfferDetailsSpec?
+    override val subscriptionOfferDetails: Variant_NullType_Array_HybridGoogleBillingSubscriptionOfferDetailsSpec_?,
+    override val oneTimePurchaseOfferDetails: Variant_NullType_HybridGoogleBillingOneTimePurchaseOfferDetailsSpec?
 ) : HybridGoogleBillingProductDetailSpec() {
 }

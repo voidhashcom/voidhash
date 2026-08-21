@@ -4,10 +4,13 @@ import { vi } from "vitest";
 // the exact wire bytes a deployed bundle emits.
 import { createEventEnvelope, serializeEnvelope } from "../../../paywalls/src/runtime/envelope";
 import type { VoidhashClient } from "../../src/client";
+import type { VoidhashContext } from "../../src/react/components/provider";
 import {
   __internal_handlePaywallBridgeEventForTests,
   __internal_resetPaywallByLocationCachesForTests,
+  __internal_runBackgroundPreloadForTests,
   __internal_setResolvedPaywallForTests,
+  __internal_showPaywallForLocationForTests,
   __internal_showResolvedPaywallForTests,
 } from "../../src/react/hooks/use-paywall-by-location";
 import { beforeEach, describe, expect, it } from "../helpers/effect-vitest";
@@ -48,6 +51,24 @@ function createPresenterMock() {
   return {
     dismiss: vi.fn().mockResolvedValue(undefined),
     postMessage: vi.fn(),
+  };
+}
+
+function createShowPresenterMock() {
+  return {
+    ...createPresenterMock(),
+    show: vi.fn().mockResolvedValue(true),
+  };
+}
+
+function createVoidhashContextMock(overrides: Partial<VoidhashContext> = {}): VoidhashContext {
+  return {
+    client: asClient(createClientMock()),
+    initError: null,
+    isInitialized: true,
+    retryInit: vi.fn(),
+    status: "ready",
+    ...overrides,
   };
 }
 
@@ -744,5 +765,294 @@ describe("usePaywallByLocation bridge coordinator", () => {
     resolvePurchase();
     await firstRequest;
     expect(presenter.dismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("usePaywallByLocation show() result", () => {
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- vitest module-mock reset: `vi.clearAllMocks` plus the per-test default return values operate on hoisted `vi.mock` factories, which live outside any Effect scope; effect-bun-test scoped tests cannot reach them.
+  beforeEach(() => {
+    __internal_resetPaywallByLocationCachesForTests();
+    vi.clearAllMocks();
+  });
+
+  it("returns not_initialized outside a provider and while init is in flight", async () => {
+    const client = createClientMock();
+    const preloadPaywall = vi.fn().mockResolvedValue(undefined);
+
+    const withoutProvider = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall,
+      presenter: createShowPresenterMock(),
+      voidhashContext: null,
+    });
+
+    const whileInitializing = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall,
+      presenter: createShowPresenterMock(),
+      voidhashContext: createVoidhashContextMock({
+        isInitialized: false,
+        status: "initializing",
+      }),
+    });
+
+    expect(withoutProvider).toEqual({ status: "not_initialized" });
+    expect(whileInitializing).toEqual({ status: "not_initialized" });
+    expect(preloadPaywall).not.toHaveBeenCalled();
+  });
+
+  it("returns disabled when the client was created with enabled: false", async () => {
+    const client = createClientMock();
+    const preloadPaywall = vi.fn().mockResolvedValue(undefined);
+    const presenter = createShowPresenterMock();
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall,
+      presenter,
+      voidhashContext: createVoidhashContextMock({
+        isInitialized: false,
+        status: "disabled",
+      }),
+    });
+
+    expect(result).toEqual({ status: "disabled" });
+    expect(preloadPaywall).not.toHaveBeenCalled();
+    expect(presenter.show).not.toHaveBeenCalled();
+  });
+
+  it("returns initialization_failed carrying the provider's init error", async () => {
+    const client = createClientMock();
+    const initError = new Error("failed to fetch schema");
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall: vi.fn().mockResolvedValue(undefined),
+      presenter: createShowPresenterMock(),
+      voidhashContext: createVoidhashContextMock({
+        initError,
+        isInitialized: false,
+        status: "failed",
+      }),
+    });
+
+    expect(result).toEqual({ error: initError, status: "initialization_failed" });
+  });
+
+  it("returns native_unavailable when the platform has no paywall presenter", async () => {
+    const client = createClientMock();
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall: vi.fn().mockResolvedValue(undefined),
+      presenter: undefined,
+      voidhashContext: createVoidhashContextMock(),
+    });
+
+    expect(result).toEqual({ status: "native_unavailable" });
+  });
+
+  it("returns not_assigned when no published paywall resolves for the location", async () => {
+    const client = createClientMock();
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall: vi.fn().mockResolvedValue(undefined),
+      presenter: createShowPresenterMock(),
+      voidhashContext: createVoidhashContextMock(),
+    });
+
+    expect(result).toEqual({ status: "not_assigned" });
+  });
+
+  it("returns failed when the on-demand preload rejects", async () => {
+    const client = createClientMock();
+    const preloadError = new Error("paywall resolution failed");
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall: vi.fn().mockRejectedValue(preloadError),
+      presenter: createShowPresenterMock(),
+      voidhashContext: createVoidhashContextMock(),
+    });
+
+    expect(result).toEqual({ error: preloadError, status: "failed" });
+  });
+
+  it("returns failed when the native presenter declines to present", async () => {
+    const client = createClientMock();
+    const presenter = {
+      ...createPresenterMock(),
+      show: vi.fn().mockResolvedValue(false),
+    };
+
+    __internal_setResolvedPaywallForTests("home", {
+      htmlUrl: "https://cdn.example/p/5b00934c/index.html",
+      runtime: null,
+    });
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall: vi.fn().mockResolvedValue(undefined),
+      presenter,
+      voidhashContext: createVoidhashContextMock(),
+    });
+
+    expect(result.status).toBe("failed");
+    // Distinct from `not_assigned`: a paywall WAS resolved, native just refused.
+    expect(result).toMatchObject({ error: expect.any(Error) });
+  });
+
+  it("returns failed when the native presenter rejects", async () => {
+    const client = createClientMock();
+    const showError = new Error("no view controller to present from");
+    const presenter = {
+      ...createPresenterMock(),
+      show: vi.fn().mockRejectedValue(showError),
+    };
+
+    __internal_setResolvedPaywallForTests("home", {
+      htmlUrl: "https://cdn.example/p/5b00934c/index.html",
+      runtime: null,
+    });
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall: vi.fn().mockResolvedValue(undefined),
+      presenter,
+      voidhashContext: createVoidhashContextMock(),
+    });
+
+    expect(result).toEqual({ error: showError, status: "failed" });
+  });
+
+  it("returns shown after presenting the resolved paywall", async () => {
+    const client = createClientMock();
+    const presenter = createShowPresenterMock();
+
+    __internal_setResolvedPaywallForTests("home", {
+      htmlUrl: "https://cdn.example/p/5b00934c/index.html",
+      runtime: null,
+    });
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall: vi.fn().mockResolvedValue(undefined),
+      presenter,
+      voidhashContext: createVoidhashContextMock(),
+    });
+
+    expect(result).toEqual({ status: "shown" });
+    expect(presenter.show).toHaveBeenCalledWith(
+      "home",
+      "https://cdn.example/p/5b00934c/index.html",
+      expect.any(Function),
+      expect.any(Function),
+    );
+  });
+
+  it("preloads on demand when the location has no cached entry", async () => {
+    const client = createClientMock();
+    const presenter = createShowPresenterMock();
+    const preloadPaywall = vi.fn().mockImplementation(async () => {
+      __internal_setResolvedPaywallForTests("home", {
+        htmlUrl: "https://cdn.example/p/5b00934c/index.html",
+        runtime: null,
+      });
+    });
+
+    const result = await __internal_showPaywallForLocationForTests({
+      client: asClient(client),
+      locationKey: "home",
+      onBridgeEvent: vi.fn(),
+      preloadPaywall,
+      presenter,
+      voidhashContext: createVoidhashContextMock(),
+    });
+
+    expect(preloadPaywall).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ status: "shown" });
+  });
+});
+
+describe("usePaywallByLocation background preloading", () => {
+  // oxlint-disable-next-line effect/noTestLifecycleHooks -- vitest module-mock reset: `vi.clearAllMocks` plus the per-test default return values operate on hoisted `vi.mock` factories, which live outside any Effect scope; effect-bun-test scoped tests cannot reach them.
+  beforeEach(() => {
+    __internal_resetPaywallByLocationCachesForTests();
+    vi.clearAllMocks();
+  });
+
+  it("reports a preload rejection through onPreloadError without rejecting", async () => {
+    const unhandledRejection = vi.fn();
+    process.on("unhandledRejection", unhandledRejection);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onPreloadError = vi.fn();
+    const preloadError = new Error("paywall resolution failed");
+
+    await expect(
+      __internal_runBackgroundPreloadForTests({
+        locationKey: "home",
+        onPreloadError,
+        preloadPaywall: vi.fn().mockRejectedValue(preloadError),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(onPreloadError).toHaveBeenCalledWith(preloadError);
+    expect(String(warnSpy.mock.calls[0][0])).toContain("[voidhash]");
+
+    await Effect.runPromise(Effect.sleep(10));
+    expect(unhandledRejection).not.toHaveBeenCalled();
+    process.off("unhandledRejection", unhandledRejection);
+    warnSpy.mockRestore();
+  });
+
+  it("normalizes a non-Error preload rejection", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onPreloadError = vi.fn();
+
+    await __internal_runBackgroundPreloadForTests({
+      locationKey: "home",
+      onPreloadError,
+      preloadPaywall: vi.fn().mockRejectedValue("cdn is down"),
+    });
+
+    expect(onPreloadError).toHaveBeenCalledWith(expect.any(Error));
+    expect(onPreloadError.mock.calls[0][0].message).toBe("cdn is down");
+    warnSpy.mockRestore();
+  });
+
+  it("stays quiet when the preload succeeds", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onPreloadError = vi.fn();
+
+    await __internal_runBackgroundPreloadForTests({
+      locationKey: "home",
+      onPreloadError,
+      preloadPaywall: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(onPreloadError).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

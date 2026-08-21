@@ -80,6 +80,8 @@ import {
   StripePaymentProviderConfigLive,
   StripePaymentProviderServiceLive,
   UserService,
+  WebhookDispatchService,
+  WebhookEventPublisher,
   WebhookManagerService,
   IdentityLinkBackfillService,
   OrgDirectoryPort,
@@ -334,6 +336,27 @@ export const BackendFeedbackServiceLive = FeedbackServiceLive({
 });
 
 /**
+ * Outbound lifecycle-webhook seam for every purchase write. Resolving it to the
+ * live {@link WebhookDispatchService} is what makes `subscription.*` /
+ * `purchase.*` events actually reach a project's configured endpoints — with
+ * {@link WebhookEventPublisher.noop} the state transitions still happen but
+ * nothing is delivered. `Db` comes from the surrounding infrastructure layer.
+ */
+const BackendWebhookEventPublisherLive = WebhookEventPublisher.layer.pipe(
+  Layer.provide(WebhookDispatchService.layer),
+);
+
+/**
+ * `PurchaseProcessingService` with the dependencies every payment-provider
+ * boundary needs: perk syncing inside the write transaction and lifecycle
+ * webhook fan-out after it commits.
+ */
+const BackendPurchaseProcessingServiceLive = PurchaseProcessingService.layer.pipe(
+  Layer.provide(PerkGrantService.layer),
+  Layer.provide(BackendWebhookEventPublisherLive),
+);
+
+/**
  * Live App Store payment-provider service for the Cloudflare backend, used by
  * `SdkService` (`POST /api/v1/sdk/sync-transaction`) and the Apple
  * server-to-server webhook route. Composes the ported provider engine, webhook
@@ -357,7 +380,7 @@ export const BackendAppStorePaymentProviderServiceLive = AppStorePaymentProvider
       apiKey: envString("EXCHANGE_RATE_API_KEY"),
     }),
   ),
-  Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
+  Layer.provide(BackendPurchaseProcessingServiceLive),
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
       key: envString("ENCRYPTION_KEY"),
@@ -386,7 +409,7 @@ export const BackendGooglePlayPaymentProviderServiceLive =
         apiKey: envString("EXCHANGE_RATE_API_KEY"),
       }),
     ),
-    Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
+    Layer.provide(BackendPurchaseProcessingServiceLive),
     Layer.provide(
       PaymentConfigSecretCrypto.layer({
         key: envString("ENCRYPTION_KEY"),
@@ -411,7 +434,7 @@ export const BackendStripePaymentProviderServiceLive = StripePaymentProviderServ
       apiKey: envString("EXCHANGE_RATE_API_KEY"),
     }),
   ),
-  Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
+  Layer.provide(BackendPurchaseProcessingServiceLive),
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
       key: envString("ENCRYPTION_KEY"),
@@ -860,7 +883,7 @@ const buildBackendServiceGraph = <
   const DomainServicesLayer = Layer.mergeAll(
     BaseDomainServicesLayer,
     DevelopmentPaymentProviderService.layer.pipe(
-      Layer.provide(PurchaseProcessingService.layer.pipe(Layer.provide(PerkGrantService.layer))),
+      Layer.provide(BackendPurchaseProcessingServiceLive),
       Layer.provide(SupportServicesLayer),
     ),
     SdkService.layer.pipe(

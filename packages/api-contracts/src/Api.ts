@@ -62,6 +62,7 @@ import {
   PaywallLocation,
   Perk,
   Person,
+  PersonEntitlementsResponse,
   Product,
   ProductPerk,
   Project,
@@ -169,6 +170,16 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.get("getPersonByDistinctId", "/by-distinct-id/:distinctId", {
           params: { distinctId: Schema.String },
           success: Person,
+          error: [ApiActionForbiddenError, ApiPersonNotFoundError, ApiPersonServiceError],
+        }),
+      )
+      .add(
+        // Server-to-server entitlement check. Mirrors the grants the SDK's
+        // `sdk.getPerson` returns, so a backend holding a secret key can ask
+        // whether a person still has a perk without a publishable key.
+        HttpApiEndpoint.get("getPersonEntitlements", "/:personId/entitlements", {
+          params: { personId: Schema.String },
+          success: PersonEntitlementsResponse,
           error: [ApiActionForbiddenError, ApiPersonNotFoundError, ApiPersonServiceError],
         }),
       )

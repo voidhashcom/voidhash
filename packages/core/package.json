@@ -133,6 +133,7 @@
     "./services/webhookManager/event-types": "./src/services/webhookManager/event-types.ts",
     "./services/webhookDispatch/WebhookDispatchService": "./src/services/webhookDispatch/WebhookDispatchService.ts",
     "./services/webhookDispatch/WebhookDeliveryService": "./src/services/webhookDispatch/WebhookDeliveryService.ts",
+    "./services/webhookDispatch/WebhookEventPublisher": "./src/services/webhookDispatch/WebhookEventPublisher.ts",
     "./workflows/definitions": "./src/workflows/definitions.ts",
     "./workflows/DeliverWebhook": "./src/workflows/DeliverWebhook.ts",
     "./workflows/registry": "./src/workflows/registry.ts"

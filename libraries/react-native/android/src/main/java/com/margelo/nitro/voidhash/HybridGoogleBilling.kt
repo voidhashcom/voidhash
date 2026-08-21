@@ -354,10 +354,12 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
             currency = currency,
             displayPrice = displayPrice,
             oneTimePurchaseOfferDetails = productDetails.oneTimePurchaseOfferDetails?.let {
-                HybridGoogleBillingOneTimePurchaseOfferDetails(
-                    priceCurrencyCode = it.priceCurrencyCode,
-                    formattedPrice = it.formattedPrice,
-                    priceAmountMicros = it.priceAmountMicros.toString()
+                Variant_NullType_HybridGoogleBillingOneTimePurchaseOfferDetailsSpec.Second(
+                    HybridGoogleBillingOneTimePurchaseOfferDetails(
+                        priceCurrencyCode = it.priceCurrencyCode,
+                        formattedPrice = it.formattedPrice,
+                        priceAmountMicros = it.priceAmountMicros.toString()
+                    )
                 )
             },
             subscriptionOfferDetails = productDetails.subscriptionOfferDetails?.map { subscriptionOfferDetailsItem ->
@@ -379,7 +381,9 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
                         }.toTypedArray()
                     )
                 )
-            }?.toTypedArray()
+            }?.toTypedArray<HybridGoogleBillingSubscriptionOfferDetailsSpec>()?.let {
+                Variant_NullType_Array_HybridGoogleBillingSubscriptionOfferDetailsSpec_.Second(it)
+            }
         )
     }
 

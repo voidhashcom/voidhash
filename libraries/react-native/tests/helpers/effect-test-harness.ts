@@ -22,7 +22,7 @@ import { PlatformProvider } from "../../src/core/platform/platform-provider";
 import { ProductService } from "../../src/core/products/product-service";
 import type { RuntimeProductDefinition } from "../../src/core/schema/runtime";
 import { SchemaManager } from "../../src/core/schema/schema-manager";
-import { SdkConfiguration } from "../../src/core/sdk-configuration";
+import { SdkConfiguration, makeSdkConfiguration } from "../../src/core/sdk-configuration";
 import { TransactionService } from "../../src/core/transactions/transaction-service";
 import { createTestSchema } from "./test-schema";
 
@@ -320,6 +320,15 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
 
   const lifecycle = options.lifecycleAdapter ?? createLifecycleAdapterDouble();
 
+  const sdkConfiguration = makeSdkConfiguration({
+    baseUrl: options.baseUrl ?? "https://api.voidhash.test",
+    debug: options.debug ?? false,
+    developmentMode: options.developmentMode ?? false,
+    ingestUrl: options.ingestUrl,
+    publishableKey: options.publishableKey ?? "pk_test",
+    readOnly: options.readOnly ?? false,
+  });
+
   const baseLayer = pipe(
     PersonAttributeManager.Default,
     Layer.provideMerge(ProductService.layer),
@@ -346,17 +355,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
         ...options.platform,
       }),
     ),
-    Layer.provideMerge(
-      Layer.succeed(SdkConfiguration, {
-        baseUrl: options.baseUrl ?? "https://api.voidhash.test",
-        debug: options.debug ?? false,
-        developmentMode: options.developmentMode ?? false,
-        environmentMode: options.developmentMode ? "development" : "production",
-        ingestUrl: options.ingestUrl,
-        publishableKey: options.publishableKey ?? "pk_test",
-        readOnly: options.readOnly ?? false,
-      }),
-    ),
+    Layer.provideMerge(Layer.succeed(SdkConfiguration, sdkConfiguration.service)),
   );
   const layer = options.fetch
     ? pipe(baseLayer, Layer.provideMerge(Layer.succeed(FetchHttpClient.Fetch, options.fetch)))
@@ -365,5 +364,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
   return {
     atomRegistry,
     runtime: ManagedRuntime.make(layer),
+    /** Flips observer mode the way `client.setReadOnly()` does at runtime. */
+    setReadOnly: sdkConfiguration.setReadOnly,
   };
 }

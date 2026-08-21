@@ -8,6 +8,8 @@ import { PerkGrantService } from "../services/perkGrants/PerkGrantService.ts";
 import { IdentityProjectionPublisher } from "../services/personIdentity/IdentityProjectionPublisher.ts";
 import { PersonIdentityService } from "../services/personIdentity/PersonIdentityService.ts";
 import { PurchaseProcessingService } from "../services/purchaseProcessing/PurchaseProcessingService.ts";
+import { WebhookDispatchService } from "../services/webhookDispatch/WebhookDispatchService.ts";
+import { WebhookEventPublisher } from "../services/webhookDispatch/WebhookEventPublisher.ts";
 import { PaymentConfigSecretCrypto } from "../utils/crypto/PaymentConfigSecretCrypto.ts";
 
 const fxRates = FxRateService.layer({
@@ -22,8 +24,19 @@ const fxRates = FxRateService.layer({
   ),
 });
 
+/**
+ * Live outbound-webhook seam for workflow-driven purchase writes. Replay and
+ * reconciliation workflows mutate the same projection as the inbound webhook
+ * routes, so a state change discovered there must fan out the same lifecycle
+ * event.
+ */
+const webhookEvents = WebhookEventPublisher.layer.pipe(
+  Layer.provide(WebhookDispatchService.layer),
+);
+
 const purchaseProcessing = PurchaseProcessingService.layer.pipe(
   Layer.provide(PerkGrantService.layer),
+  Layer.provide(webhookEvents),
 );
 
 const personIdentity = PersonIdentityService.layer.pipe(

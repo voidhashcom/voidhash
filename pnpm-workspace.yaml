@@ -184,7 +184,7 @@ allowBuilds:
   msgpackr-extract: true
   msw: true
   node-liblzma: false
-  nitro-codegen: true
+  nitrogen: true
   protobufjs: true
   react-native-nitro-modules: true
   sharp: true

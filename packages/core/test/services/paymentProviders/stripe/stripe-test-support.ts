@@ -26,6 +26,7 @@ import {
   PersonIdentityService,
   PurchaseProcessingService,
 } from "@voidhash/core/services";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import { StripePaymentProvider } from "@voidhash/core/services/paymentProviders/stripe/payment-provider";
 import { StripePaymentProviderServiceLive } from "@voidhash/core/services/paymentProviders/stripe/payment-provider-service";
 import { StripeWebhookHandlerService } from "@voidhash/core/services/paymentProviders/stripe/stripe-webhook-handler-service";
@@ -201,7 +202,7 @@ export const checkoutLineItemsRoute = (input: {
 
 const stripeLeafDeps = (httpClient: HttpClient.HttpClient) =>
   Layer.mergeAll(
-    PurchaseProcessingService.layer,
+    PurchaseProcessingService.layer.pipe(Layer.provide(WebhookEventPublisher.noop)),
     PersonIdentityService.layer,
     FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
     PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),

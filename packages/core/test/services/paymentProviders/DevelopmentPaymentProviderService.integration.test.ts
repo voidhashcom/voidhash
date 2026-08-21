@@ -8,6 +8,7 @@ import {
   PersonIdentityService,
   PurchaseProcessingService,
 } from "@voidhash/core/services";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import {
   Db,
   PersonUnlockedPerkStatus,
@@ -39,7 +40,10 @@ import { CoreTestFixture } from "@testing/CoreTestFixture";
 const { test } = CoreIntegrationTestHarness.make();
 
 const DevelopmentEngineLive = DevelopmentPaymentProviderService.layer.pipe(
-  Layer.provideMerge(Layer.mergeAll(PurchaseProcessingService.layer, PersonIdentityService.layer)),
+  Layer.provideMerge(Layer.mergeAll(
+    PurchaseProcessingService.layer.pipe(Layer.provide(WebhookEventPublisher.noop)),
+    PersonIdentityService.layer,
+  )),
   Layer.provideMerge(Layer.mergeAll(PerkGrantService.layer, IdentityProjectionPublisher.noop)),
 );
 

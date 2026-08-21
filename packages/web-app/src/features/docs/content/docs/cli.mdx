@@ -4,15 +4,34 @@ description: Connect projects and generate types from the terminal.
 icon: SquareTerminal
 ---
 
-Install `voidhash-cli` as a development dependency and run it with your package runner:
+`voidhash-cli` is not a dependency of the SDK. Run it directly, without installing anything:
+
+```bash
+npx voidhash-cli --help
+```
+
+`pnpm dlx voidhash-cli --help` works the same way. Isolated invocation keeps the CLI out of your
+app's dependency tree, so it cannot influence your bundle or lockfile resolution.
+
+## Install it as a dev dependency
+
+Install it when you run it repeatedly, and specifically when you use the Metro plugin. The plugin
+spawns `voidhash-cli types generate --watch` alongside the Metro dev server and resolves the binary
+from `PATH`, which a dev-dependency install provides:
 
 ```package-install
 npm install voidhash-cli --save-dev
 ```
 
-```bash
-npx voidhash-cli --help
+```js title="metro.config.js"
+const { getDefaultConfig } = require("expo/metro-config");
+const { withVoidhash } = require("@voidhash/react-native/metro");
+
+module.exports = withVoidhash(getDefaultConfig(__dirname));
 ```
+
+If the binary is not on `PATH`, `withVoidhash` warns and returns the Metro config unchanged, so the
+dev server still starts.
 
 ## Commands
 

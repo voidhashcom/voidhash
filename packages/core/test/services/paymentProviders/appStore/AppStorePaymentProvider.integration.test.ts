@@ -57,6 +57,7 @@ import {
   PersonIdentityService,
   PurchaseProcessingService,
 } from "@voidhash/core/services";
+import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import { AppStorePaymentProvider } from "@voidhash/core/services/paymentProviders/appStore/payment-provider";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import {
@@ -121,7 +122,7 @@ const uniq = (label: string) => `it-as-${label}-${runToken}-${seq++}`;
 const AppStoreEngineLive = AppStorePaymentProvider.layer.pipe(
   Layer.provideMerge(
     Layer.mergeAll(
-      PurchaseProcessingService.layer,
+      PurchaseProcessingService.layer.pipe(Layer.provide(WebhookEventPublisher.noop)),
       PersonIdentityService.layer,
       FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
       PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),

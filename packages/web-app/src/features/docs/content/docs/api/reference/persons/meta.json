@@ -4,6 +4,7 @@
     "persons.listPersons",
     "persons.createPerson",
     "persons.getPersonById",
-    "persons.getPersonByDistinctId"
+    "persons.getPersonByDistinctId",
+    "persons.getPersonEntitlements"
   ]
 }

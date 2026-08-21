@@ -11,15 +11,15 @@ This guide takes an existing app from installation to a paywall and access check
 <Step>
 ### Install the SDK
 
-Install the SDK, its native peers, and the CLI:
+Install the SDK and its native peers:
 
 ```package-install
-npm install @voidhash/react-native react-native-nitro-modules@0.26.4 @react-native-async-storage/async-storage effect expo-constants expo-linking
+npm install @voidhash/react-native react-native-nitro-modules @react-native-async-storage/async-storage effect expo-constants expo-linking
 ```
 
-```package-install
-npm install voidhash-cli --save-dev
-```
+The SDK requires `react-native-nitro-modules` 0.35.x (peer range `^0.35.5`). In an Expo project,
+`npx expo install react-native-nitro-modules` picks the version that matches your Expo SDK. Every
+Nitro-based module in the app must resolve to the same Nitro version.
 
 For iOS, install pods after adding the packages:
 
@@ -32,11 +32,16 @@ npx pod-install
 <Step>
 ### Connect your project
 
-Run the interactive initializer from your app's root:
+Run the interactive initializer from your app's root. The CLI is not a dependency of the SDK — run
+it directly:
 
 ```bash
 npx voidhash-cli init
 ```
+
+`pnpm dlx voidhash-cli init` works the same way. Install it with `--save-dev` only if you want the
+Metro integration, which runs `types generate --watch` alongside the dev server and needs the
+binary on `PATH`. See the [CLI reference](/cli).
 
 The command signs you in, connects the directory to a Voidhash project, and creates:
 
@@ -150,15 +155,22 @@ export default function UpgradeScreen() {
     <Button
       title="View plans"
       onPress={async () => {
-        const shown = await paywall.show();
-        if (!shown) {
-          console.warn("No paywall is published at onboarding");
+        const result = await paywall.show();
+
+        if (result.status !== "shown") {
+          // `not_assigned` is the expected case when the location has no
+          // published paywall — fall back to your own screen instead of
+          // leaving the customer with nothing.
+          console.warn("Paywall not shown", result.status);
         }
       }}
     />
   );
 }
 ```
+
+`show()` resolves to a `ShowPaywallResult` that names why a paywall was not presented. See
+[Display a paywall](/paywalls) for every status.
 
 The SDK handles product loading, purchase and restore actions, and dismissal for a hosted paywall.
 

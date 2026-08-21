@@ -467,6 +467,22 @@ export class SdkPerson extends Schema.Class<SdkPerson>("SdkPerson")({
 }) {}
 
 // ========================================================
+// Person Entitlements (secret-key management API)
+// ========================================================
+
+/**
+ * Server-side view of a person's entitlement grants. Declared here rather than
+ * in the Persons section above because it reuses {@link SdkEntitlementGrant} —
+ * the management endpoint and `sdk.getPerson` must report the same grants for
+ * the same person, so the shape is shared instead of forked.
+ */
+export class PersonEntitlementsResponse extends Schema.Class<PersonEntitlementsResponse>(
+  "PersonEntitlementsResponse",
+)({
+  grants: Schema.Array(SdkEntitlementGrant),
+}) {}
+
+// ========================================================
 // Consolidated schema (CLI + SDK)
 // ========================================================
 
@@ -770,6 +786,159 @@ export class WebhookDeliveryWithAttempts extends Schema.Class<WebhookDeliveryWit
 }) {}
 
 export const WebhookDeliveryIdParam = Schema.String;
+
+// ========================================================
+// Webhook event payloads (outbound HTTP body)
+// ========================================================
+
+/**
+ * Payment provider that drove the transition. Mirrors `PaymentProviderId` in
+ * `packages/core/src/domain/paymentProvider/PaymentProviderConfiguration.ts`;
+ * extending it is a coordinated contract change.
+ */
+export const WebhookPaymentProvider = Schema.Literals([
+  "apple-app-store",
+  "development",
+  "google-play",
+  "stripe",
+]);
+export type WebhookPaymentProvider = typeof WebhookPaymentProvider.Type;
+
+/** Store environment the transition happened in — the live/test distinction. */
+export const WebhookEnvironment = Schema.Literals(["production", "sandbox", "development"]);
+export type WebhookEnvironment = typeof WebhookEnvironment.Type;
+
+/** Operational subscription status after the transition was applied. */
+export const WebhookSubscriptionStatus = Schema.Literals(["active", "canceled"]);
+export type WebhookSubscriptionStatus = typeof WebhookSubscriptionStatus.Type;
+
+/** Non-subscription purchase flavour. */
+export const WebhookPurchaseKind = Schema.Literals(["one_time", "consumable"]);
+export type WebhookPurchaseKind = typeof WebhookPurchaseKind.Type;
+
+/**
+ * Gross charge in the buyer's currency, in minor units (cents). `null` when the
+ * provider event carried no money breakdown — never zero-filled, so receivers
+ * can tell "no amount reported" from "amount was zero".
+ */
+export class WebhookMoney extends Schema.Class<WebhookMoney>("WebhookMoney")({
+  currency: Schema.String,
+  grossAmount: Schema.Number,
+}) {}
+
+/**
+ * Fields present on every lifecycle payload. Timestamps are ISO-8601 UTC
+ * strings rather than `Schema.Date` so the JSON body is stable across
+ * receivers and does not depend on a codec.
+ */
+const webhookEventBaseFields = {
+  distinctId: Schema.String,
+  environment: WebhookEnvironment,
+  occurredAt: Schema.String,
+  personId: Schema.String,
+  productId: Schema.String,
+  productSlug: Schema.NullOr(Schema.String),
+  projectId: Schema.String,
+  provider: WebhookPaymentProvider,
+  providerProductId: Schema.String,
+};
+
+/** Fields shared by the four subscription lifecycle payloads. */
+const webhookSubscriptionBaseFields = {
+  ...webhookEventBaseFields,
+  providerSubscriptionId: Schema.NullOr(Schema.String),
+  providerTransactionId: Schema.NullOr(Schema.String),
+  status: WebhookSubscriptionStatus,
+  subscriptionId: Schema.String,
+};
+
+export class WebhookSubscriptionCreatedPayload extends Schema.Class<WebhookSubscriptionCreatedPayload>(
+  "WebhookSubscriptionCreatedPayload",
+)({
+  ...webhookSubscriptionBaseFields,
+  amount: Schema.NullOr(WebhookMoney),
+  expiresAt: Schema.NullOr(Schema.String),
+  isTrial: Schema.Boolean,
+  purchasedAt: Schema.String,
+  startsAt: Schema.String,
+  type: Schema.Literal("subscription.created"),
+}) {}
+
+export class WebhookSubscriptionRenewedPayload extends Schema.Class<WebhookSubscriptionRenewedPayload>(
+  "WebhookSubscriptionRenewedPayload",
+)({
+  ...webhookSubscriptionBaseFields,
+  amount: Schema.NullOr(WebhookMoney),
+  expiresAt: Schema.NullOr(Schema.String),
+  isTrial: Schema.Boolean,
+  renewedAt: Schema.String,
+  startsAt: Schema.String,
+  type: Schema.Literal("subscription.renewed"),
+}) {}
+
+export class WebhookSubscriptionCancelledPayload extends Schema.Class<WebhookSubscriptionCancelledPayload>(
+  "WebhookSubscriptionCancelledPayload",
+)({
+  ...webhookSubscriptionBaseFields,
+  /** `true` when access runs to the end of the paid period; `false` on immediate loss. */
+  cancelAtPeriodEnd: Schema.Boolean,
+  canceledAt: Schema.String,
+  cancellationReason: Schema.NullOr(Schema.String),
+  expiresAt: Schema.NullOr(Schema.String),
+  type: Schema.Literal("subscription.cancelled"),
+}) {}
+
+export class WebhookSubscriptionExpiredPayload extends Schema.Class<WebhookSubscriptionExpiredPayload>(
+  "WebhookSubscriptionExpiredPayload",
+)({
+  ...webhookSubscriptionBaseFields,
+  expiredAt: Schema.String,
+  type: Schema.Literal("subscription.expired"),
+}) {}
+
+export class WebhookPurchaseCompletedPayload extends Schema.Class<WebhookPurchaseCompletedPayload>(
+  "WebhookPurchaseCompletedPayload",
+)({
+  ...webhookEventBaseFields,
+  amount: Schema.NullOr(WebhookMoney),
+  providerKey: Schema.String,
+  providerTransactionId: Schema.NullOr(Schema.String),
+  purchaseId: Schema.String,
+  purchaseKind: WebhookPurchaseKind,
+  purchasedAt: Schema.String,
+  type: Schema.Literal("purchase.completed"),
+}) {}
+
+export class WebhookPurchaseRefundedPayload extends Schema.Class<WebhookPurchaseRefundedPayload>(
+  "WebhookPurchaseRefundedPayload",
+)({
+  ...webhookEventBaseFields,
+  amount: Schema.NullOr(WebhookMoney),
+  providerTransactionId: Schema.NullOr(Schema.String),
+  /** `null` when the refund could not be anchored to a stored purchase row. */
+  purchaseId: Schema.NullOr(Schema.String),
+  refundReason: Schema.NullOr(Schema.String),
+  refundedAt: Schema.String,
+  type: Schema.Literal("purchase.refunded"),
+}) {}
+
+/**
+ * Discriminated union of every lifecycle payload we currently emit, keyed by
+ * `type`. The HTTP body is the bare payload — there is no envelope — and the
+ * event name is repeated in the `X-Webhook-Event` header.
+ *
+ * `person.created` / `person.updated` / `person.deleted` are declared in
+ * {@link WebhookEventType} but have no payload here yet: nothing emits them.
+ */
+export const WebhookEventPayload = Schema.Union([
+  WebhookSubscriptionCreatedPayload,
+  WebhookSubscriptionRenewedPayload,
+  WebhookSubscriptionCancelledPayload,
+  WebhookSubscriptionExpiredPayload,
+  WebhookPurchaseCompletedPayload,
+  WebhookPurchaseRefundedPayload,
+]);
+export type WebhookEventPayload = typeof WebhookEventPayload.Type;
 
 // ========================================================
 // Feature Flags (SDK)

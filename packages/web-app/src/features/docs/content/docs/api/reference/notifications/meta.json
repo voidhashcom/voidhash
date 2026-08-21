@@ -1,0 +1,6 @@
+{
+  "title": "Notifications",
+  "pages": [
+    "notifications.sendNotification"
+  ]
+}

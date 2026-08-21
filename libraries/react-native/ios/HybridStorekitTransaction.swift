@@ -45,8 +45,11 @@ class HybridStorekitTransaction: HybridStorekitTransactionSpec {
         return String(transaction.originalID)
     }
 
-    var appAccountToken: String? {
-        return transaction.appAccountToken?.uuidString
+    var appAccountToken: Variant_NullType_String? {
+        guard let token = transaction.appAccountToken else {
+            return nil
+        }
+        return .second(token.uuidString)
     }
 
     var appBundleIdIos: String {
@@ -57,17 +60,20 @@ class HybridStorekitTransaction: HybridStorekitTransactionSpec {
         return transaction.productType.rawValue
     }
 
-    var subscriptionGroupIdIos: String? {
-        return transaction.subscriptionGroupID
+    var subscriptionGroupIdIos: Variant_NullType_String? {
+        guard let subscriptionGroupID = transaction.subscriptionGroupID else {
+            return nil
+        }
+        return .second(subscriptionGroupID)
     }
 
-    var webOrderLineItemIdIos: Double? {
+    var webOrderLineItemIdIos: Variant_NullType_Double? {
         let jsonRep = transaction.jsonRepresentation
         do {
             if let jsonObj = try JSONSerialization.jsonObject(with: jsonRep) as? [String: Any],
                 let webOrderId = jsonObj["webOrderLineItemID"] as? NSNumber
             {
-                return webOrderId.doubleValue
+                return .second(webOrderId.doubleValue)
             }
         } catch {
             print("Error parsing JSON representation: \(error)")
@@ -75,11 +81,11 @@ class HybridStorekitTransaction: HybridStorekitTransactionSpec {
         return nil
     }
 
-    var expirationDateIos: Double? {
+    var expirationDateIos: Variant_NullType_Double? {
         guard let expirationDate = transaction.expirationDate else {
             return nil
         }
-        return expirationDate.timeIntervalSince1970 * 1000
+        return .second(expirationDate.timeIntervalSince1970 * 1000)
     }
 
     var isUpgradedIos: Bool? {
@@ -90,22 +96,27 @@ class HybridStorekitTransaction: HybridStorekitTransactionSpec {
         return transaction.ownershipType.rawValue
     }
 
-    var revocationDateIos: Double? {
+    var revocationDateIos: Variant_NullType_Double? {
         guard let revocationDate = transaction.revocationDate else {
             return nil
         }
-        return revocationDate.timeIntervalSince1970 * 1000
+        return .second(revocationDate.timeIntervalSince1970 * 1000)
     }
 
-    var revocationReasonIos: String? {
-        return transaction.revocationReason?.rawValue.description
+    var revocationReasonIos: Variant_NullType_String? {
+        guard let revocationReason = transaction.revocationReason else {
+            return nil
+        }
+        return .second(revocationReason.rawValue.description)
     }
 
-    var transactionReasonIos: String? {
+    var transactionReasonIos: Variant_NullType_String? {
         let jsonRep = transaction.jsonRepresentation
         do {
-            if let jsonObj = try JSONSerialization.jsonObject(with: jsonRep) as? [String: Any] {
-                return jsonObj["transactionReason"] as? String
+            if let jsonObj = try JSONSerialization.jsonObject(with: jsonRep) as? [String: Any],
+                let transactionReason = jsonObj["transactionReason"] as? String
+            {
+                return .second(transactionReason)
             }
         } catch {
             print("Error parsing JSON representation: \(error)")
@@ -113,7 +124,7 @@ class HybridStorekitTransaction: HybridStorekitTransactionSpec {
         return nil
     }
 
-    var jwsRepresentationIos: String? {
+    var jwsRepresentationIos: Variant_NullType_String? {
         // This would need to be passed in during initialization or set separately
         // as it's not available from the Transaction object itself
         return nil
@@ -140,12 +151,14 @@ class HybridStorekitTransaction: HybridStorekitTransactionSpec {
         return nil
     }
 
-    var offerIos: StorekitProductPurchaseOffer? {
+    var offerIos: Variant_NullType_StorekitProductPurchaseOffer? {
         if #available(iOS 17.2, *), let offer = transaction.offer {
-            return StorekitProductPurchaseOffer(
-                id: offer.id ?? "",
-                type: Double(offer.type.rawValue),
-                paymentMode: offer.paymentMode?.rawValue ?? ""
+            return .second(
+                StorekitProductPurchaseOffer(
+                    id: offer.id ?? "",
+                    type: Double(offer.type.rawValue),
+                    paymentMode: offer.paymentMode?.rawValue ?? ""
+                )
             )
         }
         return nil

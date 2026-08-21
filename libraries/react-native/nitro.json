@@ -10,22 +10,22 @@
   },
   "autolinking": {
     "Voidhash": {
-      "swift": "HybridVoidhash",
-      "kotlin": "HybridVoidhash"
+      "ios": { "language": "swift", "implementationClassName": "HybridVoidhash" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridVoidhash" }
     },
     "Storekit": {
-      "swift": "HybridStorekit"
+      "ios": { "language": "swift", "implementationClassName": "HybridStorekit" }
     },
     "GoogleBilling": {
-      "kotlin": "HybridGoogleBilling"
+      "android": { "language": "kotlin", "implementationClassName": "HybridGoogleBilling" }
     },
     "PaywallWebView": {
-      "swift": "HybridPaywallWebView",
-      "kotlin": "HybridPaywallWebView"
+      "ios": { "language": "swift", "implementationClassName": "HybridPaywallWebView" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridPaywallWebView" }
     },
     "PaywallPresenter": {
-      "swift": "HybridPaywallPresenter",
-      "kotlin": "HybridPaywallPresenter"
+      "ios": { "language": "swift", "implementationClassName": "HybridPaywallPresenter" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridPaywallPresenter" }
     }
   },
   "ignorePaths": ["**/node_modules"]

@@ -44,7 +44,7 @@ import { VoidhashClient } from "../src/client";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "../src/errors";
 import { createTestSchema } from "./helpers/test-schema";
 
-function createClient(readOnly = false, unstableSwallowErrors = false, dev = false) {
+function createClient(readOnly = false, unstableSwallowErrors = false, dev = false, enabled = true) {
   return new VoidhashClient(
     null,
     "voidhash",
@@ -58,7 +58,16 @@ function createClient(readOnly = false, unstableSwallowErrors = false, dev = fal
     false,
     createTestSchema(),
     dev,
+    enabled,
   );
+}
+
+/** Stubs the pieces of an initialized client that the guards run through. */
+function stubInitializedClient(client: VoidhashClient, initializedClient: Record<string, unknown>) {
+  (client as unknown as Record<string, unknown>).initializedClient = initializedClient;
+  (client as unknown as Record<string, unknown>).effectRuntime = {
+    runPromiseExit: vi.fn().mockResolvedValue(Exit.succeed(undefined)),
+  };
 }
 
 describe("VoidhashClient", () => {
@@ -264,6 +273,129 @@ describe("VoidhashClient", () => {
           {},
         ),
       ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+    });
+
+    it("allows purchasing after setReadOnly(false) flips the client to owner mode", async () => {
+      const client = createClient(true);
+      stubInitializedClient(client, { purchase: () => "purchase-effect" });
+
+      expect(client.isReadOnly).toBe(true);
+      await expect(
+        client.purchase({ id: "monthly-id" } as never, {}),
+      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+
+      client.setReadOnly(false);
+
+      expect(client.isReadOnly).toBe(false);
+      await expect(client.purchase({ id: "monthly-id" } as never, {})).resolves.toBeUndefined();
+    });
+
+    it("blocks purchasing again after setReadOnly(true) flips the client to observer mode", async () => {
+      const client = createClient(false);
+      stubInitializedClient(client, { purchase: () => "purchase-effect" });
+
+      await expect(client.purchase({ id: "monthly-id" } as never, {})).resolves.toBeUndefined();
+
+      client.setReadOnly(true);
+
+      await expect(
+        client.purchase({ id: "monthly-id" } as never, {}),
+      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
+    });
+
+    it("gates setPersonAttributesSync on the current mode", async () => {
+      const client = createClient(true);
+      stubInitializedClient(client, { setPersonAttributesSync: () => "sync-effect" });
+
+      await expect(client.setPersonAttributesSync({ email: "a@voidhash.test" })).rejects.toBeInstanceOf(
+        ReadOnlyModePurchaseNotAllowedError,
+      );
+
+      client.setReadOnly(false);
+
+      await expect(
+        client.setPersonAttributesSync({ email: "a@voidhash.test" }),
+      ).resolves.toBeUndefined();
+    });
+
+    it("publishes the switch to the SdkConfiguration the Effect layer reads", () => {
+      const client = createClient(true);
+      const { service } = (
+        client as unknown as { sdkConfiguration: { service: { readOnly: boolean } } }
+      ).sdkConfiguration;
+
+      expect(service.readOnly).toBe(true);
+
+      client.setReadOnly(false);
+
+      // The service object handed to the layer is never rebuilt, so every
+      // consumer reading `sdkConfiguration.readOnly` observes the new mode.
+      expect(service.readOnly).toBe(false);
+    });
+  });
+
+  describe("disabled mode", () => {
+    it("resolves init and end as no-ops and stays uninitialized", async () => {
+      const client = createClient(false, false, false, false);
+
+      expect(client.isEnabled).toBe(false);
+      await expect(client.init()).resolves.toBeUndefined();
+      expect(client.isInitialized).toBe(false);
+      await expect(client.end()).resolves.toBeUndefined();
+    });
+
+    it("resolves every side-effect method without throwing", async () => {
+      const client = createClient(false, false, false, false);
+
+      await expect(
+        client.identify("user", { email: "user@voidhash.test" }),
+      ).resolves.toBeUndefined();
+      await expect(client.setPersonAttributes({ name: "User" })).resolves.toBeUndefined();
+      await expect(client.reset()).resolves.toBeUndefined();
+      await expect(client.signOut()).resolves.toBeUndefined();
+      await expect(client.purchase({ id: "monthly-id" } as never, {})).resolves.toBeUndefined();
+      await expect(client.restorePurchases()).resolves.toBeUndefined();
+      await expect(client.flush()).resolves.toBeUndefined();
+      await expect(client.iosPresentCodeRedemptionSheet()).resolves.toBeUndefined();
+      await expect(client.iosShowManageSubscriptions()).resolves.toBeUndefined();
+      expect(() => client.capture("cta_seen")).not.toThrow();
+    });
+
+    it("answers reads with their empty shape", async () => {
+      const client = createClient(false, false, false, false);
+
+      await expect(client.getCurrentPerson()).resolves.toBeNull();
+      await expect(client.getDistinctId()).resolves.toBeNull();
+      await expect(client.setPersonAttributesSync({ name: "User" })).resolves.toBeNull();
+      await expect(client.getProducts()).resolves.toEqual({});
+      await expect(client.getFeatureFlags()).resolves.toEqual({ flags: [] });
+      await expect(client.getPaywallForLocation("home")).resolves.toBeNull();
+      expect(client.internal_getSchema()).toBeNull();
+    });
+
+    it("never runs an effect, so nothing is queued, persisted or sent", async () => {
+      const fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+      const client = createClient(false, false, false, false);
+      const runSync = vi.fn();
+      const runPromiseExit = vi.fn();
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit,
+        runSync,
+      };
+
+      await client.init();
+      client.capture("cta_seen");
+      await client.flush();
+      await client.end();
+
+      expect(runSync).not.toHaveBeenCalled();
+      expect(runPromiseExit).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(
+        (client as unknown as { preInitAnalyticsBuffer: unknown[] }).preInitAnalyticsBuffer,
+      ).toHaveLength(0);
+      vi.unstubAllGlobals();
     });
   });
 });
