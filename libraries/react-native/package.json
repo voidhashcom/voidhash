@@ -81,6 +81,7 @@
     "@noble/hashes": "^2.2.0",
     "@voidhash/android": "workspace:*",
     "@voidhash/generated-clients": "workspace:*",
+    "@voidhash/sdk-test-harness": "workspace:*",
     "@voidhash/ios": "workspace:*",
     "better-result": "3.0.1"
   },

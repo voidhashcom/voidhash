@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../packages/tsconfig/base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "target": "ES2022",
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src", "tests", "bin", "vitest.unit.mts"]
+}

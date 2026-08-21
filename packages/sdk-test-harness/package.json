@@ -1,0 +1,32 @@
+{
+  "name": "@voidhash/sdk-test-harness",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "MIT",
+  "description": "Spec-compatible conformance test harness for Voidhash SDKs.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "serve": "tsx bin/serve.ts",
+    "test": "vitest run -c vitest.unit.mts",
+    "test:watch": "vitest -c vitest.unit.mts",
+    "test:ios": "bash scripts/run-ios.sh",
+    "test:android": "bash scripts/run-android.sh",
+    "typecheck": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.12",
+    "@voidhash/tsconfig": "workspace:*",
+    "tsx": "^4.19.3",
+    "typescript": "5.6.3",
+    "vite-tsconfig-paths": "catalog:",
+    "vitest": "^3.2.7"
+  }
+}
