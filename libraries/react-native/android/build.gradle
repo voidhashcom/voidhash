@@ -34,6 +34,35 @@ def getExtOrIntegerDefault(name) {
   return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["NitroVoidhash_" + name]).toInteger()
 }
 
+// The shared Kotlin core (`@voidhash/android`) is compiled straight into this module instead of
+// being a separate gradle project, so consumer apps keep a single library to build. Node resolution
+// works for published/installed consumers; the relative fallback covers the in-repo checkout, where
+// the package may not be linked into node_modules yet.
+def voidhashCoreSourceDir() {
+  def rnPackageDir = projectDir.parentFile
+
+  try {
+    def script = "console.log(require('node:path').dirname(require.resolve('@voidhash/android/package.json', { paths: [process.argv[1]] })))"
+    def process = new ProcessBuilder("node", "-e", script, rnPackageDir.absolutePath)
+      .directory(rnPackageDir)
+      .redirectError(ProcessBuilder.Redirect.DISCARD)
+      .start()
+    def resolved = process.inputStream.text.trim()
+    process.waitFor()
+
+    if (process.exitValue() == 0 && !resolved.isEmpty()) {
+      def resolvedSources = new File(resolved, "core/src/main/java")
+      if (resolvedSources.isDirectory()) {
+        return resolvedSources.absolutePath
+      }
+    }
+  } catch (Exception ignored) {
+    // fall through to the physical sibling path below
+  }
+
+  return new File(rnPackageDir, "../android/core/src/main/java").absolutePath
+}
+
 android {
   namespace "com.margelo.nitro.voidhash"
 
@@ -112,6 +141,8 @@ android {
 
   sourceSets {
     main {
+      java.srcDirs += [voidhashCoreSourceDir()]
+
       if (isNewArchitectureEnabled()) {
         java.srcDirs += [
           // React Codegen files

@@ -1,0 +1,43 @@
+---
+title: SDKs
+description: Voidhash client SDKs for React Native, Swift, and Kotlin.
+icon: Package
+---
+
+Voidhash ships three client SDKs with the same core workflows — paywalls, purchases,
+entitlements, feature flags, and analytics — tailored to each platform. Every SDK talks to the same
+project schema, so products, paywalls, and locations configured in Studio work across all of them.
+
+| SDK           | Platforms    | Store integration |
+| ------------- | ------------ | ----------------- |
+| React Native  | iOS, Android | StoreKit 2 and Google Play Billing through native modules |
+| Swift         | iOS          | StoreKit 2        |
+| Kotlin        | Android      | Google Play Billing |
+
+## Pick your platform
+
+<Cards>
+  <Card
+    title="React Native"
+    description="Expo development builds and bare React Native apps on iOS and Android."
+    href="/docs/sdks/react-native"
+  />
+  <Card
+    title="Swift"
+    description="Native iOS apps with StoreKit 2. Requires iOS 15+."
+    href="/docs/sdks/swift"
+  />
+  <Card
+    title="Kotlin"
+    description="Native Android apps with Google Play Billing. Requires minSdk 23+."
+    href="/docs/sdks/kotlin"
+  />
+</Cards>
+
+New to Voidhash? Start with the [quickstart](/quickstart) for your platform.
+
+<Callout type="info" title="Development purchase mode is React Native-only">
+  Debug builds of the React Native SDK can simulate purchases without store setup. Swift and Kotlin
+  integrations test against App Store Sandbox or Google Play testing tracks from the start — see
+  [Store setup](/apple-app-store) and [Google Play](/google-play).
+</Callout>

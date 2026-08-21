@@ -226,7 +226,7 @@ const CommonSdkHeaders = Schema.Struct({
   "x-platform-flavor-version": Schema.optional(Schema.String),
   "x-platform-version": Schema.optional(Schema.String),
   "x-preferred-locales": Schema.optional(Schema.String),
-  "x-sdk": Schema.Literals(["react-native", "web"]),
+  "x-sdk": Schema.Literals(["react-native", "web", "ios", "android"]),
   "x-sdk-version": Schema.String,
   "x-storefront": Schema.optional(Schema.String),
   "x-environment": Schema.optional(Schema.Literals(["production", "development", "all"])),

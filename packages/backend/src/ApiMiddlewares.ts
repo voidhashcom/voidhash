@@ -335,7 +335,7 @@ export const getPersonMetadataFromSdkHeaders = (parsedHeaders: {
   readonly "x-platform-version"?: string | undefined;
   readonly "x-preferred-locales"?: string | undefined;
   readonly "x-publishable-key": string;
-  readonly "x-sdk": "react-native" | "web";
+  readonly "x-sdk": "react-native" | "web" | "ios" | "android";
   readonly "x-sdk-version": string;
   readonly "x-storefront"?: string | undefined;
 }) => ({

@@ -9,11 +9,13 @@ on:
   push:
     branches: [main]
     paths:
+      - libraries/ios/**
       - libraries/react-native/**
       - .github/workflows/storekit.yml
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
+      - libraries/ios/**
       - libraries/react-native/**
       - .github/workflows/storekit.yml
   workflow_dispatch:
@@ -41,6 +43,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+
+      - name: Test shared iOS core
+        run: swift test --package-path libraries/ios
 
       - name: Test StoreKit transaction retention
         run: swift test --package-path libraries/react-native

@@ -40,9 +40,15 @@ be different; the provider mappings connect both to the same Voidhash product.
   paywall.
 </Callout>
 
-## Read products in React Native
+## Read products in your app
 
-Use `useProducts()` when you build a custom purchase screen:
+Every SDK resolves the project's products against the store and returns store-backed values
+including `displayName`, `displayPrice`, `price`, `currency`, and `platform`. A product is absent
+from the result when it is not available on the current store account or environment.
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 ```tsx
 const { data: products, error, isLoading } = voidhash.useProducts();
@@ -51,13 +57,36 @@ const monthly = products.get("monthly");
 const availableProducts = products.toList();
 ```
 
-Each available product contains store-backed values including `displayName`, `displayPrice`,
-`price`, `currency`, and `platform`. `get(slug)` returns `null` when the product is not available on
-the current store account or environment.
+`get(slug)` returns `null` when the product is not available.
+
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+let products = try await voidhash.getProducts()
+
+let monthly = products.first(where: { $0.slug == "monthly" })
+```
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+val products = voidhash.getProducts()
+
+val monthly = products.firstOrNull { it.slug == "monthly" }
+```
+
+</Tab>
+
+</Tabs>
 
 ## Keep generated types current
 
-The dashboard is the schema source of truth. Pull its slugs into TypeScript after catalog changes:
+The dashboard is the schema source of truth. React Native projects can pull its slugs into
+TypeScript after catalog changes:
 
 ```bash
 npx voidhash-cli types generate

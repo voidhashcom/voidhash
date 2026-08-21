@@ -14,13 +14,17 @@ Both SDKs may stay initialized in the same build. What must never be true is two
 the same store transaction.
 
 Exactly one integration may finish (StoreKit) or acknowledge (Google Play) a transaction. The other
-one may read it, report it, and render UI from it. When Voidhash runs with `readOnly: true`, it
-never finishes or acknowledges anything, so your existing SDK stays the sole owner.
+one may read it, report it, and render UI from it. When Voidhash runs in observer mode, it never
+finishes or acknowledges anything, so your existing SDK stays the sole owner.
 
 Everything else on this page follows from keeping that invariant true at every moment, including
 during the release where ownership changes.
 
 ## Enable observer mode
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 ```ts title="src/lib/voidhash.ts"
 import { createVoidhashClient } from "@voidhash/react-native";
@@ -30,30 +34,59 @@ export const voidhash = createVoidhashClient("vh_pk_...", {
 });
 ```
 
-| Behavior                                   | `readOnly: true` | `readOnly: false` (default) |
-| ------------------------------------------ | ---------------- | --------------------------- |
-| Starts purchases                           | No               | Yes                         |
-| Observes store transactions                | Yes              | Yes                         |
-| Syncs transactions to Voidhash             | Yes              | Yes                         |
-| Finishes / acknowledges store transactions | No               | Yes, after a successful sync |
-| Reads products, persons, entitlements      | Yes              | Yes                         |
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+var options = VoidhashOptions()
+options.readOnly = true
+
+let voidhash = Voidhash.configure(publishableKey: "vh_pk_...", options: options)
+```
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+val voidhash = Voidhash.configure(
+    context = this,
+    publishableKey = "vh_pk_...",
+    options = VoidhashOptions(readOnly = true),
+)
+```
+
+</Tab>
+
+</Tabs>
+
+| Behavior                                   | Observer mode | Owner mode (default)        |
+| ------------------------------------------ | ------------- | --------------------------- |
+| Starts purchases                           | No            | Yes                         |
+| Observes store transactions                | Yes           | Yes                         |
+| Syncs transactions to Voidhash             | Yes           | Yes                         |
+| Finishes / acknowledges store transactions | No            | Yes, after a successful sync |
+| Reads products, persons, entitlements      | Yes           | Yes                         |
 
 Voidhash also sends `x-observer-mode: true` on SDK requests while the mode is active, so the server
 records that this client is observing rather than owning purchases.
 
 ### APIs blocked in observer mode
 
-`client.purchase()` and `client.setPersonAttributesSync()` are blocked because both perform writes
-owned by the normal Voidhash flow. Hosted paywall purchase actions call `client.purchase()`
-internally and fail the same way — the paywall receives an error envelope and the hook's `onError`
-fires.
+Starting a purchase is blocked, as are write flows that depend on owning the transaction — hosted
+paywall purchase actions fail the same way and report an error through their callback or delegate.
 
 Reading products, persons, entitlements, feature flags, and paywall assignments remains available,
-as do `restorePurchases()`, queued analytics, and `setPersonAttributes()`.
+as do restores, queued analytics, and person attribute updates.
 
 ## Switch ownership at runtime
 
-`readOnly` is not fixed at construction. Flip it on the live client:
+Observer mode is not fixed at construction. Flip it on the live client:
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 ```ts
 voidhash.client.setReadOnly(false); // Voidhash now owns purchases
@@ -64,15 +97,36 @@ if (voidhash.client.isReadOnly) {
 }
 ```
 
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+await voidhash.setReadOnly(false) // Voidhash now owns purchases
+await voidhash.setReadOnly(true)  // back to observing
+```
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+voidhash.setReadOnly(false) // Voidhash now owns purchases
+voidhash.setReadOnly(true)  // back to observing
+```
+
+</Tab>
+
+</Tabs>
+
 The switch takes effect at the next decision point of each consumer: purchase gating, the
 transaction observer's finish/acknowledge decision, and the `x-observer-mode` header on later
 requests.
 
 <Callout type="info" title="In-flight purchases keep the mode they started with">
   A purchase that has already begun completes under the mode that was active when it started, so a
-  `setReadOnly(true)` landing mid-purchase can never strand that transaction unfinished with the
-  store. Transactions already being processed when the call lands may also complete under the
-  previous mode.
+  mid-purchase flip can never strand that transaction unfinished with the store. Transactions
+  already being processed when the call lands may also complete under the previous mode.
 </Callout>
 
 Switching at runtime avoids recreating the client, which would drop the native store connection,
@@ -99,36 +153,20 @@ Apply the mode before presenting purchase UI, not after a customer taps buy. Rol
 small percentage first, compare both platforms in the sandbox, then widen it.
 
 To ship the SDK completely inert — no store connection, no network, no listeners — construct it
-disabled instead:
-
-```ts
-export const voidhash = createVoidhashClient("vh_pk_...", {
-  enabled: false,
-});
-```
-
-`enabled` is fixed at construction. Mount `<voidhash.Provider>` unconditionally either way: a
-disabled client still renders the provider and every hook, so hook order never changes between
-builds. Enabling the SDK later means creating a new client, which is cheap because a disabled one
-never built its runtime.
+with `enabled: false`. The flag is fixed at construction; enabling later means creating a new
+client, which is cheap because a disabled one never built its runtime. On React Native, mount
+`<voidhash.Provider>` unconditionally either way so hook order never changes between builds.
 
 ## Fall back when Voidhash cannot present
 
-`show()` never rejects. Branch on its status to decide whether to fall back to the existing SDK's
-paywall or an app-owned screen:
+Every SDK reports why a paywall was not presented. Branch on that outcome to decide whether to fall
+back to the existing SDK's paywall or an app-owned screen:
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 ```tsx
-const paywall = voidhash.usePaywallByLocation("settings-upsell", {
-  onError: (error, { action }) => {
-    // A purchase or restore failed *inside* an already-visible paywall.
-    reportError(action, error);
-  },
-  onPreloadError: (error) => {
-    // Background preload failed. The SDK retries; this is for reporting only.
-    reportError("preload", error);
-  },
-});
-
 const result = await paywall.show();
 
 switch (result.status) {
@@ -148,14 +186,50 @@ switch (result.status) {
 }
 ```
 
+Purchase and restore failures inside an already-visible paywall arrive on the hook's callbacks
+(`onError`, `onPreloadError`) instead of through `show()`.
+
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+let result = try await voidhash.presentPaywall(location: "settings-upsell")
+
+switch result {
+case .shown:
+    break
+case .notAssigned:
+    showLegacyPaywall()
+case .failed:
+    showLegacyPaywall()
+}
+```
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+val shown = voidhash.presentPaywall(activity, location = "settings-upsell")
+
+if (!shown) {
+    showLegacyPaywall()
+}
+```
+
+</Tab>
+
+</Tabs>
+
 Keep two categories apart:
 
-- **Fallback-safe** — `not_assigned`, `not_initialized`, `native_unavailable`, `disabled`, `failed`,
-  `initialization_failed`. Nothing was presented and no money moved, so showing the other paywall is
-  always correct.
-- **Purchase and restore failures** — delivered to `onError` with `action: "purchase" | "restore"`.
-  The paywall is already on screen and a store flow may have started. Do not respond by opening a
-  second paywall; surface the error and let the customer retry.
+- **Fallback-safe** — nothing was presented and no money moved, so showing the other paywall is
+  always correct: not assigned, not initialized, presenter unavailable, disabled, or a resolve or
+  presentation failure.
+- **Purchase and restore failures** — delivered through the SDK's error callbacks while the paywall
+  is already on screen and a store flow may have started. Do not respond by opening a second
+  paywall; surface the error and let the customer retry.
 
 ## Migration sequence
 
@@ -164,7 +238,7 @@ Keep two categories apart:
 <Step>
 ### Ship Voidhash in observer mode
 
-Add the SDK with `readOnly: true` and leave the existing integration untouched. Nothing about the
+Add the SDK with observer mode on and leave the existing integration untouched. Nothing about the
 purchase flow changes in this release.
 </Step>
 
@@ -186,16 +260,15 @@ safe.
 <Step>
 ### Move purchase UI and ownership together
 
-Put both behind one flag, as above. When the flag is on, Voidhash presents the paywall *and*
-`setReadOnly(false)` makes it the owner. When it is off, both revert. Never split them across two
-releases.
+Put both behind one flag, as above. When the flag is on, Voidhash presents the paywall *and* takes
+over purchase ownership. When it is off, both revert. Never split them across two releases.
 </Step>
 
 <Step>
 ### Remove the previous SDK
 
 Once the flag is at 100% and store transactions reconcile cleanly, delete the old integration and
-drop `readOnly` from the client options.
+drop the observer-mode option from the client configuration.
 </Step>
 
 </Steps>
@@ -208,4 +281,3 @@ ownership gaps show up as revenue loss rather than as errors.
 
 - [Make and restore purchases](/purchases)
 - [Check access from your backend](/backend-entitlements)
-- [React Native SDK reference](/react-native)

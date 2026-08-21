@@ -1,11 +1,11 @@
 import Foundation
 import NitroModules
-import StoreKit
+import VoidhashCore
 
 class HybridStorekitProductSubscriptionPeriod: HybridStorekitProductSubscriptionPeriodSpec {
-    private let period: Product.SubscriptionPeriod
+    private let period: StoreKitSubscriptionPeriod
 
-    init(period: Product.SubscriptionPeriod) {
+    init(period: StoreKitSubscriptionPeriod) {
         self.period = period
     }
 
@@ -21,12 +21,10 @@ class HybridStorekitProductSubscriptionPeriod: HybridStorekitProductSubscription
             return .month
         case .year:
             return .year
-        @unknown default:
-            return .day
         }
     }
 
     var value: Double {
-        return Double(period.value)
+        return period.value
     }
 }

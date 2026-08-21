@@ -1,6 +1,7 @@
 import Foundation
 import NitroModules
 import UIKit
+import VoidhashCore
 import WebKit
 
 private final class PaywallWebViewDelegate: NSObject, WKNavigationDelegate, WKUIDelegate,
@@ -231,7 +232,8 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
 
         refreshControl.addTarget(self, action: #selector(onRefreshPulled), for: .valueChanged)
 
-        webView.configuration.userContentController.add(delegate, name: "reactNative")
+        webView.configuration.userContentController.add(
+            delegate, name: PaywallBridge.messageHandlerName)
         rebuildUserScripts()
 
         progressObservation = webView.observe(\.estimatedProgress, options: [.new]) {
@@ -243,7 +245,8 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
 
     deinit {
         progressObservation?.invalidate()
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "reactNative")
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: PaywallBridge.messageHandlerName)
     }
 
     @objc private func onRefreshPulled() {
@@ -271,13 +274,7 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
     }
 
     func postMessage(data: String) throws {
-        let escapedData = data
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-        let script =
-            "window.dispatchEvent(new MessageEvent('message', { data: \"\(escapedData)\" }));"
-        webView.evaluateJavaScript(script)
+        webView.evaluateJavaScript(PaywallBridge.inboundScript(json: data))
     }
 
     func injectJavaScript(javascript: String) throws {
@@ -309,7 +306,7 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
     }
 
     fileprivate func handleScriptMessage(_ message: WKScriptMessage) {
-        guard message.name == "reactNative" else { return }
+        guard message.name == PaywallBridge.messageHandlerName else { return }
         guard messagingEnabled else { return }
 
         let data = String(describing: message.body)
@@ -498,10 +495,8 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
         controller.removeAllUserScripts()
 
         if messagingEnabled {
-            let source =
-                "window.ReactNativeWebView = window.ReactNativeWebView || {}; window.ReactNativeWebView.postMessage = function(data) { window.webkit.messageHandlers.reactNative.postMessage(String(data)); };"
             let script = WKUserScript(
-                source: source,
+                source: PaywallBridge.shimScript,
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: false
             )

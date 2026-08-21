@@ -1,5 +1,5 @@
 import Testing
-@testable import VoidhashPurchaseCoordinators
+import VoidhashCore
 
 @Suite("StoreKit transaction retention")
 struct TransactionRetentionStoreTests {

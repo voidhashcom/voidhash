@@ -25,7 +25,7 @@ targets:
       path: Tests/Info.plist
     sources:
       - Tests
-      - path: ../ios/TransactionRetentionStore.swift
+      - path: ../../ios/Sources/VoidhashCore/StoreKit/TransactionRetentionStore.swift
       - path: Resources/PurchaseValidation.storekit
         buildPhase: resources
     dependencies:

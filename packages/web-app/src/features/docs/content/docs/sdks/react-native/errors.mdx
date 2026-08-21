@@ -1,0 +1,69 @@
+---
+title: Errors
+description: Structured error codes and recovery guidance for the React Native SDK.
+icon: TriangleAlert
+---
+
+Every failure raised by the SDK is a `VoidhashError` with a stable, machine-matchable `code`,
+delivered on the `Err` channel of a better-result `Result`. Client methods never reject — match on
+`error.code` when recovery differs, and report the full error for everything else.
+
+```tsx
+const result = await voidhash.client.getProducts();
+if (result.isErr() && result.error.code === "FAILED_TO_GET_PRODUCTS") {
+  // retry, fall back to cached products, …
+}
+```
+
+Hooks surface the same errors through their `error` field instead of throwing.
+
+## Operation codes
+
+These codes name the client operation that failed. The message text is informational — never
+match on it.
+
+| Code                                        | Thrown by                        | Recovery guidance                                                            |
+| ------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
+| `FAILED_TO_INITIALIZE_VOIDHASH_CLIENT`      | `init()`                         | Surface a retry screen via `useVoidhash().retryInit`.                        |
+| `FAILED_TO_CAPTURE_STARTUP_EVENTS`          | `init()` analytics step          | Non-fatal; logged as a warning.                                              |
+| `FAILED_TO_SETUP_LIFECYCLE_EVENTS`          | `init()` lifecycle step          | Non-fatal for reads; automatic lifecycle events are missing.                 |
+| `FAILED_TO_END_VOIDHASH_CLIENT`             | `end()`                          | Log and continue teardown.                                                   |
+| `FAILED_TO_FETCH_SCHEMA`                    | `init()` on a cold cache         | Check connectivity; the next launch retries.                                 |
+| `FAILED_TO_GET_CURRENT_PERSON`              | `getCurrentPerson()`, `hasPerk()`| Serve cached state; see [Check access](/entitlements).                       |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES`           | `setPersonAttributes()`          | Retry later; attributes ride the analytics queue.                            |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC`      | `setPersonAttributesSync()`      | Retry; check read-only mode first (`READ_ONLY_PURCHASE_NOT_ALLOWED`).        |
+| `FAILED_TO_RESET_PERSON_CACHE`              | `resetCache()`                   | Safe to ignore; the cache expires on its own.                                |
+| `FAILED_TO_GET_DISTINCT_ID`                 | `getDistinctId()`                | Retry after init completes.                                                  |
+| `FAILED_TO_IDENTIFY`                        | `identify()`                     | Retry; an already-identified person surfaces this code too.                  |
+| `FAILED_TO_RESET`                           | `reset()`                        | Retry.                                                                       |
+| `FAILED_TO_SIGN_OUT`                        | `signOut()`                      | Retry.                                                                       |
+| `FAILED_TO_GET_FEATURE_FLAGS`               | `getFeatureFlags()`              | Fall back to defaults.                                                       |
+| `FAILED_TO_GET_PAYWALL_FOR_LOCATION`        | `getPaywallForLocation()`        | `show()` reports it as a `"failed"` result instead of throwing.              |
+| `FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG`    | internal paywall bridge          | Logged; the paywall receives a degraded config automatically.                |
+| `FAILED_TO_GET_PRODUCTS`                    | `getProducts()`                  | Retry or render without store metadata.                                      |
+| `FAILED_TO_PURCHASE`                        | `purchase()`                     | Delivered as `{ status: "failed", error }`; see [Purchases](/purchases).     |
+| `FAILED_TO_RESTORE_PURCHASES`               | `restorePurchases()`             | Prompt the customer to retry.                                                |
+| `FAILED_TO_FLUSH_ANALYTICS`                 | `flush()`                        | Events stay queued and flush later.                                          |
+| `FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET`   | iOS redemption sheet             | iOS only; verify the offer code configuration.                               |
+| `FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS`       | iOS manage subscriptions         | iOS only; requires iOS 15+.                                                  |
+
+## Client-state codes
+
+| Code                               | Meaning                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| `VOIDHASH_CLIENT_NOT_INITIALIZED`  | A method ran before the provider finished `init()`. Gate on `useVoidhash().status === "ready"`. |
+| `READ_ONLY_PURCHASE_NOT_ALLOWED`   | Observer mode blocks writes. See [Migrate in observer mode](/observer-mode). |
+| `SCHEME_NOT_SET`                   | No deep-link scheme was found. Set `scheme` in `app.json` or client options. |
+| `UNSUPPORTED_PLATFORM`             | A platform-specific method ran elsewhere (e.g. an iOS-only call on Android). |
+| `UNKNOWN`                          | An unexpected failure. Report the full error.                            |
+
+## Purchase outcomes
+
+`purchase()` never rejects. Cancellation and deferral are `Ok` outcomes on the resolved
+[`Result`](/purchases#start-a-purchase), and only the `Err` channel carries an error — typically
+`FAILED_TO_PURCHASE`.
+
+## Next steps
+
+- [Check access](/entitlements)
+- [React Native SDK reference](/sdks/react-native)

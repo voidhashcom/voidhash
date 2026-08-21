@@ -120,6 +120,18 @@ const PACKAGES = [
     build: true,
   },
   {
+    dir: "libraries/ios",
+    name: "@voidhash/ios",
+    project: "ios",
+    build: false,
+  },
+  {
+    dir: "libraries/android",
+    name: "@voidhash/android",
+    project: "android",
+    build: false,
+  },
+  {
     dir: "libraries/react-native",
     name: "@voidhash/react-native",
     project: "react-native",

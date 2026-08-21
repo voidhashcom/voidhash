@@ -13,7 +13,15 @@ directly must also be checked on the server — see
 
 ## Gate a feature
 
-Use `useHasPerk` to check whether the current customer holds an active grant for a perk:
+A perk is available when its grant is `active`. Every SDK lets you wrap that check once so screens
+stay simple:
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
+
+Use the built-in `useHasPerk` hook to check whether the current customer holds an active grant for
+a perk:
 
 ```tsx
 const { hasAccess, isLoading } = voidhash.useHasPerk("premium");
@@ -39,6 +47,34 @@ Outside React, use the imperative counterpart:
 const { hasAccess, isStale } = await voidhash.client.hasPerk("premium");
 ```
 
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+func hasPerk(_ perkId: String) async throws -> Bool {
+    let person = try await voidhash.getCurrentPerson()
+    return person?.entitlements.grants.contains {
+        $0.perkId == perkId && $0.status == "active"
+    } ?? false
+}
+```
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+suspend fun hasPerk(perkId: String): Boolean {
+    val person = voidhash.getCurrentPerson() ?: return false
+    return person.activePerkIds.contains(perkId)
+}
+```
+
+</Tab>
+
+</Tabs>
+
 <Callout type="info" title="Gate on perks, not subscription status">
   Subscription status cannot tell you which features a product unlocks, and it misses access from
   one-time purchases or manual grants. Active perk grants are the access-control source of truth.
@@ -46,8 +82,16 @@ const { hasAccess, isStale } = await voidhash.client.hasPerk("premium");
 
 ## Offline and failure behavior
 
-A failed refresh (offline, server error) is **not** proof that the customer has no access. Both
-check APIs therefore fail open with known-good data:
+A failed refresh (offline, server error) is **not** proof that the customer has no access. Keep
+loading and error states separate from the access decision, and choose a fallback appropriate for
+the feature — retry, a cached snapshot, or an upsell screen are all better defaults than silently
+locking the feature.
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
+
+Both check APIs fail open with known-good data:
 
 - If a cached snapshot shows an active grant, `hasAccess` stays `true` and `isStale` is set.
 - If there is no cached evidence of access, `client.hasPerk` fails with the refresh error instead
@@ -77,16 +121,56 @@ if (result.isErr()) {
 }
 ```
 
+</Tab>
+
+<Tab value="Swift">
+
+`getCurrentPerson()` throws on failure instead of answering a confident "no". Treat a thrown error
+as "unknown" and retry or serve your last known state:
+
+```swift
+do {
+    let hasAccess = try await hasPerk("premium")
+    // Route to premium content or the upgrade prompt based on hasAccess.
+} catch {
+    // Unknown — retry or fall back to cached state, never lock by default.
+}
+```
+
+</Tab>
+
+<Tab value="Kotlin">
+
+`getCurrentPerson()` throws on failure instead of answering a confident "no". Treat a thrown error
+as "unknown" and retry or serve your last known state:
+
+```kotlin
+try {
+    val hasAccess = hasPerk("premium")
+    // Route to premium content or the upgrade prompt based on hasAccess.
+} catch (error: VoidhashException) {
+    // Unknown — retry or fall back to cached state, never lock by default.
+}
+```
+
+</Tab>
+
+</Tabs>
+
 ## Read the current person
 
 When you need more than a single perk check, read the full snapshot:
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 ```tsx
 const { data: person, error, isLoading, refetch } = voidhash.useCurrentPerson();
 ```
 
 `data` is the person snapshot, or `null` until the first snapshot loads or while the client is
-disabled. See [the SDK reference](/react-native#usecurrentperson) for the full shape.
+disabled. See [the SDK reference](/sdks/react-native#usecurrentperson) for the full shape.
 
 For advanced cases you can still filter grants directly — prefer `useHasPerk` for gating:
 
@@ -95,6 +179,30 @@ const premiumGrant = person?.entitlements.grants.find(
   (grant) => grant.perkId === "premium" && grant.status === "active",
 );
 ```
+
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+let person = try await voidhash.getCurrentPerson()
+```
+
+Returns `nil` when no person exists yet for this identity.
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+val person = voidhash.getCurrentPerson()
+```
+
+Returns `null` when no person exists yet for this identity.
+
+</Tab>
+
+</Tabs>
 
 ## Grant fields
 
@@ -114,11 +222,33 @@ Use `subscriptions.current` for account UI such as the current plan or renewal s
 The SDK refreshes the person after purchases, restores, and identity changes. Reads use a
 stale-while-revalidate cache: a snapshot younger than five minutes is served immediately while a
 fresh copy is fetched in the background; older snapshots trigger a network fetch first. To force
-a network round-trip, call the hook's `refetch()` or bypass the cache outside React:
+a network round-trip:
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+<Tab value="React Native">
 
 ```ts
-const freshPerson = await voidhash.client.getCurrentPerson({ forceFetch: true });
+await voidhash.client.getCurrentPerson({ forceFetch: true });
+// Or re-run the hook's request:
+refetch();
 ```
+
+</Tab>
+<Tab value="Swift">
+
+```swift
+try await voidhash.getCurrentPerson(forceFetch: true)
+```
+
+</Tab>
+<Tab value="Kotlin">
+
+```kotlin
+voidhash.getCurrentPerson(forceFetch = true)
+```
+
+</Tab>
+</Tabs>
 
 ## Next steps
 

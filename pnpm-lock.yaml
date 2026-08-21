@@ -777,6 +777,10 @@ importers:
         specifier: workspace:*
         version: link:../../apps/cli
 
+  libraries/android: {}
+
+  libraries/ios: {}
+
   libraries/node:
     dependencies:
       effect:
@@ -853,9 +857,15 @@ importers:
       '@react-native-async-storage/async-storage':
         specifier: ^1.24.0 || ^2.0.0
         version: 2.2.0(react-native@0.81.5(@babel/core@7.29.6(supports-color@10.2.2))(@types/react@19.1.17)(react@19.1.0)(supports-color@10.2.2))
+      '@voidhash/android':
+        specifier: workspace:*
+        version: link:../android
       '@voidhash/generated-clients':
         specifier: workspace:*
         version: link:../../packages/generated-clients
+      '@voidhash/ios':
+        specifier: workspace:*
+        version: link:../ios
       better-result:
         specifier: 3.0.1
         version: 3.0.1

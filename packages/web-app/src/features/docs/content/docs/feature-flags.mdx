@@ -1,13 +1,17 @@
 ---
 title: Evaluate feature flags
-description: Gate React Native features with remotely evaluated flags and variants.
+description: Gate features with remotely evaluated flags and variants.
 icon: Flag
 ---
 
 Feature flags are evaluated for the current person. Use them for staged rollouts, experiments, and
 remote configuration.
 
-## Evaluate flags in React
+## Evaluate flags
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 Keep the requested key array stable so the hook does not re-run on every render:
 
@@ -41,17 +45,40 @@ The hook returns:
 
 Validate a variant payload before using it; payloads are untyped JSON.
 
-## Evaluate outside React
+</Tab>
 
-```ts
-const { flags } = await voidhash.client.getFeatureFlags(["express-checkout"]);
-const expressCheckout = flags.find((flag) => flag.key === "express-checkout");
+<Tab value="Swift">
+
+```swift
+let flags = try await voidhash.getFeatureFlags(["new-onboarding", "pricing-test"])
+
+let newOnboarding = flags.first { $0.key == "new-onboarding" }?.enabled == true
+let pricing = flags.first { $0.key == "pricing-test" }
 ```
+
+Pass `nil` to evaluate every flag.
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+val flags = voidhash.getFeatureFlags(listOf("new_onboarding", "pricing_test"))
+
+val newOnboarding = flags.firstOrNull { it.key == "new_onboarding" }?.enabled == true
+val pricing = flags.firstOrNull { it.key == "pricing_test" }
+```
+
+Pass an empty list to evaluate every flag.
+
+</Tab>
+
+</Tabs>
 
 ## Identity behavior
 
-Flag results are scoped to the current person. The SDK clears them after `identify()`, `reset()`,
-or `signOut()` so one customer never sees another customer's assignment.
+Flag results are scoped to the current person. The SDK clears them after `identify()` or a
+sign-out/reset so one customer never sees another customer's assignment.
 
 Choose a safe default while a flag is loading or unavailable. For paid access, use
 [entitlement grants](/entitlements) rather than a feature flag.

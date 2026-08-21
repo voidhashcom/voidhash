@@ -1,0 +1,138 @@
+---
+title: Swift quickstart
+description: Add Voidhash to a native iOS app and show your first paywall.
+icon: Rocket
+---
+
+This guide takes an existing iOS app from installation to a paywall and access check. Requires
+iOS 15+ and a Swift 6 toolchain (the sources build with the Swift 5.9 language mode too).
+
+<Steps>
+
+<Step>
+### Install the SDK
+
+In Xcode, open *File → Add Package Dependencies…*, enter
+`https://github.com/voidhashcom/voidhash`, and add the **Voidhash** library to your app target.
+
+Or in a `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/voidhashcom/voidhash", from: "0.0.1-alpha.1")
+],
+targets: [
+    .target(name: "App", dependencies: [.product(name: "Voidhash", package: "voidhash")])
+]
+```
+
+The package ships two products: **`Voidhash`**, the SDK you integrate against, and
+**`VoidhashCore`**, the shared native core it depends on. You only touch `VoidhashCore` directly if
+you build on top of the engine yourself.
+
+</Step>
+
+<Step>
+### Configure the client
+
+Configure once at app start with your project's publishable key:
+
+```swift title="App.swift"
+import Voidhash
+
+let voidhash = Voidhash.configure(publishableKey: "vh_pk_...")
+```
+
+The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
+
+`configure` kicks off initialization in the background — store connection, schema fetch, and
+reconciliation of transactions observed while the app was away. The first call that needs
+initialization awaits it implicitly; use `await voidhash.waitForInitialization()` to wait
+explicitly, for example on a loading screen.
+
+</Step>
+
+<Step>
+### Configure one test offer in Studio
+
+Create the smallest complete catalog:
+
+1. Create a perk such as `premium`.
+2. Create a product, choose its billing duration, and attach the perk.
+3. Create a paywall that includes the product, then publish it.
+4. Create a paywall location such as `onboarding` and assign the published paywall.
+
+Connect App Store Connect before testing a release build — see [Store setup](/apple-app-store).
+See [Products and perks](/products-and-perks) and [Paywalls](/paywalls) for the model behind these
+steps.
+
+</Step>
+
+<Step>
+### Present the paywall
+
+Resolve the paywall by location and present it:
+
+```swift
+final class Paywalls: VoidhashPaywallDelegate {
+    func paywall(_ location: String, didPurchaseProductId productId: String, requestId: String?) {
+        unlockPremium()
+    }
+
+    func paywallDidDismiss(_ location: String) {}
+}
+
+let result = try await voidhash.presentPaywall(location: "onboarding", delegate: paywallsDelegate)
+
+if result != .shown {
+    // `notAssigned` is the expected case when the location has no published
+    // paywall — fall back to your own screen instead of leaving the customer
+    // with nothing.
+    showFallbackUpgradeScreen()
+}
+```
+
+The SDK resolves the paywall assigned to the location, presents it in a full-screen WebView, and
+speaks the paywall bridge protocol natively: purchases and restores started inside the paywall run
+through the same purchase pipeline, close dismisses it, external links open in the browser, and
+custom events are captured into analytics.
+
+Keep a strong reference to the delegate while the paywall is presented — it is held weakly.
+
+</Step>
+
+<Step>
+### Check access
+
+Gate features on an active perk grant from the person snapshot:
+
+```swift
+let person = try await voidhash.getCurrentPerson()
+
+let hasPremium = person?.entitlements.grants.contains {
+    $0.perkId == "premium" && $0.status == "active"
+} ?? false
+```
+
+The snapshot refreshes after a successful purchase or restore. See
+[Check access](/entitlements) for caching behavior and failure handling.
+
+</Step>
+
+<Step>
+### Run a test purchase
+
+Build and run on a device or simulator signed into a Sandbox Apple account, then buy through the
+presented paywall. Purchases sync server-side, finish with StoreKit only after validation succeeds,
+and refresh the person snapshot.
+
+</Step>
+
+</Steps>
+
+## Next steps
+
+- [Swift SDK reference](/sdks/swift)
+- [Display and target paywalls](/paywalls)
+- [Identify signed-in customers](/identify-users)
+- [Build a custom purchase screen](/purchases)

@@ -7,9 +7,15 @@ let package = Package(
     products: [
         .library(name: "VoidhashPurchaseCoordinators", targets: ["VoidhashPurchaseCoordinators"])
     ],
+    dependencies: [
+        .package(path: "../ios")
+    ],
     targets: [
         .target(
             name: "VoidhashPurchaseCoordinators",
+            dependencies: [
+                .product(name: "VoidhashCore", package: "ios")
+            ],
             path: "ios",
             exclude: [
                 "HybridPaywallPresenter.swift",
@@ -22,13 +28,15 @@ let package = Package(
                 "HybridStorekitProductSubscriptionPeriod.swift",
                 "HybridStorekitTransaction.swift",
                 "HybridVoidhash.swift",
-                "ProductStore.swift",
             ],
-            sources: ["TransactionRetentionStore.swift"]
+            sources: ["VoidhashCoreExports.swift"]
         ),
         .testTarget(
             name: "VoidhashPurchaseCoordinatorTests",
-            dependencies: ["VoidhashPurchaseCoordinators"],
+            dependencies: [
+                "VoidhashPurchaseCoordinators",
+                .product(name: "VoidhashCore", package: "ios"),
+            ],
             path: "ios-tests"
         ),
     ]

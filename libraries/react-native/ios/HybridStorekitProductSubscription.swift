@@ -1,11 +1,11 @@
 import Foundation
 import NitroModules
-import StoreKit
+import VoidhashCore
 
 class HybridStorekitProductSubscription: HybridStorekitProductSubscriptionSpec {
-    private let subscription: Product.SubscriptionInfo
+    private let subscription: StoreKitSubscriptionInfo
 
-    init(subscription: Product.SubscriptionInfo) {
+    init(subscription: StoreKitSubscriptionInfo) {
         self.subscription = subscription
     }
 

@@ -2,7 +2,6 @@ package com.margelo.nitro.voidhash
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.util.Base64
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -20,6 +19,7 @@ import androidx.core.view.ViewCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.facebook.proguard.annotations.DoNotStrip
 import com.facebook.react.uimanager.ThemedReactContext
+import com.voidhash.core.paywall.PaywallBridge
 import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -262,7 +262,7 @@ class HybridPaywallWebView(
         webView.settings.allowUniversalAccessFromFileURLs = false
         webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
 
-        webView.addJavascriptInterface(Bridge(), "ReactNativeWebView")
+        webView.addJavascriptInterface(Bridge(), PaywallBridge.JS_INTERFACE_NAME)
 
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
@@ -457,11 +457,7 @@ class HybridPaywallWebView(
     }
 
     override fun postMessage(data: String) {
-        val encoded = Base64.encodeToString(data.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        webView.evaluateJavascript(
-            "window.dispatchEvent(new MessageEvent('message', { data: atob('$encoded') }));",
-            null,
-        )
+        webView.evaluateJavascript(PaywallBridge.inboundScript(data), null)
     }
 
     override fun injectJavaScript(javascript: String) {
@@ -506,12 +502,7 @@ class HybridPaywallWebView(
             return
         }
 
-        val script =
-            "window.ReactNativeWebView = window.ReactNativeWebView || {};" +
-                "window.ReactNativeWebView.postMessage = function(data) {" +
-                "ReactNativeWebView.postMessage(String(data));" +
-                "};"
-        webView.evaluateJavascript(script, null)
+        webView.evaluateJavascript(PaywallBridge.MESSAGING_SHIM_SCRIPT, null)
     }
 
     private fun loadSource(value: PaywallWebViewSource?) {

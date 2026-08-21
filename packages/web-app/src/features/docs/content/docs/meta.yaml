@@ -5,7 +5,6 @@ pages:
   - "---Get started---"
   - introduction
   - quickstart
-  - development-mode
   - "---Build---"
   - paywalls
   - products-and-perks
@@ -15,11 +14,10 @@ pages:
   - purchases
   - analytics
   - feature-flags
-  - webhooks
-  - "---SDK---"
-  - react-native
-  - errors
   - observer-mode
+  - webhooks
+  - "---SDKs---"
+  - sdks
   - "---Resources---"
   - cli
   - mcp

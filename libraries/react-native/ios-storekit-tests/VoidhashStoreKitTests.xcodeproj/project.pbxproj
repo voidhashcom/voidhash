@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1C9C52645137E6FF2D9364FF /* TransactionRetentionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E9B9D18D3BD416ED8CBC364 /* TransactionRetentionStore.swift */; };
 		71743E1162D84E418730624A /* PurchaseValidation.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 1AC31EFFF8867D406EAE8C74 /* PurchaseValidation.storekit */; };
 		98E4F468CE60067C5DD26566 /* StoreKitPurchaseFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5789F03E119B0FF77F34647D /* StoreKitPurchaseFlowTests.swift */; };
+		C9381903959C98F916184B62 /* TransactionRetentionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E237B3D22318ABB11465AFA /* TransactionRetentionStore.swift */; };
 		FBF55D4DFA2DF08FAD6E140A /* StoreKitTestHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EC96AC732D5E2AE9EBEDCBA /* StoreKitTestHostApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -28,10 +28,10 @@
 		1AC31EFFF8867D406EAE8C74 /* PurchaseValidation.storekit */ = {isa = PBXFileReference; path = PurchaseValidation.storekit; sourceTree = "<group>"; };
 		3594AB4FF78F38B6BF818B4C /* StoreKitTestHost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StoreKitTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D6F996A7330DF6D235205D1 /* StoreKitPurchaseTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StoreKitPurchaseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4E237B3D22318ABB11465AFA /* TransactionRetentionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionRetentionStore.swift; sourceTree = "<group>"; };
 		5121A5FFFDFDCBCC7C38AAF0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		5789F03E119B0FF77F34647D /* StoreKitPurchaseFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitPurchaseFlowTests.swift; sourceTree = "<group>"; };
 		6EC96AC732D5E2AE9EBEDCBA /* StoreKitTestHostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitTestHostApp.swift; sourceTree = "<group>"; };
-		7E9B9D18D3BD416ED8CBC364 /* TransactionRetentionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionRetentionStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -53,13 +53,13 @@
 			path = Tests;
 			sourceTree = "<group>";
 		};
-		5053C5A0EA9DFB6BF9FF4E46 /* ios */ = {
+		36DA1AAE71E753597643C3B7 /* StoreKit */ = {
 			isa = PBXGroup;
 			children = (
-				7E9B9D18D3BD416ED8CBC364 /* TransactionRetentionStore.swift */,
+				4E237B3D22318ABB11465AFA /* TransactionRetentionStore.swift */,
 			);
-			name = ios;
-			path = ../ios;
+			name = StoreKit;
+			path = ../../ios/Sources/VoidhashCore/StoreKit;
 			sourceTree = "<group>";
 		};
 		7AFCDDEE6121D38D72AC68A2 /* Resources */ = {
@@ -74,8 +74,8 @@
 			isa = PBXGroup;
 			children = (
 				CB68E4A96D58BA5280F82D7C /* App */,
-				5053C5A0EA9DFB6BF9FF4E46 /* ios */,
 				7AFCDDEE6121D38D72AC68A2 /* Resources */,
+				36DA1AAE71E753597643C3B7 /* StoreKit */,
 				2DD93207646CF33AA9AAF24A /* Tests */,
 				24D45DB545B792AE98FCA790 /* Products */,
 			);
@@ -177,7 +177,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				98E4F468CE60067C5DD26566 /* StoreKitPurchaseFlowTests.swift in Sources */,
-				1C9C52645137E6FF2D9364FF /* TransactionRetentionStore.swift in Sources */,
+				C9381903959C98F916184B62 /* TransactionRetentionStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

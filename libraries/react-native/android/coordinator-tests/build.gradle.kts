@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.1.20"
+    kotlin("jvm") version "2.0.21"
 }
 
 repositories {
@@ -8,8 +8,8 @@ repositories {
 
 sourceSets {
     main {
-        kotlin.srcDir("../src/main/java")
-        kotlin.include("com/margelo/nitro/voidhash/PurchaseOperationCoordinator.kt")
+        kotlin.srcDir("../../../android/core/src/main/java")
+        kotlin.include("com/voidhash/core/billing/PurchaseOperationCoordinator.kt")
     }
 }
 

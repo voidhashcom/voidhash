@@ -15,6 +15,14 @@ Run `npx pod-install` after installing on iOS. Android needs no extra setup.
 
 The package ships native code, so it requires a development build — Expo Go cannot load it.
 
+The native layer is built on the shared `VoidhashCore` library from `@voidhash/ios` (installed
+automatically as a dependency). Expo apps get its pod through this package's config plugin during
+prebuild; bare React Native apps must add it to their Podfile manually:
+
+```ruby
+pod "VoidhashCore", :path => "../node_modules/@voidhash/ios"
+```
+
 ### Compatibility
 
 | Dependency                   | Requirement                              |

@@ -1,0 +1,8 @@
+title: React Native
+description: Expo and bare React Native apps on iOS and Android.
+icon: Smartphone
+pages:
+  - index
+  - quickstart
+  - errors
+  - development-mode

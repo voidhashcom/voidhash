@@ -38,7 +38,7 @@ export interface PersonMetadata {
   distinctId: string;
   publishableKey: string;
   platform: string;
-  sdk: "react-native" | "web";
+  sdk: "react-native" | "web" | "ios" | "android";
   sdkVersion: string;
   platformFlavor: "native" | "browser";
   platformFlavorVersion?: string;

@@ -1,0 +1,40 @@
+{
+  "name": "@voidhash/ios",
+  "version": "0.0.1-alpha.1",
+  "private": false,
+  "description": "Voidhash iOS SDK and shared native core for in-app purchases.",
+  "keywords": [
+    "ios",
+    "payments",
+    "sdk",
+    "storekit",
+    "swift",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/ios"
+  },
+  "files": [
+    "Sources",
+    "Package.swift",
+    "*.podspec",
+    "react-native.config.js",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "test:swift": "swift test --package-path ."
+  }
+}

@@ -22,6 +22,12 @@ flowchart TD
 ## Community packages
 
 - `libraries/` contains MIT SDKs embedded in customer applications.
+  `libraries/ios` (`@voidhash/ios`) and `libraries/android` (`@voidhash/android`)
+  each ship a shared native core — StoreKit/Google Play billing, the paywall
+  WebView bridge, the SDK API client, identity, caching, and schema — plus a bare
+  native SDK built on top of it. `libraries/react-native` reuses those cores from
+  its Nitro adapters instead of owning native purchase logic, so every SDK speaks
+  the same wire contracts.
 - `apps/backend` and `apps/www` are the AGPL service entry points, and
   `apps/mimic-db` supplies the document-sync engine and reusable Cloudflare
   Worker/Durable Object deployment they compose.

@@ -1,46 +1,49 @@
 import Foundation
 import NitroModules
-import StoreKit
+import VoidhashCore
 
 class HybridStorekitProduct: HybridStorekitProductSpec {
-    private let product: Product
+    private let product: StoreKitProductInfo
 
-    init(product: Product) {
+    init(product: StoreKitProductInfo) {
         self.product = product
     }
 
     // MARK: - HybridStorekitProductSpec Properties
-    
+
     var id: String {
         return product.id
     }
-    
+
     var type: String {
-        return product.type.rawValue
+        return product.type
     }
-    
+
     var displayName: String {
         return product.displayName
     }
-    
+
     var description: String {
         return product.description
     }
-    
+
     var displayPrice: String {
         return product.displayPrice
     }
-    
+
     var price: Double {
-        return (product.price as NSDecimalNumber).doubleValue
+        return product.price
     }
-    
+
     var currency: String {
-        return product.priceFormatStyle.currencyCode
+        return product.currency
     }
 
     var debugDescription: Variant_NullType_String? {
-        return .second(product.debugDescription)
+        guard let debugDescription = product.debugDescription else {
+            return nil
+        }
+        return .second(debugDescription)
     }
 
     var isFamilyShareable: Bool {

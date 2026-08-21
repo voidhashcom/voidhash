@@ -1,6 +1,6 @@
 ---
 title: Capture analytics
-description: Track product events and customer traits with the React Native SDK.
+description: Track product events and customer traits with the Voidhash SDK.
 icon: ChartNoAxesCombined
 ---
 
@@ -8,6 +8,10 @@ The SDK attributes events to the current person and sends them in background bat
 analytics package is required.
 
 ## Capture an event
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 ```ts
 voidhash.client.capture("upgrade_button_clicked", {
@@ -18,6 +22,32 @@ voidhash.client.capture("upgrade_button_clicked", {
 
 `capture()` is synchronous. It queues the event and returns immediately, including when the
 provider is still initializing.
+
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+await voidhash.capture("upgrade_button_clicked", properties: [
+    "source": .string("settings"),
+    "plan": .string("monthly"),
+])
+```
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+voidhash.capture(
+    "upgrade_button_clicked",
+    mapOf("source" to "settings", "plan" to "monthly"),
+)
+```
+
+</Tab>
+
+</Tabs>
 
 Use clear, stable event names. Names beginning with `$` are reserved for Voidhash events.
 
@@ -36,8 +66,11 @@ Paywalls also send their analytics through the same queue and include the paywal
 
 ## Flush before a boundary
 
-Events flush automatically in batches. Force delivery only when the app is about to cross an
-important boundary:
+Events flush automatically in batches (20 per request or every 5 seconds, retried with exponential
+backoff). Force delivery only when the app is about to cross an important boundary:
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+<Tab value="React Native">
 
 ```ts
 await voidhash.client.flush();
@@ -46,21 +79,35 @@ await voidhash.client.flush();
 Identity methods flush at the correct time automatically, so events captured before `identify()`
 or `signOut()` stay attached to the previous identity.
 
-## Update customer traits
+</Tab>
+<Tab value="Swift">
 
-```ts
-await voidhash.client.setPersonAttributes({
-  email: "ada@example.com",
-  onboarding_completed: true,
-});
+```swift
+await voidhash.flush()
 ```
 
-This queues a trait update with analytics. Use `setPersonAttributesSync()` when you need an
-immediate server response and updated person snapshot.
+Sends everything queued right now.
+
+</Tab>
+<Tab value="Kotlin">
+
+```kotlin
+voidhash.flush()
+```
+
+Sends every queued analytics event.
+
+</Tab>
+</Tabs>
+
+## Update customer traits
+
+See [Set customer attributes](/identify-users#set-customer-attributes) — trait updates ride the same
+pipeline as analytics events.
 
 ## Event capture API
 
-Backend and non-React-Native clients can send individual events or batches through the
+Backend and non-mobile clients can send individual events or batches through the
 [Event Capture API](/api/event-capture). Use the project's publishable token in the request body;
 do not send a secret key to the ingestion endpoint.
 

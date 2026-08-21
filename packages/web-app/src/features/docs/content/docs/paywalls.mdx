@@ -1,6 +1,6 @@
 ---
 title: Display a paywall
-description: Publish a paywall to a location and present it from your React Native app.
+description: Publish a paywall to a location and present it from your app.
 icon: PanelsTopLeft
 ---
 
@@ -23,8 +23,11 @@ where the paywall appears, not what the current design looks like.
 
 ## Present it
 
-`usePaywallByLocation` resolves and preloads the assigned paywall. Call `show()` when the customer
-reaches the location:
+Every SDK resolves and presents the paywall assigned to a location in one call.
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+
+<Tab value="React Native">
 
 ```tsx
 const paywall = voidhash.usePaywallByLocation("settings-upsell", {
@@ -54,19 +57,72 @@ const result = await paywall.show();
 | `disabled`              | The client was created with `enabled: false`.                  |
 | `failed`                | Resolve, preload, or presentation failed. Carries `error`.     |
 
-Hosted paywalls send purchase and restore actions through the SDK. After a successful transaction,
-Voidhash refreshes the person snapshot and dismisses the paywall.
-
 Purchase and restore failures are reported through the hook's `onError` callback, not through
 `show()` — by then the paywall is already on screen.
+
+</Tab>
+
+<Tab value="Swift">
+
+```swift
+let result = try await voidhash.presentPaywall(
+    location: "settings-upsell",
+    delegate: paywallsDelegate
+)
+```
+
+The result names the outcome:
+
+| Result        | Meaning                                           |
+| ------------- | ------------------------------------------------- |
+| `.shown`      | The presenter opened the paywall.                 |
+| `.notAssigned`| No published paywall is assigned to the location. |
+| `.failed`     | Resolve or presentation failed.                   |
+
+The delegate receives purchase completions and dismissal:
+
+```swift
+final class Paywalls: VoidhashPaywallDelegate {
+    func paywall(_ location: String, didPurchaseProductId productId: String, requestId: String?) {}
+    func paywallDidDismiss(_ location: String) {}
+}
+```
+
+The delegate is held weakly — keep a strong reference for as long as the paywall is presented.
+
+</Tab>
+
+<Tab value="Kotlin">
+
+```kotlin
+val shown = voidhash.presentPaywall(activity, location = "settings-upsell", listener = object : PaywallListener {
+    override fun onPurchaseCompleted(transaction: VoidhashTransaction) {}
+    override fun onEvent(name: String, properties: Map<String, Any?>) {}
+    override fun onDismiss() = Unit
+})
+```
+
+It returns `false` when no published paywall is assigned to the location or the client is disabled.
+Purchases and restores started inside the paywall arrive on the listener; custom events are
+forwarded through `onEvent`.
+
+</Tab>
+
+</Tabs>
+
+Hosted paywalls send purchase and restore actions through the SDK. After a successful transaction,
+Voidhash refreshes the person snapshot and dismisses the paywall.
 
 ## Change a paywall safely
 
 To update what customers see, publish the new paywall and assign it to the existing location. The
 app keeps asking for the same slug and receives the new release.
 
-Clearing or archiving a location makes future `show()` calls return `not_assigned`. Keep a fallback
-in the app for important entry points:
+Clearing or archiving a location makes future presentations return the "not assigned" outcome. Keep
+a fallback in the app for important entry points:
+
+<Tabs items={["React Native", "Swift", "Kotlin"]}>
+<Tab value="React Native">
 
 ```tsx
 const result = await paywall.show();
@@ -76,16 +132,35 @@ if (result.status !== "shown") {
 }
 ```
 
-## Typed location slugs
+</Tab>
+<Tab value="Swift">
 
-Run type generation after adding or renaming locations:
+```swift
+let result = try await voidhash.presentPaywall(location: "settings-upsell")
 
-```bash
-npx voidhash-cli types generate
+if result != .shown {
+    showOwnUpgradeScreen()
+}
 ```
 
-The generated `voidhash.gen.d.ts` changes `usePaywallByLocation` from accepting any string to the
-known location slugs in your project.
+</Tab>
+<Tab value="Kotlin">
+
+```kotlin
+val shown = voidhash.presentPaywall(activity, location = "settings-upsell")
+
+if (!shown) {
+    showOwnUpgradeScreen()
+}
+```
+
+</Tab>
+</Tabs>
+
+## Location slugs
+
+Location slugs are plain strings in every SDK. React Native projects can additionally generate typed
+slugs so typos become compile errors — see [Generated slug types](/sdks/react-native#generated-slug-types).
 
 ## Next steps
 

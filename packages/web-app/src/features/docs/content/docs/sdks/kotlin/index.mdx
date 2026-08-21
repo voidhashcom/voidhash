@@ -1,0 +1,178 @@
+---
+title: Kotlin SDK
+description: Client configuration and API reference for the Voidhash Android SDK.
+icon: Bot
+---
+
+The Voidhash Android SDK adds in-app purchases, entitlements, paywalls, feature flags, and
+analytics to native Android apps. Start with the [Kotlin quickstart](/sdks/kotlin/quickstart) if
+you have not installed it yet.
+
+## Compatibility
+
+| Requirement  | Version                    |
+| ------------ | -------------------------- |
+| `minSdk`     | 23                         |
+| `compileSdk` | 34                         |
+| Build        | AGP 8.9.0, Kotlin 2.0.21, Java 8 bytecode |
+| Billing      | Play Billing 8.0.0         |
+
+Two Gradle modules ship in `@voidhash/android`: **`:sdk`** (`com.voidhash.sdk`), the public SDK you
+integrate against, and **`:core`** (`com.voidhash.core`), the shared engine it depends on.
+
+## Create the client
+
+Create one client for the lifetime of the app:
+
+```kotlin
+import com.voidhash.sdk.Voidhash
+import com.voidhash.sdk.VoidhashOptions
+
+val voidhash = Voidhash.configure(
+    context = applicationContext,
+    publishableKey = "vh_pk_...",
+)
+```
+
+The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
+
+There is no schema argument: the schema lives on the server and is fetched by `initialize()`, which
+connects to Google Play, resolves the schema, reconciles unfinished store transactions, and starts
+the analytics queue. It is safe to call repeatedly — only the first *successful* call does work,
+concurrent callers wait for it, and a failed call leaves the client uninitialized so it can be
+retried:
+
+```kotlin
+lifecycleScope.launch {
+    voidhash.initialize()
+}
+```
+
+Every method that needs the schema throws `VoidhashException` with code
+`CONFIGURATION_MISSING` until initialization has succeeded.
+
+## Client options
+
+```kotlin
+val voidhash = Voidhash.configure(
+    context = this,
+    publishableKey = "vh_pk_...",
+    options = VoidhashOptions(debug = BuildConfig.DEBUG),
+)
+```
+
+| Option       | Default                    | Use                                                                        |
+| ------------ | -------------------------- | -------------------------------------------------------------------------- |
+| `baseUrl`    | `https://api.voidhash.com` | Override the API origin for self-hosted deployments.                       |
+| `ingestUrl`  | Same origin as `baseUrl`   | Override only the analytics origin.                                        |
+| `debug`      | `false`                    | Enable verbose logging and mark requests as debug-build traffic.           |
+| `distinctId` | Generated anonymous ID     | Seed the initial customer identity. Usually omit it and call `identify()`. |
+| `enabled`    | `true`                     | Set `false` to ship the SDK fully inert.                                   |
+| `readOnly`   | `false`                    | Start in observer mode. Flip later with `setReadOnly()`.                   |
+
+Every method on `VoidhashClient` other than `capture`, `getDistinctId`, and `setReadOnly` is a
+suspending function: the SDK never blocks the caller's thread and never posts work back to the main
+thread on its own.
+
+### Disabled clients
+
+With `enabled: false`, every method is inert: no requests are made, no billing connection opens,
+`getProducts()` returns an empty list, and `getCurrentPerson()` returns `null`.
+
+### Observer mode
+
+Observer mode is mutable at runtime:
+
+```kotlin
+voidhash.setReadOnly(false)
+```
+
+While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them.
+A purchase already in flight keeps the mode it started with. See
+[Migrate in observer mode](/observer-mode).
+
+## Products and purchases
+
+```kotlin
+val products = voidhash.getProducts()
+
+products.firstOrNull { it.slug == "pro-monthly" }?.let { monthly ->
+    // Launch the Play Billing flow from an activity.
+    val transaction = voidhash.purchase(activity, monthly)
+}
+
+voidhash.restorePurchases()
+```
+
+`purchase` launches the Play Billing flow from `activity`, syncs the resulting transaction to
+Voidhash, and then acknowledges it — or consumes it for `one-time-consumable` products.
+
+Restore reconciles every purchase the store still reports and refreshes the current person. See
+[Make and restore purchases](/purchases) for failure handling.
+
+## People and entitlements
+
+```kotlin
+voidhash.getDistinctId()
+voidhash.identify(externalUserId = "user-123", email = "a@b.co", name = "Ada")
+voidhash.setPersonAttributes(mapOf("plan" to "pro"))
+
+val person = voidhash.getCurrentPerson(forceFetch = true)
+person?.activePerkIds
+
+voidhash.reset() // Sign out: clears the local identity and cache
+```
+
+The person snapshot is cached for two days and served stale after five minutes; pass
+`getCurrentPerson(forceFetch = true)` to bypass the cache. The SDK refreshes it after purchases,
+restores, and identity changes.
+
+See [Check access](/entitlements) and [Identify customers](/identify-users) for the underlying
+concepts.
+
+## Feature flags
+
+```kotlin
+val flags = voidhash.getFeatureFlags(listOf("new_onboarding"))
+val enabled = flags.firstOrNull { it.key == "new_onboarding" }?.enabled == true
+```
+
+Pass an empty list to evaluate every flag. See [Evaluate feature flags](/feature-flags) for
+variants and identity behavior.
+
+## Analytics
+
+```kotlin
+voidhash.capture("checkout_started", mapOf("source" to "paywall"))
+voidhash.flush()
+```
+
+Events are batched (20 events or every 5 seconds) and retried with exponential backoff, honoring
+`Retry-After`. Names beginning with `$` are reserved for Voidhash events. See
+[Capture analytics](/analytics).
+
+## Paywalls
+
+```kotlin
+voidhash.presentPaywall(activity, location = "onboarding", listener = object : PaywallListener {
+    override fun onPurchaseCompleted(transaction: VoidhashTransaction) = unlock()
+    override fun onEvent(name: String, properties: Map<String, Any?>) = track(name, properties)
+    override fun onDismiss() = Unit
+})
+```
+
+`presentPaywall` resolves the paywall configured for the location, presents it fullscreen, and
+speaks the paywall bridge protocol natively: purchases, restores, close, and external links are
+handled for you; custom events and logs are forwarded to the listener. It returns `false` when the
+backend has no published paywall for the location.
+
+See [Display a paywall](/paywalls) for locations, fallbacks, and safe paywall changes.
+
+## Shutdown
+
+```kotlin
+voidhash.shutdown()
+```
+
+Flushes analytics and ends the Play Billing connection. Call it when the process is going away for
+good, not on every background event.

@@ -1,40 +1,36 @@
 ---
 title: Introduction
-description: Voidhash is the open-source subscription platform for React Native apps.
+description: Voidhash is the open-source subscription platform for mobile apps.
 icon: BookOpen
 ---
 
-Voidhash connects your React Native app to the App Store and Google Play. Use it to build paywalls,
-validate purchases, keep subscription state in sync, and decide what each customer can access.
+Voidhash connects your app to the App Store and Google Play. Use it to build paywalls, validate
+purchases, keep subscription state in sync, and decide what each customer can access.
 
 ## How it fits together
 
 | Part                 | What it does                                                                      |
 | -------------------- | --------------------------------------------------------------------------------- |
 | **Studio**           | Configure products and perks, design paywalls, and review customers and revenue.  |
-| **React Native SDK** | Display paywalls, make and restore purchases, and read access state in your app.  |
+| **Mobile SDKs**      | Display paywalls, make and restore purchases, and read access state in your app.  |
 | **Voidhash backend** | Validate store transactions and keep subscriptions and entitlements current.      |
 | **CLI**              | Connect a local project, generate typed slugs, and deploy code-authored paywalls. |
 
 Your app ships only a **publishable key** (`vh_pk_...`). Store credentials and secret keys stay on
 the server.
 
-## Start here
+## Pick your SDK
 
-The [React Native quickstart](/quickstart) is the shortest path from an existing app to a working
-paywall and entitlement check.
+Voidhash ships three client SDKs with the same core workflows — paywalls, purchases,
+entitlements, feature flags, and analytics — tailored to each platform:
 
-Before you start, you need:
+- [**React Native**](/sdks/react-native) — Expo development builds and bare React Native apps on
+  iOS and Android.
+- [**Swift**](/sdks/swift) — native iOS apps on StoreKit 2 (iOS 15+).
+- [**Kotlin**](/sdks/kotlin) — native Android apps on Google Play Billing (minSdk 23).
 
-- an Expo development build or a bare React Native app;
-- a Voidhash project and its publishable key;
-- an App Store or Google Play subscription product; and
-- a deep-link scheme for your app.
-
-<Callout type="warn" title="Expo Go is not supported">
-  The SDK includes native StoreKit and Google Play Billing modules. Use an Expo development build or
-  a bare React Native app.
-</Callout>
+The [quickstart](/quickstart) is the shortest path from an existing app to a working paywall and
+entitlement check.
 
 ## Explore
 
@@ -50,9 +46,9 @@ Before you start, you need:
     href="/docs/entitlements"
   />
   <Card
-    title="React Native SDK"
-    description="See the client, hooks, configuration, and error model."
-    href="/docs/react-native"
+    title="SDKs"
+    description="Platform-specific installation, configuration, and API reference."
+    href="/docs/sdks"
   />
   <Card
     title="API Reference"

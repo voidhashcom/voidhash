@@ -1,0 +1,43 @@
+{
+  "name": "@voidhash/android",
+  "version": "0.0.1-alpha.1",
+  "private": false,
+  "description": "Voidhash Android SDK and shared native core.",
+  "keywords": [
+    "android",
+    "billing",
+    "kotlin",
+    "payments",
+    "sdk",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/android"
+  },
+  "files": [
+    "build.gradle.kts",
+    "core/build.gradle.kts",
+    "core/src",
+    "sdk/build.gradle.kts",
+    "sdk/src",
+    "gradle.properties",
+    "settings.gradle.kts",
+    "LICENSE.md",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "test:kotlin": "ANDROID_HOME=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}\" \"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json', { paths: [process.cwd(), '../react-native'] }))\")/gradlew\" -p . :core:testDebugUnitTest :sdk:testDebugUnitTest --no-daemon"
+  }
+}

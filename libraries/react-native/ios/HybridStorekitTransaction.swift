@@ -1,208 +1,164 @@
 import Foundation
 import NitroModules
-import StoreKit
+import VoidhashCore
 
 class HybridStorekitTransaction: HybridStorekitTransactionSpec {
 
-    private let transaction: Transaction
+    private let transaction: StoreKitTransactionInfo
 
-    init(transaction: Transaction) {
+    init(transaction: StoreKitTransactionInfo) {
         self.transaction = transaction
     }
 
     // MARK: - HybridStorekitTransactionSpec Properties
 
     var id: String {
-        return transaction.productID
+        return transaction.id
     }
 
     var ids: [String] {
-        return [transaction.productID]
+        return transaction.ids
     }
 
     var transactionId: String {
-        return String(transaction.id)
+        return transaction.transactionId
     }
 
     var transactionDate: Double {
-        return transaction.purchaseDate.timeIntervalSince1970 * 1000
+        return transaction.transactionDate
     }
 
     var transactionReceipt: String {
-        let jsonRep = transaction.jsonRepresentation
-        return String(data: jsonRep, encoding: .utf8) ?? ""
+        return transaction.transactionReceipt
     }
 
     var quantityIos: Double {
-        return Double(transaction.purchasedQuantity)
+        return transaction.quantityIos
     }
 
     var originalTransactionDateIos: Double {
-        return transaction.originalPurchaseDate.timeIntervalSince1970 * 1000
+        return transaction.originalTransactionDateIos
     }
 
     var originalTransactionIdentifierIos: String {
-        return String(transaction.originalID)
+        return transaction.originalTransactionIdentifierIos
     }
 
     var appAccountToken: Variant_NullType_String? {
         guard let token = transaction.appAccountToken else {
             return nil
         }
-        return .second(token.uuidString)
+        return .second(token)
     }
 
     var appBundleIdIos: String {
-        return transaction.appBundleID
+        return transaction.appBundleIdIos
     }
 
     var productTypeIos: String {
-        return transaction.productType.rawValue
+        return transaction.productTypeIos
     }
 
     var subscriptionGroupIdIos: Variant_NullType_String? {
-        guard let subscriptionGroupID = transaction.subscriptionGroupID else {
+        guard let subscriptionGroupID = transaction.subscriptionGroupIdIos else {
             return nil
         }
         return .second(subscriptionGroupID)
     }
 
     var webOrderLineItemIdIos: Variant_NullType_Double? {
-        let jsonRep = transaction.jsonRepresentation
-        do {
-            if let jsonObj = try JSONSerialization.jsonObject(with: jsonRep) as? [String: Any],
-                let webOrderId = jsonObj["webOrderLineItemID"] as? NSNumber
-            {
-                return .second(webOrderId.doubleValue)
-            }
-        } catch {
-            print("Error parsing JSON representation: \(error)")
+        guard let webOrderLineItemId = transaction.webOrderLineItemIdIos else {
+            return nil
         }
-        return nil
+        return .second(webOrderLineItemId)
     }
 
     var expirationDateIos: Variant_NullType_Double? {
-        guard let expirationDate = transaction.expirationDate else {
+        guard let expirationDate = transaction.expirationDateIos else {
             return nil
         }
-        return .second(expirationDate.timeIntervalSince1970 * 1000)
+        return .second(expirationDate)
     }
 
     var isUpgradedIos: Bool? {
-        return transaction.isUpgraded
+        return transaction.isUpgradedIos
     }
 
     var ownershipTypeIos: String {
-        return transaction.ownershipType.rawValue
+        return transaction.ownershipTypeIos
     }
 
     var revocationDateIos: Variant_NullType_Double? {
-        guard let revocationDate = transaction.revocationDate else {
+        guard let revocationDate = transaction.revocationDateIos else {
             return nil
         }
-        return .second(revocationDate.timeIntervalSince1970 * 1000)
+        return .second(revocationDate)
     }
 
     var revocationReasonIos: Variant_NullType_String? {
-        guard let revocationReason = transaction.revocationReason else {
+        guard let revocationReason = transaction.revocationReasonIos else {
             return nil
         }
-        return .second(revocationReason.rawValue.description)
+        return .second(revocationReason)
     }
 
     var transactionReasonIos: Variant_NullType_String? {
-        let jsonRep = transaction.jsonRepresentation
-        do {
-            if let jsonObj = try JSONSerialization.jsonObject(with: jsonRep) as? [String: Any],
-                let transactionReason = jsonObj["transactionReason"] as? String
-            {
-                return .second(transactionReason)
-            }
-        } catch {
-            print("Error parsing JSON representation: \(error)")
+        guard let transactionReason = transaction.transactionReasonIos else {
+            return nil
         }
-        return nil
+        return .second(transactionReason)
     }
 
     var jwsRepresentationIos: Variant_NullType_String? {
-        // This would need to be passed in during initialization or set separately
-        // as it's not available from the Transaction object itself
-        return nil
+        guard let jwsRepresentation = transaction.jwsRepresentationIos else {
+            return nil
+        }
+        return .second(jwsRepresentation)
     }
 
     var environmentIos: String? {
-        if #available(iOS 16.0, *) {
-            return transaction.environment.rawValue
-        }
-        return nil
+        return transaction.environmentIos
     }
 
     var storefrontCountryCodeIos: String? {
-        if #available(iOS 17.0, *) {
-            return transaction.storefront.countryCode
-        }
-        return nil
+        return transaction.storefrontCountryCodeIos
     }
 
     var reasonIos: String? {
-        if #available(iOS 17.0, *) {
-            return transaction.reason.rawValue
-        }
-        return nil
+        return transaction.reasonIos
     }
 
     var offerIos: Variant_NullType_StorekitProductPurchaseOffer? {
-        if #available(iOS 17.2, *), let offer = transaction.offer {
-            return .second(
-                StorekitProductPurchaseOffer(
-                    id: offer.id ?? "",
-                    type: Double(offer.type.rawValue),
-                    paymentMode: offer.paymentMode?.rawValue ?? ""
-                )
-            )
+        guard let offer = transaction.offerIos else {
+            return nil
         }
-        return nil
+        return .second(
+            StorekitProductPurchaseOffer(
+                id: offer.id,
+                type: offer.type,
+                paymentMode: offer.paymentMode
+            )
+        )
     }
 
     var priceIos: Double? {
-        if #available(iOS 15.4, *) {
-            let jsonRep = transaction.jsonRepresentation
-            do {
-                if let jsonObj = try JSONSerialization.jsonObject(with: jsonRep) as? [String: Any],
-                    let price = jsonObj["price"] as? NSNumber
-                {
-                    return price.doubleValue
-                }
-            } catch {
-                print("Error parsing JSON representation: \(error)")
-            }
-        }
-        return nil
+        return transaction.priceIos
     }
 
     var currencyIos: String? {
-        if #available(iOS 15.4, *) {
-            let jsonRep = transaction.jsonRepresentation
-            do {
-                if let jsonObj = try JSONSerialization.jsonObject(with: jsonRep) as? [String: Any] {
-                    return jsonObj["currency"] as? String
-                }
-            } catch {
-                print("Error parsing JSON representation: \(error)")
-            }
-        }
-        return nil
+        return transaction.currencyIos
     }
 
     var type: PurchasedItemType {
-        // Determine type based on product type and expiration date
-        let isSubscription =
-            transaction.productType.rawValue.lowercased().contains("renewable")
-            || transaction.expirationDate != nil
-        return isSubscription ? .subscription : .inapp
+        switch transaction.type {
+        case .subscription:
+            return .subscription
+        case .inapp:
+            return .inapp
+        }
     }
 
     var sku: String {
-        return transaction.productID
+        return transaction.sku
     }
 }

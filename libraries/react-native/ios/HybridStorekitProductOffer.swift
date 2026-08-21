@@ -1,11 +1,11 @@
 import Foundation
 import NitroModules
-import StoreKit
+import VoidhashCore
 
 class HybridStorekitProductOffer: HybridStorekitProductOfferSpec {
-    private let offer: Product.SubscriptionOffer
+    private let offer: StoreKitSubscriptionOffer
 
-    init(offer: Product.SubscriptionOffer) {
+    init(offer: StoreKitSubscriptionOffer) {
         self.offer = offer
     }
 
@@ -20,19 +20,19 @@ class HybridStorekitProductOffer: HybridStorekitProductOfferSpec {
     }
 
     var periodCount: Double {
-        return Double(offer.period.value)
+        return offer.periodCount
     }
 
     var paymentMode: String {
-        return offer.paymentMode.rawValue
+        return offer.paymentMode
     }
 
     var type: String {
-        return offer.type.rawValue
+        return offer.type
     }
 
     var price: Double {
-        return (offer.price as NSDecimalNumber).doubleValue
+        return offer.price
     }
 
     var displayPrice: String {

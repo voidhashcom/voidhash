@@ -1,0 +1,214 @@
+---
+title: Swift SDK
+description: Client configuration and API reference for the Voidhash iOS SDK.
+icon: AppWindowMac
+---
+
+The Voidhash iOS SDK adds in-app purchases, entitlements, paywalls, feature flags, and analytics to
+native Swift apps. Start with the [Swift quickstart](/sdks/swift/quickstart) if you have not
+installed it yet.
+
+## Compatibility
+
+| Requirement | Version                                        |
+| ----------- | ---------------------------------------------- |
+| Platform    | iOS 15+ (paywalls require UIKit)               |
+| Toolchain   | Swift 6, builds with the Swift 5.9 language mode |
+| StoreKit    | StoreKit 2                                     |
+
+The package ships two library products:
+
+- **`Voidhash`** — the SDK you integrate against.
+- **`VoidhashCore`** — the shared native core (StoreKit engine, paywall bridge and presenter, API
+  client, identity, caching, schema). Also consumed by the React Native SDK's native layer.
+
+CocoaPods is supported through the npm package `@voidhash/ios`; declare both pods because the local
+`Voidhash` pod cannot resolve its local `VoidhashCore` dependency alone:
+
+```ruby
+pod "VoidhashCore", :path => "../node_modules/@voidhash/ios"
+pod "Voidhash", :path => "../node_modules/@voidhash/ios"
+```
+
+## Create the client
+
+Create one client for the lifetime of the app:
+
+```swift
+import Voidhash
+
+let voidhash = Voidhash.configure(publishableKey: "vh_pk_...")
+```
+
+The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
+
+`configure` returns the client, also reachable as `Voidhash.shared`. There is no schema argument:
+the schema lives on the server and is fetched during initialization.
+
+Initialization — store connection, schema resolution, reconciliation of transactions observed while
+the app was away — runs in the background and is awaited implicitly by the first call that needs it.
+Await it explicitly when you need to gate UI on it:
+
+```swift
+try await voidhash.waitForInitialization()
+```
+
+A failed initialization is retried on the next call that needs it.
+
+## Client options
+
+```swift
+var options = VoidhashOptions()
+options.baseUrl = URL(string: "https://api.voidhash.com")! // API origin
+options.ingestUrl = nil            // Analytics ingest origin; defaults to baseUrl
+options.debug = false              // SDK logging + marks requests as from a debug build
+options.distinctId = nil           // Seed the initial customer identity; usually omit
+options.enabled = true             // false makes every call inert (no network at all)
+options.readOnly = false           // Observer mode: sync transactions, never finish them
+options.onWarning = { message in } // Diagnostics never raised to the caller
+
+let voidhash = Voidhash.configure(publishableKey: "vh_pk_...", options: options)
+```
+
+| Option        | Default                    | Use                                                                        |
+| ------------- | -------------------------- | -------------------------------------------------------------------------- |
+| `baseUrl`     | `https://api.voidhash.com` | Override the API origin for self-hosted deployments.                       |
+| `ingestUrl`   | Same origin as `baseUrl`   | Override only the analytics origin.                                        |
+| `debug`       | `false`                    | Enable diagnostics and mark requests as debug-build traffic.               |
+| `distinctId`  | Generated anonymous ID     | Seed the initial customer identity. Usually omit it and call `identify()`. |
+| `enabled`     | `true`                     | Set `false` to ship the SDK fully inert.                                   |
+| `readOnly`    | `false`                    | Start in observer mode. Flip later with `setReadOnly()`.                   |
+| `onWarning`   | Unified log                | Receives background failures that are not surfaced as thrown errors.       |
+
+### Disabled clients
+
+With `enabled: false`, every method is inert: no requests are made, no store connection opens,
+`getProducts()` returns an empty list, and `getCurrentPerson()` returns `nil`.
+
+### Observer mode
+
+Observer mode is mutable at runtime:
+
+```swift
+await voidhash.setReadOnly(false)
+```
+
+While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them.
+A purchase already in flight keeps the mode it started with. See
+[Migrate in observer mode](/observer-mode).
+
+## Products and purchases
+
+```swift
+let products = try await voidhash.getProducts()
+
+if let product = products.first(where: { $0.slug == "pro-monthly" }) {
+    // Prices are already formatted for the customer's storefront.
+    print(product.displayPrice, product.interval ?? "one-time")
+    try await voidhash.purchase(product: product)
+}
+
+try await voidhash.restorePurchases()
+```
+
+`purchase(product:)` buys through StoreKit 2, syncs the transaction to Voidhash, and only then
+finishes it with the store.
+
+Failures surface as `VoidhashStoreError`, whose string form is `"CODE: message"`. Match known codes
+when recovery differs:
+
+```swift
+do {
+    try await voidhash.purchase(product: product)
+} catch let error as VoidhashStoreError where error.code == "USER_CANCELLED" {
+    // The customer dismissed the store sheet.
+}
+```
+
+Store sheets:
+
+```swift
+try await voidhash.presentCodeRedemptionSheet()
+try await voidhash.showManageSubscriptions()
+```
+
+## People and entitlements
+
+```swift
+let person = try await voidhash.getCurrentPerson()
+
+let isPro = person?.entitlements.grants.contains {
+    $0.perkId == "pro" && $0.status == "active"
+} ?? false
+
+try await voidhash.identify(externalUserId: "user_123", email: "ada@example.com", name: "Ada")
+try await voidhash.setPersonAttributes(["plan": .string("pro"), "seats": .number(3)])
+
+let distinctId = await voidhash.getDistinctId()
+await voidhash.reset() // Sign out: clears the identity and every cached response
+```
+
+The person snapshot is cached for two days and served stale after five minutes; pass
+`getCurrentPerson(forceFetch: true)` to bypass the cache. The SDK refreshes it after purchases,
+restores, and identity changes.
+
+See [Check access](/entitlements) and [Identify customers](/identify-users) for the underlying
+concepts.
+
+## Feature flags
+
+```swift
+let flags = try await voidhash.getFeatureFlags(["new-onboarding"])
+let enabled = flags.first { $0.key == "new-onboarding" }?.enabled == true
+```
+
+Pass `nil` to evaluate every flag. See [Evaluate feature flags](/feature-flags) for variants and
+identity behavior.
+
+## Analytics
+
+```swift
+await voidhash.capture("checkout_started", properties: ["plan": .string("pro")])
+await voidhash.flush()
+```
+
+Events are batched (20 per request, flushed every 5 seconds) and retried with exponential backoff;
+`flush()` sends everything queued right now. Names beginning with `$` are reserved for Voidhash
+events. See [Capture analytics](/analytics).
+
+## Paywalls
+
+```swift
+final class Paywalls: VoidhashPaywallDelegate {
+    func paywall(_ location: String, didPurchaseProductId productId: String, requestId: String?) {
+        // Unlock the feature.
+    }
+
+    func paywallDidDismiss(_ location: String) {}
+}
+
+// `from:` is optional and defaults to the key window's top controller.
+let result = try await voidhash.presentPaywall(
+    location: "onboarding",
+    from: self,
+    delegate: paywallsDelegate
+)
+
+switch result {
+case .shown: break
+case .notAssigned: break // No published paywall for this location
+case .failed: break      // Resolve or presentation failed
+}
+```
+
+Every delegate method has a default no-op implementation. The delegate is held weakly, so keep your
+own strong reference for as long as the paywall is presented — a released delegate silently stops
+receiving callbacks.
+
+Dismiss the paywall yourself with:
+
+```swift
+try await voidhash.dismissPaywall()
+```
+
+See [Display a paywall](/paywalls) for locations, fallbacks, and safe paywall changes.
