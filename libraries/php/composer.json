@@ -1,0 +1,41 @@
+{
+    "name": "voidhash/voidhash-php",
+    "description": "Official PHP SDK for the Voidhash API.",
+    "license": "MIT",
+    "type": "library",
+    "keywords": ["voidhash", "sdk", "subscriptions", "paywalls"],
+    "require": {
+        "php": "~8.2.0 || ~8.3.0 || ~8.4.0",
+        "ext-json": "*",
+        "nyholm/psr7": "^1.8",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "symfony/http-client": "^7.0",
+        "symfony/serializer": "^7.0"
+    },
+    "require-dev": {
+        "jane-php/open-api-3": "^7.8",
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Voidhash\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Voidhash\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.3.0"
+        }
+    },
+    "scripts": {
+        "generate": "@php vendor/bin/jane generate --config-file jane-config.php",
+        "test": "vendor/bin/phpunit"
+    },
+    "minimum-stability": "stable"
+}

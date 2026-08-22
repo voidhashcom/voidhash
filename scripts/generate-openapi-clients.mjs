@@ -189,6 +189,73 @@ const program = Effect.gen(function* () {
     path.join(nodeGeneratedRoot, "grouped-client.ts"),
   ]);
 
+  // Native SDKs (Go / Rust / PHP) generate from OpenAPI 3.0.x documents
+  // derived from the committed specs; see scripts/openapi-downgrade.mjs for
+  // what the downgrade does.
+  const downgradedCorePath = path.join(openapiRoot, "core-3.0.json");
+  yield* run(repoRoot, "node", [
+    "./scripts/openapi-downgrade.mjs",
+    coreSpecPath,
+    downgradedCorePath,
+  ]);
+
+  const downgradedEventCapturePath = path.join(openapiRoot, "event-capture-3.0.json");
+  yield* run(repoRoot, "node", [
+    "./scripts/openapi-downgrade.mjs",
+    "--rename-schema",
+    "Union_=CaptureEventValue",
+    "--rename-schema",
+    "Union_1=CaptureContextValue",
+    eventCaptureSpecPath,
+    downgradedEventCapturePath,
+  ]);
+
+  // Go: oapi-codegen over the downgraded specs.
+  yield* run(path.join(repoRoot, "libraries/go"), "go", [
+    "run",
+    "github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.5.0",
+    "-config",
+    "oapi-codegen-core.yaml",
+    downgradedCorePath,
+  ]);
+  yield* run(path.join(repoRoot, "libraries/go"), "go", [
+    "run",
+    "github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.5.0",
+    "-config",
+    "oapi-codegen-event-capture.yaml",
+    downgradedEventCapturePath,
+  ]);
+
+  // PHP: jane-openapi reads the mapping in jane-config.php.
+  yield* run(path.join(repoRoot, "libraries/php"), "composer", ["generate"]);
+
+  // Rust: progenitor runs at cargo build time (build.rs) over the
+  // `*.rust.json` variants, which additionally flatten error types and drop
+  // parameter nullability — both required by its codegen.
+  const rustCorePath = path.join(openapiRoot, "core-3.0.rust.json");
+  yield* run(repoRoot, "node", [
+    "./scripts/openapi-downgrade.mjs",
+    "--flatten-errors",
+    coreSpecPath,
+    rustCorePath,
+  ]);
+  const rustEventCapturePath = path.join(openapiRoot, "event-capture-3.0.rust.json");
+  yield* run(repoRoot, "node", [
+    "./scripts/openapi-downgrade.mjs",
+    "--rename-schema",
+    "Union_=CaptureEventValue",
+    "--rename-schema",
+    "Union_1=CaptureContextValue",
+    "--any-schema",
+    "CaptureEventValue",
+    "--any-schema",
+    "CaptureContextValue",
+    "--flatten-errors",
+    eventCaptureSpecPath,
+    rustEventCapturePath,
+  ]);
+  yield* run(path.join(repoRoot, "libraries/rust"), "cargo", ["check"]);
+
   return 0;
 });
 

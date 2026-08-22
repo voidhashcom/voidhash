@@ -1,0 +1,25 @@
+<?php
+
+namespace Voidhash\Resources;
+
+use Voidhash\Exception\ApiException;
+use Voidhash\Generated\Core\Client;
+use Voidhash\Generated\Core\Exception\ClientException;
+use Voidhash\Generated\Core\Model\PerkJsonEncoding;
+
+final class PerksResource
+{
+    public function __construct(private readonly Client $core)
+    {
+    }
+
+    /** @return list<PerkJsonEncoding> */
+    public function list(): array
+    {
+        try {
+            return $this->core->perksListPerks() ?? [];
+        } catch (ClientException $e) {
+            throw ApiException::fromThrowable($e);
+        }
+    }
+}

@@ -15,7 +15,10 @@
     "test:watch": "vitest -c vitest.unit.mts",
     "test:ios": "bash scripts/run-ios.sh",
     "test:android": "bash scripts/run-android.sh",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "test:go": "bash scripts/run-go.sh",
+    "test:php": "bash scripts/run-php.sh",
+    "test:rust": "bash scripts/run-rust.sh"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",

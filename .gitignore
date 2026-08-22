@@ -306,3 +306,12 @@ resources/
 
 # PGlite local database (pnpm db:pglite)
 .pglite/
+
+# Go / Rust / PHP native SDKs
+libraries/rust/target/
+libraries/php/vendor/
+packages/sdk-test-harness/runners/rust/target/
+libraries/php/.phpunit.result.cache
+# The SDK resource classes live in src/Resources; un-ignore them from the global resources/ pattern.
+!libraries/php/src/Resources/
+!libraries/php/src/Resources/**

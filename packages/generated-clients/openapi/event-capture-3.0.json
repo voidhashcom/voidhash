@@ -1,0 +1,672 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Api",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/i/v1/capture": {
+      "post": {
+        "tags": [
+          "event_capture"
+        ],
+        "operationId": "event_capture.capture",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "CaptureAcceptedResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CaptureInvalidRequestError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CaptureInvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/effect_HttpApiSchemaError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CaptureUnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CapturePayloadTooLargeError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapturePayloadTooLargeError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CaptureRateLimitedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureRateLimitedError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "CaptureInternalServerError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CaptureDependencyUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "uuid": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "event": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "context": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/CaptureEventValue"
+                    }
+                  },
+                  "properties": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/CaptureContextValue"
+                    }
+                  },
+                  "distinct_id": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "session_id": {
+                    "nullable": true,
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  },
+                  "timestamp": {
+                    "nullable": true,
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  },
+                  "sent_at": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  },
+                  "token": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "uuid",
+                  "event",
+                  "context",
+                  "properties",
+                  "distinct_id",
+                  "sent_at",
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/i/v1/batch": {
+      "post": {
+        "tags": [
+          "event_capture"
+        ],
+        "operationId": "event_capture.batch",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "CaptureAcceptedResponse",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CaptureInvalidRequestError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CaptureInvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/effect_HttpApiSchemaError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CaptureUnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CapturePayloadTooLargeError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapturePayloadTooLargeError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CaptureRateLimitedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureRateLimitedError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "CaptureInternalServerError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CaptureDependencyUnavailableError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "uuid": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "event": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "context": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/CaptureEventValue"
+                          }
+                        },
+                        "properties": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/CaptureContextValue"
+                          }
+                        },
+                        "distinct_id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "session_id": {
+                          "nullable": true,
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "timestamp": {
+                          "nullable": true,
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "uuid",
+                        "event",
+                        "context",
+                        "properties",
+                        "distinct_id"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "sent_at": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "format": "date-time"
+                      }
+                    ]
+                  },
+                  "token": {
+                    "type": "string",
+                    "allOf": [
+                      {
+                        "minLength": 1
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "events",
+                  "sent_at",
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CaptureAcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "integer"
+          },
+          "rejected": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accepted",
+          "rejected"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureInvalidRequestError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureInvalidRequestError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid_request"
+            ]
+          }
+        },
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "effect_HttpApiSchemaError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "HttpApiSchemaError"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureUnauthorizedError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureUnauthorizedError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "unauthorized"
+            ]
+          }
+        },
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "CapturePayloadTooLargeError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CapturePayloadTooLargeError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "payload_too_large"
+            ]
+          }
+        },
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureRateLimitedError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureRateLimitedError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "rate_limited"
+            ]
+          },
+          "retry_after_ms": {
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureDependencyUnavailableError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureDependencyUnavailableError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "dependency_unavailable"
+            ]
+          }
+        },
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureInternalServerError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "CaptureInternalServerError"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "internal_error"
+            ]
+          }
+        },
+        "required": [
+          "_tag",
+          "error",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureEventValue": {
+        "nullable": true,
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureEventValue"
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CaptureEventValue"
+            }
+          }
+        ]
+      },
+      "CaptureContextValue": {
+        "nullable": true,
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureContextValue"
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CaptureContextValue"
+            }
+          }
+        ]
+      }
+    },
+    "securitySchemes": {}
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "event_capture"
+    }
+  ]
+}

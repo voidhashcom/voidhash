@@ -1,0 +1,6 @@
+# Codegen config for the management API (core.json).
+package: api
+output: api/core.gen.go
+generate:
+  models: true
+  client: true

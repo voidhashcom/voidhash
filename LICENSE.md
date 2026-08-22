@@ -1,6 +1,6 @@
 # Voidhash licensing
 
-Copyright (c) 2025-present Voidhash s.r.o.
+Copyright (c) 2026-present Voidhash s.r.o.
 
 This repository uses license zones. The license for a file is determined by the
 closest license notice in its directory, the package metadata, or an SPDX

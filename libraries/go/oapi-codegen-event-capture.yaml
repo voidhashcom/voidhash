@@ -1,0 +1,6 @@
+# Codegen config for the event ingestion API (event-capture.json).
+package: eventcaptureapi
+output: api/eventcapture/eventcapture.gen.go
+generate:
+  models: true
+  client: true

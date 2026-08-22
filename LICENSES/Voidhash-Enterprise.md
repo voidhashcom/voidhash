@@ -1,6 +1,6 @@
 # Voidhash Enterprise License
 
-Copyright (c) 2025-present Voidhash s.r.o. All rights reserved.
+Copyright (c) 2026-present Voidhash s.r.o. All rights reserved.
 
 ## 1. Acceptance and scope
 
