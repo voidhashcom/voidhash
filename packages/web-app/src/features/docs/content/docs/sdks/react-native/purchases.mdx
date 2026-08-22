@@ -9,12 +9,8 @@ build your own purchase screen.
 
 ## Load products
 
-Every SDK returns the store-backed products configured in your project, with prices already
-formatted for the customer's storefront.
-
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-
-<Tab value="React Native">
+The SDK returns the store-backed products configured in your project, with prices already formatted
+for the customer's storefront:
 
 ```tsx
 const { data: products, error, isLoading } = voidhash.useProducts();
@@ -33,40 +29,10 @@ if (!monthly) return null;
 return <Text>{monthly.displayPrice}</Text>;
 ```
 
-</Tab>
-
-<Tab value="Swift">
-
-```swift
-let products = try await voidhash.getProducts()
-let monthly = products.first(where: { $0.slug == "monthly" })
-
-if let monthly {
-    Text(monthly.displayPrice)
-}
-```
-
-</Tab>
-
-<Tab value="Kotlin">
-
-```kotlin
-val products = voidhash.getProducts()
-val monthly = products.firstOrNull { it.slug == "monthly" }
-```
-
-</Tab>
-
-</Tabs>
-
 ## Start a purchase
 
 The SDK opens the native store flow, sends the transaction to Voidhash for server validation, and
 refreshes the current person after success — so entitlement grants update without extra work.
-
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-
-<Tab value="React Native">
 
 `purchase()` resolves to a better-result `Result` and never rejects — cancellation is an `Ok`
 outcome, not an error:
@@ -107,46 +73,6 @@ The `Ok` outcome is one of:
 The `Err` channel carries a coded [`VoidhashError`](/sdks/react-native/errors) — typically
 `FAILED_TO_PURCHASE`, or `READ_ONLY_PURCHASE_NOT_ALLOWED` in observer mode.
 
-</Tab>
-
-<Tab value="Swift">
-
-```swift
-do {
-    try await voidhash.purchase(product: monthly)
-    dismiss()
-} catch let error as VoidhashStoreError where error.code == "USER_CANCELLED" {
-    // The customer dismissed the store sheet.
-} catch {
-    reportError(error)
-}
-```
-
-Errors surface as `VoidhashStoreError` whose string form is `"CODE: message"` — match known codes
-such as `USER_CANCELLED` and `PURCHASE_PENDING` when recovery differs.
-
-</Tab>
-
-<Tab value="Kotlin">
-
-```kotlin
-lifecycleScope.launch {
-    try {
-        voidhash.purchase(activity, monthly)
-        finish()
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: VoidhashException) {
-        // Match error.code when recovery differs.
-        reportError(error)
-    }
-}
-```
-
-</Tab>
-
-</Tabs>
-
 <Callout type="warn" title="Grant access from Voidhash state">
   A successful store dialog is not the entitlement check. Unlock the feature only after the
   refreshed person contains an active grant.
@@ -155,38 +81,17 @@ lifecycleScope.launch {
 ## Restore purchases
 
 Apps should expose a visible restore action. Restore reconciles store transactions with Voidhash and
-refreshes the current person. It does not create a second purchase.
-
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-<Tab value="React Native">
+refreshes the current person. It does not create a second purchase:
 
 ```tsx
 await voidhash.client.restorePurchases();
 ```
-
-</Tab>
-<Tab value="Swift">
-
-```swift
-try await voidhash.restorePurchases()
-```
-
-</Tab>
-<Tab value="Kotlin">
-
-```kotlin
-voidhash.restorePurchases()
-```
-
-</Tab>
-</Tabs>
 
 ## Common failure cases
 
 - **Product is missing** — verify the store product mapping and the current sandbox environment.
 - **Purchase already in progress** — disable repeated taps while a purchase is running.
 - **Customer cancels** — handle the `cancelled` outcome as an expected result, not an app crash.
-  Match `USER_CANCELLED` on iOS; on Android the flow resolves without a transaction.
 - **Purchase succeeds but access is absent** — retry the person fetch and verify the product grants
   the expected perk in Studio.
 - **Restore finds nothing** — confirm the device uses the same App Store or Google Play account as
@@ -194,5 +99,6 @@ voidhash.restorePurchases()
 
 ## Next steps
 
-- [Check active entitlement grants](/entitlements)
-- [Use observer mode during a migration](/observer-mode)
+- [Check active entitlement grants](/sdks/react-native/entitlements)
+- [Structured error codes](/sdks/react-native/errors)
+- [Use observer mode during a migration](/resources/observer-mode)

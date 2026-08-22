@@ -1,0 +1,9 @@
+title: Setup
+description: Create a project, model your catalog, and publish paywall locations before touching an SDK.
+icon: Settings2
+pages:
+  - index
+  - create-a-project
+  - products-and-perks
+  - paywall-locations
+  - cli

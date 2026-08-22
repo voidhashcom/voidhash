@@ -1,0 +1,7 @@
+title: Backend integration
+description: Authenticate server-side clients with secret keys and receive webhooks.
+icon: ServerCog
+pages:
+  - index
+  - check-access
+  - webhooks

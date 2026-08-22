@@ -84,7 +84,7 @@ voidhash.client.isEnabled; // boolean, fixed at construction
 
 While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them,
 and `purchase()` / `setPersonAttributesSync()` are blocked. A purchase already in flight keeps the
-mode it started with. See [Migrate in observer mode](/observer-mode).
+mode it started with. See [Migrate in observer mode](/resources/observer-mode).
 
 ## Provider
 
@@ -132,7 +132,7 @@ if (status === "failed") {
 
 ### useHasPerk
 
-The fastest way to gate a feature. See [Check access](/entitlements) for offline behavior:
+The fastest way to gate a feature. See [Check access](/sdks/react-native/entitlements) for offline behavior:
 
 ```tsx
 const { hasAccess, grant, isLoading, isStale, error, refetch } = voidhash.useHasPerk("premium");
@@ -170,7 +170,7 @@ type Person = {
 
 Reads use a stale-while-revalidate cache: snapshots younger than five minutes are served from cache
 while a fresh copy loads in the background; the cached copy survives up to two days so
-[access checks fail open offline](/entitlements#offline-and-failure-behavior). The SDK refreshes
+[access checks fail open offline](/sdks/react-native/entitlements#offline-and-failure-behavior). The SDK refreshes
 the snapshot after purchases, restores, and identity changes.
 
 ### usePaywallByLocation
@@ -202,7 +202,7 @@ foreground and again on `show()`, and a `show()` that hits the same failure retu
 result instead of calling the callback. Failures are also logged with `console.warn` in every
 environment.
 
-See [Display a paywall](/paywalls) for what each status means and how to fall back.
+See [Display a paywall](/sdks/react-native/paywalls) for what each status means and how to fall back.
 
 ## Imperative client
 

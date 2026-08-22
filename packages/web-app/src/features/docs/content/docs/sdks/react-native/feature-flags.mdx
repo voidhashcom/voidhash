@@ -9,10 +9,6 @@ remote configuration.
 
 ## Evaluate flags
 
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-
-<Tab value="React Native">
-
 Keep the requested key array stable so the hook does not re-run on every render:
 
 ```tsx
@@ -45,40 +41,10 @@ The hook returns:
 
 Validate a variant payload before using it; payloads are untyped JSON.
 
-</Tab>
-
-<Tab value="Swift">
-
-```swift
-let flags = try await voidhash.getFeatureFlags(["new-onboarding", "pricing-test"])
-
-let newOnboarding = flags.first { $0.key == "new-onboarding" }?.enabled == true
-let pricing = flags.first { $0.key == "pricing-test" }
-```
-
-Pass `nil` to evaluate every flag.
-
-</Tab>
-
-<Tab value="Kotlin">
-
-```kotlin
-val flags = voidhash.getFeatureFlags(listOf("new_onboarding", "pricing_test"))
-
-val newOnboarding = flags.firstOrNull { it.key == "new_onboarding" }?.enabled == true
-val pricing = flags.firstOrNull { it.key == "pricing_test" }
-```
-
-Pass an empty list to evaluate every flag.
-
-</Tab>
-
-</Tabs>
-
 ## Identity behavior
 
 Flag results are scoped to the current person. The SDK clears them after `identify()` or a
 sign-out/reset so one customer never sees another customer's assignment.
 
 Choose a safe default while a flag is loading or unavailable. For paid access, use
-[entitlement grants](/entitlements) rather than a feature flag.
+[entitlement grants](/sdks/react-native/entitlements) rather than a feature flag.

@@ -12,36 +12,12 @@ the customer across devices.
 
 Pass a stable identifier from your backend, plus optional profile fields:
 
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-
-<Tab value="React Native">
-
 ```ts
 await voidhash.client.identify(user.id, {
   email: user.email,
   name: user.name,
 });
 ```
-
-</Tab>
-
-<Tab value="Swift">
-
-```swift
-try await voidhash.identify(externalUserId: user.id, email: user.email, name: user.name)
-```
-
-</Tab>
-
-<Tab value="Kotlin">
-
-```kotlin
-voidhash.identify(externalUserId = user.id, email = user.email, name = user.name)
-```
-
-</Tab>
-
-</Tabs>
 
 Use an opaque, unique ID such as a UUID. Do not use an email address or sequential database ID as
 the primary identifier.
@@ -53,10 +29,6 @@ identified person. Events captured before the switch remain attributed to the an
 
 Reset Voidhash after your own sign-out completes:
 
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-
-<Tab value="React Native">
-
 ```ts
 await auth.signOut();
 await voidhash.client.signOut();
@@ -65,36 +37,7 @@ await voidhash.client.signOut();
 `signOut()` flushes pending events under the old identity and starts a fresh anonymous session. Use
 `reset()` only when you need the same identity reset without recording a sign-out event.
 
-</Tab>
-
-<Tab value="Swift">
-
-```swift
-await voidhash.reset()
-```
-
-Clears the persisted identity and every cached response; the next `getDistinctId()` allocates a
-fresh anonymous distinct id.
-
-</Tab>
-
-<Tab value="Kotlin">
-
-```kotlin
-voidhash.reset()
-```
-
-Clears the local identity and cache; the next call generates a new anonymous id.
-
-</Tab>
-
-</Tabs>
-
 ## Set customer attributes
-
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-
-<Tab value="React Native">
 
 For background updates, send attributes through the analytics queue:
 
@@ -109,66 +52,14 @@ await voidhash.client.setPersonAttributes({
 Call `await voidhash.client.flush()` when delivery must complete immediately. If you need the
 updated person in the same request, use `setPersonAttributesSync()` instead.
 
-</Tab>
-
-<Tab value="Swift">
-
-```swift
-try await voidhash.setPersonAttributes([
-    "email": .string("ada@example.com"),
-    "name": .string("Ada Lovelace"),
-    "plan_source": .string("referral"),
-])
-```
-
-Writes the traits server-side and returns the updated person.
-
-</Tab>
-
-<Tab value="Kotlin">
-
-```kotlin
-voidhash.setPersonAttributes(
-    mapOf(
-        "email" to "ada@example.com",
-        "name" to "Ada Lovelace",
-        "plan_source" to "referral",
-    )
-)
-```
-
-</Tab>
-
-</Tabs>
-
 Attribute values can be strings, numbers, booleans, or `null`. `email` and `name` map to built-in
 person fields; other keys become custom traits.
 
 ## Read the distinct ID
 
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-<Tab value="React Native">
-
 ```ts
 const distinctId = await voidhash.client.getDistinctId();
 ```
-
-</Tab>
-<Tab value="Swift">
-
-```swift
-let distinctId = await voidhash.getDistinctId()
-```
-
-</Tab>
-<Tab value="Kotlin">
-
-```kotlin
-val distinctId = voidhash.getDistinctId()
-```
-
-</Tab>
-</Tabs>
 
 This is useful in support logs and when correlating a client session with your backend.
 
@@ -182,5 +73,5 @@ This is useful in support logs and when correlating a client session with your b
 
 ## Next steps
 
-- [Check the identified customer's access](/entitlements)
-- [Capture analytics events and traits](/analytics)
+- [Check the identified customer's access](/sdks/react-native/entitlements)
+- [Capture analytics events and traits](/sdks/react-native/analytics)

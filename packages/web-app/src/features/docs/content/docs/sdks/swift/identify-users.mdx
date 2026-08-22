@@ -1,0 +1,70 @@
+---
+title: Identify customers
+description: Link anonymous purchase history to accounts in your authentication system.
+icon: UserRoundCheck
+---
+
+Voidhash creates and persists an anonymous distinct ID on first launch. Purchases and events work
+before sign-in. If your app has accounts, call `identify()` after authentication so access follows
+the customer across devices.
+
+## Identify after sign-in
+
+Pass a stable identifier from your backend, plus optional profile fields:
+
+```swift
+try await voidhash.identify(externalUserId: user.id, email: user.email, name: user.name)
+```
+
+Use an opaque, unique ID such as a UUID. Do not use an email address or sequential database ID as
+the primary identifier.
+
+When an anonymous customer signs in, Voidhash moves their purchase history and entitlements to the
+identified person. Events captured before the switch remain attributed to the anonymous identity.
+
+## Sign out
+
+Reset Voidhash after your own sign-out completes:
+
+```swift
+await voidhash.reset()
+```
+
+Clears the persisted identity and every cached response; the next `getDistinctId()` allocates a
+fresh anonymous distinct id.
+
+## Set customer attributes
+
+```swift
+try await voidhash.setPersonAttributes([
+    "email": .string("ada@example.com"),
+    "name": .string("Ada Lovelace"),
+    "plan_source": .string("referral"),
+])
+```
+
+Writes the traits server-side and returns the updated person.
+
+Attribute values can be strings, numbers, booleans, or `nil`. `email` and `name` map to built-in
+person fields; other keys become custom traits.
+
+## Read the distinct ID
+
+```swift
+let distinctId = await voidhash.getDistinctId()
+```
+
+This is useful in support logs and when correlating a client session with your backend.
+
+## Anonymous or identified?
+
+| App model         | Recommended setup                                            |
+| ----------------- | ------------------------------------------------------------ |
+| No accounts       | Keep the automatically generated anonymous identity.         |
+| Optional accounts | Let purchases work anonymously, then identify after sign-in. |
+| Account required  | Identify immediately after restoring your app session.       |
+
+## Next steps
+
+- [Check the identified customer's access](/sdks/swift/entitlements)
+- [Capture analytics events and traits](/sdks/swift/analytics)

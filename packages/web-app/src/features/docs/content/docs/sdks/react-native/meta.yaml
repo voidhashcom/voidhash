@@ -4,5 +4,11 @@ icon: Smartphone
 pages:
   - index
   - quickstart
-  - errors
+  - paywalls
+  - purchases
+  - entitlements
+  - identify-users
+  - feature-flags
+  - analytics
   - development-mode
+  - errors

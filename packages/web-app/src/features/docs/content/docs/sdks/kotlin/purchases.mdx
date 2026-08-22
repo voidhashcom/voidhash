@@ -1,0 +1,76 @@
+---
+title: Make and restore purchases
+description: Build a custom purchase UI with store-backed products.
+icon: ShoppingBag
+---
+
+Hosted paywalls already handle purchase and restore actions. Use the APIs on this page when you
+build your own purchase screen.
+
+## Load products
+
+The SDK returns the store-backed products configured in your project, with prices already formatted
+for the customer's storefront:
+
+```kotlin
+val products = voidhash.getProducts()
+val monthly = products.firstOrNull { it.slug == "monthly" }
+```
+
+A product is absent from the result when it is not available on the current store account,
+environment, or provider configuration.
+
+## Start a purchase
+
+`purchase` launches the Play Billing flow from an activity, syncs the resulting transaction to
+Voidhash for server validation, and then acknowledges it — or consumes it for
+`one-time-consumable` products. The current person refreshes after success, so entitlement grants
+update without extra work:
+
+```kotlin
+lifecycleScope.launch {
+    try {
+        voidhash.purchase(activity, monthly)
+        finish()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: VoidhashException) {
+        // Match error.code when recovery differs.
+        reportError(error)
+    }
+}
+```
+
+Errors surface as `VoidhashException` with a stable `code`. See [Errors](/sdks/kotlin/errors) for
+the full list.
+
+<Callout type="warn" title="Grant access from Voidhash state">
+  A successful store dialog is not the entitlement check. Unlock the feature only after the
+  refreshed person contains an active grant.
+</Callout>
+
+## Restore purchases
+
+Apps should expose a visible restore action. Restore reconciles every purchase the store still
+reports and refreshes the current person. It does not create a second purchase:
+
+```kotlin
+voidhash.restorePurchases()
+```
+
+## Common failure cases
+
+- **Product is missing** — verify the store product mapping in Studio and the testing track.
+- **Purchase already in progress** — disable repeated taps while a purchase is running.
+- **Customer cancels** — on Android the flow resolves without a transaction; treat that as an
+  expected result, not an app crash.
+- **Purchase succeeds but access is absent** — retry the person fetch and verify the product grants
+  the expected perk in Studio.
+- **Restore finds nothing** — confirm the device uses the same Google Play account as the original
+  purchase.
+
+## Next steps
+
+- [Check active entitlement grants](/sdks/kotlin/entitlements)
+- [Structured error codes](/sdks/kotlin/errors)
+- [Use observer mode during a migration](/resources/observer-mode)

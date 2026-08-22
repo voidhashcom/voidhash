@@ -1,0 +1,6 @@
+title: Store setup
+description: Connect App Store Connect and Google Play Console for purchase validation.
+icon: Store
+pages:
+  - apple-app-store
+  - google-play

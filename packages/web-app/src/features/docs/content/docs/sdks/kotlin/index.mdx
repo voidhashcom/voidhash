@@ -89,7 +89,7 @@ voidhash.setReadOnly(false)
 
 While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them.
 A purchase already in flight keeps the mode it started with. See
-[Migrate in observer mode](/observer-mode).
+[Migrate in observer mode](/resources/observer-mode).
 
 ## Products and purchases
 
@@ -108,7 +108,7 @@ voidhash.restorePurchases()
 Voidhash, and then acknowledges it — or consumes it for `one-time-consumable` products.
 
 Restore reconciles every purchase the store still reports and refreshes the current person. See
-[Make and restore purchases](/purchases) for failure handling.
+[Make and restore purchases](/sdks/kotlin/purchases) for failure handling.
 
 ## People and entitlements
 
@@ -127,7 +127,7 @@ The person snapshot is cached for two days and served stale after five minutes; 
 `getCurrentPerson(forceFetch = true)` to bypass the cache. The SDK refreshes it after purchases,
 restores, and identity changes.
 
-See [Check access](/entitlements) and [Identify customers](/identify-users) for the underlying
+See [Check access](/sdks/kotlin/entitlements) and [Identify customers](/sdks/kotlin/identify-users) for the underlying
 concepts.
 
 ## Feature flags
@@ -137,7 +137,7 @@ val flags = voidhash.getFeatureFlags(listOf("new_onboarding"))
 val enabled = flags.firstOrNull { it.key == "new_onboarding" }?.enabled == true
 ```
 
-Pass an empty list to evaluate every flag. See [Evaluate feature flags](/feature-flags) for
+Pass an empty list to evaluate every flag. See [Evaluate feature flags](/sdks/kotlin/feature-flags) for
 variants and identity behavior.
 
 ## Analytics
@@ -149,7 +149,7 @@ voidhash.flush()
 
 Events are batched (20 events or every 5 seconds) and retried with exponential backoff, honoring
 `Retry-After`. Names beginning with `$` are reserved for Voidhash events. See
-[Capture analytics](/analytics).
+[Capture analytics](/sdks/kotlin/analytics).
 
 ## Paywalls
 
@@ -166,7 +166,7 @@ speaks the paywall bridge protocol natively: purchases, restores, close, and ext
 handled for you; custom events and logs are forwarded to the listener. It returns `false` when the
 backend has no published paywall for the location.
 
-See [Display a paywall](/paywalls) for locations, fallbacks, and safe paywall changes.
+See [Display a paywall](/sdks/kotlin/paywalls) for locations, fallbacks, and safe paywall changes.
 
 ## Shutdown
 

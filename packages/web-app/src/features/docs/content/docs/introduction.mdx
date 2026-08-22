@@ -4,8 +4,9 @@ description: Voidhash is the open-source subscription platform for mobile apps.
 icon: BookOpen
 ---
 
-Voidhash connects your app to the App Store and Google Play. Use it to build paywalls, validate
-purchases, keep subscription state in sync, and decide what each customer can access.
+Voidhash is the subscription platform for mobile apps. It connects your app to the App Store and
+Google Play so you can build paywalls, validate purchases, keep subscription state in sync, and
+decide what each customer can access.
 
 ## How it fits together
 
@@ -17,42 +18,55 @@ purchases, keep subscription state in sync, and decide what each customer can ac
 | **CLI**              | Connect a local project, generate typed slugs, and deploy code-authored paywalls. |
 
 Your app ships only a **publishable key** (`vh_pk_...`). Store credentials and secret keys stay on
-the server.
+the server. To get started, you need:
 
-## Pick your SDK
+1. [A Voidhash project](/setup/create-a-project) with its publishable key
+2. [An SDK installed in your app](/quickstart)
 
-Voidhash ships three client SDKs with the same core workflows — paywalls, purchases,
-entitlements, feature flags, and analytics — tailored to each platform:
+## Quickstart
 
-- [**React Native**](/sdks/react-native) — Expo development builds and bare React Native apps on
-  iOS and Android.
-- [**Swift**](/sdks/swift) — native iOS apps on StoreKit 2 (iOS 15+).
-- [**Kotlin**](/sdks/kotlin) — native Android apps on Google Play Billing (minSdk 23).
-
-The [quickstart](/quickstart) is the shortest path from an existing app to a working paywall and
-entitlement check.
-
-## Explore
+Pick your platform and show your first paywall:
 
 <Cards>
   <Card
-    title="Display a paywall"
-    description="Resolve a paywall by location and present it from your app."
-    href="/docs/paywalls"
+    title="React Native"
+    description="Expo development builds and bare React Native apps on iOS and Android."
+    href="/docs/sdks/react-native/quickstart"
   />
   <Card
-    title="Check access"
-    description="Gate features with one call using active perk grants."
-    href="/docs/entitlements"
+    title="Swift"
+    description="Native iOS apps with StoreKit 2. Requires iOS 15+."
+    href="/docs/sdks/swift/quickstart"
   />
   <Card
-    title="SDKs"
-    description="Platform-specific installation, configuration, and API reference."
-    href="/docs/sdks"
+    title="Kotlin"
+    description="Native Android apps with Google Play Billing. Requires minSdk 23+."
+    href="/docs/sdks/kotlin/quickstart"
   />
-  <Card
-    title="API Reference"
-    description="Build server integrations with the HTTP API."
-    href="/docs/api/overview"
-  />
+</Cards>
+
+## Explore
+
+Discover the full range of features and capabilities.
+
+<Cards>
+  <Card title="Setup" href="/docs/setup">
+    Create a project, model products and perks, and publish paywall locations.
+  </Card>
+
+  <Card title="Mobile SDKs" href="/docs/sdks">
+    Platform-specific installation, configuration, and workflows.
+  </Card>
+
+  <Card title="Store setup" href="/docs/store-setup">
+    Connect App Store Connect and Google Play Console.
+  </Card>
+
+  <Card title="Backend integration" href="/docs/backend">
+    Authenticate with secret keys and receive webhooks.
+  </Card>
+
+  <Card title="API Reference" href="/docs/api/overview">
+    Build server integrations with the HTTP API.
+  </Card>
 </Cards>

@@ -1,58 +1,13 @@
 ---
 title: Check access from your backend
-description: Gate server-side features on a customer's active perk grants with the Node SDK.
+description: Gate server-side features on a customer's active perk grants.
 icon: ServerCog
 ---
 
-Client-side checks decide what to render. Anything a customer could get by calling your API
-directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
-the server as well.
+Set up the [Node SDK with a secret key](/backend) first. This page covers deciding access: gate
+server-side features on a customer's active perk grants.
 
-`@voidhash/node` wraps the Voidhash REST API with a typed client and authenticates with a project
-secret key.
-
-```sh
-npm install @voidhash/node
-```
-
-Requires Node 18+ with a global `fetch`. `require()` additionally needs Node 20.19+ or 22.12+,
-because the CommonJS build loads the ESM-only `effect` package; `import` has no such constraint.
-
-<Steps>
-
-<Step>
-### Create a secret key
-
-In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
-
-Store it in an environment variable or your secret manager. A secret key grants full project access:
-never put it in a mobile app, a web bundle, or a repository.
-</Step>
-
-<Step>
-### Create the client
-
-```ts title="server/voidhash.ts"
-import { createVoidhashSdk } from "@voidhash/node";
-
-export const voidhash = createVoidhashSdk({
-  secretKey: process.env.VOIDHASH_SECRET_KEY!,
-});
-```
-
-| Option      | Default                    | Use                                                       |
-| ----------- | -------------------------- | --------------------------------------------------------- |
-| `secretKey` | —                          | Required. Sent as the `x-secret-key` header.              |
-| `baseUrl`   | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.     |
-| `headers`   | `{}`                       | Extra headers added to every request from this client.    |
-
-`createVoidhashSdk` validates eagerly and throws `VoidhashNodeConfigurationError` on a blank
-`secretKey`, an invalid `baseUrl`, a missing global `fetch`, or an `x-secret-key` passed through
-`headers` in any casing.
-</Step>
-
-<Step>
-### Check a perk
+## Check a perk
 
 ```ts title="server/routes/export.ts"
 app.get("/reports/export", async (req, res) => {
@@ -70,14 +25,11 @@ app.get("/reports/export", async (req, res) => {
 ```
 
 `distinctId` is the same identifier your app passed to
-[`identify()`](/identify-users). Pass **exactly one** of `perkId` or `perkSlug` — both or neither
-rejects with `VoidhashNodeConfigurationError` before any request is made.
+[`identify()`](/sdks/react-native/identify-users). Pass **exactly one** of `perkId` or `perkSlug` —
+both or neither rejects with `VoidhashNodeConfigurationError` before any request is made.
 
 `perkSlug` costs one extra `perks.listPerks` round trip to resolve. On a hot path, resolve the slug
 to its id once at boot and pass `perkId`.
-</Step>
-
-</Steps>
 
 <Callout type="info" title="An unknown customer has no access">
   `hasActivePerk` returns `false` for a `distinctId` Voidhash has never seen, and for a `perkSlug`
@@ -198,33 +150,10 @@ When a call fails with a transport error or a `5xx`, treat the answer as **unkno
 access*. Serve the last known good value, or fail the request. Revoking a paying customer's access
 because of a network blip is worse than a slightly stale cache.
 
-To keep a cache warm without polling, subscribe to [webhooks](/webhooks) and invalidate the cached
-entry when a subscription or purchase event arrives for that person.
-
-## Effect entrypoint
-
-Every method also exists as an `Effect`:
-
-```ts
-import { createVoidhashSdk } from "@voidhash/node/effect";
-
-const voidhash = createVoidhashSdk({ secretKey: process.env.VOIDHASH_SECRET_KEY! });
-
-const program = voidhash.entitlements.hasActivePerk({
-  distinctId: "user_123",
-  perkSlug: "premium",
-});
-```
-
-This entrypoint exposes Effect types across the package boundary, so your app must resolve to the
-same `effect` instance and version the SDK depends on. Effect v4 is still in beta and its types are
-not stable across releases. The default entrypoint has no such constraint — it returns plain
-Promises.
-
-The webhook helpers are Effect-free and exported identically from both entrypoints.
+To keep a cache warm without polling, subscribe to [webhooks](/backend/webhooks) and invalidate the
+cached entry when a subscription or purchase event arrives for that person.
 
 ## Next steps
 
-- [Receive webhooks](/webhooks)
-- [Check access in the app](/entitlements)
+- [Receive webhooks](/backend/webhooks)
 - [Persons in the API reference](/api/reference/persons/persons.getPersonEntitlements)

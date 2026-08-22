@@ -62,8 +62,8 @@ Create the smallest complete catalog:
 3. Create a paywall that includes the product, then publish it.
 4. Create a paywall location such as `onboarding` and assign the published paywall.
 
-Connect App Store Connect before testing a release build — see [Store setup](/apple-app-store).
-See [Products and perks](/products-and-perks) and [Paywalls](/paywalls) for the model behind these
+Connect App Store Connect before testing a release build — see [Store setup](/store-setup/apple-app-store).
+See [Products and perks](/setup/products-and-perks) and [Paywalls](/sdks/swift/paywalls) for the model behind these
 steps.
 
 </Step>
@@ -115,7 +115,7 @@ let hasPremium = person?.entitlements.grants.contains {
 ```
 
 The snapshot refreshes after a successful purchase or restore. See
-[Check access](/entitlements) for caching behavior and failure handling.
+[Check access](/sdks/swift/entitlements) for caching behavior and failure handling.
 
 </Step>
 
@@ -133,6 +133,6 @@ and refresh the person snapshot.
 ## Next steps
 
 - [Swift SDK reference](/sdks/swift)
-- [Display and target paywalls](/paywalls)
-- [Identify signed-in customers](/identify-users)
-- [Build a custom purchase screen](/purchases)
+- [Display and target paywalls](/sdks/swift/paywalls)
+- [Identify signed-in customers](/sdks/swift/identify-users)
+- [Build a custom purchase screen](/sdks/swift/purchases)

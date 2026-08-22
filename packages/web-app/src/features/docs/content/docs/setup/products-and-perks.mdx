@@ -36,67 +36,16 @@ The Voidhash slug is your cross-platform identifier. The App Store and Google Pl
 be different; the provider mappings connect both to the same Voidhash product.
 
 <Callout type="warn" title="Pricing comes from the store">
-  Always render `displayPrice` from the SDK. Do not hard-code a price or currency in the app or
-  paywall.
+  Every SDK renders `displayPrice` resolved against the customer's storefront. Do not hard-code a
+  price or currency in the app or paywall.
 </Callout>
-
-## Read products in your app
-
-Every SDK resolves the project's products against the store and returns store-backed values
-including `displayName`, `displayPrice`, `price`, `currency`, and `platform`. A product is absent
-from the result when it is not available on the current store account or environment.
-
-<Tabs items={["React Native", "Swift", "Kotlin"]}>
-
-<Tab value="React Native">
-
-```tsx
-const { data: products, error, isLoading } = voidhash.useProducts();
-
-const monthly = products.get("monthly");
-const availableProducts = products.toList();
-```
-
-`get(slug)` returns `null` when the product is not available.
-
-</Tab>
-
-<Tab value="Swift">
-
-```swift
-let products = try await voidhash.getProducts()
-
-let monthly = products.first(where: { $0.slug == "monthly" })
-```
-
-</Tab>
-
-<Tab value="Kotlin">
-
-```kotlin
-val products = voidhash.getProducts()
-
-val monthly = products.firstOrNull { it.slug == "monthly" }
-```
-
-</Tab>
-
-</Tabs>
 
 ## Keep generated types current
 
 The dashboard is the schema source of truth. React Native projects can pull its slugs into
-TypeScript after catalog changes:
-
-```bash
-npx voidhash-cli types generate
-```
-
-Commit `voidhash.gen.d.ts` so every developer and CI job uses the same product, perk, and location
-types. `npx voidhash-cli types check` fails when the committed file is behind the server schema.
+TypeScript after catalog changes — see [Keep types in sync](/setup/cli#keep-types-in-sync).
 
 ## Next steps
 
-- [Check perk access](/entitlements)
-- [Display a hosted paywall](/paywalls)
-- [Make purchases from custom UI](/purchases)
+- [Publish a paywall location](/setup/paywall-locations)
+- [Read products in your app](/sdks/react-native/purchases)

@@ -41,7 +41,7 @@ npx voidhash-cli init
 
 `pnpm dlx voidhash-cli init` works the same way. Install it with `--save-dev` only if you want the
 Metro integration, which runs `types generate --watch` alongside the dev server and needs the
-binary on `PATH`. See the [CLI reference](/cli).
+binary on `PATH`. See the [CLI reference](/setup/cli).
 
 The command signs you in, connects the directory to a Voidhash project, and creates:
 
@@ -109,7 +109,7 @@ Run type generation after changing product, perk, or location slugs:
 npx voidhash-cli types generate
 ```
 
-See [Products and perks](/products-and-perks) and [Paywalls](/paywalls) for the model behind these
+See [Products and perks](/setup/products-and-perks) and [Paywalls](/sdks/react-native/paywalls) for the model behind these
 steps.
 
 </Step>
@@ -170,7 +170,7 @@ export default function UpgradeScreen() {
 ```
 
 `show()` resolves to a `ShowPaywallResult` that names why a paywall was not presented. See
-[Display a paywall](/paywalls) for every status.
+[Display a paywall](/sdks/react-native/paywalls) for every status.
 
 The SDK handles product loading, purchase and restore actions, and dismissal for a hosted paywall.
 
@@ -189,7 +189,7 @@ return hasAccess ? <PremiumContent /> : <UpgradePrompt />;
 ```
 
 The person snapshot refreshes after a successful purchase or restore, so React re-renders with the
-new grant. See [Check access](/entitlements) for offline behavior and the imperative
+new grant. See [Check access](/sdks/react-native/entitlements) for offline behavior and the imperative
 `client.hasPerk()`.
 
 </Step>
@@ -208,7 +208,7 @@ Use `npx expo run:android` for Android. If you use EAS, create a new development
 
 ## Next steps
 
-- [Display and target paywalls](/paywalls)
-- [Identify signed-in customers](/identify-users)
-- [Build a custom purchase screen](/purchases)
+- [Display and target paywalls](/sdks/react-native/paywalls)
+- [Identify signed-in customers](/sdks/react-native/identify-users)
+- [Build a custom purchase screen](/sdks/react-native/purchases)
 - [Review the SDK reference](/sdks/react-native)

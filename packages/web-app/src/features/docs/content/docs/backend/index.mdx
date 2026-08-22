@@ -1,0 +1,81 @@
+---
+title: Set up your backend
+description: Authenticate with a project secret key using the Node SDK.
+icon: PlugZap
+---
+
+Client-side checks decide what to render. Anything a customer could get by calling your API
+directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
+the server as well.
+
+`@voidhash/node` wraps the Voidhash REST API with a typed client and authenticates with a project
+secret key.
+
+## Install the SDK
+
+```sh
+npm install @voidhash/node
+```
+
+Requires Node 18+ with a global `fetch`. `require()` additionally needs Node 20.19+ or 22.12+,
+because the CommonJS build loads the ESM-only `effect` package; `import` has no such constraint.
+
+<Steps>
+
+<Step>
+### Create a secret key
+
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+
+Store it in an environment variable or your secret manager. A secret key grants full project access:
+never put it in a mobile app, a web bundle, or a repository.
+</Step>
+
+<Step>
+### Create the client
+
+```ts title="server/voidhash.ts"
+import { createVoidhashSdk } from "@voidhash/node";
+
+export const voidhash = createVoidhashSdk({
+  secretKey: process.env.VOIDHASH_SECRET_KEY!,
+});
+```
+
+| Option      | Default                    | Use                                                       |
+| ----------- | -------------------------- | --------------------------------------------------------- |
+| `secretKey` | —                          | Required. Sent as the `x-secret-key` header.              |
+| `baseUrl`   | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.     |
+| `headers`   | `{}`                       | Extra headers added to every request from this client.    |
+
+`createVoidhashSdk` validates eagerly and throws `VoidhashNodeConfigurationError` on a blank
+`secretKey`, an invalid `baseUrl`, a missing global `fetch`, or an `x-secret-key` passed through
+`headers` in any casing.
+</Step>
+
+</Steps>
+
+With the client configured, continue with [checking access](/backend/check-access) or
+[receiving webhooks](/backend/webhooks).
+
+## Effect entrypoint
+
+Every method also exists as an `Effect`:
+
+```ts
+import { createVoidhashSdk } from "@voidhash/node/effect";
+
+const voidhash = createVoidhashSdk({ secretKey: process.env.VOIDHASH_SECRET_KEY! });
+
+const program = voidhash.entitlements.hasActivePerk({
+  distinctId: "user_123",
+  perkSlug: "premium",
+});
+```
+
+This entrypoint exposes Effect types across the package boundary, so your app must resolve to the
+same `effect` instance and version the SDK depends on. Effect v4 is still in beta and its types are
+not stable across releases. The default entrypoint has no such constraint — it returns plain
+Promises.
+
+The webhook helpers are Effect-free and exported identically from both entrypoints.

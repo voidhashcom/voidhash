@@ -1,0 +1,53 @@
+---
+title: Capture analytics
+description: Track product events and customer traits with the Voidhash SDK.
+icon: ChartNoAxesCombined
+---
+
+The SDK attributes events to the current person and sends them in background batches. No separate
+analytics package is required.
+
+## Capture an event
+
+```kotlin
+voidhash.capture(
+    "upgrade_button_clicked",
+    mapOf("source" to "settings", "plan" to "monthly"),
+)
+```
+
+Use clear, stable event names. Names beginning with `$` are reserved for Voidhash events.
+
+## Automatic events
+
+The SDK records common lifecycle events for you:
+
+- `$app_installed`
+- `$app_updated`
+- `$app_opened`
+- `$app_backgrounded`
+- `$app_became_active`
+- `$sign_out`
+
+Paywalls also send their analytics through the same queue and include the paywall location.
+
+## Flush before a boundary
+
+Events flush automatically in batches (20 per request or every 5 seconds, retried with exponential
+backoff, honoring `Retry-After`). Force delivery when the app is about to cross an important
+boundary:
+
+```kotlin
+voidhash.flush()
+```
+
+Sends every queued analytics event.
+
+## Update customer traits
+
+See [Set customer attributes](/sdks/kotlin/identify-users#set-customer-attributes) — trait updates
+ride the same pipeline as analytics events.
+
+## Next steps
+
+- [Identify customers before and after sign-in](/sdks/kotlin/identify-users)

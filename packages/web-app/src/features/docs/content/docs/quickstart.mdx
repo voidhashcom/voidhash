@@ -27,16 +27,18 @@ installation to a working paywall and entitlement check.
 
 ## What you need before you start
 
-- a Voidhash project and its **publishable key** (`vh_pk_...`) — store credentials and secret keys
+- a Voidhash project with its **publishable key** (`vh_pk_...`) — store credentials and secret keys
   never ship inside the app;
 - a subscription or one-time product in App Store Connect or Google Play Console; and
 - a paywall published in Studio, assigned to a location such as `onboarding`.
 
-The quickstarts use [development purchase mode](/sdks/react-native/development-mode) where
-available so you can test without store setup first.
+The React Native quickstart uses [development purchase mode](/sdks/react-native/development-mode) so
+you can test without store setup first. Swift and Kotlin test against App Store Sandbox or Google
+Play testing tracks from the start — see [Store setup](/store-setup/apple-app-store) and
+[Connect Google Play](/store-setup/google-play).
 
 ## Next steps
 
-- [Display a paywall](/paywalls)
-- [Check access with entitlement grants](/entitlements)
-- [Identify signed-in customers](/identify-users)
+- [Model products and perks](/setup/products-and-perks)
+- [Publish a paywall location](/setup/paywall-locations)
+- [Check access from your backend](/backend/check-access)

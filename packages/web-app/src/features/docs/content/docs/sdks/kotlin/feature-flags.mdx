@@ -1,0 +1,29 @@
+---
+title: Evaluate feature flags
+description: Gate features with remotely evaluated flags and variants.
+icon: Flag
+---
+
+Feature flags are evaluated for the current person. Use them for staged rollouts, experiments, and
+remote configuration.
+
+## Evaluate flags
+
+Pass the keys you need; pass an empty list to evaluate every flag:
+
+```kotlin
+val flags = voidhash.getFeatureFlags(listOf("new_onboarding", "pricing_test"))
+
+val newOnboarding = flags.firstOrNull { it.key == "new_onboarding" }?.enabled == true
+val pricing = flags.firstOrNull { it.key == "pricing_test" }
+```
+
+Validate a variant payload before using it; payloads are untyped JSON.
+
+## Identity behavior
+
+Flag results are scoped to the current person. The SDK clears them after `identify()` or a
+reset so one customer never sees another customer's assignment.
+
+Choose a safe default while flags are loading or unavailable. For paid access, use
+[entitlement grants](/sdks/kotlin/entitlements) rather than a feature flag.

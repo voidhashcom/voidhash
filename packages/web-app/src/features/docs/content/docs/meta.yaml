@@ -5,23 +5,15 @@ pages:
   - "---Get started---"
   - introduction
   - quickstart
-  - "---Build---"
-  - paywalls
-  - products-and-perks
-  - entitlements
-  - backend-entitlements
-  - identify-users
-  - purchases
-  - analytics
-  - feature-flags
-  - observer-mode
-  - webhooks
-  - "---SDKs---"
+  - "---Setup---"
+  - setup
+  - "---Mobile SDKs---"
   - sdks
-  - "---Resources---"
-  - cli
-  - mcp
   - "---Store setup---"
-  - apple-app-store
-  - google-play
+  - store-setup
+  - "---Backend integration---"
+  - backend
+  - "---Resources---"
+  - resources
+  - "---API reference---"
   - api

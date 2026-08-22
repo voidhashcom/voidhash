@@ -1,0 +1,48 @@
+---
+title: Display a paywall
+description: Resolve a paywall by location and present it from your app.
+icon: PanelsTopLeft
+---
+
+A **paywall** is the screen a customer sees. A **location** is the stable slug your app asks for,
+such as `onboarding` or `settings-upsell`. You publish and assign paywalls to locations in Studio —
+see [Paywall locations](/setup/paywall-locations). This page covers presenting them with the Kotlin
+SDK.
+
+## Present it
+
+```kotlin
+val shown = voidhash.presentPaywall(activity, location = "settings-upsell", listener = object : PaywallListener {
+    override fun onPurchaseCompleted(transaction: VoidhashTransaction) {}
+    override fun onEvent(name: String, properties: Map<String, Any?>) {}
+    override fun onDismiss() = Unit
+})
+```
+
+`presentPaywall` resolves the paywall configured for the location, presents it fullscreen, and
+speaks the paywall bridge protocol natively: purchases, restores, close, and external links are
+handled for you; custom events and logs are forwarded to the listener.
+
+It returns `false` when no published paywall is assigned to the location or the client is disabled.
+
+Hosted paywalls send purchase and restore actions through the same purchase pipeline. After a
+successful transaction, Voidhash refreshes the person snapshot and dismisses the paywall.
+
+## Fall back when nothing was shown
+
+Clearing or archiving a location in Studio makes future presentations return `false`. Keep a
+fallback for important entry points:
+
+```kotlin
+val shown = voidhash.presentPaywall(activity, location = "settings-upsell")
+
+if (!shown) {
+    showOwnUpgradeScreen()
+}
+```
+
+## Next steps
+
+- [Publish and change locations safely](/setup/paywall-locations)
+- [Check access after a purchase](/sdks/kotlin/entitlements)
+- [Build a custom purchase screen](/sdks/kotlin/purchases)

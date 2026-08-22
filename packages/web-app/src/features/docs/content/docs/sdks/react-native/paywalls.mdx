@@ -1,0 +1,83 @@
+---
+title: Display a paywall
+description: Resolve a paywall by location and present it from your app.
+icon: PanelsTopLeft
+---
+
+A **paywall** is the screen a customer sees. A **location** is the stable slug your app asks for,
+such as `onboarding` or `settings-upsell`. You publish and assign paywalls to locations in Studio —
+see [Paywall locations](/setup/paywall-locations). This page covers presenting them with the React
+Native SDK.
+
+## Present it
+
+`usePaywallByLocation` preloads the paywall assigned to the location and returns `show()`:
+
+```tsx
+const paywall = voidhash.usePaywallByLocation("settings-upsell", {
+  onPurchase: ({ productId }) => {
+    console.log("Purchased", productId);
+  },
+  onRestore: () => {
+    console.log("Purchases restored");
+  },
+  onError: (error, { action }) => {
+    console.warn(`Paywall ${action} failed`, error);
+  },
+});
+
+const result = await paywall.show();
+```
+
+`show()` never rejects. It resolves to a `ShowPaywallResult` whose `status` names the outcome:
+
+| `status`                | Meaning                                                        |
+| ----------------------- | -------------------------------------------------------------- |
+| `shown`                 | The native presenter opened the paywall.                       |
+| `not_assigned`          | No published paywall is assigned to the location.              |
+| `not_initialized`       | Still initializing, or used outside `<voidhash.Provider>`.     |
+| `initialization_failed` | Provider `init()` failed. Carries `error`.                     |
+| `native_unavailable`    | The platform has no native paywall presenter.                  |
+| `disabled`              | The client was created with `enabled: false`.                  |
+| `failed`                | Resolve, preload, or presentation failed. Carries `error`.     |
+
+Purchase and restore failures are reported through the hook's `onError` callback, not through
+`show()` — by then the paywall is already on screen.
+
+Hosted paywalls send purchase and restore actions through the SDK. After a successful transaction,
+Voidhash refreshes the person snapshot and dismisses the paywall.
+
+## Fall back when nothing was shown
+
+Clearing or archiving a location in Studio makes future presentations return `not_assigned`. Keep a
+fallback for important entry points:
+
+```tsx
+const result = await paywall.show();
+
+if (result.status !== "shown") {
+  navigation.navigate("Plans");
+}
+```
+
+## Preloading
+
+The hook preloads this location's paywall so `show()` presents without waiting on the network.
+Preload failures are reported through the `onPreloadError` option:
+
+| Option           | Fires when                                                               |
+| ---------------- | ------------------------------------------------------------------------- |
+| `onPurchase`     | A purchase started from the hosted paywall succeeded.                     |
+| `onRestore`      | A restore started from the hosted paywall succeeded.                      |
+| `onError`        | A hosted paywall `purchase` or `restore` action failed.                   |
+| `onPreloadError` | Background preloading of this location's paywall failed.                  |
+
+`onPreloadError` is a reporting hook, not a recovery path: the SDK retries on the next app
+foreground and again on `show()`, and a `show()` that hits the same failure returns a `failed`
+result instead of calling the callback.
+
+## Next steps
+
+- [Publish and change locations safely](/setup/paywall-locations)
+- [Check access after a purchase](/sdks/react-native/entitlements)
+- [Build a custom purchase screen](/sdks/react-native/purchases)

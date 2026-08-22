@@ -95,7 +95,7 @@ await voidhash.setReadOnly(false)
 
 While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them.
 A purchase already in flight keeps the mode it started with. See
-[Migrate in observer mode](/observer-mode).
+[Migrate in observer mode](/resources/observer-mode).
 
 ## Products and purchases
 
@@ -152,7 +152,7 @@ The person snapshot is cached for two days and served stale after five minutes; 
 `getCurrentPerson(forceFetch: true)` to bypass the cache. The SDK refreshes it after purchases,
 restores, and identity changes.
 
-See [Check access](/entitlements) and [Identify customers](/identify-users) for the underlying
+See [Check access](/sdks/swift/entitlements) and [Identify customers](/sdks/swift/identify-users) for the underlying
 concepts.
 
 ## Feature flags
@@ -162,7 +162,7 @@ let flags = try await voidhash.getFeatureFlags(["new-onboarding"])
 let enabled = flags.first { $0.key == "new-onboarding" }?.enabled == true
 ```
 
-Pass `nil` to evaluate every flag. See [Evaluate feature flags](/feature-flags) for variants and
+Pass `nil` to evaluate every flag. See [Evaluate feature flags](/sdks/swift/feature-flags) for variants and
 identity behavior.
 
 ## Analytics
@@ -174,7 +174,7 @@ await voidhash.flush()
 
 Events are batched (20 per request, flushed every 5 seconds) and retried with exponential backoff;
 `flush()` sends everything queued right now. Names beginning with `$` are reserved for Voidhash
-events. See [Capture analytics](/analytics).
+events. See [Capture analytics](/sdks/swift/analytics).
 
 ## Paywalls
 
@@ -211,4 +211,4 @@ Dismiss the paywall yourself with:
 try await voidhash.dismissPaywall()
 ```
 
-See [Display a paywall](/paywalls) for locations, fallbacks, and safe paywall changes.
+See [Display a paywall](/sdks/swift/paywalls) for locations, fallbacks, and safe paywall changes.

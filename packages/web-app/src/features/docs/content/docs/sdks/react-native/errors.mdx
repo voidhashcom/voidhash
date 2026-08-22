@@ -29,7 +29,7 @@ match on it.
 | `FAILED_TO_SETUP_LIFECYCLE_EVENTS`          | `init()` lifecycle step          | Non-fatal for reads; automatic lifecycle events are missing.                 |
 | `FAILED_TO_END_VOIDHASH_CLIENT`             | `end()`                          | Log and continue teardown.                                                   |
 | `FAILED_TO_FETCH_SCHEMA`                    | `init()` on a cold cache         | Check connectivity; the next launch retries.                                 |
-| `FAILED_TO_GET_CURRENT_PERSON`              | `getCurrentPerson()`, `hasPerk()`| Serve cached state; see [Check access](/entitlements).                       |
+| `FAILED_TO_GET_CURRENT_PERSON`              | `getCurrentPerson()`, `hasPerk()`| Serve cached state; see [Check access](/sdks/react-native/entitlements).                       |
 | `FAILED_TO_SET_PERSON_ATTRIBUTES`           | `setPersonAttributes()`          | Retry later; attributes ride the analytics queue.                            |
 | `FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC`      | `setPersonAttributesSync()`      | Retry; check read-only mode first (`READ_ONLY_PURCHASE_NOT_ALLOWED`).        |
 | `FAILED_TO_RESET_PERSON_CACHE`              | `resetCache()`                   | Safe to ignore; the cache expires on its own.                                |
@@ -41,7 +41,7 @@ match on it.
 | `FAILED_TO_GET_PAYWALL_FOR_LOCATION`        | `getPaywallForLocation()`        | `show()` reports it as a `"failed"` result instead of throwing.              |
 | `FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG`    | internal paywall bridge          | Logged; the paywall receives a degraded config automatically.                |
 | `FAILED_TO_GET_PRODUCTS`                    | `getProducts()`                  | Retry or render without store metadata.                                      |
-| `FAILED_TO_PURCHASE`                        | `purchase()`                     | Delivered as `{ status: "failed", error }`; see [Purchases](/purchases).     |
+| `FAILED_TO_PURCHASE`                        | `purchase()`                     | Delivered as `{ status: "failed", error }`; see [Purchases](/sdks/react-native/purchases).     |
 | `FAILED_TO_RESTORE_PURCHASES`               | `restorePurchases()`             | Prompt the customer to retry.                                                |
 | `FAILED_TO_FLUSH_ANALYTICS`                 | `flush()`                        | Events stay queued and flush later.                                          |
 | `FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET`   | iOS redemption sheet             | iOS only; verify the offer code configuration.                               |
@@ -52,7 +52,7 @@ match on it.
 | Code                               | Meaning                                                                 |
 | ---------------------------------- | ----------------------------------------------------------------------- |
 | `VOIDHASH_CLIENT_NOT_INITIALIZED`  | A method ran before the provider finished `init()`. Gate on `useVoidhash().status === "ready"`. |
-| `READ_ONLY_PURCHASE_NOT_ALLOWED`   | Observer mode blocks writes. See [Migrate in observer mode](/observer-mode). |
+| `READ_ONLY_PURCHASE_NOT_ALLOWED`   | Observer mode blocks writes. See [Migrate in observer mode](/resources/observer-mode). |
 | `SCHEME_NOT_SET`                   | No deep-link scheme was found. Set `scheme` in `app.json` or client options. |
 | `UNSUPPORTED_PLATFORM`             | A platform-specific method ran elsewhere (e.g. an iOS-only call on Android). |
 | `UNKNOWN`                          | An unexpected failure. Report the full error.                            |
@@ -60,10 +60,10 @@ match on it.
 ## Purchase outcomes
 
 `purchase()` never rejects. Cancellation and deferral are `Ok` outcomes on the resolved
-[`Result`](/purchases#start-a-purchase), and only the `Err` channel carries an error — typically
+[`Result`](/sdks/react-native/purchases#start-a-purchase), and only the `Err` channel carries an error — typically
 `FAILED_TO_PURCHASE`.
 
 ## Next steps
 
-- [Check access](/entitlements)
+- [Check access](/sdks/react-native/entitlements)
 - [React Native SDK reference](/sdks/react-native)
