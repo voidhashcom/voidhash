@@ -156,32 +156,39 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
           const distinctId = yield* identityManager.getDistinctId();
           yield* eventCaptureClient.eventCaptureBatch({
-            events: events.map((event) => ({
-              context: event.context,
-              distinct_id: distinctId,
-              event: event.event_name,
-              properties: event.properties,
-              session_id: event.session_id,
-              timestamp: event.event_ts,
-              uuid: event.event_id,
-            })),
-            sent_at: new Date().toISOString(),
-            token: sdkConfiguration.publishableKey,
+            payload: {
+              events: events.map((event) => ({
+                context: event.context,
+                distinct_id: distinctId,
+                event: event.event_name,
+                properties: event.properties,
+                session_id: event.session_id,
+                timestamp: event.event_ts,
+                uuid: event.event_id,
+              })),
+              sent_at: new Date().toISOString(),
+              // A distributed client holds no secret key, so ingest authorizes
+              // on the publishable token in the body.
+              token: sdkConfiguration.publishableKey,
+            },
           });
         }).pipe(
           Effect.catchTags({
-            CaptureDependencyUnavailableError: (err) => failRetryable(err.response.status),
-            CaptureInternalServerError: (err) => failRetryable(err.response.status),
-            CapturePayloadTooLargeError: (err) => failNonRetryable(err.response.status),
-            CaptureRateLimitedError: (err) =>
+            CaptureDependencyUnavailableErrorJsonEncoding: (err) =>
+              failRetryable(err.response.status),
+            CaptureInternalServerErrorJsonEncoding: (err) => failRetryable(err.response.status),
+            // The 400 is now a typed contract error rather than an untagged
+            // `EventCaptureBatch400`.
+            CaptureInvalidRequestErrorJsonEncoding: (err) => failNonRetryable(err.response.status),
+            CapturePayloadTooLargeErrorJsonEncoding: (err) => failNonRetryable(err.response.status),
+            CaptureRateLimitedErrorJsonEncoding: (err) =>
               failRetryable(
                 err.response.status,
                 parseRetryAfterMs(err.response.headers["retry-after"]) ??
                   err.data.retry_after_ms ??
                   undefined,
               ),
-            CaptureUnauthorizedError: (err) => failNonRetryable(err.response.status),
-            EventCaptureBatch400: (err) => failNonRetryable(err.response.status),
+            CaptureUnauthorizedErrorJsonEncoding: (err) => failNonRetryable(err.response.status),
           }),
           // Unmapped status codes (e.g. 408/502/504) surface as
           // `HttpClientError`; treat network errors and the retryable subset

@@ -5,22 +5,22 @@ namespace Voidhash\Generated\EventCapture\Exception;
 class EventCaptureCaptureServiceUnavailableException extends ServiceUnavailableException
 {
     /**
-     * @var \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableError
+     * @var \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding
      */
-    private $captureDependencyUnavailableError;
+    private $captureDependencyUnavailableErrorJsonEncoding;
     /**
      * @var \Psr\Http\Message\ResponseInterface
      */
     private $response;
-    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableError $captureDependencyUnavailableError, \Psr\Http\Message\ResponseInterface $response)
+    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding $captureDependencyUnavailableErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
     {
         parent::__construct('CaptureDependencyUnavailableError');
-        $this->captureDependencyUnavailableError = $captureDependencyUnavailableError;
+        $this->captureDependencyUnavailableErrorJsonEncoding = $captureDependencyUnavailableErrorJsonEncoding;
         $this->response = $response;
     }
-    public function getCaptureDependencyUnavailableError(): \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableError
+    public function getCaptureDependencyUnavailableErrorJsonEncoding(): \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding
     {
-        return $this->captureDependencyUnavailableError;
+        return $this->captureDependencyUnavailableErrorJsonEncoding;
     }
     public function getResponse(): \Psr\Http\Message\ResponseInterface
     {

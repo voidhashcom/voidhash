@@ -50,17 +50,14 @@ cp .env.example .env
 | --- | --- | --- | --- |
 | `VOIDHASH_SECRET_KEY` | yes | — | `vh_sk_…`. Full project access; server only. |
 | `VOIDHASH_WEBHOOK_SECRET` | for the webhook route | — | `whsec_…`. Without it the route answers `503`. |
-| `VOIDHASH_PUBLISHABLE_KEY` | for analytics | — | `vh_pk_…`. Without it capture is skipped. |
 | `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` | |
 | `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` | Analytics ingest lives on its own host. |
 | `PORT` | no | `8080` | |
 
-> **On the publishable key.** `voidhash.analytics.capture` posts to ingest, which
-> authenticates with the *publishable* key in the request body rather than with
-> the secret key — which is why this is the one place the backend wants a
-> `vh_pk_`. Leave it unset and the service still runs; capture is a no-op and
-> says so at boot. Person attributes (`persons.setPersonAttributes`) use the
-> secret key, so they keep working either way.
+> **One credential.** The secret key covers everything this service does,
+> analytics included: `voidhash.eventCapture.capture` posts to ingest — its own
+> host, hence `VOIDHASH_INGEST_URL` — and authorizes with the same
+> `x-secret-key` header as the REST API. No publishable key on a backend.
 
 ## Run
 

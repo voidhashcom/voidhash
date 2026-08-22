@@ -5,11 +5,11 @@ description: Choose the correct credential for server, tool, or device requests.
 
 Voidhash has three programmatic credential types. Use the narrowest one that fits the caller.
 
-| Credential         | Header                                | Use                                                       |
-| ------------------ | ------------------------------------- | --------------------------------------------------------- |
-| User API key       | `x-api-key`                           | CLI and tools acting as a signed-in user across projects. |
-| Project secret key | `x-secret-key`                        | Server-to-server requests for one project.                |
-| Publishable key    | `x-publishable-key` + `x-distinct-id` | Official SDKs and distributed clients.                    |
+| Credential         | Header                                | Use                                                                 |
+| ------------------ | ------------------------------------- | ------------------------------------------------------------------- |
+| User API key       | `x-api-key`                           | CLI and tools acting as a signed-in user across projects.           |
+| Project secret key | `x-secret-key`                        | Server-to-server requests for one project, including event capture. |
+| Publishable key    | `x-publishable-key` + `x-distinct-id` | Official SDKs and distributed clients.                              |
 
 ## Project secret keys
 
@@ -22,7 +22,7 @@ curl https://api.voidhash.com/api/v1/persons \
 
 <Callout type="warn" title="Never expose a secret key">
   A project secret key grants broad access to the project. Do not put it in a mobile app, web
-  bundle, public repository, or analytics event. Rotate it immediately after exposure.
+  bundle, public repository, or analytics event property. Rotate it immediately after exposure.
 </Callout>
 
 ## User API keys
@@ -57,5 +57,12 @@ can access. A valid key can still receive `403` when it lacks permission for an 
 
 ## Event capture
 
-`/i/v1/capture` and `/i/v1/batch` use a publishable `token` in the JSON body instead of these
-headers. See [Event Capture](/api/event-capture).
+`/i/v1/capture` and `/i/v1/batch` accept either credential:
+
+- from a backend, send the project secret key as `x-secret-key`. No `x-distinct-id` is needed —
+  each event carries its own `distinct_id`;
+- from a distributed client that cannot hold a secret, send the publishable key as a `token` field
+  in the JSON body instead.
+
+Send one or the other. When both are present the body `token` wins. See
+[Event Capture](/api/event-capture).

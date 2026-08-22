@@ -6,10 +6,14 @@ class EventCaptureCapture extends \Voidhash\Generated\EventCapture\Runtime\Clien
 {
     /**
      * @param \Voidhash\Generated\EventCapture\Model\IV1CapturePostBody $requestBody
+     * @param array{
+     *    "x-secret-key"?: string,
+     * } $headerParameters
      */
-    public function __construct(\Voidhash\Generated\EventCapture\Model\IV1CapturePostBody $requestBody)
+    public function __construct(\Voidhash\Generated\EventCapture\Model\IV1CapturePostBody $requestBody, array $headerParameters = [])
     {
         $this->body = $requestBody;
+        $this->headerParameters = $headerParameters;
     }
     use \Voidhash\Generated\EventCapture\Runtime\Client\EndpointTrait;
     public function getMethod(): string
@@ -31,6 +35,15 @@ class EventCaptureCapture extends \Voidhash\Generated\EventCapture\Runtime\Clien
     {
         return ['Accept' => ['application/json']];
     }
+    protected function getHeadersOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
+    {
+        $optionsResolver = parent::getHeadersOptionsResolver();
+        $optionsResolver->setDefined(['x-secret-key']);
+        $optionsResolver->setRequired([]);
+        $optionsResolver->setDefaults([]);
+        $optionsResolver->addAllowedTypes('x-secret-key', ['string', 'null']);
+        return $optionsResolver;
+    }
     /**
      * {@inheritdoc}
      *
@@ -41,32 +54,32 @@ class EventCaptureCapture extends \Voidhash\Generated\EventCapture\Runtime\Clien
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureInternalServerErrorException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureServiceUnavailableException
      *
-     * @return null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse
+     * @return null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding
      */
     protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
         if (is_null($contentType) === false && (202 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            return $serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse', 'json');
+            return $serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding', 'json');
         }
         if (is_null($contentType) === false && (400 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureBadRequestException($response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureBadRequestException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (413 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureRequestEntityTooLargeException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeError', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureRequestEntityTooLargeException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureInternalServerError', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (503 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureServiceUnavailableException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableError', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureServiceUnavailableException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding', 'json'), $response);
         }
     }
     public function getAuthenticationScopes(): array

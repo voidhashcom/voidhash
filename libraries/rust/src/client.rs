@@ -22,13 +22,12 @@ const SECRET_KEY_HEADER: &str = "x-secret-key";
 /// ```
 pub struct VoidhashClient {
     core: generated::Client,
+    /// Shared transport. Its default headers carry the secret key and any
+    /// caller-supplied extras, so ingestion — which authenticates on the same
+    /// secret key — reuses it rather than building its own request.
+    http: reqwest::Client,
     ingest_url: String,
     publishable_key: Option<String>,
-    /// Ingest-only transport. Deliberately separate from the management
-    /// client's: that one carries the secret key on every request, and ingest
-    /// authenticates on the publishable key in the body instead — sending a
-    /// secret key there would leak it to an origin that has no use for it.
-    ingest_http: reqwest::Client,
 }
 
 /// Builder for [`VoidhashClient`].
@@ -59,9 +58,10 @@ impl ClientBuilder {
         self
     }
 
-    /// Sets the publishable key (`vh_pk_...`), which event ingestion
-    /// authenticates on. Required only for [`VoidhashClient::event_capture`];
-    /// every other resource uses the secret key.
+    /// Sets the publishable key (`vh_pk_...`). Optional: event capture
+    /// authenticates on the secret key like every other resource, and a
+    /// publishable key is only forwarded as the capture body `token` so that
+    /// server-side captures match what the browser and mobile SDKs send.
     pub fn publishable_key(mut self, key: impl Into<String>) -> Self {
         self.publishable_key = Some(key.into());
         self
@@ -106,8 +106,9 @@ impl ClientBuilder {
             }
             let name = reqwest::header::HeaderName::from_bytes(name.as_bytes())
                 .map_err(|error| Error::Request(format!("invalid header name {name}: {error}")))?;
-            let value = reqwest::header::HeaderValue::from_str(value)
-                .map_err(|error| Error::Request(format!("invalid header value {value}: {error}")))?;
+            let value = reqwest::header::HeaderValue::from_str(value).map_err(|error| {
+                Error::Request(format!("invalid header value {value}: {error}"))
+            })?;
             headers.insert(name, value);
         }
 
@@ -118,9 +119,9 @@ impl ClientBuilder {
 
         Ok(VoidhashClient {
             core,
+            http,
             ingest_url: self.ingest_url,
             publishable_key: self.publishable_key,
-            ingest_http: reqwest::Client::new(),
         })
     }
 }
@@ -193,17 +194,14 @@ impl VoidhashClient {
 
     /// Webhook endpoints and deliveries.
     pub fn webhooks(&self) -> WebhooksApi<'_> {
-        WebhooksApi {
-            core: &self.core,
-        }
+        WebhooksApi { core: &self.core }
     }
 
-    /// Analytics ingestion. Authenticates on the publishable key rather than
-    /// the secret key, so the client must be built with
-    /// [`ClientBuilder::publishable_key`].
+    /// Analytics ingestion. Authenticates on the secret key, so no extra
+    /// configuration is needed.
     pub fn event_capture(&self) -> EventCaptureApi<'_> {
         EventCaptureApi {
-            http: &self.ingest_http,
+            http: &self.http,
             ingest_url: &self.ingest_url,
             publishable_key: self.publishable_key.as_deref(),
         }
@@ -244,7 +242,11 @@ impl ApiKeysApi<'_> {
         &self,
         params: &types::CreateSecretKeyBodyJsonEncoding,
     ) -> Result<types::ApiKeyWithRawKeyJsonEncoding, Error> {
-        Ok(self.core.api_keys_create_secret_key(params).await?.into_inner())
+        Ok(self
+            .core
+            .api_keys_create_secret_key(params)
+            .await?
+            .into_inner())
     }
 
     /// Lists all secret keys visible to the current key.
@@ -254,7 +256,11 @@ impl ApiKeysApi<'_> {
 
     /// Fetches one secret key by id.
     pub async fn get(&self, api_key_id: &str) -> Result<types::ApiKeyJsonEncoding, Error> {
-        Ok(self.core.api_keys_get_api_key_by_id(api_key_id).await?.into_inner())
+        Ok(self
+            .core
+            .api_keys_get_api_key_by_id(api_key_id)
+            .await?
+            .into_inner())
     }
 
     /// Revokes a secret key.
@@ -268,7 +274,11 @@ impl ApiKeysApi<'_> {
         &self,
         api_key_id: &str,
     ) -> Result<types::ApiKeyWithRawKeyJsonEncoding, Error> {
-        Ok(self.core.api_keys_rotate_secret_key(api_key_id).await?.into_inner())
+        Ok(self
+            .core
+            .api_keys_rotate_secret_key(api_key_id)
+            .await?
+            .into_inner())
     }
 }
 
@@ -288,7 +298,11 @@ impl PersonsApi<'_> {
 
     /// Fetches one person by id.
     pub async fn get(&self, person_id: &str) -> Result<types::PersonJsonEncoding, Error> {
-        Ok(self.core.persons_get_person_by_id(person_id).await?.into_inner())
+        Ok(self
+            .core
+            .persons_get_person_by_id(person_id)
+            .await?
+            .into_inner())
     }
 
     /// Writes profile fields and traits for the person with the given distinct
@@ -304,11 +318,11 @@ impl PersonsApi<'_> {
         // The generated trait map is a union type that is awkward to build by
         // hand, so `PersonAttributes` is converted through the generated body's
         // own `Deserialize` rather than constructed field by field.
-        let body: types::SetPersonAttributesBodyJsonEncoding =
-            serde_json::from_value(serde_json::to_value(params).map_err(|error| {
-                Error::Request(format!("encoding person attributes: {error}"))
-            })?)
-            .map_err(|error| Error::Request(format!("encoding person attributes: {error}")))?;
+        let body: types::SetPersonAttributesBodyJsonEncoding = serde_json::from_value(
+            serde_json::to_value(params)
+                .map_err(|error| Error::Request(format!("encoding person attributes: {error}")))?,
+        )
+        .map_err(|error| Error::Request(format!("encoding person attributes: {error}")))?;
 
         Ok(self
             .core
@@ -325,7 +339,8 @@ impl PersonsApi<'_> {
         Ok(self
             .core
             .persons_get_person_by_distinct_id(distinct_id)
-            .await?.into_inner())
+            .await?
+            .into_inner())
     }
 
     /// Returns the person's entitlement grants. A 404 surfaces as
@@ -370,9 +385,10 @@ impl PersonsApi<'_> {
 
     async fn has_active_perk_by_id(&self, distinct_id: &str, perk_id: &str) -> Result<bool, Error> {
         match self.grants_by_distinct_id(distinct_id).await {
-            Ok(grants) => Ok(grants
-                .iter()
-                .any(|grant| grant.perk_id == perk_id && grant.status == types::SdkEntitlementGrantJsonEncodingStatus::Active)),
+            Ok(grants) => Ok(grants.iter().any(|grant| {
+                grant.perk_id == perk_id
+                    && grant.status == types::SdkEntitlementGrantJsonEncodingStatus::Active
+            })),
             Err(error) if error.is_not_found() => Ok(false),
             Err(error) => Err(error),
         }
@@ -400,14 +416,15 @@ impl PerksApi<'_> {
 
 impl OrganizationsApi<'_> {
     /// Creates a new organization.
-    pub async fn create(
-        &self,
-        name: &str,
-    ) -> Result<types::OrganizationJsonEncoding, Error> {
+    pub async fn create(&self, name: &str) -> Result<types::OrganizationJsonEncoding, Error> {
         let params = types::CreateOrganizationBodyJsonEncoding {
             name: name.to_string(),
         };
-        Ok(self.core.organizations_create_organization(&params).await?.into_inner())
+        Ok(self
+            .core
+            .organizations_create_organization(&params)
+            .await?
+            .into_inner())
     }
 }
 
@@ -417,7 +434,11 @@ impl ProjectsApi<'_> {
         &self,
         params: &types::CreateProjectBodyJsonEncoding,
     ) -> Result<types::ProjectJsonEncoding, Error> {
-        Ok(self.core.projects_create_project(params).await?.into_inner())
+        Ok(self
+            .core
+            .projects_create_project(params)
+            .await?
+            .into_inner())
     }
 
     /// Lists all projects of an organization.
@@ -468,7 +489,11 @@ impl PaywallsApi<'_> {
         &self,
         manifest: &serde_json::Value,
     ) -> Result<types::CreatePaywallDeployResponseJsonEncoding, Error> {
-        Ok(self.core.paywall_deploys_create_deploy(manifest).await?.into_inner())
+        Ok(self
+            .core
+            .paywall_deploys_create_deploy(manifest)
+            .await?
+            .into_inner())
     }
 
     /// Uploads one binary blob for a pending deploy. The sha256 must be the
@@ -482,7 +507,8 @@ impl PaywallsApi<'_> {
         Ok(self
             .core
             .paywall_deploys_upload_blob(deploy_id, sha256, blob)
-            .await?.into_inner())
+            .await?
+            .into_inner())
     }
 
     /// Completes a pending deploy after all blobs are uploaded.
@@ -490,7 +516,11 @@ impl PaywallsApi<'_> {
         &self,
         deploy_id: &str,
     ) -> Result<types::FinalizePaywallDeployResponseJsonEncoding, Error> {
-        Ok(self.core.paywall_deploys_finalize_deploy(deploy_id).await?.into_inner())
+        Ok(self
+            .core
+            .paywall_deploys_finalize_deploy(deploy_id)
+            .await?
+            .into_inner())
     }
 }
 
@@ -512,7 +542,11 @@ impl NotificationsApi<'_> {
         &self,
         notification: &types::SendNotificationBodyJsonEncoding,
     ) -> Result<types::SendNotificationResponseJsonEncoding, Error> {
-        Ok(self.core.notifications_send_notification(notification).await?.into_inner())
+        Ok(self
+            .core
+            .notifications_send_notification(notification)
+            .await?
+            .into_inner())
     }
 }
 
@@ -544,12 +578,20 @@ impl WebhookEndpointsApi<'_> {
         &self,
         params: &types::CreateWebhookEndpointBodyJsonEncoding,
     ) -> Result<types::WebhookEndpointJsonEncoding, Error> {
-        Ok(self.core.webhooks_create_webhook_endpoint(params).await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_create_webhook_endpoint(params)
+            .await?
+            .into_inner())
     }
 
     /// Lists all registered webhook endpoints.
     pub async fn list(&self) -> Result<Vec<types::WebhookEndpointJsonEncoding>, Error> {
-        Ok(self.core.webhooks_list_webhook_endpoints().await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_list_webhook_endpoints()
+            .await?
+            .into_inner())
     }
 
     /// Fetches one webhook endpoint.
@@ -557,7 +599,11 @@ impl WebhookEndpointsApi<'_> {
         &self,
         endpoint_id: &str,
     ) -> Result<types::WebhookEndpointJsonEncoding, Error> {
-        Ok(self.core.webhooks_get_webhook_endpoint(endpoint_id).await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_get_webhook_endpoint(endpoint_id)
+            .await?
+            .into_inner())
     }
 
     /// Patches an existing webhook endpoint.
@@ -569,12 +615,15 @@ impl WebhookEndpointsApi<'_> {
         Ok(self
             .core
             .webhooks_update_webhook_endpoint(endpoint_id, params)
-            .await?.into_inner())
+            .await?
+            .into_inner())
     }
 
     /// Removes a webhook endpoint.
     pub async fn delete(&self, endpoint_id: &str) -> Result<(), Error> {
-        self.core.webhooks_delete_webhook_endpoint(endpoint_id).await?;
+        self.core
+            .webhooks_delete_webhook_endpoint(endpoint_id)
+            .await?;
         Ok(())
     }
 
@@ -583,7 +632,11 @@ impl WebhookEndpointsApi<'_> {
         &self,
         endpoint_id: &str,
     ) -> Result<types::WebhookEndpointJsonEncoding, Error> {
-        Ok(self.core.webhooks_rotate_webhook_secret(endpoint_id).await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_rotate_webhook_secret(endpoint_id)
+            .await?
+            .into_inner())
     }
 
     /// Sends a signed test delivery to the endpoint.
@@ -591,14 +644,22 @@ impl WebhookEndpointsApi<'_> {
         &self,
         endpoint_id: &str,
     ) -> Result<types::WebhookDeliveryJsonEncoding, Error> {
-        Ok(self.core.webhooks_test_webhook_endpoint(endpoint_id).await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_test_webhook_endpoint(endpoint_id)
+            .await?
+            .into_inner())
     }
 }
 
 impl WebhookDeliveriesApi<'_> {
     /// Lists recent deliveries.
     pub async fn list(&self) -> Result<Vec<types::WebhookDeliveryJsonEncoding>, Error> {
-        Ok(self.core.webhooks_list_webhook_deliveries().await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_list_webhook_deliveries()
+            .await?
+            .into_inner())
     }
 
     /// Fetches one delivery including its attempts.
@@ -606,7 +667,11 @@ impl WebhookDeliveriesApi<'_> {
         &self,
         delivery_id: &str,
     ) -> Result<types::WebhookDeliveryWithAttemptsJsonEncoding, Error> {
-        Ok(self.core.webhooks_get_webhook_delivery(delivery_id).await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_get_webhook_delivery(delivery_id)
+            .await?
+            .into_inner())
     }
 
     /// Re-delivers a failed delivery.
@@ -614,11 +679,18 @@ impl WebhookDeliveriesApi<'_> {
         &self,
         delivery_id: &str,
     ) -> Result<types::WebhookDeliveryJsonEncoding, Error> {
-        Ok(self.core.webhooks_retry_webhook_delivery(delivery_id).await?.into_inner())
+        Ok(self
+            .core
+            .webhooks_retry_webhook_delivery(delivery_id)
+            .await?
+            .into_inner())
     }
 }
 
 /// Analytics ingestion API.
+///
+/// Capture requests authenticate with the client's secret key through the
+/// `x-secret-key` header, exactly like every other resource.
 pub struct EventCaptureApi<'a> {
     http: &'a reqwest::Client,
     ingest_url: &'a str,
@@ -627,65 +699,81 @@ pub struct EventCaptureApi<'a> {
 
 /// How ingestion handled a capture: how many events it took and how many it
 /// discarded (for example because the project's admission policy rejects them).
-#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize)]
 pub struct CaptureResult {
+    /// Events queued for processing.
     pub accepted: u32,
+    /// Events dropped at admission.
     pub rejected: u32,
-}
-
-/// The `/i/v1/capture` request body. `context` and `properties` are required
-/// objects, so they are always serialized even when empty.
-#[derive(serde::Serialize)]
-struct CaptureRequest<'a> {
-    uuid: String,
-    event: &'a str,
-    context: &'a serde_json::Map<String, serde_json::Value>,
-    properties: &'a serde_json::Map<String, serde_json::Value>,
-    distinct_id: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    timestamp: Option<String>,
-    sent_at: String,
-    token: &'a str,
 }
 
 impl EventCaptureApi<'_> {
     /// Posts one analytics event to the ingestion surface.
-    ///
-    /// Returns [`Error::Request`] when the client was built without a
-    /// publishable key, which is the only credential ingestion accepts.
     pub async fn capture(&self, event: &crate::Event) -> Result<CaptureResult, Error> {
-        let Some(token) = self.publishable_key else {
-            return Err(Error::Request(
-                "a publishable key is required to capture events; set ClientBuilder::publishable_key"
-                    .to_string(),
-            ));
-        };
+        let mut body = prepared_event(event)?;
+        body.insert("sent_at".to_string(), sent_at());
+        if let Some(token) = self.publishable_key {
+            body.insert(
+                "token".to_string(),
+                serde_json::Value::String(token.to_string()),
+            );
+        }
+        self.post("/i/v1/capture", &serde_json::Value::Object(body))
+            .await
+    }
 
-        let request = CaptureRequest {
-            uuid: uuid::Uuid::new_v4().to_string(),
-            event: &event.event,
-            context: &event.context,
-            properties: &event.properties,
-            distinct_id: &event.distinct_id,
-            timestamp: event.timestamp.map(|at| at.to_rfc3339()),
-            sent_at: chrono::Utc::now().to_rfc3339(),
-            token,
-        };
+    /// Posts several events in a single request. All events share one
+    /// `sent_at` stamp; each still carries its own uuid and optional timestamp.
+    /// An empty slice sends nothing and reports an empty result.
+    pub async fn capture_batch(&self, events: &[crate::Event]) -> Result<CaptureResult, Error> {
+        if events.is_empty() {
+            return Ok(CaptureResult::default());
+        }
+        let prepared = events
+            .iter()
+            .map(prepared_event)
+            .collect::<Result<Vec<_>, Error>>()?;
+        let mut body = serde_json::Map::new();
+        body.insert(
+            "events".to_string(),
+            serde_json::Value::Array(
+                prepared
+                    .into_iter()
+                    .map(serde_json::Value::Object)
+                    .collect(),
+            ),
+        );
+        body.insert("sent_at".to_string(), sent_at());
+        if let Some(token) = self.publishable_key {
+            body.insert(
+                "token".to_string(),
+                serde_json::Value::String(token.to_string()),
+            );
+        }
+        self.post("/i/v1/batch", &serde_json::Value::Object(body))
+            .await
+    }
 
+    async fn post(&self, path: &str, body: &serde_json::Value) -> Result<CaptureResult, Error> {
         let response = self
             .http
-            .post(format!("{}/i/v1/capture", self.ingest_url))
-            .json(&request)
+            .post(format!("{}{path}", self.ingest_url))
+            .json(body)
             .send()
             .await?;
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            // Ingestion errors carry a `code` discriminant rather than the
-            // `_tag` the management API uses.
+            // Ingestion errors carry the usual `_tag` discriminant plus a
+            // coarser `code`; fall back to the latter when `_tag` is absent.
             let tag = serde_json::from_str::<serde_json::Value>(&body)
                 .ok()
-                .and_then(|value| value["code"].as_str().map(str::to_string))
+                .and_then(|value| {
+                    value["_tag"]
+                        .as_str()
+                        .or_else(|| value["code"].as_str())
+                        .map(str::to_string)
+                })
                 .unwrap_or_default();
             return Err(Error::Api {
                 status: status.as_u16(),
@@ -698,4 +786,28 @@ impl EventCaptureApi<'_> {
             .await
             .map_err(|error| Error::Request(format!("decoding capture response: {error}")))
     }
+}
+
+/// Serializes an event and fills in a generated uuid when the caller left it
+/// unset.
+fn prepared_event(
+    event: &crate::Event,
+) -> Result<serde_json::Map<String, serde_json::Value>, Error> {
+    let value = serde_json::to_value(event)
+        .map_err(|error| Error::Request(format!("failed to encode event: {error}")))?;
+    let serde_json::Value::Object(mut object) = value else {
+        return Err(Error::Request(
+            "event did not encode to an object".to_string(),
+        ));
+    };
+    object
+        .entry("uuid")
+        .or_insert_with(|| serde_json::Value::String(uuid::Uuid::new_v4().to_string()));
+    Ok(object)
+}
+
+fn sent_at() -> serde_json::Value {
+    serde_json::Value::String(
+        chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+    )
 }

@@ -36,13 +36,11 @@ final class Application
     public static function create(Config $config, ?Logger $logger = null): self
     {
         $logger ??= new Logger();
-        // The publishable key is what event ingest authenticates on; the
-        // secret key covers everything else.
-        $client = VoidhashClient::create($config->secretKey, array_filter([
+        // One credential covers everything, event ingest included.
+        $client = VoidhashClient::create($config->secretKey, [
             'baseUrl' => $config->baseUrl,
             'ingestUrl' => $config->ingestUrl,
-            'publishableKey' => $config->publishableKey,
-        ], static fn (?string $value): bool => $value !== null));
+        ]);
 
         $notes = new NoteStore(StateFile::in($config->stateDir, 'notes.json'));
         $entitlements = new EntitlementCache(
@@ -51,10 +49,6 @@ final class Application
             $logger,
         );
         $analytics = new Analytics($client, $logger);
-
-        if (!$analytics->isEnabled()) {
-            $logger->warning('VOIDHASH_PUBLISHABLE_KEY is not set; analytics events will not be captured');
-        }
         $notesController = new NotesController($notes, $entitlements, $analytics);
 
         $router = new Router();

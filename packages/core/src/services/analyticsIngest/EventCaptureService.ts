@@ -15,6 +15,7 @@ import {
   type EventAdmissionPolicy,
 } from "../../domain/analytics/EventAdmission.ts";
 import { isReservedRevenueEventName } from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
+import { hashKey } from "../apiKeys/api-keys.ts";
 import { AnalyticsEventStore } from "../analytics/AnalyticsEventStore.ts";
 
 export class EventCaptureServiceError extends Schema.TaggedErrorClass<EventCaptureServiceError>(
@@ -52,9 +53,23 @@ export interface EventCaptureServiceShape {
   >;
 }
 
-const TOKEN_FORMAT = /^vh_pk_\w+$/;
+const PUBLISHABLE_TOKEN_FORMAT = /^vh_pk_\w+$/;
+const SECRET_TOKEN_FORMAT = /^vh_sk_\w+$/;
 
-/** Validate and normalize an inbound publishable capture token. */
+/**
+ * A capture credential resolved to the shape needed to look it up in `api_key`.
+ *
+ * Publishable keys are stored verbatim, so `lookupKey` is the token itself.
+ * Secret keys are stored as a SHA-256 digest, so `lookupKey` is that digest —
+ * which is also the value persisted on the analytics event, keeping the raw
+ * secret out of the events table.
+ */
+export interface CaptureCredential {
+  readonly isPublic: boolean;
+  readonly lookupKey: string;
+}
+
+/** Validate and normalize an inbound capture token. */
 export const validateCaptureToken = (
   token: string,
 ): Effect.Effect<string, CaptureUnauthorizedError> => {
@@ -64,13 +79,54 @@ export const validateCaptureToken = (
       new CaptureUnauthorizedError({ code: "unauthorized", error: "missing token" }),
     );
   }
-  if (!TOKEN_FORMAT.test(normalized)) {
+  if (!PUBLISHABLE_TOKEN_FORMAT.test(normalized) && !SECRET_TOKEN_FORMAT.test(normalized)) {
     return Effect.fail(
       new CaptureUnauthorizedError({ code: "unauthorized", error: "invalid token format" }),
     );
   }
   return Effect.succeed(normalized);
 };
+
+/**
+ * Resolve a validated capture token into its `api_key` lookup form.
+ *
+ * Accepting a project secret key here is what lets the server-side SDKs (node,
+ * go, rust, php) ship with a single credential instead of also requiring a
+ * publishable key they have no other use for.
+ */
+export const resolveCaptureCredential = (
+  token: string,
+): Effect.Effect<CaptureCredential, CaptureUnauthorizedError> =>
+  Effect.gen(function* () {
+    const normalized = yield* validateCaptureToken(token);
+    if (PUBLISHABLE_TOKEN_FORMAT.test(normalized)) {
+      return { isPublic: true, lookupKey: normalized };
+    }
+    return { isPublic: false, lookupKey: yield* hashKey(normalized) };
+  });
+
+/**
+ * Whether a raw capture credential is a project secret key (`vh_sk_...`).
+ *
+ * The HTTP routes use this to reject a secret key presented in the body
+ * `token` field: that field is what distributed clients ship, so accepting a
+ * secret there would let a misconfigured client keep exposing it without the
+ * failure ever surfacing.
+ */
+export const isSecretCaptureToken = (token: string): boolean =>
+  SECRET_TOKEN_FORMAT.test(token.trim());
+
+/**
+ * Whether an already-resolved lookup key is a verbatim publishable key rather
+ * than a secret-key digest.
+ *
+ * Captured-event envelopes carry {@link CaptureCredential.lookupKey} as their
+ * `token`, so downstream consumers (the event processor) use this to mirror
+ * the ingress `api_key` lookup: verbatim key on an `isPublic` row for
+ * publishable tokens, digest on a non-public row for secret keys.
+ */
+export const isPublishableLookupKey = (lookupKey: string): boolean =>
+  PUBLISHABLE_TOKEN_FORMAT.test(lookupKey);
 
 /** The last four token characters, safe for request diagnostics. */
 export const tokenSuffix = (token: string): string => token.slice(-4);
@@ -88,7 +144,7 @@ const makeEventCaptureService = Effect.gen(function* () {
 
   const captureEvents = Effect.fn("captureEvents")(
     function* (input: CaptureRequest) {
-      const token = yield* validateCaptureToken(input.request.token);
+      const credential = yield* resolveCaptureCredential(input.request.token);
       const [apiKeyRecord] = yield* db
         .select({
           organizationId: projects.organizationId,
@@ -96,7 +152,7 @@ const makeEventCaptureService = Effect.gen(function* () {
         })
         .from(apiKeys)
         .innerJoin(projects, eq(projects.id, apiKeys.projectId))
-        .where(and(eq(apiKeys.isPublic, true), eq(apiKeys.key, token)))
+        .where(and(eq(apiKeys.isPublic, credential.isPublic), eq(apiKeys.key, credential.lookupKey)))
         .limit(1);
 
       if (!apiKeyRecord) {
@@ -127,8 +183,8 @@ const makeEventCaptureService = Effect.gen(function* () {
       const admissionPolicy: EventAdmissionPolicy = policy ?? emptyEventAdmissionPolicy;
 
       // Revenue events are server-trusted: they are minted from verified store
-      // receipts, so a publishable key must never be able to forge one even when
-      // the project has the revenue group enabled.
+      // receipts, so no capture credential — publishable or secret — may forge
+      // one, even when the project has the revenue group enabled.
       const supported = input.events.filter(
         (event) =>
           !isReservedRevenueEventName(event.event) &&
@@ -143,7 +199,7 @@ const makeEventCaptureService = Effect.gen(function* () {
           requestId: input.request.requestId,
           requestPath: input.request.path,
           sentAt: input.request.sentAt,
-          token,
+          token: credential.lookupKey,
         }),
       );
 
@@ -157,7 +213,7 @@ const makeEventCaptureService = Effect.gen(function* () {
         ...result,
         projectId: apiKeyRecord.projectId,
         requestId: input.request.requestId,
-        tokenSuffix: tokenSuffix(token),
+        tokenSuffix: tokenSuffix(credential.lookupKey),
       });
       return result;
     },

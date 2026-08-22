@@ -76,37 +76,95 @@ impl PersonAttributes {
 }
 
 /// A single analytics capture for [`VoidhashClient::event_capture`].
-#[derive(Clone, Debug, Default)]
+///
+/// Build one with [`Event::new`] and refine it with the chained setters:
+///
+/// ```
+/// let event = voidhash::Event::new("paywall_viewed", "user-123")
+///     .property("paywall_id", "pw_1")
+///     .session_id("sess_9");
+/// ```
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Event {
-    /// Event name, for example `note_created`.
+    /// Deduplication key. Left unset, a UUIDv4 is generated at send time; set
+    /// it explicitly to make retries of the same event idempotent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uuid: Option<String>,
+    /// Event name, for example `paywall_viewed`.
     pub event: String,
-    /// The person the event belongs to.
+    /// Identity the event belongs to.
     pub distinct_id: String,
-    /// The event's own attributes. Facts about the person belong in person
-    /// attributes (`client.persons().set_attributes`) instead.
+    /// The event's own attributes. Always sent, empty as `{}`.
     pub properties: serde_json::Map<String, serde_json::Value>,
-    /// The sending environment. Optional.
+    /// Ambient attributes (app version, platform, locale). Always sent, empty
+    /// as `{}`.
     pub context: serde_json::Map<String, serde_json::Value>,
-    /// When the event occurred. Defaults to when it is sent.
+    /// Groups events into a session. Omitted when unset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// When the event occurred. Omitted when unset, in which case the server
+    /// uses the receive time.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Event {
-    /// Builds an event with empty context and properties.
-    pub fn new(distinct_id: impl Into<String>, event: impl Into<String>) -> Self {
+    /// Creates an event with empty properties and context.
+    pub fn new(event: impl Into<String>, distinct_id: impl Into<String>) -> Self {
         Self {
+            uuid: None,
             event: event.into(),
             distinct_id: distinct_id.into(),
-            ..Self::default()
+            properties: serde_json::Map::new(),
+            context: serde_json::Map::new(),
+            session_id: None,
+            timestamp: None,
         }
     }
 
-    /// Replaces the event's properties.
-    pub fn with_properties(
-        mut self,
-        properties: serde_json::Map<String, serde_json::Value>,
-    ) -> Self {
+    /// Sets the deduplication key.
+    pub fn uuid(mut self, uuid: impl Into<String>) -> Self {
+        self.uuid = Some(uuid.into());
+        self
+    }
+
+    /// Replaces the event properties.
+    pub fn properties(mut self, properties: serde_json::Map<String, serde_json::Value>) -> Self {
         self.properties = properties;
+        self
+    }
+
+    /// Adds one event property.
+    pub fn property(mut self, key: impl Into<String>, value: impl Into<serde_json::Value>) -> Self {
+        self.properties.insert(key.into(), value.into());
+        self
+    }
+
+    /// Replaces the client context.
+    pub fn context(mut self, context: serde_json::Map<String, serde_json::Value>) -> Self {
+        self.context = context;
+        self
+    }
+
+    /// Adds one context attribute.
+    pub fn context_property(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        self.context.insert(key.into(), value.into());
+        self
+    }
+
+    /// Sets the session grouping key.
+    pub fn session_id(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = Some(session_id.into());
+        self
+    }
+
+    /// Sets when the event occurred.
+    pub fn timestamp(mut self, timestamp: chrono::DateTime<chrono::Utc>) -> Self {
+        self.timestamp = Some(timestamp);
         self
     }
 }

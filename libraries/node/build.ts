@@ -20,6 +20,9 @@ const main = Effect.tryPromise({
           baseUrl: ".",
           paths: {
             "@voidhash/generated-clients": ["../../packages/generated-clients/src/index.ts"],
+            "@voidhash/generated-clients/event-capture": [
+              "../../packages/generated-clients/src/event-capture/index.ts",
+            ],
           },
           // Widened from tsconfig's `.` so the inlined sources, which live
           // outside this package, stay inside the declaration program's root.

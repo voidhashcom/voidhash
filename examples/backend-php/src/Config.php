@@ -15,7 +15,6 @@ final class Config
     private function __construct(
         public readonly string $secretKey,
         public readonly ?string $webhookSecret,
-        public readonly ?string $publishableKey,
         public readonly string $baseUrl,
         public readonly string $ingestUrl,
         public readonly int $port,
@@ -50,7 +49,6 @@ final class Config
         return new self(
             secretKey: $secretKey,
             webhookSecret: self::read('VOIDHASH_WEBHOOK_SECRET'),
-            publishableKey: self::read('VOIDHASH_PUBLISHABLE_KEY'),
             baseUrl: rtrim(self::read('VOIDHASH_BASE_URL') ?? VoidhashClient::DEFAULT_BASE_URL, '/'),
             ingestUrl: rtrim(self::read('VOIDHASH_INGEST_URL') ?? VoidhashClient::DEFAULT_INGEST_URL, '/'),
             port: (int) $port,

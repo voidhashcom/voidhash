@@ -22,7 +22,7 @@ final class EventsController
      * reject properties before they leave the building, is the point of this
      * endpoint. Because the caller asked for exactly one thing, a capture
      * failure is reported instead of swallowed — unlike the events the product
-     * emits on the side. `skipped` means no publishable key is configured.
+     * emits on the side.
      */
     public function __invoke(Request $request): Response
     {
@@ -35,10 +35,10 @@ final class EventsController
             throw HttpException::badRequest('invalid_properties', 'body field "properties" must be a JSON object');
         }
 
-        $captured = $this->analytics->captureOrFail($event, $distinctId, $properties);
+        $this->analytics->captureOrFail($event, $distinctId, $properties);
 
         return Response::json(202, [
-            'status' => $captured ? 'accepted' : 'skipped',
+            'status' => 'accepted',
             'event' => $event,
             'distinctId' => $distinctId,
         ]);

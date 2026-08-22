@@ -45,6 +45,33 @@ Resources: `client.Auth`, `client.APIKeys`, `client.Persons`, `client.Perks`,
 `client.Paywalls`, `client.Schema`, `client.Notifications`, `client.Users`,
 `client.Webhooks` and `client.EventCapture`.
 
+### Analytics
+
+`client.EventCapture` posts events to the ingestion API with the same secret
+key — there is no publishable key involved.
+
+```go
+result, err := client.EventCapture.Capture(context.Background(), voidhash.Event{
+	Event:      "paywall_viewed",
+	DistinctID: "user-123",
+	Properties: map[string]any{"paywall_id": "pw_1"},
+})
+
+result, err = client.EventCapture.CaptureBatch(context.Background(), []voidhash.Event{
+	{Event: "paywall_viewed", DistinctID: "user-123"},
+	{Event: "purchase_completed", DistinctID: "user-123"},
+})
+```
+
+Both return a `*CaptureResult` reporting how many events ingestion accepted and
+how many it rejected — a project's admission policy can discard events without
+failing the request.
+
+Each event gets a generated `UUID` when you leave it empty; set it yourself to
+make retries of the same event idempotent. `WithIngestURL` points capture at a
+different ingestion host. `WithPublishableKey` is optional and only adds the
+key as the body `token`, matching what the browser and mobile SDKs send.
+
 ### Errors
 
 Every non-2xx response surfaces as `*voidhash.APIError`. `Tag` carries the

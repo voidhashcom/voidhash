@@ -45,7 +45,6 @@ $EDITOR .env
 | --- | --- | --- |
 | `VOIDHASH_SECRET_KEY` | yes | — |
 | `VOIDHASH_WEBHOOK_SECRET` | for `POST /webhooks/voidhash` | — |
-| `VOIDHASH_PUBLISHABLE_KEY` | for analytics | — |
 | `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` |
 | `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` |
 | `PORT` | no | `8080` |
@@ -53,7 +52,8 @@ $EDITOR .env
 
 The service refuses to start without `VOIDHASH_SECRET_KEY` and says so on
 stderr rather than failing on the first request that needs it. Everything else
-is optional: with no publishable key the routes all work and capture nothing.
+is optional; the secret key is the only credential the SDK needs, analytics
+included.
 
 `.env` is read by `Config::loadDotEnv()` for convenience. Exported environment
 variables win, which is what you want in production — never ship the file.
@@ -239,8 +239,6 @@ $ curl -X POST localhost:8080/v1/events \
 }
 ```
 
-`"status": "skipped"` means no `VOIDHASH_PUBLISHABLE_KEY` is configured.
-
 ### `POST /webhooks/voidhash`
 
 Verifies the signature, acknowledges, then handles the event. Covered in the
@@ -400,14 +398,14 @@ Three things to get right:
 | Capture an event from the server | [`src/Nimbus/Analytics.php`](src/Nimbus/Analytics.php) |
 | Validate configuration at boot | [`src/Config.php`](src/Config.php), [`public/index.php`](public/index.php) |
 
-## Two credentials
+## One credential, two writes
 
-[`src/Nimbus/Analytics.php`](src/Nimbus/Analytics.php) uses both of the
-project's keys, which is the thing worth noticing:
+[`src/Nimbus/Analytics.php`](src/Nimbus/Analytics.php) writes to analytics two
+different ways, both on the project's secret key:
 
-- `$client->eventCapture->capture()` posts to ingest, which authenticates on
-  the **publishable** key (`publishableKey` in `VoidhashClient::create()`).
-  That is why `VOIDHASH_PUBLISHABLE_KEY` exists; without it capture no-ops.
-- `$client->persons->setAttributes()` is a server-to-server write on the
-  **secret** key. Traits describe the person and persist, so `plan` and
-  `notes_created` go there rather than onto every event's properties.
+- `$client->eventCapture->capture()` posts to ingest, authenticated with the
+  secret key in the `x-secret-key` header. No publishable key is involved: that
+  one belongs in clients, not on your server.
+- `$client->persons->setAttributes()` is a server-to-server write. Traits
+  describe the person and persist, so `plan` and `notes_created` go there
+  rather than onto every event's properties.

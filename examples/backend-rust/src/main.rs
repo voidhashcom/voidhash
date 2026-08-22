@@ -27,9 +27,6 @@ struct Config {
     secret_key: String,
     webhook_secret: Option<String>,
     base_url: Option<String>,
-    /// Publishable key sent as the `token` field of every analytics capture.
-    /// Optional: without it the service runs with capture disabled.
-    publishable_key: Option<String>,
     ingest_url: String,
     port: u16,
 }
@@ -64,7 +61,6 @@ impl Config {
             secret_key,
             webhook_secret: non_empty("VOIDHASH_WEBHOOK_SECRET"),
             base_url: non_empty("VOIDHASH_BASE_URL"),
-            publishable_key: non_empty("VOIDHASH_PUBLISHABLE_KEY"),
             ingest_url: non_empty("VOIDHASH_INGEST_URL")
                 .unwrap_or_else(|| voidhash::DEFAULT_INGEST_URL.to_string()),
             port,
@@ -114,11 +110,6 @@ async fn serve(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         // separate origin, configured through `VOIDHASH_INGEST_URL`.
         builder = builder.base_url(base_url.clone());
     }
-    // Event ingest authenticates on the publishable key, not the secret key,
-    // so the client needs both to capture.
-    if let Some(publishable_key) = &config.publishable_key {
-        builder = builder.publishable_key(publishable_key.clone());
-    }
     let client = Arc::new(builder.build()?);
 
     if config.webhook_secret.is_none() {
@@ -127,13 +118,7 @@ async fn serve(config: Config) -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    let analytics = Analytics::new(Arc::clone(&client), config.publishable_key.as_deref());
-    if !analytics.enabled() {
-        tracing::warn!(
-            "VOIDHASH_PUBLISHABLE_KEY is not set; analytics capture is disabled and every \
-             event is skipped"
-        );
-    }
+    let analytics = Analytics::new(Arc::clone(&client));
 
     let state = Arc::new(AppState::new(
         client,

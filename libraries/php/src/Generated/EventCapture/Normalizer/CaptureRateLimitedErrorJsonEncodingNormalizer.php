@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-class EffectHttpApiSchemaErrorNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+class CaptureRateLimitedErrorJsonEncodingNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
 {
     use DenormalizerAwareTrait;
     use NormalizerAwareTrait;
@@ -19,15 +19,15 @@ class EffectHttpApiSchemaErrorNormalizer implements DenormalizerInterface, Norma
     use ValidatorTrait;
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === \Voidhash\Generated\EventCapture\Model\EffectHttpApiSchemaError::class;
+        return $type === \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding::class;
     }
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\EffectHttpApiSchemaError::class;
+        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding::class;
     }
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
-        $object = new \Voidhash\Generated\EventCapture\Model\EffectHttpApiSchemaError();
+        $object = new \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding();
         if (null === $data || false === \is_array($data)) {
             return $object;
         }
@@ -40,8 +40,17 @@ class EffectHttpApiSchemaErrorNormalizer implements DenormalizerInterface, Norma
         if (\array_key_exists('_tag', $data)) {
             $object->setTag($data['_tag']);
         }
-        if (\array_key_exists('message', $data)) {
-            $object->setMessage($data['message']);
+        if (\array_key_exists('error', $data)) {
+            $object->setError($data['error']);
+        }
+        if (\array_key_exists('code', $data)) {
+            $object->setCode($data['code']);
+        }
+        if (\array_key_exists('retry_after_ms', $data) && $data['retry_after_ms'] !== null) {
+            $object->setRetryAfterMs($data['retry_after_ms']);
+        }
+        elseif (\array_key_exists('retry_after_ms', $data) && $data['retry_after_ms'] === null) {
+            $object->setRetryAfterMs(null);
         }
         return $object;
     }
@@ -49,11 +58,15 @@ class EffectHttpApiSchemaErrorNormalizer implements DenormalizerInterface, Norma
     {
         $dataArray = [];
         $dataArray['_tag'] = $data->getTag();
-        $dataArray['message'] = $data->getMessage();
+        $dataArray['error'] = $data->getError();
+        $dataArray['code'] = $data->getCode();
+        if ($data->isInitialized('retryAfterMs')) {
+            $dataArray['retry_after_ms'] = $data->getRetryAfterMs();
+        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array
     {
-        return [\Voidhash\Generated\EventCapture\Model\EffectHttpApiSchemaError::class => false];
+        return [\Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding::class => false];
     }
 }

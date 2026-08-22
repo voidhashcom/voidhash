@@ -1,24 +1,26 @@
 import type {
-  CaptureDependencyUnavailableError,
-  CaptureInternalServerError,
-  CaptureInvalidRequestError,
-  CapturePayloadTooLargeError,
-  CaptureRateLimitedError,
-  CaptureUnauthorizedError,
+  CaptureAcceptedResponseJsonEncoding,
+  CaptureDependencyUnavailableErrorJsonEncoding,
+  CaptureInternalServerErrorJsonEncoding,
+  CaptureInvalidRequestErrorJsonEncoding,
+  CapturePayloadTooLargeErrorJsonEncoding,
+  CaptureRateLimitedErrorJsonEncoding,
+  CaptureUnauthorizedErrorJsonEncoding,
   EventCaptureBatchRequest,
   EventCaptureCaptureRequest,
 } from "./generated";
 
 export * from "./generated";
 
+export type CaptureAcceptedResponse = CaptureAcceptedResponseJsonEncoding;
 export type CaptureBatchRequest = EventCaptureBatchRequest;
 export type CaptureErrorResponse =
-  | CaptureDependencyUnavailableError
-  | CaptureInternalServerError
-  | CaptureInvalidRequestError
-  | CapturePayloadTooLargeError
-  | CaptureRateLimitedError
-  | CaptureUnauthorizedError;
+  | CaptureDependencyUnavailableErrorJsonEncoding
+  | CaptureInternalServerErrorJsonEncoding
+  | CaptureInvalidRequestErrorJsonEncoding
+  | CapturePayloadTooLargeErrorJsonEncoding
+  | CaptureRateLimitedErrorJsonEncoding
+  | CaptureUnauthorizedErrorJsonEncoding;
 export type CaptureEvent = EventCaptureBatchRequest["events"][number];
 export type CaptureSingleRequest = EventCaptureCaptureRequest;
 export type EventContextField =

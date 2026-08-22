@@ -19,9 +19,13 @@ import {
   CaptureDependencyUnavailableError,
   CaptureInternalServerError,
   CaptureRateLimitedError,
+  CaptureUnauthorizedError,
   EventCaptureApi,
 } from "@voidhash/api-contracts/event-capture";
-import { EventCaptureService } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
+import {
+  EventCaptureService,
+  isSecretCaptureToken,
+} from "@voidhash/core/services/analyticsIngest/EventCaptureService";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import { DateTime, Effect } from "effect";
 import * as HttpEffect from "effect/unstable/http/HttpEffect";
@@ -41,6 +45,41 @@ const extractClientIp = (
 
   const forwardedFor = headers["x-forwarded-for"]?.split(",")[0]?.trim();
   return forwardedFor || undefined;
+};
+
+/**
+ * Resolve the project credential authorizing a capture request.
+ *
+ * Browser and mobile SDKs put a publishable token in the JSON body, or — for
+ * SDKs that authorize every Voidhash call the same way — the `x-publishable-key`
+ * header. Server-side SDKs (node, go, rust, php) hold only a project secret key
+ * and present it the same way they do on every other Voidhash endpoint — the
+ * `x-secret-key` header. The body wins when both are present.
+ *
+ * A secret key in the body `token` field fails outright: that field is what
+ * distributed clients ship, so accepting a secret there would let a
+ * misconfigured client keep exposing it without the failure ever surfacing.
+ *
+ * Resolves to an empty string when no credential was supplied;
+ * `EventCaptureService` owns the resulting `unauthorized` failure so the wire
+ * response stays uniform.
+ */
+const resolveCaptureToken = (
+  payloadToken: string | undefined,
+  headers: Readonly<Record<string, string | undefined>>,
+): Effect.Effect<string, CaptureUnauthorizedError> => {
+  const bodyToken = payloadToken?.trim();
+  if (bodyToken && isSecretCaptureToken(bodyToken)) {
+    return Effect.fail(
+      new CaptureUnauthorizedError({
+        code: "unauthorized",
+        error: "secret keys are not accepted in the body token field; send the x-secret-key header",
+      }),
+    );
+  }
+  return Effect.succeed(
+    bodyToken || headers["x-secret-key"]?.trim() || headers["x-publishable-key"]?.trim() || "",
+  );
 };
 
 const appendRequestIdHeader = (requestId: string) =>
@@ -67,6 +106,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
             const requestId = generateId("request");
             yield* appendRequestIdHeader(requestId);
             const receivedAt = yield* DateTime.nowAsDate;
+            const token = yield* resolveCaptureToken(payload.token, request.headers);
 
             const result = yield* captureService
               .captureEvents({
@@ -76,7 +116,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                   path: "/i/v1/capture",
                   receivedAt,
                   sentAt: payload.sent_at,
-                  token: payload.token,
+                  token,
                   headers: request.headers,
                   requestId,
                 },
@@ -124,6 +164,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
             const requestId = generateId("request");
             yield* appendRequestIdHeader(requestId);
             const receivedAt = yield* DateTime.nowAsDate;
+            const token = yield* resolveCaptureToken(payload.token, request.headers);
 
             const result = yield* captureService
               .captureEvents({
@@ -133,7 +174,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                   path: "/i/v1/batch",
                   receivedAt,
                   sentAt: payload.sent_at,
-                  token: payload.token,
+                  token,
                   headers: request.headers,
                   requestId,
                 },

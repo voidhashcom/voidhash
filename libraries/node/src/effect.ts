@@ -6,6 +6,11 @@ export type {
   VoidhashEntitlementsEffectNamespace,
 } from "./entitlements";
 export { VoidhashNodeConfigurationError } from "./errors";
+export type {
+  VoidhashCaptureEvent,
+  VoidhashCaptureResult,
+  VoidhashEventCaptureEffectNamespace,
+} from "./event-capture";
 export type { VoidhashNodeClientOptions } from "./types";
 // The webhook helpers are Effect-free by design, so both entrypoints ship the
 // same implementation.

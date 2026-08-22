@@ -32,6 +32,31 @@ Resources: `$client->auth`, `apiKeys`, `persons`, `perks`, `organizations`,
 `projects`, `products`, `paywalls`, `schema`, `notifications`, `users`,
 `webhooks` and `eventCapture`.
 
+### Analytics
+
+`$client->eventCapture` posts to the ingestion API with the same secret key,
+sent as `x-secret-key`; no publishable key is required:
+
+```php
+$client->eventCapture->capture([
+    'event' => 'paywall_viewed',
+    'distinctId' => 'user-123',
+    'properties' => ['paywall_id' => 'pw_1'],
+]);
+
+$client->eventCapture->batch([
+    ['event' => 'paywall_viewed', 'distinctId' => 'user-123'],
+    ['event' => 'purchase_completed', 'distinctId' => 'user-123'],
+]);
+```
+
+Both return `['accepted' => int, 'rejected' => int]`. Each event gets a `uuid`
+deduplication key; pass your own to make a retry idempotent. `sessionId`,
+`timestamp`, `context` and `properties` are optional.
+
+Pass `publishableKey` to `VoidhashClient::create()` only if you want the ingest
+body `token` a browser SDK would send; it is never the capture credential.
+
 ### Errors
 
 Every non-2xx response throws `Voidhash\Exception\ApiException`. `getTag()`

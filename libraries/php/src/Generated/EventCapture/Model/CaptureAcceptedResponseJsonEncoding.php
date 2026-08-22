@@ -2,7 +2,7 @@
 
 namespace Voidhash\Generated\EventCapture\Model;
 
-class CaptureAcceptedResponse
+class CaptureAcceptedResponseJsonEncoding
 {
     /**
      * @var array

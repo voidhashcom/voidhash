@@ -2,7 +2,7 @@
 
 namespace Voidhash\Generated\EventCapture\Model;
 
-class IV1BatchPostBodyEventsItem
+class CaptureEvent
 {
     /**
      * @var array
@@ -37,7 +37,7 @@ class IV1BatchPostBodyEventsItem
      */
     protected $sessionId;
     /**
-     * @var \DateTime|null
+     * @var string|null
      */
     protected $timestamp;
     /**
@@ -149,18 +149,18 @@ class IV1BatchPostBodyEventsItem
         return $this;
     }
     /**
-     * @return \DateTime|null
+     * @return string|null
      */
-    public function getTimestamp(): ?\DateTime
+    public function getTimestamp(): ?string
     {
         return $this->timestamp;
     }
     /**
-     * @param \DateTime|null $timestamp
+     * @param string|null $timestamp
      *
      * @return self
      */
-    public function setTimestamp(?\DateTime $timestamp): self
+    public function setTimestamp(?string $timestamp): self
     {
         $this->initialized['timestamp'] = true;
         $this->timestamp = $timestamp;

@@ -1,7 +1,5 @@
 import type { VoidhashNodeClient } from "@voidhash/node";
 
-import type { AppConfig } from "./config";
-
 export type CaptureInput = {
   readonly distinctId: string;
   readonly event: string;
@@ -29,21 +27,15 @@ export type Analytics = {
 /**
  * Analytics over the SDK.
  *
- * Two different credentials are in play, which is the thing worth noticing:
+ * Two surfaces, one credential — the project secret key:
  *
- * - `analytics.capture` posts to event ingest, which authenticates on the
- *   **publishable** key. Capture is disabled when it is unset.
- * - `persons.setPersonAttributes` is a server-to-server write on the
- *   **secret** key. Traits describe the person and persist, so facts like the
- *   current plan go here rather than being repeated on every event.
+ * - `eventCapture.capture` posts to event ingest, on its own origin, and
+ *   authorizes with the `x-secret-key` header like every other call.
+ * - `persons.setPersonAttributes` is a server-to-server write on the REST API.
+ *   Traits describe the person and persist, so facts like the current plan go
+ *   here rather than being repeated on every event.
  */
-export const createAnalytics = (config: AppConfig, voidhash: VoidhashNodeClient): Analytics => {
-  if (config.publishableKey === undefined) {
-    console.warn(
-      "[voidhash] VOIDHASH_PUBLISHABLE_KEY is not set — analytics capture is disabled.",
-    );
-  }
-
+export const createAnalytics = (voidhash: VoidhashNodeClient): Analytics => {
   const forget = (what: string, work: Promise<unknown>): void => {
     void work.catch((error: unknown) => {
       console.warn(`[voidhash] ${what} failed.`, error);
@@ -52,13 +44,9 @@ export const createAnalytics = (config: AppConfig, voidhash: VoidhashNodeClient)
 
   return {
     capture: (input) => {
-      if (config.publishableKey === undefined) {
-        return;
-      }
-
       forget(
         `capture of "${input.event}"`,
-        voidhash.analytics.capture({
+        voidhash.eventCapture.capture({
           distinctId: input.distinctId,
           event: input.event,
           properties: input.properties,

@@ -6,6 +6,9 @@ class Client extends \Voidhash\Generated\EventCapture\Runtime\Client\Client
 {
     /**
      * @param \Voidhash\Generated\EventCapture\Model\IV1CapturePostBody $requestBody
+     * @param array{
+     *    "x-secret-key"?: string,
+     * } $headerParameters
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureBadRequestException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureUnauthorizedException
@@ -14,14 +17,17 @@ class Client extends \Voidhash\Generated\EventCapture\Runtime\Client\Client
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureInternalServerErrorException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureServiceUnavailableException
      *
-     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse : \Psr\Http\Message\ResponseInterface)
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding : \Psr\Http\Message\ResponseInterface)
      */
-    public function eventCaptureCapture(\Voidhash\Generated\EventCapture\Model\IV1CapturePostBody $requestBody, string $fetch = self::FETCH_OBJECT)
+    public function eventCaptureCapture(\Voidhash\Generated\EventCapture\Model\IV1CapturePostBody $requestBody, array $headerParameters = [], string $fetch = self::FETCH_OBJECT)
     {
-        return $this->executeEndpoint(new \Voidhash\Generated\EventCapture\Endpoint\EventCaptureCapture($requestBody), $fetch);
+        return $this->executeEndpoint(new \Voidhash\Generated\EventCapture\Endpoint\EventCaptureCapture($requestBody, $headerParameters), $fetch);
     }
     /**
      * @param \Voidhash\Generated\EventCapture\Model\IV1BatchPostBody $requestBody
+     * @param array{
+     *    "x-secret-key"?: string,
+     * } $headerParameters
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchBadRequestException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchUnauthorizedException
@@ -30,11 +36,11 @@ class Client extends \Voidhash\Generated\EventCapture\Runtime\Client\Client
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchInternalServerErrorException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchServiceUnavailableException
      *
-     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse : \Psr\Http\Message\ResponseInterface)
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding : \Psr\Http\Message\ResponseInterface)
      */
-    public function eventCaptureBatch(\Voidhash\Generated\EventCapture\Model\IV1BatchPostBody $requestBody, string $fetch = self::FETCH_OBJECT)
+    public function eventCaptureBatch(\Voidhash\Generated\EventCapture\Model\IV1BatchPostBody $requestBody, array $headerParameters = [], string $fetch = self::FETCH_OBJECT)
     {
-        return $this->executeEndpoint(new \Voidhash\Generated\EventCapture\Endpoint\EventCaptureBatch($requestBody), $fetch);
+        return $this->executeEndpoint(new \Voidhash\Generated\EventCapture\Endpoint\EventCaptureBatch($requestBody, $headerParameters), $fetch);
     }
     public static function create($httpClient = null, array $additionalPlugins = [], array $additionalNormalizers = [])
     {

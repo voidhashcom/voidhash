@@ -2,7 +2,7 @@
 
 namespace Voidhash\Generated\EventCapture\Model;
 
-class CaptureUnauthorizedError
+class CaptureInternalServerErrorJsonEncoding
 {
     /**
      * @var array

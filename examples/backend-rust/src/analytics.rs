@@ -1,29 +1,19 @@
 //! Server-side analytics, over the SDK.
 //!
-//! Two different credentials are in play, which is the thing worth noticing:
+//! Both calls in here authenticate with the project's **secret** key — capture
+//! sends it as `x-secret-key`, exactly like every other SDK call, so no
+//! publishable key is involved:
 //!
-//! - [`Analytics::capture`] posts to event ingest, which authenticates on the
-//!   **publishable** key (`ClientBuilder::publishable_key`). It is disabled
-//!   when that is unset.
-//! - [`Analytics::set_attributes`] is a server-to-server write on the
-//!   **secret** key. Traits describe the person and persist, so facts like the
-//!   current plan go here rather than being repeated on every event.
+//! - [`Analytics::capture`] posts to event ingest, which lives on its own
+//!   origin (`VOIDHASH_INGEST_URL`).
+//! - [`Analytics::set_attributes`] is a server-to-server write. Traits
+//!   describe the person and persist, so facts like the current plan go here
+//!   rather than being repeated on every event.
 
 use std::sync::Arc;
 
-use serde::Serialize;
 use serde_json::{Map, Value};
 use voidhash::VoidhashClient;
-
-/// What happened to a capture.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Captured {
-    /// Ingestion accepted the event.
-    Sent,
-    /// No publishable key is configured, so nothing was sent.
-    Skipped,
-}
 
 /// Why a capture failed.
 #[derive(Debug)]
@@ -54,23 +44,12 @@ impl From<voidhash::Error> for AnalyticsError {
 /// Analytics facade over the SDK client.
 pub struct Analytics {
     client: Arc<VoidhashClient>,
-    enabled: bool,
 }
 
 impl Analytics {
-    /// Wraps the SDK client. With no publishable key configured every capture
-    /// is a no-op; attribute writes still work, because they use the secret
-    /// key.
-    pub fn new(client: Arc<VoidhashClient>, publishable_key: Option<&str>) -> Self {
-        Self {
-            client,
-            enabled: publishable_key.is_some_and(|key| !key.trim().is_empty()),
-        }
-    }
-
-    /// Whether a publishable key is configured.
-    pub fn enabled(&self) -> bool {
-        self.enabled
+    /// Wraps the SDK client.
+    pub fn new(client: Arc<VoidhashClient>) -> Self {
+        Self { client }
     }
 
     /// Sends one event.
@@ -79,15 +58,11 @@ impl Analytics {
         distinct_id: &str,
         event: &str,
         properties: Map<String, Value>,
-    ) -> Result<Captured, AnalyticsError> {
-        if !self.enabled {
-            return Ok(Captured::Skipped);
-        }
-
+    ) -> Result<(), AnalyticsError> {
         let result = self
             .client
             .event_capture()
-            .capture(&voidhash::Event::new(distinct_id, event).with_properties(properties))
+            .capture(&voidhash::Event::new(event, distinct_id).properties(properties))
             .await?;
 
         // A 2xx with `accepted: 0` means the event was dropped during
@@ -96,7 +71,7 @@ impl Analytics {
             return Err(AnalyticsError::NotAccepted);
         }
 
-        Ok(Captured::Sent)
+        Ok(())
     }
 
     /// Sends one event, logging rather than failing the caller.

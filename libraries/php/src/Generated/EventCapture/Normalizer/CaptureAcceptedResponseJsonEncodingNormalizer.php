@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-class CaptureInvalidRequestErrorNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+class CaptureAcceptedResponseJsonEncodingNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
 {
     use DenormalizerAwareTrait;
     use NormalizerAwareTrait;
@@ -19,15 +19,15 @@ class CaptureInvalidRequestErrorNormalizer implements DenormalizerInterface, Nor
     use ValidatorTrait;
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError::class;
+        return $type === \Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding::class;
     }
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError::class;
+        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding::class;
     }
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
-        $object = new \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError();
+        $object = new \Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding();
         if (null === $data || false === \is_array($data)) {
             return $object;
         }
@@ -37,27 +37,23 @@ class CaptureInvalidRequestErrorNormalizer implements DenormalizerInterface, Nor
         if (isset($data['$recursiveRef'])) {
             return new Reference($data['$recursiveRef'], $context['document-origin']);
         }
-        if (\array_key_exists('_tag', $data)) {
-            $object->setTag($data['_tag']);
+        if (\array_key_exists('accepted', $data)) {
+            $object->setAccepted($data['accepted']);
         }
-        if (\array_key_exists('error', $data)) {
-            $object->setError($data['error']);
-        }
-        if (\array_key_exists('code', $data)) {
-            $object->setCode($data['code']);
+        if (\array_key_exists('rejected', $data)) {
+            $object->setRejected($data['rejected']);
         }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
     {
         $dataArray = [];
-        $dataArray['_tag'] = $data->getTag();
-        $dataArray['error'] = $data->getError();
-        $dataArray['code'] = $data->getCode();
+        $dataArray['accepted'] = $data->getAccepted();
+        $dataArray['rejected'] = $data->getRejected();
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array
     {
-        return [\Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError::class => false];
+        return [\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding::class => false];
     }
 }

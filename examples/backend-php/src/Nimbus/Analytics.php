@@ -12,14 +12,12 @@ use Voidhash\VoidhashClient;
 /**
  * Server-side analytics, over the SDK.
  *
- * Two different credentials are in play, which is the thing worth noticing:
+ * Both halves run on the project's **secret** key:
  *
- * - {@see Analytics::capture()} posts to event ingest, which authenticates on
- *   the **publishable** key (`publishableKey` in
- *   {@see VoidhashClient::create()}). It is a no-op when that is unset.
- * - {@see Analytics::setAttributes()} is a server-to-server write on the
- *   **secret** key. Traits describe the person and persist, so facts like the
- *   current plan go here rather than being repeated on every event.
+ * - {@see Analytics::capture()} posts to event ingest.
+ * - {@see Analytics::setAttributes()} is a server-to-server write. Traits
+ *   describe the person and persist, so facts like the current plan go here
+ *   rather than being repeated on every event.
  */
 final class Analytics
 {
@@ -32,12 +30,6 @@ final class Analytics
         private readonly VoidhashClient $client,
         private readonly Logger $logger,
     ) {
-    }
-
-    /** Whether a publishable key is configured; when false every capture is a no-op. */
-    public function isEnabled(): bool
-    {
-        return $this->client->eventCapture->isEnabled();
     }
 
     /**
@@ -62,8 +54,7 @@ final class Analytics
     }
 
     /**
-     * Captures an event and lets failures propagate. Returns false when
-     * analytics is not configured, which is not a failure.
+     * Captures an event and lets failures propagate.
      *
      * Use this when forwarding an event is the whole point of the request, as
      * on `POST /v1/events`: the caller asked for one thing, so tell them the
@@ -73,24 +64,17 @@ final class Analytics
      *
      * @throws ApiException when ingest rejected the event
      */
-    public function captureOrFail(string $event, string $distinctId, array $properties = []): bool
+    public function captureOrFail(string $event, string $distinctId, array $properties = []): void
     {
-        if (!$this->isEnabled()) {
-            return false;
-        }
-
         $this->client->eventCapture->capture([
             'event' => $event,
             'distinctId' => $distinctId,
             'properties' => $properties,
         ]);
-
-        return true;
     }
 
     /**
-     * Writes person traits, logging and swallowing any failure. Unlike capture
-     * this uses the secret key, so it works even when analytics is switched off.
+     * Writes person traits, logging and swallowing any failure.
      *
      * @param array<string, string|int|float|bool|null> $traits
      */

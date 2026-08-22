@@ -47,14 +47,14 @@ cp .env.example .env
 | --- | --- | --- |
 | `VOIDHASH_SECRET_KEY` | yes | — |
 | `VOIDHASH_WEBHOOK_SECRET` | for `/webhooks/voidhash` | — |
-| `VOIDHASH_PUBLISHABLE_KEY` | for analytics capture | — |
 | `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` |
 | `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` |
 | `PORT` | no | `8080` |
 
 The server refuses to start without `VOIDHASH_SECRET_KEY` and tells you where
-to find one. The other three are warnings at boot, not failures: the service
-runs fine with analytics and webhooks switched off.
+to find one. That one key covers everything, analytics capture included. The
+rest are warnings at boot, not failures: the service runs fine with webhooks
+switched off.
 
 ## Run
 
@@ -261,7 +261,13 @@ curl -s -X POST localhost:8080/v1/events \
 ```json
 HTTP/1.1 202 Accepted
 
-{ "status": "accepted", "event": "paywall_viewed", "distinctId": "user-123" }
+{
+  "status": "accepted",
+  "event": "paywall_viewed",
+  "distinctId": "user-123",
+  "accepted": 1,
+  "rejected": 0
+}
 ```
 
 ## Testing the webhook locally
@@ -381,12 +387,11 @@ Two habits worth copying wholesale:
 
 ## Notes
 
-- **Analytics uses two credentials** ([`analytics.go`](./analytics.go)).
-  `client.EventCapture.Capture` posts to ingest, which authenticates on the
-  publishable key (`voidhash.WithPublishableKey`) rather than the secret key;
-  `client.Persons.SetAttributes` is a secret-key write. That file holds the
-  example's policy — best-effort on write paths, strict on `POST /v1/events` —
-  not the request shape, which the SDK owns.
+- **Analytics runs on the secret key** ([`analytics.go`](./analytics.go)).
+  `client.EventCapture.Capture` posts to ingest with the same `vh_sk_…` key as
+  `client.Persons.SetAttributes` — a backend never needs a publishable key. That
+  file holds the example's policy — best-effort on write paths, strict on
+  `POST /v1/events` — not the request shape, which the SDK owns.
 - **Person attributes are written, not just computed.** `plan` and
   `notes_created` describe the person rather than any one event, so they go to
   `Persons.SetAttributes` instead of onto every capture's properties. They are

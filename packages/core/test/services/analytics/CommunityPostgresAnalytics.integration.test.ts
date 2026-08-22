@@ -13,6 +13,8 @@ import { expect } from "vitest";
 import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
 
+import { hashKey } from "../../../src/services/apiKeys/api-keys.ts";
+
 const { test } = CoreIntegrationTestHarness.make();
 let sequence = 0;
 
@@ -153,6 +155,106 @@ test(
             identityMode: "personless",
             source: "sdk",
           });
+        }).pipe(Effect.provide(captureLive)),
+      ),
+    );
+  }),
+);
+
+test(
+  "OSS capture authorizes a hashed project secret key and never stores the raw secret",
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const now = yield* DateTime.nowAsDate;
+    const apiKeyId = yield* unique("oss_secret_key");
+    const rawSecret = `vh_sk_${apiKeyId}`;
+    const hashedSecret = yield* hashKey(rawSecret);
+    const customId = yield* unique("oss_secret_event");
+
+    // Secret keys are stored hashed with `is_public = false`, the way
+    // `createSecretKey` persists them.
+    yield* db.insert(apiKeys).values({
+      end: rawSecret.slice(-8),
+      id: apiKeyId,
+      isPublic: false,
+      key: hashedSecret,
+      name: "OSS secret key capture",
+      prefix: "vh_sk",
+      projectId: CoreTestFixture.projectId,
+    });
+
+    yield* withCleanup(
+      [customId],
+      apiKeyId,
+      withDefaultAdmissionPolicy(
+        Effect.gen(function* () {
+          const capture = yield* EventCaptureService;
+          const result = yield* capture.captureEvents({
+            events: [captureEvent(customId, "checkout_started")],
+            request: {
+              headers: {},
+              receivedAt: now,
+              requestId: yield* unique("oss_secret_request"),
+              sentAt: now,
+              token: rawSecret,
+            },
+          });
+          expect(result).toEqual({ accepted: 1, rejected: 0 });
+
+          const rows = yield* db
+            .select()
+            .from(analyticsEvents)
+            .where(eq(analyticsEvents.eventId, customId));
+          expect(rows).toHaveLength(1);
+          // Persisting the raw secret would leak a credential into the events
+          // table; only the lookup digest may be stored.
+          expect(rows[0]?.token).toBe(hashedSecret);
+          expect(rows[0]?.token).not.toBe(rawSecret);
+        }).pipe(Effect.provide(captureLive)),
+      ),
+    );
+  }),
+);
+
+test(
+  "OSS capture rejects a secret key presented in its raw, unhashed stored form",
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const now = yield* DateTime.nowAsDate;
+    const apiKeyId = yield* unique("oss_raw_secret_key");
+    const rawSecret = `vh_sk_${apiKeyId}`;
+
+    // A row that (incorrectly) stores the plaintext secret must not authorize:
+    // capture looks secret keys up by digest only.
+    yield* db.insert(apiKeys).values({
+      end: rawSecret.slice(-8),
+      id: apiKeyId,
+      isPublic: false,
+      key: rawSecret,
+      name: "OSS raw secret key",
+      prefix: "vh_sk",
+      projectId: CoreTestFixture.projectId,
+    });
+
+    yield* withCleanup(
+      [],
+      apiKeyId,
+      withDefaultAdmissionPolicy(
+        Effect.gen(function* () {
+          const capture = yield* EventCaptureService;
+          const error = yield* Effect.flip(
+            capture.captureEvents({
+              events: [captureEvent(yield* unique("oss_raw_secret_event"), "checkout_started")],
+              request: {
+                headers: {},
+                receivedAt: now,
+                requestId: yield* unique("oss_raw_secret_request"),
+                sentAt: now,
+                token: rawSecret,
+              },
+            }),
+          );
+          expect(error._tag).toBe("CaptureUnauthorizedError");
         }).pipe(Effect.provide(captureLive)),
       ),
     );

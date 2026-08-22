@@ -5,22 +5,22 @@ namespace Voidhash\Generated\EventCapture\Exception;
 class EventCaptureCaptureRequestEntityTooLargeException extends RequestEntityTooLargeException
 {
     /**
-     * @var \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeError
+     * @var \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding
      */
-    private $capturePayloadTooLargeError;
+    private $capturePayloadTooLargeErrorJsonEncoding;
     /**
      * @var \Psr\Http\Message\ResponseInterface
      */
     private $response;
-    public function __construct(\Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeError $capturePayloadTooLargeError, \Psr\Http\Message\ResponseInterface $response)
+    public function __construct(\Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding $capturePayloadTooLargeErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
     {
         parent::__construct('CapturePayloadTooLargeError');
-        $this->capturePayloadTooLargeError = $capturePayloadTooLargeError;
+        $this->capturePayloadTooLargeErrorJsonEncoding = $capturePayloadTooLargeErrorJsonEncoding;
         $this->response = $response;
     }
-    public function getCapturePayloadTooLargeError(): \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeError
+    public function getCapturePayloadTooLargeErrorJsonEncoding(): \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding
     {
-        return $this->capturePayloadTooLargeError;
+        return $this->capturePayloadTooLargeErrorJsonEncoding;
     }
     public function getResponse(): \Psr\Http\Message\ResponseInterface
     {

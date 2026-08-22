@@ -63,16 +63,44 @@ export const CaptureEvent = Schema.Struct({
   timestamp: Schema.optional(DateValidFromString),
 });
 
+/**
+ * The project credential authorizing the capture.
+ *
+ * Optional in the body because server-side callers may instead present a
+ * project secret key through the `x-secret-key` header, the convention every
+ * other Voidhash API uses. Exactly one of the two must be supplied; the request
+ * is rejected with `unauthorized` when neither is. Only publishable tokens are
+ * accepted here — a secret key in the body is rejected with `unauthorized`
+ * because this field is what distributed clients ship.
+ */
+const CaptureToken = Schema.optional(Schema.NonEmptyString);
+
+/**
+ * Header form of the capture credential, for server-side callers.
+ *
+ * Optional because browser and mobile SDKs authorize through the body `token`
+ * instead. Declared on the endpoint so it shows up as a documented parameter in
+ * the generated OpenAPI document and the SDKs generated from it.
+ *
+ * Deliberately a plain `String`: endpoint headers are decoded before the
+ * handler runs, so a `NonEmptyString` would turn a present-but-empty header
+ * (an unset env var interpolated by a caller) into an empty-body schema 400
+ * instead of the uniform `unauthorized` 401 the capture service answers.
+ */
+const CaptureAuthHeaders = Schema.Struct({
+  "x-secret-key": Schema.optional(Schema.String),
+});
+
 export const CaptureSingleRequest = Schema.Struct({
   ...CaptureEvent.fields,
   sent_at: DateValidFromString,
-  token: Schema.NonEmptyString,
+  token: CaptureToken,
 });
 
 export const CaptureBatchRequest = Schema.Struct({
   events: Schema.NonEmptyArray(CaptureEvent),
   sent_at: DateValidFromString,
-  token: Schema.NonEmptyString,
+  token: CaptureToken,
 });
 
 export class CaptureAcceptedResponse extends Schema.Class<CaptureAcceptedResponse>(
@@ -161,6 +189,7 @@ export const EventCaptureApi = HttpApi.make("EventCaptureApi").add(
           CaptureDependencyUnavailableError,
           CaptureInternalServerError,
         ],
+        headers: CaptureAuthHeaders,
         payload: CaptureSingleRequest,
         success: CaptureAcceptedApiResponse,
       }),
@@ -175,6 +204,7 @@ export const EventCaptureApi = HttpApi.make("EventCaptureApi").add(
           CaptureDependencyUnavailableError,
           CaptureInternalServerError,
         ],
+        headers: CaptureAuthHeaders,
         payload: CaptureBatchRequest,
         success: CaptureAcceptedApiResponse,
       }),

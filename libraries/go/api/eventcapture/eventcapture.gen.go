@@ -12,78 +12,72 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
 
-// Defines values for CaptureDependencyUnavailableErrorTag.
+// Defines values for CaptureDependencyUnavailableErrorJsonEncodingTag.
 const (
-	CaptureDependencyUnavailableErrorTagCaptureDependencyUnavailableError CaptureDependencyUnavailableErrorTag = "CaptureDependencyUnavailableError"
+	CaptureDependencyUnavailableError CaptureDependencyUnavailableErrorJsonEncodingTag = "CaptureDependencyUnavailableError"
 )
 
-// Defines values for CaptureDependencyUnavailableErrorCode.
+// Defines values for CaptureDependencyUnavailableErrorJsonEncodingCode.
 const (
-	DependencyUnavailable CaptureDependencyUnavailableErrorCode = "dependency_unavailable"
+	DependencyUnavailable CaptureDependencyUnavailableErrorJsonEncodingCode = "dependency_unavailable"
 )
 
-// Defines values for CaptureInternalServerErrorTag.
+// Defines values for CaptureInternalServerErrorJsonEncodingTag.
 const (
-	CaptureInternalServerErrorTagCaptureInternalServerError CaptureInternalServerErrorTag = "CaptureInternalServerError"
+	CaptureInternalServerError CaptureInternalServerErrorJsonEncodingTag = "CaptureInternalServerError"
 )
 
-// Defines values for CaptureInternalServerErrorCode.
+// Defines values for CaptureInternalServerErrorJsonEncodingCode.
 const (
-	InternalError CaptureInternalServerErrorCode = "internal_error"
+	InternalError CaptureInternalServerErrorJsonEncodingCode = "internal_error"
 )
 
-// Defines values for CaptureInvalidRequestErrorTag.
+// Defines values for CaptureInvalidRequestErrorJsonEncodingTag.
 const (
-	CaptureInvalidRequestErrorTagCaptureInvalidRequestError CaptureInvalidRequestErrorTag = "CaptureInvalidRequestError"
+	CaptureInvalidRequestError CaptureInvalidRequestErrorJsonEncodingTag = "CaptureInvalidRequestError"
 )
 
-// Defines values for CaptureInvalidRequestErrorCode.
+// Defines values for CaptureInvalidRequestErrorJsonEncodingCode.
 const (
-	InvalidRequest CaptureInvalidRequestErrorCode = "invalid_request"
+	InvalidRequest CaptureInvalidRequestErrorJsonEncodingCode = "invalid_request"
 )
 
-// Defines values for CapturePayloadTooLargeErrorTag.
+// Defines values for CapturePayloadTooLargeErrorJsonEncodingTag.
 const (
-	CapturePayloadTooLargeErrorTagCapturePayloadTooLargeError CapturePayloadTooLargeErrorTag = "CapturePayloadTooLargeError"
+	CapturePayloadTooLargeError CapturePayloadTooLargeErrorJsonEncodingTag = "CapturePayloadTooLargeError"
 )
 
-// Defines values for CapturePayloadTooLargeErrorCode.
+// Defines values for CapturePayloadTooLargeErrorJsonEncodingCode.
 const (
-	PayloadTooLarge CapturePayloadTooLargeErrorCode = "payload_too_large"
+	PayloadTooLarge CapturePayloadTooLargeErrorJsonEncodingCode = "payload_too_large"
 )
 
-// Defines values for CaptureRateLimitedErrorTag.
+// Defines values for CaptureRateLimitedErrorJsonEncodingTag.
 const (
-	CaptureRateLimitedErrorTagCaptureRateLimitedError CaptureRateLimitedErrorTag = "CaptureRateLimitedError"
+	CaptureRateLimitedError CaptureRateLimitedErrorJsonEncodingTag = "CaptureRateLimitedError"
 )
 
-// Defines values for CaptureRateLimitedErrorCode.
+// Defines values for CaptureRateLimitedErrorJsonEncodingCode.
 const (
-	RateLimited CaptureRateLimitedErrorCode = "rate_limited"
+	RateLimited CaptureRateLimitedErrorJsonEncodingCode = "rate_limited"
 )
 
-// Defines values for CaptureUnauthorizedErrorTag.
+// Defines values for CaptureUnauthorizedErrorJsonEncodingTag.
 const (
-	CaptureUnauthorizedErrorTagCaptureUnauthorizedError CaptureUnauthorizedErrorTag = "CaptureUnauthorizedError"
+	CaptureUnauthorizedError CaptureUnauthorizedErrorJsonEncodingTag = "CaptureUnauthorizedError"
 )
 
-// Defines values for CaptureUnauthorizedErrorCode.
+// Defines values for CaptureUnauthorizedErrorJsonEncodingCode.
 const (
-	Unauthorized CaptureUnauthorizedErrorCode = "unauthorized"
+	Unauthorized CaptureUnauthorizedErrorJsonEncodingCode = "unauthorized"
 )
 
-// Defines values for EffectHttpApiSchemaErrorTag.
-const (
-	HttpApiSchemaError EffectHttpApiSchemaErrorTag = "HttpApiSchemaError"
-)
-
-// CaptureAcceptedResponse defines model for CaptureAcceptedResponse.
-type CaptureAcceptedResponse struct {
+// CaptureAcceptedResponseJsonEncoding defines model for CaptureAcceptedResponseJsonEncoding.
+type CaptureAcceptedResponseJsonEncoding struct {
 	Accepted int `json:"accepted"`
 	Rejected int `json:"rejected"`
 }
@@ -108,18 +102,29 @@ type CaptureContextValue3 = []CaptureContextValue
 // CaptureContextValue4 defines model for .
 type CaptureContextValue4 map[string]*CaptureContextValue
 
-// CaptureDependencyUnavailableError defines model for CaptureDependencyUnavailableError.
-type CaptureDependencyUnavailableError struct {
-	UnderscoreTag CaptureDependencyUnavailableErrorTag  `json:"_tag"`
-	Code          CaptureDependencyUnavailableErrorCode `json:"code"`
-	Error         string                                `json:"error"`
+// CaptureDependencyUnavailableErrorJsonEncoding defines model for CaptureDependencyUnavailableErrorJsonEncoding.
+type CaptureDependencyUnavailableErrorJsonEncoding struct {
+	UnderscoreTag CaptureDependencyUnavailableErrorJsonEncodingTag  `json:"_tag"`
+	Code          CaptureDependencyUnavailableErrorJsonEncodingCode `json:"code"`
+	Error         string                                            `json:"error"`
 }
 
-// CaptureDependencyUnavailableErrorTag defines model for CaptureDependencyUnavailableError.Tag.
-type CaptureDependencyUnavailableErrorTag string
+// CaptureDependencyUnavailableErrorJsonEncodingTag defines model for CaptureDependencyUnavailableErrorJsonEncoding.Tag.
+type CaptureDependencyUnavailableErrorJsonEncodingTag string
 
-// CaptureDependencyUnavailableErrorCode defines model for CaptureDependencyUnavailableError.Code.
-type CaptureDependencyUnavailableErrorCode string
+// CaptureDependencyUnavailableErrorJsonEncodingCode defines model for CaptureDependencyUnavailableErrorJsonEncoding.Code.
+type CaptureDependencyUnavailableErrorJsonEncodingCode string
+
+// CaptureEvent defines model for CaptureEvent.
+type CaptureEvent struct {
+	Context    Objects  `json:"context"`
+	DistinctId string   `json:"distinct_id"`
+	Event      string   `json:"event"`
+	Properties Objects1 `json:"properties"`
+	SessionId  *string  `json:"session_id"`
+	Timestamp  *string  `json:"timestamp"`
+	Uuid       string   `json:"uuid"`
+}
 
 // CaptureEventValue defines model for CaptureEventValue.
 type CaptureEventValue struct {
@@ -141,107 +146,106 @@ type CaptureEventValue3 = []CaptureEventValue
 // CaptureEventValue4 defines model for .
 type CaptureEventValue4 map[string]*CaptureEventValue
 
-// CaptureInternalServerError defines model for CaptureInternalServerError.
-type CaptureInternalServerError struct {
-	UnderscoreTag CaptureInternalServerErrorTag  `json:"_tag"`
-	Code          CaptureInternalServerErrorCode `json:"code"`
-	Error         string                         `json:"error"`
+// CaptureInternalServerErrorJsonEncoding defines model for CaptureInternalServerErrorJsonEncoding.
+type CaptureInternalServerErrorJsonEncoding struct {
+	UnderscoreTag CaptureInternalServerErrorJsonEncodingTag  `json:"_tag"`
+	Code          CaptureInternalServerErrorJsonEncodingCode `json:"code"`
+	Error         string                                     `json:"error"`
 }
 
-// CaptureInternalServerErrorTag defines model for CaptureInternalServerError.Tag.
-type CaptureInternalServerErrorTag string
+// CaptureInternalServerErrorJsonEncodingTag defines model for CaptureInternalServerErrorJsonEncoding.Tag.
+type CaptureInternalServerErrorJsonEncodingTag string
 
-// CaptureInternalServerErrorCode defines model for CaptureInternalServerError.Code.
-type CaptureInternalServerErrorCode string
+// CaptureInternalServerErrorJsonEncodingCode defines model for CaptureInternalServerErrorJsonEncoding.Code.
+type CaptureInternalServerErrorJsonEncodingCode string
 
-// CaptureInvalidRequestError defines model for CaptureInvalidRequestError.
-type CaptureInvalidRequestError struct {
-	UnderscoreTag CaptureInvalidRequestErrorTag  `json:"_tag"`
-	Code          CaptureInvalidRequestErrorCode `json:"code"`
-	Error         string                         `json:"error"`
+// CaptureInvalidRequestErrorJsonEncoding defines model for CaptureInvalidRequestErrorJsonEncoding.
+type CaptureInvalidRequestErrorJsonEncoding struct {
+	UnderscoreTag CaptureInvalidRequestErrorJsonEncodingTag  `json:"_tag"`
+	Code          CaptureInvalidRequestErrorJsonEncodingCode `json:"code"`
+	Error         string                                     `json:"error"`
 }
 
-// CaptureInvalidRequestErrorTag defines model for CaptureInvalidRequestError.Tag.
-type CaptureInvalidRequestErrorTag string
+// CaptureInvalidRequestErrorJsonEncodingTag defines model for CaptureInvalidRequestErrorJsonEncoding.Tag.
+type CaptureInvalidRequestErrorJsonEncodingTag string
 
-// CaptureInvalidRequestErrorCode defines model for CaptureInvalidRequestError.Code.
-type CaptureInvalidRequestErrorCode string
+// CaptureInvalidRequestErrorJsonEncodingCode defines model for CaptureInvalidRequestErrorJsonEncoding.Code.
+type CaptureInvalidRequestErrorJsonEncodingCode string
 
-// CapturePayloadTooLargeError defines model for CapturePayloadTooLargeError.
-type CapturePayloadTooLargeError struct {
-	UnderscoreTag CapturePayloadTooLargeErrorTag  `json:"_tag"`
-	Code          CapturePayloadTooLargeErrorCode `json:"code"`
-	Error         string                          `json:"error"`
+// CapturePayloadTooLargeErrorJsonEncoding defines model for CapturePayloadTooLargeErrorJsonEncoding.
+type CapturePayloadTooLargeErrorJsonEncoding struct {
+	UnderscoreTag CapturePayloadTooLargeErrorJsonEncodingTag  `json:"_tag"`
+	Code          CapturePayloadTooLargeErrorJsonEncodingCode `json:"code"`
+	Error         string                                      `json:"error"`
 }
 
-// CapturePayloadTooLargeErrorTag defines model for CapturePayloadTooLargeError.Tag.
-type CapturePayloadTooLargeErrorTag string
+// CapturePayloadTooLargeErrorJsonEncodingTag defines model for CapturePayloadTooLargeErrorJsonEncoding.Tag.
+type CapturePayloadTooLargeErrorJsonEncodingTag string
 
-// CapturePayloadTooLargeErrorCode defines model for CapturePayloadTooLargeError.Code.
-type CapturePayloadTooLargeErrorCode string
+// CapturePayloadTooLargeErrorJsonEncodingCode defines model for CapturePayloadTooLargeErrorJsonEncoding.Code.
+type CapturePayloadTooLargeErrorJsonEncodingCode string
 
-// CaptureRateLimitedError defines model for CaptureRateLimitedError.
-type CaptureRateLimitedError struct {
-	UnderscoreTag CaptureRateLimitedErrorTag  `json:"_tag"`
-	Code          CaptureRateLimitedErrorCode `json:"code"`
-	Error         string                      `json:"error"`
-	RetryAfterMs  *int                        `json:"retry_after_ms"`
+// CaptureRateLimitedErrorJsonEncoding defines model for CaptureRateLimitedErrorJsonEncoding.
+type CaptureRateLimitedErrorJsonEncoding struct {
+	UnderscoreTag CaptureRateLimitedErrorJsonEncodingTag  `json:"_tag"`
+	Code          CaptureRateLimitedErrorJsonEncodingCode `json:"code"`
+	Error         string                                  `json:"error"`
+	RetryAfterMs  *int                                    `json:"retry_after_ms"`
 }
 
-// CaptureRateLimitedErrorTag defines model for CaptureRateLimitedError.Tag.
-type CaptureRateLimitedErrorTag string
+// CaptureRateLimitedErrorJsonEncodingTag defines model for CaptureRateLimitedErrorJsonEncoding.Tag.
+type CaptureRateLimitedErrorJsonEncodingTag string
 
-// CaptureRateLimitedErrorCode defines model for CaptureRateLimitedError.Code.
-type CaptureRateLimitedErrorCode string
+// CaptureRateLimitedErrorJsonEncodingCode defines model for CaptureRateLimitedErrorJsonEncoding.Code.
+type CaptureRateLimitedErrorJsonEncodingCode string
 
-// CaptureUnauthorizedError defines model for CaptureUnauthorizedError.
-type CaptureUnauthorizedError struct {
-	UnderscoreTag CaptureUnauthorizedErrorTag  `json:"_tag"`
-	Code          CaptureUnauthorizedErrorCode `json:"code"`
-	Error         string                       `json:"error"`
+// CaptureUnauthorizedErrorJsonEncoding defines model for CaptureUnauthorizedErrorJsonEncoding.
+type CaptureUnauthorizedErrorJsonEncoding struct {
+	UnderscoreTag CaptureUnauthorizedErrorJsonEncodingTag  `json:"_tag"`
+	Code          CaptureUnauthorizedErrorJsonEncodingCode `json:"code"`
+	Error         string                                   `json:"error"`
 }
 
-// CaptureUnauthorizedErrorTag defines model for CaptureUnauthorizedError.Tag.
-type CaptureUnauthorizedErrorTag string
+// CaptureUnauthorizedErrorJsonEncodingTag defines model for CaptureUnauthorizedErrorJsonEncoding.Tag.
+type CaptureUnauthorizedErrorJsonEncodingTag string
 
-// CaptureUnauthorizedErrorCode defines model for CaptureUnauthorizedError.Code.
-type CaptureUnauthorizedErrorCode string
+// CaptureUnauthorizedErrorJsonEncodingCode defines model for CaptureUnauthorizedErrorJsonEncoding.Code.
+type CaptureUnauthorizedErrorJsonEncodingCode string
 
-// EffectHttpApiSchemaError defines model for effect_HttpApiSchemaError.
-type EffectHttpApiSchemaError struct {
-	UnderscoreTag EffectHttpApiSchemaErrorTag `json:"_tag"`
-	Message       string                      `json:"message"`
-}
+// Objects defines model for Objects_.
+type Objects map[string]*CaptureEventValue
 
-// EffectHttpApiSchemaErrorTag defines model for EffectHttpApiSchemaError.Tag.
-type EffectHttpApiSchemaErrorTag string
+// Objects1 defines model for Objects_1.
+type Objects1 map[string]*CaptureContextValue
 
 // EventCaptureBatchJSONBody defines parameters for EventCaptureBatch.
 type EventCaptureBatchJSONBody struct {
-	Events []struct {
-		Context    map[string]*CaptureEventValue   `json:"context"`
-		DistinctId string                          `json:"distinct_id"`
-		Event      string                          `json:"event"`
-		Properties map[string]*CaptureContextValue `json:"properties"`
-		SessionId  *string                         `json:"session_id"`
-		Timestamp  *time.Time                      `json:"timestamp"`
-		Uuid       string                          `json:"uuid"`
-	} `json:"events"`
-	SentAt time.Time `json:"sent_at"`
-	Token  string    `json:"token"`
+	Events []CaptureEvent `json:"events"`
+	SentAt string         `json:"sent_at"`
+	Token  *string        `json:"token"`
+}
+
+// EventCaptureBatchParams defines parameters for EventCaptureBatch.
+type EventCaptureBatchParams struct {
+	XSecretKey *string `json:"x-secret-key,omitempty"`
 }
 
 // EventCaptureCaptureJSONBody defines parameters for EventCaptureCapture.
 type EventCaptureCaptureJSONBody struct {
-	Context    map[string]*CaptureEventValue   `json:"context"`
-	DistinctId string                          `json:"distinct_id"`
-	Event      string                          `json:"event"`
-	Properties map[string]*CaptureContextValue `json:"properties"`
-	SentAt     time.Time                       `json:"sent_at"`
-	SessionId  *string                         `json:"session_id"`
-	Timestamp  *time.Time                      `json:"timestamp"`
-	Token      string                          `json:"token"`
-	Uuid       string                          `json:"uuid"`
+	Context    Objects  `json:"context"`
+	DistinctId string   `json:"distinct_id"`
+	Event      string   `json:"event"`
+	Properties Objects1 `json:"properties"`
+	SentAt     string   `json:"sent_at"`
+	SessionId  *string  `json:"session_id"`
+	Timestamp  *string  `json:"timestamp"`
+	Token      *string  `json:"token"`
+	Uuid       string   `json:"uuid"`
+}
+
+// EventCaptureCaptureParams defines parameters for EventCaptureCapture.
+type EventCaptureCaptureParams struct {
+	XSecretKey *string `json:"x-secret-key,omitempty"`
 }
 
 // EventCaptureBatchJSONRequestBody defines body for EventCaptureBatch for application/json ContentType.
@@ -604,18 +608,18 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// EventCaptureBatchWithBody request with any body
-	EventCaptureBatchWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	EventCaptureBatchWithBody(ctx context.Context, params *EventCaptureBatchParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	EventCaptureBatch(ctx context.Context, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	EventCaptureBatch(ctx context.Context, params *EventCaptureBatchParams, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// EventCaptureCaptureWithBody request with any body
-	EventCaptureCaptureWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	EventCaptureCaptureWithBody(ctx context.Context, params *EventCaptureCaptureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	EventCaptureCapture(ctx context.Context, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	EventCaptureCapture(ctx context.Context, params *EventCaptureCaptureParams, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) EventCaptureBatchWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewEventCaptureBatchRequestWithBody(c.Server, contentType, body)
+func (c *Client) EventCaptureBatchWithBody(ctx context.Context, params *EventCaptureBatchParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEventCaptureBatchRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -626,8 +630,8 @@ func (c *Client) EventCaptureBatchWithBody(ctx context.Context, contentType stri
 	return c.Client.Do(req)
 }
 
-func (c *Client) EventCaptureBatch(ctx context.Context, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewEventCaptureBatchRequest(c.Server, body)
+func (c *Client) EventCaptureBatch(ctx context.Context, params *EventCaptureBatchParams, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEventCaptureBatchRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -638,8 +642,8 @@ func (c *Client) EventCaptureBatch(ctx context.Context, body EventCaptureBatchJS
 	return c.Client.Do(req)
 }
 
-func (c *Client) EventCaptureCaptureWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewEventCaptureCaptureRequestWithBody(c.Server, contentType, body)
+func (c *Client) EventCaptureCaptureWithBody(ctx context.Context, params *EventCaptureCaptureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEventCaptureCaptureRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -650,8 +654,8 @@ func (c *Client) EventCaptureCaptureWithBody(ctx context.Context, contentType st
 	return c.Client.Do(req)
 }
 
-func (c *Client) EventCaptureCapture(ctx context.Context, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewEventCaptureCaptureRequest(c.Server, body)
+func (c *Client) EventCaptureCapture(ctx context.Context, params *EventCaptureCaptureParams, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEventCaptureCaptureRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -663,18 +667,18 @@ func (c *Client) EventCaptureCapture(ctx context.Context, body EventCaptureCaptu
 }
 
 // NewEventCaptureBatchRequest calls the generic EventCaptureBatch builder with application/json body
-func NewEventCaptureBatchRequest(server string, body EventCaptureBatchJSONRequestBody) (*http.Request, error) {
+func NewEventCaptureBatchRequest(server string, params *EventCaptureBatchParams, body EventCaptureBatchJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewEventCaptureBatchRequestWithBody(server, "application/json", bodyReader)
+	return NewEventCaptureBatchRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewEventCaptureBatchRequestWithBody generates requests for EventCaptureBatch with any type of body
-func NewEventCaptureBatchRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewEventCaptureBatchRequestWithBody(server string, params *EventCaptureBatchParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -699,22 +703,37 @@ func NewEventCaptureBatchRequestWithBody(server string, contentType string, body
 
 	req.Header.Add("Content-Type", contentType)
 
+	if params != nil {
+
+		if params.XSecretKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "x-secret-key", runtime.ParamLocationHeader, *params.XSecretKey)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("x-secret-key", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
 // NewEventCaptureCaptureRequest calls the generic EventCaptureCapture builder with application/json body
-func NewEventCaptureCaptureRequest(server string, body EventCaptureCaptureJSONRequestBody) (*http.Request, error) {
+func NewEventCaptureCaptureRequest(server string, params *EventCaptureCaptureParams, body EventCaptureCaptureJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewEventCaptureCaptureRequestWithBody(server, "application/json", bodyReader)
+	return NewEventCaptureCaptureRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewEventCaptureCaptureRequestWithBody generates requests for EventCaptureCapture with any type of body
-func NewEventCaptureCaptureRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewEventCaptureCaptureRequestWithBody(server string, params *EventCaptureCaptureParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -738,6 +757,21 @@ func NewEventCaptureCaptureRequestWithBody(server string, contentType string, bo
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XSecretKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "x-secret-key", runtime.ParamLocationHeader, *params.XSecretKey)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("x-secret-key", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -786,28 +820,26 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 	// EventCaptureBatchWithBodyWithResponse request with any body
-	EventCaptureBatchWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error)
+	EventCaptureBatchWithBodyWithResponse(ctx context.Context, params *EventCaptureBatchParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error)
 
-	EventCaptureBatchWithResponse(ctx context.Context, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error)
+	EventCaptureBatchWithResponse(ctx context.Context, params *EventCaptureBatchParams, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error)
 
 	// EventCaptureCaptureWithBodyWithResponse request with any body
-	EventCaptureCaptureWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error)
+	EventCaptureCaptureWithBodyWithResponse(ctx context.Context, params *EventCaptureCaptureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error)
 
-	EventCaptureCaptureWithResponse(ctx context.Context, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error)
+	EventCaptureCaptureWithResponse(ctx context.Context, params *EventCaptureCaptureParams, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error)
 }
 
 type EventCaptureBatchResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON202      *CaptureAcceptedResponse
-	JSON400      *struct {
-		union json.RawMessage
-	}
-	JSON401 *CaptureUnauthorizedError
-	JSON413 *CapturePayloadTooLargeError
-	JSON429 *CaptureRateLimitedError
-	JSON500 *CaptureInternalServerError
-	JSON503 *CaptureDependencyUnavailableError
+	JSON202      *CaptureAcceptedResponseJsonEncoding
+	JSON400      *CaptureInvalidRequestErrorJsonEncoding
+	JSON401      *CaptureUnauthorizedErrorJsonEncoding
+	JSON413      *CapturePayloadTooLargeErrorJsonEncoding
+	JSON429      *CaptureRateLimitedErrorJsonEncoding
+	JSON500      *CaptureInternalServerErrorJsonEncoding
+	JSON503      *CaptureDependencyUnavailableErrorJsonEncoding
 }
 
 // Status returns HTTPResponse.Status
@@ -829,15 +861,13 @@ func (r EventCaptureBatchResponse) StatusCode() int {
 type EventCaptureCaptureResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON202      *CaptureAcceptedResponse
-	JSON400      *struct {
-		union json.RawMessage
-	}
-	JSON401 *CaptureUnauthorizedError
-	JSON413 *CapturePayloadTooLargeError
-	JSON429 *CaptureRateLimitedError
-	JSON500 *CaptureInternalServerError
-	JSON503 *CaptureDependencyUnavailableError
+	JSON202      *CaptureAcceptedResponseJsonEncoding
+	JSON400      *CaptureInvalidRequestErrorJsonEncoding
+	JSON401      *CaptureUnauthorizedErrorJsonEncoding
+	JSON413      *CapturePayloadTooLargeErrorJsonEncoding
+	JSON429      *CaptureRateLimitedErrorJsonEncoding
+	JSON500      *CaptureInternalServerErrorJsonEncoding
+	JSON503      *CaptureDependencyUnavailableErrorJsonEncoding
 }
 
 // Status returns HTTPResponse.Status
@@ -857,16 +887,16 @@ func (r EventCaptureCaptureResponse) StatusCode() int {
 }
 
 // EventCaptureBatchWithBodyWithResponse request with arbitrary body returning *EventCaptureBatchResponse
-func (c *ClientWithResponses) EventCaptureBatchWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error) {
-	rsp, err := c.EventCaptureBatchWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) EventCaptureBatchWithBodyWithResponse(ctx context.Context, params *EventCaptureBatchParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error) {
+	rsp, err := c.EventCaptureBatchWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseEventCaptureBatchResponse(rsp)
 }
 
-func (c *ClientWithResponses) EventCaptureBatchWithResponse(ctx context.Context, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error) {
-	rsp, err := c.EventCaptureBatch(ctx, body, reqEditors...)
+func (c *ClientWithResponses) EventCaptureBatchWithResponse(ctx context.Context, params *EventCaptureBatchParams, body EventCaptureBatchJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureBatchResponse, error) {
+	rsp, err := c.EventCaptureBatch(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -874,16 +904,16 @@ func (c *ClientWithResponses) EventCaptureBatchWithResponse(ctx context.Context,
 }
 
 // EventCaptureCaptureWithBodyWithResponse request with arbitrary body returning *EventCaptureCaptureResponse
-func (c *ClientWithResponses) EventCaptureCaptureWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error) {
-	rsp, err := c.EventCaptureCaptureWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) EventCaptureCaptureWithBodyWithResponse(ctx context.Context, params *EventCaptureCaptureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error) {
+	rsp, err := c.EventCaptureCaptureWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseEventCaptureCaptureResponse(rsp)
 }
 
-func (c *ClientWithResponses) EventCaptureCaptureWithResponse(ctx context.Context, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error) {
-	rsp, err := c.EventCaptureCapture(ctx, body, reqEditors...)
+func (c *ClientWithResponses) EventCaptureCaptureWithResponse(ctx context.Context, params *EventCaptureCaptureParams, body EventCaptureCaptureJSONRequestBody, reqEditors ...RequestEditorFn) (*EventCaptureCaptureResponse, error) {
+	rsp, err := c.EventCaptureCapture(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -905,51 +935,49 @@ func ParseEventCaptureBatchResponse(rsp *http.Response) (*EventCaptureBatchRespo
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
-		var dest CaptureAcceptedResponse
+		var dest CaptureAcceptedResponseJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest struct {
-			union json.RawMessage
-		}
+		var dest CaptureInvalidRequestErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest CaptureUnauthorizedError
+		var dest CaptureUnauthorizedErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON401 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
-		var dest CapturePayloadTooLargeError
+		var dest CapturePayloadTooLargeErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON413 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
-		var dest CaptureRateLimitedError
+		var dest CaptureRateLimitedErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest CaptureInternalServerError
+		var dest CaptureInternalServerErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON500 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest CaptureDependencyUnavailableError
+		var dest CaptureDependencyUnavailableErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -975,51 +1003,49 @@ func ParseEventCaptureCaptureResponse(rsp *http.Response) (*EventCaptureCaptureR
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
-		var dest CaptureAcceptedResponse
+		var dest CaptureAcceptedResponseJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest struct {
-			union json.RawMessage
-		}
+		var dest CaptureInvalidRequestErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest CaptureUnauthorizedError
+		var dest CaptureUnauthorizedErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON401 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
-		var dest CapturePayloadTooLargeError
+		var dest CapturePayloadTooLargeErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON413 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
-		var dest CaptureRateLimitedError
+		var dest CaptureRateLimitedErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON429 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest CaptureInternalServerError
+		var dest CaptureInternalServerErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON500 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest CaptureDependencyUnavailableError
+		var dest CaptureDependencyUnavailableErrorJsonEncoding
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

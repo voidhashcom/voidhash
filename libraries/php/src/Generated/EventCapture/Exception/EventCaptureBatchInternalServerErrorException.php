@@ -5,22 +5,22 @@ namespace Voidhash\Generated\EventCapture\Exception;
 class EventCaptureBatchInternalServerErrorException extends InternalServerErrorException
 {
     /**
-     * @var \Voidhash\Generated\EventCapture\Model\CaptureInternalServerError
+     * @var \Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding
      */
-    private $captureInternalServerError;
+    private $captureInternalServerErrorJsonEncoding;
     /**
      * @var \Psr\Http\Message\ResponseInterface
      */
     private $response;
-    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureInternalServerError $captureInternalServerError, \Psr\Http\Message\ResponseInterface $response)
+    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding $captureInternalServerErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
     {
         parent::__construct('CaptureInternalServerError');
-        $this->captureInternalServerError = $captureInternalServerError;
+        $this->captureInternalServerErrorJsonEncoding = $captureInternalServerErrorJsonEncoding;
         $this->response = $response;
     }
-    public function getCaptureInternalServerError(): \Voidhash\Generated\EventCapture\Model\CaptureInternalServerError
+    public function getCaptureInternalServerErrorJsonEncoding(): \Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding
     {
-        return $this->captureInternalServerError;
+        return $this->captureInternalServerErrorJsonEncoding;
     }
     public function getResponse(): \Psr\Http\Message\ResponseInterface
     {

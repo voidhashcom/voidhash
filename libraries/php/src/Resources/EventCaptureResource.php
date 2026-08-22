@@ -5,15 +5,28 @@ namespace Voidhash\Resources;
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\EventCapture\Client;
 use Voidhash\Generated\EventCapture\Exception\ApiException as GeneratedApiException;
+use Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding;
+use Voidhash\Generated\EventCapture\Model\CaptureEvent;
+use Voidhash\Generated\EventCapture\Model\IV1BatchPostBody;
 use Voidhash\Generated\EventCapture\Model\IV1CapturePostBody;
 
 /**
  * Analytics ingestion.
  *
- * Unlike every other resource this does not authenticate with the secret key:
- * ingest is the same endpoint the mobile SDKs post to, and it authenticates on
- * the project's **publishable** key carried in the request body. Pass it as
- * `publishableKey` to {@see \Voidhash\VoidhashClient::create()}.
+ * Ingest is the same endpoint the mobile SDKs post to, but a server-side SDK
+ * authenticates it the way every other resource does: with the project's
+ * secret key in the `x-secret-key` header. The publishable key is optional and
+ * only mirrors what a browser would send in the body `token`.
+ *
+ * @phpstan-type CaptureEventInput array{
+ *   event: string,
+ *   distinctId: string,
+ *   uuid?: string,
+ *   properties?: array<string, mixed>,
+ *   context?: array<string, mixed>,
+ *   sessionId?: string,
+ *   timestamp?: \DateTimeInterface
+ * }
  */
 final class EventCaptureResource
 {
@@ -23,60 +36,115 @@ final class EventCaptureResource
     ) {
     }
 
-    /** Whether a publishable key is configured; without one capture cannot be sent. */
-    public function isEnabled(): bool
-    {
-        return $this->publishableKey !== null;
-    }
-
     /**
      * Posts one analytics event to the ingestion API.
      *
      * `properties` are the event's own attributes; facts about the person
-     * belong in {@see PersonsResource::setAttributes()} instead.
+     * belong in {@see PersonsResource::setAttributes()} instead. A missing
+     * `uuid` is generated here — reuse the same one when retrying an event so
+     * the server deduplicates it.
      *
-     * @param array{
-     *   event: string,
-     *   distinctId: string,
-     *   properties?: array<string, mixed>,
-     *   context?: array<string, mixed>,
-     *   timestamp?: \DateTimeInterface
-     * } $event
+     * @param CaptureEventInput $event
      *
      * @return array{accepted: int, rejected: int} how many events ingest took and discarded
      *
-     * @throws ApiException when no publishable key is configured, or ingest rejected the event
+     * @throws ApiException when ingest rejected the request
      */
     public function capture(array $event): array
     {
-        if ($this->publishableKey === null) {
-            throw new ApiException(0, 'ConfigurationError');
+        $body = new IV1CapturePostBody();
+        self::applyEvent($body, $event);
+        $body->setSentAt(self::now());
+        if ($this->publishableKey !== null) {
+            $body->setToken($this->publishableKey);
         }
 
-        $body = new IV1CapturePostBody();
-        $body->setUuid(self::uuidV4());
+        return self::result(fn () => $this->client->eventCaptureCapture($body));
+    }
+
+    /**
+     * Posts a batch of analytics events to the ingestion API. `sent_at` is
+     * stamped once for the whole request.
+     *
+     * @param list<CaptureEventInput> $events
+     *
+     * @return array{accepted: int, rejected: int} how many events ingest took and discarded
+     *
+     * @throws ApiException when ingest rejected the request
+     */
+    public function batch(array $events): array
+    {
+        $items = [];
+        foreach ($events as $event) {
+            $item = new CaptureEvent();
+            self::applyEvent($item, $event);
+            $items[] = $item;
+        }
+
+        $body = new IV1BatchPostBody();
+        $body->setEvents($items);
+        $body->setSentAt(self::now());
+        if ($this->publishableKey !== null) {
+            $body->setToken($this->publishableKey);
+        }
+
+        return self::result(fn () => $this->client->eventCaptureBatch($body));
+    }
+
+    /**
+     * @param CaptureEventInput $event
+     */
+    private static function applyEvent(IV1CapturePostBody|CaptureEvent $body, array $event): void
+    {
+        $uuid = $event['uuid'] ?? '';
+        $body->setUuid($uuid !== '' ? $uuid : self::uuidV4());
         $body->setEvent($event['event']);
         $body->setDistinctId($event['distinctId']);
         // Both are required JSON objects; CaptureBodyNormalizer keeps them that
         // way when they are empty.
         $body->setContext($event['context'] ?? []);
         $body->setProperties($event['properties'] ?? []);
-        if (isset($event['timestamp'])) {
-            $body->setTimestamp(\DateTime::createFromInterface($event['timestamp']));
-        }
-        $body->setSentAt(new \DateTime('now', new \DateTimeZone('UTC')));
-        $body->setToken($this->publishableKey);
 
+        $sessionId = $event['sessionId'] ?? '';
+        if ($sessionId !== '') {
+            $body->setSessionId($sessionId);
+        }
+        if (isset($event['timestamp'])) {
+            $body->setTimestamp(self::isoDate($event['timestamp']));
+        }
+    }
+
+    /**
+     * @param callable(): (CaptureAcceptedResponseJsonEncoding|\Psr\Http\Message\ResponseInterface|null) $send
+     *
+     * @return array{accepted: int, rejected: int}
+     */
+    private static function result(callable $send): array
+    {
         try {
-            $accepted = $this->client->eventCaptureCapture($body);
+            $accepted = $send();
         } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
 
         return [
-            'accepted' => $accepted?->getAccepted() ?? 0,
-            'rejected' => $accepted?->getRejected() ?? 0,
+            'accepted' => $accepted instanceof CaptureAcceptedResponseJsonEncoding ? $accepted->getAccepted() : 0,
+            'rejected' => $accepted instanceof CaptureAcceptedResponseJsonEncoding ? $accepted->getRejected() : 0,
         ];
+    }
+
+    /**
+     * Ingest types `sent_at` and `timestamp` as plain strings, so the ISO-8601
+     * wire format is this SDK's job rather than the serializer's.
+     */
+    private static function now(): string
+    {
+        return self::isoDate(new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+    }
+
+    private static function isoDate(\DateTimeInterface $date): string
+    {
+        return $date->format(\DateTimeInterface::ATOM);
     }
 
     /** RFC 4122 version 4 UUID, which is all the ingest API asks of the client. */

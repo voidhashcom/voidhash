@@ -571,68 +571,6 @@
         }
       }
     },
-    "/api/v1/persons/attributes": {
-      "post": {
-        "tags": [
-          "persons"
-        ],
-        "operationId": "persons.setPersonAttributes",
-        "parameters": [],
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Person",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PersonJsonEncoding"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Api/NotAuthenticatedError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Api/ActionForbiddenError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Api/PersonServiceError | Api/AuthenticationError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetPersonAttributesBodyJsonEncoding"
-              }
-            }
-          },
-          "required": true
-        }
-      }
-    },
     "/api/v1/persons/{personId}": {
       "get": {
         "tags": [
@@ -843,6 +781,68 @@
               }
             }
           }
+        }
+      }
+    },
+    "/api/v1/persons/attributes": {
+      "post": {
+        "tags": [
+          "persons"
+        ],
+        "operationId": "persons.setPersonAttributes",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Person",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonJsonEncoding"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Api/NotAuthenticatedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PersonServiceError | Api/AuthenticationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPersonAttributesBodyJsonEncoding"
+              }
+            }
+          },
+          "required": true
         }
       }
     },
@@ -1887,7 +1887,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -2134,7 +2136,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -2401,7 +2405,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -2658,7 +2664,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -2974,7 +2982,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -3221,7 +3231,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -3458,7 +3470,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -3706,7 +3720,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -3933,7 +3949,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -4200,7 +4218,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -4460,7 +4480,9 @@
               "type": "string",
               "enum": [
                 "react-native",
-                "web"
+                "web",
+                "ios",
+                "android"
               ]
             },
             "required": true
@@ -5611,34 +5633,6 @@
         ],
         "additionalProperties": false
       },
-      "SetPersonAttributesBodyJsonEncoding": {
-        "type": "object",
-        "properties": {
-          "distinctId": {
-            "type": "string"
-          },
-          "email": {
-            "nullable": true,
-            "type": "string"
-          },
-          "name": {
-            "nullable": true,
-            "type": "string"
-          },
-          "traits": {
-            "nullable": true,
-            "$ref": "#/components/schemas/Objects_1"
-          },
-          "setOnce": {
-            "nullable": true,
-            "$ref": "#/components/schemas/Objects_1"
-          }
-        },
-        "required": [
-          "distinctId"
-        ],
-        "additionalProperties": false
-      },
       "PersonJsonEncoding": {
         "type": "object",
         "properties": {
@@ -5779,6 +5773,34 @@
         },
         "required": [
           "grants"
+        ],
+        "additionalProperties": false
+      },
+      "SetPersonAttributesBodyJsonEncoding": {
+        "type": "object",
+        "properties": {
+          "distinctId": {
+            "type": "string"
+          },
+          "email": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "traits": {
+            "nullable": true,
+            "$ref": "#/components/schemas/PersonAttributeValues"
+          },
+          "setOnce": {
+            "nullable": true,
+            "$ref": "#/components/schemas/PersonAttributeValues"
+          }
+        },
+        "required": [
+          "distinctId"
         ],
         "additionalProperties": false
       },
@@ -6482,14 +6504,11 @@
         ],
         "additionalProperties": false
       },
-      "Objects_": {
-        "type": "object"
-      },
       "SchemaProductProviderJsonEncoding": {
         "type": "object",
         "properties": {
           "configuration": {
-            "$ref": "#/components/schemas/Objects_"
+            "$ref": "#/components/schemas/ProviderConfiguration"
           },
           "providerId": {
             "type": "string",
@@ -7099,9 +7118,6 @@
         ],
         "additionalProperties": false
       },
-      "Objects_1": {
-        "description": "Arbitrary JSON value."
-      },
       "SdkIdentifyBodyJsonEncoding": {
         "type": "object",
         "properties": {
@@ -7118,7 +7134,7 @@
           },
           "traits": {
             "nullable": true,
-            "$ref": "#/components/schemas/Objects_1"
+            "$ref": "#/components/schemas/PersonAttributeValues"
           }
         },
         "required": [
@@ -7158,11 +7174,11 @@
           },
           "traits": {
             "nullable": true,
-            "$ref": "#/components/schemas/Objects_1"
+            "$ref": "#/components/schemas/PersonAttributeValues"
           },
           "setOnce": {
             "nullable": true,
-            "$ref": "#/components/schemas/Objects_1"
+            "$ref": "#/components/schemas/PersonAttributeValues"
           },
           "clientEventId": {
             "nullable": true,
@@ -7548,7 +7564,7 @@
                 "properties": {
                   "appleAppStore": {
                     "nullable": true,
-                    "$ref": "#/components/schemas/Objects_"
+                    "$ref": "#/components/schemas/ProviderConfiguration"
                   },
                   "development": {
                     "type": "object",
@@ -7646,7 +7662,7 @@
                   },
                   "googlePlay": {
                     "nullable": true,
-                    "$ref": "#/components/schemas/Objects_"
+                    "$ref": "#/components/schemas/ProviderConfiguration"
                   }
                 },
                 "required": [
@@ -8568,6 +8584,12 @@
           "deliveryId"
         ],
         "additionalProperties": false
+      },
+      "PersonAttributeValues": {
+        "description": "Arbitrary JSON value."
+      },
+      "ProviderConfiguration": {
+        "type": "object"
       },
       "ApiError": {
         "type": "object",

@@ -18,27 +18,25 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
     use ValidatorTrait;
     protected $normalizers = [
         
-        \Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureAcceptedResponseNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureAcceptedResponseJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureInvalidRequestErrorNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestErrorJsonEncoding::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureInvalidRequestErrorJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\EventCapture\Model\EffectHttpApiSchemaError::class => \Voidhash\Generated\EventCapture\Normalizer\EffectHttpApiSchemaErrorNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedErrorJsonEncoding::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureUnauthorizedErrorJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureUnauthorizedErrorNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding::class => \Voidhash\Generated\EventCapture\Normalizer\CapturePayloadTooLargeErrorJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeError::class => \Voidhash\Generated\EventCapture\Normalizer\CapturePayloadTooLargeErrorNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureRateLimitedErrorJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureRateLimitedErrorNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureDependencyUnavailableErrorJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableError::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureDependencyUnavailableErrorNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureInternalServerErrorJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\EventCapture\Model\CaptureInternalServerError::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureInternalServerErrorNormalizer::class,
+        \Voidhash\Generated\EventCapture\Model\CaptureEvent::class => \Voidhash\Generated\EventCapture\Normalizer\CaptureEventNormalizer::class,
         
         \Voidhash\Generated\EventCapture\Model\IV1CapturePostBody::class => \Voidhash\Generated\EventCapture\Normalizer\IV1CapturePostBodyNormalizer::class,
         
         \Voidhash\Generated\EventCapture\Model\IV1BatchPostBody::class => \Voidhash\Generated\EventCapture\Normalizer\IV1BatchPostBodyNormalizer::class,
-        
-        \Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem::class => \Voidhash\Generated\EventCapture\Normalizer\IV1BatchPostBodyEventsItemNormalizer::class,
         
         \Jane\Component\JsonSchemaRuntime\Reference::class => \Voidhash\Generated\EventCapture\Runtime\Normalizer\ReferenceNormalizer::class,
     ], $normalizersCache = [];
@@ -78,17 +76,16 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
     {
         return [
             
-            \Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse::class => false,
-            \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError::class => false,
-            \Voidhash\Generated\EventCapture\Model\EffectHttpApiSchemaError::class => false,
-            \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError::class => false,
-            \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeError::class => false,
-            \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError::class => false,
-            \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableError::class => false,
-            \Voidhash\Generated\EventCapture\Model\CaptureInternalServerError::class => false,
+            \Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding::class => false,
+            \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestErrorJsonEncoding::class => false,
+            \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedErrorJsonEncoding::class => false,
+            \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding::class => false,
+            \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding::class => false,
+            \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding::class => false,
+            \Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding::class => false,
+            \Voidhash\Generated\EventCapture\Model\CaptureEvent::class => false,
             \Voidhash\Generated\EventCapture\Model\IV1CapturePostBody::class => false,
             \Voidhash\Generated\EventCapture\Model\IV1BatchPostBody::class => false,
-            \Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem::class => false,
             \Jane\Component\JsonSchemaRuntime\Reference::class => false,
         ];
     }

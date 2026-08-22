@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-class CaptureUnauthorizedErrorNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+class CaptureInternalServerErrorJsonEncodingNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
 {
     use DenormalizerAwareTrait;
     use NormalizerAwareTrait;
@@ -19,15 +19,15 @@ class CaptureUnauthorizedErrorNormalizer implements DenormalizerInterface, Norma
     use ValidatorTrait;
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError::class;
+        return $type === \Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding::class;
     }
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError::class;
+        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding::class;
     }
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
-        $object = new \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError();
+        $object = new \Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding();
         if (null === $data || false === \is_array($data)) {
             return $object;
         }
@@ -58,6 +58,6 @@ class CaptureUnauthorizedErrorNormalizer implements DenormalizerInterface, Norma
     }
     public function getSupportedTypes(?string $format = null): array
     {
-        return [\Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError::class => false];
+        return [\Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding::class => false];
     }
 }

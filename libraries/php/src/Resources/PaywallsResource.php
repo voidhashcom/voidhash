@@ -9,7 +9,6 @@ use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\CreatePaywallDeployResponseJsonEncoding;
 use Voidhash\Generated\Core\Model\FinalizePaywallDeployResponseJsonEncoding;
 use Voidhash\Generated\Core\Model\PaywallLocationJsonEncoding;
-use Voidhash\Generated\Core\Model\UploadPaywallDeployBlobResponseJsonEncoding;
 
 final class PaywallsResource
 {
@@ -40,9 +39,12 @@ final class PaywallsResource
      * Uploads one binary blob for a pending deploy. The sha256 must be the
      * lowercase hex digest of the blob contents.
      *
+     * The API answers with an empty acknowledgement object, which the spec
+     * carries untyped, so the decoded payload is returned as-is.
+     *
      * @param string|resource|StreamInterface $blob
      */
-    public function uploadBlob(string $deployId, string $sha256, mixed $blob): UploadPaywallDeployBlobResponseJsonEncoding
+    public function uploadBlob(string $deployId, string $sha256, mixed $blob): object
     {
         return $this->wrap(fn () => $this->core->paywallDeploysUploadBlob($deployId, $sha256, $blob)
             ?? throw new ApiException(500));

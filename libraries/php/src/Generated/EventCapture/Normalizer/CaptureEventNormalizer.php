@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-class IV1BatchPostBodyEventsItemNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+class CaptureEventNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
 {
     use DenormalizerAwareTrait;
     use NormalizerAwareTrait;
@@ -19,15 +19,15 @@ class IV1BatchPostBodyEventsItemNormalizer implements DenormalizerInterface, Nor
     use ValidatorTrait;
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === \Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem::class;
+        return $type === \Voidhash\Generated\EventCapture\Model\CaptureEvent::class;
     }
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem::class;
+        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureEvent::class;
     }
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
-        $object = new \Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem();
+        $object = new \Voidhash\Generated\EventCapture\Model\CaptureEvent();
         if (null === $data || false === \is_array($data)) {
             return $object;
         }
@@ -67,7 +67,7 @@ class IV1BatchPostBodyEventsItemNormalizer implements DenormalizerInterface, Nor
             $object->setSessionId(null);
         }
         if (\array_key_exists('timestamp', $data) && $data['timestamp'] !== null) {
-            $object->setTimestamp(\DateTime::createFromFormat('Y-m-d\TH:i:sP', $data['timestamp']));
+            $object->setTimestamp($data['timestamp']);
         }
         elseif (\array_key_exists('timestamp', $data) && $data['timestamp'] === null) {
             $object->setTimestamp(null);
@@ -94,12 +94,12 @@ class IV1BatchPostBodyEventsItemNormalizer implements DenormalizerInterface, Nor
             $dataArray['session_id'] = $data->getSessionId();
         }
         if ($data->isInitialized('timestamp')) {
-            $dataArray['timestamp'] = $data->getTimestamp()?->format('Y-m-d\TH:i:sP');
+            $dataArray['timestamp'] = $data->getTimestamp();
         }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array
     {
-        return [\Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem::class => false];
+        return [\Voidhash\Generated\EventCapture\Model\CaptureEvent::class => false];
     }
 }

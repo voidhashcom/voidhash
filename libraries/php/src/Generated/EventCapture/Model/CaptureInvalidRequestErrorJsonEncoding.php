@@ -2,7 +2,7 @@
 
 namespace Voidhash\Generated\EventCapture\Model;
 
-class CaptureDependencyUnavailableError
+class CaptureInvalidRequestErrorJsonEncoding
 {
     /**
      * @var array

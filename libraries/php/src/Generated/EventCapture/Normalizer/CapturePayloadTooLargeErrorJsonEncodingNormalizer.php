@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-class CaptureRateLimitedErrorNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+class CapturePayloadTooLargeErrorJsonEncodingNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
 {
     use DenormalizerAwareTrait;
     use NormalizerAwareTrait;
@@ -19,15 +19,15 @@ class CaptureRateLimitedErrorNormalizer implements DenormalizerInterface, Normal
     use ValidatorTrait;
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError::class;
+        return $type === \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding::class;
     }
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError::class;
+        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding::class;
     }
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
-        $object = new \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError();
+        $object = new \Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding();
         if (null === $data || false === \is_array($data)) {
             return $object;
         }
@@ -46,12 +46,6 @@ class CaptureRateLimitedErrorNormalizer implements DenormalizerInterface, Normal
         if (\array_key_exists('code', $data)) {
             $object->setCode($data['code']);
         }
-        if (\array_key_exists('retry_after_ms', $data) && $data['retry_after_ms'] !== null) {
-            $object->setRetryAfterMs($data['retry_after_ms']);
-        }
-        elseif (\array_key_exists('retry_after_ms', $data) && $data['retry_after_ms'] === null) {
-            $object->setRetryAfterMs(null);
-        }
         return $object;
     }
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
@@ -60,13 +54,10 @@ class CaptureRateLimitedErrorNormalizer implements DenormalizerInterface, Normal
         $dataArray['_tag'] = $data->getTag();
         $dataArray['error'] = $data->getError();
         $dataArray['code'] = $data->getCode();
-        if ($data->isInitialized('retryAfterMs')) {
-            $dataArray['retry_after_ms'] = $data->getRetryAfterMs();
-        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array
     {
-        return [\Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError::class => false];
+        return [\Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding::class => false];
     }
 }

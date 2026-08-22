@@ -13,26 +13,26 @@ class IV1BatchPostBody
         return array_key_exists($property, $this->initialized);
     }
     /**
-     * @var list<IV1BatchPostBodyEventsItem>
+     * @var list<CaptureEvent>
      */
     protected $events;
     /**
-     * @var \DateTime
+     * @var string
      */
     protected $sentAt;
     /**
-     * @var string
+     * @var string|null
      */
     protected $token;
     /**
-     * @return list<IV1BatchPostBodyEventsItem>
+     * @return list<CaptureEvent>
      */
     public function getEvents(): array
     {
         return $this->events;
     }
     /**
-     * @param list<IV1BatchPostBodyEventsItem> $events
+     * @param list<CaptureEvent> $events
      *
      * @return self
      */
@@ -43,36 +43,36 @@ class IV1BatchPostBody
         return $this;
     }
     /**
-     * @return \DateTime
+     * @return string
      */
-    public function getSentAt(): \DateTime
+    public function getSentAt(): string
     {
         return $this->sentAt;
     }
     /**
-     * @param \DateTime $sentAt
+     * @param string $sentAt
      *
      * @return self
      */
-    public function setSentAt(\DateTime $sentAt): self
+    public function setSentAt(string $sentAt): self
     {
         $this->initialized['sentAt'] = true;
         $this->sentAt = $sentAt;
         return $this;
     }
     /**
-     * @return string
+     * @return string|null
      */
-    public function getToken(): string
+    public function getToken(): ?string
     {
         return $this->token;
     }
     /**
-     * @param string $token
+     * @param string|null $token
      *
      * @return self
      */
-    public function setToken(string $token): self
+    public function setToken(?string $token): self
     {
         $this->initialized['token'] = true;
         $this->token = $token;

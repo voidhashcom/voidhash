@@ -36,8 +36,6 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\CreatePersonBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\CreatePersonBodyJsonEncodingNormalizer::class,
         
-        \Voidhash\Generated\Core\Model\SetPersonAttributesBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SetPersonAttributesBodyJsonEncodingNormalizer::class,
-        
         \Voidhash\Generated\Core\Model\PersonJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PersonJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiPersonInvalidAnonymousIdErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiPersonInvalidAnonymousIdErrorJsonEncodingNormalizer::class,
@@ -49,6 +47,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         \Voidhash\Generated\Core\Model\SdkEntitlementGrantJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SdkEntitlementGrantJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\PersonEntitlementsResponseJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PersonEntitlementsResponseJsonEncodingNormalizer::class,
+        
+        \Voidhash\Generated\Core\Model\SetPersonAttributesBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SetPersonAttributesBodyJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\SendNotificationBodyJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\SendNotificationBodyJsonEncodingNormalizer::class,
         
@@ -301,13 +301,13 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ApiKeyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiApiKeyNotFoundErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePersonBodyJsonEncoding::class => false,
-            \Voidhash\Generated\Core\Model\SetPersonAttributesBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PersonJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiPersonInvalidAnonymousIdErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiPersonServiceErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiPersonNotFoundErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SdkEntitlementGrantJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PersonEntitlementsResponseJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\SetPersonAttributesBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SendNotificationBodyJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\SendNotificationResponseJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiPushSendServiceErrorJsonEncoding::class => false,

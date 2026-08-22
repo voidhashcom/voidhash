@@ -11,7 +11,16 @@
           "event_capture"
         ],
         "operationId": "event_capture.capture",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-secret-key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
         "security": [],
         "responses": {
           "202": {
@@ -19,13 +28,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                  "$ref": "#/components/schemas/CaptureAcceptedResponseJsonEncoding"
                 }
               }
             }
           },
           "400": {
-            "description": "CaptureInvalidRequestError | The request or response did not match the expected schema",
+            "description": "CaptureInvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
@@ -100,16 +109,10 @@
                     "minLength": 1
                   },
                   "context": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "$ref": "#/components/schemas/CaptureEventValue"
-                    }
+                    "$ref": "#/components/schemas/Objects_"
                   },
                   "properties": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "$ref": "#/components/schemas/CaptureContextValue"
-                    }
+                    "$ref": "#/components/schemas/Objects_1"
                   },
                   "distinct_id": {
                     "type": "string",
@@ -122,14 +125,13 @@
                   },
                   "timestamp": {
                     "nullable": true,
-                    "type": "string",
-                    "format": "date-time"
+                    "type": "string"
                   },
                   "sent_at": {
-                    "type": "string",
-                    "format": "date-time"
+                    "type": "string"
                   },
                   "token": {
+                    "nullable": true,
                     "type": "string",
                     "minLength": 1
                   }
@@ -140,8 +142,7 @@
                   "context",
                   "properties",
                   "distinct_id",
-                  "sent_at",
-                  "token"
+                  "sent_at"
                 ],
                 "additionalProperties": false
               }
@@ -157,7 +158,16 @@
           "event_capture"
         ],
         "operationId": "event_capture.batch",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-secret-key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
         "security": [],
         "responses": {
           "202": {
@@ -165,13 +175,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
+                  "$ref": "#/components/schemas/CaptureAcceptedResponseJsonEncoding"
                 }
               }
             }
           },
           "400": {
-            "description": "CaptureInvalidRequestError | The request or response did not match the expected schema",
+            "description": "CaptureInvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
@@ -241,66 +251,21 @@
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                      "type": "object",
-                      "properties": {
-                        "uuid": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "event": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "context": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "$ref": "#/components/schemas/CaptureEventValue"
-                          }
-                        },
-                        "properties": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "$ref": "#/components/schemas/CaptureContextValue"
-                          }
-                        },
-                        "distinct_id": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "session_id": {
-                          "nullable": true,
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "timestamp": {
-                          "nullable": true,
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      },
-                      "required": [
-                        "uuid",
-                        "event",
-                        "context",
-                        "properties",
-                        "distinct_id"
-                      ],
-                      "additionalProperties": false
+                      "$ref": "#/components/schemas/CaptureEvent"
                     }
                   },
                   "sent_at": {
-                    "type": "string",
-                    "format": "date-time"
+                    "type": "string"
                   },
                   "token": {
+                    "nullable": true,
                     "type": "string",
                     "minLength": 1
                   }
                 },
                 "required": [
                   "events",
-                  "sent_at",
-                  "token"
+                  "sent_at"
                 ],
                 "additionalProperties": false
               }
@@ -313,7 +278,19 @@
   },
   "components": {
     "schemas": {
-      "CaptureAcceptedResponse": {
+      "Objects_": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CaptureEventValue"
+        }
+      },
+      "Objects_1": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CaptureContextValue"
+        }
+      },
+      "CaptureAcceptedResponseJsonEncoding": {
         "type": "object",
         "properties": {
           "accepted": {
@@ -329,7 +306,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureInvalidRequestError": {
+      "CaptureInvalidRequestErrorJsonEncoding": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -356,26 +333,7 @@
         ],
         "additionalProperties": false
       },
-      "effect_HttpApiSchemaError": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "HttpApiSchemaError"
-            ]
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "_tag",
-          "message"
-        ],
-        "additionalProperties": false
-      },
-      "CaptureUnauthorizedError": {
+      "CaptureUnauthorizedErrorJsonEncoding": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -402,7 +360,7 @@
         ],
         "additionalProperties": false
       },
-      "CapturePayloadTooLargeError": {
+      "CapturePayloadTooLargeErrorJsonEncoding": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -429,7 +387,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureRateLimitedError": {
+      "CaptureRateLimitedErrorJsonEncoding": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -460,7 +418,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureDependencyUnavailableError": {
+      "CaptureDependencyUnavailableErrorJsonEncoding": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -487,7 +445,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureInternalServerError": {
+      "CaptureInternalServerErrorJsonEncoding": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -519,6 +477,46 @@
       },
       "CaptureContextValue": {
         "description": "Arbitrary JSON value."
+      },
+      "CaptureEvent": {
+        "type": "object",
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "minLength": 1
+          },
+          "event": {
+            "type": "string",
+            "minLength": 1
+          },
+          "context": {
+            "$ref": "#/components/schemas/Objects_"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/Objects_1"
+          },
+          "distinct_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_id": {
+            "nullable": true,
+            "type": "string",
+            "minLength": 1
+          },
+          "timestamp": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "uuid",
+          "event",
+          "context",
+          "properties",
+          "distinct_id"
+        ],
+        "additionalProperties": false
       },
       "ApiError": {
         "type": "object",

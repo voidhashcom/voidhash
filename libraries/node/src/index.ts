@@ -1,13 +1,10 @@
 export type {
-  CaptureRequest,
-  VoidhashCaptureResult,
-} from "./analytics";
-export type {
   GetGrantsByDistinctIdRequest,
   HasActivePerkRequest,
   VoidhashEntitlementGrant,
 } from "./entitlements";
 export { VoidhashNodeConfigurationError } from "./errors";
+export type { VoidhashCaptureEvent, VoidhashCaptureResult } from "./event-capture";
 export { createVoidhashSdk, type VoidhashNodeClient } from "./promise-client";
 export type { VoidhashNodeClientOptions } from "./types";
 export {

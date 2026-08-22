@@ -40,15 +40,18 @@ class IV1BatchPostBodyNormalizer implements DenormalizerInterface, NormalizerInt
         if (\array_key_exists('events', $data)) {
             $values = [];
             foreach ($data['events'] as $value) {
-                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem::class, 'json', $context);
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\EventCapture\Model\CaptureEvent::class, 'json', $context);
             }
             $object->setEvents($values);
         }
         if (\array_key_exists('sent_at', $data)) {
-            $object->setSentAt(\DateTime::createFromFormat('Y-m-d\TH:i:sP', $data['sent_at']));
+            $object->setSentAt($data['sent_at']);
         }
-        if (\array_key_exists('token', $data)) {
+        if (\array_key_exists('token', $data) && $data['token'] !== null) {
             $object->setToken($data['token']);
+        }
+        elseif (\array_key_exists('token', $data) && $data['token'] === null) {
+            $object->setToken(null);
         }
         return $object;
     }
@@ -60,8 +63,10 @@ class IV1BatchPostBodyNormalizer implements DenormalizerInterface, NormalizerInt
             $values[] = $this->normalizer->normalize($value, 'json', $context);
         }
         $dataArray['events'] = $values;
-        $dataArray['sent_at'] = $data->getSentAt()->format('Y-m-d\TH:i:sP');
-        $dataArray['token'] = $data->getToken();
+        $dataArray['sent_at'] = $data->getSentAt();
+        if ($data->isInitialized('token')) {
+            $dataArray['token'] = $data->getToken();
+        }
         return $dataArray;
     }
     public function getSupportedTypes(?string $format = null): array

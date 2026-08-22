@@ -56,9 +56,9 @@ final class VoidhashClient
     public readonly EventCaptureResource $eventCapture;
 
     /**
-     * Event capture authenticates on the project's publishable key rather than
-     * the secret key, so pass `publishableKey` when the client will capture
-     * events; every other resource only needs the secret key.
+     * The secret key authenticates every resource, event capture included.
+     * `publishableKey` is optional: when set it is echoed as the ingest body
+     * `token` the way a browser SDK would send it.
      *
      * @param array{
      *   baseUrl?: string,
@@ -73,9 +73,10 @@ final class VoidhashClient
         if (trim($secretKey) === '') {
             throw new ApiException(0, 'ConfigurationError', null);
         }
-        if (array_key_exists(self::SECRET_KEY_HEADER, $options['headers'] ?? [])
-            || array_key_exists('X-Secret-Key', $options['headers'] ?? [])) {
-            throw new ApiException(0, 'ConfigurationError', null);
+        foreach (array_keys($options['headers'] ?? []) as $header) {
+            if (strcasecmp((string) $header, self::SECRET_KEY_HEADER) === 0) {
+                throw new ApiException(0, 'ConfigurationError', null);
+            }
         }
 
         $baseUrl = rtrim($options['baseUrl'] ?? self::DEFAULT_BASE_URL, '/');
@@ -88,10 +89,9 @@ final class VoidhashClient
         $coreHttp = new BaseUriHttpClient($innerHttpClient, $baseUrl, $headers);
         $core = new CoreGeneratedClient($coreHttp, $factories, SerializerFactory::core(), $factories);
 
-        // Ingest never sees the secret key: it authenticates on the publishable
-        // key in the request body, and a secret key on a public-facing origin
-        // would be a credential leak waiting to happen.
-        $ingestHttp = new BaseUriHttpClient($innerHttpClient, $ingestUrl, $options['headers'] ?? []);
+        // Ingest lives on its own origin, so it gets its own transport — but it
+        // carries the same `x-secret-key` credential as the core API.
+        $ingestHttp = new BaseUriHttpClient($innerHttpClient, $ingestUrl, $headers);
         $eventCapture = new EventCaptureGeneratedClient($ingestHttp, $factories, SerializerFactory::eventCapture(), $factories);
 
         $publishableKey = trim($options['publishableKey'] ?? '');

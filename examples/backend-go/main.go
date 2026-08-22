@@ -27,24 +27,22 @@ const (
 )
 
 type config struct {
-	SecretKey      string
-	PublishableKey string
-	WebhookSecret  string
-	BaseURL        string
-	IngestURL      string
-	Port           string
+	SecretKey     string
+	WebhookSecret string
+	BaseURL       string
+	IngestURL     string
+	Port          string
 }
 
 // loadConfig reads the process environment and rejects anything the server
 // cannot start without.
 func loadConfig() (config, error) {
 	cfg := config{
-		SecretKey:      strings.TrimSpace(os.Getenv("VOIDHASH_SECRET_KEY")),
-		PublishableKey: strings.TrimSpace(os.Getenv("VOIDHASH_PUBLISHABLE_KEY")),
-		WebhookSecret:  strings.TrimSpace(os.Getenv("VOIDHASH_WEBHOOK_SECRET")),
-		BaseURL:        strings.TrimSpace(os.Getenv("VOIDHASH_BASE_URL")),
-		IngestURL:      strings.TrimSpace(os.Getenv("VOIDHASH_INGEST_URL")),
-		Port:           strings.TrimSpace(os.Getenv("PORT")),
+		SecretKey:     strings.TrimSpace(os.Getenv("VOIDHASH_SECRET_KEY")),
+		WebhookSecret: strings.TrimSpace(os.Getenv("VOIDHASH_WEBHOOK_SECRET")),
+		BaseURL:       strings.TrimSpace(os.Getenv("VOIDHASH_BASE_URL")),
+		IngestURL:     strings.TrimSpace(os.Getenv("VOIDHASH_INGEST_URL")),
+		Port:          strings.TrimSpace(os.Getenv("PORT")),
 	}
 	if cfg.SecretKey == "" {
 		return config{}, errors.New(
@@ -75,11 +73,6 @@ func newVoidhashClient(cfg config) (*voidhash.Client, error) {
 	if cfg.IngestURL != "" {
 		options = append(options, voidhash.WithIngestURL(cfg.IngestURL))
 	}
-	// Event ingest authenticates on the publishable key, not the secret key,
-	// so the client needs both to capture.
-	if cfg.PublishableKey != "" {
-		options = append(options, voidhash.WithPublishableKey(cfg.PublishableKey))
-	}
 	client, err := voidhash.New(cfg.SecretKey, options...)
 	if err != nil {
 		return nil, fmt.Errorf("creating voidhash client: %w", err)
@@ -108,9 +101,6 @@ func run(logger *slog.Logger) error {
 	}
 	if cfg.WebhookSecret == "" {
 		logger.Warn("VOIDHASH_WEBHOOK_SECRET is not set; POST /webhooks/voidhash will refuse deliveries")
-	}
-	if cfg.PublishableKey == "" {
-		logger.Warn("VOIDHASH_PUBLISHABLE_KEY is not set; analytics events will not be captured")
 	}
 
 	srv := newServer(client, cfg, logger)

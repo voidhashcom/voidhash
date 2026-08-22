@@ -61,7 +61,7 @@ const main = (): void => {
     );
   }
 
-  const analytics = createAnalytics(config, voidhash);
+  const analytics = createAnalytics(voidhash);
   const notes = createNoteStore();
   const entitlements = createEntitlementsCache({ perkSlug: PRO_PERK_SLUG, voidhash });
   const processor = createWebhookProcessor({ entitlements, notes });

@@ -32,7 +32,7 @@ const EXPECTED_GROUPS = [
 ];
 
 // Hand-written conveniences layered on top of the generated groups.
-const EXPECTED_CONVENIENCE_NAMESPACES = ["analytics", "entitlements"];
+const EXPECTED_CONVENIENCE_NAMESPACES = ["entitlements", "eventCapture"];
 
 const EXPECTED_NAMESPACES = [...EXPECTED_GROUPS, ...EXPECTED_CONVENIENCE_NAMESPACES];
 
@@ -48,6 +48,17 @@ const tagOf = (value: unknown): string | undefined => {
   }
 
   return value._tag;
+};
+
+/** Decodes a captured JSON request body into a plain record for key-level assertions. */
+const decodeBody = (body: string | undefined): Record<string, unknown> => {
+  const decoded = decodeJson(body ?? "{}");
+
+  if (typeof decoded !== "object" || decoded === null) {
+    return {};
+  }
+
+  return Object.fromEntries(Object.entries(decoded));
 };
 
 const extractEffectFailure = <Result, Error>(effect: Effect.Effect<Result, Error>) =>
@@ -85,8 +96,8 @@ describe("@voidhash/node", () => {
     expectTypeOf<HasKey<VoidhashNodeClient, "sdk">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "entitlements">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeClient, "entitlements">>().toEqualTypeOf<true>();
-    expectTypeOf<HasKey<VoidhashNodeEffectClient, "analytics">>().toEqualTypeOf<true>();
-    expectTypeOf<HasKey<VoidhashNodeClient, "analytics">>().toEqualTypeOf<true>();
+    expectTypeOf<HasKey<VoidhashNodeEffectClient, "eventCapture">>().toEqualTypeOf<true>();
+    expectTypeOf<HasKey<VoidhashNodeClient, "eventCapture">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "changesets">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "auth">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "schema">>().toEqualTypeOf<true>();
@@ -106,6 +117,13 @@ describe("@voidhash/node", () => {
     expect(() =>
       createVoidhashEffectSdk({
         baseUrl: "not a url",
+        secretKey: "vh_sk_test",
+      }),
+    ).toThrow(VoidhashNodeConfigurationError);
+
+    expect(() =>
+      createVoidhashEffectSdk({
+        ingestUrl: "not a url",
         secretKey: "vh_sk_test",
       }),
     ).toThrow(VoidhashNodeConfigurationError);
@@ -362,6 +380,226 @@ describe("@voidhash/node", () => {
         expect(calls[0]?.method).toBe("DELETE");
         expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/api-keys/ak_123");
         expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+      }),
+    ));
+
+  it("captures events against the default ingest base URL with only the secret key", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            accepted: 1,
+            rejected: 0,
+          }),
+        );
+
+        const client = createVoidhashEffectSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+
+        const accepted = yield* client.eventCapture.capture({
+          distinctId: "user_123",
+          event: "paywall_viewed",
+        });
+
+        expect(accepted).toEqual({
+          accepted: 1,
+          rejected: 0,
+        });
+        expect(calls[0]?.method).toBe("POST");
+        expect(calls[0]?.url).toBe("https://ingest.voidhash.com/i/v1/capture");
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+
+        const body = decodeBody(calls[0]?.body);
+
+        // Backend SDKs authorize with the header, so the body carries no token.
+        expect(Object.keys(body).sort()).toEqual([
+          "context",
+          "distinct_id",
+          "event",
+          "properties",
+          "sent_at",
+          "uuid",
+        ]);
+        expect(body).toMatchObject({
+          context: {},
+          distinct_id: "user_123",
+          event: "paywall_viewed",
+          properties: {},
+        });
+        expect(body["uuid"]).toEqual(expect.any(String));
+        expect(body["uuid"]).not.toBe("");
+        expect(body["sent_at"]).toEqual(expect.any(String));
+      }),
+    ));
+
+  it("preserves a caller-supplied uuid and the optional per-event fields", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            accepted: 1,
+            rejected: 0,
+          }),
+        );
+
+        const client = createVoidhashEffectSdk({
+          ingestUrl: "https://ingest.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+
+        yield* client.eventCapture.capture({
+          context: { app_version: "1.2.3" },
+          distinctId: "user_123",
+          event: "paywall_viewed",
+          properties: { paywall_id: "pw_1" },
+          sessionId: "session_1",
+          timestamp: "2026-08-22T12:00:00.000Z",
+          uuid: "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
+        });
+
+        expect(calls[0]?.url).toBe("https://ingest.voidhash.test/i/v1/capture");
+        expect(decodeBody(calls[0]?.body)).toMatchObject({
+          context: { app_version: "1.2.3" },
+          distinct_id: "user_123",
+          event: "paywall_viewed",
+          properties: { paywall_id: "pw_1" },
+          session_id: "session_1",
+          timestamp: "2026-08-22T12:00:00.000Z",
+          uuid: "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
+        });
+      }),
+    ));
+
+  it("sends a configured publishable key as the body token", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            accepted: 1,
+            rejected: 0,
+          }),
+        );
+
+        const client = createVoidhashEffectSdk({
+          publishableKey: "vh_pk_test",
+          secretKey: "vh_sk_test",
+        });
+
+        yield* client.eventCapture.capture({
+          distinctId: "user_123",
+          event: "paywall_viewed",
+        });
+
+        // Browser parity: the header still authorizes, the token is additive.
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+        expect(decodeBody(calls[0]?.body)["token"]).toBe("vh_pk_test");
+      }),
+    ));
+
+  it("posts eventCapture.batch to /i/v1/batch with one request-level sent_at", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            accepted: 2,
+            rejected: 0,
+          }),
+        );
+
+        const client = createVoidhashSdk({
+          ingestUrl: "https://ingest.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+
+        const accepted = yield* Effect.promise(() =>
+          client.eventCapture.batch([
+            { distinctId: "user_123", event: "paywall_viewed" },
+            { distinctId: "user_123", event: "purchase_started" },
+          ]),
+        );
+
+        expect(accepted).toEqual({
+          accepted: 2,
+          rejected: 0,
+        });
+        expect(calls[0]?.method).toBe("POST");
+        expect(calls[0]?.url).toBe("https://ingest.voidhash.test/i/v1/batch");
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+
+        const body = decodeBody(calls[0]?.body);
+
+        expect(Object.keys(body).sort()).toEqual(["events", "sent_at"]);
+        expect(body["sent_at"]).toEqual(expect.any(String));
+        expect(body["events"]).toEqual([
+          {
+            context: {},
+            distinct_id: "user_123",
+            event: "paywall_viewed",
+            properties: {},
+            uuid: expect.any(String),
+          },
+          {
+            context: {},
+            distinct_id: "user_123",
+            event: "purchase_started",
+            properties: {},
+            uuid: expect.any(String),
+          },
+        ]);
+      }),
+    ));
+
+  it("treats an empty eventCapture.batch as a no-op", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() => new Response(null, { status: 500 }));
+
+        const client = createVoidhashEffectSdk({
+          secretKey: "vh_sk_test",
+        });
+
+        const accepted = yield* client.eventCapture.batch([]);
+
+        expect(accepted).toEqual({
+          accepted: 0,
+          rejected: 0,
+        });
+        expect(calls).toHaveLength(0);
+      }),
+    ));
+
+  it("writes person traits through the secret-key persons surface", () =>
+    Effect.runPromise(
+      Effect.gen(function* () {
+        const { calls } = installFetchMock(() =>
+          createJsonResponse({
+            personId: "person_123",
+            distinctId: "user_123",
+            email: null,
+            name: null,
+          }),
+        );
+
+        const client = createVoidhashSdk({
+          baseUrl: "https://api.voidhash.test",
+          secretKey: "vh_sk_test",
+        });
+
+        const person = yield* Effect.promise(() =>
+          client.persons.setPersonAttributes({
+            payload: { distinctId: "user_123", traits: { notes_created: 3, plan: "pro" } },
+          }),
+        );
+
+        expect(person.personId).toBe("person_123");
+        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/persons/attributes");
+        expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
+        expect(decodeBody(calls[0]?.body)).toEqual({
+          distinctId: "user_123",
+          traits: { notes_created: 3, plan: "pro" },
+        });
       }),
     ));
 

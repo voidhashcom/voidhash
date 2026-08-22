@@ -215,6 +215,8 @@ type captureResponse struct {
 	Status     string `json:"status"`
 	Event      string `json:"event"`
 	DistinctID string `json:"distinctId"`
+	Accepted   int    `json:"accepted"`
+	Rejected   int    `json:"rejected"`
 }
 
 // handleCaptureEvent forwards a client-supplied analytics event. Unlike the
@@ -233,12 +235,8 @@ func (s *server) handleCaptureEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !s.analytics.Enabled() {
-		writeError(w, http.StatusServiceUnavailable, "analytics_not_configured",
-			"set VOIDHASH_PUBLISHABLE_KEY to forward events to Voidhash")
-		return
-	}
-	if err := s.analytics.Capture(r.Context(), distinctID, eventName, request.Properties); err != nil {
+	result, err := s.analytics.Capture(r.Context(), distinctID, eventName, request.Properties)
+	if err != nil {
 		s.logger.Error("forwarding event failed", "event", eventName, "error", err)
 		writeError(w, http.StatusBadGateway, "capture_failed", err.Error())
 		return
@@ -248,6 +246,8 @@ func (s *server) handleCaptureEvent(w http.ResponseWriter, r *http.Request) {
 		Status:     "accepted",
 		Event:      eventName,
 		DistinctID: distinctID,
+		Accepted:   result.Accepted,
+		Rejected:   result.Rejected,
 	})
 }
 
@@ -256,17 +256,13 @@ func (s *server) handleCaptureEvent(w http.ResponseWriter, r *http.Request) {
 // the note the user just wrote. A production service would hand this to a
 // queue instead of blocking the request.
 func (s *server) capture(ctx context.Context, distinctID, event string, properties map[string]any) {
-	if !s.analytics.Enabled() {
-		return
-	}
-	if err := s.analytics.Capture(ctx, distinctID, event, properties); err != nil {
+	if _, err := s.analytics.Capture(ctx, distinctID, event, properties); err != nil {
 		s.logger.Warn("capturing event failed", "event", event, "error", err)
 	}
 }
 
 // setAttributes records person traits as a side effect of a business
-// operation, with the same best-effort contract as capture. Unlike capture it
-// needs no publishable key, so it runs even when analytics is switched off.
+// operation, with the same best-effort contract as capture.
 func (s *server) setAttributes(ctx context.Context, distinctID string, traits map[string]any) {
 	if err := s.analytics.SetAttributes(ctx, distinctID, traits); err != nil {
 		s.logger.Warn("writing person attributes failed", "distinctId", distinctID, "error", err)

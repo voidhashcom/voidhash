@@ -1,24 +1,40 @@
 ---
 title: Event Capture
-description: Send analytics events with a publishable project token.
+description: Send analytics events with a project secret key or a publishable token.
 ---
 
-Use event capture from custom clients or backends that do not use the React Native SDK.
+Use event capture from your backend, or from custom clients that do not use a mobile SDK.
 
 | Endpoint             | Use                                 |
 | -------------------- | ----------------------------------- |
 | `POST /i/v1/capture` | Send one event.                     |
 | `POST /i/v1/batch`   | Send one or more events in a batch. |
 
+## Choose a credential
+
+| Caller                                   | Credential                                |
+| ---------------------------------------- | ----------------------------------------- |
+| Your backend                             | `x-secret-key: vh_sk_...` request header. |
+| A distributed client, app, or web bundle | `token: "vh_pk_..."` in the JSON body.    |
+
+Send one or the other. A secret key in the body `token` field is rejected with `401 unauthorized` —
+only the `x-secret-key` header may carry it — and a distributed client must not hold a secret key at
+all. Voidhash SDKs may also present the publishable key through their usual `x-publishable-key`
+header instead of the body; the body `token` wins when both are present.
+
+<Callout type="warn" title="Never expose a secret key">
+  `x-secret-key` grants broad access to the project. Only send it from a server you control.
+</Callout>
+
 ## Capture one event
 
-The publishable token belongs in the body, not an authentication header:
+From a backend, authorize with the header:
 
 ```bash
 curl https://api.voidhash.com/i/v1/capture \
   -H "Content-Type: application/json" \
+  -H "x-secret-key: $VOIDHASH_SECRET_KEY" \
   -d '{
-    "token": "vh_pk_...",
     "sent_at": "2026-08-14T12:00:01.000Z",
     "uuid": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
     "event": "paywall_viewed",
@@ -29,18 +45,34 @@ curl https://api.voidhash.com/i/v1/capture \
   }'
 ```
 
+From a distributed client, drop the header and put the publishable token in the body instead:
+
+```bash
+curl https://api.voidhash.com/i/v1/capture \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "vh_pk_...",
+    "sent_at": "2026-08-14T12:00:01.000Z",
+    "uuid": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
+    "event": "paywall_viewed",
+    "distinct_id": "user_123",
+    "properties": {},
+    "context": {}
+  }'
+```
+
 Required event fields are `uuid`, `event`, `distinct_id`, `properties`, and `context`. The request
-also requires `token` and `sent_at`.
+also requires `sent_at` and exactly one credential.
 
 Generate `uuid` once per event and reuse it for retries. It is the deduplication key.
 
 ## Batch events
 
-`POST /i/v1/batch` accepts the same event objects under `events`:
+`POST /i/v1/batch` accepts the same event objects under `events`, with one request-level `sent_at`
+and the same credential choice:
 
 ```json
 {
-  "token": "vh_pk_...",
   "sent_at": "2026-08-14T12:00:05.000Z",
   "events": [
     {
@@ -53,6 +85,8 @@ Generate `uuid` once per event and reuse it for retries. It is the deduplication
   ]
 }
 ```
+
+Clients using a publishable token add `"token": "vh_pk_..."` alongside `sent_at`.
 
 A successful request returns `202` with `accepted` and `rejected` counts. Log the `x-request-id`
 response header when diagnosing ingestion.

@@ -2,7 +2,7 @@
 
 namespace Voidhash\Generated\EventCapture\Model;
 
-class CaptureInternalServerError
+class CapturePayloadTooLargeErrorJsonEncoding
 {
     /**
      * @var array

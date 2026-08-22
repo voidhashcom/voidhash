@@ -42,6 +42,47 @@ Every non-2xx response surfaces as `voidhash::Error::Api { status, tag }`.
 example `Api/PersonNotFoundError`); `error.is_not_found()` covers the common
 branch.
 
+### Analytics
+
+Capture authenticates with the same secret key as the rest of the client, sent
+as `x-secret-key`. No publishable key is required. If one is configured through
+`ClientBuilder::publishable_key` it is forwarded as the body `token` so that
+server-side captures match what the browser and mobile SDKs send.
+
+```rust
+use voidhash::{Event, VoidhashClient};
+
+#[tokio::main]
+async fn main() -> Result<(), voidhash::Error> {
+    let client = VoidhashClient::new("vh_sk_...")?;
+
+    client
+        .event_capture()
+        .capture(
+            &Event::new("paywall_viewed", "user-123")
+                .property("paywall_id", "pw_1")
+                .context_property("platform", "ios"),
+        )
+        .await?;
+
+    client
+        .event_capture()
+        .capture_batch(&[
+            Event::new("paywall_viewed", "user-123"),
+            Event::new("purchase_completed", "user-123"),
+        ])
+        .await?;
+    Ok(())
+}
+```
+
+Both calls return a `CaptureResult` reporting how many events ingestion
+accepted and how many it discarded at admission.
+
+Each event carries a `uuid` deduplication key. Leave it unset to have one
+generated per send, or set it with `Event::uuid` so retries of the same event
+are deduplicated server-side.
+
 ### Webhooks
 
 Verify inbound deliveries with

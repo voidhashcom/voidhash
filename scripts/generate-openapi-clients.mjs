@@ -192,9 +192,17 @@ const program = Effect.gen(function* () {
   // Native SDKs (Go / Rust / PHP) generate from OpenAPI 3.0.x documents
   // derived from the committed specs; see scripts/openapi-downgrade.mjs for
   // what the downgrade does.
+  // The two anonymous record schemas are emitted as `Objects_`/`Objects_1`,
+  // whose order is not stable across emitter versions. They are named here
+  // because oapi-codegen otherwise mints `Objects1` for the inline value union
+  // inside `Objects_` and collides with `Objects_1`.
   const downgradedCorePath = path.join(openapiRoot, "core-3.0.json");
   yield* run(repoRoot, "node", [
     "./scripts/openapi-downgrade.mjs",
+    "--rename-schema",
+    "Objects_=PersonAttributeValues",
+    "--rename-schema",
+    "Objects_1=ProviderConfiguration",
     coreSpecPath,
     downgradedCorePath,
   ]);
@@ -206,6 +214,10 @@ const program = Effect.gen(function* () {
     "Union_=CaptureEventValue",
     "--rename-schema",
     "Union_1=CaptureContextValue",
+    // The batch event object is extracted as an anonymous `Objects_2`, which
+    // would otherwise reach the native SDKs as a public `Objects2` type.
+    "--rename-schema",
+    "Objects_2=CaptureEvent",
     eventCaptureSpecPath,
     downgradedEventCapturePath,
   ]);
@@ -235,12 +247,18 @@ const program = Effect.gen(function* () {
   const rustCorePath = path.join(openapiRoot, "core-3.0.rust.json");
   yield* run(repoRoot, "node", [
     "./scripts/openapi-downgrade.mjs",
-    // `Objects_1` is the person-traits map, whose values are a scalar union.
-    // progenitor renders that union as a struct of flattened options, which
-    // cannot deserialize a bare `3` or `"pro"` — the same limitation the
-    // event-capture value unions below work around.
+    "--rename-schema",
+    "Objects_=PersonAttributeValues",
+    "--rename-schema",
+    "Objects_1=ProviderConfiguration",
+    // `PersonAttributeValues` is the person-traits map, whose values are a
+    // scalar union. progenitor renders that union as a struct of flattened
+    // options, which cannot deserialize a bare `3` or `"pro"` — the same
+    // limitation the event-capture value unions below work around. It is
+    // renamed first because the anonymous `Objects_` ordering is not stable
+    // across emitter versions.
     "--any-schema",
-    "Objects_1",
+    "PersonAttributeValues",
     "--flatten-errors",
     coreSpecPath,
     rustCorePath,
@@ -252,6 +270,10 @@ const program = Effect.gen(function* () {
     "Union_=CaptureEventValue",
     "--rename-schema",
     "Union_1=CaptureContextValue",
+    // The batch event object is extracted as an anonymous `Objects_2`, which
+    // would otherwise reach the native SDKs as a public `Objects2` type.
+    "--rename-schema",
+    "Objects_2=CaptureEvent",
     "--any-schema",
     "CaptureEventValue",
     "--any-schema",

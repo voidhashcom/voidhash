@@ -2,7 +2,7 @@
 
 namespace Voidhash\Generated\EventCapture\Model;
 
-class CaptureRateLimitedError
+class CaptureDependencyUnavailableErrorJsonEncoding
 {
     /**
      * @var array
@@ -24,10 +24,6 @@ class CaptureRateLimitedError
      * @var string
      */
     protected $code;
-    /**
-     * @var int|null
-     */
-    protected $retryAfterMs;
     /**
      * @return string
      */
@@ -80,24 +76,6 @@ class CaptureRateLimitedError
     {
         $this->initialized['code'] = true;
         $this->code = $code;
-        return $this;
-    }
-    /**
-     * @return int|null
-     */
-    public function getRetryAfterMs(): ?int
-    {
-        return $this->retryAfterMs;
-    }
-    /**
-     * @param int|null $retryAfterMs
-     *
-     * @return self
-     */
-    public function setRetryAfterMs(?int $retryAfterMs): self
-    {
-        $this->initialized['retryAfterMs'] = true;
-        $this->retryAfterMs = $retryAfterMs;
         return $this;
     }
 }

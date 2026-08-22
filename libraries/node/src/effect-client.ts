@@ -1,25 +1,30 @@
 import { Effect } from "effect";
 
 import type { VoidhashNodeClientOptions } from "./types";
-import { makeAnalytics, type VoidhashAnalyticsEffectNamespace } from "./analytics";
 import { makeEntitlements, type VoidhashEntitlementsEffectNamespace } from "./entitlements";
+import { makeEventCapture, type VoidhashEventCaptureEffectNamespace } from "./event-capture";
 import { type FilterSdkGroup, filterSdkGroup } from "./internal/filter-sdk-group";
 import {
-  makeGeneratedClient,
+  makeGeneratedClients,
   type GeneratedVoidhashNodeEffectClient,
 } from "./internal/make-generated-client";
 
 export type VoidhashNodeEffectClient = FilterSdkGroup<GeneratedVoidhashNodeEffectClient> & {
-  readonly analytics: VoidhashAnalyticsEffectNamespace;
   readonly entitlements: VoidhashEntitlementsEffectNamespace;
+  readonly eventCapture: VoidhashEventCaptureEffectNamespace;
 };
 
+/**
+ * Builds the Effect-flavoured SDK. Throws `VoidhashNodeConfigurationError` when
+ * the options are invalid.
+ */
 export const createVoidhashSdk = (options: VoidhashNodeClientOptions): VoidhashNodeEffectClient => {
-  const client = filterSdkGroup(Effect.runSync(makeGeneratedClient(options)));
+  const generated = Effect.runSync(makeGeneratedClients(options));
+  const client = filterSdkGroup(generated.core);
 
   return {
     ...client,
-    analytics: makeAnalytics(options),
     entitlements: makeEntitlements(client),
+    eventCapture: makeEventCapture(generated.eventCapture, options.publishableKey),
   };
 };

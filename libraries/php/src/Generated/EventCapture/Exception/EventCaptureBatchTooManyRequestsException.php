@@ -5,22 +5,22 @@ namespace Voidhash\Generated\EventCapture\Exception;
 class EventCaptureBatchTooManyRequestsException extends TooManyRequestsException
 {
     /**
-     * @var \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError
+     * @var \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding
      */
-    private $captureRateLimitedError;
+    private $captureRateLimitedErrorJsonEncoding;
     /**
      * @var \Psr\Http\Message\ResponseInterface
      */
     private $response;
-    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError $captureRateLimitedError, \Psr\Http\Message\ResponseInterface $response)
+    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding $captureRateLimitedErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
     {
         parent::__construct('CaptureRateLimitedError');
-        $this->captureRateLimitedError = $captureRateLimitedError;
+        $this->captureRateLimitedErrorJsonEncoding = $captureRateLimitedErrorJsonEncoding;
         $this->response = $response;
     }
-    public function getCaptureRateLimitedError(): \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError
+    public function getCaptureRateLimitedErrorJsonEncoding(): \Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding
     {
-        return $this->captureRateLimitedError;
+        return $this->captureRateLimitedErrorJsonEncoding;
     }
     public function getResponse(): \Psr\Http\Message\ResponseInterface
     {

@@ -5,10 +5,7 @@
 //	client, err := voidhash.New("vh_sk_...")
 //	person, err := client.Persons.GetByDistinctID(ctx, "user-123")
 //
-// Event capture authenticates on the publishable key rather than the secret
-// key, so supply it too when the client will capture events:
-//
-//	client, err := voidhash.New("vh_sk_...", voidhash.WithPublishableKey("vh_pk_..."))
+// Every service, event capture included, authenticates on the secret key.
 //
 // All request and response bodies are typed structs generated from the
 // official OpenAPI document.
@@ -78,10 +75,10 @@ func WithIngestURL(url string) Option {
 	return func(cfg *clientConfig) { cfg.ingestURL = url }
 }
 
-// WithPublishableKey supplies the project's publishable key (vh_pk_...),
-// which event ingestion authenticates on. Without it [EventCaptureService]
-// returns [ErrPublishableKeyRequired]; every other service only needs the
-// secret key.
+// WithPublishableKey supplies the project's publishable key (vh_pk_...).
+// It is optional: [EventCaptureService] authenticates on the secret key and
+// only sends the publishable key as the capture body's token when one is
+// configured, mirroring what the browser and mobile SDKs send.
 func WithPublishableKey(key string) Option {
 	return func(cfg *clientConfig) { cfg.publishableKey = key }
 }

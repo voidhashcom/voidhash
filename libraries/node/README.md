@@ -47,18 +47,21 @@ const voidhash = createVoidhashSdk({
 | ----------- | ------------------------------------ | -------------------------- | -------------------------------------------- |
 | `secretKey` | `string`                             | —                          | Required. Sent as the `x-secret-key` header. |
 | `baseUrl`   | `string`                             | `https://api.voidhash.com` | Must be `http:` or `https:`.                 |
+| `ingestUrl` | `string`                             | `https://ingest.voidhash.com` | Analytics ingestion base URL. Must be `http:` or `https:`. |
+| `publishableKey` | `string`                        | —                          | Optional. Sent as the body `token` on capture, matching the client SDKs. Capture works without it. |
 | `headers`   | `Record<string, string \| undefined>` | `{}`                       | Extra headers on every request.              |
 
 `createVoidhashSdk` validates eagerly and throws
-`VoidhashNodeConfigurationError` on a blank `secretKey`, an invalid `baseUrl`,
-or a missing global `fetch`. The SDK sets `x-secret-key` for you — passing it in
-`headers` (in any casing) also throws.
+`VoidhashNodeConfigurationError` on a blank `secretKey`, an invalid `baseUrl`
+or `ingestUrl`, or a missing global `fetch`. The SDK sets `x-secret-key` for
+you — passing it in `headers` (in any casing) also throws.
 
 Namespaces: `apiKeys`, `auth`, `notifications`, `organizations`,
 `paymentProviderConfigurations`, `paymentProviderProducts`, `paywallDeploys`,
 `paywallLocations`, `perks`, `persons`, `productPerks`, `products`, `projects`,
 `schema`, `users`, `webhooks` — plus `entitlements`, a convenience layer over
-`persons` and `perks` rather than a REST group of its own.
+`persons` and `perks` rather than a REST group of its own, and `eventCapture`,
+which talks to the analytics ingestion API instead of the REST API.
 
 ## Looking up a person
 
@@ -197,6 +200,57 @@ const voidhashDevelopment = createVoidhashSdk({
 
 The header applies to every call that client makes, so keep it to a dedicated
 instance and leave your production access checks on the default one.
+
+## Capture analytics events
+
+`eventCapture` posts events to the ingestion API (`ingestUrl`, not `baseUrl`).
+It authenticates with the same secret key — sent as `x-secret-key` — so a
+backend needs no publishable key. Set `publishableKey` on the client and it is
+sent as the body `token` as well, the way the browser and mobile SDKs authorize:
+
+```ts
+await voidhash.eventCapture.capture({
+  distinctId: "user_123",
+  event: "paywall_viewed",
+  properties: { paywallId: "pw_abc", placement: "onboarding" },
+  context: { appVersion: "1.4.2", platform: "server" },
+});
+```
+
+Use the same distinct id your app passed to `identify()`, so server-side events
+land on the same person as client-side ones.
+
+| Field        | Type                     | Notes                                                         |
+| ------------ | ------------------------ | ------------------------------------------------------------- |
+| `event`      | `string`                 | Required. Event name, e.g. `paywall_viewed`.                  |
+| `distinctId` | `string`                 | Required. The person the event belongs to.                    |
+| `properties` | `Record<string, unknown>` | The event's own attributes. Defaults to `{}`.                 |
+| `context`    | `Record<string, unknown>` | Ambient attributes (app version, platform). Defaults to `{}`. |
+| `uuid`       | `string`                 | Deduplication key. Generated per call when omitted.           |
+| `sessionId`  | `string`                 | Groups events into a session.                                 |
+| `timestamp`  | `string`                 | ISO 8601 event time. Server receive time when omitted.        |
+
+Retries are deduplicated on `uuid`: pass your own — a stable id derived from
+whatever you are recording — when the same event may be sent twice.
+
+Send several events in one request with `batch`. They share a single request
+timestamp, and each still carries its own `uuid` and optional `timestamp`:
+
+```ts
+const { accepted, rejected } = await voidhash.eventCapture.batch([
+  { distinctId: "user_123", event: "trial_started" },
+  { distinctId: "user_456", event: "trial_started" },
+]);
+```
+
+An empty array is a no-op: it resolves with zero counts without a request,
+because the API rejects a batch with no events.
+
+Both calls resolve with `{ accepted, rejected }` and reject with the same error
+objects as the rest of the SDK (see [Errors](#errors)). The ingestion API's
+decoded bodies carry a `code`: `invalid_request`, `unauthorized`,
+`payload_too_large`, `rate_limited`, `dependency_unavailable` or
+`internal_error`.
 
 ## Errors
 

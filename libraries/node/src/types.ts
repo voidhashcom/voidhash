@@ -1,9 +1,10 @@
 export type VoidhashNodeClientOptions = {
   secretKey: string;
   /**
-   * The project's publishable key (`vh_pk_...`). Required only for
-   * `analytics.capture`: event ingest authenticates on the publishable key in
-   * the request body rather than on the secret key.
+   * The project's publishable key (`vh_pk_...`). Optional: event ingest also
+   * accepts the secret key, so a server-side client only needs `secretKey`.
+   * Supply it to have `analytics.capture` authorize with the publishable token
+   * in the request body instead, matching the browser and mobile SDKs.
    */
   publishableKey?: string;
   baseUrl?: string;

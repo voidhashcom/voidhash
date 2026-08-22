@@ -30,7 +30,6 @@ export const createVoidhashClient = (config: AppConfig): VoidhashNodeClient =>
   createVoidhashSdk({
     baseUrl: config.baseUrl,
     ingestUrl: config.ingestUrl,
-    publishableKey: config.publishableKey,
     secretKey: config.secretKey,
   });
 

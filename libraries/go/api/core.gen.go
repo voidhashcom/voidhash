@@ -242,11 +242,11 @@ const (
 	FinalizedPaywallDeployPaywallJsonEncodingVersion1NaN           FinalizedPaywallDeployPaywallJsonEncodingVersion1 = "NaN"
 )
 
-// Defines values for Objects111.
+// Defines values for PersonAttributeValues11.
 const (
-	Objects111Infinity      Objects111 = "Infinity"
-	Objects111MinusInfinity Objects111 = "-Infinity"
-	Objects111NaN           Objects111 = "NaN"
+	PersonAttributeValues11Infinity      PersonAttributeValues11 = "Infinity"
+	PersonAttributeValues11MinusInfinity PersonAttributeValues11 = "-Infinity"
+	PersonAttributeValues11NaN           PersonAttributeValues11 = "NaN"
 )
 
 // Defines values for ProductJsonEncodingDuration1.
@@ -612,6 +612,8 @@ const (
 
 // Defines values for SdkDevelopmentPurchaseParamsXSdk.
 const (
+	SdkDevelopmentPurchaseParamsXSdkAndroid     SdkDevelopmentPurchaseParamsXSdk = "android"
+	SdkDevelopmentPurchaseParamsXSdkIos         SdkDevelopmentPurchaseParamsXSdk = "ios"
 	SdkDevelopmentPurchaseParamsXSdkReactNative SdkDevelopmentPurchaseParamsXSdk = "react-native"
 	SdkDevelopmentPurchaseParamsXSdkWeb         SdkDevelopmentPurchaseParamsXSdk = "web"
 )
@@ -648,6 +650,8 @@ const (
 
 // Defines values for SdkEvaluateFeatureFlagsParamsXSdk.
 const (
+	SdkEvaluateFeatureFlagsParamsXSdkAndroid     SdkEvaluateFeatureFlagsParamsXSdk = "android"
+	SdkEvaluateFeatureFlagsParamsXSdkIos         SdkEvaluateFeatureFlagsParamsXSdk = "ios"
 	SdkEvaluateFeatureFlagsParamsXSdkReactNative SdkEvaluateFeatureFlagsParamsXSdk = "react-native"
 	SdkEvaluateFeatureFlagsParamsXSdkWeb         SdkEvaluateFeatureFlagsParamsXSdk = "web"
 )
@@ -684,6 +688,8 @@ const (
 
 // Defines values for SdkIdentifyPersonParamsXSdk.
 const (
+	SdkIdentifyPersonParamsXSdkAndroid     SdkIdentifyPersonParamsXSdk = "android"
+	SdkIdentifyPersonParamsXSdkIos         SdkIdentifyPersonParamsXSdk = "ios"
 	SdkIdentifyPersonParamsXSdkReactNative SdkIdentifyPersonParamsXSdk = "react-native"
 	SdkIdentifyPersonParamsXSdkWeb         SdkIdentifyPersonParamsXSdk = "web"
 )
@@ -720,6 +726,8 @@ const (
 
 // Defines values for SdkGetPersonParamsXSdk.
 const (
+	SdkGetPersonParamsXSdkAndroid     SdkGetPersonParamsXSdk = "android"
+	SdkGetPersonParamsXSdkIos         SdkGetPersonParamsXSdk = "ios"
 	SdkGetPersonParamsXSdkReactNative SdkGetPersonParamsXSdk = "react-native"
 	SdkGetPersonParamsXSdkWeb         SdkGetPersonParamsXSdk = "web"
 )
@@ -756,6 +764,8 @@ const (
 
 // Defines values for SdkSyncPersonAttributesParamsXSdk.
 const (
+	SdkSyncPersonAttributesParamsXSdkAndroid     SdkSyncPersonAttributesParamsXSdk = "android"
+	SdkSyncPersonAttributesParamsXSdkIos         SdkSyncPersonAttributesParamsXSdk = "ios"
 	SdkSyncPersonAttributesParamsXSdkReactNative SdkSyncPersonAttributesParamsXSdk = "react-native"
 	SdkSyncPersonAttributesParamsXSdkWeb         SdkSyncPersonAttributesParamsXSdk = "web"
 )
@@ -792,6 +802,8 @@ const (
 
 // Defines values for SdkRefreshDeviceParamsXSdk.
 const (
+	SdkRefreshDeviceParamsXSdkAndroid     SdkRefreshDeviceParamsXSdk = "android"
+	SdkRefreshDeviceParamsXSdkIos         SdkRefreshDeviceParamsXSdk = "ios"
 	SdkRefreshDeviceParamsXSdkReactNative SdkRefreshDeviceParamsXSdk = "react-native"
 	SdkRefreshDeviceParamsXSdkWeb         SdkRefreshDeviceParamsXSdk = "web"
 )
@@ -828,6 +840,8 @@ const (
 
 // Defines values for SdkRegisterDeviceParamsXSdk.
 const (
+	SdkRegisterDeviceParamsXSdkAndroid     SdkRegisterDeviceParamsXSdk = "android"
+	SdkRegisterDeviceParamsXSdkIos         SdkRegisterDeviceParamsXSdk = "ios"
 	SdkRegisterDeviceParamsXSdkReactNative SdkRegisterDeviceParamsXSdk = "react-native"
 	SdkRegisterDeviceParamsXSdkWeb         SdkRegisterDeviceParamsXSdk = "web"
 )
@@ -864,6 +878,8 @@ const (
 
 // Defines values for SdkUnregisterDeviceParamsXSdk.
 const (
+	SdkUnregisterDeviceParamsXSdkAndroid     SdkUnregisterDeviceParamsXSdk = "android"
+	SdkUnregisterDeviceParamsXSdkIos         SdkUnregisterDeviceParamsXSdk = "ios"
 	SdkUnregisterDeviceParamsXSdkReactNative SdkUnregisterDeviceParamsXSdk = "react-native"
 	SdkUnregisterDeviceParamsXSdkWeb         SdkUnregisterDeviceParamsXSdk = "web"
 )
@@ -900,6 +916,8 @@ const (
 
 // Defines values for SdkResolvePaywallParamsXSdk.
 const (
+	SdkResolvePaywallParamsXSdkAndroid     SdkResolvePaywallParamsXSdk = "android"
+	SdkResolvePaywallParamsXSdkIos         SdkResolvePaywallParamsXSdk = "ios"
 	SdkResolvePaywallParamsXSdkReactNative SdkResolvePaywallParamsXSdk = "react-native"
 	SdkResolvePaywallParamsXSdkWeb         SdkResolvePaywallParamsXSdk = "web"
 )
@@ -936,6 +954,8 @@ const (
 
 // Defines values for SdkGetSchemaParamsXSdk.
 const (
+	SdkGetSchemaParamsXSdkAndroid     SdkGetSchemaParamsXSdk = "android"
+	SdkGetSchemaParamsXSdkIos         SdkGetSchemaParamsXSdk = "ios"
 	SdkGetSchemaParamsXSdkReactNative SdkGetSchemaParamsXSdk = "react-native"
 	SdkGetSchemaParamsXSdkWeb         SdkGetSchemaParamsXSdk = "web"
 )
@@ -972,8 +992,10 @@ const (
 
 // Defines values for SdkSyncTransactionParamsXSdk.
 const (
-	ReactNative SdkSyncTransactionParamsXSdk = "react-native"
-	Web         SdkSyncTransactionParamsXSdk = "web"
+	SdkSyncTransactionParamsXSdkAndroid     SdkSyncTransactionParamsXSdk = "android"
+	SdkSyncTransactionParamsXSdkIos         SdkSyncTransactionParamsXSdk = "ios"
+	SdkSyncTransactionParamsXSdkReactNative SdkSyncTransactionParamsXSdk = "react-native"
+	SdkSyncTransactionParamsXSdkWeb         SdkSyncTransactionParamsXSdk = "web"
 )
 
 // Defines values for SdkSyncTransactionParamsXEnvironment.
@@ -985,8 +1007,8 @@ const (
 
 // Defines values for SdkSyncTransactionJSONBodyPlatform.
 const (
-	SdkSyncTransactionJSONBodyPlatformAndroid SdkSyncTransactionJSONBodyPlatform = "android"
-	SdkSyncTransactionJSONBodyPlatformIos     SdkSyncTransactionJSONBodyPlatform = "ios"
+	Android SdkSyncTransactionJSONBodyPlatform = "android"
+	Ios     SdkSyncTransactionJSONBodyPlatform = "ios"
 )
 
 // Defines values for SdkSyncTransactionJSONBodyPurchaseDate1.
@@ -1494,34 +1516,6 @@ type FinalizedPaywallDeployPaywallJsonEncoding_Version struct {
 	union json.RawMessage
 }
 
-// Objects defines model for Objects_.
-type Objects = map[string]interface{}
-
-// Objects1 defines model for Objects_1.
-type Objects1 map[string]*Objects1_AdditionalProperties
-
-// Objects10 defines model for .
-type Objects10 = string
-
-// Objects11 defines model for .
-type Objects11 struct {
-	union json.RawMessage
-}
-
-// Objects110 defines model for .
-type Objects110 = float32
-
-// Objects111 defines model for Objects1.1.1.
-type Objects111 string
-
-// Objects12 defines model for .
-type Objects12 = bool
-
-// Objects1_AdditionalProperties defines model for Objects_1.AdditionalProperties.
-type Objects1_AdditionalProperties struct {
-	union json.RawMessage
-}
-
 // OrganizationJsonEncoding defines model for OrganizationJsonEncoding.
 type OrganizationJsonEncoding struct {
 	Id   string `json:"id"`
@@ -1562,6 +1556,31 @@ type PerkJsonEncoding struct {
 	Name      string `json:"name"`
 	ProjectId string `json:"projectId"`
 	Slug      string `json:"slug"`
+}
+
+// PersonAttributeValues defines model for PersonAttributeValues.
+type PersonAttributeValues map[string]*PersonAttributeValues_AdditionalProperties
+
+// PersonAttributeValues0 defines model for .
+type PersonAttributeValues0 = string
+
+// PersonAttributeValues1 defines model for .
+type PersonAttributeValues1 struct {
+	union json.RawMessage
+}
+
+// PersonAttributeValues10 defines model for .
+type PersonAttributeValues10 = float32
+
+// PersonAttributeValues11 defines model for PersonAttributeValues.1.1.
+type PersonAttributeValues11 string
+
+// PersonAttributeValues2 defines model for .
+type PersonAttributeValues2 = bool
+
+// PersonAttributeValues_AdditionalProperties defines model for PersonAttributeValues.AdditionalProperties.
+type PersonAttributeValues_AdditionalProperties struct {
+	union json.RawMessage
 }
 
 // PersonEntitlementsResponseJsonEncoding defines model for PersonEntitlementsResponseJsonEncoding.
@@ -1627,6 +1646,9 @@ type ProjectSchemaResponseJsonEncoding struct {
 // ProjectSchemaResponseJsonEncodingEnabledProviders defines model for ProjectSchemaResponseJsonEncoding.EnabledProviders.
 type ProjectSchemaResponseJsonEncodingEnabledProviders string
 
+// ProviderConfiguration defines model for ProviderConfiguration.
+type ProviderConfiguration = map[string]interface{}
+
 // RefreshDeviceBodyJsonEncoding defines model for RefreshDeviceBodyJsonEncoding.
 type RefreshDeviceBodyJsonEncoding struct {
 	PlatformToken     string `json:"platformToken"`
@@ -1688,7 +1710,7 @@ type SchemaProductJsonEncodingType string
 
 // SchemaProductProviderJsonEncoding defines model for SchemaProductProviderJsonEncoding.
 type SchemaProductProviderJsonEncoding struct {
-	Configuration Objects                                     `json:"configuration"`
+	Configuration ProviderConfiguration                       `json:"configuration"`
 	ProviderId    SchemaProductProviderJsonEncodingProviderId `json:"providerId"`
 }
 
@@ -1778,10 +1800,10 @@ type SdkFeatureFlagsResponseJsonEncoding struct {
 
 // SdkIdentifyBodyJsonEncoding defines model for SdkIdentifyBodyJsonEncoding.
 type SdkIdentifyBodyJsonEncoding struct {
-	DistinctId string    `json:"distinctId"`
-	Email      *string   `json:"email"`
-	Name       *string   `json:"name"`
-	Traits     *Objects1 `json:"traits,omitempty"`
+	DistinctId string                 `json:"distinctId"`
+	Email      *string                `json:"email"`
+	Name       *string                `json:"name"`
+	Traits     *PersonAttributeValues `json:"traits,omitempty"`
 }
 
 // SdkPersonJsonEncoding defines model for SdkPersonJsonEncoding.
@@ -1925,7 +1947,7 @@ type SdkSchemaProductJsonEncoding struct {
 	Configuration struct {
 		Perks     map[string]SdkSchemaProductJsonEncodingConfigurationPerks `json:"perks"`
 		Providers struct {
-			AppleAppStore *Objects `json:"appleAppStore,omitempty"`
+			AppleAppStore *ProviderConfiguration `json:"appleAppStore,omitempty"`
 			Development   struct {
 				CurrencyCode      SdkSchemaProductJsonEncodingConfigurationProvidersDevelopmentCurrencyCode          `json:"currencyCode"`
 				Duration          *SdkSchemaProductJsonEncodingConfigurationProvidersDevelopmentDuration             `json:"duration"`
@@ -1936,7 +1958,7 @@ type SdkSchemaProductJsonEncoding struct {
 				ProductId         string                                                                             `json:"productId"`
 				Warning           *string                                                                            `json:"warning"`
 			} `json:"development"`
-			GooglePlay *Objects `json:"googlePlay,omitempty"`
+			GooglePlay *ProviderConfiguration `json:"googlePlay,omitempty"`
 		} `json:"providers"`
 	} `json:"configuration"`
 	Duration   *SdkSchemaProductJsonEncodingDuration `json:"duration"`
@@ -2016,11 +2038,11 @@ type SdkSubscriptionHistoryEntryJsonEncodingStatus string
 
 // SdkSyncPersonAttributesBodyJsonEncoding defines model for SdkSyncPersonAttributesBodyJsonEncoding.
 type SdkSyncPersonAttributesBodyJsonEncoding struct {
-	ClientEventId *string   `json:"clientEventId"`
-	Email         *string   `json:"email"`
-	Name          *string   `json:"name"`
-	SetOnce       *Objects1 `json:"setOnce,omitempty"`
-	Traits        *Objects1 `json:"traits,omitempty"`
+	ClientEventId *string                `json:"clientEventId"`
+	Email         *string                `json:"email"`
+	Name          *string                `json:"name"`
+	SetOnce       *PersonAttributeValues `json:"setOnce,omitempty"`
+	Traits        *PersonAttributeValues `json:"traits,omitempty"`
 }
 
 // SdkSyncTransactionResponseJsonEncoding defines model for SdkSyncTransactionResponseJsonEncoding.
@@ -2093,11 +2115,11 @@ type SendNotificationResponseJsonEncodingStatus string
 
 // SetPersonAttributesBodyJsonEncoding defines model for SetPersonAttributesBodyJsonEncoding.
 type SetPersonAttributesBodyJsonEncoding struct {
-	DistinctId string    `json:"distinctId"`
-	Email      *string   `json:"email"`
-	Name       *string   `json:"name"`
-	SetOnce    *Objects1 `json:"setOnce,omitempty"`
-	Traits     *Objects1 `json:"traits,omitempty"`
+	DistinctId string                 `json:"distinctId"`
+	Email      *string                `json:"email"`
+	Name       *string                `json:"name"`
+	SetOnce    *PersonAttributeValues `json:"setOnce,omitempty"`
+	Traits     *PersonAttributeValues `json:"traits,omitempty"`
 }
 
 // UnregisterDeviceBodyJsonEncoding defines model for UnregisterDeviceBodyJsonEncoding.
@@ -3056,22 +3078,22 @@ func (t *FinalizedPaywallDeployPaywallJsonEncoding_Version) UnmarshalJSON(b []by
 	return err
 }
 
-// AsObjects110 returns the union data inside the Objects11 as a Objects110
-func (t Objects11) AsObjects110() (Objects110, error) {
-	var body Objects110
+// AsPersonAttributeValues10 returns the union data inside the PersonAttributeValues1 as a PersonAttributeValues10
+func (t PersonAttributeValues1) AsPersonAttributeValues10() (PersonAttributeValues10, error) {
+	var body PersonAttributeValues10
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromObjects110 overwrites any union data inside the Objects11 as the provided Objects110
-func (t *Objects11) FromObjects110(v Objects110) error {
+// FromPersonAttributeValues10 overwrites any union data inside the PersonAttributeValues1 as the provided PersonAttributeValues10
+func (t *PersonAttributeValues1) FromPersonAttributeValues10(v PersonAttributeValues10) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeObjects110 performs a merge with any union data inside the Objects11, using the provided Objects110
-func (t *Objects11) MergeObjects110(v Objects110) error {
+// MergePersonAttributeValues10 performs a merge with any union data inside the PersonAttributeValues1, using the provided PersonAttributeValues10
+func (t *PersonAttributeValues1) MergePersonAttributeValues10(v PersonAttributeValues10) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -3082,22 +3104,22 @@ func (t *Objects11) MergeObjects110(v Objects110) error {
 	return err
 }
 
-// AsObjects111 returns the union data inside the Objects11 as a Objects111
-func (t Objects11) AsObjects111() (Objects111, error) {
-	var body Objects111
+// AsPersonAttributeValues11 returns the union data inside the PersonAttributeValues1 as a PersonAttributeValues11
+func (t PersonAttributeValues1) AsPersonAttributeValues11() (PersonAttributeValues11, error) {
+	var body PersonAttributeValues11
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromObjects111 overwrites any union data inside the Objects11 as the provided Objects111
-func (t *Objects11) FromObjects111(v Objects111) error {
+// FromPersonAttributeValues11 overwrites any union data inside the PersonAttributeValues1 as the provided PersonAttributeValues11
+func (t *PersonAttributeValues1) FromPersonAttributeValues11(v PersonAttributeValues11) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeObjects111 performs a merge with any union data inside the Objects11, using the provided Objects111
-func (t *Objects11) MergeObjects111(v Objects111) error {
+// MergePersonAttributeValues11 performs a merge with any union data inside the PersonAttributeValues1, using the provided PersonAttributeValues11
+func (t *PersonAttributeValues1) MergePersonAttributeValues11(v PersonAttributeValues11) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -3108,32 +3130,32 @@ func (t *Objects11) MergeObjects111(v Objects111) error {
 	return err
 }
 
-func (t Objects11) MarshalJSON() ([]byte, error) {
+func (t PersonAttributeValues1) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
-func (t *Objects11) UnmarshalJSON(b []byte) error {
+func (t *PersonAttributeValues1) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
 
-// AsObjects10 returns the union data inside the Objects1_AdditionalProperties as a Objects10
-func (t Objects1_AdditionalProperties) AsObjects10() (Objects10, error) {
-	var body Objects10
+// AsPersonAttributeValues0 returns the union data inside the PersonAttributeValues_AdditionalProperties as a PersonAttributeValues0
+func (t PersonAttributeValues_AdditionalProperties) AsPersonAttributeValues0() (PersonAttributeValues0, error) {
+	var body PersonAttributeValues0
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromObjects10 overwrites any union data inside the Objects1_AdditionalProperties as the provided Objects10
-func (t *Objects1_AdditionalProperties) FromObjects10(v Objects10) error {
+// FromPersonAttributeValues0 overwrites any union data inside the PersonAttributeValues_AdditionalProperties as the provided PersonAttributeValues0
+func (t *PersonAttributeValues_AdditionalProperties) FromPersonAttributeValues0(v PersonAttributeValues0) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeObjects10 performs a merge with any union data inside the Objects1_AdditionalProperties, using the provided Objects10
-func (t *Objects1_AdditionalProperties) MergeObjects10(v Objects10) error {
+// MergePersonAttributeValues0 performs a merge with any union data inside the PersonAttributeValues_AdditionalProperties, using the provided PersonAttributeValues0
+func (t *PersonAttributeValues_AdditionalProperties) MergePersonAttributeValues0(v PersonAttributeValues0) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -3144,22 +3166,22 @@ func (t *Objects1_AdditionalProperties) MergeObjects10(v Objects10) error {
 	return err
 }
 
-// AsObjects11 returns the union data inside the Objects1_AdditionalProperties as a Objects11
-func (t Objects1_AdditionalProperties) AsObjects11() (Objects11, error) {
-	var body Objects11
+// AsPersonAttributeValues1 returns the union data inside the PersonAttributeValues_AdditionalProperties as a PersonAttributeValues1
+func (t PersonAttributeValues_AdditionalProperties) AsPersonAttributeValues1() (PersonAttributeValues1, error) {
+	var body PersonAttributeValues1
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromObjects11 overwrites any union data inside the Objects1_AdditionalProperties as the provided Objects11
-func (t *Objects1_AdditionalProperties) FromObjects11(v Objects11) error {
+// FromPersonAttributeValues1 overwrites any union data inside the PersonAttributeValues_AdditionalProperties as the provided PersonAttributeValues1
+func (t *PersonAttributeValues_AdditionalProperties) FromPersonAttributeValues1(v PersonAttributeValues1) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeObjects11 performs a merge with any union data inside the Objects1_AdditionalProperties, using the provided Objects11
-func (t *Objects1_AdditionalProperties) MergeObjects11(v Objects11) error {
+// MergePersonAttributeValues1 performs a merge with any union data inside the PersonAttributeValues_AdditionalProperties, using the provided PersonAttributeValues1
+func (t *PersonAttributeValues_AdditionalProperties) MergePersonAttributeValues1(v PersonAttributeValues1) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -3170,22 +3192,22 @@ func (t *Objects1_AdditionalProperties) MergeObjects11(v Objects11) error {
 	return err
 }
 
-// AsObjects12 returns the union data inside the Objects1_AdditionalProperties as a Objects12
-func (t Objects1_AdditionalProperties) AsObjects12() (Objects12, error) {
-	var body Objects12
+// AsPersonAttributeValues2 returns the union data inside the PersonAttributeValues_AdditionalProperties as a PersonAttributeValues2
+func (t PersonAttributeValues_AdditionalProperties) AsPersonAttributeValues2() (PersonAttributeValues2, error) {
+	var body PersonAttributeValues2
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromObjects12 overwrites any union data inside the Objects1_AdditionalProperties as the provided Objects12
-func (t *Objects1_AdditionalProperties) FromObjects12(v Objects12) error {
+// FromPersonAttributeValues2 overwrites any union data inside the PersonAttributeValues_AdditionalProperties as the provided PersonAttributeValues2
+func (t *PersonAttributeValues_AdditionalProperties) FromPersonAttributeValues2(v PersonAttributeValues2) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeObjects12 performs a merge with any union data inside the Objects1_AdditionalProperties, using the provided Objects12
-func (t *Objects1_AdditionalProperties) MergeObjects12(v Objects12) error {
+// MergePersonAttributeValues2 performs a merge with any union data inside the PersonAttributeValues_AdditionalProperties, using the provided PersonAttributeValues2
+func (t *PersonAttributeValues_AdditionalProperties) MergePersonAttributeValues2(v PersonAttributeValues2) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -3196,12 +3218,12 @@ func (t *Objects1_AdditionalProperties) MergeObjects12(v Objects12) error {
 	return err
 }
 
-func (t Objects1_AdditionalProperties) MarshalJSON() ([]byte, error) {
+func (t PersonAttributeValues_AdditionalProperties) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
-func (t *Objects1_AdditionalProperties) UnmarshalJSON(b []byte) error {
+func (t *PersonAttributeValues_AdditionalProperties) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

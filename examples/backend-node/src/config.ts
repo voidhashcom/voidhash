@@ -6,7 +6,6 @@ export type AppConfig = {
   readonly secretKey: string;
   readonly webhookSecret: string | undefined;
   readonly baseUrl: string | undefined;
-  readonly publishableKey: string | undefined;
   readonly ingestUrl: string;
   readonly port: number;
 };
@@ -69,7 +68,6 @@ export const readConfig = (env: NodeJS.ProcessEnv): AppConfig => {
     baseUrl: optional(env.VOIDHASH_BASE_URL),
     ingestUrl: (optional(env.VOIDHASH_INGEST_URL) ?? DEFAULT_INGEST_URL).replace(/\/+$/, ""),
     port: readPort(env.PORT),
-    publishableKey: optional(env.VOIDHASH_PUBLISHABLE_KEY),
     secretKey,
     webhookSecret: optional(env.VOIDHASH_WEBHOOK_SECRET),
   };

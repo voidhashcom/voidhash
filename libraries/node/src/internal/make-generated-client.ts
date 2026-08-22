@@ -1,4 +1,8 @@
 import { make as makeCoreClient } from "@voidhash/generated-clients";
+import {
+  make as makeIngestClient,
+  type VoidhashEventCaptureClient,
+} from "@voidhash/generated-clients/event-capture";
 import { Effect } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
@@ -7,7 +11,15 @@ import { groupCoreClient, type GroupedVoidhashNodeEffectClient } from "../genera
 import type { VoidhashNodeClientOptions } from "../types";
 export type GeneratedVoidhashNodeEffectClient = GroupedVoidhashNodeEffectClient;
 
+/** The generated clients the public namespaces are layered on top of. */
+export type GeneratedVoidhashNodeClients = {
+  readonly core: GeneratedVoidhashNodeEffectClient;
+  readonly eventCapture: VoidhashEventCaptureClient;
+};
+
 export const DEFAULT_BASE_URL = "https://api.voidhash.com";
+
+export const DEFAULT_INGEST_URL = "https://ingest.voidhash.com";
 
 const SECRET_KEY_HEADER = "x-secret-key";
 
@@ -23,21 +35,23 @@ const normalizeHeaders = (
     ),
   );
 
-const resolveBaseUrl = (
-  baseUrl: string | undefined,
+const resolveUrl = (
+  optionName: string,
+  url: string | undefined,
+  fallback: string,
 ): Effect.Effect<string, VoidhashNodeConfigurationError> =>
   Effect.gen(function* () {
     const resolved = yield* Effect.try({
-      try: () => new URL(baseUrl ?? DEFAULT_BASE_URL),
+      try: () => new URL(url ?? fallback),
       catch: (cause) =>
-        new VoidhashNodeConfigurationError("baseUrl must be a valid URL.", {
+        new VoidhashNodeConfigurationError(`${optionName} must be a valid URL.`, {
           cause,
         }),
     });
 
     if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
       return yield* Effect.fail(
-        new VoidhashNodeConfigurationError("baseUrl must use the http or https protocol."),
+        new VoidhashNodeConfigurationError(`${optionName} must use the http or https protocol.`),
       );
     }
 
@@ -63,35 +77,43 @@ const resolveOptions = (options: VoidhashNodeClientOptions) =>
     }
 
     return {
-      baseUrl: yield* resolveBaseUrl(options.baseUrl),
+      baseUrl: yield* resolveUrl("baseUrl", options.baseUrl, DEFAULT_BASE_URL),
       headers: normalizeHeaders(options.headers),
+      ingestUrl: yield* resolveUrl("ingestUrl", options.ingestUrl, DEFAULT_INGEST_URL),
       secretKey: options.secretKey,
     };
   });
 
-export const makeGeneratedClient = (
+export const makeGeneratedClients = (
   options: VoidhashNodeClientOptions,
-): Effect.Effect<GeneratedVoidhashNodeEffectClient, VoidhashNodeConfigurationError> =>
+): Effect.Effect<GeneratedVoidhashNodeClients, VoidhashNodeConfigurationError> =>
   Effect.gen(function* () {
     const resolvedOptions = yield* resolveOptions(options);
     const httpClient = yield* HttpClient.HttpClient;
-    const client = makeCoreClient(httpClient, {
-      transformClient: (httpClient) =>
-        Effect.succeed(
-          httpClient.pipe(
-            HttpClient.mapRequest((request) =>
-              HttpClientRequest.setHeader(
-                HttpClientRequest.setHeaders(
-                  HttpClientRequest.prependUrl(request, resolvedOptions.baseUrl),
-                  resolvedOptions.headers,
-                ),
-                SECRET_KEY_HEADER,
-                resolvedOptions.secretKey,
+    const transformClient = (baseUrl: string) => (httpClient: HttpClient.HttpClient) =>
+      Effect.succeed(
+        httpClient.pipe(
+          HttpClient.mapRequest((request) =>
+            HttpClientRequest.setHeader(
+              HttpClientRequest.setHeaders(
+                HttpClientRequest.prependUrl(request, baseUrl),
+                resolvedOptions.headers,
               ),
+              SECRET_KEY_HEADER,
+              resolvedOptions.secretKey,
             ),
           ),
         ),
-    });
+      );
 
-    return groupCoreClient(client);
+    return {
+      core: groupCoreClient(
+        makeCoreClient(httpClient, {
+          transformClient: transformClient(resolvedOptions.baseUrl),
+        }),
+      ),
+      eventCapture: makeIngestClient(httpClient, {
+        transformClient: transformClient(resolvedOptions.ingestUrl),
+      }),
+    };
   }).pipe(Effect.provide(FetchHttpClient.layer));

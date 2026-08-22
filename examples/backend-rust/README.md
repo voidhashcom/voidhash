@@ -27,8 +27,8 @@ example, not a database tutorial.
   - products **`pro-monthly`**, **`pro-annual`**, **`pro-lifetime`** granting it,
   - a **secret key** (`vh_sk_…`) from Project settings → API keys.
 
-The secret key grants full project access. Keep it on the server; the apps use
-a publishable key instead.
+The secret key grants full project access — including analytics capture. Keep
+it on the server; the apps use a publishable key instead.
 
 ## Configure
 
@@ -41,18 +41,12 @@ $EDITOR .env
 | --- | --- | --- |
 | `VOIDHASH_SECRET_KEY` | yes | — |
 | `VOIDHASH_WEBHOOK_SECRET` | for `/webhooks/voidhash` | — |
-| `VOIDHASH_PUBLISHABLE_KEY` | for analytics capture | — |
 | `VOIDHASH_BASE_URL` | no | `https://api.voidhash.com` |
 | `VOIDHASH_INGEST_URL` | no | `https://ingest.voidhash.com` |
 | `PORT` | no | `8080` |
 
 `VOIDHASH_BASE_URL` is the management API root — the SDK appends `/api/v1/…`
 itself. Analytics ingestion is a separate origin with its own variable.
-
-`VOIDHASH_PUBLISHABLE_KEY` is optional. Ingestion authenticates on a `token`
-field in the request body rather than a header, and that token is the
-publishable key. Without it the service starts, logs one warning, and reports
-`"status": "skipped"` for every capture; everything else works unchanged.
 
 Starting without `VOIDHASH_SECRET_KEY` exits `1` with an explanation rather
 than failing on the first request:
@@ -264,10 +258,9 @@ curl -s -X POST $BASE/v1/events \
 }
 ```
 
-`status` is `"skipped"` when `VOIDHASH_PUBLISHABLE_KEY` is unset. Ingestion
-failures are `502 analytics_rejected` / `analytics_unreachable` — unlike the
-note routes, forwarding is this route's whole job, so a dropped event is a
-failed request.
+Ingestion failures are `502 analytics_rejected` / `analytics_unreachable` —
+unlike the note routes, forwarding is this route's whole job, so a dropped
+event is a failed request.
 
 ### `POST /webhooks/voidhash`
 
@@ -422,8 +415,8 @@ handler does not turn into another retry.
   extractor, verify → claim → acknowledge → handle ordering.
 - **[`src/webhooks.rs`](src/webhooks.rs)** — `delivery_key`. Replace
   `DedupeSet` with a table and a unique index; the key itself survives.
-- **[`src/analytics.rs`](src/analytics.rs)** — the best-effort vs strict split,
-  and the two credentials capture and attribute writes use (see below).
+- **[`src/analytics.rs`](src/analytics.rs)** — the best-effort vs strict split
+  (see below).
 - **[`src/main.rs`](src/main.rs)** — `Config::from_env`. Validate at boot, exit
   with a sentence a human can act on.
 
@@ -433,16 +426,15 @@ id from the caller's access token and never from user-controlled input.
 
 ## A note on analytics capture
 
-[`src/analytics.rs`](src/analytics.rs) wraps the SDK, and it uses both of the
-project's keys:
+[`src/analytics.rs`](src/analytics.rs) wraps the SDK. Both calls authenticate
+with the project's secret key — capture needs no second credential:
 
-- `client.event_capture().capture()` posts to ingest, which authenticates on
-  the **publishable** key (`ClientBuilder::publishable_key`) rather than the
-  secret key, and lives on its own origin (`VOIDHASH_INGEST_URL`). Without
-  `VOIDHASH_PUBLISHABLE_KEY` every capture is skipped.
-- `client.persons().set_attributes()` is a server-to-server write on the
-  **secret** key. Traits describe the person and persist, so `plan` and
-  `notes_created` go there rather than onto every event's properties.
+- `client.event_capture().capture()` posts to ingest, which lives on its own
+  origin (`VOIDHASH_INGEST_URL`) and reads the secret key from `x-secret-key`
+  like every other endpoint.
+- `client.persons().set_attributes()` is a server-to-server write. Traits
+  describe the person and persist, so `plan` and `notes_created` go there
+  rather than onto every event's properties.
 
 What that module owns is the example's policy — best-effort on write paths,
 strict on `POST /v1/events` where forwarding *is* the request — not the wire

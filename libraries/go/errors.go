@@ -35,6 +35,8 @@ type errorBody struct {
 	Detail   string `json:"detail"`
 	Issue    any    `json:"issue"`
 	Response string `json:"response"`
+	// Error is the message field used by the ingestion API's error bodies.
+	Error string `json:"error"`
 }
 
 func newAPIError(statusCode int, body []byte) *APIError {
@@ -51,6 +53,8 @@ func newAPIError(statusCode int, body []byte) *APIError {
 			apiErr.Body = decoded.Detail
 		case decoded.Response != "":
 			apiErr.Body = decoded.Response
+		case decoded.Error != "":
+			apiErr.Body = decoded.Error
 		}
 	}
 	return apiErr

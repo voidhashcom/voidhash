@@ -11,7 +11,7 @@ use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-class CaptureInternalServerErrorNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+class CaptureDependencyUnavailableErrorJsonEncodingNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
 {
     use DenormalizerAwareTrait;
     use NormalizerAwareTrait;
@@ -19,15 +19,15 @@ class CaptureInternalServerErrorNormalizer implements DenormalizerInterface, Nor
     use ValidatorTrait;
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return $type === \Voidhash\Generated\EventCapture\Model\CaptureInternalServerError::class;
+        return $type === \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding::class;
     }
     public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
     {
-        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureInternalServerError::class;
+        return is_object($data) && get_class($data) === \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding::class;
     }
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
     {
-        $object = new \Voidhash\Generated\EventCapture\Model\CaptureInternalServerError();
+        $object = new \Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding();
         if (null === $data || false === \is_array($data)) {
             return $object;
         }
@@ -58,6 +58,6 @@ class CaptureInternalServerErrorNormalizer implements DenormalizerInterface, Nor
     }
     public function getSupportedTypes(?string $format = null): array
     {
-        return [\Voidhash\Generated\EventCapture\Model\CaptureInternalServerError::class => false];
+        return [\Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding::class => false];
     }
 }

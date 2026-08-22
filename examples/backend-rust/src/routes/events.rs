@@ -13,7 +13,6 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::analytics::Captured;
 use crate::error::ApiError;
 use crate::state::SharedState;
 
@@ -29,8 +28,9 @@ pub struct CaptureBody {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponse {
-    /// `sent`, or `skipped` when no publishable key is configured.
-    status: Captured,
+    /// Always `sent`; an event ingestion did not accept fails the request
+    /// instead.
+    status: &'static str,
     event: String,
     distinct_id: String,
 }
@@ -53,7 +53,7 @@ pub async fn capture(
 
     // Forwarding is this route's only job, so a rejected capture is a failed
     // request — unlike the best-effort capture on the note path.
-    let status = state
+    state
         .analytics
         .capture(distinct_id, event, body.properties)
         .await?;
@@ -61,7 +61,7 @@ pub async fn capture(
     Ok((
         StatusCode::ACCEPTED,
         Json(CaptureResponse {
-            status,
+            status: "sent",
             event: event.to_string(),
             distinct_id: distinct_id.to_string(),
         }),

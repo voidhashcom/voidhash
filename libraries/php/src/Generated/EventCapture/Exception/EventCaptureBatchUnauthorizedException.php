@@ -5,22 +5,22 @@ namespace Voidhash\Generated\EventCapture\Exception;
 class EventCaptureBatchUnauthorizedException extends UnauthorizedException
 {
     /**
-     * @var \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError
+     * @var \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedErrorJsonEncoding
      */
-    private $captureUnauthorizedError;
+    private $captureUnauthorizedErrorJsonEncoding;
     /**
      * @var \Psr\Http\Message\ResponseInterface
      */
     private $response;
-    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError $captureUnauthorizedError, \Psr\Http\Message\ResponseInterface $response)
+    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedErrorJsonEncoding $captureUnauthorizedErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
     {
         parent::__construct('CaptureUnauthorizedError');
-        $this->captureUnauthorizedError = $captureUnauthorizedError;
+        $this->captureUnauthorizedErrorJsonEncoding = $captureUnauthorizedErrorJsonEncoding;
         $this->response = $response;
     }
-    public function getCaptureUnauthorizedError(): \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError
+    public function getCaptureUnauthorizedErrorJsonEncoding(): \Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedErrorJsonEncoding
     {
-        return $this->captureUnauthorizedError;
+        return $this->captureUnauthorizedErrorJsonEncoding;
     }
     public function getResponse(): \Psr\Http\Message\ResponseInterface
     {

@@ -31,7 +31,7 @@ type server struct {
 func newServer(client *voidhash.Client, cfg config, logger *slog.Logger) *server {
 	return &server{
 		client:        client,
-		analytics:     newAnalyticsClient(client, cfg.PublishableKey, logger),
+		analytics:     newAnalyticsClient(client, logger),
 		notes:         newNoteStore(),
 		entitlements:  newEntitlementCache(client, logger, entitlementTTL),
 		deliveries:    newDedupeSet(dedupeWindow),

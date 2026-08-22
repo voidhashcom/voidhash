@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -166,80 +165,6 @@ func TestConstructWebhookEvent(t *testing.T) {
 	}
 	if _, err := voidhash.ConstructWebhookEvent(payload, headers, "whsec_test"); err == nil {
 		t.Error("expected verification failure for tampered signature")
-	}
-}
-
-func TestCaptureSendsTheIngestContractWithThePublishableKey(t *testing.T) {
-	var (
-		gotPath      string
-		gotSecretKey string
-		gotBody      map[string]any
-	)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		gotSecretKey = r.Header.Get("x-secret-key")
-		json.NewDecoder(r.Body).Decode(&gotBody)
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusAccepted)
-		json.NewEncoder(w).Encode(map[string]int{"accepted": 1, "rejected": 0})
-	}))
-	t.Cleanup(server.Close)
-
-	client, err := voidhash.New("vh_sk_test",
-		voidhash.WithIngestURL(server.URL),
-		voidhash.WithPublishableKey("vh_pk_test"),
-	)
-	if err != nil {
-		t.Fatalf("New() error: %v", err)
-	}
-
-	result, err := client.EventCapture.Capture(context.Background(), voidhash.Event{
-		Event:      "note_created",
-		DistinctID: "user-123",
-	})
-	if err != nil {
-		t.Fatalf("Capture() error: %v", err)
-	}
-
-	if result.Accepted != 1 || result.Rejected != 0 {
-		t.Errorf("result = %+v, want accepted 1 rejected 0", result)
-	}
-	if gotPath != "/i/v1/capture" {
-		t.Errorf("path = %q, want /i/v1/capture", gotPath)
-	}
-	// Ingest authenticates on the body token; the secret key must not leak
-	// onto this origin.
-	if gotSecretKey != "" {
-		t.Errorf("x-secret-key = %q, want it absent", gotSecretKey)
-	}
-	if gotBody["event"] != "note_created" || gotBody["distinct_id"] != "user-123" {
-		t.Errorf("unexpected body: %+v", gotBody)
-	}
-	if gotBody["token"] != "vh_pk_test" {
-		t.Errorf("token = %v, want vh_pk_test", gotBody["token"])
-	}
-	if gotBody["uuid"] == "" || gotBody["sent_at"] == "" {
-		t.Errorf("uuid and sent_at must be set: %+v", gotBody)
-	}
-	// Both must decode as JSON objects; a null or array is rejected with a 400.
-	for _, field := range []string{"context", "properties"} {
-		if _, ok := gotBody[field].(map[string]any); !ok {
-			t.Errorf("%s = %#v, want an object", field, gotBody[field])
-		}
-	}
-}
-
-func TestCaptureWithoutAPublishableKeyIsAConfigurationError(t *testing.T) {
-	client, err := voidhash.New("vh_sk_test")
-	if err != nil {
-		t.Fatalf("New() error: %v", err)
-	}
-
-	if _, err := client.EventCapture.Capture(context.Background(), voidhash.Event{
-		Event:      "note_created",
-		DistinctID: "user-123",
-	}); !errors.Is(err, voidhash.ErrPublishableKeyRequired) {
-		t.Errorf("Capture() error = %v, want ErrPublishableKeyRequired", err)
 	}
 }
 
