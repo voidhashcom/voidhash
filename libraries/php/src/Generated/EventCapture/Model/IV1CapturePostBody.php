@@ -13,11 +13,11 @@ class IV1CapturePostBody
         return array_key_exists($property, $this->initialized);
     }
     /**
-     * @var mixed
+     * @var string
      */
     protected $uuid;
     /**
-     * @var mixed
+     * @var string
      */
     protected $event;
     /**
@@ -29,56 +29,56 @@ class IV1CapturePostBody
      */
     protected $properties;
     /**
-     * @var mixed
+     * @var string
      */
     protected $distinctId;
     /**
-     * @var mixed|null
+     * @var string|null
      */
     protected $sessionId;
     /**
-     * @var mixed|null
+     * @var \DateTime|null
      */
     protected $timestamp;
     /**
-     * @var mixed
+     * @var \DateTime
      */
     protected $sentAt;
     /**
-     * @var mixed
+     * @var string
      */
     protected $token;
     /**
-     * @return mixed
+     * @return string
      */
-    public function getUuid()
+    public function getUuid(): string
     {
         return $this->uuid;
     }
     /**
-     * @param mixed $uuid
+     * @param string $uuid
      *
      * @return self
      */
-    public function setUuid($uuid): self
+    public function setUuid(string $uuid): self
     {
         $this->initialized['uuid'] = true;
         $this->uuid = $uuid;
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getEvent()
+    public function getEvent(): string
     {
         return $this->event;
     }
     /**
-     * @param mixed $event
+     * @param string $event
      *
      * @return self
      */
-    public function setEvent($event): self
+    public function setEvent(string $event): self
     {
         $this->initialized['event'] = true;
         $this->event = $event;
@@ -121,90 +121,90 @@ class IV1CapturePostBody
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getDistinctId()
+    public function getDistinctId(): string
     {
         return $this->distinctId;
     }
     /**
-     * @param mixed $distinctId
+     * @param string $distinctId
      *
      * @return self
      */
-    public function setDistinctId($distinctId): self
+    public function setDistinctId(string $distinctId): self
     {
         $this->initialized['distinctId'] = true;
         $this->distinctId = $distinctId;
         return $this;
     }
     /**
-     * @return mixed
+     * @return string|null
      */
-    public function getSessionId()
+    public function getSessionId(): ?string
     {
         return $this->sessionId;
     }
     /**
-     * @param mixed $sessionId
+     * @param string|null $sessionId
      *
      * @return self
      */
-    public function setSessionId($sessionId): self
+    public function setSessionId(?string $sessionId): self
     {
         $this->initialized['sessionId'] = true;
         $this->sessionId = $sessionId;
         return $this;
     }
     /**
-     * @return mixed
+     * @return \DateTime|null
      */
-    public function getTimestamp()
+    public function getTimestamp(): ?\DateTime
     {
         return $this->timestamp;
     }
     /**
-     * @param mixed $timestamp
+     * @param \DateTime|null $timestamp
      *
      * @return self
      */
-    public function setTimestamp($timestamp): self
+    public function setTimestamp(?\DateTime $timestamp): self
     {
         $this->initialized['timestamp'] = true;
         $this->timestamp = $timestamp;
         return $this;
     }
     /**
-     * @return mixed
+     * @return \DateTime
      */
-    public function getSentAt()
+    public function getSentAt(): \DateTime
     {
         return $this->sentAt;
     }
     /**
-     * @param mixed $sentAt
+     * @param \DateTime $sentAt
      *
      * @return self
      */
-    public function setSentAt($sentAt): self
+    public function setSentAt(\DateTime $sentAt): self
     {
         $this->initialized['sentAt'] = true;
         $this->sentAt = $sentAt;
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getToken()
+    public function getToken(): string
     {
         return $this->token;
     }
     /**
-     * @param mixed $token
+     * @param string $token
      *
      * @return self
      */
-    public function setToken($token): self
+    public function setToken(string $token): self
     {
         $this->initialized['token'] = true;
         $this->token = $token;

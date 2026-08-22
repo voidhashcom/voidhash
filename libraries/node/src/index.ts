@@ -1,4 +1,8 @@
 export type {
+  CaptureRequest,
+  VoidhashCaptureResult,
+} from "./analytics";
+export type {
   GetGrantsByDistinctIdRequest,
   HasActivePerkRequest,
   VoidhashEntitlementGrant,

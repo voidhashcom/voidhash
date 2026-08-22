@@ -32,7 +32,7 @@ const EXPECTED_GROUPS = [
 ];
 
 // Hand-written conveniences layered on top of the generated groups.
-const EXPECTED_CONVENIENCE_NAMESPACES = ["entitlements"];
+const EXPECTED_CONVENIENCE_NAMESPACES = ["analytics", "entitlements"];
 
 const EXPECTED_NAMESPACES = [...EXPECTED_GROUPS, ...EXPECTED_CONVENIENCE_NAMESPACES];
 
@@ -85,6 +85,8 @@ describe("@voidhash/node", () => {
     expectTypeOf<HasKey<VoidhashNodeClient, "sdk">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "entitlements">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeClient, "entitlements">>().toEqualTypeOf<true>();
+    expectTypeOf<HasKey<VoidhashNodeEffectClient, "analytics">>().toEqualTypeOf<true>();
+    expectTypeOf<HasKey<VoidhashNodeClient, "analytics">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "changesets">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "auth">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "schema">>().toEqualTypeOf<true>();

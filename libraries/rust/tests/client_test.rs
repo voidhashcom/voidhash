@@ -194,3 +194,95 @@ async fn empty_secret_key_is_rejected() {
     let result = VoidhashClient::builder().build();
     assert!(matches!(result, Err(voidhash::Error::Request(_))));
 }
+
+#[tokio::test]
+async fn capture_sends_the_ingest_contract_with_the_publishable_key() {
+    let server = wiremock::MockServer::start().await;
+    let client = VoidhashClient::builder()
+        .secret_key("vh_sk_test")
+        .publishable_key("vh_pk_test")
+        .ingest_url(server.uri())
+        .build()
+        .expect("client builds");
+
+    wiremock::Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/i/v1/capture"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(202)
+                .set_body_json(json!({ "accepted": 1, "rejected": 0 })),
+        )
+        .mount(&server)
+        .await;
+
+    let result = client
+        .event_capture()
+        .capture(&voidhash::Event::new("user-123", "note_created"))
+        .await
+        .expect("capture succeeds");
+
+    assert_eq!(result.accepted, 1);
+    assert_eq!(result.rejected, 0);
+
+    let request = &server.received_requests().await.expect("requests")[0];
+    let body: serde_json::Value = serde_json::from_slice(&request.body).expect("json body");
+    assert_eq!(body["event"], "note_created");
+    assert_eq!(body["distinct_id"], "user-123");
+    assert_eq!(body["token"], "vh_pk_test");
+    assert!(body["uuid"].as_str().is_some_and(|id| !id.is_empty()));
+    assert!(body["sent_at"].as_str().is_some_and(|at| !at.is_empty()));
+    // Both must be JSON objects; `[]` or `null` is rejected with a 400.
+    assert!(body["context"].is_object());
+    assert!(body["properties"].is_object());
+    // Ingest authenticates on the body token; the secret key must not leak
+    // onto this origin.
+    assert!(request.headers.get("x-secret-key").is_none());
+}
+
+#[tokio::test]
+async fn capture_without_a_publishable_key_is_rejected() {
+    let (_server, client) = test_client().await;
+
+    let error = client
+        .event_capture()
+        .capture(&voidhash::Event::new("user-123", "note_created"))
+        .await
+        .expect_err("capture requires a publishable key");
+
+    assert!(matches!(error, voidhash::Error::Request(_)));
+}
+
+#[tokio::test]
+async fn set_attributes_posts_traits_for_the_named_person() {
+    let (server, client) = test_client().await;
+
+    wiremock::Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/v1/persons/attributes"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(200).set_body_json(json!({
+                "personId": "per_1",
+                "distinctId": "user-123",
+                "email": null,
+                "name": null,
+            })),
+        )
+        .mount(&server)
+        .await;
+
+    let traits = json!({ "plan": "pro", "notes_created": 3 })
+        .as_object()
+        .expect("object")
+        .clone();
+    let person = client
+        .persons()
+        .set_attributes(&voidhash::PersonAttributes::new("user-123", traits))
+        .await
+        .expect("set_attributes succeeds");
+
+    assert_eq!(person.person_id, "per_1");
+
+    let request = &server.received_requests().await.expect("requests")[0];
+    let body: serde_json::Value = serde_json::from_slice(&request.body).expect("json body");
+    assert_eq!(body["distinctId"], "user-123");
+    assert_eq!(body["traits"]["plan"], "pro");
+    assert_eq!(body["traits"]["notes_created"], 3);
+}

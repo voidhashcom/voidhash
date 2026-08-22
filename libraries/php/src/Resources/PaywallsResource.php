@@ -5,7 +5,7 @@ namespace Voidhash\Resources;
 use Psr\Http\Message\StreamInterface;
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
-use Voidhash\Generated\Core\Exception\ClientException;
+use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\CreatePaywallDeployResponseJsonEncoding;
 use Voidhash\Generated\Core\Model\FinalizePaywallDeployResponseJsonEncoding;
 use Voidhash\Generated\Core\Model\PaywallLocationJsonEncoding;
@@ -60,7 +60,7 @@ final class PaywallsResource
     {
         try {
             return $call();
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
     }

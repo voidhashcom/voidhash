@@ -21,11 +21,11 @@ class SendNotificationBodyJsonEncoding
      */
     protected $distinctIds;
     /**
-     * @var mixed
+     * @var string
      */
     protected $title;
     /**
-     * @var mixed
+     * @var string
      */
     protected $body;
     /**
@@ -97,36 +97,36 @@ class SendNotificationBodyJsonEncoding
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getTitle()
+    public function getTitle(): string
     {
         return $this->title;
     }
     /**
-     * @param mixed $title
+     * @param string $title
      *
      * @return self
      */
-    public function setTitle($title): self
+    public function setTitle(string $title): self
     {
         $this->initialized['title'] = true;
         $this->title = $title;
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getBody()
+    public function getBody(): string
     {
         return $this->body;
     }
     /**
-     * @param mixed $body
+     * @param string $body
      *
      * @return self
      */
-    public function setBody($body): self
+    public function setBody(string $body): self
     {
         $this->initialized['body'] = true;
         $this->body = $body;

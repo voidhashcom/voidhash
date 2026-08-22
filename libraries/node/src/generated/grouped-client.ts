@@ -40,6 +40,7 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
     getPersonById: (request: { params: { readonly "personId": string } }) => client.personsGetPersonById(request.params["personId"]),
     getPersonEntitlements: (request: { params: { readonly "personId": string } }) => client.personsGetPersonEntitlements(request.params["personId"]),
     listPersons: () => client.personsListPersons(),
+    setPersonAttributes: (request: { payload: Parameters<VoidhashCoreClient["personsSetPersonAttributes"]>[0] }) => client.personsSetPersonAttributes(request.payload),
   },
   productPerks: {
     listProductPerksByProductId: (request: { params: { readonly "productId": string } }) => client.productPerksListProductPerksByProductId(request.params["productId"]),

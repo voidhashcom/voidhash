@@ -235,6 +235,12 @@ const program = Effect.gen(function* () {
   const rustCorePath = path.join(openapiRoot, "core-3.0.rust.json");
   yield* run(repoRoot, "node", [
     "./scripts/openapi-downgrade.mjs",
+    // `Objects_1` is the person-traits map, whose values are a scalar union.
+    // progenitor renders that union as a struct of flattened options, which
+    // cannot deserialize a bare `3` or `"pro"` — the same limitation the
+    // event-capture value unions below work around.
+    "--any-schema",
+    "Objects_1",
     "--flatten-errors",
     coreSpecPath,
     rustCorePath,

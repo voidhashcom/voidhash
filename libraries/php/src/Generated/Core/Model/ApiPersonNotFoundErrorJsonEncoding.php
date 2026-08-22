@@ -17,7 +17,7 @@ class ApiPersonNotFoundErrorJsonEncoding
      */
     protected $tag;
     /**
-     * @var mixed
+     * @var string
      */
     protected $id;
     /**
@@ -39,18 +39,18 @@ class ApiPersonNotFoundErrorJsonEncoding
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getId()
+    public function getId(): string
     {
         return $this->id;
     }
     /**
-     * @param mixed $id
+     * @param string $id
      *
      * @return self
      */
-    public function setId($id): self
+    public function setId(string $id): self
     {
         $this->initialized['id'] = true;
         $this->id = $id;

@@ -67,7 +67,7 @@ class IV1BatchPostBodyEventsItemNormalizer implements DenormalizerInterface, Nor
             $object->setSessionId(null);
         }
         if (\array_key_exists('timestamp', $data) && $data['timestamp'] !== null) {
-            $object->setTimestamp($data['timestamp']);
+            $object->setTimestamp(\DateTime::createFromFormat('Y-m-d\TH:i:sP', $data['timestamp']));
         }
         elseif (\array_key_exists('timestamp', $data) && $data['timestamp'] === null) {
             $object->setTimestamp(null);
@@ -94,7 +94,7 @@ class IV1BatchPostBodyEventsItemNormalizer implements DenormalizerInterface, Nor
             $dataArray['session_id'] = $data->getSessionId();
         }
         if ($data->isInitialized('timestamp')) {
-            $dataArray['timestamp'] = $data->getTimestamp();
+            $dataArray['timestamp'] = $data->getTimestamp()?->format('Y-m-d\TH:i:sP');
         }
         return $dataArray;
     }

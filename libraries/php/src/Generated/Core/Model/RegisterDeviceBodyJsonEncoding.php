@@ -21,7 +21,7 @@ class RegisterDeviceBodyJsonEncoding
      */
     protected $provider;
     /**
-     * @var mixed
+     * @var string
      */
     protected $platformToken;
     /**
@@ -73,18 +73,18 @@ class RegisterDeviceBodyJsonEncoding
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getPlatformToken()
+    public function getPlatformToken(): string
     {
         return $this->platformToken;
     }
     /**
-     * @param mixed $platformToken
+     * @param string $platformToken
      *
      * @return self
      */
-    public function setPlatformToken($platformToken): self
+    public function setPlatformToken(string $platformToken): self
     {
         $this->initialized['platformToken'] = true;
         $this->platformToken = $platformToken;

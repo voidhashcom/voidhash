@@ -1,7 +1,10 @@
 import React, { useCallback, useMemo } from "react";
 
 import type { VoidhashClient } from "../../client";
-import { featureFlagsForKeysAtom } from "../../core/reactivity/client-state";
+import {
+  featureFlagsForKeysAtom,
+  normalizeFeatureFlagKeys,
+} from "../../core/reactivity/client-state";
 import type { VoidhashContext } from "../components/provider";
 import useAsyncFunction from "./use-async-function";
 import { useAtomValue } from "./use-atom-value";
@@ -13,7 +16,20 @@ export function featureFlagsHookFactory(
   function useFeatureFlags(flagKeys?: string[]) {
     const voidhashContext = React.useContext(vhContext);
 
-    const fetchFlags = useCallback(() => client.getFeatureFlags(flagKeys), [flagKeys]);
+    // Callers overwhelmingly pass an inline array literal, which is a fresh
+    // identity on every render. Depending on it directly would restart the
+    // fetch after every state update, so we key all downstream memoization on
+    // the normalized signature instead and rebuild a stable array from it.
+    const normalizedKeys = normalizeFeatureFlagKeys(flagKeys);
+    const stableFlagKeys = useMemo(
+      () => (normalizedKeys === "all" ? undefined : normalizedKeys.split(",")),
+      [normalizedKeys],
+    );
+
+    const fetchFlags = useCallback(
+      () => client.getFeatureFlags(stableFlagKeys),
+      [stableFlagKeys],
+    );
 
     const { isLoading, error, refetch } = useAsyncFunction(fetchFlags, {
       enabled: voidhashContext?.isInitialized,
@@ -23,7 +39,7 @@ export function featureFlagsHookFactory(
     // `featureFlagsForKeysAtom` family memoizes by normalized key so two
     // hooks asking for the same keys (in any order) share an atom, and hooks
     // asking for different keys can't trample each other.
-    const flagsAtom = useMemo(() => featureFlagsForKeysAtom(flagKeys), [flagKeys]);
+    const flagsAtom = useMemo(() => featureFlagsForKeysAtom(stableFlagKeys), [stableFlagKeys]);
     const flags = useAtomValue(client.internal.getAtomRegistry(), flagsAtom);
 
     const isEnabled = useCallback(

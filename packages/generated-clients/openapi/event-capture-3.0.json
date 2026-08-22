@@ -14,7 +14,7 @@
         "parameters": [],
         "security": [],
         "responses": {
-          "200": {
+          "202": {
             "description": "CaptureAcceptedResponse",
             "content": {
               "application/json": {
@@ -100,19 +100,11 @@
                 "properties": {
                   "uuid": {
                     "type": "string",
-                    "allOf": [
-                      {
-                        "minLength": 1
-                      }
-                    ]
+                    "minLength": 1
                   },
                   "event": {
                     "type": "string",
-                    "allOf": [
-                      {
-                        "minLength": 1
-                      }
-                    ]
+                    "minLength": 1
                   },
                   "context": {
                     "type": "object",
@@ -128,45 +120,25 @@
                   },
                   "distinct_id": {
                     "type": "string",
-                    "allOf": [
-                      {
-                        "minLength": 1
-                      }
-                    ]
+                    "minLength": 1
                   },
                   "session_id": {
                     "nullable": true,
                     "type": "string",
-                    "allOf": [
-                      {
-                        "minLength": 1
-                      }
-                    ]
+                    "minLength": 1
                   },
                   "timestamp": {
                     "nullable": true,
                     "type": "string",
-                    "allOf": [
-                      {
-                        "format": "date-time"
-                      }
-                    ]
+                    "format": "date-time"
                   },
                   "sent_at": {
                     "type": "string",
-                    "allOf": [
-                      {
-                        "format": "date-time"
-                      }
-                    ]
+                    "format": "date-time"
                   },
                   "token": {
                     "type": "string",
-                    "allOf": [
-                      {
-                        "minLength": 1
-                      }
-                    ]
+                    "minLength": 1
                   }
                 },
                 "required": [
@@ -195,7 +167,7 @@
         "parameters": [],
         "security": [],
         "responses": {
-          "200": {
+          "202": {
             "description": "CaptureAcceptedResponse",
             "content": {
               "application/json": {
@@ -287,19 +259,11 @@
                       "properties": {
                         "uuid": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "event": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "context": {
                           "type": "object",
@@ -315,29 +279,17 @@
                         },
                         "distinct_id": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "session_id": {
                           "nullable": true,
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "timestamp": {
                           "nullable": true,
                           "type": "string",
-                          "allOf": [
-                            {
-                              "format": "date-time"
-                            }
-                          ]
+                          "format": "date-time"
                         }
                       },
                       "required": [
@@ -352,19 +304,11 @@
                   },
                   "sent_at": {
                     "type": "string",
-                    "allOf": [
-                      {
-                        "format": "date-time"
-                      }
-                    ]
+                    "format": "date-time"
                   },
                   "token": {
                     "type": "string",
-                    "allOf": [
-                      {
-                        "minLength": 1
-                      }
-                    ]
+                    "minLength": 1
                   }
                 },
                 "required": [
@@ -410,11 +354,7 @@
           },
           "error": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "code": {
             "type": "string",
@@ -460,11 +400,7 @@
           },
           "error": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "code": {
             "type": "string",
@@ -491,11 +427,7 @@
           },
           "error": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "code": {
             "type": "string",
@@ -522,11 +454,7 @@
           },
           "error": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "code": {
             "type": "string",
@@ -557,11 +485,7 @@
           },
           "error": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "code": {
             "type": "string",
@@ -588,11 +512,7 @@
           },
           "error": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "code": {
             "type": "string",

@@ -1,0 +1,29 @@
+[package]
+name = "voidhash-example-backend-rust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Nimbus — the Voidhash Rust SDK reference backend"
+
+# Standalone crate: it deliberately does not join a parent workspace so it can
+# be copied out of the repo and built on its own.
+[workspace]
+
+[dependencies]
+# In your own project use the published crate instead:
+#   voidhash = "0.1"
+voidhash = { path = "../../libraries/rust" }
+
+axum = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+# Used directly by src/analytics.rs, which posts to the ingestion API without
+# going through the SDK. Same major as the SDK's own dependency, so one copy
+# of reqwest is compiled.
+reqwest = { version = "0.13", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# The ingestion contract requires a client-generated event id.
+uuid = { version = "1", features = ["v4"] }

@@ -75,6 +75,16 @@ export const apiCoreSuite: ConformanceSuite = {
       { status: 200, body: API_PERSON_FIXTURE },
     ),
     step(
+      "set-person-attributes",
+      {
+        method: "POST",
+        path: "/api/v1/persons/attributes",
+        headers: apiAuth,
+        body: { distinctId: DISTINCT_ID, traits: { notes_created: 3, plan: "pro" } },
+      },
+      { status: 200, body: API_PERSON_FIXTURE },
+    ),
+    step(
       "get-person-entitlements",
       {
         method: "GET",

@@ -4,7 +4,7 @@ namespace Voidhash\Resources;
 
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
-use Voidhash\Generated\Core\Exception\ClientException;
+use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\PerkJsonEncoding;
 
 final class PerksResource
@@ -18,7 +18,7 @@ final class PerksResource
     {
         try {
             return $this->core->perksListPerks() ?? [];
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
     }

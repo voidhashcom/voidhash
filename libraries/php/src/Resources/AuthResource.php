@@ -4,7 +4,7 @@ namespace Voidhash\Resources;
 
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
-use Voidhash\Generated\Core\Exception\ClientException;
+use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\ApiV1AuthSessionGetResponse200;
 
 final class AuthResource
@@ -18,7 +18,7 @@ final class AuthResource
     {
         try {
             return $this->core->authSession() ?? throw new ApiException(500);
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
     }

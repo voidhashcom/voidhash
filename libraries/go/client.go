@@ -5,6 +5,11 @@
 //	client, err := voidhash.New("vh_sk_...")
 //	person, err := client.Persons.GetByDistinctID(ctx, "user-123")
 //
+// Event capture authenticates on the publishable key rather than the secret
+// key, so supply it too when the client will capture events:
+//
+//	client, err := voidhash.New("vh_sk_...", voidhash.WithPublishableKey("vh_pk_..."))
+//
 // All request and response bodies are typed structs generated from the
 // official OpenAPI document.
 package voidhash
@@ -28,11 +33,12 @@ const secretKeyHeader = "x-secret-key"
 // Client is a Voidhash management API client. Create one with [New]; it is
 // safe for concurrent use.
 type Client struct {
-	secretKey    string
-	extraHeaders map[string]string
-	httpClient   *http.Client
-	core         *api.Client
-	ingestBase   string
+	secretKey      string
+	publishableKey string
+	extraHeaders   map[string]string
+	httpClient     *http.Client
+	core           *api.Client
+	ingestBase     string
 
 	Auth          *AuthService
 	APIKeys       *APIKeysService
@@ -53,10 +59,11 @@ type Client struct {
 type Option func(*clientConfig)
 
 type clientConfig struct {
-	baseURL    string
-	ingestURL  string
-	httpClient *http.Client
-	headers    map[string]string
+	baseURL        string
+	ingestURL      string
+	publishableKey string
+	httpClient     *http.Client
+	headers        map[string]string
 }
 
 // WithBaseURL overrides the management API base URL. Defaults to
@@ -69,6 +76,14 @@ func WithBaseURL(url string) Option {
 // [DefaultIngestURL].
 func WithIngestURL(url string) Option {
 	return func(cfg *clientConfig) { cfg.ingestURL = url }
+}
+
+// WithPublishableKey supplies the project's publishable key (vh_pk_...),
+// which event ingestion authenticates on. Without it [EventCaptureService]
+// returns [ErrPublishableKeyRequired]; every other service only needs the
+// secret key.
+func WithPublishableKey(key string) Option {
+	return func(cfg *clientConfig) { cfg.publishableKey = key }
 }
 
 // WithHTTPClient uses a custom *http.Client (timeouts, proxies, tracing).
@@ -123,11 +138,12 @@ func New(secretKey string, opts ...Option) (*Client, error) {
 	}
 
 	client := &Client{
-		secretKey:    secretKey,
-		extraHeaders: cfg.headers,
-		httpClient:   cfg.httpClient,
-		core:         core,
-		ingestBase:   cfg.ingestURL,
+		secretKey:      secretKey,
+		publishableKey: cfg.publishableKey,
+		extraHeaders:   cfg.headers,
+		httpClient:     cfg.httpClient,
+		core:           core,
+		ingestBase:     cfg.ingestURL,
 	}
 
 	client.Auth = &AuthService{client: client}

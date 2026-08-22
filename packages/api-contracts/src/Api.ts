@@ -73,6 +73,7 @@ import {
   SchemaVersion,
   SendNotificationBody,
   SendNotificationResponse,
+  SetPersonAttributesBody,
   SdkFeatureFlagsResponse,
   SdkHeaders,
   SdkIdentifyBody,
@@ -181,6 +182,19 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
           params: { personId: Schema.String },
           success: PersonEntitlementsResponse,
           error: [ApiActionForbiddenError, ApiPersonNotFoundError, ApiPersonServiceError],
+        }),
+      )
+      .add(
+        // Server-to-server person-attribute write. The SDK's
+        // `sdk.syncPersonAttributes` is device-facing — it takes the distinct
+        // id from the publishable-key session — so a backend has no way to
+        // write traits for a person it is acting on behalf of. This names the
+        // person in the body and creates one when the distinct id is new,
+        // matching `createPerson`.
+        HttpApiEndpoint.post("setPersonAttributes", "/attributes", {
+          payload: SetPersonAttributesBody,
+          success: Person,
+          error: [ApiActionForbiddenError, ApiPersonServiceError],
         }),
       )
       .middleware(AuthMiddleware)

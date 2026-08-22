@@ -11,6 +11,7 @@
         "psr/http-client": "^1.0",
         "psr/http-factory": "^1.0",
         "symfony/http-client": "^7.0",
+        "symfony/options-resolver": "^7.0",
         "symfony/serializer": "^7.0"
     },
     "require-dev": {
@@ -34,7 +35,7 @@
         }
     },
     "scripts": {
-        "generate": "@php vendor/bin/jane generate --config-file jane-config.php",
+        "generate": "@php vendor/bin/jane-openapi generate --config-file jane-config.php",
         "test": "vendor/bin/phpunit"
     },
     "minimum-stability": "stable"

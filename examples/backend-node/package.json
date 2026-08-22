@@ -1,0 +1,28 @@
+{
+  "name": "@voidhash/example-backend-node",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nimbus reference backend for the @voidhash/node server SDK.",
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "examples/backend-node"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@voidhash/node": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@voidhash/tsconfig": "workspace:*",
+    "tsx": "^4.19.3",
+    "typescript": "5.8.3"
+  }
+}

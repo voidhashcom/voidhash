@@ -143,6 +143,18 @@ export type PersonsCreatePerson500 =
   | ApiPersonServiceErrorJsonEncoding
   | ApiAuthenticationErrorJsonEncoding;
 
+export interface SetPersonAttributesBodyJsonEncoding {
+  readonly distinctId: string;
+  readonly email?: string | null | undefined;
+  readonly name?: string | null | undefined;
+  readonly traits?: Objects1 | null | undefined;
+  readonly setOnce?: Objects1 | null | undefined;
+}
+
+export type PersonsSetPersonAttributes500 =
+  | ApiPersonServiceErrorJsonEncoding
+  | ApiAuthenticationErrorJsonEncoding;
+
 export type ApiPersonNotFoundErrorJsonEncodingTag = "Api/PersonNotFoundError";
 
 export interface ApiPersonNotFoundErrorJsonEncoding {
@@ -1693,6 +1705,15 @@ export const make = (
           "500": "PersonsCreatePerson500",
         }),
       ),
+    personsSetPersonAttributes: (options) =>
+      HttpClientRequest.post(`/api/v1/persons/attributes`).pipe(
+        HttpClientRequest.bodyJsonUnsafe(options),
+        onRequest(["2xx"], {
+          "401": "ApiNotAuthenticatedErrorJsonEncoding",
+          "403": "ApiActionForbiddenErrorJsonEncoding",
+          "500": "PersonsSetPersonAttributes500",
+        }),
+      ),
     personsGetPersonById: (personId) =>
       HttpClientRequest.get(`/api/v1/persons/${personId}`).pipe(
         onRequest(["2xx"], {
@@ -2436,6 +2457,24 @@ export interface VoidhashCoreClient {
         ApiActionForbiddenErrorJsonEncoding
       >
     | VoidhashCoreClientError<"PersonsCreatePerson500", PersonsCreatePerson500>
+  >;
+  readonly personsSetPersonAttributes: (
+    options: SetPersonAttributesBodyJsonEncoding,
+  ) => Effect.Effect<
+    PersonJsonEncoding,
+    | HttpClientError.HttpClientError
+    | VoidhashCoreClientError<
+        "ApiNotAuthenticatedErrorJsonEncoding",
+        ApiNotAuthenticatedErrorJsonEncoding
+      >
+    | VoidhashCoreClientError<
+        "ApiActionForbiddenErrorJsonEncoding",
+        ApiActionForbiddenErrorJsonEncoding
+      >
+    | VoidhashCoreClientError<
+        "PersonsSetPersonAttributes500",
+        PersonsSetPersonAttributes500
+      >
   >;
   readonly personsGetPersonById: (
     personId: string,

@@ -92,6 +92,32 @@ export class CreatePersonBody extends Schema.Class<CreatePersonBody>("CreatePers
   name: Schema.optional(Schema.String),
 }) {}
 
+const TraitValue = Schema.Union([Schema.String, Schema.Number, Schema.Boolean, Schema.Null]);
+
+/**
+ * Person traits as written by both the device-facing SDK surface and the
+ * secret-key `persons` surface. Values are flat scalars — traits describe the
+ * person, so anything that needs structure belongs on an event instead.
+ */
+export const PersonTraits = Schema.Record(Schema.String, TraitValue);
+
+/**
+ * Body of the server-to-server person-attribute write. Mirrors
+ * {@link SdkSyncPersonAttributesBody} but names the person explicitly, because
+ * a secret key is not scoped to one distinct id the way a device session is.
+ */
+export class SetPersonAttributesBody extends Schema.Class<SetPersonAttributesBody>(
+  "SetPersonAttributesBody",
+)({
+  distinctId: Schema.String,
+  email: Schema.optional(Schema.String),
+  name: Schema.optional(Schema.String),
+  // `$set` semantics — newest write wins per key.
+  traits: Schema.optional(PersonTraits),
+  // `$set_once` semantics — earliest write wins; loses to any `$set`.
+  setOnce: Schema.optional(PersonTraits),
+}) {}
+
 export const PersonIdParam = Schema.String;
 
 export const DistinctIdParam = Schema.String;
@@ -237,16 +263,12 @@ export const SdkHeaders = Schema.Struct({
   ...CommonSdkHeaders.fields,
 });
 
-const SdkTraitValue = Schema.Union([Schema.String, Schema.Number, Schema.Boolean, Schema.Null]);
-
-const SdkTraits = Schema.Record(Schema.String, SdkTraitValue);
-
 // SDK Identify
 export class SdkIdentifyBody extends Schema.Class<SdkIdentifyBody>("SdkIdentifyBody")({
   distinctId: Schema.String,
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
-  traits: Schema.optional(SdkTraits),
+  traits: Schema.optional(PersonTraits),
 }) {}
 
 // SDK Sync Person Attributes
@@ -256,9 +278,9 @@ export class SdkSyncPersonAttributesBody extends Schema.Class<SdkSyncPersonAttri
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
   // `$set` semantics — newest write wins per key.
-  traits: Schema.optional(SdkTraits),
+  traits: Schema.optional(PersonTraits),
   // `$set_once` semantics — earliest write wins; loses to any `$set`.
-  setOnce: Schema.optional(SdkTraits),
+  setOnce: Schema.optional(PersonTraits),
   // Stable client-supplied id for deterministic LWW tie-break. Lets a sync
   // write and its eventual async `$set` echo dedupe idempotently.
   clientEventId: Schema.optional(Schema.String),

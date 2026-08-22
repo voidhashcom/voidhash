@@ -102,7 +102,7 @@ class VoidhashApiClient(
     /** Resolves the paywall configured for [locationSlug]; `null` when nothing is showing. */
     suspend fun resolvePaywall(distinctId: String, locationSlug: String): ResolvedPaywall? {
         val payload = JSONObject().put("locationSlug", locationSlug)
-        val json = requestJson("POST", "/api/v1/sdk/resolve-paywall", distinctId, payload)
+        val json = requestJson("POST", "/api/v1/sdk/resolve-paywall", distinctId, payload, allowNotFound = true)
             ?: return null
         return ResolvedPaywall.fromJson(json)
     }

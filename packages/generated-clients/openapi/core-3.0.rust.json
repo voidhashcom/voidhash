@@ -571,6 +571,68 @@
         }
       }
     },
+    "/api/v1/persons/attributes": {
+      "post": {
+        "tags": [
+          "persons"
+        ],
+        "operationId": "persons.setPersonAttributes",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Person",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonJsonEncoding"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Api/NotAuthenticatedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PersonServiceError | Api/AuthenticationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPersonAttributesBodyJsonEncoding"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/v1/persons/{personId}": {
       "get": {
         "tags": [
@@ -5549,6 +5611,34 @@
         ],
         "additionalProperties": false
       },
+      "SetPersonAttributesBodyJsonEncoding": {
+        "type": "object",
+        "properties": {
+          "distinctId": {
+            "type": "string"
+          },
+          "email": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "traits": {
+            "nullable": true,
+            "$ref": "#/components/schemas/Objects_1"
+          },
+          "setOnce": {
+            "nullable": true,
+            "$ref": "#/components/schemas/Objects_1"
+          }
+        },
+        "required": [
+          "distinctId"
+        ],
+        "additionalProperties": false
+      },
       "PersonJsonEncoding": {
         "type": "object",
         "properties": {
@@ -7010,33 +7100,7 @@
         "additionalProperties": false
       },
       "Objects_1": {
-        "type": "object",
-        "additionalProperties": {
-          "nullable": true,
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "Infinity",
-                    "-Infinity",
-                    "NaN"
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "boolean"
-            }
-          ]
-        }
+        "description": "Arbitrary JSON value."
       },
       "SdkIdentifyBodyJsonEncoding": {
         "type": "object",

@@ -1205,7 +1205,7 @@ type ApiPerkServiceErrorJsonEncodingTag string
 // ApiPersonInvalidAnonymousIdErrorJsonEncoding defines model for Api_PersonInvalidAnonymousIdErrorJsonEncoding.
 type ApiPersonInvalidAnonymousIdErrorJsonEncoding struct {
 	UnderscoreTag ApiPersonInvalidAnonymousIdErrorJsonEncodingTag `json:"_tag"`
-	Id            interface{}                                     `json:"id"`
+	Id            string                                          `json:"id"`
 }
 
 // ApiPersonInvalidAnonymousIdErrorJsonEncodingTag defines model for ApiPersonInvalidAnonymousIdErrorJsonEncoding.Tag.
@@ -1214,7 +1214,7 @@ type ApiPersonInvalidAnonymousIdErrorJsonEncodingTag string
 // ApiPersonNotFoundErrorJsonEncoding defines model for Api_PersonNotFoundErrorJsonEncoding.
 type ApiPersonNotFoundErrorJsonEncoding struct {
 	UnderscoreTag ApiPersonNotFoundErrorJsonEncodingTag `json:"_tag"`
-	Id            interface{}                           `json:"id"`
+	Id            string                                `json:"id"`
 }
 
 // ApiPersonNotFoundErrorJsonEncodingTag defines model for ApiPersonNotFoundErrorJsonEncoding.Tag.
@@ -1629,8 +1629,8 @@ type ProjectSchemaResponseJsonEncodingEnabledProviders string
 
 // RefreshDeviceBodyJsonEncoding defines model for RefreshDeviceBodyJsonEncoding.
 type RefreshDeviceBodyJsonEncoding struct {
-	PlatformToken     interface{} `json:"platformToken"`
-	PushDeviceTokenId string      `json:"pushDeviceTokenId"`
+	PlatformToken     string `json:"platformToken"`
+	PushDeviceTokenId string `json:"pushDeviceTokenId"`
 }
 
 // RegisterDeviceBodyJsonEncoding defines model for RegisterDeviceBodyJsonEncoding.
@@ -1638,7 +1638,7 @@ type RegisterDeviceBodyJsonEncoding struct {
 	BundleId                  *string                                    `json:"bundleId"`
 	Environment               *RegisterDeviceBodyJsonEncodingEnvironment `json:"environment"`
 	Platform                  RegisterDeviceBodyJsonEncodingPlatform     `json:"platform"`
-	PlatformToken             interface{}                                `json:"platformToken"`
+	PlatformToken             string                                     `json:"platformToken"`
 	PreviousPushDeviceTokenId *string                                    `json:"previousPushDeviceTokenId"`
 	Provider                  RegisterDeviceBodyJsonEncodingProvider     `json:"provider"`
 }
@@ -2031,7 +2031,7 @@ type SdkSyncTransactionResponseJsonEncoding struct {
 // SendNotificationBodyJsonEncoding defines model for SendNotificationBodyJsonEncoding.
 type SendNotificationBodyJsonEncoding struct {
 	Badge          *SendNotificationBodyJsonEncoding_Badge   `json:"badge"`
-	Body           interface{}                               `json:"body"`
+	Body           string                                    `json:"body"`
 	ChannelId      *string                                   `json:"channelId"`
 	CollapseId     *string                                   `json:"collapseId"`
 	Data           *map[string]interface{}                   `json:"data"`
@@ -2040,7 +2040,7 @@ type SendNotificationBodyJsonEncoding struct {
 	PersonIds      *[]string                                 `json:"personIds"`
 	Priority       *SendNotificationBodyJsonEncodingPriority `json:"priority"`
 	Sound          *string                                   `json:"sound"`
-	Title          interface{}                               `json:"title"`
+	Title          string                                    `json:"title"`
 	Ttl            *SendNotificationBodyJsonEncoding_Ttl     `json:"ttl"`
 }
 
@@ -2090,6 +2090,15 @@ type SendNotificationResponseJsonEncoding_DeviceCount struct {
 
 // SendNotificationResponseJsonEncodingStatus defines model for SendNotificationResponseJsonEncoding.Status.
 type SendNotificationResponseJsonEncodingStatus string
+
+// SetPersonAttributesBodyJsonEncoding defines model for SetPersonAttributesBodyJsonEncoding.
+type SetPersonAttributesBodyJsonEncoding struct {
+	DistinctId string    `json:"distinctId"`
+	Email      *string   `json:"email"`
+	Name       *string   `json:"name"`
+	SetOnce    *Objects1 `json:"setOnce,omitempty"`
+	Traits     *Objects1 `json:"traits,omitempty"`
+}
 
 // UnregisterDeviceBodyJsonEncoding defines model for UnregisterDeviceBodyJsonEncoding.
 type UnregisterDeviceBodyJsonEncoding struct {
@@ -2821,6 +2830,9 @@ type PaywallDeploysCreateDeployJSONRequestBody = PaywallDeploysCreateDeployJSONB
 
 // PersonsCreatePersonJSONRequestBody defines body for PersonsCreatePerson for application/json ContentType.
 type PersonsCreatePersonJSONRequestBody = CreatePersonBodyJsonEncoding
+
+// PersonsSetPersonAttributesJSONRequestBody defines body for PersonsSetPersonAttributes for application/json ContentType.
+type PersonsSetPersonAttributesJSONRequestBody = SetPersonAttributesBodyJsonEncoding
 
 // ProjectsCreateProjectJSONRequestBody defines body for ProjectsCreateProject for application/json ContentType.
 type ProjectsCreateProjectJSONRequestBody = CreateProjectBodyJsonEncoding
@@ -4656,6 +4668,11 @@ type ClientInterface interface {
 
 	PersonsCreatePerson(ctx context.Context, body PersonsCreatePersonJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PersonsSetPersonAttributesWithBody request with any body
+	PersonsSetPersonAttributesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PersonsSetPersonAttributes(ctx context.Context, body PersonsSetPersonAttributesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PersonsGetPersonByDistinctId request
 	PersonsGetPersonByDistinctId(ctx context.Context, distinctId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -5028,6 +5045,30 @@ func (c *Client) PersonsCreatePersonWithBody(ctx context.Context, contentType st
 
 func (c *Client) PersonsCreatePerson(ctx context.Context, body PersonsCreatePersonJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPersonsCreatePersonRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PersonsSetPersonAttributesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPersonsSetPersonAttributesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PersonsSetPersonAttributes(ctx context.Context, body PersonsSetPersonAttributesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPersonsSetPersonAttributesRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6103,6 +6144,46 @@ func NewPersonsCreatePersonRequestWithBody(server string, contentType string, bo
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/persons")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPersonsSetPersonAttributesRequest calls the generic PersonsSetPersonAttributes builder with application/json body
+func NewPersonsSetPersonAttributesRequest(server string, body PersonsSetPersonAttributesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPersonsSetPersonAttributesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPersonsSetPersonAttributesRequestWithBody generates requests for PersonsSetPersonAttributes with any type of body
+func NewPersonsSetPersonAttributesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/persons/attributes")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -9547,6 +9628,11 @@ type ClientWithResponsesInterface interface {
 
 	PersonsCreatePersonWithResponse(ctx context.Context, body PersonsCreatePersonJSONRequestBody, reqEditors ...RequestEditorFn) (*PersonsCreatePersonResponse, error)
 
+	// PersonsSetPersonAttributesWithBodyWithResponse request with any body
+	PersonsSetPersonAttributesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PersonsSetPersonAttributesResponse, error)
+
+	PersonsSetPersonAttributesWithResponse(ctx context.Context, body PersonsSetPersonAttributesJSONRequestBody, reqEditors ...RequestEditorFn) (*PersonsSetPersonAttributesResponse, error)
+
 	// PersonsGetPersonByDistinctIdWithResponse request
 	PersonsGetPersonByDistinctIdWithResponse(ctx context.Context, distinctId string, reqEditors ...RequestEditorFn) (*PersonsGetPersonByDistinctIdResponse, error)
 
@@ -10147,6 +10233,33 @@ func (r PersonsCreatePersonResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r PersonsCreatePersonResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PersonsSetPersonAttributesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PersonJsonEncoding
+	JSON401      *ApiNotAuthenticatedErrorJsonEncoding
+	JSON403      *ApiActionForbiddenErrorJsonEncoding
+	JSON500      *struct {
+		union json.RawMessage
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r PersonsSetPersonAttributesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PersonsSetPersonAttributesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -11198,6 +11311,23 @@ func (c *ClientWithResponses) PersonsCreatePersonWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParsePersonsCreatePersonResponse(rsp)
+}
+
+// PersonsSetPersonAttributesWithBodyWithResponse request with arbitrary body returning *PersonsSetPersonAttributesResponse
+func (c *ClientWithResponses) PersonsSetPersonAttributesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PersonsSetPersonAttributesResponse, error) {
+	rsp, err := c.PersonsSetPersonAttributesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePersonsSetPersonAttributesResponse(rsp)
+}
+
+func (c *ClientWithResponses) PersonsSetPersonAttributesWithResponse(ctx context.Context, body PersonsSetPersonAttributesJSONRequestBody, reqEditors ...RequestEditorFn) (*PersonsSetPersonAttributesResponse, error) {
+	rsp, err := c.PersonsSetPersonAttributes(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePersonsSetPersonAttributesResponse(rsp)
 }
 
 // PersonsGetPersonByDistinctIdWithResponse request returning *PersonsGetPersonByDistinctIdResponse
@@ -12479,6 +12609,55 @@ func ParsePersonsCreatePersonResponse(rsp *http.Response) (*PersonsCreatePersonR
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ApiNotAuthenticatedErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ApiActionForbiddenErrorJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest struct {
+			union json.RawMessage
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePersonsSetPersonAttributesResponse parses an HTTP response from a PersonsSetPersonAttributesWithResponse call
+func ParsePersonsSetPersonAttributesResponse(rsp *http.Response) (*PersonsSetPersonAttributesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PersonsSetPersonAttributesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PersonJsonEncoding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest ApiNotAuthenticatedErrorJsonEncoding

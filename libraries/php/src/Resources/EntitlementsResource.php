@@ -4,7 +4,7 @@ namespace Voidhash\Resources;
 
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
-use Voidhash\Generated\Core\Exception\ClientException;
+use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\SdkEntitlementGrantJsonEncoding;
 
 /**
@@ -24,7 +24,7 @@ final class EntitlementsResource
             return $this->grantsFor($distinctId);
         } catch (ApiException $e) {
             throw $e;
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
     }
@@ -80,7 +80,7 @@ final class EntitlementsResource
                 ?? throw new ApiException(404, 'Api/PersonNotFoundError');
             $entitlements = $this->core->personsGetPersonEntitlements($person->getPersonId())
                 ?? throw new ApiException(500);
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
 
@@ -103,7 +103,7 @@ final class EntitlementsResource
     {
         try {
             return $this->core->perksListPerks() ?? [];
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
     }

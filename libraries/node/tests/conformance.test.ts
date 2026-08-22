@@ -124,6 +124,12 @@ describe("node sdk conformance (api suites)", () => {
         API_PERSON_FIXTURE,
       );
       expect(
+        await sdk.persons.setPersonAttributes({
+          payload: { distinctId: DISTINCT_ID, traits: { notes_created: 3, plan: "pro" } },
+        }),
+      ).toEqual(API_PERSON_FIXTURE);
+
+      expect(
         await sdk.persons.getPersonEntitlements({ params: { personId: PERSON_ID } }),
       ).toEqual(PERSON_ENTITLEMENTS_FIXTURE);
 

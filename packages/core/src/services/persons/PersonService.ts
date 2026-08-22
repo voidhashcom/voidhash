@@ -65,8 +65,9 @@ const buildPerson = (row: DbPerson, identities: ReadonlyArray<DbPersonIdentity>)
 /**
  * `PersonService` exposes the persons aggregate for the dashboard / admin
  * surface. Mutating identity goes through {@link PersonIdentityService} —
- * `createPerson` is a thin wrapper that calls `resolveDistinctId` with
- * `shouldCreatePerson: true` and reloads the canonical profile.
+ * `createPerson` and `setPersonAttributes` are thin wrappers that call
+ * `resolveDistinctId` with `shouldCreatePerson: true` and reload the canonical
+ * profile.
  */
 export class PersonService extends Context.Service<PersonService>()("PersonService", {
   make: Effect.gen(function* () {
@@ -317,6 +318,61 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         ),
     );
 
+    const setPersonAttributes = Effect.fn("setPersonAttributes")(
+      function* (input: {
+        readonly projectId: string;
+        readonly distinctId: string;
+        readonly name?: string | undefined;
+        readonly email?: string | undefined;
+        readonly traits?: Record<string, string | number | boolean | null> | undefined;
+        readonly setOnce?: Record<string, string | number | boolean | null> | undefined;
+        readonly origin: PersonOriginValue;
+      }) {
+        yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
+        yield* Effect.annotateCurrentSpan("voidhash.person.distinct_id", input.distinctId);
+        yield* Effect.annotateCurrentSpan("voidhash.person.origin", input.origin);
+
+        const eventTimestamp = yield* DateTime.nowAsDate;
+        const result = yield* personIdentityService.resolveDistinctId({
+          distinctId: input.distinctId,
+          email: input.email,
+          eventTimestamp,
+          name: input.name,
+          origin: input.origin,
+          projectId: input.projectId,
+          setAttributes: input.traits ?? {},
+          setOnceAttributes: input.setOnce ?? {},
+          // A backend writes attributes for people it already knows about, so
+          // an unseen distinct id is a first write rather than an error — same
+          // as `createPerson`.
+          shouldCreatePerson: true,
+        });
+
+        if (!result.identity.personId) {
+          return yield* Effect.die(
+            new Error("resolveDistinctId resolved without a personId"),
+          );
+        }
+
+        const profile = yield* loadProfileRaw(result.identity.personId);
+        if (!profile) {
+          return yield* Effect.die(
+            new Error("Person could not be resolved to a profile after an attribute write"),
+          );
+        }
+        return profile;
+      },
+      (effect) =>
+        effect.pipe(
+          Effect.catchTags({
+            PersonServiceError: (error) =>
+              Effect.fail(new PersonServiceError({ cause: String(error.cause) })),
+            EffectDrizzleQueryError: (error) =>
+              Effect.fail(new PersonServiceError({ cause: String(error.cause) })),
+          }),
+        ),
+    );
+
     const mergePersons = Effect.fn("mergePersons")(
       function* (fromPersonId: string, toPersonId: string) {
         yield* Effect.annotateCurrentSpan("voidhash.person.source_id", fromPersonId);
@@ -348,6 +404,7 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
       getPersonById,
       getPersons,
       mergePersons,
+      setPersonAttributes,
     });
   }),
 }) {

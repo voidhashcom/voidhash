@@ -1,0 +1,7 @@
+# Copy to `local.properties` (which is never committed) and fill in your key.
+# Studio → Project settings → API keys → publishable key.
+voidhash.publishableKey=vh_pk_replace_me
+
+# Android Studio writes this line for you. Set ANDROID_HOME instead when
+# building from the command line.
+# sdk.dir=/Users/you/Library/Android/sdk

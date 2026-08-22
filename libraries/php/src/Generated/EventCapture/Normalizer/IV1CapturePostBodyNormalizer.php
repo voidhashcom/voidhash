@@ -67,13 +67,13 @@ class IV1CapturePostBodyNormalizer implements DenormalizerInterface, NormalizerI
             $object->setSessionId(null);
         }
         if (\array_key_exists('timestamp', $data) && $data['timestamp'] !== null) {
-            $object->setTimestamp($data['timestamp']);
+            $object->setTimestamp(\DateTime::createFromFormat('Y-m-d\TH:i:sP', $data['timestamp']));
         }
         elseif (\array_key_exists('timestamp', $data) && $data['timestamp'] === null) {
             $object->setTimestamp(null);
         }
         if (\array_key_exists('sent_at', $data)) {
-            $object->setSentAt($data['sent_at']);
+            $object->setSentAt(\DateTime::createFromFormat('Y-m-d\TH:i:sP', $data['sent_at']));
         }
         if (\array_key_exists('token', $data)) {
             $object->setToken($data['token']);
@@ -100,9 +100,9 @@ class IV1CapturePostBodyNormalizer implements DenormalizerInterface, NormalizerI
             $dataArray['session_id'] = $data->getSessionId();
         }
         if ($data->isInitialized('timestamp')) {
-            $dataArray['timestamp'] = $data->getTimestamp();
+            $dataArray['timestamp'] = $data->getTimestamp()?->format('Y-m-d\TH:i:sP');
         }
-        $dataArray['sent_at'] = $data->getSentAt();
+        $dataArray['sent_at'] = $data->getSentAt()->format('Y-m-d\TH:i:sP');
         $dataArray['token'] = $data->getToken();
         return $dataArray;
     }

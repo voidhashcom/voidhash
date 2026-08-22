@@ -4,8 +4,10 @@ use crate::error::Error;
 use crate::generated;
 use crate::generated::types;
 
-const DEFAULT_BASE_URL: &str = "https://api.voidhash.com";
-const DEFAULT_INGEST_URL: &str = "https://ingest.voidhash.com";
+/// The production management API base URL.
+pub const DEFAULT_BASE_URL: &str = "https://api.voidhash.com";
+/// The production event ingestion base URL.
+pub const DEFAULT_INGEST_URL: &str = "https://ingest.voidhash.com";
 const SECRET_KEY_HEADER: &str = "x-secret-key";
 
 /// Entry point of the Rust SDK. Create one with [`VoidhashClient::new`] or
@@ -21,13 +23,18 @@ const SECRET_KEY_HEADER: &str = "x-secret-key";
 pub struct VoidhashClient {
     core: generated::Client,
     ingest_url: String,
-    secret_key: String,
-    http: reqwest::Client,
+    publishable_key: Option<String>,
+    /// Ingest-only transport. Deliberately separate from the management
+    /// client's: that one carries the secret key on every request, and ingest
+    /// authenticates on the publishable key in the body instead — sending a
+    /// secret key there would leak it to an origin that has no use for it.
+    ingest_http: reqwest::Client,
 }
 
 /// Builder for [`VoidhashClient`].
 pub struct ClientBuilder {
     secret_key: String,
+    publishable_key: Option<String>,
     base_url: String,
     ingest_url: String,
     extra_headers: Vec<(String, String)>,
@@ -37,6 +44,7 @@ impl Default for ClientBuilder {
     fn default() -> Self {
         Self {
             secret_key: String::new(),
+            publishable_key: None,
             base_url: DEFAULT_BASE_URL.to_string(),
             ingest_url: DEFAULT_INGEST_URL.to_string(),
             extra_headers: Vec::new(),
@@ -48,6 +56,14 @@ impl ClientBuilder {
     /// Sets the secret key (required).
     pub fn secret_key(mut self, key: impl Into<String>) -> Self {
         self.secret_key = key.into();
+        self
+    }
+
+    /// Sets the publishable key (`vh_pk_...`), which event ingestion
+    /// authenticates on. Required only for [`VoidhashClient::event_capture`];
+    /// every other resource uses the secret key.
+    pub fn publishable_key(mut self, key: impl Into<String>) -> Self {
+        self.publishable_key = Some(key.into());
         self
     }
 
@@ -103,8 +119,8 @@ impl ClientBuilder {
         Ok(VoidhashClient {
             core,
             ingest_url: self.ingest_url,
-            secret_key: self.secret_key,
-            http,
+            publishable_key: self.publishable_key,
+            ingest_http: reqwest::Client::new(),
         })
     }
 }
@@ -182,12 +198,14 @@ impl VoidhashClient {
         }
     }
 
-    /// Analytics ingestion (shares the client's credential).
+    /// Analytics ingestion. Authenticates on the publishable key rather than
+    /// the secret key, so the client must be built with
+    /// [`ClientBuilder::publishable_key`].
     pub fn event_capture(&self) -> EventCaptureApi<'_> {
         EventCaptureApi {
-            http: &self.http,
+            http: &self.ingest_http,
             ingest_url: &self.ingest_url,
-            secret_key: &self.secret_key,
+            publishable_key: self.publishable_key.as_deref(),
         }
     }
 }
@@ -271,6 +289,32 @@ impl PersonsApi<'_> {
     /// Fetches one person by id.
     pub async fn get(&self, person_id: &str) -> Result<types::PersonJsonEncoding, Error> {
         Ok(self.core.persons_get_person_by_id(person_id).await?.into_inner())
+    }
+
+    /// Writes profile fields and traits for the person with the given distinct
+    /// id, creating the person when the distinct id is new.
+    ///
+    /// Traits describe the person and persist across events, so a fact like a
+    /// subscription plan belongs here rather than repeated on every event's
+    /// properties.
+    pub async fn set_attributes(
+        &self,
+        params: &crate::PersonAttributes,
+    ) -> Result<types::PersonJsonEncoding, Error> {
+        // The generated trait map is a union type that is awkward to build by
+        // hand, so `PersonAttributes` is converted through the generated body's
+        // own `Deserialize` rather than constructed field by field.
+        let body: types::SetPersonAttributesBodyJsonEncoding =
+            serde_json::from_value(serde_json::to_value(params).map_err(|error| {
+                Error::Request(format!("encoding person attributes: {error}"))
+            })?)
+            .map_err(|error| Error::Request(format!("encoding person attributes: {error}")))?;
+
+        Ok(self
+            .core
+            .persons_set_person_attributes(&body)
+            .await?
+            .into_inner())
     }
 
     /// Fetches one person by their distinct id.
@@ -578,34 +622,80 @@ impl WebhookDeliveriesApi<'_> {
 pub struct EventCaptureApi<'a> {
     http: &'a reqwest::Client,
     ingest_url: &'a str,
-    secret_key: &'a str,
+    publishable_key: Option<&'a str>,
+}
+
+/// How ingestion handled a capture: how many events it took and how many it
+/// discarded (for example because the project's admission policy rejects them).
+#[derive(Clone, Copy, Debug, serde::Deserialize)]
+pub struct CaptureResult {
+    pub accepted: u32,
+    pub rejected: u32,
+}
+
+/// The `/i/v1/capture` request body. `context` and `properties` are required
+/// objects, so they are always serialized even when empty.
+#[derive(serde::Serialize)]
+struct CaptureRequest<'a> {
+    uuid: String,
+    event: &'a str,
+    context: &'a serde_json::Map<String, serde_json::Value>,
+    properties: &'a serde_json::Map<String, serde_json::Value>,
+    distinct_id: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timestamp: Option<String>,
+    sent_at: String,
+    token: &'a str,
 }
 
 impl EventCaptureApi<'_> {
     /// Posts one analytics event to the ingestion surface.
-    pub async fn capture(
-        &self,
-        event: &crate::Event,
-    ) -> Result<(), Error> {
+    ///
+    /// Returns [`Error::Request`] when the client was built without a
+    /// publishable key, which is the only credential ingestion accepts.
+    pub async fn capture(&self, event: &crate::Event) -> Result<CaptureResult, Error> {
+        let Some(token) = self.publishable_key else {
+            return Err(Error::Request(
+                "a publishable key is required to capture events; set ClientBuilder::publishable_key"
+                    .to_string(),
+            ));
+        };
+
+        let request = CaptureRequest {
+            uuid: uuid::Uuid::new_v4().to_string(),
+            event: &event.event,
+            context: &event.context,
+            properties: &event.properties,
+            distinct_id: &event.distinct_id,
+            timestamp: event.timestamp.map(|at| at.to_rfc3339()),
+            sent_at: chrono::Utc::now().to_rfc3339(),
+            token,
+        };
+
         let response = self
             .http
             .post(format!("{}/i/v1/capture", self.ingest_url))
-            .header(SECRET_KEY_HEADER, self.secret_key)
-            .json(event)
+            .json(&request)
             .send()
             .await?;
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
+            // Ingestion errors carry a `code` discriminant rather than the
+            // `_tag` the management API uses.
             let tag = serde_json::from_str::<serde_json::Value>(&body)
                 .ok()
-                .and_then(|value| value["_tag"].as_str().map(str::to_string))
+                .and_then(|value| value["code"].as_str().map(str::to_string))
                 .unwrap_or_default();
             return Err(Error::Api {
                 status: status.as_u16(),
                 tag,
             });
         }
-        Ok(())
+
+        response
+            .json::<CaptureResult>()
+            .await
+            .map_err(|error| Error::Request(format!("decoding capture response: {error}")))
     }
 }

@@ -40,6 +40,28 @@ const nonEffectPackages = [
   "packages/paywall-style-engine/**",
 ];
 
+/**
+ * The public example apps under `examples/` (the `mimic-example` and internal
+ * `react-native-example` harnesses excepted). These exist to be read and copied by
+ * external developers integrating an SDK, so they must look like ordinary Node and
+ * React Native code: `try`/`catch` around an SDK call, `throw` on a bad config, and
+ * `node:http` for a server. Holding them to the Effect idiom would teach the reader
+ * a style the SDKs themselves do not require — the published `@voidhash/node` client
+ * returns plain Promises.
+ *
+ * Paths are repo-relative here and carry a `voidhash/` prefix in the mono root config;
+ * the two lists must describe the same set of directories.
+ */
+const publicExamples = [
+  "examples/app-android/**",
+  "examples/app-ios/**",
+  "examples/app-react-native/**",
+  "examples/backend-go/**",
+  "examples/backend-node/**",
+  "examples/backend-php/**",
+  "examples/backend-rust/**",
+];
+
 const effectRulesOff = Object.fromEntries(Object.keys(recommended).map((rule) => [rule, "off"]));
 
 /**
@@ -91,6 +113,7 @@ export default defineConfig({
     overrides: [
       { files: reactSurfaces, rules: reactErgonomicRules },
       { files: nonEffectPackages, rules: effectRulesOff },
+      { files: publicExamples, rules: effectRulesOff },
     ],
   },
 });

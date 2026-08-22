@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -111,7 +112,7 @@ type CaptureContextValue4 map[string]*CaptureContextValue
 type CaptureDependencyUnavailableError struct {
 	UnderscoreTag CaptureDependencyUnavailableErrorTag  `json:"_tag"`
 	Code          CaptureDependencyUnavailableErrorCode `json:"code"`
-	Error         interface{}                           `json:"error"`
+	Error         string                                `json:"error"`
 }
 
 // CaptureDependencyUnavailableErrorTag defines model for CaptureDependencyUnavailableError.Tag.
@@ -144,7 +145,7 @@ type CaptureEventValue4 map[string]*CaptureEventValue
 type CaptureInternalServerError struct {
 	UnderscoreTag CaptureInternalServerErrorTag  `json:"_tag"`
 	Code          CaptureInternalServerErrorCode `json:"code"`
-	Error         interface{}                    `json:"error"`
+	Error         string                         `json:"error"`
 }
 
 // CaptureInternalServerErrorTag defines model for CaptureInternalServerError.Tag.
@@ -157,7 +158,7 @@ type CaptureInternalServerErrorCode string
 type CaptureInvalidRequestError struct {
 	UnderscoreTag CaptureInvalidRequestErrorTag  `json:"_tag"`
 	Code          CaptureInvalidRequestErrorCode `json:"code"`
-	Error         interface{}                    `json:"error"`
+	Error         string                         `json:"error"`
 }
 
 // CaptureInvalidRequestErrorTag defines model for CaptureInvalidRequestError.Tag.
@@ -170,7 +171,7 @@ type CaptureInvalidRequestErrorCode string
 type CapturePayloadTooLargeError struct {
 	UnderscoreTag CapturePayloadTooLargeErrorTag  `json:"_tag"`
 	Code          CapturePayloadTooLargeErrorCode `json:"code"`
-	Error         interface{}                     `json:"error"`
+	Error         string                          `json:"error"`
 }
 
 // CapturePayloadTooLargeErrorTag defines model for CapturePayloadTooLargeError.Tag.
@@ -183,7 +184,7 @@ type CapturePayloadTooLargeErrorCode string
 type CaptureRateLimitedError struct {
 	UnderscoreTag CaptureRateLimitedErrorTag  `json:"_tag"`
 	Code          CaptureRateLimitedErrorCode `json:"code"`
-	Error         interface{}                 `json:"error"`
+	Error         string                      `json:"error"`
 	RetryAfterMs  *int                        `json:"retry_after_ms"`
 }
 
@@ -197,7 +198,7 @@ type CaptureRateLimitedErrorCode string
 type CaptureUnauthorizedError struct {
 	UnderscoreTag CaptureUnauthorizedErrorTag  `json:"_tag"`
 	Code          CaptureUnauthorizedErrorCode `json:"code"`
-	Error         interface{}                  `json:"error"`
+	Error         string                       `json:"error"`
 }
 
 // CaptureUnauthorizedErrorTag defines model for CaptureUnauthorizedError.Tag.
@@ -219,28 +220,28 @@ type EffectHttpApiSchemaErrorTag string
 type EventCaptureBatchJSONBody struct {
 	Events []struct {
 		Context    map[string]*CaptureEventValue   `json:"context"`
-		DistinctId interface{}                     `json:"distinct_id"`
-		Event      interface{}                     `json:"event"`
+		DistinctId string                          `json:"distinct_id"`
+		Event      string                          `json:"event"`
 		Properties map[string]*CaptureContextValue `json:"properties"`
-		SessionId  interface{}                     `json:"session_id"`
-		Timestamp  interface{}                     `json:"timestamp"`
-		Uuid       interface{}                     `json:"uuid"`
+		SessionId  *string                         `json:"session_id"`
+		Timestamp  *time.Time                      `json:"timestamp"`
+		Uuid       string                          `json:"uuid"`
 	} `json:"events"`
-	SentAt interface{} `json:"sent_at"`
-	Token  interface{} `json:"token"`
+	SentAt time.Time `json:"sent_at"`
+	Token  string    `json:"token"`
 }
 
 // EventCaptureCaptureJSONBody defines parameters for EventCaptureCapture.
 type EventCaptureCaptureJSONBody struct {
 	Context    map[string]*CaptureEventValue   `json:"context"`
-	DistinctId interface{}                     `json:"distinct_id"`
-	Event      interface{}                     `json:"event"`
+	DistinctId string                          `json:"distinct_id"`
+	Event      string                          `json:"event"`
 	Properties map[string]*CaptureContextValue `json:"properties"`
-	SentAt     interface{}                     `json:"sent_at"`
-	SessionId  interface{}                     `json:"session_id"`
-	Timestamp  interface{}                     `json:"timestamp"`
-	Token      interface{}                     `json:"token"`
-	Uuid       interface{}                     `json:"uuid"`
+	SentAt     time.Time                       `json:"sent_at"`
+	SessionId  *string                         `json:"session_id"`
+	Timestamp  *time.Time                      `json:"timestamp"`
+	Token      string                          `json:"token"`
+	Uuid       string                          `json:"uuid"`
 }
 
 // EventCaptureBatchJSONRequestBody defines body for EventCaptureBatch for application/json ContentType.
@@ -798,7 +799,7 @@ type ClientWithResponsesInterface interface {
 type EventCaptureBatchResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *CaptureAcceptedResponse
+	JSON202      *CaptureAcceptedResponse
 	JSON400      *struct {
 		union json.RawMessage
 	}
@@ -828,7 +829,7 @@ func (r EventCaptureBatchResponse) StatusCode() int {
 type EventCaptureCaptureResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *CaptureAcceptedResponse
+	JSON202      *CaptureAcceptedResponse
 	JSON400      *struct {
 		union json.RawMessage
 	}
@@ -903,12 +904,12 @@ func ParseEventCaptureBatchResponse(rsp *http.Response) (*EventCaptureBatchRespo
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
 		var dest CaptureAcceptedResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON200 = &dest
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest struct {
@@ -973,12 +974,12 @@ func ParseEventCaptureCaptureResponse(rsp *http.Response) (*EventCaptureCaptureR
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
 		var dest CaptureAcceptedResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON200 = &dest
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest struct {

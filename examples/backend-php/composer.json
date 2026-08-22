@@ -1,0 +1,39 @@
+{
+    "name": "voidhash/example-backend-php",
+    "description": "Nimbus — the Voidhash PHP SDK reference backend.",
+    "license": "MIT",
+    "type": "project",
+    "_comment": [
+        "This example resolves the SDK from the checkout next door so it always builds against the source in this repository.",
+        "In your own project drop the `repositories` block and the `@dev` constraint and run: composer require voidhash/voidhash-php"
+    ],
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../libraries/php",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "require": {
+        "php": "~8.2.0 || ~8.3.0 || ~8.4.0",
+        "ext-json": "*",
+        "symfony/http-client": "^7.0",
+        "voidhash/voidhash-php": "@dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Voidhash\\Example\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "serve": "@php -S localhost:8080 -t public",
+        "lint": "find src public scripts -name '*.php' -print0 | xargs -0 -n1 php -l"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

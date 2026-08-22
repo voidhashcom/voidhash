@@ -110,6 +110,19 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
         return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PersonsCreatePerson($requestBody), $fetch);
     }
     /**
+     * @param \Voidhash\Generated\Core\Model\SetPersonAttributesBodyJsonEncoding $requestBody
+     * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\PersonsSetPersonAttributesUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsSetPersonAttributesForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PersonsSetPersonAttributesInternalServerErrorException
+     *
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\PersonJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     */
+    public function personsSetPersonAttributes(\Voidhash\Generated\Core\Model\SetPersonAttributesBodyJsonEncoding $requestBody, string $fetch = self::FETCH_OBJECT)
+    {
+        return $this->executeEndpoint(new \Voidhash\Generated\Core\Endpoint\PersonsSetPersonAttributes($requestBody), $fetch);
+    }
+    /**
      * @param string $personId
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
      * @throws \Voidhash\Generated\Core\Exception\PersonsGetPersonByIdUnauthorizedException

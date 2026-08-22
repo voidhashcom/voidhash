@@ -17,11 +17,11 @@ class IV1BatchPostBody
      */
     protected $events;
     /**
-     * @var mixed
+     * @var \DateTime
      */
     protected $sentAt;
     /**
-     * @var mixed
+     * @var string
      */
     protected $token;
     /**
@@ -43,36 +43,36 @@ class IV1BatchPostBody
         return $this;
     }
     /**
-     * @return mixed
+     * @return \DateTime
      */
-    public function getSentAt()
+    public function getSentAt(): \DateTime
     {
         return $this->sentAt;
     }
     /**
-     * @param mixed $sentAt
+     * @param \DateTime $sentAt
      *
      * @return self
      */
-    public function setSentAt($sentAt): self
+    public function setSentAt(\DateTime $sentAt): self
     {
         $this->initialized['sentAt'] = true;
         $this->sentAt = $sentAt;
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getToken()
+    public function getToken(): string
     {
         return $this->token;
     }
     /**
-     * @param mixed $token
+     * @param string $token
      *
      * @return self
      */
-    public function setToken($token): self
+    public function setToken(string $token): self
     {
         $this->initialized['token'] = true;
         $this->token = $token;

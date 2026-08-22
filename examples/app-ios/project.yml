@@ -1,0 +1,55 @@
+name: NimbusExample
+
+options:
+  bundleIdPrefix: com.voidhash.examples
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  # This example builds against the SDK sources sitting next to it in the repository.
+  # In your own app, use the published package instead:
+  #
+  #   Voidhash:
+  #     url: https://github.com/voidhashcom/voidhash
+  #     from: 0.0.1-alpha.1
+  Voidhash:
+    path: ../../libraries/ios
+
+configFiles:
+  Debug: Config/Nimbus.xcconfig
+  Release: Config/Nimbus.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+
+targets:
+  NimbusExample:
+    type: application
+    platform: iOS
+    sources:
+      - path: Nimbus
+        excludes:
+          - Info.plist
+    dependencies:
+      # `Voidhash` is the SDK; `VoidhashCore` carries the wire model types the SDK's public
+      # API returns (SdkPerson, JSONValue, VoidhashStoreError), so an app that reads them
+      # links both products.
+      - package: Voidhash
+        product: Voidhash
+      - package: Voidhash
+        product: VoidhashCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.voidhash.examples.nimbus
+        PRODUCT_NAME: Nimbus
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Nimbus/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGNING_ALLOWED: NO

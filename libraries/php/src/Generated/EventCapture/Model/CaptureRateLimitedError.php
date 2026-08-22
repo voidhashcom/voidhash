@@ -17,7 +17,7 @@ class CaptureRateLimitedError
      */
     protected $tag;
     /**
-     * @var mixed
+     * @var string
      */
     protected $error;
     /**
@@ -47,18 +47,18 @@ class CaptureRateLimitedError
         return $this;
     }
     /**
-     * @return mixed
+     * @return string
      */
-    public function getError()
+    public function getError(): string
     {
         return $this->error;
     }
     /**
-     * @param mixed $error
+     * @param string $error
      *
      * @return self
      */
-    public function setError($error): self
+    public function setError(string $error): self
     {
         $this->initialized['error'] = true;
         $this->error = $error;

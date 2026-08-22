@@ -45,7 +45,7 @@ class IV1BatchPostBodyNormalizer implements DenormalizerInterface, NormalizerInt
             $object->setEvents($values);
         }
         if (\array_key_exists('sent_at', $data)) {
-            $object->setSentAt($data['sent_at']);
+            $object->setSentAt(\DateTime::createFromFormat('Y-m-d\TH:i:sP', $data['sent_at']));
         }
         if (\array_key_exists('token', $data)) {
             $object->setToken($data['token']);
@@ -60,7 +60,7 @@ class IV1BatchPostBodyNormalizer implements DenormalizerInterface, NormalizerInt
             $values[] = $this->normalizer->normalize($value, 'json', $context);
         }
         $dataArray['events'] = $values;
-        $dataArray['sent_at'] = $data->getSentAt();
+        $dataArray['sent_at'] = $data->getSentAt()->format('Y-m-d\TH:i:sP');
         $dataArray['token'] = $data->getToken();
         return $dataArray;
     }

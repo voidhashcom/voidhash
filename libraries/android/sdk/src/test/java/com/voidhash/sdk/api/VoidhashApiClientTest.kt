@@ -142,6 +142,18 @@ class VoidhashApiClientTest {
     }
 
     @Test
+    fun `resolve paywall returns null when no paywall is published`() = runTest {
+        // "no paywall published for this location" is a 404, not a failure:
+        // presentPaywall documents returning false for it.
+        server.enqueue(
+            MockResponse().setResponseCode(404).setBody("""{"_tag":"Api/SdkPaywallNotFoundError"}"""),
+        )
+
+        assertNull(client.resolvePaywall("user-123", "onboarding"))
+        assertEquals("/api/v1/sdk/resolve-paywall", server.takeRequest().path)
+    }
+
+    @Test
     fun `resolve paywall maps the release`() = runTest {
         server.enqueue(
             MockResponse().setBody(

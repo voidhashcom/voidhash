@@ -14,7 +14,7 @@
         "parameters": [],
         "security": [],
         "responses": {
-          "200": {
+          "202": {
             "description": "CaptureAcceptedResponse",
             "content": {
               "application/json": {
@@ -160,7 +160,7 @@
         "parameters": [],
         "security": [],
         "responses": {
-          "200": {
+          "202": {
             "description": "CaptureAcceptedResponse",
             "content": {
               "application/json": {

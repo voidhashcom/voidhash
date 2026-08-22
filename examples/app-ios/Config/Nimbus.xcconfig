@@ -1,0 +1,10 @@
+// Build settings shared by every configuration of the Nimbus example.
+//
+// VOIDHASH_PUBLISHABLE_KEY is copied into Info.plist as VoidhashPublishableKey and read at
+// launch by NimbusConfiguration. Leave it empty here: put your own key in
+// Config/Secrets.xcconfig, which is git-ignored and included below when it exists.
+// Start from Config/Secrets.xcconfig.example.
+
+VOIDHASH_PUBLISHABLE_KEY =
+
+#include? "Secrets.xcconfig"

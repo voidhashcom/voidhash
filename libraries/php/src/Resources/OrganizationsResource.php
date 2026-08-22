@@ -4,7 +4,7 @@ namespace Voidhash\Resources;
 
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
-use Voidhash\Generated\Core\Exception\ClientException;
+use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\CreateOrganizationBodyJsonEncoding;
 use Voidhash\Generated\Core\Model\OrganizationJsonEncoding;
 
@@ -20,7 +20,7 @@ final class OrganizationsResource
 
         try {
             return $this->core->organizationsCreateOrganization($params);
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
     }

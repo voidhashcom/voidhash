@@ -4,7 +4,7 @@ namespace Voidhash\Resources;
 
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
-use Voidhash\Generated\Core\Exception\ClientException;
+use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\UserJsonEncoding;
 
 final class UsersResource
@@ -17,7 +17,7 @@ final class UsersResource
     {
         try {
             return $this->core->usersGetUser() ?? throw new ApiException(500);
-        } catch (ClientException $e) {
+        } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
     }

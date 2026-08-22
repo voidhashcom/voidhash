@@ -123,6 +123,30 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
           }),
         ),
       )
+      .handle("setPersonAttributes", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const authSession = yield* AuthSession;
+            const projectId = yield* extractAuthorizedProjectId(authSession);
+            return yield* personService.setPersonAttributes({
+              distinctId: payload.distinctId,
+              email: payload.email,
+              name: payload.name,
+              origin: PersonOrigin.API,
+              projectId,
+              setOnce: payload.setOnce,
+              traits: payload.traits,
+            });
+          }),
+        ).pipe(
+          Effect.map((person) => toApiPerson(person)),
+          Effect.catchTags({
+            ActionForbiddenError: (e) =>
+              Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+            PersonServiceError: (e) => Effect.fail(new ApiPersonServiceError({ cause: e.cause })),
+          }),
+        ),
+      )
       .handle("getPersonEntitlements", ({ params: { personId } }) =>
         bridgeAuthSession(
           Effect.gen(function* () {

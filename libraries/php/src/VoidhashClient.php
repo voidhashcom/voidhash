@@ -56,9 +56,14 @@ final class VoidhashClient
     public readonly EventCaptureResource $eventCapture;
 
     /**
+     * Event capture authenticates on the project's publishable key rather than
+     * the secret key, so pass `publishableKey` when the client will capture
+     * events; every other resource only needs the secret key.
+     *
      * @param array{
      *   baseUrl?: string,
      *   ingestUrl?: string,
+     *   publishableKey?: string,
      *   httpClient?: ClientInterface|null,
      *   headers?: array<string, string>
      * } $options
@@ -83,15 +88,21 @@ final class VoidhashClient
         $coreHttp = new BaseUriHttpClient($innerHttpClient, $baseUrl, $headers);
         $core = new CoreGeneratedClient($coreHttp, $factories, SerializerFactory::core(), $factories);
 
-        $ingestHttp = new BaseUriHttpClient($innerHttpClient, $ingestUrl, $headers);
+        // Ingest never sees the secret key: it authenticates on the publishable
+        // key in the request body, and a secret key on a public-facing origin
+        // would be a credential leak waiting to happen.
+        $ingestHttp = new BaseUriHttpClient($innerHttpClient, $ingestUrl, $options['headers'] ?? []);
         $eventCapture = new EventCaptureGeneratedClient($ingestHttp, $factories, SerializerFactory::eventCapture(), $factories);
 
-        return new self($core, $eventCapture);
+        $publishableKey = trim($options['publishableKey'] ?? '');
+
+        return new self($core, $eventCapture, $publishableKey === '' ? null : $publishableKey);
     }
 
     private function __construct(
         private readonly CoreGeneratedClient $core,
         private readonly EventCaptureGeneratedClient $eventCaptureGenerated,
+        ?string $publishableKey,
     ) {
         $this->auth = new AuthResource($this->core);
         $this->apiKeys = new ApiKeysResource($this->core);
@@ -105,7 +116,7 @@ final class VoidhashClient
         $this->notifications = new NotificationsResource($this->core);
         $this->users = new UsersResource($this->core);
         $this->webhooks = new WebhooksResource($this->core);
-        $this->eventCapture = new EventCaptureResource($this->eventCaptureGenerated);
+        $this->eventCapture = new EventCaptureResource($this->eventCaptureGenerated, $publishableKey);
     }
 
     /** @internal exposed for resources that compose other resources. */
