@@ -14,12 +14,15 @@ import com.voidhash.sdk.analytics.analyticsStandardProperties
 import com.voidhash.sdk.api.SdkHeaders
 import com.voidhash.sdk.api.VoidhashApiClient
 import com.voidhash.sdk.billing.DefaultBillingEnginePort
+import com.voidhash.sdk.billing.DevelopmentBillingEngine
+import com.voidhash.sdk.billing.BillingEnginePort
 import com.voidhash.sdk.cache.CacheManager
 import com.voidhash.sdk.cache.SharedPreferencesCacheAdapter
 import com.voidhash.sdk.identity.IdentityStore
 import com.voidhash.sdk.paywall.DefaultPaywallPresenterPort
 import com.voidhash.sdk.paywall.PaywallCoordinator
 import com.voidhash.sdk.platform.PlatformInfo
+import com.voidhash.sdk.schema.RuntimeSchema
 import com.voidhash.sdk.schema.SchemaManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +76,9 @@ object Voidhash {
 
         val applicationContext = context.applicationContext
         val platform = PlatformInfo.fromContext(applicationContext)
+        // Development mode is a debug-build-only affordance: the flag alone is
+        // never enough, so it can never reach a production release.
+        val developmentMode = options.dev && platform.isDebugBuild
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         activeScope = scope
 
@@ -94,20 +100,36 @@ object Voidhash {
             platform = platform,
             readOnlyProvider = readOnlyProvider,
             debugProvider = { options.debug },
+            environmentProvider = { if (developmentMode) "development" else "production" },
         )
         val apiClient = VoidhashApiClient(options.baseUrl, headers, httpClient)
 
-        val billingEngine = BillingEngine(
-            contextProvider = { applicationContext },
-            activityProvider = { currentActivity.get() },
-            isPlayServicesAvailable = { billingContext ->
-                GoogleApiAvailability
-                    .getInstance()
-                    .isGooglePlayServicesAvailable(billingContext) == ConnectionResult.SUCCESS
-            },
-            onWarning = ::warn,
-        )
-        val billing = DefaultBillingEnginePort(billingEngine)
+        val billing: BillingEnginePort = if (developmentMode) {
+            DevelopmentBillingEngine(activityProvider = { currentActivity.get() }, onWarning = ::warn)
+        } else {
+            DefaultBillingEnginePort(
+                BillingEngine(
+                    contextProvider = { applicationContext },
+                    activityProvider = { currentActivity.get() },
+                    isPlayServicesAvailable = { billingContext ->
+                        GoogleApiAvailability
+                            .getInstance()
+                            .isGooglePlayServicesAvailable(billingContext) == ConnectionResult.SUCCESS
+                    },
+                    onWarning = ::warn,
+                ),
+            )
+        }
+
+        // The dev store catalog tracks the schema so the mock sheet can render
+        // names and prices; the real store needs no catalog.
+        val devCatalogUpdater = (billing as? DevelopmentBillingEngine)?.let { engine ->
+            { schema: RuntimeSchema -> engine.updateCatalog(schema) }
+        }
+        val onSchemaResolved: (RuntimeSchema) -> Unit = { schema ->
+            devCatalogUpdater?.invoke(schema)
+            clientRef.get()?.publishSchema(schema)
+        }
 
         val orchestrator = PurchaseOrchestrator(
             billing = billing,
@@ -115,6 +137,7 @@ object Voidhash {
             cacheManager = cacheManager,
             identityStore = identityStore,
             readOnlyProvider = readOnlyProvider,
+            developmentMode = developmentMode,
             onPersonRefresh = { clientRef.get()?.getCurrentPerson(forceFetch = true) },
             onWarning = ::warn,
         )
@@ -145,7 +168,7 @@ object Voidhash {
                 cacheManager = cacheManager,
                 appVersion = platform.appVersion,
                 refreshScope = scope,
-                onSchema = { schema -> clientRef.get()?.publishSchema(schema) },
+                onSchema = onSchemaResolved,
                 onWarning = ::warn,
             ),
             orchestrator = orchestrator,

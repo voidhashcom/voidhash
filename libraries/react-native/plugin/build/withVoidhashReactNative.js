@@ -12,7 +12,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const config_plugins_1 = require("expo/config-plugins");
 const package_json_1 = __importDefault(require("../../package.json"));
 const PACKAGE_ROOT = node_path_1.default.resolve(__dirname, "..", "..");
-const POD_NAME = "VoidhashCore";
+const POD_NAMES = ["VoidhashCore", "Voidhash"];
 const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
 /**
  * Resolves the directory of the `@voidhash/ios` package, which holds `VoidhashCore.podspec`.
@@ -40,16 +40,17 @@ const GENERATED_BLOCK_TAG = `${package_json_1.default.name}-core-pod`;
  * refresh a stale `:path` on subsequent prebuilds.
  */
 const hasManualPodDeclaration = (contents) => {
-  const withoutGeneratedBlock = contents.replace(
+  const contentsWithoutBlock = contents.replace(
     new RegExp(
       `# @generated begin ${GENERATED_BLOCK_TAG}.*# @generated end ${GENERATED_BLOCK_TAG}`,
       "s",
     ),
     "",
   );
-  return (
-    withoutGeneratedBlock.includes(`pod "${POD_NAME}"`) ||
-    withoutGeneratedBlock.includes(`pod '${POD_NAME}'`)
+  return POD_NAMES.some(
+    (podName) =>
+      contentsWithoutBlock.includes(`pod "${podName}"`) ||
+      contentsWithoutBlock.includes(`pod '${podName}'`),
   );
 };
 const withVoidhashCorePod = (config) =>
@@ -66,10 +67,15 @@ const withVoidhashCorePod = (config) =>
       podfileConfig.modRequest.platformProjectRoot,
       resolveCorePodDirectory(),
     );
+    // VoidhashCore is the shared native core; Voidhash is the bare-native client the
+    // SDK embeds as its data-plane engine.
+    const generatedPods = POD_NAMES.map(
+      (podName) => `  pod "${podName}", :path => "${podDirectory}"`,
+    ).join("\n");
     podfileConfig.modResults.contents = config_plugins_1.CodeGenerator.mergeContents({
       tag: GENERATED_BLOCK_TAG,
       src: contents,
-      newSrc: `  pod "${POD_NAME}", :path => "${podDirectory}"`,
+      newSrc: generatedPods,
       anchor,
       offset: 1,
       comment: "#",

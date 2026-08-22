@@ -26,6 +26,8 @@ namespace margelo::nitro::voidhash { class HybridStorekitProductSubscriptionSpec
 namespace margelo::nitro::voidhash { class HybridStorekitSpec; }
 // Forward declaration of `HybridStorekitTransactionSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridStorekitTransactionSpec; }
+// Forward declaration of `HybridVoidhashEngineSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridVoidhashEngineSpec; }
 // Forward declaration of `HybridVoidhashSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridVoidhashSpec; }
 // Forward declaration of `PaywallWebViewAndroidLayerType` to properly resolve imports.
@@ -81,6 +83,7 @@ namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPerio
 #include "HybridStorekitProductSubscriptionSpec.hpp"
 #include "HybridStorekitSpec.hpp"
 #include "HybridStorekitTransactionSpec.hpp"
+#include "HybridVoidhashEngineSpec.hpp"
 #include "HybridVoidhashSpec.hpp"
 #include "PaywallWebViewAndroidLayerType.hpp"
 #include "PaywallWebViewBaseEvent.hpp"
@@ -142,6 +145,8 @@ namespace NitroVoidhash { class HybridStorekitProductSubscriptionSpec_cxx; }
 namespace NitroVoidhash { class HybridStorekitSpec_cxx; }
 // Forward declaration of `HybridStorekitTransactionSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridStorekitTransactionSpec_cxx; }
+// Forward declaration of `HybridVoidhashEngineSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridVoidhashEngineSpec_cxx; }
 // Forward declaration of `HybridVoidhashSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
 

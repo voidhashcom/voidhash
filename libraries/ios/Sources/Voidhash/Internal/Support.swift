@@ -17,6 +17,21 @@ final class AtomicBool: @unchecked Sendable {
     }
 }
 
+/// Late-bound weak reference to the client being constructed, so callbacks wired up during
+/// `init` can reach it once initialization completes.
+final class WeakClientBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: VoidhashClient?
+
+    func set(_ client: VoidhashClient?) {
+        lock.withLock { storage = client }
+    }
+
+    func get() -> VoidhashClient? {
+        return lock.withLock { storage }
+    }
+}
+
 /// Builds the per-request SDK header set for the current identity and read-only state.
 struct SdkHeaderFactory: Sendable {
     let publishableKey: String
@@ -25,6 +40,8 @@ struct SdkHeaderFactory: Sendable {
     let isDebugBuild: Bool
     let identityStore: IdentityStore
     let readOnly: AtomicBool
+    /// Backend environment mode; `development` while the dev gateway is active.
+    var environmentProvider: @Sendable () -> String = { "production" }
 
     func build() async -> [String: String] {
         let distinctId = await identityStore.getDistinctId()
@@ -38,7 +55,8 @@ struct SdkHeaderFactory: Sendable {
             sdkVersion: sdkVersion,
             device: device,
             isDebugBuild: isDebugBuild,
-            readOnly: readOnly.value
+            readOnly: readOnly.value,
+            environment: environmentProvider()
         )
     }
 }

@@ -30,6 +30,9 @@ public struct VoidhashTransaction: Sendable, Equatable {
     public let receipt: String?
     /// Lifecycle state; only `purchased` transactions are synced.
     public let purchaseState: VoidhashPurchaseState
+    /// True when the transaction came from the development (mock) store and must be
+    /// recorded through the development gateway instead of `sync-transaction`.
+    public let isDevelopment: Bool
 
     public init(
         transactionId: String,
@@ -39,7 +42,8 @@ public struct VoidhashTransaction: Sendable, Equatable {
         isAcknowledged: Bool = false,
         appAccountToken: String? = nil,
         receipt: String? = nil,
-        purchaseState: VoidhashPurchaseState = .purchased
+        purchaseState: VoidhashPurchaseState = .purchased,
+        isDevelopment: Bool = false
     ) {
         self.transactionId = transactionId
         self.productId = productId
@@ -49,19 +53,25 @@ public struct VoidhashTransaction: Sendable, Equatable {
         self.appAccountToken = appAccountToken
         self.receipt = receipt
         self.purchaseState = purchaseState
+        self.isDevelopment = isDevelopment
     }
 
     /// Projects a StoreKit transaction, matching the React Native App Store adapter mapping.
-    public init(storeTransaction: StoreKitTransactionInfo) {
+    public init(
+        storeTransaction: StoreKitTransactionInfo,
+        isDevelopment: Bool = false,
+        isAcknowledgedOverride: Bool? = nil
+    ) {
         self.init(
             transactionId: storeTransaction.transactionId,
             productId: storeTransaction.id,
             purchaseDate: storeTransaction.transactionDate,
             quantity: storeTransaction.quantityIos,
-            isAcknowledged: false,
+            isAcknowledged: isAcknowledgedOverride ?? false,
             appAccountToken: storeTransaction.appAccountToken,
             receipt: storeTransaction.transactionReceipt,
-            purchaseState: .purchased
+            purchaseState: .purchased,
+            isDevelopment: isDevelopment
         )
     }
 }

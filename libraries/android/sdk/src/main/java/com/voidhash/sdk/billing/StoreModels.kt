@@ -35,10 +35,37 @@ data class VoidhashTransaction(
     val appAccountToken: String?,
     val receipt: String?,
     val isAutoRenewing: Boolean?,
+    /** Which provider produced the transaction; `development` marks a simulated one. */
+    val store: String = "google-play",
 ) {
     /** Cross-runtime dedup key: `platform:transactionId:purchaseDate`. */
     val processingKey: String get() = "android:$transactionId:${purchaseDate.toLongIfWhole()}"
+
+    /** True when the transaction came from the development (mock) store. */
+    val isDevelopment: Boolean get() = store == "development"
 }
+
+/** Builds the synthetic transaction the development (mock) store returns. */
+fun mapDevelopmentPurchaseToTransaction(
+    productId: String,
+    devTransactionId: String,
+    purchaseDate: Double,
+    quantity: Int,
+): VoidhashTransaction = VoidhashTransaction(
+    id = devTransactionId,
+    transactionId = devTransactionId,
+    productId = productId,
+    purchaseDate = purchaseDate,
+    quantity = quantity,
+    // Dev purchases have nothing to acknowledge — the backend records them directly.
+    isAcknowledged = true,
+    purchaseState = "purchased",
+    purchaseToken = null,
+    appAccountToken = null,
+    receipt = null,
+    isAutoRenewing = null,
+    store = "development",
+)
 
 private fun Double.toLongIfWhole(): Any = if (this % 1.0 == 0.0) toLong() else this
 

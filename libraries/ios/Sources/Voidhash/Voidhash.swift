@@ -15,6 +15,10 @@ public struct VoidhashOptions: Sendable {
     public var enabled: Bool
     /// Observer mode: the SDK syncs transactions but never finishes them with the store.
     public var readOnly: Bool
+    /// Requests development mode: purchases run against a mock store and are recorded under
+    /// the development environment — nothing is charged. Honored only in debug builds; a
+    /// release build always uses the real App Store.
+    public var dev: Bool
     /// Receives SDK diagnostics that are not raised to the caller (a failed background refresh,
     /// an unparseable paywall bridge message, a dropped analytics batch). Defaults to
     /// ``VoidhashWarnings/standard``.
@@ -27,6 +31,7 @@ public struct VoidhashOptions: Sendable {
         distinctId: String? = nil,
         enabled: Bool = true,
         readOnly: Bool = false,
+        dev: Bool = false,
         onWarning: VoidhashWarningHandler? = nil
     ) {
         self.baseUrl = baseUrl
@@ -35,6 +40,7 @@ public struct VoidhashOptions: Sendable {
         self.distinctId = distinctId
         self.enabled = enabled
         self.readOnly = readOnly
+        self.dev = dev
         self.onWarning = onWarning
     }
 }

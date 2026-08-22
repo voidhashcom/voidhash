@@ -62,6 +62,7 @@ options.debug = false              // SDK logging + `x-is-debug-build`
 options.distinctId = nil           // start with your own id instead of an anonymous one
 options.enabled = true             // false makes every call inert (no network at all)
 options.readOnly = false           // observer mode: sync transactions, never finish them
+options.dev = false                // requests development mode (debug builds only, see below)
 options.onWarning = { message in   // diagnostics that are never raised to the caller
     print(message)                 // defaults to the unified log
 }
@@ -73,6 +74,19 @@ let voidhash = Voidhash.configure(publishableKey: "pk_live_…", options: option
 connection, schema fetch, reconciliation of transactions observed while the app was away) runs
 in the background and is awaited implicitly by the first call that needs it; `await
 voidhash.waitForInitialization()` waits for it explicitly.
+
+## Development mode
+
+Set `options.dev = true` to test a full integration on any simulator without an App Store
+Connect setup. Honored **only in debug builds** (`#if DEBUG` — the mock store does not exist in
+release binaries); release builds always use the real App Store regardless of the flag.
+
+In development mode purchases run against a mock store: products are synthesized from the
+schema's computed development metadata (price and period come from the dashboard product), a
+confirmation sheet labelled "Test purchase" replaces the StoreKit sheet, and the recorded
+purchase is marked with the development environment so it never mixes with production data.
+Every request carries `x-environment: development`, which scopes person snapshots and
+entitlements to the test universe.
 
 ## Products and purchases
 

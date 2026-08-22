@@ -92,7 +92,7 @@ describe("harness server", () => {
   it("passes a clean replay of mobile/core", async () => {
     const session = await client.createSession("mobile/core");
     expect(session.sessionId).toBeTruthy();
-    expect(session.steps).toHaveLength(8);
+    expect(session.steps).toHaveLength(10);
 
     const steps: ReadonlyArray<StepDescriptor> = session.steps;
     const results = await replaySteps(session.sessionId, steps);
@@ -101,8 +101,8 @@ describe("harness server", () => {
 
     const report = await client.completeSession(session.sessionId);
     expect(report.suite).toBe("mobile/core");
-    expect(report.totalSteps).toBe(8);
-    expect(report.executedExchanges).toBe(8);
+    expect(report.totalSteps).toBe(10);
+    expect(report.executedExchanges).toBe(10);
     if (!report.pass) throw new Error(`expected pass, got: ${JSON.stringify(report.violations)}`);
   });
 
@@ -153,7 +153,7 @@ describe("harness server", () => {
     const report = await client.completeSession(session.sessionId);
     expect(report.pass).toBe(false);
     expect(report.violations.filter((violation) => violation.kind === "missing-step")).toHaveLength(
-      8,
+      10,
     );
   });
 

@@ -236,3 +236,25 @@ public struct SdkSyncTransactionResponse: Codable, Sendable, Equatable {
         accepted = try container.decodeIfPresent(Bool.self, forKey: .accepted) ?? true
     }
 }
+
+/// Body of `POST /api/v1/sdk/development/purchase`.
+public struct SdkDevelopmentPurchaseBody: Codable, Sendable, Equatable {
+    /// Client-generated UUID identifying this simulated purchase.
+    public let devTransactionId: String
+    public let productSlug: String
+    /// Millisecond epoch timestamp of the simulated purchase.
+    public let purchaseDate: Double
+    public let quantity: Double
+
+    public init(
+        devTransactionId: String,
+        productSlug: String,
+        purchaseDate: Double,
+        quantity: Double
+    ) {
+        self.devTransactionId = devTransactionId
+        self.productSlug = productSlug
+        self.purchaseDate = purchaseDate
+        self.quantity = quantity
+    }
+}

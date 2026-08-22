@@ -13,10 +13,22 @@ data class RuntimeAppleAppStoreConfiguration(
     val productId: String,
 )
 
+/** Development-provider configuration of a product, used by the mock store. */
+data class RuntimeDevelopmentConfiguration(
+    val productId: String,
+    val price: Double,
+    val currencyCode: String,
+    val period: String,
+    val periodCount: Int,
+    val duration: String?,
+    val warning: String?,
+)
+
 /** Store providers a product is configured for. */
 data class RuntimeProductProviders(
     val googlePlay: RuntimeGooglePlayConfiguration? = null,
     val appleAppStore: RuntimeAppleAppStoreConfiguration? = null,
+    val development: RuntimeDevelopmentConfiguration? = null,
 )
 
 /** A product as defined in the project schema. */
@@ -69,6 +81,25 @@ data class RuntimeSchema(
                             },
                             appleAppStore = providers?.optJSONObject("appleAppStore")?.let {
                                 RuntimeAppleAppStoreConfiguration(it.optString("productId"))
+                            },
+                            development = providers?.optJSONObject("development")?.let {
+                                RuntimeDevelopmentConfiguration(
+                                    productId = it.optString("productId"),
+                                    price = it.optDouble("price"),
+                                    currencyCode = it.optString("currencyCode"),
+                                    period = it.optString("period"),
+                                    periodCount = it.optInt("periodCount", 1),
+                                    duration = if (it.isNull("duration")) {
+                                        null
+                                    } else {
+                                        it.optString("duration").ifEmpty { null }
+                                    },
+                                    warning = if (it.isNull("warning")) {
+                                        null
+                                    } else {
+                                        it.optString("warning").ifEmpty { null }
+                                    },
+                                )
                             },
                         ),
                     )

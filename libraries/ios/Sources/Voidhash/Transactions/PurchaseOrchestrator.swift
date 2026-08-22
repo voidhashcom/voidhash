@@ -10,6 +10,15 @@ public protocol TransactionSyncing: Sendable {
 
 extension VoidhashApiClient: TransactionSyncing {}
 
+/// Development-gateway sync surface; implemented by ``VoidhashApiClient``.
+public protocol DevelopmentPurchasing: Sendable {
+    /// `POST /api/v1/sdk/development/purchase`
+    func developmentPurchase(headers: [String: String], body: SdkDevelopmentPurchaseBody)
+        async throws
+}
+
+extension VoidhashApiClient: DevelopmentPurchasing {}
+
 /// Raised when one or more observed transactions could not be reconciled.
 public struct ReconcileTransactionsError: Error, Sendable, CustomStringConvertible, LocalizedError {
     /// Stable error code.
@@ -73,6 +82,10 @@ public actor PurchaseOrchestrator {
 
     private let engine: any StoreKitEngineProtocol
     private let api: any TransactionSyncing
+    private let developmentApi: (any DevelopmentPurchasing)?
+    /// When true purchases run against the mock store and are recorded through the
+    /// development gateway instead of `sync-transaction`.
+    private let isDevelopmentMode: Bool
     private let cacheManager: CacheManager
     private let headersProvider: @Sendable () async -> [String: String]
     private let distinctIdProvider: @Sendable () async -> String
@@ -84,6 +97,8 @@ public actor PurchaseOrchestrator {
     /// - Parameters:
     ///   - engine: Store engine used to buy and finish transactions.
     ///   - api: Backend sync client.
+    ///   - developmentApi: Development-gateway client; required in development mode.
+    ///   - isDevelopmentMode: Routes purchases through the mock store and dev endpoint.
     ///   - cacheManager: Cache holding the processed-transaction states.
     ///   - headersProvider: Builds the common SDK headers for the current identity.
     ///   - distinctIdProvider: Returns the current distinct id.
@@ -92,6 +107,8 @@ public actor PurchaseOrchestrator {
     public init(
         engine: any StoreKitEngineProtocol,
         api: any TransactionSyncing,
+        developmentApi: (any DevelopmentPurchasing)? = nil,
+        isDevelopmentMode: Bool = false,
         cacheManager: CacheManager,
         headersProvider: @escaping @Sendable () async -> [String: String],
         distinctIdProvider: @escaping @Sendable () async -> String,
@@ -100,6 +117,8 @@ public actor PurchaseOrchestrator {
     ) {
         self.engine = engine
         self.api = api
+        self.developmentApi = developmentApi
+        self.isDevelopmentMode = isDevelopmentMode
         self.cacheManager = cacheManager
         self.headersProvider = headersProvider
         self.distinctIdProvider = distinctIdProvider
@@ -119,7 +138,12 @@ public actor PurchaseOrchestrator {
             appAccountToken: AccountToken.derive(distinctId: distinctId),
             quantity: 1
         )
-        let transaction = VoidhashTransaction(storeTransaction: storeTransaction)
+        // Dev purchases have nothing to acknowledge — the backend records them directly.
+        let transaction = VoidhashTransaction(
+            storeTransaction: storeTransaction,
+            isDevelopment: isDevelopmentMode,
+            isAcknowledgedOverride: isDevelopmentMode
+        )
         try await processTransaction(
             transaction, schema: schema, readOnlyOverride: readOnlyAtPurchaseStart)
         await refreshPerson()
@@ -246,16 +270,34 @@ public actor PurchaseOrchestrator {
             var headers = await headersProvider()
             headers["x-distinct-id"] = await distinctIdProvider()
 
-            let response = try await api.syncTransaction(
-                headers: headers,
-                body: PurchaseOrchestrator.syncPayload(transaction, products: schema.products)
-            )
+            if transaction.isDevelopment {
+                guard let developmentApi else {
+                    throw VoidhashStoreError(
+                        code: "CONFIGURATION_MISSING",
+                        message: "Development purchases need a development gateway client")
+                }
+                try await developmentApi.developmentPurchase(
+                    headers: headers,
+                    body: SdkDevelopmentPurchaseBody(
+                        devTransactionId: transaction.transactionId,
+                        productSlug: PurchaseOrchestrator.resolveProductSlug(
+                            transaction, products: schema.products),
+                        purchaseDate: transaction.purchaseDate,
+                        quantity: transaction.quantity
+                    ))
+            } else {
+                let response = try await api.syncTransaction(
+                    headers: headers,
+                    body: PurchaseOrchestrator.syncPayload(transaction, products: schema.products)
+                )
 
-            // Fail-safe: a backend that answers `accepted: false` did not record the purchase, so
-            // the transaction stays unfinished (the store re-delivers it) and nothing is cached.
-            guard response.accepted else {
-                throw VoidhashStoreError.transactionVerificationRejected(
-                    transactionId: transaction.transactionId)
+                // Fail-safe: a backend that answers `accepted: false` did not record the
+                // purchase, so the transaction stays unfinished (the store re-delivers it)
+                // and nothing is cached.
+                guard response.accepted else {
+                    throw VoidhashStoreError.transactionVerificationRejected(
+                        transactionId: transaction.transactionId)
+                }
             }
 
             await cacheManager.set(
@@ -321,7 +363,12 @@ public actor PurchaseOrchestrator {
             if definition.slug == transaction.productId {
                 return true
             }
-            return definition.configuration.providers.appleAppStore?.productId
+            if definition.configuration.providers.appleAppStore?.productId
+                == transaction.productId
+            {
+                return true
+            }
+            return definition.configuration.providers.development?.productId
                 == transaction.productId
         }
     }

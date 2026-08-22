@@ -3,6 +3,8 @@ import {
   API_PERSON_FIXTURE,
   API_PRODUCTS_FIXTURE,
   API_SECRET_KEY,
+  DEVELOPMENT_PURCHASE_REQUEST_FIXTURE,
+  DEVELOPMENT_PURCHASE_RESPONSE_FIXTURE,
   DISTINCT_ID,
   FEATURE_FLAGS_FIXTURE,
   MISSING_PERSON_ID,
@@ -141,6 +143,12 @@ const mobileGet = (path: `/${string}`) => mobileRequest("GET", path);
 
 const mobilePost = (path: `/${string}`, body: Json) => mobileRequest("POST", path, body);
 
+/** A dev-purchase guard rejection must come back as a validation error. */
+const SDK_VALIDATION_ERROR_FIXTURE: Json = {
+  _tag: "Api/SdkValidationError",
+  message: "Development purchases require development environment and a debug build",
+};
+
 /**
  * Ordered wire-level expectations exercised by every mobile SDK
  * (React Native today, native iOS/Android runners against the same contract).
@@ -196,6 +204,19 @@ export const mobileCoreSuite: ConformanceSuite = {
       mobilePost("/api/v1/sdk/sync-transaction", SYNC_TRANSACTION_REQUEST_FIXTURE),
       { status: 200, body: SYNC_TRANSACTION_RESPONSE_FIXTURE },
     ),
+    step(
+      "development-purchase",
+      mobilePost("/api/v1/sdk/development/purchase", DEVELOPMENT_PURCHASE_REQUEST_FIXTURE),
+      { status: 200, body: DEVELOPMENT_PURCHASE_RESPONSE_FIXTURE },
+    ),
+    step("development-purchase-rejected-in-production-mode", {
+      ...mobileRequest(
+        "POST",
+        "/api/v1/sdk/development/purchase",
+        DEVELOPMENT_PURCHASE_REQUEST_FIXTURE,
+      ),
+      headers: { ...PUBLISHABLE_HEADERS, "x-environment": "production" },
+    }, { status: 400, body: SDK_VALIDATION_ERROR_FIXTURE }),
     step("get-person-not-found", mobileGet("/api/v1/sdk/person"), {
       status: 404,
       body: SDK_PERSON_NOT_FOUND_ERROR_FIXTURE,

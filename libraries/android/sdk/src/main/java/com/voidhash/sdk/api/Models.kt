@@ -135,6 +135,21 @@ data class SyncTransactionRequest(
     }
 }
 
+/** Payload of `POST /api/v1/sdk/development/purchase` for a simulated purchase. */
+data class DevelopmentPurchaseRequest(
+    val devTransactionId: String,
+    val productSlug: String,
+    val purchaseDate: Double,
+    val quantity: Int,
+) {
+    internal fun toJson(): JSONObject = JSONObject().apply {
+        put("devTransactionId", devTransactionId)
+        put("productSlug", productSlug)
+        put("purchaseDate", purchaseDate)
+        put("quantity", quantity)
+    }
+}
+
 internal fun JSONObject.optStringOrNull(key: String): String? {
     if (!has(key) || isNull(key)) return null
     return optString(key)

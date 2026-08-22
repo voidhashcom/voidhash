@@ -26,6 +26,8 @@ namespace margelo::nitro::voidhash { class HybridStorekitProductSubscriptionSpec
 namespace margelo::nitro::voidhash { class HybridStorekitSpec; }
 // Forward declaration of `HybridStorekitTransactionSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridStorekitTransactionSpec; }
+// Forward declaration of `HybridVoidhashEngineSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridVoidhashEngineSpec; }
 // Forward declaration of `HybridVoidhashSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridVoidhashSpec; }
 // Forward declaration of `PaywallWebViewBaseEvent` to properly resolve imports.
@@ -78,6 +80,8 @@ namespace NitroVoidhash { class HybridStorekitProductSubscriptionSpec_cxx; }
 namespace NitroVoidhash { class HybridStorekitSpec_cxx; }
 // Forward declaration of `HybridStorekitTransactionSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridStorekitTransactionSpec_cxx; }
+// Forward declaration of `HybridVoidhashEngineSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridVoidhashEngineSpec_cxx; }
 // Forward declaration of `HybridVoidhashSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
 
@@ -91,6 +95,7 @@ namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
 #include "HybridStorekitProductSubscriptionSpec.hpp"
 #include "HybridStorekitSpec.hpp"
 #include "HybridStorekitTransactionSpec.hpp"
+#include "HybridVoidhashEngineSpec.hpp"
 #include "HybridVoidhashSpec.hpp"
 #include "PaywallWebViewBaseEvent.hpp"
 #include "PaywallWebViewDataDetectorType.hpp"
@@ -832,6 +837,39 @@ namespace margelo::nitro::voidhash::bridge::swift {
   }
   inline Result_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec____(const std::exception_ptr& error) noexcept {
     return Result<std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>>::withError(error);
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<std::string>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<std::string>>`.
+   */
+  using std__shared_ptr_Promise_std__string__ = std::shared_ptr<Promise<std::string>>;
+  inline std::shared_ptr<Promise<std::string>> create_std__shared_ptr_Promise_std__string__() noexcept {
+    return Promise<std::string>::create();
+  }
+  inline PromiseHolder<std::string> wrap_std__shared_ptr_Promise_std__string__(std::shared_ptr<Promise<std::string>> promise) noexcept {
+    return PromiseHolder<std::string>(std::move(promise));
+  }
+  
+  // pragma MARK: std::shared_ptr<HybridVoidhashEngineSpec>
+  /**
+   * Specialized version of `std::shared_ptr<HybridVoidhashEngineSpec>`.
+   */
+  using std__shared_ptr_HybridVoidhashEngineSpec_ = std::shared_ptr<HybridVoidhashEngineSpec>;
+  std::shared_ptr<HybridVoidhashEngineSpec> create_std__shared_ptr_HybridVoidhashEngineSpec_(void* NON_NULL swiftUnsafePointer) noexcept;
+  void* NON_NULL get_std__shared_ptr_HybridVoidhashEngineSpec_(std__shared_ptr_HybridVoidhashEngineSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<HybridVoidhashEngineSpec>
+  using std__weak_ptr_HybridVoidhashEngineSpec_ = std::weak_ptr<HybridVoidhashEngineSpec>;
+  inline std__weak_ptr_HybridVoidhashEngineSpec_ weakify_std__shared_ptr_HybridVoidhashEngineSpec_(const std::shared_ptr<HybridVoidhashEngineSpec>& strong) noexcept { return strong; }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<std::string>>>
+  using Result_std__shared_ptr_Promise_std__string___ = Result<std::shared_ptr<Promise<std::string>>>;
+  inline Result_std__shared_ptr_Promise_std__string___ create_Result_std__shared_ptr_Promise_std__string___(const std::shared_ptr<Promise<std::string>>& value) noexcept {
+    return Result<std::shared_ptr<Promise<std::string>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_std__string___ create_Result_std__shared_ptr_Promise_std__string___(const std::exception_ptr& error) noexcept {
+    return Result<std::shared_ptr<Promise<std::string>>>::withError(error);
   }
   
   // pragma MARK: std::shared_ptr<HybridStorekitTransactionSpec>

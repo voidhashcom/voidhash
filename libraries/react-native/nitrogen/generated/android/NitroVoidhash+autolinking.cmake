@@ -38,6 +38,7 @@ target_sources(
   ../nitrogen/generated/shared/c++/views/HybridPaywallWebViewComponent.cpp
   ../nitrogen/generated/shared/c++/HybridPurchasedItemSpec.cpp
   ../nitrogen/generated/shared/c++/HybridVoidhashSpec.cpp
+  ../nitrogen/generated/shared/c++/HybridVoidhashEngineSpec.cpp
   ../nitrogen/generated/shared/c++/HybridGoogleBillingSpec.cpp
   ../nitrogen/generated/shared/c++/HybridGoogleBillingAcknowledgeResultSpec.cpp
   ../nitrogen/generated/shared/c++/HybridGoogleBillingConsumeResultSpec.cpp
@@ -59,6 +60,7 @@ target_sources(
   ../nitrogen/generated/android/c++/views/JHybridPaywallWebViewStateUpdater.cpp
   ../nitrogen/generated/android/c++/JHybridPurchasedItemSpec.cpp
   ../nitrogen/generated/android/c++/JHybridVoidhashSpec.cpp
+  ../nitrogen/generated/android/c++/JHybridVoidhashEngineSpec.cpp
   ../nitrogen/generated/android/c++/JHybridGoogleBillingSpec.cpp
   ../nitrogen/generated/android/c++/JHybridGoogleBillingAcknowledgeResultSpec.cpp
   ../nitrogen/generated/android/c++/JHybridGoogleBillingConsumeResultSpec.cpp

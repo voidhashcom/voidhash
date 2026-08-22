@@ -34,6 +34,12 @@ class VoidhashApiClient(
     suspend fun getSchema(distinctId: String): JSONObject =
         requestJson("GET", "/api/v1/sdk/schema", distinctId, null)!!
 
+    /** Resolves the paywall configured for [locationSlug]; `null` when nothing is showing. */
+    suspend fun resolvePaywallRaw(distinctId: String, locationSlug: String): JSONObject? {
+        val payload = JSONObject().put("locationSlug", locationSlug)
+        return requestJson("POST", "/api/v1/sdk/resolve-paywall", distinctId, payload, allowNotFound = true)
+    }
+
     /** Fetches the current person snapshot; `null` when the backend has no person yet. */
     suspend fun getPerson(distinctId: String): VoidhashPerson? {
         val json = requestJson("GET", "/api/v1/sdk/person", distinctId, null, allowNotFound = true)
@@ -110,6 +116,23 @@ class VoidhashApiClient(
             request.toJson(),
         )
         return json?.optBoolean("accepted") ?: false
+    }
+
+    /**
+     * Records a development (simulated) purchase. Only valid while the SDK
+     * runs in the development environment; the backend rejects it otherwise.
+     */
+    suspend fun developmentPurchase(
+        distinctId: String,
+        request: DevelopmentPurchaseRequest,
+    ): Boolean {
+        val json = requestJson(
+            "POST",
+            "/api/v1/sdk/development/purchase",
+            distinctId,
+            request.toJson(),
+        )
+        return json?.optBoolean("accepted") ?: true
     }
 
     private suspend fun requestJson(

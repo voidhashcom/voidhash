@@ -21,7 +21,22 @@ prebuild; bare React Native apps must add it to their Podfile manually:
 
 ```ruby
 pod "VoidhashCore", :path => "../node_modules/@voidhash/ios"
+pod "Voidhash", :path => "../node_modules/@voidhash/ios"
 ```
+
+## Embedded native engine
+
+The SDK can route all `/api/v1/sdk` traffic through the bare-native Voidhash clients (Swift /
+Kotlin) instead of the TypeScript networking stack — headers, environment mode and transport are
+then built natively, exactly like a pure-native integration, while the public API stays identical:
+
+```ts
+createVoidhashClient("pk_live_…", { unstable_nativeEngine: true });
+```
+
+When the platform does not ship the engine hybrid, the SDK falls back to its TypeScript transport
+transparently. Identity remains owned by the JS layer: every engine call carries the current
+distinct id explicitly, so the two sides can never diverge.
 
 ### Compatibility
 

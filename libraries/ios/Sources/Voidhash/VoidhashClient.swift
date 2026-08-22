@@ -36,6 +36,9 @@ public actor VoidhashClient {
     private let dependencies: Dependencies
     private let warn: VoidhashWarningHandler
     private let readOnlyFlag: AtomicBool
+    /// Development mode: purchases run against a mock store and are recorded under the
+    /// development environment. Only ever true in debug builds.
+    private let isDevelopmentMode: Bool
     private let cacheManager: CacheManager
     private let identityStore: IdentityStore
     private let apiClient: VoidhashApiClient
@@ -62,14 +65,29 @@ public actor VoidhashClient {
         self.dependencies = dependencies
         warn = options.onWarning ?? VoidhashWarnings.standard
         readOnlyFlag = AtomicBool(options.readOnly)
+        // Development mode is a debug-build-only affordance: the flag alone is never enough,
+        // so it can never reach a production release.
+        #if DEBUG
+            let developmentMode = options.dev
+        #else
+            let developmentMode = false
+        #endif
+        isDevelopmentMode = developmentMode
         cacheManager = CacheManager(adapter: dependencies.cacheAdapter)
         identityStore = IdentityStore(cacheManager: cacheManager)
         apiClient = VoidhashApiClient(baseUrl: options.baseUrl, session: dependencies.session)
-        engine = dependencies.engine ?? StoreKitEngine()
+        engine = dependencies.engine ?? (developmentMode ? DevelopmentStoreEngine() : StoreKitEngine())
+        let clientBox = WeakClientBox()
         schemaManager = SchemaManager(
             apiClient: apiClient,
             cacheManager: cacheManager,
-            appVersion: dependencies.device.appVersion
+            appVersion: dependencies.device.appVersion,
+            onSchemaUpdated: { [clientBox] schema in
+                guard let client = clientBox.get() else {
+                    return
+                }
+                Task { await client.publishSchema(schema) }
+            }
         )
         headerFactory = SdkHeaderFactory(
             publishableKey: publishableKey,
@@ -77,7 +95,8 @@ public actor VoidhashClient {
             device: dependencies.device,
             isDebugBuild: options.debug,
             identityStore: identityStore,
-            readOnly: readOnlyFlag
+            readOnly: readOnlyFlag,
+            environmentProvider: { developmentMode ? "development" : "production" }
         )
         analytics = AnalyticsClient(
             publishableKey: publishableKey,
@@ -91,6 +110,7 @@ public actor VoidhashClient {
             debug: options.debug,
             warn: options.onWarning ?? VoidhashWarnings.standard
         )
+        clientBox.set(self)
     }
 
     /// Kicks off initialization without waiting for it.
@@ -116,6 +136,19 @@ public actor VoidhashClient {
         }
 
         let schema = try await ensureInitialized()
+
+        // The mock store synthesizes products from the schema's computed development
+        // metadata — no store round-trip, works on any simulator.
+        if isDevelopmentMode {
+            return schema.products.values.compactMap { definition -> VoidhashProduct? in
+                guard let configuration = definition.configuration.providers.development else {
+                    return nil
+                }
+                return VoidhashProduct(definition: definition, development: configuration)
+            }
+            .sorted { $0.slug < $1.slug }
+        }
+
         let definitions = schema.products.values.filter {
             $0.configuration.providers.appleAppStore != nil
         }
@@ -320,7 +353,116 @@ public actor VoidhashClient {
         try await paywallCoordinator().dismiss()
     }
 
+    /// Resolves the paywall assigned to `location` without presenting it.
+    ///
+    /// Embedded hosts (for example the React Native SDK) use this together with their own
+    /// presenter; the returned envelope carries everything a renderer needs.
+    public func getPaywall(location: String) async throws -> SdkResolvedPaywall? {
+        guard options.enabled else {
+            return nil
+        }
+        _ = try await ensureInitialized()
+        let headers = await headerFactory.build()
+        return try await apiClient.resolvePaywall(headers: headers, locationSlug: location)
+    }
+
+    /// Adopts an externally supplied schema without a server round-trip.
+    ///
+    /// Escape hatch for preview and testing hosts; the next background refresh replaces it.
+    public func injectInternalSchema(_ schema: RuntimeSchema) {
+        publishSchema(schema)
+    }
+
+    // MARK: - Embedded-engine surface
+
+    // Stateless data-plane operations for hosts embedding the client as their backend
+    // transport (the React Native SDK). Each takes the distinct id explicitly instead of
+    // reading the persisted identity, so the host stays the single source of truth.
+
+    private func headers(for distinctId: String) async -> [String: String] {
+        return await headerFactory.build(distinctId: distinctId)
+    }
+
+    /// Fetches the runtime schema. Deliberately does not run initialization: the embedded
+    /// surface is data-plane only and must never start the store's transaction observer,
+    /// which the host already owns.
+    public func fetchSchema(distinctId: String) async throws -> RuntimeSchema {
+        return try await schemaManager.resolveSchema(headers: headers(for: distinctId))
+    }
+
+    /// Fetches the person snapshot; `nil` when the backend has none yet.
+    public func fetchPerson(distinctId: String) async throws -> SdkPerson? {
+        return try await apiClient.getPerson(headers: headers(for: distinctId))
+    }
+
+    /// Aliases `distinctId` onto `externalUserId` and returns the merged person.
+    public func identifyPerson(
+        distinctId: String,
+        externalUserId: String,
+        email: String?,
+        name: String?
+    ) async throws -> SdkPerson {
+        return try await apiClient.identify(
+            headers: headers(for: distinctId),
+            body: SdkIdentifyBody(distinctId: externalUserId, email: email, name: name)
+        )
+    }
+
+    /// Writes person traits and returns the updated person.
+    public func setPersonTraits(
+        distinctId: String,
+        traits: [String: JSONValue]
+    ) async throws -> SdkPerson {
+        return try await apiClient.setPersonTraits(
+            headers: headers(for: distinctId),
+            body: SdkPersonTraitsBody(traits: traits)
+        )
+    }
+
+    /// Evaluates feature flags; `keys == nil` evaluates every flag.
+    public func evaluateFeatureFlags(
+        distinctId: String,
+        keys: [String]?
+    ) async throws -> [SdkFeatureFlagResult] {
+        let response = try await apiClient.evaluateFlags(
+            headers: headers(for: distinctId), flagKeys: keys)
+        return response.flags
+    }
+
+    /// Resolves the paywall assigned to `location`; `nil` when nothing is showing.
+    public func resolvePaywallConfig(
+        distinctId: String,
+        locationSlug: String
+    ) async throws -> SdkResolvedPaywall? {
+        return try await apiClient.resolvePaywall(
+            headers: headers(for: distinctId), locationSlug: locationSlug)
+    }
+
+    /// Syncs a store transaction; returns whether the backend accepted it.
+    public func syncStoreTransaction(
+        _ body: SdkSyncTransactionBody,
+        distinctId: String
+    ) async throws -> Bool {
+        return try await apiClient.syncTransaction(
+            headers: headers(for: distinctId), body: body).accepted
+    }
+
+    /// Records a development purchase through the development gateway.
+    public func recordDevelopmentPurchase(
+        _ body: SdkDevelopmentPurchaseBody,
+        distinctId: String
+    ) async throws {
+        try await apiClient.developmentPurchase(headers: headers(for: distinctId), body: body)
+    }
+
     // MARK: - Internals
+
+    /// Adopts a schema resolved outside ``runInitialization`` — the stale-while-revalidate
+    /// refresh — so a warm-cache session stops running on the stale schema.
+    private func publishSchema(_ schema: RuntimeSchema) {
+        currentSchema = schema
+        (engine as? DevelopmentStoreEngine)?.updateCatalog(schema)
+    }
 
     /// Awaits the running initialization, dropping it when it fails so the next call retries.
     private func ensureInitialized() async throws -> RuntimeSchema {
@@ -402,6 +544,8 @@ public actor VoidhashClient {
         let orchestrator = PurchaseOrchestrator(
             engine: engine,
             api: apiClient,
+            developmentApi: apiClient,
+            isDevelopmentMode: isDevelopmentMode,
             cacheManager: cacheManager,
             headersProvider: { [headerFactory] in await headerFactory.build() },
             distinctIdProvider: { [identityStore] in await identityStore.getDistinctId() },

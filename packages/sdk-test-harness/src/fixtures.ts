@@ -199,6 +199,17 @@ export const SYNC_TRANSACTION_REQUEST_FIXTURE: Json = {
 /** `/api/v1/sdk/sync-transaction` response. */
 export const SYNC_TRANSACTION_RESPONSE_FIXTURE: Json = { accepted: true };
 
+/** `/api/v1/sdk/development/purchase` request body expectation. */
+export const DEVELOPMENT_PURCHASE_REQUEST_FIXTURE: Json = {
+  devTransactionId: "dev_conformance_001",
+  productSlug: PRODUCT_SLUG,
+  purchaseDate: 1767225600000,
+  quantity: 1,
+};
+
+/** `/api/v1/sdk/development/purchase` response. */
+export const DEVELOPMENT_PURCHASE_RESPONSE_FIXTURE: Json = { accepted: true, warning: null };
+
 /** Error payloads served for error-mapping steps. */
 export const NOT_AUTHENTICATED_ERROR_FIXTURE: Json = {
   _tag: "Api/NotAuthenticatedError",

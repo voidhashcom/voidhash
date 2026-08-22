@@ -39,6 +39,16 @@ def getExtOrIntegerDefault(name) {
 // works for published/installed consumers; the relative fallback covers the in-repo checkout, where
 // the package may not be linked into node_modules yet.
 def voidhashCoreSourceDir() {
+  return new File(voidhashAndroidPackageDir(), "core/src/main/java").absolutePath
+}
+
+// The bare-native SDK (`sdk` module of `@voidhash/android`) is embedded as the data-plane
+// engine behind `VoidhashEngine`, next to the core sources.
+def voidhashSdkSourceDir() {
+  return new File(voidhashAndroidPackageDir(), "sdk/src/main/java").absolutePath
+}
+
+def voidhashAndroidPackageDir() {
   def rnPackageDir = projectDir.parentFile
 
   try {
@@ -51,16 +61,13 @@ def voidhashCoreSourceDir() {
     process.waitFor()
 
     if (process.exitValue() == 0 && !resolved.isEmpty()) {
-      def resolvedSources = new File(resolved, "core/src/main/java")
-      if (resolvedSources.isDirectory()) {
-        return resolvedSources.absolutePath
-      }
+      return resolved
     }
   } catch (Exception ignored) {
     // fall through to the physical sibling path below
   }
 
-  return new File(rnPackageDir, "../android/core/src/main/java").absolutePath
+  return new File(rnPackageDir, "../android").absolutePath
 }
 
 android {
@@ -141,7 +148,7 @@ android {
 
   sourceSets {
     main {
-      java.srcDirs += [voidhashCoreSourceDir()]
+      java.srcDirs += [voidhashCoreSourceDir(), voidhashSdkSourceDir()]
 
       if (isNewArchitectureEnabled()) {
         java.srcDirs += [
@@ -170,4 +177,8 @@ dependencies {
   implementation "androidx.webkit:webkit:1.12.1"
   implementation 'com.android.billingclient:billing-ktx:8.0.0'
   implementation 'com.google.android.gms:play-services-base:18.7.2'
+  // Embedded data-plane engine (VoidhashEngine) dependencies.
+  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+  implementation 'androidx.annotation:annotation:1.8.0'
 }

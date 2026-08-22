@@ -26,6 +26,9 @@ import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { PurchasePendingError, UserCancelledError } from "./core/payment-adapters/errors";
 import { findActiveGrant, type EntitlementGrant } from "./core/entitlements/find-grant";
+import {
+  engineApiClientLayer,
+} from "./core/networking/engine-api-client";
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
@@ -46,6 +49,7 @@ import {
   VoidhashError,
 } from "./errors";
 import type { PaywallRuntimeConfig } from "./internal/paywall-bridge/protocol";
+import type { VoidhashEngine as VoidhashEngineSpec } from "./specs/VoidhashEngine.nitro";
 
 export interface VoidhashClientOptions {
   baseUrl?: string;
@@ -81,6 +85,13 @@ export interface VoidhashClientOptions {
    * API; production code should rely on the server-side schema endpoint.
    */
   unstable_internalSchema?: RuntimeSchema;
+  /**
+   * Route all `/api/v1/sdk` traffic through the embedded native engine (the bare Swift /
+   * Kotlin clients) instead of the TypeScript networking stack when this platform ships one.
+   * Falls back to the TypeScript transport transparently wherever the native engine is not
+   * available. Defaults to `false` until device-verified.
+   */
+  unstable_nativeEngine?: boolean;
 }
 
 const CreateEffectRuntime = (
@@ -88,6 +99,7 @@ const CreateEffectRuntime = (
   developmentMode: boolean,
   atomRegistry: AtomRegistry.AtomRegistry,
   sdkConfiguration: typeof SdkConfiguration.Service,
+  nativeEngine?: VoidhashEngineSpec,
 ) => {
   // oxlint-disable effect/noDynamicImports -- This debug-only edge must stay dynamic so Metro can omit the adapter from release bundles.
   const paymentAdapterLayer: Layer.Layer<PaymentAdapter> =
@@ -101,6 +113,10 @@ const CreateEffectRuntime = (
         ? AppStoreAdapter
         : GooglePlayAdapter;
   // oxlint-enable effect/noDynamicImports
+  // The embedded native engine replaces the TypeScript networking stack when it exists:
+  // headers and environment mode are then built natively, exactly like a pure-native app.
+  const apiClientLayer =
+    nativeEngine !== undefined ? engineApiClientLayer(nativeEngine) : ApiClient.Default;
   return ManagedRuntime.make(
     pipe(
       PersonAttributeManager.Default,
@@ -116,7 +132,7 @@ const CreateEffectRuntime = (
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),
       Layer.provideMerge(AsyncStorageCacheAdapter),
-      Layer.provideMerge(ApiClient.Default),
+      Layer.provideMerge(apiClientLayer),
       Layer.provideMerge(FetchHttpClient.layer),
       Layer.provideMerge(paymentAdapterLayer),
       Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
@@ -217,6 +233,7 @@ export class VoidhashClient {
     internalSchema?: RuntimeSchema,
     dev = false,
     enabled = true,
+    nativeEngine?: VoidhashEngineSpec,
   ) {
     this.initialDistinctId = initialDistinctId;
     this.enabled = enabled;
@@ -238,6 +255,7 @@ export class VoidhashClient {
       this.developmentMode,
       atomRegistry,
       this.sdkConfiguration.service,
+      nativeEngine,
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }

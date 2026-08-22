@@ -18,6 +18,9 @@ const val ANONYMOUS_DISTINCT_ID_PREFIX: String = "vh:anon:"
  * @property distinctId pins the initial distinct id instead of generating an anonymous one.
  * @property enabled when false the client is inert: no network, no billing connection.
  * @property readOnly observer mode — transactions are synced but never finished with the store.
+ * @property dev requests development mode. Honored only in debug builds: there purchases run
+ *   against a mock store and are recorded under the development environment, never charged.
+ *   In a release build (or with `dev = false`) the real Play Billing store is used.
  */
 data class VoidhashOptions(
     val baseUrl: String = VOIDHASH_DEFAULT_BASE_URL,
@@ -26,4 +29,5 @@ data class VoidhashOptions(
     val distinctId: String? = null,
     val enabled: Boolean = true,
     val readOnly: Boolean = false,
+    val dev: Boolean = false,
 )

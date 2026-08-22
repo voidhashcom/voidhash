@@ -14,6 +14,7 @@ class SdkHeaders(
     private val platform: PlatformInfo,
     private val readOnlyProvider: () -> Boolean = { false },
     private val debugProvider: () -> Boolean = { false },
+    private val environmentProvider: () -> String = { "production" },
     private val sdkVersion: String = VOIDHASH_SDK_VERSION,
     private val nonceProvider: () -> String = { UUID.randomUUID().toString() },
 ) {
@@ -22,7 +23,7 @@ class SdkHeaders(
         val headers = linkedMapOf(
             "x-publishable-key" to publishableKey,
             "x-distinct-id" to distinctId,
-            "x-environment" to "production",
+            "x-environment" to environmentProvider(),
             "x-observer-mode" to if (readOnlyProvider()) "true" else "false",
             "x-is-debug-build" to if (debugProvider() || platform.isDebugBuild) "true" else "false",
             "x-nonce" to nonceProvider(),

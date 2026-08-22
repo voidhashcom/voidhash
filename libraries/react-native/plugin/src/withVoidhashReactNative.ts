@@ -9,7 +9,7 @@ import { CodeGenerator, createRunOncePlugin, withPodfile } from "expo/config-plu
 import pkg from "../../package.json";
 
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
-const POD_NAME = "VoidhashCore";
+const POD_NAMES = ["VoidhashCore", "Voidhash"] as const;
 const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
 
 /**
@@ -38,16 +38,17 @@ const GENERATED_BLOCK_TAG = `${pkg.name}-core-pod`;
  * refresh a stale `:path` on subsequent prebuilds.
  */
 const hasManualPodDeclaration = (contents: string): boolean => {
-  const withoutGeneratedBlock = contents.replace(
+  const contentsWithoutBlock = contents.replace(
     new RegExp(
       `# @generated begin ${GENERATED_BLOCK_TAG}.*# @generated end ${GENERATED_BLOCK_TAG}`,
       "s",
     ),
     "",
   );
-  return (
-    withoutGeneratedBlock.includes(`pod "${POD_NAME}"`) ||
-    withoutGeneratedBlock.includes(`pod '${POD_NAME}'`)
+  return POD_NAMES.some(
+    (podName) =>
+      contentsWithoutBlock.includes(`pod "${podName}"`) ||
+      contentsWithoutBlock.includes(`pod '${podName}'`),
   );
 };
 
@@ -69,10 +70,16 @@ const withVoidhashCorePod: ConfigPlugin<void> = (config) =>
       resolveCorePodDirectory(),
     );
 
+    // VoidhashCore is the shared native core; Voidhash is the bare-native client the
+    // SDK embeds as its data-plane engine.
+    const generatedPods = POD_NAMES.map(
+      (podName) => `  pod "${podName}", :path => "${podDirectory}"`,
+    ).join("\n");
+
     podfileConfig.modResults.contents = CodeGenerator.mergeContents({
       tag: GENERATED_BLOCK_TAG,
       src: contents,
-      newSrc: `  pod "${POD_NAME}", :path => "${podDirectory}"`,
+      newSrc: generatedPods,
       anchor,
       offset: 1,
       comment: "#",

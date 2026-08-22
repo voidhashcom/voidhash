@@ -78,4 +78,29 @@ public struct VoidhashProduct: Sendable, Equatable {
             providerProductId: definition.configuration.providers.appleAppStore?.productId
         )
     }
+
+    /// Builds a development (mock store) product from the schema's computed metadata —
+    /// no store round-trip, works on any simulator.
+    public init(
+        definition: RuntimeProductDefinition,
+        development configuration: RuntimeDevelopmentProductConfiguration
+    ) {
+        let priceLabel = "$" + String(format: "%.2f", configuration.price)
+        self.init(
+            id: configuration.productId,
+            slug: definition.slug,
+            name: definition.properties.name,
+            description: "Development purchase",
+            displayName: definition.properties.name,
+            displayPrice:
+                configuration.period == "lifetime"
+                ? priceLabel : "\(priceLabel) / \(configuration.period)",
+            price: configuration.price,
+            currency: configuration.currencyCode,
+            type: configuration.period == "lifetime" ? "inapp" : "autoRenewable",
+            productType: definition.type,
+            interval: configuration.period == "lifetime" ? nil : configuration.period,
+            providerProductId: configuration.productId
+        )
+    }
 }

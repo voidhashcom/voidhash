@@ -86,6 +86,24 @@ public final class VoidhashApiClient: Sendable {
         return try decode(SdkSyncTransactionResponse.self, from: data)
     }
 
+    /// `POST /api/v1/sdk/development/purchase` — records a simulated purchase. Only valid
+    /// while the SDK runs with `x-environment: development`; the backend rejects it otherwise.
+    public func developmentPurchase(headers: [String: String], body: SdkDevelopmentPurchaseBody)
+        async throws
+    {
+        let data = try await send(
+            method: "POST", path: "/api/v1/sdk/development/purchase", headers: headers, body: body)
+        if isNullBody(data) {
+            return
+        }
+        // The endpoint reuses the sync-transaction response shape; tolerate an empty one.
+        let response = try? decode(SdkSyncTransactionResponse.self, from: data)
+        if let response, !response.accepted {
+            throw VoidhashStoreError.transactionVerificationRejected(
+                transactionId: body.devTransactionId)
+        }
+    }
+
     private func send(
         method: String,
         path: String,

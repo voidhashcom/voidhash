@@ -32,6 +32,7 @@
 #include "views/JHybridPaywallWebViewStateUpdater.hpp"
 #include "JHybridPurchasedItemSpec.hpp"
 #include "JHybridVoidhashSpec.hpp"
+#include "JHybridVoidhashEngineSpec.hpp"
 #include "JHybridGoogleBillingSpec.hpp"
 #include "JFunc_void_std__shared_ptr_HybridGoogleBillingPurchaseSpec_.hpp"
 #include "JHybridGoogleBillingAcknowledgeResultSpec.hpp"
@@ -107,6 +108,7 @@ void registerAllNatives() {
   margelo::nitro::voidhash::views::JHybridPaywallWebViewStateUpdater::registerNatives();
   margelo::nitro::voidhash::JHybridPurchasedItemSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JHybridVoidhashSpec::CxxPart::registerNatives();
+  margelo::nitro::voidhash::JHybridVoidhashEngineSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JHybridGoogleBillingSpec::CxxPart::registerNatives();
   margelo::nitro::voidhash::JFunc_void_std__shared_ptr_HybridGoogleBillingPurchaseSpec__cxx::registerNatives();
   margelo::nitro::voidhash::JHybridGoogleBillingAcknowledgeResultSpec::CxxPart::registerNatives();

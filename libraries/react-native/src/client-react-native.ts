@@ -5,6 +5,7 @@ import { Platform as RNPlatform } from "react-native";
 
 import { VoidhashClient, type VoidhashClientOptions } from "./client";
 import { SchemeNotSetError } from "./errors";
+import { getVoidhashEngine } from "./nitro";
 import { voidhashProviderFactory } from "./react/components/provider";
 import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve-app-store-product";
 import { useRetrieveAppStoreProducts } from "./react/hooks/app-store/use-retrieve-app-store-products";
@@ -68,6 +69,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     options.unstable_internalSchema,
     dev,
     enabled,
+    options.unstable_nativeEngine === true ? getVoidhashEngine() : undefined,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

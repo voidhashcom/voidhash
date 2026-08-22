@@ -86,6 +86,20 @@ as `Voidhash.shared` afterwards.
 | `distinctId` | `null` | Pins the initial distinct id instead of generating an anonymous one |
 | `enabled` | `true` | When false the client is inert: no network, no billing connection |
 | `readOnly` | `false` | Observer mode — transactions are synced but never finished with the store |
+| `dev` | `false` | Requests development mode (debug builds only, see below) |
+
+## Development mode
+
+Set `VoidhashOptions(dev = true)` to test a full integration on any emulator or device without
+store credentials. Honored **only in debug builds** (`FLAG_DEBUGGABLE`) — release builds always
+use real Google Play Billing regardless of the flag.
+
+In development mode purchases run against a mock store: products are synthesized from the
+schema's computed development metadata (price and period come from the dashboard product), a
+confirmation sheet labelled "Test purchase — nothing will be charged" replaces the Play Billing
+flow, and the recorded purchase is marked with the development environment so it never mixes
+with production data. Every request carries `x-environment: development`, which scopes person
+snapshots and entitlements to the test universe.
 
 ## API
 

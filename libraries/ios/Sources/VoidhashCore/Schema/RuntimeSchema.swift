@@ -30,6 +30,26 @@ public struct RuntimeDevelopmentProductConfiguration: Codable, Sendable, Equatab
     public let priceInMinorUnits: Double
     public let productId: String
     public let warning: String?
+
+    public init(
+        currencyCode: String,
+        duration: String?,
+        period: String,
+        periodCount: Double,
+        price: Double,
+        priceInMinorUnits: Double,
+        productId: String,
+        warning: String?
+    ) {
+        self.currencyCode = currencyCode
+        self.duration = duration
+        self.period = period
+        self.periodCount = periodCount
+        self.price = price
+        self.priceInMinorUnits = priceInMinorUnits
+        self.productId = productId
+        self.warning = warning
+    }
 }
 
 /// Per-provider configuration of a product.

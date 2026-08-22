@@ -41,7 +41,7 @@ export interface ReactNativeSyncTransactionRequest {
   readonly transactionId: string;
 }
 
-interface ReactNativeSdkHeaders {
+export interface ReactNativeSdkHeaders {
   readonly "x-client-bundle-id": string;
   readonly "x-client-locale"?: string | undefined;
   readonly "x-client-version"?: string | undefined;

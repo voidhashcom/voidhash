@@ -31,6 +31,8 @@ Pod::Spec.new do |s|
   add_nitrogen_files(s)
 
   s.dependency 'VoidhashCore'
+  # The bare-native Voidhash client, embedded as the SDK's data-plane engine.
+  s.dependency 'Voidhash'
   s.dependency 'React-jsi'
   s.dependency 'React-callinvoker'
   install_modules_dependencies(s)

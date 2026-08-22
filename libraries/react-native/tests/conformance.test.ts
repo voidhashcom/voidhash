@@ -1,5 +1,6 @@
 // oxlint-disable effect/noAsyncFunction, effect/noGlobals, effect/noNewError, effect/noTestLifecycleHooks, effect/noThrowStatement -- conformance runner tests drive a real HTTP server with vitest's async API and plain fetch on purpose: the SDK under test must be exercised exactly as application code would use it, not through an Effect test runtime.
 import {
+  DEVELOPMENT_PURCHASE_REQUEST_FIXTURE,
   DISTINCT_ID,
   FEATURE_FLAGS_FIXTURE,
   HarnessClient,
@@ -144,6 +145,34 @@ describe("react-native sdk conformance (mobile/core)", () => {
           payload: SYNC_TRANSACTION_REQUEST_FIXTURE as unknown as ReactNativeSyncTransactionRequest,
         }),
       ).toEqual(SYNC_TRANSACTION_RESPONSE_FIXTURE);
+
+      // The generated client resolves the development purchase without surfacing the body.
+      yield* api.sdk.developmentPurchase({
+        headers,
+        payload: DEVELOPMENT_PURCHASE_REQUEST_FIXTURE as {
+          devTransactionId: string;
+          productSlug: string;
+          purchaseDate: number;
+          quantity: number;
+        },
+      });
+
+      // Guard rejection: the same purchase in production mode is a validation error.
+      yield* Effect.tryPromise(async () => {
+        const rejected = await fetch(`${handle.url}/api/v1/sdk/development/purchase`, {
+          body: JSON.stringify(DEVELOPMENT_PURCHASE_REQUEST_FIXTURE),
+          headers: {
+            ...headers,
+            "content-type": "application/json",
+            "x-environment": "production",
+            "x-harness-session": session.sessionId,
+          },
+          method: "POST",
+        });
+        if (rejected.status !== 400) {
+          throw new Error(`Expected 400, got ${rejected.status}`);
+        }
+      });
 
       // Scripted 404: the SDK must surface the failure for a missing person.
       const notFound = yield* Effect.exit(api.sdk.getPerson({ headers }));

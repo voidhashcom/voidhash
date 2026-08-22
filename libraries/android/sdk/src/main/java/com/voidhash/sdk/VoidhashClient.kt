@@ -2,7 +2,10 @@ package com.voidhash.sdk
 
 import android.app.Activity
 import com.voidhash.sdk.analytics.AnalyticsClient
+import com.voidhash.sdk.api.DevelopmentPurchaseRequest
 import com.voidhash.sdk.api.FeatureFlag
+import com.voidhash.sdk.api.SyncTransactionRequest
+import com.voidhash.sdk.api.ResolvedPaywall
 import com.voidhash.sdk.api.VoidhashApiClient
 import com.voidhash.sdk.api.VoidhashPerson
 import com.voidhash.sdk.billing.BillingEnginePort
@@ -267,6 +270,77 @@ class VoidhashClient internal constructor(
      */
     internal fun publishSchema(schema: RuntimeSchema) {
         schemaRef.set(schema)
+    }
+
+    /**
+     * Resolves the paywall configured for [location] without presenting it.
+     *
+     * Embedded hosts (for example the React Native SDK) use this together with
+     * their own presenter; the returned envelope carries everything a renderer
+     * needs.
+     */
+    suspend fun resolvePaywall(location: String): ResolvedPaywall? {
+        if (!enabled) return null
+        return apiClient.resolvePaywall(identityStore.getDistinctId(), location)
+    }
+
+    /**
+     * Adopts an externally supplied schema without a server round-trip. Escape
+     * hatch for preview and testing hosts; the next background refresh replaces it.
+     */
+    fun injectInternalSchema(schema: RuntimeSchema) {
+        publishSchema(schema)
+    }
+
+    // Embedded-engine surface: stateless data-plane operations for hosts that use the
+    // client as their backend transport (the React Native SDK). Each takes the distinct
+    // id explicitly instead of reading the persisted identity, so the host stays the
+    // single source of truth.
+
+    /** Fetches the runtime schema. Deliberately does not run initialization: the embedded
+     * surface is data-plane only and must never start the store's billing connection. */
+    suspend fun fetchSchema(distinctId: String): RuntimeSchema =
+        RuntimeSchema.fromJson(apiClient.getSchema(distinctId))
+
+    /** Fetches the person snapshot; `null` when the backend has none yet. */
+    suspend fun fetchPerson(distinctId: String): VoidhashPerson? =
+        apiClient.getPerson(distinctId)
+
+    /** Aliases [distinctId] onto [externalUserId] and returns the merged person. */
+    suspend fun identifyPerson(
+        distinctId: String,
+        externalUserId: String,
+        email: String?,
+        name: String?,
+    ): VoidhashPerson = apiClient.identify(distinctId, externalUserId, email, name)
+
+    /** Writes person traits and returns the updated person. */
+    suspend fun setPersonTraits(
+        distinctId: String,
+        traits: Map<String, Any?>,
+    ): VoidhashPerson? {
+        apiClient.setPersonAttributes(distinctId, traits)
+        return apiClient.getPerson(distinctId)
+    }
+
+    /** Evaluates feature flags; an empty [keys] list evaluates every flag. */
+    suspend fun evaluateFeatureFlags(
+        distinctId: String,
+        keys: List<String>,
+    ): List<FeatureFlag> = apiClient.evaluateFlags(distinctId, keys)
+
+    /** Syncs a store transaction; returns whether the backend accepted it. */
+    suspend fun syncStoreTransaction(
+        distinctId: String,
+        request: SyncTransactionRequest,
+    ): Boolean = apiClient.syncTransaction(distinctId, request)
+
+    /** Records a development purchase through the development gateway. */
+    suspend fun recordDevelopmentPurchase(
+        distinctId: String,
+        request: DevelopmentPurchaseRequest,
+    ) {
+        apiClient.developmentPurchase(distinctId, request)
     }
 
     private fun personCacheKey(distinctId: String): String = "person:$distinctId"

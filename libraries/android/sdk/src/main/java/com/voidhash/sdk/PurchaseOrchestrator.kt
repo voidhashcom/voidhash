@@ -2,6 +2,7 @@ package com.voidhash.sdk
 
 import com.voidhash.core.billing.BillingBuyItemParams
 import com.voidhash.core.billing.BillingProductType
+import com.voidhash.sdk.api.DevelopmentPurchaseRequest
 import com.voidhash.sdk.api.SyncTransactionRequest
 import com.voidhash.sdk.api.VoidhashApiClient
 import com.voidhash.sdk.billing.BillingEnginePort
@@ -9,6 +10,7 @@ import com.voidhash.sdk.billing.VoidhashProduct
 import com.voidhash.sdk.billing.VoidhashTransaction
 import com.voidhash.sdk.billing.mapBillingProductToProduct
 import com.voidhash.sdk.billing.mapBillingPurchaseToTransaction
+import com.voidhash.sdk.billing.mapDevelopmentPurchaseToTransaction
 import com.voidhash.sdk.cache.CacheManager
 import com.voidhash.sdk.identity.AccountToken
 import com.voidhash.sdk.identity.IdentityStore
@@ -50,6 +52,8 @@ class PurchaseOrchestrator(
     private val cacheManager: CacheManager,
     private val identityStore: IdentityStore,
     private val readOnlyProvider: () -> Boolean = { false },
+    /** When true purchases run against the mock store instead of Play Billing. */
+    private val developmentMode: Boolean = false,
     private val onPersonRefresh: suspend () -> Unit = {},
     private val onWarning: (String) -> Unit = {},
 ) {
@@ -62,6 +66,25 @@ class PurchaseOrchestrator(
 
     /** Queries the store for every product configured in [schema]. */
     suspend fun getProducts(schema: RuntimeSchema): List<VoidhashProduct> {
+        if (developmentMode) {
+            return schema.products.values.mapNotNull { definition ->
+                val configuration = definition.providers.development ?: return@mapNotNull null
+                VoidhashProduct(
+                    id = configuration.productId,
+                    slug = definition.slug,
+                    name = definition.name,
+                    description = "Development purchase",
+                    displayName = definition.name,
+                    displayPrice = "$" + "%.2f".format(configuration.price),
+                    price = configuration.price,
+                    currency = configuration.currencyCode,
+                    type = if (definition.type == "subscription") "subs" else "inapp",
+                    billingPeriod = configuration.period,
+                    googlePlayOfferToken = null,
+                )
+            }
+        }
+
         val definitionsByProductId = schema.products.values
             .mapNotNull { definition ->
                 definition.providers.googlePlay?.productId?.let { it to definition }
@@ -92,7 +115,7 @@ class PurchaseOrchestrator(
         val distinctId = identityStore.getDistinctId()
 
         val type = if (product.isSubscription) BillingProductType.SUBS else BillingProductType.INAPP
-        if (type == BillingProductType.SUBS && product.googlePlayOfferToken == null) {
+        if (!developmentMode && type == BillingProductType.SUBS && product.googlePlayOfferToken == null) {
             throw VoidhashException(
                 "PURCHASE_FAILED",
                 "Google Play subscription has no configured offer token",
@@ -112,7 +135,16 @@ class PurchaseOrchestrator(
         val purchase = purchases.firstOrNull()
             ?: throw VoidhashException("PURCHASE_FAILED", "No purchase returned from Google Billing")
 
-        val transaction = mapBillingPurchaseToTransaction(purchase)
+        val transaction = if (developmentMode) {
+            mapDevelopmentPurchaseToTransaction(
+                productId = product.id,
+                devTransactionId = purchase.orderId ?: purchase.purchaseToken,
+                purchaseDate = purchase.purchaseTime,
+                quantity = 1,
+            )
+        } else {
+            mapBillingPurchaseToTransaction(purchase)
+        }
         when (transaction.purchaseState) {
             "purchased" -> Unit
             "pending" -> throw VoidhashException("PURCHASE_PENDING", "The payment was deferred")
@@ -258,7 +290,7 @@ class PurchaseOrchestrator(
             return
         }
 
-        if (transaction.purchaseToken.isNullOrEmpty()) {
+        if (!transaction.isDevelopment && transaction.purchaseToken.isNullOrEmpty()) {
             onWarning(
                 "Skipping observed Android transaction without purchase token ${transaction.transactionId}",
             )
@@ -267,24 +299,36 @@ class PurchaseOrchestrator(
 
         if (cachedState?.backendAccepted != true) {
             val distinctId = identityStore.getDistinctId()
-            val accepted = apiClient.syncTransaction(
-                distinctId,
-                SyncTransactionRequest(
-                    appAccountToken = transaction.appAccountToken,
-                    providerProductId = transaction.productId,
-                    productSlug = resolveProductSlug(transaction, schema),
-                    purchaseDate = transaction.purchaseDate,
-                    purchaseToken = transaction.purchaseToken,
-                    quantity = transaction.quantity,
-                    receipt = transaction.receipt,
-                    transactionId = transaction.transactionId,
-                ),
-            )
-            if (!accepted) {
-                throw VoidhashException(
-                    "TRANSACTION_VERIFICATION_FAILED",
-                    "Backend rejected transaction ${transaction.transactionId}",
+            if (transaction.isDevelopment) {
+                apiClient.developmentPurchase(
+                    distinctId,
+                    DevelopmentPurchaseRequest(
+                        devTransactionId = transaction.transactionId,
+                        productSlug = resolveProductSlug(transaction, schema),
+                        purchaseDate = transaction.purchaseDate,
+                        quantity = transaction.quantity,
+                    ),
                 )
+            } else {
+                val accepted = apiClient.syncTransaction(
+                    distinctId,
+                    SyncTransactionRequest(
+                        appAccountToken = transaction.appAccountToken,
+                        providerProductId = transaction.productId,
+                        productSlug = resolveProductSlug(transaction, schema),
+                        purchaseDate = transaction.purchaseDate,
+                        purchaseToken = transaction.purchaseToken ?: "",
+                        quantity = transaction.quantity,
+                        receipt = transaction.receipt,
+                        transactionId = transaction.transactionId,
+                    ),
+                )
+                if (!accepted) {
+                    throw VoidhashException(
+                        "TRANSACTION_VERIFICATION_FAILED",
+                        "Backend rejected transaction ${transaction.transactionId}",
+                    )
+                }
             }
 
             writeProcessedState(
@@ -355,7 +399,8 @@ class PurchaseOrchestrator(
         schema: RuntimeSchema,
     ): RuntimeProductDefinition? = schema.products.values.firstOrNull { definition ->
         definition.slug == transaction.productId ||
-            definition.providers.googlePlay?.productId == transaction.productId
+            definition.providers.googlePlay?.productId == transaction.productId ||
+            definition.providers.development?.productId == transaction.productId
     }
 
     private fun resolveProductSlug(transaction: VoidhashTransaction, schema: RuntimeSchema): String =
