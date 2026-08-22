@@ -1,6 +1,6 @@
 title: Kotlin
 description: Native Android apps with Google Play Billing.
-icon: Bot
+icon: svgl:kotlin
 pages:
   - index
   - quickstart

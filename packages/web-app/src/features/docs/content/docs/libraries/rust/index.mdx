@@ -1,0 +1,76 @@
+---
+title: Rust library
+description: Server-side client for the Voidhash REST API.
+icon: svgl:rust
+---
+
+Client-side checks decide what to render. Anything a customer could get by calling your API
+directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
+the server as well.
+
+The `voidhash` crate wraps the Voidhash REST API and authenticates with a project secret key.
+
+## Install the crate
+
+```sh
+cargo add voidhash
+```
+
+Requires Rust 1.75 or newer. The client is async-first and runs on any executor; the examples below
+use tokio.
+
+<Steps>
+
+<Step>
+### Create a secret key
+
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+
+Store it in an environment variable or your secret manager. A secret key grants full project access:
+never put it in a mobile app, a web bundle, or a repository.
+</Step>
+
+<Step>
+### Create the client
+
+```rust title="src/voidhash.rs"
+use voidhash::VoidhashClient;
+
+let voidhash = VoidhashClient::new(std::env::var("VOIDHASH_SECRET_KEY")?)?;
+```
+
+| Builder method | Default                    | Use                                                    |
+| -------------- | -------------------------- | ------------------------------------------------------ |
+| `new`          | —                          | Required secret key. Sent as the `x-secret-key` header.|
+| `.base_url`    | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.  |
+| `.header`      | none                       | Extra headers added to every request from this client. |
+
+`VoidhashClient::new` validates eagerly and returns `VoidhashError::Configuration` on a blank secret
+key, an invalid base URL, or an `x-secret-key` passed through `.header` in any casing.
+
+The client is cheap to clone (`Arc` internally) — create one and share it across handlers.
+</Step>
+
+</Steps>
+
+With the client configured, continue with [checking access](/libraries/rust/check-access) or
+[receiving webhooks](/libraries/rust/webhooks).
+
+## Resource methods
+
+Resources are exposed as fields on the client, mirroring the API reference:
+
+```rust
+use serde_json::json;
+
+let has_premium = voidhash
+    .entitlements
+    .has_active_perk(&voidhash::HasActivePerk {
+        distinct_id: "user_123".into(),
+        perk: voidhash::PerkSelector::Slug("premium".into()),
+    })
+    .await?;
+```
+
+Every method is an `async fn` returning `Result<T, VoidhashError>` with `T` deserialized into typed
+structs — no manual JSON unwrapping.

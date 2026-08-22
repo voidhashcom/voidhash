@@ -1,6 +1,6 @@
 title: Swift
 description: Native iOS apps with StoreKit 2.
-icon: AppWindowMac
+icon: svgl:swift
 pages:
   - index
   - quickstart

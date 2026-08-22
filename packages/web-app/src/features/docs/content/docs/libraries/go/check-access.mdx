@@ -1,0 +1,169 @@
+---
+title: Check access from your backend
+description: Gate server-side features on a customer's active perk grants.
+icon: ServerCog
+---
+
+Set up the [Go library with a secret key](/libraries/go) first. This page covers deciding access:
+gate server-side features on a customer's active perk grants.
+
+## Check a perk
+
+```go title="server/routes/export.go"
+func exportHandler(voidhash *voidhash.Client) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        hasPremium, err := voidhash.Entitlements.HasActivePerk(r.Context(), &voidhash.HasActivePerkParams{
+            DistinctID: userIDFrom(r),
+            PerkSlug:   voidhash.String("premium"),
+        })
+        if err != nil {
+            http.Error(w, "upstream error", http.StatusInternalServerError)
+            return
+        }
+
+        if !hasPremium {
+            w.WriteHeader(http.StatusPaymentRequired)
+            json.NewEncoder(w).Encode(map[string]string{"error": "premium_required"})
+            return
+        }
+
+        buildExport(w, r, userIDFrom(r))
+    }
+}
+```
+
+`DistinctID` is the same identifier your app passed to
+[`identify()`](/sdks/react-native/identify-users). Set **exactly one** of `PerkID` or `PerkSlug` —
+both or neither returns `ErrConfiguration` before any request is made.
+
+`PerkSlug` costs one extra `Perks.ListPerks` round trip to resolve. On a hot path, resolve the slug
+to its id once at boot and set `PerkID`.
+
+<Callout type="info" title="An unknown customer has no access">
+  `HasActivePerk` returns `false` for a `DistinctID` Voidhash has never seen, and for a `PerkSlug`
+  that matches no perk. It does **not** absorb authentication, authorization, `5xx`, or transport
+  failures — those return an error, so a mistyped secret key can never be mistaken for "nobody has
+  premium".
+</Callout>
+
+## Read the grants yourself
+
+When you need to render an account page, show an expiry date, or branch on where access came from,
+read the grants directly:
+
+```go
+grants, err := voidhash.Entitlements.GetGrantsByDistinctID(ctx, "user_123")
+```
+
+| Field            | Type                                                | Notes                                    |
+| ---------------- | --------------------------------------------------- | ---------------------------------------- |
+| `PerkID`         | `string`                                            | Match against the perk you care about.   |
+| `Status`         | `"active"\|"expired"`                               | Only `active` grants confer access.      |
+| `ExpiresAt`      | `*time.Time`                                        | `nil` never expires.                     |
+| `Source`         | `"subscription"\|"purchase"\|"manual"`              | How the grant was obtained.              |
+| `SourceID`       | `string`                                            | Empty when there is no backing source.   |
+| `SourcePersonID` | `string`                                            | Differs from the person on shared plans. |
+
+Unlike `HasActivePerk`, an unknown `DistinctID` is an error here, so the caller decides whether
+"never seen" and "seen, bought nothing" mean the same thing.
+
+The same two calls are available separately when you already hold a person id:
+
+```go
+person, err := voidhash.Persons.GetPersonByDistinctID(ctx, "user_123")
+
+entitlements, err := voidhash.Persons.GetPersonEntitlements(ctx, person.PersonID)
+```
+
+`Person` is intentionally thin — `PersonID`, `DistinctID`, `Email`, `Name` — because it identifies
+the customer, it does not describe what they paid for.
+
+## Handle errors deliberately
+
+API failures surface as `*voidhash.APIError`, which carries the HTTP status and the decoded server
+error whose `Tag` is stable. Transport failures (DNS, TLS, timeouts) return a plain error that wraps
+`*url.Error` instead.
+
+```go
+grants, err := voidhash.Entitlements.GetGrantsByDistinctID(ctx, "user_123")
+if err != nil {
+    var apiErr *voidhash.APIError
+    if errors.As(err, &apiErr) {
+        switch apiErr.Tag {
+        case "Api/PersonNotFoundError":
+            // Never identified from a client: nothing was ever bought.
+            return false
+        case "Api/NotAuthenticatedError", "Api/ActionForbiddenError":
+            // Our key is wrong. Our bug, not the customer's — do not lock them out.
+            return fmt.Errorf("voidhash secret key is invalid or lacks access: %w", apiErr)
+        default:
+            return err
+        }
+    }
+
+    // Transport failure: unknown, not "no access".
+    // Serve the last known good value or fail the request.
+    return err
+}
+
+hasPremium := false
+for _, grant := range grants.Grants {
+    if grant.PerkID == premiumPerkID && grant.Status == "active" {
+        hasPremium = true
+    }
+}
+```
+
+Common tags: `Api/NotAuthenticatedError` (401), `Api/ActionForbiddenError` (403),
+`Api/PersonNotFoundError` (404), `Api/WebhookEndpointNotFoundError` (404),
+`Api/WebhookValidationError` (400).
+
+## Live and development data
+
+Grants are scoped to an environment, and the server picks the scope from the `x-environment` request
+header:
+
+| `x-environment`        | Grants returned                                          |
+| ---------------------- | -------------------------------------------------------- |
+| absent or `production` | Real purchases — store production **and** store sandbox  |
+| `development`          | Only simulated purchases made by an SDK in a debug build |
+| `all`                  | Both of the above                                        |
+
+The library never sends the header for you, so a plain client always reads production and sandbox
+grants. To read [development purchases](/sdks/react-native/development-mode), create a second client:
+
+```go
+voidhashDevelopment, err := voidhash.New(
+    os.Getenv("VOIDHASH_SECRET_KEY"),
+    voidhash.WithHeader("x-environment", "development"),
+)
+```
+
+Secret keys are not environment-scoped — which key you use does not change the answer, only the
+header does.
+
+<Callout type="warn" title="Any other value silently means production">
+  An unrecognized `x-environment` value falls back to `production` instead of erroring. Never wire
+  the header directly to something like `GO_ENV`: a value of `"test"` would quietly read production
+  grants.
+</Callout>
+
+## Caching and failures
+
+The library does not cache, retry, or de-duplicate. Every call is a live HTTP round trip.
+
+For a check on every request, cache the result yourself for a short window — 60 seconds is a
+reasonable start — and refresh in the background. A single-flight wrapper (`golang.org/x/sync/singleflight`)
+in front of the cache collapses concurrent checks for the same person.
+
+When a call fails with a transport error or a `5xx`, treat the answer as **unknown**, not as *no
+access*. Serve the last known good value, or fail the request. Revoking a paying customer's access
+because of a network blip is worse than a slightly stale cache.
+
+To keep a cache warm without polling, subscribe to [webhooks](/libraries/go/webhooks) and invalidate
+the cached entry when a subscription or purchase event arrives for that person.
+
+## Next steps
+
+- [Receive webhooks](/libraries/go/webhooks)
+- [Persons in the API reference](/api/reference/persons/persons.getPersonEntitlements)

@@ -1,6 +1,6 @@
 title: React Native
 description: Expo and bare React Native apps on iOS and Android.
-icon: Smartphone
+icon: svgl:react
 pages:
   - index
   - quickstart

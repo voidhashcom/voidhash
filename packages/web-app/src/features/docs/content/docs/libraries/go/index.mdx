@@ -1,0 +1,75 @@
+---
+title: Go library
+description: Server-side client for the Voidhash REST API.
+icon: svgl:golang
+---
+
+Client-side checks decide what to render. Anything a customer could get by calling your API
+directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
+the server as well.
+
+`voidhash-go` wraps the Voidhash REST API and authenticates with a project secret key.
+
+## Install the module
+
+```sh
+go get github.com/voidhash/voidhash-go
+```
+
+Requires Go 1.22 or newer. The client uses only the standard library `net/http` — no cgo, no extra
+dependencies.
+
+<Steps>
+
+<Step>
+### Create a secret key
+
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+
+Store it in an environment variable or your secret manager. A secret key grants full project access:
+never put it in a mobile app, a web bundle, or a repository.
+</Step>
+
+<Step>
+### Create the client
+
+```go title="server/voidhash.go"
+import "github.com/voidhash/voidhash-go"
+
+voidhash, err := voidhash.New(os.Getenv("VOIDHASH_SECRET_KEY"))
+if err != nil {
+    log.Fatalf("create voidhash client: %v", err)
+}
+```
+
+| Option                  | Default                    | Use                                                    |
+| ----------------------- | -------------------------- | ------------------------------------------------------ |
+| `New(secretKey)`        | —                          | Required. Sent as the `x-secret-key` header.           |
+| `WithBaseURL(url)`      | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.  |
+| `WithHeader(key, value)`| none                       | Extra headers added to every request from this client. |
+
+`New` validates eagerly and returns `ErrConfiguration` on a blank secret key, an invalid base URL,
+or an `x-secret-key` passed through `WithHeader` in any casing.
+
+The client is safe for concurrent use — create one at startup and share it across handlers.
+</Step>
+
+</Steps>
+
+With the client configured, continue with [checking access](/libraries/go/check-access) or
+[receiving webhooks](/libraries/go/webhooks).
+
+## Resource methods
+
+Resources are exposed as services on the client, mirroring the API reference. Every method takes a
+`context.Context` first:
+
+```go
+hasPremium, err := voidhash.Entitlements.HasActivePerk(ctx, &voidhash.HasActivePerkParams{
+    DistinctID: "user_123",
+    PerkSlug:   voidhash.String("premium"),
+})
+```
+
+Responses are typed structs generated from the API schemas; optional inputs are pointers with
+`voidhash.String`, `voidhash.Bool`, and friends.

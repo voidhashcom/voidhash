@@ -1,0 +1,7 @@
+title: Go
+description: Server-side client for the Voidhash API with context-aware methods.
+icon: svgl:golang
+pages:
+  - index
+  - check-access
+  - webhooks

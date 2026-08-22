@@ -1,0 +1,171 @@
+---
+title: Check access from your backend
+description: Gate server-side features on a customer's active perk grants.
+icon: ServerCog
+---
+
+Set up the [Rust library with a secret key](/libraries/rust) first. This page covers deciding access:
+gate server-side features on a customer's active perk grants.
+
+## Check a perk
+
+```rust title="src/routes/export.rs"
+async fn export(
+    State(voidhash): State<VoidhashClient>,
+    Json(claims): Json<Claims>,
+) -> Result<Json<Value>, ApiError> {
+    let has_premium = voidhash
+        .entitlements
+        .has_active_perk(&voidhash::HasActivePerk {
+            distinct_id: claims.sub.clone(),
+            perk: voidhash::PerkSelector::Slug("premium".into()),
+        })
+        .await?;
+
+    if !has_premium {
+        return Err(ApiError::PaymentRequired("premium_required"));
+    }
+
+    let export = build_export(&claims.sub).await?;
+    Ok(Json(export))
+}
+```
+
+`distinct_id` is the same identifier your app passed to
+[`identify()`](/sdks/react-native/identify-users). Pass **exactly one** of `perk` id or slug —
+`PerkSelector::Id` or `PerkSelector::Slug`. Both or neither is `VoidhashError::Configuration`
+before any request is made.
+
+`Slug` costs one extra `perks.list_perks` round trip to resolve. On a hot path, resolve the slug to
+its id once at boot and pass `Id`.
+
+<Callout type="info" title="An unknown customer has no access">
+  `has_active_perk` returns `false` for a `distinct_id` Voidhash has never seen, and for a slug that
+  matches no perk. It does **not** absorb authentication, authorization, `5xx`, or transport
+  failures — those return `Err`, so a mistyped secret key can never be mistaken for "nobody has
+  premium".
+</Callout>
+
+## Read the grants yourself
+
+When you need to render an account page, show an expiry date, or branch on where access came from,
+read the grants directly:
+
+```rust
+let grants = voidhash
+    .entitlements
+    .get_grants_by_distinct_id("user_123")
+    .await?;
+```
+
+| Field             | Type                                                | Notes                                    |
+| ----------------- | --------------------------------------------------- | ---------------------------------------- |
+| `perk_id`         | `String`                                            | Match against the perk you care about.   |
+| `status`          | `GrantStatus::Active \| GrantStatus::Expired`       | Only `Active` grants confer access.      |
+| `expires_at`      | `Option<DateTime<Utc>>`                             | `None` never expires.                    |
+| `source`          | `GrantSource::Subscription \| Purchase \| Manual`   | How the grant was obtained.              |
+| `source_id`       | `Option<String>`                                    | The subscription or purchase behind it.  |
+| `source_person_id`| `String`                                            | Differs from the person on shared plans. |
+
+Unlike `has_active_perk`, an unknown `distinct_id` is an error here, so the caller decides whether
+"never seen" and "seen, bought nothing" mean the same thing.
+
+The same two calls are available separately when you already hold a `person_id`:
+
+```rust
+let person = voidhash
+    .persons
+    .get_person_by_distinct_id("user_123")
+    .await?;
+
+let entitlements = voidhash
+    .persons
+    .get_person_entitlements(&person.person_id)
+    .await?;
+```
+
+`Person` is intentionally thin — `person_id`, `distinct_id`, `email`, `name` — because it identifies
+the customer, it does not describe what they paid for.
+
+## Handle errors deliberately
+
+`VoidhashError` is an enum:
+
+| Variant                       | Meaning                                                              |
+| ----------------------------- | -------------------------------------------------------------------- |
+| `Configuration(String)`       | Invalid client setup; raised before any request is made.             |
+| `Api { status, tag, message }`| The server rejected the call; `tag` is the stable error `_tag`.      |
+| `Transport(Arc<dyn Error>)`   | DNS, TLS, timeout — no response body exists.                         |
+
+```rust
+match voidhash.entitlements.get_grants_by_distinct_id("user_123").await {
+    Ok(grants) => Ok(grants.iter().any(|grant| {
+        grant.perk_id == premium_perk_id && grant.status == GrantStatus::Active
+    })),
+    Err(VoidhashError::Api { tag, .. }) => match tag.as_str() {
+        "Api/PersonNotFoundError" =>
+            // Never identified from a client: nothing was ever bought.
+            Ok(false),
+        "Api/NotAuthenticatedError" | "Api/ActionForbiddenError" =>
+            // Our key is wrong. Our bug, not the customer's — do not lock them out.
+            Err(anyhow!("Voidhash secret key is invalid or lacks access.")),
+        _ => Err(anyhow!(tag)),
+    },
+    Err(e @ VoidhashError::Transport(_)) =>
+        // Unknown, not "no access": serve the last known good value or fail the request.
+        Err(e.into()),
+    Err(e) => Err(e.into()),
+}
+```
+
+Common tags: `Api/NotAuthenticatedError` (401), `Api/ActionForbiddenError` (403),
+`Api/PersonNotFoundError` (404), `Api/WebhookEndpointNotFoundError` (404),
+`Api/WebhookValidationError` (400).
+
+## Live and development data
+
+Grants are scoped to an environment, and the server picks the scope from the `x-environment` request
+header:
+
+| `x-environment`        | Grants returned                                          |
+| ---------------------- | -------------------------------------------------------- |
+| absent or `production` | Real purchases — store production **and** store sandbox  |
+| `development`          | Only simulated purchases made by an SDK in a debug build |
+| `all`                  | Both of the above                                        |
+
+The library never sends the header for you, so a plain client always reads production and sandbox
+grants. To read [development purchases](/sdks/react-native/development-mode), build a second client:
+
+```rust
+let voidhash_development = VoidhashClient::new(secret_key)?
+    .header("x-environment", "development");
+```
+
+Secret keys are not environment-scoped — which key you use does not change the answer, only the
+header does.
+
+<Callout type="warn" title="Any other value silently means production">
+  An unrecognized `x-environment` value falls back to `production` instead of erroring. Never wire
+  the header directly to something like `PROFILE`: a value of `"test"` would quietly read production
+  grants.
+</Callout>
+
+## Caching and failures
+
+The library does not cache, retry, or de-duplicate. Every call is a live HTTP round trip.
+
+For a check on every request, cache the result yourself for a short window — 60 seconds is a
+reasonable start — and refresh in the background. A `moka` or `quick-cache` instance keyed by
+`distinct_id` works well; keep the TTL short enough that a revoked grant expires quickly.
+
+When a call fails with a transport error or a `5xx`, treat the answer as **unknown**, not as *no
+access*. Serve the last known good value, or fail the request. Revoking a paying customer's access
+because of a network blip is worse than a slightly stale cache.
+
+To keep a cache warm without polling, subscribe to [webhooks](/libraries/rust/webhooks) and invalidate
+the cached entry when a subscription or purchase event arrives for that person.
+
+## Next steps
+
+- [Receive webhooks](/libraries/rust/webhooks)
+- [Persons in the API reference](/api/reference/persons/persons.getPersonEntitlements)

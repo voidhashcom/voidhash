@@ -6,14 +6,25 @@ pages:
   - introduction
   - quickstart
   - "---Setup---"
-  - setup
+  - setup/index
+  - setup/create-a-project
+  - setup/products-and-perks
+  - setup/paywall-locations
+  - setup/cli
   - "---Mobile SDKs---"
-  - sdks
+  - sdks/swift
+  - sdks/kotlin
+  - sdks/react-native
   - "---Store setup---"
-  - store-setup
-  - "---Backend integration---"
-  - backend
+  - store-setup/apple-app-store
+  - store-setup/google-play
+  - "---API libraries---"
+  - libraries/node
+  - libraries/php
+  - libraries/rust
+  - libraries/go
   - "---Resources---"
-  - resources
+  - resources/mcp
+  - resources/observer-mode
   - "---API reference---"
   - api

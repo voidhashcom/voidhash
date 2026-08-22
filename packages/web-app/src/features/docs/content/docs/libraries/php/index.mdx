@@ -1,0 +1,75 @@
+---
+title: PHP library
+description: Server-side client for the Voidhash REST API.
+icon: svgl:php
+---
+
+Client-side checks decide what to render. Anything a customer could get by calling your API
+directly — an export endpoint, a model with a real cost, a premium download — has to be checked on
+the server as well.
+
+`voidhash/voidhash-php` wraps the Voidhash REST API and authenticates with a project secret key.
+
+## Install the library
+
+```sh
+composer require voidhash/voidhash-php
+```
+
+Requires PHP 8.1+ with the `curl`, `json`, and `mbstring` extensions — present in every common
+PHP build.
+
+<Steps>
+
+<Step>
+### Create a secret key
+
+In Studio, open **Settings → API Keys** and create a secret key. The raw value is shown once.
+
+Store it in an environment variable or your secret manager. A secret key grants full project access:
+never put it in a mobile app, a web bundle, or a repository.
+</Step>
+
+<Step>
+### Create the client
+
+```php title="src/Voidhash.php"
+use Voidhash\Client;
+
+$voidhash = new Client(getenv("VOIDHASH_SECRET_KEY"));
+```
+
+| Constructor argument | Default                    | Use                                                    |
+| -------------------- | -------------------------- | ------------------------------------------------------ |
+| `$secretKey`         | —                          | Required. Sent as the `x-secret-key` header.           |
+| `$baseUrl`           | `https://api.voidhash.com` | Override the API origin. Must be `http:` or `https:`.  |
+| `$headers`           | `[]`                       | Extra headers added to every request from this client. |
+
+The constructor validates eagerly and throws `Voidhash\ConfigurationException` on a blank
+`$secretKey`, an invalid `$baseUrl`, or an `x-secret-key` passed through `$headers` in any casing.
+</Step>
+
+</Steps>
+
+With the client configured, continue with [checking access](/libraries/php/check-access) or
+[receiving webhooks](/libraries/php/webhooks).
+
+## Resource methods
+
+Resources are exposed as objects with fluent accessors:
+
+```php
+$hasPremium = $voidhash->entitlements()->hasActivePerk(
+    distinctId: "user_123",
+    perkSlug: "premium",
+);
+
+$endpoint = $voidhash->webhooks()->createWebhookEndpoint(
+    name: "production-backend",
+    url: "https://api.example.com/webhooks/voidhash",
+    events: ["subscription.created", "purchase.completed"],
+);
+```
+
+Every method returns a decoded associative array shaped exactly like the JSON response documented
+in the API reference — there is no response wrapper to unwrap.

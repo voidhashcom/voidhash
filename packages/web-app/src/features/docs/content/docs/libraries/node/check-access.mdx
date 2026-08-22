@@ -4,8 +4,8 @@ description: Gate server-side features on a customer's active perk grants.
 icon: ServerCog
 ---
 
-Set up the [Node SDK with a secret key](/backend) first. This page covers deciding access: gate
-server-side features on a customer's active perk grants.
+Set up the [Node.js library with a secret key](/libraries/node) first. This page covers deciding
+access: gate server-side features on a customer's active perk grants.
 
 ## Check a perk
 
@@ -150,10 +150,10 @@ When a call fails with a transport error or a `5xx`, treat the answer as **unkno
 access*. Serve the last known good value, or fail the request. Revoking a paying customer's access
 because of a network blip is worse than a slightly stale cache.
 
-To keep a cache warm without polling, subscribe to [webhooks](/backend/webhooks) and invalidate the
+To keep a cache warm without polling, subscribe to [webhooks](/libraries/node/webhooks) and invalidate the
 cached entry when a subscription or purchase event arrives for that person.
 
 ## Next steps
 
-- [Receive webhooks](/backend/webhooks)
+- [Receive webhooks](/libraries/node/webhooks)
 - [Persons in the API reference](/api/reference/persons/persons.getPersonEntitlements)
