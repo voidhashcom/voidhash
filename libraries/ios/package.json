@@ -35,6 +35,6 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "test:swift": "swift test --package-path ."
+    "test:swift": "swift test --package-path Tests"
   }
 }

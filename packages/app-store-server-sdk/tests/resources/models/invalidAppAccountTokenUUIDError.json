@@ -1,4 +1,0 @@
-{
-  "errorCode": 4000183,
-  "errorMessage": "Invalid request. The app account token field must be a valid UUID."
-}

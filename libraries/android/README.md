@@ -169,13 +169,3 @@ voidhash.shutdown()
 ```
 
 Flushes analytics and ends the Play Billing connection.
-
-## Tests
-
-```sh
-pnpm --filter @voidhash/android test:kotlin
-```
-
-Runs `:core:testDebugUnitTest` and `:sdk:testDebugUnitTest` with the Gradle wrapper shipped by
-`@react-native/gradle-plugin`. The suites are plain JVM unit tests (JUnit4, mockk, OkHttp
-`MockWebServer`) — no emulator required.

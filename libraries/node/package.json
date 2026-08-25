@@ -73,7 +73,6 @@
   },
   "devDependencies": {
     "@voidhash/generated-clients": "workspace:*",
-    "@voidhash/sdk-test-harness": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
     "tsup": "^8.5.1",
     "tsx": "^4.19.3",

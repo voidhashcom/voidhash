@@ -64,7 +64,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit -p tsconfig.test.json",
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "expo-module build && tsc -p tsconfig.metro.json",
     "test": "vitest --config vitest.unit.mts run",
     "test:android-purchase-coordinator": "\"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))\")/gradlew\" -p android/coordinator-tests test --no-daemon",
@@ -81,7 +81,6 @@
     "@noble/hashes": "^2.2.0",
     "@voidhash/android": "workspace:*",
     "@voidhash/generated-clients": "workspace:*",
-    "@voidhash/sdk-test-harness": "workspace:*",
     "@voidhash/ios": "workspace:*",
     "better-result": "3.0.1"
   },

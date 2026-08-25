@@ -11,13 +11,5 @@ let package = Package(
     targets: [
         .target(name: "VoidhashCore"),
         .target(name: "Voidhash", dependencies: ["VoidhashCore"]),
-        .testTarget(
-            name: "VoidhashCoreTests",
-            dependencies: ["VoidhashCore"]
-        ),
-        .testTarget(
-            name: "VoidhashTests",
-            dependencies: ["Voidhash"]
-        ),
     ]
 )

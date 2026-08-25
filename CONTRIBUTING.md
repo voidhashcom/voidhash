@@ -39,8 +39,9 @@ Voidhash uses Node.js 24 and pnpm 11. From the repository root:
 corepack enable
 corepack prepare pnpm@11.21.0 --activate
 pnpm install --frozen-lockfile
+pnpm lint
 pnpm typecheck
-pnpm test
+pnpm build
 ```
 
 Use `pnpm check:publication` to validate license metadata and the repository
@@ -65,13 +66,11 @@ Alchemy serves the backend on `http://localhost:8787` and the web application
 on `http://localhost:3000`. Ports are strict so local links cannot silently move
 between runs.
 
-## Testing
+## Validation
 
-Run the smallest relevant package tests while iterating, then run the repository
-typecheck and test graph before requesting review. `pnpm test:integration`
-provisions the test-only Node fixture used by database and optional Node adapter
-tests. Use `pnpm test:infra:up` and `pnpm test:infra:down` when debugging that
-fixture directly.
+Run the repository lint, typecheck, and build before requesting review. The
+maintainer import workflow runs the private test suite against the proposed
+change before it can merge.
 
 ## License zones
 

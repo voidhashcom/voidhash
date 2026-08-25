@@ -888,9 +888,6 @@ importers:
       '@voidhash/generated-clients':
         specifier: workspace:*
         version: link:../../packages/generated-clients
-      '@voidhash/sdk-test-harness':
-        specifier: workspace:*
-        version: link:../../packages/sdk-test-harness
       '@voidhash/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -967,9 +964,6 @@ importers:
       '@voidhash/ios':
         specifier: workspace:*
         version: link:../ios
-      '@voidhash/sdk-test-harness':
-        specifier: workspace:*
-        version: link:../../packages/sdk-test-harness
       better-result:
         specifier: 3.0.1
         version: 3.0.1

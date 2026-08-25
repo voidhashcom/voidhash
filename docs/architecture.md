@@ -47,9 +47,7 @@ flowchart TD
 - `packages/core`, `packages/db`, `packages/rpc`, and the remaining service
   packages own portable application and domain behavior.
   Runtime backends are selected per primitive, not per provider, so a deployment
-  can move one primitive to a managed service without touching the others. Every
-  adapter is validated against the shared conformance suite in
-  `@voidhash/platform/conformance`.
+  can move one primitive to a managed service without touching the others.
 
 The publication-boundary check rejects non-Community package scopes and
 incomplete package license metadata from this repository.

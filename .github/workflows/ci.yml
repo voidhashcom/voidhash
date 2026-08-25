@@ -16,61 +16,16 @@ on:
 permissions:
   contents: read
 
-# Superseded PR pushes cancel their stale runs; main never cancels, so every
-# main commit keeps a complete CI verdict.
 concurrency:
   group: repository-ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  # Keeps turbo within the runner's 4 vCPUs; the scripts stay flag-free so the
-  # local and CI invocations are the same command.
   TURBO_CONCURRENCY: 2
 
-# Parallel lanes keep the integration and purchase/restore contracts from
-# blocking the verify tier. All lanes belong to this workflow, so anything
-# keyed off the overall Repository CI conclusion is unaffected.
 jobs:
-  # The purchase/restore lane only exercises the React Native library, the
-  # paywalls artifact it builds, and the RN example app's Android project — so
-  # PRs touching none of those skip its gradle chain. Pushes always run it.
-  gate:
-    name: Gate (paths)
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      purchase_restore: ${{ steps.paths.outputs.run }}
-    steps:
-      - name: Decide whether the purchase/restore lane runs
-        id: paths
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          changed=$(gh api --paginate \
-            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" \
-            --jq '.[].filename')
-          # Not `grep -q`: under pipefail an early-exiting grep can SIGPIPE the
-          # producer and turn a match into a false negative on huge file lists.
-          if printf '%s\n' "$changed" | grep -E \
-            '^libraries/|^examples/react-native-example/|^package\.json$|^pnpm-lock\.yaml$|^pnpm-workspace\.yaml$|^\.github/workflows/ci\.yml$' \
-            > /dev/null; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Skipping purchase/restore lane::No change under libraries/, the RN example app or the workspace manifests."
-          fi
-
   verify:
-    name: Verify (checks, lint, typecheck, unit tier)
+    name: Verify (build, checks, lint, typecheck)
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 30
@@ -104,103 +59,5 @@ jobs:
       - name: Build
         run: pnpm build --concurrency=2
 
-      # The same command developers run locally; it already includes the
-      # publication-boundary, platform-seam and test-tier checks. The
-      # database-backed tier runs in the `integration` job below; together they
-      # cover `pnpm verify`.
-      - name: Verify (lint + typecheck + unit tier)
+      - name: Verify (checks, lint, typecheck)
         run: pnpm verify:quick
-
-  integration:
-    name: Integration tier
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 20
-    # A real PostgreSQL, not PGlite: PGlite multiplexes pooled connections onto a
-    # single backend, so a statement error can discard work another connection
-    # committed. The suites must fail on regressions, not on that.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: voidhash
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: voidhash
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U voidhash -d voidhash"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build integration dependencies
-        run: pnpm --filter @voidhash/paywalls build
-
-      - name: Integration tier
-        run: pnpm test:integration
-
-  # Only the work the verify lane does NOT already cover: the Nitrogen specs,
-  # the Android purchase-coordinator gradle test and the example app's native
-  # compile. The RN/backend unit suites and every package typecheck run once,
-  # in the verify lane's turbo graph.
-  purchase-restore:
-    name: Purchase and restore contracts
-    needs: gate
-    if: needs.gate.outputs.purchase_restore == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # The wrapper downloads the gradle distribution from services.gradle.org
-      # on every fresh runner, and a regional 503 there fails the whole lane.
-      # Caching the wrapper dists and the dependency modules removes that
-      # external single point of failure (after one seeded run) along with the
-      # download time.
-      - name: Restore gradle cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/wrapper
-            ~/.gradle/caches/modules-2
-          key: gradle-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-
-      - name: Validate purchase and restore contracts
-        run: pnpm test:purchase-restore

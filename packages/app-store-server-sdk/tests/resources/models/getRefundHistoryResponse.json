@@ -1,8 +1,0 @@
-{
-  "signedTransactions": [
-    "signed_transaction_one",
-    "signed_transaction_two"
-  ],
-  "revision": "revision_output",
-  "hasMore": true
-}
