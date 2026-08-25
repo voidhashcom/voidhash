@@ -1,6 +1,10 @@
 /**
  * Apple App Store Server-to-Server notification endpoint —
- * `POST /api/v1/webhook-endpoints/apple-server-to-server/:paymentProviderConfigurationId`.
+ * `POST /api/v1/inbound-webhooks/apple-server-to-server/:paymentProviderConfigurationId`.
+ *
+ * Renamed from `/api/v1/webhook-endpoints/apple-server-to-server/…`, which collided with the
+ * outbound `webhooks` management group. Only Apple calls this path, so the
+ * cutover is a provider-console reconfiguration.
  *
  * Decodes the signed-payload envelope (`{ signedPayload: string }`) and
  * forwards to `AppStorePaymentProviderService.acceptServerNotification`,
@@ -47,7 +51,7 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
 
   yield* router.add(
     "POST",
-    "/api/v1/webhook-endpoints/apple-server-to-server/:paymentProviderConfigurationId",
+    "/api/v1/inbound-webhooks/apple-server-to-server/:paymentProviderConfigurationId",
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(

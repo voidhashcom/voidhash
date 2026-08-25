@@ -9,6 +9,7 @@ use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\CreatePaywallDeployResponseJsonEncoding;
 use Voidhash\Generated\Core\Model\FinalizePaywallDeployResponseJsonEncoding;
 use Voidhash\Generated\Core\Model\PaywallLocationJsonEncoding;
+use Voidhash\Internal\PageCollector;
 
 final class PaywallsResource
 {
@@ -19,7 +20,11 @@ final class PaywallsResource
     /** @return list<PaywallLocationJsonEncoding> */
     public function locations(): array
     {
-        return $this->wrap(fn () => $this->core->paywallLocationsListPaywallLocations() ?? []);
+        return $this->wrap(
+            fn () => PageCollector::collect(
+                fn (array $query) => $this->core->paywallLocationsListPaywallLocations($query),
+            ),
+        );
     }
 
     /**

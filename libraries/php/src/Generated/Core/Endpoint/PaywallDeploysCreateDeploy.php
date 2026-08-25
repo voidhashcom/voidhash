@@ -53,7 +53,7 @@ class PaywallDeploysCreateDeploy extends \Voidhash\Generated\Core\Runtime\Client
             throw new \Voidhash\Generated\Core\Exception\PaywallDeploysCreateDeployBadRequestException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiPaywallDeployUpgradeRequiredErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\PaywallDeploysCreateDeployUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\PaywallDeploysCreateDeployUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaywallDeploysCreateDeployForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

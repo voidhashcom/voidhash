@@ -168,6 +168,7 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
           readonly locationId: string;
           readonly name?: string;
           readonly description?: string | null;
+          readonly projectId?: string;
         }) {
           const session = yield* AuthSession;
           yield* Effect.annotateCurrentSpan("voidhash.auth.method", session.method);
@@ -187,9 +188,9 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             );
           }
           yield* Effect.annotateCurrentSpan("voidhash.paywall_location.id", input.locationId);
-          const location = yield* db.query.paywallLocations.findFirst({
-            where: { id: input.locationId },
-          });
+          const locationWhere: { id: string; projectId?: string } = { id: input.locationId };
+          if (input.projectId !== undefined) locationWhere.projectId = input.projectId;
+          const location = yield* db.query.paywallLocations.findFirst({ where: locationWhere });
           if (!location) {
             return yield* Effect.fail(
               new PaywallLocationNotFoundError({

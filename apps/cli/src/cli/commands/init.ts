@@ -102,8 +102,8 @@ export const initCommand = Command.make("init", {}, () =>
     // Sanity-check that a publishable key exists for this project; we don't
     // need to write it anywhere (the user puts it in their app code), but a
     // missing key is a configuration problem we should surface now.
-    const apiKeys = yield* apiClient.apiKeysListApiKeys();
-    const publishableApiKey = apiKeys.find(
+    const apiKeysPage = yield* apiClient.apiKeysListApiKeys();
+    const publishableApiKey = apiKeysPage.data.find(
       (apiKey) => apiKey.isPublic && apiKey.projectId === project.id,
     );
     if (!publishableApiKey?.rawKey?.startsWith("vh_pk_")) {

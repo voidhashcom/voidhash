@@ -8,6 +8,20 @@ import {
   apiProjectsOrgsSuite,
   apiWebhooksSuite,
 } from "./api-suites";
+import {
+  apiAnalyticsSuite,
+  apiDevelopmentSuite,
+  apiExperimentsSuite,
+  apiFeatureFlagsSuite,
+  apiNotificationSendsSuite,
+  apiOrganizationsSuite,
+  apiPaymentProvidersSuite,
+  apiPaywallDeployReadsSuite,
+  apiPaywallLocationsSuite,
+  apiPaywallsSuite,
+  apiProductsSuite,
+  apiPushNotificationConfigurationsSuite,
+} from "./api-management-suites";
 import type { ConformanceSuite } from "../types";
 
 /** Suite used by harness self-tests to exercise multi-response (retry) steps. */
@@ -36,6 +50,18 @@ const SUITES: ReadonlyArray<ConformanceSuite> = [
   apiCatalogSuite,
   apiNotificationsSuite,
   apiPaywallDeploysSuite,
+  apiOrganizationsSuite,
+  apiProductsSuite,
+  apiPaymentProvidersSuite,
+  apiPaywallsSuite,
+  apiPaywallLocationsSuite,
+  apiPaywallDeployReadsSuite,
+  apiFeatureFlagsSuite,
+  apiExperimentsSuite,
+  apiAnalyticsSuite,
+  apiDevelopmentSuite,
+  apiPushNotificationConfigurationsSuite,
+  apiNotificationSendsSuite,
   mobileCoreSuite,
   testRetrySuite,
 ];

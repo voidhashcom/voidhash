@@ -1,0 +1,7 @@
+{
+  "title": "Notification_sends",
+  "pages": [
+    "notification_sends.listNotificationSends",
+    "notification_sends.listNotificationSendDeliveries"
+  ]
+}

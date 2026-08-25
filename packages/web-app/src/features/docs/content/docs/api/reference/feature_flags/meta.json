@@ -1,0 +1,13 @@
+{
+  "title": "Feature_flags",
+  "pages": [
+    "feature_flags.listFeatureFlags",
+    "feature_flags.createFeatureFlag",
+    "feature_flags.getFeatureFlag",
+    "feature_flags.updateFeatureFlag",
+    "feature_flags.archiveFeatureFlag",
+    "feature_flags.restoreFeatureFlag",
+    "feature_flags.replaceFeatureFlagVariants",
+    "feature_flags.evaluateProjectFeatureFlags"
+  ]
+}

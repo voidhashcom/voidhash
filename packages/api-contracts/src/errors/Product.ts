@@ -30,3 +30,12 @@ export class ApiProductSlugAlreadyExistsError extends Schema.TaggedErrorClass<Ap
     return `The following product slug already exists: ${this.slug}`;
   }
 }
+
+/** Product payload failed validation (unknown type, missing duration, …) */
+export class ApiProductValidationError extends Schema.TaggedErrorClass<ApiProductValidationError>()(
+  "Api/ProductValidationError",
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 400 },
+) {}

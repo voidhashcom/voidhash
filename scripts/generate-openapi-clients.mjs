@@ -20,6 +20,21 @@ const OpenApiSpec = Schema.fromJsonString(
 
 const decodeSpec = Schema.decodeUnknownEffect(OpenApiSpec);
 
+const RenamedOpenApiSpec = Schema.fromJsonString(
+  Schema.Struct({
+    components: Schema.optionalKey(
+      Schema.Struct({
+        schemas: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+      }),
+    ),
+  }),
+);
+
+const decodeRenamedSpec = Schema.decodeUnknownEffect(RenamedOpenApiSpec);
+
+const isRecord = (value) =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 /**
  * Turns a bare host (`localhost:8787`, `api.voidhash.com`) into an absolute URL,
  * defaulting to plaintext for loopback hosts and TLS everywhere else.
@@ -107,8 +122,85 @@ const run = (repoRoot, command, args) =>
 /** Carries a child process's own exit code up to the teardown handler. */
 class ChildFailed extends Data.TaggedError("ChildFailed") {}
 
+/**
+ * Names the anonymous schemas the core document emits, so the native SDKs get
+ * readable types instead of positional `Objects1` / `Union1` — and so
+ * oapi-codegen does not collide two of them onto the same Go typename.
+ *
+ * These are POSITIONAL: `Objects_N` numbering depends on traversal order, so a
+ * contract change can renumber them. `assertRenamedSchemas` below checks each
+ * renamed schema still has the shape its name claims, turning a silent
+ * mislabelling into a failed generation. Most response schemas avoid this
+ * entirely by carrying an `identifier` annotation; the ones left here are those
+ * reused with an `HttpApiSchema.status` override, which cannot be annotated
+ * because the override produces a second AST with the same identifier.
+ */
+const CORE_SCHEMA_RENAMES = [
+  "--rename-schema",
+  "Objects_=PaymentProviderConfigurationSummary",
+  "--rename-schema",
+  "Objects_1=ProviderConfigurationPresence",
+  "--rename-schema",
+  "Objects_3=PaymentProviderProductSummary",
+  "--rename-schema",
+  "Objects_4=PersonAttributeValues",
+  "--rename-schema",
+  "Objects_5=PushNotificationConfigurationSummary",
+  "--rename-schema",
+  "Union_=AnalyticsFilterNode",
+  "--rename-schema",
+  "Union_1=NullableStringList",
+];
+
+/** A property each renamed schema must still expose, as a shape guard. */
+const RENAMED_SCHEMA_MARKERS = {
+  AnalyticsFilterNode: "anyOf",
+  PaymentProviderConfigurationSummary: "configurationPresence",
+  PaymentProviderProductSummary: "providerProductKey",
+  PushNotificationConfigurationSummary: "pushProviderKey",
+};
+
+/**
+ * Verifies each positionally-renamed schema still looks like what its new name
+ * says. `Objects_N` numbering shifts when the contracts change, so without this
+ * a renumber would quietly ship a `PersonAttributeValues` that is actually a
+ * payment configuration.
+ *
+ * @param {string} specPath
+ * @param {FileSystem.FileSystem} fileSystem
+ */
+const assertRenamedSchemas = (specPath, fileSystem) =>
+  Effect.gen(function* () {
+    const text = yield* fileSystem.readFileString(specPath);
+    const spec = yield* decodeRenamedSpec(text).pipe(
+      Effect.mapError(
+        (cause) =>
+          new GenerateError({ message: "The renamed OpenAPI schema is not valid JSON.", cause }),
+      ),
+    );
+    const schemas = spec.components?.schemas ?? {};
+    const wrong = Object.entries(RENAMED_SCHEMA_MARKERS).flatMap(([name, marker]) => {
+      const schema = schemas[name];
+      if (!isRecord(schema)) return [`${name} is missing`];
+      const properties = schema["properties"];
+      const present =
+        marker in schema ||
+        (isRecord(properties) && marker in properties);
+      if (present) return [];
+      return [`${name} no longer has "${marker}"`];
+    });
+    if (wrong.length === 0) return;
+    return yield* new GenerateError({
+      message:
+        `Anonymous-schema renames are stale (${wrong.join("; ")}). ` +
+        "Re-inspect the Objects_/Union_ names in the downgraded spec and update CORE_SCHEMA_RENAMES.",
+    });
+  });
+
 const USAGE =
-  "Usage: node ./scripts/generate-openapi-clients.mjs <host>\nExample: node ./scripts/generate-openapi-clients.mjs localhost:8787";
+  "Usage: node ./scripts/generate-openapi-clients.mjs [host]\n" +
+  "  no host  generate the specs offline from the contracts (the default)\n" +
+  "  <host>   fetch the specs from a running stage, e.g. localhost:8787";
 
 const program = Effect.gen(function* () {
   const path = yield* Path.Path;
@@ -122,23 +214,42 @@ const program = Effect.gen(function* () {
   const openapiRoot = path.join(generatedClientsRoot, "openapi");
 
   const rawHost = (yield* stdio.args).find((arg) => arg !== "--")?.trim();
-  if (!rawHost) {
+  if (rawHost === "--help" || rawHost === "-h") {
     yield* Console.error(USAGE);
-    return yield* new ChildFailed({ code: 1 });
+    return 0;
   }
 
-  const baseUrl = normalizeHost(rawHost);
-  const coreSpecUrl = new URL("/api/docs/openapi.json", baseUrl).toString();
-  const eventCaptureSpecUrl = new URL("/i/docs/openapi.json", baseUrl).toString();
   const coreSpecPath = path.join(openapiRoot, "core.json");
   const eventCaptureSpecPath = path.join(openapiRoot, "event-capture.json");
 
   yield* fileSystem.makeDirectory(openapiRoot, { recursive: true });
 
-  const [coreSpecText, eventCaptureSpecText] = yield* Effect.all(
-    [fetchText(coreSpecUrl), fetchText(eventCaptureSpecUrl)],
-    { concurrency: "unbounded" },
-  );
+  // Offline is the default: `HttpApiBuilder.layer({ openapiPath })` serves
+  // exactly `OpenApi.fromApi(api)`, so emitting straight from the contracts
+  // yields the document a stage would serve — and lets a contract change and
+  // its regenerated clients land in one commit. Passing a host still fetches
+  // from a running stage, which is the way to verify the two agree.
+  const specTexts = yield* Effect.gen(function* () {
+    if (rawHost) {
+      return yield* Effect.all(
+        [
+          fetchText(new URL("/api/docs/openapi.json", normalizeHost(rawHost)).toString()),
+          fetchText(new URL("/i/docs/openapi.json", normalizeHost(rawHost)).toString()),
+        ],
+        { concurrency: "unbounded" },
+      );
+    }
+    yield* run(repoRoot, "./node_modules/.bin/tsx", [
+      "packages/api-contracts/scripts/emit-openapi-specs.ts",
+      coreSpecPath,
+      eventCaptureSpecPath,
+    ]);
+    return yield* Effect.all([
+      fileSystem.readFileString(coreSpecPath),
+      fileSystem.readFileString(eventCaptureSpecPath),
+    ]);
+  });
+  const [coreSpecText, eventCaptureSpecText] = specTexts;
 
   yield* assertSpec(
     coreSpecText,
@@ -199,13 +310,11 @@ const program = Effect.gen(function* () {
   const downgradedCorePath = path.join(openapiRoot, "core-3.0.json");
   yield* run(repoRoot, "node", [
     "./scripts/openapi-downgrade.mjs",
-    "--rename-schema",
-    "Objects_=PersonAttributeValues",
-    "--rename-schema",
-    "Objects_1=ProviderConfiguration",
+    ...CORE_SCHEMA_RENAMES,
     coreSpecPath,
     downgradedCorePath,
   ]);
+  yield* assertRenamedSchemas(downgradedCorePath, fileSystem);
 
   const downgradedEventCapturePath = path.join(openapiRoot, "event-capture-3.0.json");
   yield* run(repoRoot, "node", [
@@ -247,16 +356,11 @@ const program = Effect.gen(function* () {
   const rustCorePath = path.join(openapiRoot, "core-3.0.rust.json");
   yield* run(repoRoot, "node", [
     "./scripts/openapi-downgrade.mjs",
-    "--rename-schema",
-    "Objects_=PersonAttributeValues",
-    "--rename-schema",
-    "Objects_1=ProviderConfiguration",
+    ...CORE_SCHEMA_RENAMES,
     // `PersonAttributeValues` is the person-traits map, whose values are a
     // scalar union. progenitor renders that union as a struct of flattened
     // options, which cannot deserialize a bare `3` or `"pro"` — the same
-    // limitation the event-capture value unions below work around. It is
-    // renamed first because the anonymous `Objects_` ordering is not stable
-    // across emitter versions.
+    // limitation the event-capture value unions below work around.
     "--any-schema",
     "PersonAttributeValues",
     "--flatten-errors",
@@ -283,6 +387,11 @@ const program = Effect.gen(function* () {
     rustEventCapturePath,
   ]);
   yield* run(path.join(repoRoot, "libraries/rust"), "cargo", ["check"]);
+
+  // The docs site's API reference is one stub per operation; regenerate it here
+  // so a contract change cannot leave the published reference describing
+  // endpoints that no longer exist.
+  yield* run(repoRoot, "node", ["./scripts/generate-api-reference-docs.mjs"]);
 
   return 0;
 });

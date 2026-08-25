@@ -37,10 +37,10 @@ class UsersGetUser extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint 
             return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\UserJsonEncoding', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\UsersGetUserUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\UsersGetUserUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\UsersGetUserInternalServerErrorException($response);
+            throw new \Voidhash\Generated\Core\Exception\UsersGetUserInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiAuthServiceErrorJsonEncoding', 'json'), $response);
         }
     }
     public function getAuthenticationScopes(): array

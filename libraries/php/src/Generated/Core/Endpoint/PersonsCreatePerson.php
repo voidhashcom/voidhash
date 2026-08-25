@@ -5,9 +5,9 @@ namespace Voidhash\Generated\Core\Endpoint;
 class PersonsCreatePerson extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint implements \Voidhash\Generated\Core\Runtime\Client\Endpoint
 {
     /**
-     * @param \Voidhash\Generated\Core\Model\CreatePersonBodyJsonEncoding $requestBody
+     * @param \Voidhash\Generated\Core\Model\CreatePersonRequestBodyJsonEncoding $requestBody
      */
-    public function __construct(\Voidhash\Generated\Core\Model\CreatePersonBodyJsonEncoding $requestBody)
+    public function __construct(\Voidhash\Generated\Core\Model\CreatePersonRequestBodyJsonEncoding $requestBody)
     {
         $this->body = $requestBody;
     }
@@ -22,7 +22,7 @@ class PersonsCreatePerson extends \Voidhash\Generated\Core\Runtime\Client\BaseEn
     }
     public function getBody(\Symfony\Component\Serializer\SerializerInterface $serializer, $streamFactory = null): array
     {
-        if ($this->body instanceof \Voidhash\Generated\Core\Model\CreatePersonBodyJsonEncoding) {
+        if ($this->body instanceof \Voidhash\Generated\Core\Model\CreatePersonRequestBodyJsonEncoding) {
             return [['Content-Type' => ['application/json']], $serializer->serialize($this->body, 'json')];
         }
         return [[], null];
@@ -34,7 +34,6 @@ class PersonsCreatePerson extends \Voidhash\Generated\Core\Runtime\Client\BaseEn
     /**
      * {@inheritdoc}
      *
-     * @throws \Voidhash\Generated\Core\Exception\PersonsCreatePersonBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\PersonsCreatePersonUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\PersonsCreatePersonForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\PersonsCreatePersonInternalServerErrorException
@@ -45,14 +44,11 @@ class PersonsCreatePerson extends \Voidhash\Generated\Core\Runtime\Client\BaseEn
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
-        if (is_null($contentType) === false && (200 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+        if (is_null($contentType) === false && (201 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\PersonJsonEncoding', 'json');
         }
-        if (is_null($contentType) === false && (400 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\PersonsCreatePersonBadRequestException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiPersonInvalidAnonymousIdErrorJsonEncoding', 'json'), $response);
-        }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\PersonsCreatePersonUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\PersonsCreatePersonUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PersonsCreatePersonForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

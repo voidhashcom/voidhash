@@ -13,6 +13,10 @@ class SendNotificationBodyJsonEncoding
         return array_key_exists($property, $this->initialized);
     }
     /**
+     * @var string|null
+     */
+    protected $projectId;
+    /**
      * @var list<string>|null
      */
     protected $personIds;
@@ -60,6 +64,24 @@ class SendNotificationBodyJsonEncoding
      * @var string|null
      */
     protected $idempotencyKey;
+    /**
+     * @return string|null
+     */
+    public function getProjectId(): ?string
+    {
+        return $this->projectId;
+    }
+    /**
+     * @param string|null $projectId
+     *
+     * @return self
+     */
+    public function setProjectId(?string $projectId): self
+    {
+        $this->initialized['projectId'] = true;
+        $this->projectId = $projectId;
+        return $this;
+    }
     /**
      * @return list<string>|null
      */

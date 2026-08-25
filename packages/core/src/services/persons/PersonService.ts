@@ -1,7 +1,7 @@
 import { constant } from "@voidhash/lib/lang";
 import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
-import { type AnyAuthSession, AuthSession } from "../../domain/auth/Auth.ts";
+import { ActionForbiddenError, type AnyAuthSession, AuthSession } from "../../domain/auth/Auth.ts";
 import {
   type Person as DomainPerson,
   Person,
@@ -15,9 +15,14 @@ import {
   type PersonIdentity as DbPersonIdentity,
   Db,
   type PersonOriginValue,
+  and,
+  desc,
   eq,
+  isNull,
   persons,
+  sql,
 } from "@voidhash/db";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../../utils/pagination.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
 import { PersonIdentityService } from "../personIdentity/PersonIdentityService.ts";
 
@@ -251,6 +256,115 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         ),
     );
 
+    /**
+     * Loads the identities for one page of person rows in a single query,
+     * grouped by person id, so paging does not fan out into per-row reads.
+     */
+    const loadIdentitiesFor = (projectId: string, rows: ReadonlyArray<DbPerson>) =>
+      Effect.gen(function* () {
+        const grouped = new Map<string, Array<DbPersonIdentity>>();
+        if (rows.length === 0) return grouped;
+        const identities = yield* db.query.personIdentities.findMany({
+          where: { projectId, personId: { in: rows.map((row) => row.id) } },
+        });
+        for (const identity of identities) {
+          const existing = grouped.get(identity.personId);
+          if (existing === undefined) {
+            grouped.set(identity.personId, [identity]);
+            continue;
+          }
+          existing.push(identity);
+        }
+        return grouped;
+      });
+
+    const getPersonsPage = Effect.fn("getPersonsPage")(
+      function* (input: {
+        readonly projectId: string;
+        readonly after?: string | undefined;
+        readonly email?: string | undefined;
+        readonly limit?: number | undefined;
+      }) {
+        yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
+        const session = yield* AuthSession;
+        yield* annotateSessionIdentity(session);
+        yield* checkProjectPermission(
+          input.projectId,
+          "project:all",
+          `User ${session?.user?.id} is not authorized to access persons for project ${input.projectId}`,
+        );
+
+        const limit = Math.min(input.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+        const conditions = [
+          eq(persons.projectId, input.projectId),
+          isNull(persons.archivedAt),
+          isNull(persons.deletedAt),
+          isNull(persons.mergedIntoPersonId),
+        ];
+        if (input.email !== undefined) {
+          conditions.push(sql`lower(${persons.email}) = ${input.email.toLowerCase()}`);
+        }
+
+        if (input.after !== undefined) {
+          const anchorRows = yield* db
+            .select({ createdAt: persons.createdAt, id: persons.id })
+            .from(persons)
+            .where(and(eq(persons.projectId, input.projectId), eq(persons.id, input.after)))
+            .limit(1);
+          const cursorRow = anchorRows[0];
+          // The cursor names a row that is no longer visible; replaying page
+          // one would look like a scroll that never terminates.
+          if (cursorRow === undefined) {
+            return yield* Effect.fail(
+              new ActionForbiddenError({
+                message: "Pagination cursor no longer refers to a known item.",
+              }),
+            );
+          }
+          // `created_at` is nullable, so both sides are coalesced to the epoch
+          // to keep the sort total and the row-value comparison well defined.
+          conditions.push(
+            sql`(coalesce(${persons.createdAt}, ${EPOCH}), ${persons.id}) < (coalesce(${cursorRow.createdAt}::timestamptz, ${EPOCH}), ${cursorRow.id}::text)`,
+          );
+        }
+
+        // One row beyond the page answers `hasNextPage` without a COUNT.
+        const rows = yield* db
+          .select()
+          .from(persons)
+          .where(and(...conditions))
+          .orderBy(sql`coalesce(${persons.createdAt}, ${EPOCH}) desc`, desc(persons.id))
+          .limit(limit + 1);
+
+        const hasNextPage = rows.length > limit;
+        const pageRows = rows.slice(0, limit);
+        const identitiesByPerson = yield* loadIdentitiesFor(input.projectId, pageRows);
+        const profiles = pageRows.flatMap((row) => {
+          const profile = buildPerson(row, identitiesByPerson.get(row.id) ?? []).toProfile();
+          if (!profile) return [];
+          return [profile];
+        });
+
+        // The cursor is the last *row* of the page, not the last profile: a row
+        // whose identities were filtered out is still a valid keyset anchor.
+        const lastRow = pageRows[pageRows.length - 1];
+        let endCursorId: string | null = null;
+        if (hasNextPage && lastRow !== undefined) {
+          endCursorId = lastRow.id;
+        }
+
+        yield* Effect.annotateCurrentSpan("voidhash.person.result_count", profiles.length);
+        return { endCursorId, hasNextPage, profiles };
+      },
+      (effect) =>
+        effect.pipe(
+          Effect.catchTags({
+            EffectDrizzleQueryError: (error) =>
+              Effect.fail(new PersonServiceError({ cause: String(error.cause) })),
+          }),
+        ),
+    );
+
     const createPerson = Effect.fn("createPerson")(
       function* (input: {
         readonly projectId: string;
@@ -403,6 +517,7 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
       getPersonByDistinctId,
       getPersonById,
       getPersons,
+      getPersonsPage,
       mergePersons,
       setPersonAttributes,
     });
@@ -412,6 +527,9 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
 }
 
 const getCreatedAtTime = (profile: PersonProfile) => profile.createdAt?.getTime() ?? 0;
+
+/** Sort-key floor for persons whose nullable `created_at` was never stamped. */
+const EPOCH = sql`'epoch'::timestamptz`;
 
 /**
  * Stamps the current span with the request-wide identity dimension derived from

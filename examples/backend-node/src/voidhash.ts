@@ -4,8 +4,8 @@ import type { AppConfig } from "./config";
 
 /** A person as the API returns it: who the user is, not what they bought. */
 export type VoidhashPerson = Awaited<
-  ReturnType<VoidhashNodeClient["persons"]["getPersonByDistinctId"]>
->;
+  ReturnType<VoidhashNodeClient["persons"]["listPersons"]>
+>["data"][number];
 
 /**
  * Raised when Voidhash could not answer and we have nothing cached. It is not a
@@ -77,7 +77,16 @@ export const findPersonByDistinctId = async (
   distinctId: string,
 ): Promise<VoidhashPerson | null> => {
   try {
-    return await voidhash.persons.getPersonByDistinctId({ params: { distinctId } });
+    const page = await voidhash.persons.listPersons({
+      params: {
+        cursor: undefined,
+        distinctId,
+        email: undefined,
+        limit: undefined,
+        projectId: undefined,
+      },
+    });
+    return page.data[0] ?? null;
   } catch (error) {
     const failure = classifyVoidhashFailure(error);
 

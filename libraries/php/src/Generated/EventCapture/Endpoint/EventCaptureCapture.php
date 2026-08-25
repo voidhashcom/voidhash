@@ -41,7 +41,7 @@ class EventCaptureCapture extends \Voidhash\Generated\EventCapture\Runtime\Clien
         $optionsResolver->setDefined(['x-secret-key']);
         $optionsResolver->setRequired([]);
         $optionsResolver->setDefaults([]);
-        $optionsResolver->addAllowedTypes('x-secret-key', ['string', 'null']);
+        $optionsResolver->addAllowedTypes('x-secret-key', ['string']);
         return $optionsResolver;
     }
     /**

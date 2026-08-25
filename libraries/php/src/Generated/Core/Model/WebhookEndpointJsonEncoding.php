@@ -47,10 +47,6 @@ class WebhookEndpointJsonEncoding
     /**
      * @var string
      */
-    protected $secret;
-    /**
-     * @var string
-     */
     protected $status;
     /**
      * @var string
@@ -198,24 +194,6 @@ class WebhookEndpointJsonEncoding
     {
         $this->initialized['projectId'] = true;
         $this->projectId = $projectId;
-        return $this;
-    }
-    /**
-     * @return string
-     */
-    public function getSecret(): string
-    {
-        return $this->secret;
-    }
-    /**
-     * @param string $secret
-     *
-     * @return self
-     */
-    public function setSecret(string $secret): self
-    {
-        $this->initialized['secret'] = true;
-        $this->secret = $secret;
         return $this;
     }
     /**

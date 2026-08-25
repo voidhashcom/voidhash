@@ -442,7 +442,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
           }),
         ),
       )
-      .handle("getSchema", () =>
+      .handle("getSdkSchema", () =>
         Effect.gen(function* () {
           const req = yield* HttpServerRequest.HttpServerRequest;
           const ifNoneMatch = HttpHeaders.get(req.headers, "if-none-match");

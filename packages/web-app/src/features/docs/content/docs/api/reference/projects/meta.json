@@ -2,6 +2,8 @@
   "title": "Projects",
   "pages": [
     "projects.createProject",
-    "projects.listProjects"
+    "projects.getProjectById",
+    "projects.updateProject",
+    "projects.deleteProject"
   ]
 }

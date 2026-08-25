@@ -1,6 +1,10 @@
 {
   "title": "Perks",
   "pages": [
-    "perks.listPerks"
+    "perks.listPerks",
+    "perks.createPerk",
+    "perks.getPerk",
+    "perks.updatePerk",
+    "perks.deletePerk"
   ]
 }

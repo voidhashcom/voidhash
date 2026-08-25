@@ -1,0 +1,66 @@
+<?php
+
+namespace Voidhash\Generated\Core\Endpoint;
+
+class PaywallsArchivePaywall extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint implements \Voidhash\Generated\Core\Runtime\Client\Endpoint
+{
+    protected $paywallId;
+    /**
+     * @param string $paywallId
+     */
+    public function __construct(string $paywallId)
+    {
+        $this->paywallId = $paywallId;
+    }
+    use \Voidhash\Generated\Core\Runtime\Client\EndpointTrait;
+    public function getMethod(): string
+    {
+        return 'DELETE';
+    }
+    public function getUri(): string
+    {
+        return str_replace(['{paywallId}'], [$this->paywallId], '/api/v1/paywalls/{paywallId}');
+    }
+    public function getBody(\Symfony\Component\Serializer\SerializerInterface $serializer, $streamFactory = null): array
+    {
+        return [[], null];
+    }
+    public function getExtraHeaders(): array
+    {
+        return ['Accept' => ['application/json']];
+    }
+    /**
+     * {@inheritdoc}
+     *
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallUnauthorizedException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallForbiddenException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallInternalServerErrorException
+     *
+     * @return null
+     */
+    protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
+    {
+        $status = $response->getStatusCode();
+        $body = (string) $response->getBody();
+        if (204 === $status) {
+            return null;
+        }
+        if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallUnauthorizedException($response);
+        }
+        if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiPaywallNotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\PaywallsArchivePaywallInternalServerErrorException($response);
+        }
+    }
+    public function getAuthenticationScopes(): array
+    {
+        return [];
+    }
+}

@@ -7,6 +7,7 @@ use Voidhash\Generated\Core\Client;
 use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\ProductJsonEncoding;
 use Voidhash\Generated\Core\Model\ProductPerkJsonEncoding;
+use Voidhash\Internal\PageCollector;
 
 final class ProductsResource
 {
@@ -18,7 +19,7 @@ final class ProductsResource
     public function list(): array
     {
         try {
-            return $this->core->productsListProducts() ?? [];
+            return PageCollector::collect(fn (array $query) => $this->core->productsListProducts($query));
         } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }
@@ -28,7 +29,9 @@ final class ProductsResource
     public function perksByProduct(string $productId): array
     {
         try {
-            return $this->core->productPerksListProductPerksByProductId($productId) ?? [];
+            return PageCollector::collect(
+                fn (array $query) => $this->core->productsListProductPerks($productId, $query),
+            );
         } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }

@@ -57,7 +57,7 @@ class PaywallDeploysUploadBlob extends \Voidhash\Generated\Core\Runtime\Client\B
             return json_decode($body);
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\PaywallDeploysUploadBlobUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\PaywallDeploysUploadBlobUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaywallDeploysUploadBlobForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

@@ -59,3 +59,31 @@ export class ApiPushSendNotEnabledError extends Schema.TaggedErrorClass<ApiPushS
   { message: Schema.String },
   { httpApiStatus: 409 },
 ) {}
+
+/** Dashboard push-config validation failure (bad/incomplete credentials). */
+export class ApiPushNotificationConfigurationValidationError extends Schema.TaggedErrorClass<ApiPushNotificationConfigurationValidationError>()(
+  "Api/PushNotificationConfigurationValidationError",
+  { cause: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
+/** The derived push provider key collides with another active configuration. */
+export class ApiPushNotificationConfigurationKeyUnavailableError extends Schema.TaggedErrorClass<ApiPushNotificationConfigurationKeyUnavailableError>()(
+  "Api/PushNotificationConfigurationKeyUnavailableError",
+  { message: Schema.String },
+  { httpApiStatus: 409 },
+) {}
+
+/** Read-side send-history service error. */
+export class ApiPushNotificationSendServiceError extends Schema.TaggedErrorClass<ApiPushNotificationSendServiceError>()(
+  "Api/PushNotificationSendServiceError",
+  { cause: Schema.String },
+  { httpApiStatus: 500 },
+) {}
+
+/** A send id did not resolve to a row owned by the resolved project. */
+export class ApiPushNotificationSendNotFoundError extends Schema.TaggedErrorClass<ApiPushNotificationSendNotFoundError>()(
+  "Api/PushNotificationSendNotFoundError",
+  { message: Schema.String },
+  { httpApiStatus: 404 },
+) {}

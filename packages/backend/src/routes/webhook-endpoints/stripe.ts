@@ -1,6 +1,10 @@
 /**
  * Stripe webhook endpoint —
- * `POST /api/v1/webhook-endpoints/stripe/:paymentProviderConfigurationId`.
+ * `POST /api/v1/inbound-webhooks/stripe/:paymentProviderConfigurationId`.
+ *
+ * Renamed from `/api/v1/webhook-endpoints/stripe/…`, which collided with the
+ * outbound `webhooks` management group. Only Stripe calls this path, so the
+ * cutover is a provider-console reconfiguration.
  *
  * Stripe signs the webhook with an HMAC over the EXACT raw request body, so
  * this handler reads `request.text` (never `request.json`) and forwards the raw
@@ -43,7 +47,7 @@ const registerStripeWebhookRoute = Effect.gen(function* () {
 
   yield* router.add(
     "POST",
-    "/api/v1/webhook-endpoints/stripe/:paymentProviderConfigurationId",
+    "/api/v1/inbound-webhooks/stripe/:paymentProviderConfigurationId",
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(

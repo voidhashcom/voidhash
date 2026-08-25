@@ -792,10 +792,14 @@ export const RecentAnalyticsEvent = Schema.Struct({
   personId: Schema.NullOr(Schema.String),
   personName: Schema.NullOr(Schema.String),
   previousDistinctId: Schema.NullOr(Schema.String),
+  /** When the event row was inserted into the analytics store. */
   processedAt: Schema.Date,
   properties: Schema.Record(Schema.String, Schema.Unknown),
+  /** When the capture endpoint accepted the event into the processing pipeline. */
   receivedAt: Schema.Date,
   requestId: Schema.String,
+  /** The event's own client-reported timestamp; may differ from `receivedAt` under clock skew. */
+  timestamp: Schema.Date,
 });
 export type RecentAnalyticsEventType = typeof RecentAnalyticsEvent.Type;
 

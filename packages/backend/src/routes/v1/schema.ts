@@ -2,7 +2,9 @@
  * `GET /api/v1/schema` and `GET /api/v1/schema/version` — the CLI-facing
  * consolidated schema reads. Both share the underlying `SchemaService` query
  * and honour `If-None-Match` against the `sha256:<hex>` version hash so the
- * CLI watch loop and SDK drift-warning paths can revalidate cheaply.
+ * CLI watch loop and SDK drift-warning paths can revalidate cheaply. The
+ * project comes from `?projectId`, which a credential spanning more than one
+ * project must supply.
  */
 import {
   ProjectSchemaResponse,
@@ -15,7 +17,7 @@ import {
 } from "@voidhash/api-contracts";
 import { ApiActionForbiddenError, ApiSchemaServiceError } from "@voidhash/api-contracts/errors";
 import { SchemaService } from "@voidhash/core/services";
-import { extractAuthorizedProjectId } from "@voidhash/core/utils";
+import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { constant } from "@voidhash/lib/lang";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect, Option } from "effect";
@@ -61,7 +63,7 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
     const schemaService = yield* SchemaService;
 
     return handlers
-      .handle("getSchema", () =>
+      .handle("getSchema", ({ query }) =>
         Effect.gen(function* () {
           const req = yield* HttpServerRequest.HttpServerRequest;
           const ifNoneMatch = HttpHeaders.get(req.headers, "if-none-match");
@@ -69,7 +71,7 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
           return yield* bridgeAuthSession(
             Effect.gen(function* () {
               const authSession = yield* AuthSession;
-              const projectId = yield* extractAuthorizedProjectId(authSession);
+              const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
               const schema = yield* schemaService.getProjectSchema(projectId);
 
               const notModified = schemaNotModifiedResponse(
@@ -112,7 +114,7 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
           }),
         ),
       )
-      .handle("getSchemaVersion", () =>
+      .handle("getSchemaVersion", ({ query }) =>
         Effect.gen(function* () {
           const req = yield* HttpServerRequest.HttpServerRequest;
           const ifNoneMatch = HttpHeaders.get(req.headers, "if-none-match");
@@ -120,7 +122,7 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
           return yield* bridgeAuthSession(
             Effect.gen(function* () {
               const authSession = yield* AuthSession;
-              const projectId = yield* extractAuthorizedProjectId(authSession);
+              const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
               const { version } = yield* schemaService.computeProjectSchemaVersion(projectId);
 
               const notModified = schemaNotModifiedResponse(

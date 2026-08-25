@@ -518,6 +518,33 @@ describe("PaywallLocationService.updateLocation", () => {
   );
 
   test(
+    "does not update a location outside the requested project scope",
+    withCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* PaywallLocationService;
+        const created = yield* svc.createLocation({
+          name: "Scoped",
+          projectId,
+          slug: yield* uniqueSlug("update-wrong-project"),
+        });
+        track(created.id);
+
+        const error = yield* Effect.flip(
+          svc.updateLocation({
+            locationId: created.id,
+            name: "Leaked",
+            projectId: yield* uniqueId("project_other"),
+          }),
+        );
+        expect(error).toBeInstanceOf(PaywallLocationNotFoundError);
+
+        const row = yield* findLocationRow(created.id);
+        expect(row?.name).toBe("Scoped");
+      }),
+    ).pipe(provideService),
+  );
+
+  test(
     "forbids callers without project:all and leaves the row unchanged",
     withCleanup((track) =>
       Effect.gen(function* () {

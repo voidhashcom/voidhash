@@ -22,15 +22,16 @@ export class ApiPersonNotFoundError extends Schema.TaggedErrorClass<ApiPersonNot
   }
 }
 
-/** Anonymous ID is invalid */
-export class ApiPersonInvalidAnonymousIdError extends Schema.TaggedErrorClass<ApiPersonInvalidAnonymousIdError>()(
-  "Api/PersonInvalidAnonymousIdError",
+/**
+ * Generic perk-grant service error. Entitlement reads hang off a person but are
+ * served by `PerkGrantService`, so a failure there is reported under its own
+ * tag rather than being folded into {@link ApiPersonServiceError} — the person
+ * read succeeded, the grant lookup did not.
+ */
+export class ApiPerkGrantServiceError extends Schema.TaggedErrorClass<ApiPerkGrantServiceError>()(
+  "Api/PerkGrantServiceError",
   {
-    id: Schema.NonEmptyString,
+    cause: Schema.String,
   },
-  { httpApiStatus: 400 },
-) {
-  override toString(): string {
-    return `The following anonymous ID is invalid: ${this.id}`;
-  }
-}
+  { httpApiStatus: 500 },
+) {}

@@ -74,9 +74,6 @@ class WebhookEndpointJsonEncodingNormalizer implements DenormalizerInterface, No
         if (\array_key_exists('projectId', $data)) {
             $object->setProjectId($data['projectId']);
         }
-        if (\array_key_exists('secret', $data)) {
-            $object->setSecret($data['secret']);
-        }
         if (\array_key_exists('status', $data)) {
             $object->setStatus($data['status']);
         }
@@ -100,7 +97,6 @@ class WebhookEndpointJsonEncodingNormalizer implements DenormalizerInterface, No
         $dataArray['lastSuccessAt'] = $data->getLastSuccessAt();
         $dataArray['name'] = $data->getName();
         $dataArray['projectId'] = $data->getProjectId();
-        $dataArray['secret'] = $data->getSecret();
         $dataArray['status'] = $data->getStatus();
         $dataArray['url'] = $data->getUrl();
         return $dataArray;

@@ -37,6 +37,12 @@ class SendNotificationBodyJsonEncodingNormalizer implements DenormalizerInterfac
         if (isset($data['$recursiveRef'])) {
             return new Reference($data['$recursiveRef'], $context['document-origin']);
         }
+        if (\array_key_exists('projectId', $data) && $data['projectId'] !== null) {
+            $object->setProjectId($data['projectId']);
+        }
+        elseif (\array_key_exists('projectId', $data) && $data['projectId'] === null) {
+            $object->setProjectId(null);
+        }
         if (\array_key_exists('personIds', $data) && $data['personIds'] !== null) {
             $values = [];
             foreach ($data['personIds'] as $value) {
@@ -120,6 +126,9 @@ class SendNotificationBodyJsonEncodingNormalizer implements DenormalizerInterfac
     public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
     {
         $dataArray = [];
+        if ($data->isInitialized('projectId')) {
+            $dataArray['projectId'] = $data->getProjectId();
+        }
         if ($data->isInitialized('personIds')) {
             $values = [];
             foreach ($data->getPersonIds() as $value) {

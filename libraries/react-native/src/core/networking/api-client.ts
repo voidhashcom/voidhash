@@ -5,7 +5,7 @@ import {
   type SdkEvaluateFeatureFlagsParams,
   type SdkFeatureFlagsResponse,
   type SdkGetPersonParams,
-  type SdkGetSchemaParams,
+  type SdkGetSdkSchemaParams,
   type SdkIdentifyPersonParams,
   type SdkIdentifyBody,
   type SdkResolvePaywallBody,
@@ -98,7 +98,7 @@ export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
      */
     getSchema: (request: { headers: ReactNativeSdkHeaders }) =>
       Effect.map(
-        client.sdkGetSchema(request.headers as SdkGetSchemaParams),
+        client.sdkGetSdkSchema(request.headers as SdkGetSdkSchemaParams),
         (response): RuntimeSchema => response as unknown as RuntimeSchema,
       ),
     evaluateFeatureFlags: (request: {

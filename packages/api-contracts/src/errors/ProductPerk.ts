@@ -17,3 +17,26 @@ export class ApiProductPerkValidationError extends Schema.TaggedErrorClass<ApiPr
   },
   { httpApiStatus: 400 },
 ) {}
+
+/** Product perk link not found */
+export class ApiProductPerkNotFoundError extends Schema.TaggedErrorClass<ApiProductPerkNotFoundError>()(
+  "Api/ProductPerkNotFoundError",
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 404 },
+) {}
+
+/** The perk is already attached to the product */
+export class ApiProductPerkAlreadyExistsError extends Schema.TaggedErrorClass<ApiProductPerkAlreadyExistsError>()(
+  "Api/ProductPerkAlreadyExistsError",
+  {
+    perkId: Schema.String,
+    productId: Schema.String,
+  },
+  { httpApiStatus: 409 },
+) {
+  override toString(): string {
+    return `Perk ${this.perkId} is already attached to product ${this.productId}`;
+  }
+}

@@ -7,6 +7,8 @@ use Voidhash\Generated\Core\Client;
 use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\CreateProjectBodyJsonEncoding;
 use Voidhash\Generated\Core\Model\ProjectJsonEncoding;
+use Voidhash\Generated\Core\Model\ProjectJsonEncoding1;
+use Voidhash\Internal\PageCollector;
 
 final class ProjectsResource
 {
@@ -14,7 +16,7 @@ final class ProjectsResource
     {
     }
 
-    public function create(CreateProjectBodyJsonEncoding $params): ?ProjectJsonEncoding
+    public function create(CreateProjectBodyJsonEncoding $params): ?ProjectJsonEncoding1
     {
         try {
             return $this->core->projectsCreateProject($params);
@@ -27,7 +29,9 @@ final class ProjectsResource
     public function list(string $organizationId): array
     {
         try {
-            return $this->core->projectsListProjects($organizationId) ?? [];
+            return PageCollector::collect(
+                fn (array $query) => $this->core->organizationsListOrganizationProjects($organizationId, $query),
+            );
         } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }

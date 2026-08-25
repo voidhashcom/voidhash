@@ -235,6 +235,7 @@ function EventDetailsPanel({
             <DetailField label="Event ID" mono value={event.eventId} />
             <DetailField label="Capture ID" mono value={event.captureId} />
             <DetailField label="Request ID" mono value={event.requestId} />
+            <DetailField label="Event time" mono value={formatDateTime(event.timestamp)} />
             <DetailField label="Received at" mono value={formatDateTime(event.receivedAt)} />
             <DetailField label="Processed at" mono value={formatDateTime(event.processedAt)} />
             <DetailField

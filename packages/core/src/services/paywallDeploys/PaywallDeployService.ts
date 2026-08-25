@@ -1732,14 +1732,14 @@ export class PaywallDeployService extends Context.Service<PaywallDeployService>(
       );
 
       const setActivePaywallRelease = Effect.fn("setActivePaywallRelease")(
-        function* (input: { readonly releaseId: string }) {
+        function* (input: { readonly paywallId?: string; readonly releaseId: string }) {
           const session = yield* AuthSession;
           yield* annotateSession(session);
           yield* Effect.annotateCurrentSpan("voidhash.paywall_release.id", input.releaseId);
 
-          const release = yield* db.query.paywallReleases.findFirst({
-            where: { id: input.releaseId },
-          });
+          const releaseWhere: { id: string; paywallId?: string } = { id: input.releaseId };
+          if (input.paywallId !== undefined) releaseWhere.paywallId = input.paywallId;
+          const release = yield* db.query.paywallReleases.findFirst({ where: releaseWhere });
           if (!release) {
             return yield* Effect.fail(
               new PaywallReleaseNotFoundError({

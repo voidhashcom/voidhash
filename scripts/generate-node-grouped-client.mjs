@@ -30,6 +30,17 @@ const toTypeLiteral = (schema) => {
     return schema.type.map((type) => toTypeLiteral({ ...schema, type })).join(" | ");
   }
 
+  // OpenAPI 3.1 spells an optional/nullable value as a union rather than a
+  // `type` array — every optional query parameter arrives this way.
+  const union = schema.anyOf ?? schema.oneOf;
+  if (Array.isArray(union)) {
+    return [...new Set(union.map((member) => toTypeLiteral(member)))].join(" | ");
+  }
+
+  if (schema.type === "null") {
+    return "null";
+  }
+
   switch (schema.type) {
     case "string":
       return "string";
@@ -63,24 +74,58 @@ const toTypeLiteral = (schema) => {
   }
 };
 
-const formatParamsType = ({ methodName, parameterNames, parameterTypes }) => {
-  const members = parameterNames
-    .map((name, index) => `readonly ${jsonLiteral(name)}: ${parameterTypes[index]}`)
-    .join("; ");
+/**
+ * The grouped client keeps one ergonomic `params` bag holding both path and
+ * query parameters; {@link formatCall} splits them again at the call site,
+ * because the core client takes path parameters positionally and query
+ * parameters as a trailing options object.
+ *
+ * Path parameters are always required. Query parameters follow the spec's
+ * `required` flag, which for this API is always false.
+ */
+const formatParamsType = ({ pathParameters, queryParameters }) => {
+  const members = [
+    ...pathParameters.map(
+      (parameter) => `readonly ${jsonLiteral(parameter.name)}: ${parameter.type}`,
+    ),
+    ...queryParameters.map((parameter) => {
+      if (parameter.required) {
+        return `readonly ${jsonLiteral(parameter.name)}: ${parameter.type}`;
+      }
+
+      return `readonly ${jsonLiteral(parameter.name)}?: ${parameter.type}`;
+    }),
+  ].join("; ");
 
   return `{ ${members} }`;
 };
 
-const formatRequestType = ({ methodName, parameterNames, parameterTypes, hasBody, hasParams }) => {
+/**
+ * Locates the request body in the core client's signature. Where the operation
+ * also has query parameters the core client wraps both in one options object,
+ * so the payload sits at `.payload` of the argument after the path parameters.
+ */
+const bodyTypeExpression = ({ methodName, pathParameters, queryParameters }) => {
+  const index = pathParameters.length;
+  const argument = `Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[${index}]`;
+  if (queryParameters.length > 0) {
+    return `${argument}["payload"]`;
+  }
+
+  return argument;
+};
+
+const formatRequestType = ({ methodName, pathParameters, queryParameters, hasBody }) => {
+  const hasParams = pathParameters.length + queryParameters.length > 0;
   if (!hasBody && !hasParams) {
     return null;
   }
 
   if (hasBody && !hasParams) {
-    return `{ payload: Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[0] }`;
+    return `{ payload: ${bodyTypeExpression({ methodName, pathParameters, queryParameters })} }`;
   }
 
-  const paramsType = formatParamsType({ methodName, parameterNames, parameterTypes });
+  const paramsType = formatParamsType({ pathParameters, queryParameters });
 
   // Binary bodies (octet-stream, e.g. deploy blob upload) are not representable
   // by the generated core client, so they are not surfaced as `payload`.
@@ -88,22 +133,36 @@ const formatRequestType = ({ methodName, parameterNames, parameterTypes, hasBody
     return `{ params: ${paramsType} }`;
   }
 
-  return `{ params: ${paramsType}; payload: Parameters<VoidhashCoreClient[${jsonLiteral(methodName)}]>[1] }`;
+  return `{ params: ${paramsType}; payload: ${bodyTypeExpression({ methodName, pathParameters, queryParameters })} }`;
 };
 
-const formatCall = ({ methodName, parameterNames, hasBody, hasParams }) => {
-  if (!hasBody && !hasParams) {
-    return `client.${methodName}()`;
-  }
+/**
+ * The core client's calling convention: path parameters positionally, then a
+ * single trailing options argument carrying the query parameters (`params`)
+ * and/or the JSON body (`payload`). A body with no query parameters is passed
+ * bare rather than wrapped.
+ */
+const formatCall = ({ methodName, pathParameters, queryParameters, hasBody }) => {
+  const args = pathParameters.map(
+    (parameter) => `request.params[${jsonLiteral(parameter.name)}]`,
+  );
 
-  if (hasBody && !hasParams) {
-    return `client.${methodName}(request.payload)`;
-  }
+  const formatQuery = () => {
+    if (queryParameters.length === 0) {
+      return undefined;
+    }
 
-  // Multi-param operations take their path parameters positionally on the
-  // generated client.
-  const args = parameterNames.map((name) => `request.params[${jsonLiteral(name)}]`);
-  if (hasBody) {
+    return `{ ${queryParameters
+      .map((parameter) => `${jsonLiteral(parameter.name)}: request.params[${jsonLiteral(parameter.name)}]`)
+      .join(", ")} }`;
+  };
+  const query = formatQuery();
+
+  if (query !== undefined && hasBody) {
+    args.push(`{ params: ${query}, payload: request.payload }`);
+  } else if (query !== undefined) {
+    args.push(query);
+  } else if (hasBody) {
     args.push("request.payload");
   }
 
@@ -113,7 +172,7 @@ const formatCall = ({ methodName, parameterNames, hasBody, hasParams }) => {
 const collectGroups = (spec) => {
   const groups = new Map();
 
-  for (const pathItem of Object.values(spec.paths)) {
+  for (const [pathTemplate, pathItem] of Object.entries(spec.paths)) {
     for (const [httpMethod, operation] of Object.entries(pathItem)) {
       if (!["get", "post", "patch", "delete", "put"].includes(httpMethod)) {
         continue;
@@ -135,27 +194,44 @@ const collectGroups = (spec) => {
       const parameters = [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].filter(
         (parameter) => parameter.in !== "header",
       );
-      const parameterNames = parameters.map((parameter) => parameter.name);
-      const parameterTypes = parameters.map((parameter) => toTypeLiteral(parameter.schema));
+      // Path and query parameters reach the core client differently, so they
+      // are tracked apart; see `formatCall`.
+      const describe = (parameter) => ({
+        name: parameter.name,
+        required: parameter.required === true,
+        type: toTypeLiteral(parameter.schema),
+      });
+      // The core client takes path parameters positionally in URL-template
+      // order, which the spec's `parameters` array does not guarantee (the
+      // detach-perk operation lists `perkId` before `productId`), so the
+      // parameters are reordered by their position in the path template.
+      const pathParameters = parameters
+        .filter((parameter) => parameter.in === "path")
+        .map(describe)
+        .sort(
+          (left, right) =>
+            pathTemplate.indexOf(`{${left.name}}`) - pathTemplate.indexOf(`{${right.name}}`),
+        );
+      const queryParameters = parameters
+        .filter((parameter) => parameter.in === "query")
+        .map(describe);
       // Only JSON request bodies are representable by the generated core
       // client; binary bodies (octet-stream) are skipped.
       const bodyContent = operation.requestBody?.content ?? {};
       const hasBody = Object.keys(bodyContent).some((contentType) =>
         contentType.includes("application/json"),
       );
-      const hasParams = parameterNames.length > 0;
       const requestType = formatRequestType({
         hasBody,
-        hasParams,
         methodName,
-        parameterNames,
-        parameterTypes,
+        pathParameters,
+        queryParameters,
       });
       const callExpression = formatCall({
         hasBody,
-        hasParams,
         methodName,
-        parameterNames,
+        pathParameters,
+        queryParameters,
       });
 
       const groupKey = camelCase(groupName);

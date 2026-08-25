@@ -35,3 +35,25 @@ export class ApiPaywallPublishError extends Schema.TaggedErrorClass<ApiPaywallPu
   },
   { httpApiStatus: 500 },
 ) {}
+
+/**
+ * A release could not be created or read: the snapshot host was unreachable,
+ * the caller is not a real user (releases record an author), or a stored draft
+ * is malformed. Publishing failures surface as {@link ApiPaywallPublishError}.
+ */
+export class ApiPaywallReleaseError extends Schema.TaggedErrorClass<ApiPaywallReleaseError>()(
+  "Api/PaywallReleaseError",
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 500 },
+) {}
+
+/** Paywall release not found */
+export class ApiPaywallReleaseNotFoundError extends Schema.TaggedErrorClass<ApiPaywallReleaseNotFoundError>()(
+  "Api/PaywallReleaseNotFoundError",
+  {
+    releaseId: Schema.String,
+  },
+  { httpApiStatus: 404 },
+) {}

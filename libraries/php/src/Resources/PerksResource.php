@@ -6,6 +6,7 @@ use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
 use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\PerkJsonEncoding;
+use Voidhash\Internal\PageCollector;
 
 final class PerksResource
 {
@@ -17,7 +18,7 @@ final class PerksResource
     public function list(): array
     {
         try {
-            return $this->core->perksListPerks() ?? [];
+            return PageCollector::collect(fn (array $query) => $this->core->perksListPerks($query));
         } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }

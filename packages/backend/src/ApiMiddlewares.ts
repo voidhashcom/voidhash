@@ -5,7 +5,11 @@ import {
   type ApiSecretKeySession,
   type ApiUserSession,
 } from "@voidhash/api-contracts";
-import { ApiAuthenticationError, ApiNotAuthenticatedError } from "@voidhash/api-contracts/errors";
+import {
+  ApiAuthenticationError,
+  ApiAuthServiceError,
+  ApiNotAuthenticatedError,
+} from "@voidhash/api-contracts/errors";
 import { ApiKeyService } from "@voidhash/core/services";
 import {
   RequestEnvironmentMode,
@@ -14,6 +18,7 @@ import {
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import { LocalUserSessionService } from "@voidhash/core/services/auth/LocalUserSessionService";
 import { IdentityLinkBackfillService } from "@voidhash/core/services/auth/IdentityLinkBackfillService";
+import { ActionForbiddenError } from "@voidhash/core/domain/auth/Auth";
 import { AuthSession } from "@voidhash/rpc";
 import { Db, type DbError } from "@voidhash/db";
 import { Config, Effect, Layer, Option, pipe } from "effect";
@@ -22,7 +27,7 @@ import { HttpServerRequest } from "effect/unstable/http";
 
 import { withIdentity } from "./Telemetry.ts";
 
-type AuthMiddlewareError = ApiAuthenticationError | ApiNotAuthenticatedError;
+type AuthMiddlewareError = ApiAuthenticationError | ApiAuthServiceError | ApiNotAuthenticatedError;
 type AuthMiddlewareSession = ApiUserSession | ApiSecretKeySession | ApiPublishableKeySession;
 
 type SelectedAuthMethod =
@@ -89,7 +94,7 @@ const selectAuthMethod = (
   });
 
 const mapDatabaseError = (e: DbError) =>
-  new ApiAuthenticationError({
+  new ApiAuthServiceError({
     cause: String(e.message),
     message: "Failed to authenticate due to an internal error",
   });
@@ -99,7 +104,8 @@ const mapDatabaseError = (e: DbError) =>
  * `x-api-key`, `x-secret-key`, `x-publishable-key` + `x-distinct-id`, or the
  * active {@link IdentityProvider}'s session cookie, matching the legacy parity
  * surface. Failures collapse onto `ApiNotAuthenticatedError` /
- * `ApiAuthenticationError`.
+ * `ApiAuthenticationError` (bad credential) / `ApiAuthServiceError` (dependency
+ * failure).
  */
 export const AuthMiddlewareLive = Layer.effect(
   AuthMiddleware,
@@ -129,7 +135,7 @@ export const AuthMiddlewareLive = Layer.effect(
             Effect.fail(new ApiNotAuthenticatedError({ message: "You are not authenticated" })),
           ApiKeyServiceError: (e) =>
             Effect.fail(
-              new ApiAuthenticationError({
+              new ApiAuthServiceError({
                 cause: e.cause,
                 message: "Failed to authenticate with api key due to an internal error",
               }),
@@ -169,14 +175,14 @@ export const AuthMiddlewareLive = Layer.effect(
           EffectDrizzleQueryError: (e) => Effect.fail(mapDatabaseError(e)),
           IdentityProviderError: (e) =>
             Effect.fail(
-              new ApiAuthenticationError({
+              new ApiAuthServiceError({
                 cause: String(e.message),
                 message: "Failed to authenticate session",
               }),
             ),
           IdentityLinkBackfillError: (e) =>
             Effect.fail(
-              new ApiAuthenticationError({
+              new ApiAuthServiceError({
                 cause: e.cause,
                 message: "Failed to authenticate session",
               }),
@@ -217,7 +223,7 @@ export const AuthMiddlewareLive = Layer.effect(
             ),
           ApiKeyServiceError: (e) =>
             Effect.fail(
-              new ApiAuthenticationError({
+              new ApiAuthServiceError({
                 cause: e.cause,
                 message: "Failed to authenticate with secret key due to an internal error",
               }),
@@ -258,7 +264,7 @@ export const AuthMiddlewareLive = Layer.effect(
             ),
           ApiKeyServiceError: (e) =>
             Effect.fail(
-              new ApiAuthenticationError({
+              new ApiAuthServiceError({
                 cause: e.cause,
                 message: "Failed to authenticate with publishable key due to an internal error",
               }),
@@ -312,6 +318,37 @@ export const bridgeAuthSession = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.gen(function* () {
     const session = yield* ApiAuthSession;
     return yield* Effect.provideService(effect, AuthSession, session);
+  });
+
+/**
+ * The credential kinds `AuthMiddleware` can produce. `"user"` covers both an
+ * interactive session cookie and an `x-api-key`.
+ */
+export type ApiCredentialMethod = AuthMiddlewareSession["method"];
+
+/**
+ * Rejects a request whose credential is not one of `allowed`.
+ *
+ * Management endpoints must never be reachable with a publishable key: those
+ * ship inside client bundles and are effectively public. Gating lives here
+ * rather than in `AuthMiddleware` because the permitted credential set is a
+ * per-endpoint decision.
+ *
+ * @param session - the authenticated session
+ * @param allowed - credential methods this endpoint accepts
+ */
+export const requireCredential = (
+  session: AuthMiddlewareSession,
+  allowed: ReadonlyArray<ApiCredentialMethod>,
+): Effect.Effect<void, ActionForbiddenError> =>
+  Effect.gen(function* () {
+    if (!allowed.includes(session.method)) {
+      return yield* Effect.fail(
+        new ActionForbiddenError({
+          message: `This endpoint cannot be called with a ${session.method} credential.`,
+        }),
+      );
+    }
   });
 
 /**

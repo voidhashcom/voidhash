@@ -1,6 +1,10 @@
 {
   "title": "Organizations",
   "pages": [
-    "organizations.createOrganization"
+    "organizations.createOrganization",
+    "organizations.listOrganizations",
+    "organizations.getOrganization",
+    "organizations.updateOrganization",
+    "organizations.listOrganizationProjects"
   ]
 }

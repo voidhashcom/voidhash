@@ -244,10 +244,45 @@ if (anySchemas.size > 0) {
   }
 }
 
+
 /**
- * Optional headers are already "absent or present"; an additional
- * `nullable: true` makes generators emit un-compilable double-option code,
- * so parameter-level nullability is dropped.
+ * Collapses a single-member `anyOf`/`oneOf` into that member.
+ *
+ * A one-element union is an identity wrapper, but it leaves the node with no
+ * top-level `type`, which several generators cannot handle — jane-openapi
+ * fails outright on such a parameter. Effect emits one whenever a schema is a
+ * union of exactly one literal, so this is reachable from ordinary contracts.
+ *
+ * @param {unknown} node
+ * @returns {unknown}
+ */
+const collapseSingletonUnions = (node) => {
+  if (Array.isArray(node)) return node.map(collapseSingletonUnions);
+  if (!isPlainObject(node)) return node;
+
+  const collapsed = Object.fromEntries(
+    Object.entries(node).map(([key, value]) => [key, collapseSingletonUnions(value)]),
+  );
+
+  for (const keyword of ["anyOf", "oneOf"]) {
+    const members = collapsed[keyword];
+    if (Array.isArray(members) && members.length === 1 && isPlainObject(members[0])) {
+      const { [keyword]: _dropped, ...siblings } = collapsed;
+      // Siblings (description, nullable, …) win over the member's own keys only
+      // where the member does not define them.
+      return { ...members[0], ...siblings };
+    }
+  }
+
+  return collapsed;
+};
+
+/**
+ * Optional parameters are already "absent or present"; an additional
+ * `nullable: true` is meaningless for a query string and makes generators
+ * emit un-compilable double-option code — or, for jane-openapi, fail outright
+ * with a null return from `convertParameterType`. Parameter-level nullability
+ * is therefore always dropped, for every target.
  */
 const stripParameterNullability = (document) => {
   for (const pathItem of Object.values(document.paths ?? {})) {
@@ -292,6 +327,6 @@ if (flattenErrors) {
   }
 }
 
-const downgraded = transformNode(document);
-if (flattenErrors) stripParameterNullability(downgraded);
+const downgraded = collapseSingletonUnions(transformNode(document));
+stripParameterNullability(downgraded);
 writeFileSync(outputPath, `${JSON.stringify(downgraded, null, 2)}\n`);

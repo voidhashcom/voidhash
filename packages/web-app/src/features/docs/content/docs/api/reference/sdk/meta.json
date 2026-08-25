@@ -8,7 +8,7 @@
     "sdk.developmentPurchase",
     "sdk.evaluateFeatureFlags",
     "sdk.resolvePaywall",
-    "sdk.getSchema",
+    "sdk.getSdkSchema",
     "sdk.registerDevice",
     "sdk.refreshDevice",
     "sdk.unregisterDevice"

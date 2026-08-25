@@ -231,6 +231,10 @@ export const analyticsEvents = pgTable(
     captureId: varchar("capture_id", { length: 255 }).notNull(),
     eventName: varchar("event_name", { length: 255 }).notNull(),
     eventTimestamp: timestamp("event_timestamp", { withTimezone: true, precision: 3 }).notNull(),
+    // When the capture endpoint accepted the event into the processing
+    // pipeline. `processedAt` (default now) stamps the row insert instead, so
+    // `processedAt - receivedAt` measures time spent in the ingest queue.
+    receivedAt: timestamp("received_at", { withTimezone: true, precision: 3 }).notNull(),
     processedAt: timestamp("processed_at", { withTimezone: true, precision: 3 })
       .notNull()
       .defaultNow(),
@@ -261,6 +265,12 @@ export const analyticsEvents = pgTable(
       table.eventTimestamp,
     ),
     index("analytics_event_export_cursor_idx").on(table.sequence),
+    index("analytics_event_project_sequence_idx").on(table.projectId, table.sequence),
+    index("analytics_event_project_name_sequence_idx").on(
+      table.projectId,
+      table.eventName,
+      table.sequence,
+    ),
   ],
 );
 
@@ -1923,6 +1933,19 @@ export const webhookDeliveries = pgTable(
   (table) => [
     index("webhook_delivery_endpoint_status_idx").on(table.webhookEndpointId, table.status),
     index("webhook_delivery_next_attempt_idx").on(table.nextAttemptAt),
+    // Keyset walks for the delivery-history API page on
+    // (coalesce(created_at, epoch), id); the expression matches the read's
+    // ORDER BY exactly since `created_at` is nullable.
+    index("webhook_delivery_project_created_idx").on(
+      table.projectId,
+      sql`coalesce(${table.createdAt}, 'epoch'::timestamptz)`,
+      table.id,
+    ),
+    index("webhook_delivery_endpoint_created_idx").on(
+      table.webhookEndpointId,
+      sql`coalesce(${table.createdAt}, 'epoch'::timestamptz)`,
+      table.id,
+    ),
   ],
 );
 
@@ -2842,7 +2865,13 @@ export const pushNotificationSends = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true, precision: 3 }),
   },
   (table) => [
-    index("push_notification_send_project_created_idx").on(table.projectId, table.createdAt),
+    // `id` completes the (created_at, id) keyset sort the send-history API
+    // walks, so a page never needs a re-sort beyond the index order.
+    index("push_notification_send_project_created_idx").on(
+      table.projectId,
+      table.createdAt,
+      table.id,
+    ),
     // Partial: collapse client retries only when a key was supplied.
     uniqueIndex("push_notification_send_idempotency_uidx")
       .on(table.projectId, table.idempotencyKey)
@@ -2900,6 +2929,13 @@ export const pushNotificationDeliveries = pgTable(
     ),
     // Observability / backstop only — NOT a retry poller.
     index("push_notification_delivery_next_attempt_idx").on(table.status, table.nextAttemptAt),
+    // Keyset walk for the per-send delivery-trail API: (created_at, id) asc
+    // within one send.
+    index("push_notification_delivery_send_created_idx").on(
+      table.pushNotificationSendId,
+      table.createdAt,
+      table.id,
+    ),
   ],
 );
 

@@ -2,6 +2,7 @@ import { constant } from "@voidhash/lib/lang";
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 import { getRandomValues } from "uncrypto";
 
+import { ActionForbiddenError } from "../../domain/auth/Auth.ts";
 import {
   WebhookDeliveryNotFoundError,
   WebhookEndpointNotFoundError,
@@ -15,13 +16,17 @@ import {
   type WebhookDeliveryStatusValue,
   WebhookEndpointStatus,
   type WebhookEndpointStatusValue,
+  and,
+  desc,
   eq,
+  sql,
   webhookDeliveries,
   webhookEndpoints,
 } from "@voidhash/db";
 import * as Workflow from "@voidhash/platform/Workflow";
 import { DeliverWebhook } from "../../workflows/definitions.ts";
 import { generateId } from "../../utils/generate-id.ts";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../../utils/pagination.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
 import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
 import { type WebhookEventType, isValidWebhookEvent } from "./event-types.ts";
@@ -138,6 +143,12 @@ const mapDeliveryToResponse = (delivery: WebhookDeliveryRow) => ({
   status: mapDeliveryStatus(delivery.status),
   webhookEndpointId: delivery.webhookEndpointId,
 });
+
+/**
+ * `webhook_delivery.created_at` is nullable, so keyset comparisons coalesce it
+ * to the epoch to keep the sort total and the row-value predicate well defined.
+ */
+const EPOCH = sql`'epoch'::timestamptz`;
 
 /**
  * Generates a Cloudflare Workers–compatible webhook secret using Web Crypto's
@@ -560,6 +571,89 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           ),
       );
 
+      /**
+       * One keyset page of delivery history, newest first. Additive to
+       * {@link getDeliveries}: the windowed read stays for the RPC dashboard,
+       * while this pages the unbounded table directly in SQL. `after` is the
+       * decoded cursor — the id of the last row the caller already saw.
+       */
+      const getDeliveriesPage = Effect.fn("webhookManager.getDeliveriesPage")(
+        function* (input: {
+          readonly projectId: string;
+          readonly endpointId?: string | undefined;
+          readonly after?: string | undefined;
+          readonly limit?: number | undefined;
+        }) {
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
+          if (input.endpointId)
+            yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
+          yield* authorizeProject(input.projectId, "list");
+
+          const limit = Math.min(input.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+          const conditions = [eq(webhookDeliveries.projectId, input.projectId)];
+          if (input.endpointId !== undefined) {
+            conditions.push(eq(webhookDeliveries.webhookEndpointId, input.endpointId));
+          }
+
+          if (input.after !== undefined) {
+            const anchorRows = yield* db
+              .select({ createdAt: webhookDeliveries.createdAt, id: webhookDeliveries.id })
+              .from(webhookDeliveries)
+              .where(
+                and(
+                  eq(webhookDeliveries.projectId, input.projectId),
+                  eq(webhookDeliveries.id, input.after),
+                ),
+              )
+              .limit(1);
+            const cursorRow = anchorRows[0];
+            // The cursor names a row that is no longer visible; replaying page
+            // one would look like a scroll that never terminates.
+            if (cursorRow === undefined) {
+              return yield* Effect.fail(
+                new ActionForbiddenError({
+                  message: "Pagination cursor no longer refers to a known item.",
+                }),
+              );
+            }
+            conditions.push(
+              sql`(coalesce(${webhookDeliveries.createdAt}, ${EPOCH}), ${webhookDeliveries.id}) < (coalesce(${cursorRow.createdAt}::timestamptz, ${EPOCH}), ${cursorRow.id}::text)`,
+            );
+          }
+
+          // One row beyond the page answers `hasNextPage` without a COUNT.
+          const rows = yield* db
+            .select()
+            .from(webhookDeliveries)
+            .where(and(...conditions))
+            .orderBy(
+              sql`coalesce(${webhookDeliveries.createdAt}, ${EPOCH}) desc`,
+              desc(webhookDeliveries.id),
+            )
+            .limit(limit + 1);
+
+          const hasNextPage = rows.length > limit;
+          const pageRows = rows.slice(0, limit);
+          const lastRow = pageRows[pageRows.length - 1];
+          let endCursorId: string | null = null;
+          if (hasNextPage && lastRow !== undefined) {
+            endCursorId = lastRow.id;
+          }
+          return { deliveries: pageRows.map(mapDeliveryToResponse), endCursorId, hasNextPage };
+        },
+        (effect) =>
+          effect.pipe(
+            Effect.catchTags({
+              EffectDrizzleQueryError: (error) =>
+                Effect.fail(
+                  new WebhookServiceError({
+                    cause: `Failed to fetch webhook deliveries: ${String(error.cause)}`,
+                  }),
+                ),
+            }),
+          ),
+      );
+
       const getDeliveryById = Effect.fn("webhookManager.getDeliveryById")(
         function* (input: { readonly projectId: string; readonly deliveryId: string }) {
           yield* Effect.annotateCurrentSpan("voidhash.webhook.delivery.id", input.deliveryId);
@@ -782,6 +876,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
         createEndpoint,
         deleteEndpoint,
         getDeliveries,
+        getDeliveriesPage,
         getDeliveryById,
         getEndpointById,
         getEndpoints,

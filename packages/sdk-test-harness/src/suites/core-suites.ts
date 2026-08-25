@@ -33,7 +33,7 @@ export const apiCoreSuite: ConformanceSuite = {
   name: "api/core",
   category: "api",
   description:
-    "Core read/write flows for server-side SDKs: schema, products, person create/fetch, and auth-error mapping.",
+    "Core read/write flows for server-side SDKs: schema, products, person create/list/update, and auth-error mapping.",
   steps: [
     step(
       "get-schema",
@@ -53,16 +53,14 @@ export const apiCoreSuite: ConformanceSuite = {
         headers: apiAuth,
         body: { distinctId: DISTINCT_ID, email: "user@example.com", name: "Conformance User" },
       },
-      { status: 200, body: API_PERSON_FIXTURE },
+      { status: 201, body: API_PERSON_FIXTURE },
     ),
+    // The distinct-id lookup is a filter on the list endpoint; query strings
+    // are not matched, so this step differs from `list-persons` only in order.
     step(
-      "get-person-by-distinct-id",
-      {
-        method: "GET",
-        path: `/api/v1/persons/by-distinct-id/${DISTINCT_ID}`,
-        headers: apiAuth,
-      },
-      { status: 200, body: API_PERSON_FIXTURE },
+      "list-persons-by-distinct-id",
+      { method: "GET", path: "/api/v1/persons", headers: apiAuth },
+      { status: 200, body: API_PERSONS_LIST_FIXTURE },
     ),
     step(
       "list-persons",
@@ -75,12 +73,12 @@ export const apiCoreSuite: ConformanceSuite = {
       { status: 200, body: API_PERSON_FIXTURE },
     ),
     step(
-      "set-person-attributes",
+      "update-person",
       {
-        method: "POST",
-        path: "/api/v1/persons/attributes",
+        method: "PATCH",
+        path: `/api/v1/persons/${PERSON_ID}`,
         headers: apiAuth,
-        body: { distinctId: DISTINCT_ID, traits: { notes_created: 3, plan: "pro" } },
+        body: { traits: { notes_created: 3, plan: "pro" } },
       },
       { status: 200, body: API_PERSON_FIXTURE },
     ),

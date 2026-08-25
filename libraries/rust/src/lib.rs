@@ -42,8 +42,8 @@ pub use error::Error;
 /// properties.
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct PersonAttributes {
-    /// Identifies the person. A distinct id Voidhash has not seen creates a
-    /// person, the same way `create` does.
+    /// Identifies the person. The distinct id is resolved to an existing
+    /// person; an unknown one is an error, so use `create` for new persons.
     #[serde(rename = "distinctId")]
     pub distinct_id: String,
     /// Sets the person's email address.

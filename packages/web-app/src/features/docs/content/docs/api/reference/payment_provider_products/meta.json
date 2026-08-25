@@ -1,6 +1,11 @@
 {
   "title": "Payment_provider_products",
   "pages": [
-    "payment_provider_products.listPaymentProviderProducts"
+    "payment_provider_products.listPaymentProviderProducts",
+    "payment_provider_products.createPaymentProviderProduct",
+    "payment_provider_products.getPaymentProviderProduct",
+    "payment_provider_products.updatePaymentProviderProduct",
+    "payment_provider_products.deletePaymentProviderProduct",
+    "payment_provider_products.activatePaymentProviderProduct"
   ]
 }

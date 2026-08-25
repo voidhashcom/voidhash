@@ -61,26 +61,33 @@ export const createEntitlementsCache = (
   // blip during boot does not poison every later lookup.
   let perkIdPromise: Promise<string | undefined> | undefined;
 
-  const resolvePerkId = (): Promise<string | undefined> => {
-    perkIdPromise ??= voidhash.perks
-      .listPerks()
-      .then((perks) => {
-        const perk = perks.find((candidate) => candidate.slug === perkSlug);
+  const findPerkId = async (cursor?: string): Promise<string | undefined> => {
+    const page = await voidhash.perks.listPerks({
+      params: { cursor, limit: undefined, projectId: undefined },
+    });
+    const perk = page.data.find((candidate) => candidate.slug === perkSlug);
+    if (perk !== undefined) return perk.id;
+    if (!page.pageInfo.hasNextPage || page.pageInfo.endCursor === null) return undefined;
+    return findPerkId(page.pageInfo.endCursor);
+  };
 
-        if (perk === undefined) {
+  const resolvePerkId = (): Promise<string | undefined> => {
+    if (perkIdPromise !== undefined) return perkIdPromise;
+    const started = findPerkId()
+      .then((perkId) => {
+        if (perkId === undefined) {
           console.warn(
             `[voidhash] no perk with slug "${perkSlug}" exists in this project — nobody is Pro.`,
           );
         }
-
-        return perk?.id;
+        return perkId;
       })
       .catch((error: unknown) => {
         perkIdPromise = undefined;
         throw error;
       });
-
-    return perkIdPromise;
+    perkIdPromise = started;
+    return started;
   };
 
   const fetchSnapshot = async (distinctId: string): Promise<CacheEntry> => {

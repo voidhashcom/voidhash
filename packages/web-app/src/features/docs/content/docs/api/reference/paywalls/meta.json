@@ -1,0 +1,15 @@
+{
+  "title": "Paywalls",
+  "pages": [
+    "paywalls.listPaywalls",
+    "paywalls.createPaywall",
+    "paywalls.getPaywall",
+    "paywalls.updatePaywall",
+    "paywalls.archivePaywall",
+    "paywalls.restorePaywall",
+    "paywalls.listPaywallReleases",
+    "paywalls.createPaywallRelease",
+    "paywalls.publishPaywallRelease",
+    "paywalls.activatePaywallRelease"
+  ]
+}

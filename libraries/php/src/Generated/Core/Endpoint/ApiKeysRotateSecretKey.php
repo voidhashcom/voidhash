@@ -47,7 +47,7 @@ class ApiKeysRotateSecretKey extends \Voidhash\Generated\Core\Runtime\Client\Bas
             return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiKeyWithRawKeyJsonEncoding', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\ApiKeysRotateSecretKeyUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\ApiKeysRotateSecretKeyUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ApiKeysRotateSecretKeyForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

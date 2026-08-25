@@ -19,6 +19,11 @@ const PERKS = [
   { id: "perk_pro", name: "Pro", projectId: "proj_1", slug: "pro" },
 ];
 
+const LAST_PAGE_INFO = { endCursor: null, hasNextPage: false };
+
+/** Wraps a list body in the `{ data, pageInfo }` envelope every list returns. */
+const page = (data: ReadonlyArray<unknown>) => ({ data, pageInfo: LAST_PAGE_INFO });
+
 const activeGrant = (perkId: string) => ({
   expiresAt: null,
   perkId,
@@ -51,8 +56,8 @@ const routes = (handlers: {
   installFetchMock((call) => {
     const path = pathOf(call);
 
-    if (path === "/api/v1/persons/by-distinct-id/user_123") {
-      return (handlers.person ?? (() => createJsonResponse(PERSON)))();
+    if (path === "/api/v1/persons") {
+      return (handlers.person ?? (() => createJsonResponse(page([PERSON]))))();
     }
 
     if (path === "/api/v1/persons/person_123/entitlements") {
@@ -60,20 +65,14 @@ const routes = (handlers: {
     }
 
     if (path === "/api/v1/perks") {
-      return (handlers.perks ?? (() => createJsonResponse(PERKS)))();
+      return (handlers.perks ?? (() => createJsonResponse(page(PERKS))))();
     }
 
     return new Response(null, { status: 404 });
   });
 
-const notFoundResponse = () =>
-  createJsonResponse(
-    {
-      _tag: "Api/PersonNotFoundError",
-      personId: PERSON.personId,
-    },
-    404,
-  );
+/** The list endpoint answers an empty page for an unknown distinct id. */
+const noPersonResponse = () => createJsonResponse(page([]));
 
 const unauthenticatedResponse = () =>
   createJsonResponse(
@@ -126,7 +125,7 @@ describe("@voidhash/node entitlements", () => {
 
         expect(grants).toEqual([activeGrant("perk_premium")]);
         expect(calls.map(pathOf)).toEqual([
-          "/api/v1/persons/by-distinct-id/user_123",
+          "/api/v1/persons",
           "/api/v1/persons/person_123/entitlements",
         ]);
       }),
@@ -135,7 +134,7 @@ describe("@voidhash/node entitlements", () => {
   it("propagates the API error when getGrantsByDistinctId cannot find the person", () =>
     Effect.runPromise(
       Effect.gen(function* () {
-        routes({ person: notFoundResponse });
+        routes({ person: noPersonResponse });
 
         const error = yield* failureOf(
           effectClient().entitlements.getGrantsByDistinctId({ distinctId: "user_123" }),
@@ -191,7 +190,7 @@ describe("@voidhash/node entitlements", () => {
   it("reports false for an unknown distinct id", () =>
     Effect.runPromise(
       Effect.gen(function* () {
-        routes({ person: notFoundResponse });
+        routes({ person: noPersonResponse });
 
         const hasPerk = yield* Effect.promise(() =>
           promiseClient().entitlements.hasActivePerk({
@@ -221,7 +220,7 @@ describe("@voidhash/node entitlements", () => {
         expect(hasPerk).toBe(true);
         expect(calls.map(pathOf)).toEqual([
           "/api/v1/perks",
-          "/api/v1/persons/by-distinct-id/user_123",
+          "/api/v1/persons",
           "/api/v1/persons/person_123/entitlements",
         ]);
       }),
@@ -285,8 +284,9 @@ describe("@voidhash/node entitlements", () => {
           }),
         );
 
+        // The 401 wrapper tag is now per-operation, so the stable assertion is
+        // the decoded wire body carrying the API discriminator.
         expect(error).toMatchObject({
-          _tag: "ApiNotAuthenticatedErrorJsonEncoding",
           data: { _tag: "Api/NotAuthenticatedError" },
         });
       }),
@@ -304,8 +304,9 @@ describe("@voidhash/node entitlements", () => {
           }),
         );
 
+        // The 401 wrapper tag is now per-operation, so the stable assertion is
+        // the decoded wire body carrying the API discriminator.
         expect(error).toMatchObject({
-          _tag: "ApiNotAuthenticatedErrorJsonEncoding",
           data: { _tag: "Api/NotAuthenticatedError" },
         });
       }),

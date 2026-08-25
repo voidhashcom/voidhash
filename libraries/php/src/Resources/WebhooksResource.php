@@ -10,6 +10,7 @@ use Voidhash\Generated\Core\Model\UpdateWebhookEndpointBodyJsonEncoding;
 use Voidhash\Generated\Core\Model\WebhookDeliveryJsonEncoding;
 use Voidhash\Generated\Core\Model\WebhookDeliveryWithAttemptsJsonEncoding;
 use Voidhash\Generated\Core\Model\WebhookEndpointJsonEncoding;
+use Voidhash\Internal\PageCollector;
 
 final class WebhooksResource
 {
@@ -37,7 +38,11 @@ final class WebhookEndpointsResource
     /** @return list<WebhookEndpointJsonEncoding> */
     public function list(): array
     {
-        return $this->wrap(fn () => $this->core->webhooksListWebhookEndpoints() ?? []);
+        return $this->wrap(
+            fn () => PageCollector::collect(
+                fn (array $query) => $this->core->webhooksListWebhookEndpoints($query),
+            ),
+        );
     }
 
     public function get(string $endpointId): ?WebhookEndpointJsonEncoding
@@ -90,7 +95,11 @@ final class WebhookDeliveriesResource
     /** @return list<WebhookDeliveryJsonEncoding> */
     public function list(): array
     {
-        return $this->wrap(fn () => $this->core->webhooksListWebhookDeliveries() ?? []);
+        return $this->wrap(
+            fn () => PageCollector::collect(
+                fn (array $query) => $this->core->webhooksListWebhookDeliveries($query),
+            ),
+        );
     }
 
     /** Fetches one delivery including its attempts. */

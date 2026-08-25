@@ -38,13 +38,13 @@ class AuthSession extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint i
             return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiV1AuthSessionGetResponse200', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\AuthSessionUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\AuthSessionUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\AuthSessionForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\AuthSessionInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiAuthenticationErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\AuthSessionInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiAuthServiceErrorJsonEncoding', 'json'), $response);
         }
     }
     public function getAuthenticationScopes(): array

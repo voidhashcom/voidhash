@@ -53,6 +53,12 @@ class CreateWebhookEndpointBodyJsonEncodingNormalizer implements DenormalizerInt
         if (\array_key_exists('name', $data)) {
             $object->setName($data['name']);
         }
+        if (\array_key_exists('projectId', $data) && $data['projectId'] !== null) {
+            $object->setProjectId($data['projectId']);
+        }
+        elseif (\array_key_exists('projectId', $data) && $data['projectId'] === null) {
+            $object->setProjectId(null);
+        }
         if (\array_key_exists('url', $data)) {
             $object->setUrl($data['url']);
         }
@@ -70,6 +76,9 @@ class CreateWebhookEndpointBodyJsonEncodingNormalizer implements DenormalizerInt
         }
         $dataArray['events'] = $values;
         $dataArray['name'] = $data->getName();
+        if ($data->isInitialized('projectId')) {
+            $dataArray['projectId'] = $data->getProjectId();
+        }
         $dataArray['url'] = $data->getUrl();
         return $dataArray;
     }

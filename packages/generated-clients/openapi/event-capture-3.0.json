@@ -16,7 +16,6 @@
             "name": "x-secret-key",
             "in": "header",
             "schema": {
-              "nullable": true,
               "type": "string"
             },
             "required": false
@@ -164,7 +163,6 @@
             "name": "x-secret-key",
             "in": "header",
             "schema": {
-              "nullable": true,
               "type": "string"
             },
             "required": false

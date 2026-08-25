@@ -47,7 +47,7 @@ class PersonsGetPersonEntitlements extends \Voidhash\Generated\Core\Runtime\Clie
             return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\PersonEntitlementsResponseJsonEncoding', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\PersonsGetPersonEntitlementsUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\PersonsGetPersonEntitlementsUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PersonsGetPersonEntitlementsForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

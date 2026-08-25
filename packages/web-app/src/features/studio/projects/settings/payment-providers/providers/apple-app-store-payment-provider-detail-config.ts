@@ -127,7 +127,7 @@ export function getAppleServerToServerNotificationUrl({
   const normalizedApiBaseUrl = normalizedApiUrl.endsWith("/api")
     ? normalizedApiUrl
     : `${normalizedApiUrl}/api`;
-  return `${normalizedApiBaseUrl}/v1/webhook-endpoints/apple-server-to-server/${paymentProviderConfigurationId}`;
+  return `${normalizedApiBaseUrl}/v1/inbound-webhooks/apple-server-to-server/${paymentProviderConfigurationId}`;
 }
 
 const OPTIONAL_FIELDS = new Set<keyof AppleAppStoreGlobalConfiguration>([

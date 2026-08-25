@@ -114,19 +114,32 @@ import { McpRouteLayer } from "./routes/mcp.ts";
 import { McpOAuthRouteLayer } from "./routes/mcp-oauth.ts";
 import { McpOAuth, McpOAuthUnconfiguredLive } from "./McpOAuth.ts";
 import { withRequestId } from "./Telemetry.ts";
+import { AnalyticsGroupLive } from "./routes/v1/analytics.ts";
 import { ApiKeysGroupLive } from "./routes/v1/api-keys.ts";
 import { AuthGroupLive } from "./routes/v1/auth.ts";
-import { NotificationsGroupLive } from "./routes/v1/notifications.ts";
+import { DevelopmentGroupLive } from "./routes/v1/development.ts";
+import { EventsGroupLive } from "./routes/v1/events.ts";
+import { ExperimentsGroupLive } from "./routes/v1/experiments.ts";
+import {
+  FeatureFlagOverridesGroupLive,
+  FeatureFlagTargetsGroupLive,
+  FeatureFlagsGroupLive,
+} from "./routes/v1/feature-flags.ts";
+import { IngestPolicyGroupLive } from "./routes/v1/ingest-policy.ts";
+import { NotificationSendsGroupLive, NotificationsGroupLive } from "./routes/v1/notifications.ts";
 import { OrganizationsGroupLive } from "./routes/v1/organizations.ts";
 import { PaymentProviderConfigurationsGroupLive } from "./routes/v1/payment-provider-configurations.ts";
 import { PaymentProviderProductsGroupLive } from "./routes/v1/payment-provider-products.ts";
 import { PaywallDeploysGroupLive } from "./routes/v1/paywall-deploys.ts";
 import { PaywallLocationsGroupLive } from "./routes/v1/paywall-locations.ts";
+import { PaywallsGroupLive } from "./routes/v1/paywalls.ts";
 import { PerksGroupLive } from "./routes/v1/perks.ts";
 import { PersonsGroupLive } from "./routes/v1/persons.ts";
-import { ProductPerksGroupLive } from "./routes/v1/product-perks.ts";
 import { ProductsGroupLive } from "./routes/v1/products.ts";
 import { ProjectsGroupLive } from "./routes/v1/projects.ts";
+import {
+  PushNotificationConfigurationsGroupLive,
+} from "./routes/v1/push-notification-configurations.ts";
 import { SchemaGroupLive } from "./routes/v1/schema.ts";
 import { SdkGroupLive } from "./routes/v1/sdk.ts";
 import { UsersGroupLive } from "./routes/v1/users.ts";
@@ -831,6 +844,8 @@ const buildBackendServiceGraph = <
     AgentSessionIndexServiceLive,
     AgentAttachmentService.layer.pipe(Layer.provide(AgentSessionIndexServiceLive)),
     layers.analyticsService ?? AnalyticsService.layer.pipe(Layer.provide(AnalyticsEventStoreLive)),
+    // The portable ingest path also consumes the PostgreSQL store directly.
+    AnalyticsEventStoreLive,
     ApiKeyService.layer,
     BackendFeedbackServiceLive,
     BackendAppStorePaymentProviderServiceLive,
@@ -1076,19 +1091,29 @@ export const buildBackendFetch = <
   );
 
   const V1GroupsLayer = Layer.mergeAll(
+    AnalyticsGroupLive,
     ApiKeysGroupLive,
     AuthGroupLive,
+    DevelopmentGroupLive,
+    EventsGroupLive,
+    ExperimentsGroupLive,
+    FeatureFlagOverridesGroupLive,
+    FeatureFlagTargetsGroupLive,
+    FeatureFlagsGroupLive,
+    IngestPolicyGroupLive,
+    NotificationSendsGroupLive,
     NotificationsGroupLive,
     OrganizationsGroupLive,
     PaymentProviderConfigurationsGroupLive,
     PaymentProviderProductsGroupLive,
     PaywallDeploysGroupLive,
     PaywallLocationsGroupLive,
+    PaywallsGroupLive,
     PerksGroupLive,
     PersonsGroupLive,
-    ProductPerksGroupLive,
     ProductsGroupLive,
     ProjectsGroupLive,
+    PushNotificationConfigurationsGroupLive,
     SchemaGroupLive,
     SdkGroupLive,
     UsersGroupLive,

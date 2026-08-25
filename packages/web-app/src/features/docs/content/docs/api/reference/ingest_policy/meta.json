@@ -1,0 +1,8 @@
+{
+  "title": "Ingest_policy",
+  "pages": [
+    "ingest_policy.getIngestPolicy",
+    "ingest_policy.setBuiltinEventAdmission",
+    "ingest_policy.setCustomEventBlocked"
+  ]
+}

@@ -56,24 +56,57 @@ const voidhash = createVoidhashSdk({
 or `ingestUrl`, or a missing global `fetch`. The SDK sets `x-secret-key` for
 you — passing it in `headers` (in any casing) also throws.
 
-Namespaces: `apiKeys`, `auth`, `notifications`, `organizations`,
+Namespaces: `analytics`, `apiKeys`, `auth`, `development`, `events`,
+`experiments`, `featureFlagOverrides`, `featureFlagTargets`, `featureFlags`,
+`ingestPolicy`, `notificationSends`, `notifications`, `organizations`,
 `paymentProviderConfigurations`, `paymentProviderProducts`, `paywallDeploys`,
-`paywallLocations`, `perks`, `persons`, `productPerks`, `products`, `projects`,
-`schema`, `users`, `webhooks` — plus `entitlements`, a convenience layer over
-`persons` and `perks` rather than a REST group of its own, and `eventCapture`,
-which talks to the analytics ingestion API instead of the REST API.
+`paywallLocations`, `paywalls`, `perks`, `persons`, `products`, `projects`,
+`pushNotificationConfigurations`, `schema`, `users`, `webhooks` — plus
+`entitlements`, a convenience layer over `persons` and `perks` rather than a
+REST group of its own, and `eventCapture`, which talks to the analytics
+ingestion API instead of the REST API.
+
+### Pagination
+
+Every `list*` method resolves with a `{ data, pageInfo }` envelope rather than a
+bare array, and accepts `limit` and `cursor` params:
+
+```ts
+const firstPage = await voidhash.perks.listPerks({ params: { limit: "50" } });
+
+for (const perk of firstPage.data) {
+  console.log(perk.slug);
+}
+
+if (firstPage.pageInfo.hasNextPage) {
+  const nextPage = await voidhash.perks.listPerks({
+    params: { limit: "50", cursor: firstPage.pageInfo.endCursor },
+  });
+}
+```
+
+`pageInfo` is `{ endCursor: string | null; hasNextPage: boolean }`. Pass
+`endCursor` back as `cursor` to walk the collection; stop when `hasNextPage` is
+`false`.
 
 ## Looking up a person
 
-Use the same distinct id your mobile app passed to `identify()`:
+Use the same distinct id your mobile app passed to `identify()` as a filter on
+the person list:
 
 ```ts
-const person = await voidhash.persons.getPersonByDistinctId({
+const { data } = await voidhash.persons.listPersons({
   params: { distinctId: "user_123" },
 });
 
+const person = data[0];
+
 // { personId, distinctId, email, name } — email and name may be null.
+// An unknown distinct id is an empty page, not a 404.
 ```
+
+Write to a person with `persons.updatePerson({ params: { personId }, payload })`,
+which sets `email`, `name`, `traits` and `setOnce`.
 
 `Person` is intentionally thin: it identifies the user, it does not describe
 what they have paid for.
@@ -266,8 +299,8 @@ const serverTag = (error: unknown): string | undefined =>
   (error as { data?: { _tag?: string } } | null)?.data?._tag;
 
 try {
-  const person = await voidhash.persons.getPersonByDistinctId({
-    params: { distinctId: "user_123" },
+  const grants = await voidhash.entitlements.getGrantsByDistinctId({
+    distinctId: "user_123",
   });
 } catch (error) {
   switch (serverTag(error)) {
@@ -286,9 +319,12 @@ Transport failures (DNS, TLS, timeouts) reject with an Effect
 `HttpClientError` instead, which has no `data`. Treat those as *unknown*, not
 as a definitive answer — see [Caching and failure handling](#caching-and-failure-handling).
 
-Common tags: `Api/NotAuthenticatedError` (401), `Api/ActionForbiddenError`
-(403), `Api/PersonNotFoundError` (404), `Api/WebhookEndpointNotFoundError`
-(404), `Api/WebhookValidationError` (400).
+Common tags: `Api/NotAuthenticatedError` (401), `Api/AuthenticationError`
+(401), `Api/ActionForbiddenError` (403), `Api/PersonNotFoundError` (404),
+`Api/WebhookEndpointNotFoundError` (404), `Api/WebhookValidationError` (400).
+A key that cannot be authenticated is always a `401`; a `500`
+`Api/AuthServiceError` means the auth backend itself failed and is worth a
+retry, unlike the `401`s.
 
 ## Webhooks
 
@@ -364,6 +400,10 @@ therefore be delivered twice: **dedupe on your side** — key on a stable id fro
 the payload and make the handler idempotent. Return `200` as soon as the
 signature checks out and process asynchronously.
 
+The signing secret is returned only when an endpoint is created or rotated —
+`webhooks.getWebhookEndpoint` and `webhooks.listWebhookEndpoints` never include
+it, so store it when you receive it.
+
 Rotate a leaked secret with:
 
 ```ts
@@ -386,7 +426,7 @@ import { createVoidhashSdk } from "@voidhash/node/effect";
 
 const voidhash = createVoidhashSdk({ secretKey: process.env.VOIDHASH_SECRET_KEY! });
 
-const program = voidhash.persons.getPersonByDistinctId({
+const program = voidhash.persons.listPersons({
   params: { distinctId: "user_123" },
 });
 ```

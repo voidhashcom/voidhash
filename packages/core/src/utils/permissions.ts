@@ -24,6 +24,53 @@ export const extractAuthorizedProjectId = (authSession: AnyAuthSession) =>
   });
 
 /**
+ * Resolve the project an HTTP request targets, preferring an explicit id.
+ *
+ * Key-based sessions carry exactly one project, so omitting the id is
+ * unambiguous and stays backwards compatible. A user session may span many
+ * projects: there `extractAuthorizedProjectId`'s "first project" fallback picks
+ * an arbitrary tenant, so we require the caller to name one instead of guessing.
+ *
+ * @param session - the authenticated session
+ * @param requested - `projectId` from the query string or body, if supplied
+ */
+export const resolveRequestProjectId = (
+  session: AnyAuthSession,
+  requested?: string,
+) =>
+  Effect.gen(function* () {
+    if (requested !== undefined) {
+      const match = session.projects.find((p) => p.id === requested);
+      if (!match) {
+        return yield* Effect.fail(
+          new ActionForbiddenError({
+            message: "The authenticated credential does not have access to this project.",
+          }),
+        );
+      }
+      return match.id;
+    }
+
+    if (session.projects.length === 1) {
+      return session.projects[0]!.id;
+    }
+
+    if (session.projects.length === 0) {
+      return yield* Effect.fail(
+        new ActionForbiddenError({
+          message: "No project found for this authentication method.",
+        }),
+      );
+    }
+
+    return yield* Effect.fail(
+      new ActionForbiddenError({
+        message: "This credential spans multiple projects; specify a projectId.",
+      }),
+    );
+  });
+
+/**
  * Whether the session is a member of `organizationId`. Any org that appears in
  * the session is one the caller belongs to — the least-privileged check (no
  * specific permission required), for org-scoped features every member may use

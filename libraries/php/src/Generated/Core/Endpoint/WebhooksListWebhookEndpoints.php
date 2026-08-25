@@ -4,6 +4,17 @@ namespace Voidhash\Generated\Core\Endpoint;
 
 class WebhooksListWebhookEndpoints extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint implements \Voidhash\Generated\Core\Runtime\Client\Endpoint
 {
+    /**
+     * @param array{
+     *    "cursor"?: string,
+     *    "limit"?: string,
+     *    "projectId"?: string,
+     * } $queryParameters
+     */
+    public function __construct(array $queryParameters = [])
+    {
+        $this->queryParameters = $queryParameters;
+    }
     use \Voidhash\Generated\Core\Runtime\Client\EndpointTrait;
     public function getMethod(): string
     {
@@ -21,6 +32,17 @@ class WebhooksListWebhookEndpoints extends \Voidhash\Generated\Core\Runtime\Clie
     {
         return ['Accept' => ['application/json']];
     }
+    protected function getQueryOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
+    {
+        $optionsResolver = parent::getQueryOptionsResolver();
+        $optionsResolver->setDefined(['cursor', 'limit', 'projectId']);
+        $optionsResolver->setRequired([]);
+        $optionsResolver->setDefaults([]);
+        $optionsResolver->addAllowedTypes('cursor', ['string']);
+        $optionsResolver->addAllowedTypes('limit', ['string']);
+        $optionsResolver->addAllowedTypes('projectId', ['string']);
+        return $optionsResolver;
+    }
     /**
      * {@inheritdoc}
      *
@@ -28,17 +50,17 @@ class WebhooksListWebhookEndpoints extends \Voidhash\Generated\Core\Runtime\Clie
      * @throws \Voidhash\Generated\Core\Exception\WebhooksListWebhookEndpointsForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\WebhooksListWebhookEndpointsInternalServerErrorException
      *
-     * @return null|\Voidhash\Generated\Core\Model\WebhookEndpointJsonEncoding[]
+     * @return null|\Voidhash\Generated\Core\Model\ApiV1WebhooksEndpointsGetResponse200
      */
     protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
         if (is_null($contentType) === false && (200 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\WebhookEndpointJsonEncoding[]', 'json');
+            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiV1WebhooksEndpointsGetResponse200', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\WebhooksListWebhookEndpointsUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\WebhooksListWebhookEndpointsUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\WebhooksListWebhookEndpointsForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

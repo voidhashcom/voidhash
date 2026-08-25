@@ -37,6 +37,7 @@ import { describe, expect } from "vitest";
 import {
   PaywallArtifactStore,
   type PaywallArtifactStoreShape,
+  PaywallReleaseNotFoundError,
   PaywallDeployService,
   computeComponentContentHash,
   computePaywallContentHash,
@@ -730,8 +731,35 @@ describe("PaywallDeployService deploy lifecycle", () => {
         });
         expect(endedOriginal?.endedAt).not.toBeNull();
 
+        const unrelatedPaywallId = `it_dep_pw_${yield* Clock.currentTimeMillis}-${seq++}`;
+        ids.paywallIds.push(unrelatedPaywallId);
+        yield* db.insert(paywalls).values({
+          id: unrelatedPaywallId,
+          name: "Unrelated Paywall",
+          projectId,
+          slug: unrelatedPaywallId,
+          source: PaywallSource.code,
+        });
+        const wrongParentError = yield* Effect.flip(
+          svc.setActivePaywallRelease({
+            paywallId: unrelatedPaywallId,
+            releaseId: summaryV1.releaseId,
+          }),
+        );
+        expect(wrongParentError).toBeInstanceOf(PaywallReleaseNotFoundError);
+        const releasesAfterWrongParent = yield* findReleaseRows(summaryV1.paywallId);
+        expect(
+          releasesAfterWrongParent.find((row) => row.id === summaryV1.releaseId)?.isActive,
+        ).toBe(false);
+        expect(
+          releasesAfterWrongParent.find((row) => row.id === summaryV2.releaseId)?.isActive,
+        ).toBe(true);
+
         // -- roll back: activating v1 repins the open showing again ------------
-        yield* svc.setActivePaywallRelease({ releaseId: summaryV1.releaseId });
+        yield* svc.setActivePaywallRelease({
+          paywallId: summaryV1.paywallId,
+          releaseId: summaryV1.releaseId,
+        });
         const openAfterRollback = yield* findOpenShowings;
         expect(openAfterRollback.length).toBe(1);
         expect(openAfterRollback[0]?.paywallReleaseId).toBe(summaryV1.releaseId);

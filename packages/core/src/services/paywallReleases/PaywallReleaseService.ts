@@ -254,10 +254,16 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
         (effect) => effect.pipe(Effect.mapError((error) => preserveDomainErrors("read", error))),
       );
 
+      /** Publishes a draft, optionally requiring it to belong to a nested parent paywall. */
       const publishRelease = Effect.fn("publishPaywallRelease")(
-        function* (draftId: string) {
+        function* (draftId: string, paywallId?: string) {
+          const where: { id: string; paywallId?: string; status: number } = {
+            id: draftId,
+            status: ReleaseStatus.draft,
+          };
+          if (paywallId !== undefined) where.paywallId = paywallId;
           const draft = yield* db.query.paywallReleases.findFirst({
-            where: { id: draftId, status: ReleaseStatus.draft },
+            where,
           });
           if (!draft) {
             return yield* Effect.fail(new ReleaseNotFoundError({ releaseId: draftId }));

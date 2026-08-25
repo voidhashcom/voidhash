@@ -1,8 +1,8 @@
 {
   "title": "Webhooks",
   "pages": [
-    "webhooks.listWebhookEndpoints",
     "webhooks.createWebhookEndpoint",
+    "webhooks.listWebhookEndpoints",
     "webhooks.getWebhookEndpoint",
     "webhooks.updateWebhookEndpoint",
     "webhooks.deleteWebhookEndpoint",

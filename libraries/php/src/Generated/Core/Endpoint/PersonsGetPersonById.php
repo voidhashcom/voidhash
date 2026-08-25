@@ -37,17 +37,17 @@ class PersonsGetPersonById extends \Voidhash\Generated\Core\Runtime\Client\BaseE
      * @throws \Voidhash\Generated\Core\Exception\PersonsGetPersonByIdNotFoundException
      * @throws \Voidhash\Generated\Core\Exception\PersonsGetPersonByIdInternalServerErrorException
      *
-     * @return null|\Voidhash\Generated\Core\Model\PersonJsonEncoding
+     * @return null|\Voidhash\Generated\Core\Model\PersonJsonEncoding1
      */
     protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
         if (is_null($contentType) === false && (200 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\PersonJsonEncoding', 'json');
+            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\PersonJsonEncoding1', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\PersonsGetPersonByIdUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\PersonsGetPersonByIdUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PersonsGetPersonByIdForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

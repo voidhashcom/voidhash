@@ -5,7 +5,7 @@ import {
   ApiApiKeyServiceError,
 } from "@voidhash/api-contracts/errors";
 import { ApiKeyService } from "@voidhash/core/services";
-import { extractAuthorizedProjectId } from "@voidhash/core/utils";
+import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
@@ -16,7 +16,7 @@ const rawKeyFields = (apiKey: { readonly isPublic: boolean; readonly key: string
   return {};
 };
 
-import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
+import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
 
 export const ApiKeysGroupLive = HttpApiBuilder.group(VoidhashV1Api, "api_keys", (handlers) =>
   Effect.gen(function* () {
@@ -32,19 +32,24 @@ export const ApiKeysGroupLive = HttpApiBuilder.group(VoidhashV1Api, "api_keys", 
           }),
         ),
       )
-      .handle("listApiKeys", () =>
+      .handle("listApiKeys", ({ query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, ["user", "secret-key"]);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const apiKeys = yield* apiKeyService.getApiKeys(projectId);
-            return apiKeys.map(
-              (apiKey) =>
-                new ApiKey({
-                  ...apiKey,
-                  ...rawKeyFields(apiKey),
-                }),
-            );
+            const page = yield* paginate(apiKeys, (apiKey) => apiKey.id, query);
+            return {
+              data: page.data.map(
+                (apiKey) =>
+                  new ApiKey({
+                    ...apiKey,
+                    ...rawKeyFields(apiKey),
+                  }),
+              ),
+              pageInfo: page.pageInfo,
+            };
           }),
         ).pipe(
           Effect.catchTags({

@@ -1,6 +1,10 @@
 /**
  * Google Play Real-Time Developer Notification (RTDN) endpoint —
- * `POST /api/v1/webhook-endpoints/google-play-rtdn/:paymentProviderConfigurationId`.
+ * `POST /api/v1/inbound-webhooks/google-play-rtdn/:paymentProviderConfigurationId`.
+ *
+ * Renamed from `/api/v1/webhook-endpoints/google-play-rtdn/…`, which collided with the
+ * outbound `webhooks` management group. Only Google calls this path, so the
+ * cutover is a provider-console reconfiguration.
  *
  * Google delivers RTDN through a Pub/Sub PUSH subscription, so the HTTP body is
  * a Pub/Sub envelope (`{ message: { data: base64(DeveloperNotification), ... } }`).
@@ -38,7 +42,7 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
 
   yield* router.add(
     "POST",
-    "/api/v1/webhook-endpoints/google-play-rtdn/:paymentProviderConfigurationId",
+    "/api/v1/inbound-webhooks/google-play-rtdn/:paymentProviderConfigurationId",
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(

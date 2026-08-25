@@ -7,10 +7,14 @@ class WebhooksGetWebhookDelivery extends \Voidhash\Generated\Core\Runtime\Client
     protected $deliveryId;
     /**
      * @param string $deliveryId
+     * @param array{
+     *    "projectId"?: string,
+     * } $queryParameters
      */
-    public function __construct(string $deliveryId)
+    public function __construct(string $deliveryId, array $queryParameters = [])
     {
         $this->deliveryId = $deliveryId;
+        $this->queryParameters = $queryParameters;
     }
     use \Voidhash\Generated\Core\Runtime\Client\EndpointTrait;
     public function getMethod(): string
@@ -28,6 +32,15 @@ class WebhooksGetWebhookDelivery extends \Voidhash\Generated\Core\Runtime\Client
     public function getExtraHeaders(): array
     {
         return ['Accept' => ['application/json']];
+    }
+    protected function getQueryOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
+    {
+        $optionsResolver = parent::getQueryOptionsResolver();
+        $optionsResolver->setDefined(['projectId']);
+        $optionsResolver->setRequired([]);
+        $optionsResolver->setDefaults([]);
+        $optionsResolver->addAllowedTypes('projectId', ['string']);
+        return $optionsResolver;
     }
     /**
      * {@inheritdoc}
@@ -47,7 +60,7 @@ class WebhooksGetWebhookDelivery extends \Voidhash\Generated\Core\Runtime\Client
             return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\WebhookDeliveryWithAttemptsJsonEncoding', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\WebhooksGetWebhookDeliveryUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\WebhooksGetWebhookDeliveryUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\WebhooksGetWebhookDeliveryForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

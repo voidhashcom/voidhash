@@ -93,7 +93,7 @@ export const apiProjectsOrgsSuite: ConformanceSuite = {
         headers: apiAuth,
         body: { name: "Conformance Org" },
       },
-      { status: 200, body: ORGANIZATION_FIXTURE },
+      { status: 201, body: ORGANIZATION_FIXTURE },
     ),
     step(
       "create-project",
@@ -103,13 +103,13 @@ export const apiProjectsOrgsSuite: ConformanceSuite = {
         headers: apiAuth,
         body: { name: "Conformance Project", organizationId: ORGANIZATION_ID },
       },
-      { status: 200, body: PROJECT_FIXTURE },
+      { status: 201, body: PROJECT_FIXTURE },
     ),
     step(
-      "list-projects",
+      "list-organization-projects",
       {
         method: "GET",
-        path: `/api/v1/projects/${ORGANIZATION_ID}`,
+        path: `/api/v1/organizations/${ORGANIZATION_ID}/projects`,
         headers: apiAuth,
       },
       { status: 200, body: PROJECTS_LIST_FIXTURE },
@@ -187,7 +187,7 @@ export const apiWebhooksSuite: ConformanceSuite = {
           url: "https://hooks.conformance.voidhash.test/receive",
         },
       },
-      { status: 200, body: WEBHOOK_ENDPOINT_FIXTURE },
+      { status: 201, body: WEBHOOK_ENDPOINT_FIXTURE },
     ),
     step(
       "list-endpoints",
@@ -309,7 +309,7 @@ export const apiCatalogSuite: ConformanceSuite = {
       "list-product-perks",
       {
         method: "GET",
-        path: `/api/v1/product-perks/by-product-id/${PRODUCT_ID}`,
+        path: `/api/v1/products/${PRODUCT_ID}/perks`,
         headers: apiAuth,
       },
       { status: 200, body: PRODUCT_PERKS_LIST_FIXTURE },
@@ -339,13 +339,13 @@ export const apiCatalogSuite: ConformanceSuite = {
 export const apiNotificationsSuite: ConformanceSuite = {
   name: "api/notifications",
   category: "api",
-  description: "Push notification send plus the not-enabled conflict error.",
+  description: "Push notification dispatch (202 accepted) plus the not-enabled conflict error.",
   steps: [
     step(
-      "send-notification",
+      "create-notification",
       {
         method: "POST",
-        path: "/api/v1/notifications/send",
+        path: "/api/v1/notifications",
         headers: apiAuth,
         body: {
           badge: 1,
@@ -360,13 +360,13 @@ export const apiNotificationsSuite: ConformanceSuite = {
           ttl: 3600,
         },
       },
-      { status: 200, body: SEND_NOTIFICATION_RESPONSE_FIXTURE },
+      { status: 202, body: SEND_NOTIFICATION_RESPONSE_FIXTURE },
     ),
     step(
-      "send-notification-not-enabled",
+      "create-notification-not-enabled",
       {
         method: "POST",
-        path: "/api/v1/notifications/send",
+        path: "/api/v1/notifications",
         headers: apiAuth,
         body: {
           body: "Conformance push",

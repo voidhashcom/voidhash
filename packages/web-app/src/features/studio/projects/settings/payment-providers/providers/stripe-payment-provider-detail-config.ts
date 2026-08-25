@@ -57,7 +57,7 @@ export function getStripeWebhookEndpointUrl({
   const normalizedApiBaseUrl = normalizedApiUrl.endsWith("/api")
     ? normalizedApiUrl
     : `${normalizedApiUrl}/api`;
-  return `${normalizedApiBaseUrl}/v1/webhook-endpoints/stripe/${paymentProviderConfigurationId}`;
+  return `${normalizedApiBaseUrl}/v1/inbound-webhooks/stripe/${paymentProviderConfigurationId}`;
 }
 
 const OPTIONAL_FIELDS = new Set<FieldPath<StripeGlobalConfiguration>>();

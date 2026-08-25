@@ -1,9 +1,11 @@
 import {
+  createdResponse,
   VoidhashV1Api,
   WebhookDelivery,
   WebhookDeliveryAttempt,
   WebhookDeliveryWithAttempts,
   WebhookEndpoint,
+  WebhookEndpointWithSecret,
 } from "@voidhash/api-contracts";
 import {
   ApiActionForbiddenError,
@@ -13,12 +15,51 @@ import {
   ApiWebhookValidationError,
 } from "@voidhash/api-contracts/errors";
 import { WebhookManagerService } from "@voidhash/core/services/webhookManager/WebhookManagerService";
-import { extractAuthorizedProjectId } from "@voidhash/core/utils";
+import { decodeCursor, encodeCursor, paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
-import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
+import {
+  type ApiCredentialMethod,
+  bridgeAuthSession,
+  requireCredential,
+} from "../../ApiMiddlewares.ts";
+
+/**
+ * Credentials allowed to manage webhooks. Publishable keys ship inside client
+ * bundles, so they must never reach an endpoint that can read delivery
+ * payloads or mint a signing secret.
+ */
+const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
+
+/** Resolves an optional opaque cursor to the delivery id it points at. */
+const toAfterDeliveryId = (cursor: string | undefined) => {
+  if (cursor === undefined) return Effect.succeed(undefined);
+  return decodeCursor(cursor);
+};
+
+/** Shape the webhook service returns for an endpoint — secret included. */
+type ServiceEndpoint = typeof WebhookEndpointWithSecret.Type;
+
+/**
+ * Strips the signing secret before an endpoint leaves a read. The service hands
+ * back the raw row, so masking has to happen here rather than being an accident
+ * of the response schema.
+ */
+const toEndpointResponse = (endpoint: ServiceEndpoint): WebhookEndpoint =>
+  new WebhookEndpoint({
+    consecutiveFailures: endpoint.consecutiveFailures,
+    createdAt: endpoint.createdAt,
+    description: endpoint.description,
+    events: endpoint.events,
+    id: endpoint.id,
+    lastSuccessAt: endpoint.lastSuccessAt,
+    name: endpoint.name,
+    projectId: endpoint.projectId,
+    status: endpoint.status,
+    url: endpoint.url,
+  });
 
 export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks", (handlers) =>
   Effect.gen(function* () {
@@ -29,9 +70,23 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
-            const endpoint = yield* webhookManagerService.createEndpoint({ ...payload, projectId });
-            return new WebhookEndpoint(endpoint);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
+            const endpoint = yield* webhookManagerService.createEndpoint({
+              description: payload.description,
+              events: payload.events,
+              name: payload.name,
+              projectId,
+              url: payload.url,
+            });
+            const created = new WebhookEndpointWithSecret(endpoint);
+            // `GET /webhooks/endpoints/:endpointId` is project-scoped, so the
+            // scope the create resolved travels with the `Location` URL.
+            return yield* createdResponse(
+              WebhookEndpointWithSecret,
+              created,
+              `/webhooks/endpoints/${created.id}?projectId=${projectId}`,
+            );
           }),
         ).pipe(
           Effect.catchTags({
@@ -43,13 +98,21 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("listWebhookEndpoints", () =>
+      .handle("listWebhookEndpoints", ({ query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const endpoints = yield* webhookManagerService.getEndpoints({ projectId });
-            return endpoints.map((endpoint) => new WebhookEndpoint(endpoint));
+            // The service returns rows in database order; cursors only mean
+            // something over a stable one.
+            const sorted = [...endpoints].sort((a, b) => a.id.localeCompare(b.id));
+            const page = yield* paginate(sorted, (endpoint) => endpoint.id, query);
+            return {
+              data: page.data.map(toEndpointResponse),
+              pageInfo: page.pageInfo,
+            };
           }),
         ).pipe(
           Effect.catchTags({
@@ -59,16 +122,17 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("getWebhookEndpoint", ({ params }) =>
+      .handle("getWebhookEndpoint", ({ params, query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const endpoint = yield* webhookManagerService.getEndpointById({
               endpointId: params.endpointId,
               projectId,
             });
-            return new WebhookEndpoint(endpoint);
+            return toEndpointResponse(endpoint);
           }),
         ).pipe(
           Effect.catchTags({
@@ -80,17 +144,18 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("updateWebhookEndpoint", ({ params, payload }) =>
+      .handle("updateWebhookEndpoint", ({ params, payload, query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const endpoint = yield* webhookManagerService.updateEndpoint({
               ...payload,
               endpointId: params.endpointId,
               projectId,
             });
-            return new WebhookEndpoint(endpoint);
+            return toEndpointResponse(endpoint);
           }),
         ).pipe(
           Effect.catchTags({
@@ -104,11 +169,12 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("deleteWebhookEndpoint", ({ params }) =>
+      .handle("deleteWebhookEndpoint", ({ params, query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             return yield* webhookManagerService.deleteEndpoint({
               endpointId: params.endpointId,
               projectId,
@@ -124,16 +190,17 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("rotateWebhookSecret", ({ params }) =>
+      .handle("rotateWebhookSecret", ({ params, query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const endpoint = yield* webhookManagerService.rotateSecret({
               endpointId: params.endpointId,
               projectId,
             });
-            return new WebhookEndpoint(endpoint);
+            return new WebhookEndpointWithSecret(endpoint);
           }),
         ).pipe(
           Effect.catchTags({
@@ -145,11 +212,12 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("testWebhookEndpoint", ({ params }) =>
+      .handle("testWebhookEndpoint", ({ params, query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const delivery = yield* webhookManagerService.testEndpoint({
               endpointId: params.endpointId,
               projectId,
@@ -166,13 +234,27 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("listWebhookDeliveries", () =>
+      .handle("listWebhookDeliveries", ({ query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
-            const deliveries = yield* webhookManagerService.getDeliveries({ projectId });
-            return deliveries.map((delivery) => new WebhookDelivery(delivery));
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
+            const after = yield* toAfterDeliveryId(query.cursor);
+            const page = yield* webhookManagerService.getDeliveriesPage({
+              after,
+              endpointId: query.endpointId,
+              limit: query.limit,
+              projectId,
+            });
+            let endCursor: string | null = null;
+            if (page.hasNextPage && page.endCursorId !== null) {
+              endCursor = encodeCursor(page.endCursorId);
+            }
+            return {
+              data: page.deliveries.map((delivery) => new WebhookDelivery(delivery)),
+              pageInfo: { endCursor, hasNextPage: page.hasNextPage },
+            };
           }),
         ).pipe(
           Effect.catchTags({
@@ -182,11 +264,12 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("getWebhookDelivery", ({ params }) =>
+      .handle("getWebhookDelivery", ({ params, query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const delivery = yield* webhookManagerService.getDeliveryById({
               deliveryId: params.deliveryId,
               projectId,
@@ -206,11 +289,12 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
           }),
         ),
       )
-      .handle("retryWebhookDelivery", ({ params }) =>
+      .handle("retryWebhookDelivery", ({ params, query }) =>
         bridgeAuthSession(
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
-            const projectId = yield* extractAuthorizedProjectId(authSession);
+            yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+            const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const delivery = yield* webhookManagerService.retryDelivery({
               deliveryId: params.deliveryId,
               projectId,

@@ -1,0 +1,96 @@
+<?php
+
+namespace Voidhash\Generated\Core\Normalizer;
+
+use Jane\Component\JsonSchemaRuntime\Reference;
+use Voidhash\Generated\Core\Runtime\Normalizer\CheckArray;
+use Voidhash\Generated\Core\Runtime\Normalizer\ValidatorTrait;
+use Symfony\Component\Serializer\Normalizer\DenormalizerAwareInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerAwareTrait;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+class DevelopmentStateSubscriptionsItemNormalizer implements DenormalizerInterface, NormalizerInterface, DenormalizerAwareInterface, NormalizerAwareInterface
+{
+    use DenormalizerAwareTrait;
+    use NormalizerAwareTrait;
+    use CheckArray;
+    use ValidatorTrait;
+    public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
+    {
+        return $type === \Voidhash\Generated\Core\Model\DevelopmentStateSubscriptionsItem::class;
+    }
+    public function supportsNormalization(mixed $data, ?string $format = null, array $context = []): bool
+    {
+        return is_object($data) && get_class($data) === \Voidhash\Generated\Core\Model\DevelopmentStateSubscriptionsItem::class;
+    }
+    public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): mixed
+    {
+        $object = new \Voidhash\Generated\Core\Model\DevelopmentStateSubscriptionsItem();
+        if (null === $data || false === \is_array($data)) {
+            return $object;
+        }
+        if (isset($data['$ref']) && !isset($data['type']) && !isset($data['properties']) && !isset($data['allOf'])) {
+            return new Reference($data['$ref'], $context['document-origin']);
+        }
+        if (isset($data['$recursiveRef'])) {
+            return new Reference($data['$recursiveRef'], $context['document-origin']);
+        }
+        if (\array_key_exists('canceledAt', $data) && $data['canceledAt'] !== null) {
+            $object->setCanceledAt($data['canceledAt']);
+        }
+        elseif (\array_key_exists('canceledAt', $data) && $data['canceledAt'] === null) {
+            $object->setCanceledAt(null);
+        }
+        if (\array_key_exists('expiresAt', $data) && $data['expiresAt'] !== null) {
+            $object->setExpiresAt($data['expiresAt']);
+        }
+        elseif (\array_key_exists('expiresAt', $data) && $data['expiresAt'] === null) {
+            $object->setExpiresAt(null);
+        }
+        if (\array_key_exists('gracePeriodExpiresAt', $data) && $data['gracePeriodExpiresAt'] !== null) {
+            $object->setGracePeriodExpiresAt($data['gracePeriodExpiresAt']);
+        }
+        elseif (\array_key_exists('gracePeriodExpiresAt', $data) && $data['gracePeriodExpiresAt'] === null) {
+            $object->setGracePeriodExpiresAt(null);
+        }
+        if (\array_key_exists('id', $data)) {
+            $object->setId($data['id']);
+        }
+        if (\array_key_exists('productId', $data)) {
+            $object->setProductId($data['productId']);
+        }
+        if (\array_key_exists('productName', $data)) {
+            $object->setProductName($data['productName']);
+        }
+        if (\array_key_exists('productSlug', $data)) {
+            $object->setProductSlug($data['productSlug']);
+        }
+        if (\array_key_exists('startsAt', $data)) {
+            $object->setStartsAt($data['startsAt']);
+        }
+        if (\array_key_exists('status', $data)) {
+            $object->setStatus($data['status']);
+        }
+        return $object;
+    }
+    public function normalize(mixed $data, ?string $format = null, array $context = []): array|string|int|float|bool|\ArrayObject|null
+    {
+        $dataArray = [];
+        $dataArray['canceledAt'] = $data->getCanceledAt();
+        $dataArray['expiresAt'] = $data->getExpiresAt();
+        $dataArray['gracePeriodExpiresAt'] = $data->getGracePeriodExpiresAt();
+        $dataArray['id'] = $data->getId();
+        $dataArray['productId'] = $data->getProductId();
+        $dataArray['productName'] = $data->getProductName();
+        $dataArray['productSlug'] = $data->getProductSlug();
+        $dataArray['startsAt'] = $data->getStartsAt();
+        $dataArray['status'] = $data->getStatus();
+        return $dataArray;
+    }
+    public function getSupportedTypes(?string $format = null): array
+    {
+        return [\Voidhash\Generated\Core\Model\DevelopmentStateSubscriptionsItem::class => false];
+    }
+}

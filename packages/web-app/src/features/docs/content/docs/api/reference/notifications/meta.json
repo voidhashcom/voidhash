@@ -1,6 +1,6 @@
 {
   "title": "Notifications",
   "pages": [
-    "notifications.sendNotification"
+    "notifications.createNotification"
   ]
 }

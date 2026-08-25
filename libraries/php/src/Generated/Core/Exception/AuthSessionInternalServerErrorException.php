@@ -5,22 +5,22 @@ namespace Voidhash\Generated\Core\Exception;
 class AuthSessionInternalServerErrorException extends InternalServerErrorException
 {
     /**
-     * @var \Voidhash\Generated\Core\Model\ApiAuthenticationErrorJsonEncoding
+     * @var \Voidhash\Generated\Core\Model\ApiAuthServiceErrorJsonEncoding
      */
-    private $apiAuthenticationErrorJsonEncoding;
+    private $apiAuthServiceErrorJsonEncoding;
     /**
      * @var \Psr\Http\Message\ResponseInterface
      */
     private $response;
-    public function __construct(\Voidhash\Generated\Core\Model\ApiAuthenticationErrorJsonEncoding $apiAuthenticationErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
+    public function __construct(\Voidhash\Generated\Core\Model\ApiAuthServiceErrorJsonEncoding $apiAuthServiceErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
     {
-        parent::__construct('Api/AuthenticationError');
-        $this->apiAuthenticationErrorJsonEncoding = $apiAuthenticationErrorJsonEncoding;
+        parent::__construct('Api/AuthServiceError');
+        $this->apiAuthServiceErrorJsonEncoding = $apiAuthServiceErrorJsonEncoding;
         $this->response = $response;
     }
-    public function getApiAuthenticationErrorJsonEncoding(): \Voidhash\Generated\Core\Model\ApiAuthenticationErrorJsonEncoding
+    public function getApiAuthServiceErrorJsonEncoding(): \Voidhash\Generated\Core\Model\ApiAuthServiceErrorJsonEncoding
     {
-        return $this->apiAuthenticationErrorJsonEncoding;
+        return $this->apiAuthServiceErrorJsonEncoding;
     }
     public function getResponse(): \Psr\Http\Message\ResponseInterface
     {

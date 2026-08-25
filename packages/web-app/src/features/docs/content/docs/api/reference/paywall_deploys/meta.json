@@ -1,7 +1,9 @@
 {
   "title": "Paywall_deploys",
   "pages": [
+    "paywall_deploys.listDeploys",
     "paywall_deploys.createDeploy",
+    "paywall_deploys.getDeploy",
     "paywall_deploys.uploadBlob",
     "paywall_deploys.finalizeDeploy"
   ]

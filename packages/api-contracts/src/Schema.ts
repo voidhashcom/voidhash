@@ -73,8 +73,6 @@ export class CreateSecretKeyBody extends Schema.Class<CreateSecretKeyBody>("Crea
   projectId: Schema.String,
 }) {}
 
-export const ApiKeyIdParam = Schema.String;
-
 // ========================================================
 // Persons
 // ========================================================
@@ -117,10 +115,6 @@ export class SetPersonAttributesBody extends Schema.Class<SetPersonAttributesBod
   // `$set_once` semantics — earliest write wins; loses to any `$set`.
   setOnce: Schema.optional(PersonTraits),
 }) {}
-
-export const PersonIdParam = Schema.String;
-
-export const DistinctIdParam = Schema.String;
 
 // ========================================================
 // Organizations
@@ -180,8 +174,6 @@ export class Product extends Schema.Class<Product>("Product")({
 // Product Perks
 // ========================================================
 
-export const ProductIdParam = Schema.String;
-
 export class ProductPerk extends Schema.Class<ProductPerk>("ProductPerk")({
   id: Schema.String,
   perkId: Schema.String,
@@ -230,8 +222,6 @@ export class Project extends Schema.Class<Project>("Project")({
   name: Schema.String,
   slug: Schema.String,
 }) {}
-
-export const OrganizationIdParam = Schema.String;
 
 // ========================================================
 // SDK
@@ -325,6 +315,9 @@ export class RegisterDeviceResponse extends Schema.Class<RegisterDeviceResponse>
 export class SendNotificationBody extends Schema.Class<SendNotificationBody>(
   "SendNotificationBody",
 )({
+  // Names the project to send from. Optional because a key-based credential
+  // carries exactly one; required for a user session spanning several.
+  projectId: Schema.optional(Schema.String),
   // Targeting — at least one of `personIds`/`distinctIds` must be non-empty
   // (server-checked). Unmapped distinctIds are recorded, never fatal.
   personIds: Schema.optional(Schema.Array(Schema.String)),
@@ -726,7 +719,32 @@ export const WebhookDeliveryStatus = Schema.Literals([
   "exhausted",
 ]);
 
+/**
+ * A webhook endpoint as returned by reads. The signing secret is deliberately
+ * absent: it is shown once at creation and once per rotation, and is not
+ * recoverable afterwards. Use {@link WebhookEndpointWithSecret} for those two.
+ */
 export class WebhookEndpoint extends Schema.Class<WebhookEndpoint>("WebhookEndpoint")({
+  consecutiveFailures: Schema.Number,
+  createdAt: Schema.NullOr(Schema.Date),
+  description: Schema.NullOr(Schema.String),
+  events: Schema.Array(WebhookEventType),
+  id: Schema.String,
+  lastSuccessAt: Schema.NullOr(Schema.Date),
+  name: Schema.String,
+  projectId: Schema.String,
+  status: WebhookEndpointStatus,
+  url: Schema.String,
+}) {}
+
+/**
+ * A webhook endpoint plus its plaintext signing secret. Returned only by
+ * create and rotate-secret, which are the only moments the caller can still
+ * capture it.
+ */
+export class WebhookEndpointWithSecret extends Schema.Class<WebhookEndpointWithSecret>(
+  "WebhookEndpointWithSecret",
+)({
   consecutiveFailures: Schema.Number,
   createdAt: Schema.NullOr(Schema.Date),
   description: Schema.NullOr(Schema.String),
@@ -740,15 +758,6 @@ export class WebhookEndpoint extends Schema.Class<WebhookEndpoint>("WebhookEndpo
   url: Schema.String,
 }) {}
 
-export class CreateWebhookEndpointBody extends Schema.Class<CreateWebhookEndpointBody>(
-  "CreateWebhookEndpointBody",
-)({
-  description: Schema.optional(Schema.String),
-  events: Schema.Array(Schema.String),
-  name: Schema.String,
-  url: Schema.String,
-}) {}
-
 export class UpdateWebhookEndpointBody extends Schema.Class<UpdateWebhookEndpointBody>(
   "UpdateWebhookEndpointBody",
 )({
@@ -758,8 +767,6 @@ export class UpdateWebhookEndpointBody extends Schema.Class<UpdateWebhookEndpoin
   status: Schema.optional(Schema.Literals(["active", "disabled"])),
   url: Schema.optional(Schema.String),
 }) {}
-
-export const WebhookEndpointIdParam = Schema.String;
 
 export class WebhookDelivery extends Schema.Class<WebhookDelivery>("WebhookDelivery")({
   attemptCount: Schema.Number,
@@ -806,8 +813,6 @@ export class WebhookDeliveryWithAttempts extends Schema.Class<WebhookDeliveryWit
   status: WebhookDeliveryStatus,
   webhookEndpointId: Schema.String,
 }) {}
-
-export const WebhookDeliveryIdParam = Schema.String;
 
 // ========================================================
 // Webhook event payloads (outbound HTTP body)

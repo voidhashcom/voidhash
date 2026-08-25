@@ -39,20 +39,20 @@ class WebhooksCreateWebhookEndpoint extends \Voidhash\Generated\Core\Runtime\Cli
      * @throws \Voidhash\Generated\Core\Exception\WebhooksCreateWebhookEndpointForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\WebhooksCreateWebhookEndpointInternalServerErrorException
      *
-     * @return null|\Voidhash\Generated\Core\Model\WebhookEndpointJsonEncoding
+     * @return null|\Voidhash\Generated\Core\Model\WebhookEndpointWithSecretJsonEncoding
      */
     protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
-        if (is_null($contentType) === false && (200 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\WebhookEndpointJsonEncoding', 'json');
+        if (is_null($contentType) === false && (201 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\WebhookEndpointWithSecretJsonEncoding', 'json');
         }
         if (is_null($contentType) === false && (400 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\WebhooksCreateWebhookEndpointBadRequestException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiWebhookValidationErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\WebhooksCreateWebhookEndpointUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\WebhooksCreateWebhookEndpointUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\WebhooksCreateWebhookEndpointForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

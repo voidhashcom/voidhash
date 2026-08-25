@@ -1,8 +1,10 @@
 import {
+  createdResponse,
   CreatePaywallDeployResponse,
   FinalizePaywallDeployResponse,
   FinalizedPaywallDeployComponent,
   FinalizedPaywallDeployPaywall,
+  PaywallDeploy,
   UploadPaywallDeployBlobResponse,
   VoidhashV1Api,
 } from "@voidhash/api-contracts";
@@ -17,17 +19,34 @@ import {
   ApiPaywallDeployUpgradeRequiredError,
   ApiPaywallDeployValidationError,
 } from "@voidhash/api-contracts/errors";
-import { PaywallDeployService } from "@voidhash/core/services";
+import { PaywallDeployService, type PaywallDeployListItem } from "@voidhash/core/services";
+import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
+import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
-import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
+import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
+
+/** Projects a stored deploy onto the public resource shape. */
+const toDeploy = (item: PaywallDeployListItem) =>
+  new PaywallDeploy({
+    cliVersion: item.cliVersion,
+    components: item.components,
+    createdAt: item.createdAt,
+    createdByName: item.createdByName,
+    id: item.id,
+    paywalls: item.paywalls,
+    runtimeVersion: item.runtimeVersion,
+    schemaVersion: item.schemaVersion,
+    status: item.status,
+  });
 
 /**
- * Handlers for the paywall code-deploy surface (deploy contract §4):
- * `POST /api/v1/paywall-deploys`, blob upload, and finalize. All three call
- * {@link PaywallDeployService} under the caller's bridged `AuthSession`; the
- * service authorizes against the manifest's team/project slugs.
+ * Handlers for the paywall code-deploy surface (deploy contract §4): the
+ * create / upload / finalize write protocol plus the list and read-back
+ * endpoints. All of them call {@link PaywallDeployService} under the caller's
+ * bridged `AuthSession`; the write path authorizes against the manifest's
+ * team/project slugs, the read path against the resolved project.
  */
 export const PaywallDeploysGroupLive = HttpApiBuilder.group(
   VoidhashV1Api,
@@ -37,16 +56,69 @@ export const PaywallDeploysGroupLive = HttpApiBuilder.group(
       const deployService = yield* PaywallDeployService;
 
       return handlers
+        .handle("listDeploys", ({ query }) =>
+          bridgeAuthSession(
+            Effect.gen(function* () {
+              const authSession = yield* AuthSession;
+              yield* requireCredential(authSession, ["user", "secret-key"]);
+              const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
+              const deploys = yield* deployService.listDeploys({ projectId });
+              const filtered = deploys.filter(
+                (deploy) => query.status === undefined || deploy.status === query.status,
+              );
+              return yield* paginate(filtered.map(toDeploy), (deploy) => deploy.id, query);
+            }),
+          ).pipe(
+            Effect.catchTags({
+              ActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PaywallDeployServiceError: (e) =>
+                Effect.fail(new ApiPaywallDeployServiceError({ cause: e.cause })),
+            }),
+          ),
+        )
+        .handle("getDeploy", ({ params, query }) =>
+          bridgeAuthSession(
+            Effect.gen(function* () {
+              const authSession = yield* AuthSession;
+              yield* requireCredential(authSession, ["user", "secret-key"]);
+              const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
+              // The service has no by-id accessor; the deploy is read out of
+              // its project's listing, which is already permission-checked.
+              const deploys = yield* deployService.listDeploys({ projectId });
+              const deploy = deploys.find((candidate) => candidate.id === params.deployId);
+              if (!deploy) {
+                return yield* Effect.fail(
+                  new ApiPaywallDeployNotFoundError({
+                    message: `Paywall deploy not found: ${params.deployId}`,
+                  }),
+                );
+              }
+              return toDeploy(deploy);
+            }),
+          ).pipe(
+            Effect.catchTags({
+              ActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PaywallDeployServiceError: (e) =>
+                Effect.fail(new ApiPaywallDeployServiceError({ cause: e.cause })),
+            }),
+          ),
+        )
         .handle("createDeploy", ({ payload }) =>
           bridgeAuthSession(
             deployService.createDeploy({ manifest: payload }).pipe(
-              Effect.map(
-                (result) =>
-                  new CreatePaywallDeployResponse({
-                    deployId: result.deployId,
-                    missing: result.missing,
-                  }),
-              ),
+              Effect.flatMap((result) => {
+                const created = new CreatePaywallDeployResponse({
+                  deployId: result.deployId,
+                  missing: result.missing,
+                });
+                return createdResponse(
+                  CreatePaywallDeployResponse,
+                  created,
+                  `/paywall-deploys/${created.deployId}`,
+                );
+              }),
             ),
           ).pipe(
             Effect.catchTags({

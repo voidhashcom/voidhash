@@ -1,0 +1,8 @@
+{
+  "title": "Feature_flag_targets",
+  "pages": [
+    "feature_flag_targets.listFeatureFlagTargets",
+    "feature_flag_targets.upsertFeatureFlagTarget",
+    "feature_flag_targets.archiveFeatureFlagTarget"
+  ]
+}

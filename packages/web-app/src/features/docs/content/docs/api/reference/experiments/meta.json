@@ -1,0 +1,15 @@
+{
+  "title": "Experiments",
+  "pages": [
+    "experiments.listExperiments",
+    "experiments.createExperiment",
+    "experiments.getExperiment",
+    "experiments.updateExperiment",
+    "experiments.archiveExperiment",
+    "experiments.restoreExperiment",
+    "experiments.startExperiment",
+    "experiments.pauseExperiment",
+    "experiments.concludeExperiment",
+    "experiments.getExperimentResults"
+  ]
+}

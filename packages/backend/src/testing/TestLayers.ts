@@ -1,3 +1,4 @@
+import { ActionForbiddenError } from "@voidhash/core/domain/auth/Auth";
 import {
   WebhookDeliveryNotFoundError,
   WebhookEndpointNotFoundError,
@@ -283,6 +284,36 @@ export const TestWebhookManagerServiceLive = Layer.effect(
       getDeliveries: (input: any) =>
         wrapWebhookDb(
           findDeliveries(input).pipe(Effect.map((deliveries) => deliveries.map(mapDelivery))),
+        ),
+      // In-memory mirror of the keyset read: same anchor semantics (a stale
+      // cursor fails rather than replaying page one), applied over the full
+      // ordered list the smoke database holds.
+      getDeliveriesPage: (input: any) =>
+        wrapWebhookDb(
+          Effect.gen(function* () {
+            const deliveries = (yield* findDeliveries(input)).map(mapDelivery);
+            const limit = input.limit ?? 50;
+            let start = 0;
+            if (input.after !== undefined) {
+              const index = deliveries.findIndex((delivery) => delivery.id === input.after);
+              if (index === -1) {
+                return yield* Effect.fail(
+                  new ActionForbiddenError({
+                    message: "Pagination cursor no longer refers to a known item.",
+                  }),
+                );
+              }
+              start = index + 1;
+            }
+            const pageRows = deliveries.slice(start, start + limit);
+            const hasNextPage = start + limit < deliveries.length;
+            const lastRow = pageRows[pageRows.length - 1];
+            let endCursorId: string | null = null;
+            if (hasNextPage && lastRow !== undefined) {
+              endCursorId = lastRow.id;
+            }
+            return { deliveries: pageRows, endCursorId, hasNextPage };
+          }),
         ),
       getDeliveryById: (input: any) =>
         wrapWebhookDb(

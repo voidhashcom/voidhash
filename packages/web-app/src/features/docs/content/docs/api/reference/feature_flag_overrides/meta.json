@@ -1,0 +1,8 @@
+{
+  "title": "Feature_flag_overrides",
+  "pages": [
+    "feature_flag_overrides.listFeatureFlagOverrides",
+    "feature_flag_overrides.upsertFeatureFlagOverride",
+    "feature_flag_overrides.archiveFeatureFlagOverride"
+  ]
+}

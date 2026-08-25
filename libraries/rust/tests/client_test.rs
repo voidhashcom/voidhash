@@ -4,6 +4,12 @@
 use serde_json::json;
 use voidhash::VoidhashClient;
 
+/// Wraps list rows in the `{ data, pageInfo }` envelope every list endpoint
+/// now returns.
+fn page(rows: Vec<serde_json::Value>) -> serde_json::Value {
+    json!({ "data": rows, "pageInfo": { "endCursor": null, "hasNextPage": false } })
+}
+
 async fn test_client() -> (wiremock::MockServer, VoidhashClient) {
     let server = wiremock::MockServer::start().await;
     let client = VoidhashClient::builder()
@@ -20,15 +26,16 @@ async fn get_person_by_distinct_id_sends_auth_header_and_decodes() {
     let (server, client) = test_client().await;
 
     wiremock::Mock::given(wiremock::matchers::method("GET"))
-        .and(wiremock::matchers::path(
-            "/api/v1/persons/by-distinct-id/user-123",
-        ))
-        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(json!({
-            "personId": "per_1",
-            "distinctId": "user-123",
-            "email": null,
-            "name": null,
-        })))
+        .and(wiremock::matchers::path("/api/v1/persons"))
+        .and(wiremock::matchers::query_param("distinctId", "user-123"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(200).set_body_json(page(vec![json!({
+                "personId": "per_1",
+                "distinctId": "user-123",
+                "email": null,
+                "name": null,
+            })])),
+        )
         .mount(&server)
         .await;
 
@@ -82,45 +89,41 @@ async fn error_mapping_carries_status_and_tag() {
 async fn has_active_perk_by_slug_and_by_id() {
     let (server, client) = test_client().await;
 
-    // Perks list is hit once per slug lookup.
-    for _ in 0..2 {
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path("/api/v1/perks"))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(vec![
-                json!({"id": "perk_free", "name": "Free", "projectId": "prj_1", "slug": "free"}),
-                json!({"id": "perk_pro", "name": "Pro", "projectId": "prj_1", "slug": "pro"}),
-            ]))
-            .mount(&server)
-            .await;
-    }
-    for _ in 0..2 {
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path(
-                "/api/v1/persons/by-distinct-id/user-1",
-            ))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(json!({
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/api/v1/perks"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(page(vec![
+            json!({"id": "perk_free", "name": "Free", "projectId": "prj_1", "slug": "free"}),
+            json!({"id": "perk_pro", "name": "Pro", "projectId": "prj_1", "slug": "pro"}),
+        ])))
+        .mount(&server)
+        .await;
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/api/v1/persons"))
+        .and(wiremock::matchers::query_param("distinctId", "user-1"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(200).set_body_json(page(vec![json!({
                 "personId": "per_1", "distinctId": "user-1",
                 "email": null, "name": null,
-            })))
-            .mount(&server)
-            .await;
-        wiremock::Mock::given(wiremock::matchers::method("GET"))
-            .and(wiremock::matchers::path(
-                "/api/v1/persons/per_1/entitlements",
-            ))
-            .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(json!({
-                "grants": [{
-                    "perkId": "perk_pro",
-                    "status": "active",
-                    "expiresAt": null,
-                    "source": "subscription",
-                    "sourceId": null,
-                    "sourcePersonId": "per_1",
-                }],
-            })))
-            .mount(&server)
-            .await;
-    }
+            })])),
+        )
+        .mount(&server)
+        .await;
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path(
+            "/api/v1/persons/per_1/entitlements",
+        ))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(json!({
+            "grants": [{
+                "perkId": "perk_pro",
+                "status": "active",
+                "expiresAt": null,
+                "source": "subscription",
+                "sourceId": null,
+                "sourcePersonId": "per_1",
+            }],
+        })))
+        .mount(&server)
+        .await;
 
     let active = client
         .persons()
@@ -148,14 +151,11 @@ async fn has_active_perk_by_slug_and_by_id() {
 async fn unknown_person_resolves_to_false_for_has_active_perk() {
     let (server, client) = test_client().await;
 
+    // An unknown distinct id is an empty page, not a 404 response.
     wiremock::Mock::given(wiremock::matchers::method("GET"))
-        .and(wiremock::matchers::path(
-            "/api/v1/persons/by-distinct-id/ghost",
-        ))
-        .respond_with(
-            wiremock::ResponseTemplate::new(404)
-                .set_body_json(json!({"_tag": "Api/PersonNotFoundError", "id": null})),
-        )
+        .and(wiremock::matchers::path("/api/v1/persons"))
+        .and(wiremock::matchers::query_param("distinctId", "ghost"))
+        .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(page(vec![])))
         .mount(&server)
         .await;
 
@@ -350,11 +350,24 @@ async fn capture_maps_rejection_to_api_error() {
 }
 
 #[tokio::test]
-async fn set_attributes_posts_traits_for_the_named_person() {
+async fn set_attributes_patches_traits_for_the_named_person() {
     let (server, client) = test_client().await;
 
-    wiremock::Mock::given(wiremock::matchers::method("POST"))
-        .and(wiremock::matchers::path("/api/v1/persons/attributes"))
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/api/v1/persons"))
+        .and(wiremock::matchers::query_param("distinctId", "user-123"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(200).set_body_json(page(vec![json!({
+                "personId": "per_1",
+                "distinctId": "user-123",
+                "email": null,
+                "name": null,
+            })])),
+        )
+        .mount(&server)
+        .await;
+    wiremock::Mock::given(wiremock::matchers::method("PATCH"))
+        .and(wiremock::matchers::path("/api/v1/persons/per_1"))
         .respond_with(wiremock::ResponseTemplate::new(200).set_body_json(json!({
             "personId": "per_1",
             "distinctId": "user-123",
@@ -376,9 +389,13 @@ async fn set_attributes_posts_traits_for_the_named_person() {
 
     assert_eq!(person.person_id, "per_1");
 
-    let request = &server.received_requests().await.expect("requests")[0];
-    let body: serde_json::Value = serde_json::from_slice(&request.body).expect("json body");
-    assert_eq!(body["distinctId"], "user-123");
+    let requests = server.received_requests().await.expect("requests");
+    let patch = requests
+        .iter()
+        .find(|request| request.method == wiremock::http::Method::PATCH)
+        .expect("person was patched");
+    let body: serde_json::Value = serde_json::from_slice(&patch.body).expect("json body");
+    assert!(body.get("distinctId").is_none());
     assert_eq!(body["traits"]["plan"], "pro");
     assert_eq!(body["traits"]["notes_created"], 3);
 }

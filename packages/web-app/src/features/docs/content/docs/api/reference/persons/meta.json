@@ -1,10 +1,10 @@
 {
   "title": "Persons",
   "pages": [
-    "persons.listPersons",
     "persons.createPerson",
+    "persons.listPersons",
     "persons.getPersonById",
-    "persons.getPersonByDistinctId",
+    "persons.updatePerson",
     "persons.getPersonEntitlements"
   ]
 }

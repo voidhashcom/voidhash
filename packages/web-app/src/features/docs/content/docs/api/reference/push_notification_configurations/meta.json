@@ -1,0 +1,10 @@
+{
+  "title": "Push_notification_configurations",
+  "pages": [
+    "push_notification_configurations.listPushNotificationConfigurations",
+    "push_notification_configurations.createPushNotificationConfiguration",
+    "push_notification_configurations.getPushNotificationConfiguration",
+    "push_notification_configurations.updatePushNotificationConfiguration",
+    "push_notification_configurations.deletePushNotificationConfiguration"
+  ]
+}

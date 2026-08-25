@@ -13,7 +13,7 @@ import {
 } from "../../GooglePubSubPushVerifier.ts";
 import { GooglePlayRtdnNotificationRouteLayer } from "./google-play-rtdn.ts";
 
-const path = "/api/v1/webhook-endpoints/google-play-rtdn/config-1";
+const path = "/api/v1/inbound-webhooks/google-play-rtdn/config-1";
 
 const encodeRtdnPayload = Schema.encodeSync(
   Schema.fromJsonString(

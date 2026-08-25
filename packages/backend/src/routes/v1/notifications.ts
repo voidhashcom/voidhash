@@ -1,22 +1,50 @@
-import { SendNotificationResponse, VoidhashV1Api } from "@voidhash/api-contracts";
+import { SendNotificationBody, SendNotificationResponse, VoidhashV1Api } from "@voidhash/api-contracts";
 import {
   ApiActionForbiddenError,
-  ApiAuthenticationError,
+  ApiAuthServiceError,
   ApiPushDeviceValidationError,
+  ApiPushNotificationSendNotFoundError,
+  ApiPushNotificationSendServiceError,
   ApiPushSendNotEnabledError,
   ApiPushSendServiceError,
 } from "@voidhash/api-contracts/errors";
 import {
   InternalFeatureFlagService,
   NotificationSendingService,
+  PushNotificationSendService,
 } from "@voidhash/core/services";
-import { extractAuthorizedProjectId } from "@voidhash/core/utils";
+import { decodeCursor, encodeCursor, resolveRequestProjectId } from "@voidhash/core/utils";
 import { PushNotificationSendStatus } from "@voidhash/db";
 import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import { Effect } from "effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
-import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
+import {
+  type ApiCredentialMethod,
+  bridgeAuthSession,
+  requireCredential,
+} from "../../ApiMiddlewares.ts";
+
+/**
+ * Dispatch and send history are both management surfaces; a publishable key
+ * ships inside client bundles, so it must never reach either.
+ */
+const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
+
+/** Resolves an optional opaque cursor to the row id it points at. */
+const toAfterId = (cursor: string | undefined) => {
+  if (cursor === undefined) return Effect.succeed(undefined);
+  return decodeCursor(cursor);
+};
+
+/** Builds the wire `pageInfo` from a keyset page's cursor state. */
+const toPageInfo = (page: { readonly endCursorId: string | null; readonly hasNextPage: boolean }) => {
+  let endCursor: string | null = null;
+  if (page.hasNextPage && page.endCursorId !== null) {
+    endCursor = encodeCursor(page.endCursorId);
+  }
+  return { endCursor, hasNextPage: page.hasNextPage };
+};
 
 /** Map the numeric send roll-up status to the API's string enum. */
 const sendStatusToString = (status: number): SendNotificationResponse["status"] => {
@@ -37,12 +65,12 @@ const sendStatusToString = (status: number): SendNotificationResponse["status"] 
 };
 
 /**
- * Server-to-server push dispatch (`POST /api/v1/notifications/send`). A
- * management surface — secret-key authenticated (never a publishable client key,
+ * Server-to-server push dispatch (`POST /api/v1/notifications`). A management
+ * surface — secret-key or user credential only (never a publishable client key,
  * so a device can't push to arbitrary persons) and gated by the `notifications`
  * internal feature flag. Delegates to {@link NotificationSendingService}, which
- * writes the trail rows and enqueues per-device deliveries; the response carries
- * the tracking id and up-front counts.
+ * writes the trail rows and enqueues per-device deliveries; the `202` response
+ * carries the tracking id and up-front counts.
  */
 export const NotificationsGroupLive = HttpApiBuilder.group(
   VoidhashV1Api,
@@ -52,84 +80,96 @@ export const NotificationsGroupLive = HttpApiBuilder.group(
       const sendService = yield* NotificationSendingService;
       const internalFeatureFlags = yield* InternalFeatureFlagService;
 
-      return handlers.handle("sendNotification", ({ payload }) =>
+      /**
+       * The dispatch path behind `POST /notifications`.
+       *
+       * @param payload - the notification body
+       * @param idempotencyKey - resolved from the `Idempotency-Key` header when
+       * present, else from the body field
+       */
+      const dispatch = (
+        payload: typeof SendNotificationBody.Type,
+        idempotencyKey: string | undefined,
+      ) =>
+        Effect.gen(function* () {
+          const session = yield* AuthSession;
+          // Server-side only: a publishable (client-embedded) key must NEVER be
+          // able to push to arbitrary persons in its project. Require a
+          // secret/api key (the same trust level as the `persons` management API).
+          yield* requireCredential(session, MANAGEMENT_CREDENTIALS);
+          const projectId = yield* resolveRequestProjectId(session, payload.projectId);
+          const organizationId = session?.projects.find(
+            (project) => project.id === projectId,
+          )?.organizationId;
+          if (!organizationId) {
+            // `resolveRequestProjectId` only ever returns a project taken from
+            // this same session, so a missing organization is a broken session
+            // record rather than a bad credential — a 500, not a 401.
+            return yield* Effect.fail(
+              new ApiAuthServiceError({
+                cause: "Session project carries no organization",
+                message: "No organization associated with this authentication session",
+              }),
+            );
+          }
+
+          // Internal feature-flag gate (voidhash-internal, per-org).
+          const enabled = yield* internalFeatureFlags
+            .isEnabled(organizationId, INTERNAL_FEATURE_FLAGS.notifications.key)
+            .pipe(
+              Effect.catchTag("InternalFeatureFlagServiceError", (error) =>
+                Effect.fail(new ApiPushSendServiceError({ cause: error.message })),
+              ),
+            );
+          if (!enabled) {
+            return yield* Effect.fail(
+              new ApiActionForbiddenError({
+                message: "Notifications are not enabled for this organization",
+              }),
+            );
+          }
+
+          const personIds = payload.personIds ?? [];
+          const distinctIds = payload.distinctIds ?? [];
+          if (personIds.length === 0 && distinctIds.length === 0) {
+            return yield* Effect.fail(
+              new ApiPushDeviceValidationError({
+                message: "at least one of personIds or distinctIds is required",
+              }),
+            );
+          }
+
+          const result = yield* sendService.send({
+            projectId,
+            message: {
+              title: payload.title,
+              body: payload.body,
+              data: payload.data,
+              sound: payload.sound,
+              badge: payload.badge,
+              priority: payload.priority,
+              ttl: payload.ttl,
+              channelId: payload.channelId,
+              collapseId: payload.collapseId,
+            },
+            personIds,
+            distinctIds,
+            idempotencyKey,
+          });
+
+          return new SendNotificationResponse({
+            pushNotificationSendId: result.pushNotificationSendId,
+            deviceCount: result.deviceCount,
+            status: sendStatusToString(result.status),
+            unresolvedDistinctIds: [...result.unresolvedDistinctIds],
+          });
+        });
+
+      return handlers.handle("createNotification", ({ headers, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
-            const session = yield* AuthSession;
-            // Server-side only: a publishable (client-embedded) key must NEVER be
-            // able to push to arbitrary persons in its project. Require a
-            // secret/api key (the same trust level as the `persons` management API).
-            if (session?.method === "publishable-key") {
-              return yield* Effect.fail(
-                new ApiActionForbiddenError({
-                  message: "Push dispatch requires a secret API key, not a publishable key",
-                }),
-              );
-            }
-            const projectId = yield* extractAuthorizedProjectId(session);
-            const organizationId = session?.projects.find(
-              (project) => project.id === projectId,
-            )?.organizationId;
-            if (!organizationId) {
-              return yield* Effect.fail(
-                new ApiAuthenticationError({
-                  cause: "No organization associated with this authentication session",
-                  message: "No organization associated with this authentication session",
-                }),
-              );
-            }
-
-            // Internal feature-flag gate (voidhash-internal, per-org).
-            const enabled = yield* internalFeatureFlags
-              .isEnabled(organizationId, INTERNAL_FEATURE_FLAGS.notifications.key)
-              .pipe(
-                Effect.catchTag("InternalFeatureFlagServiceError", (error) =>
-                  Effect.fail(new ApiPushSendServiceError({ cause: error.message })),
-                ),
-              );
-            if (!enabled) {
-              return yield* Effect.fail(
-                new ApiActionForbiddenError({
-                  message: "Notifications are not enabled for this organization",
-                }),
-              );
-            }
-
-            const personIds = payload.personIds ?? [];
-            const distinctIds = payload.distinctIds ?? [];
-            if (personIds.length === 0 && distinctIds.length === 0) {
-              return yield* Effect.fail(
-                new ApiPushDeviceValidationError({
-                  message: "at least one of personIds or distinctIds is required",
-                }),
-              );
-            }
-
-            const result = yield* sendService.send({
-              projectId,
-              message: {
-                title: payload.title,
-                body: payload.body,
-                data: payload.data,
-                sound: payload.sound,
-                badge: payload.badge,
-                priority: payload.priority,
-                ttl: payload.ttl,
-                channelId: payload.channelId,
-                collapseId: payload.collapseId,
-              },
-              personIds,
-              distinctIds,
-              idempotencyKey: payload.idempotencyKey,
-            });
-
-            return new SendNotificationResponse({
-              pushNotificationSendId: result.pushNotificationSendId,
-              deviceCount: result.deviceCount,
-              status: sendStatusToString(result.status),
-              unresolvedDistinctIds: [...result.unresolvedDistinctIds],
-            });
-          }),
+          // The header is the canonical idempotency channel; the body field
+          // stays accepted so a client can migrate without a flag day.
+          dispatch(payload, headers["idempotency-key"] ?? payload.idempotencyKey),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (error) =>
@@ -141,5 +181,71 @@ export const NotificationsGroupLive = HttpApiBuilder.group(
           }),
         ),
       );
+    }),
+);
+
+/**
+ * Read-only send history (`/api/v1/notification-sends/*`) — what was
+ * dispatched and how each device fared. Backed by
+ * {@link PushNotificationSendService}, which never mutates.
+ */
+export const NotificationSendsGroupLive = HttpApiBuilder.group(
+  VoidhashV1Api,
+  "notification_sends",
+  (handlers) =>
+    Effect.gen(function* () {
+      const sendHistory = yield* PushNotificationSendService;
+
+      return handlers
+        .handle("listNotificationSends", ({ query }) =>
+          bridgeAuthSession(
+            Effect.gen(function* () {
+              const authSession = yield* AuthSession;
+              yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+              const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
+              const after = yield* toAfterId(query.cursor);
+              const page = yield* sendHistory.listSendsPage({
+                after,
+                limit: query.limit,
+                projectId,
+              });
+              return { data: page.sends, pageInfo: toPageInfo(page) };
+            }),
+          ).pipe(
+            Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new ApiActionForbiddenError({ message: error.message })),
+              PushNotificationSendServiceError: (error) =>
+                Effect.fail(new ApiPushNotificationSendServiceError({ cause: error.cause })),
+            }),
+          ),
+        )
+        .handle("listNotificationSendDeliveries", ({ params, query }) =>
+          bridgeAuthSession(
+            Effect.gen(function* () {
+              const authSession = yield* AuthSession;
+              yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
+              const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
+              const after = yield* toAfterId(query.cursor);
+              const page = yield* sendHistory.getSendDeliveriesPage({
+                after,
+                limit: query.limit,
+                projectId,
+                sendId: params.sendId,
+                status: query.status,
+              });
+              return { data: page.deliveries, pageInfo: toPageInfo(page) };
+            }),
+          ).pipe(
+            Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new ApiActionForbiddenError({ message: error.message })),
+              PushNotificationSendNotFoundError: (error) =>
+                Effect.fail(new ApiPushNotificationSendNotFoundError({ message: error.message })),
+              PushNotificationSendServiceError: (error) =>
+                Effect.fail(new ApiPushNotificationSendServiceError({ cause: error.cause })),
+            }),
+          ),
+        );
     }),
 );

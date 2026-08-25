@@ -249,9 +249,14 @@ impl ApiKeysApi<'_> {
             .into_inner())
     }
 
-    /// Lists all secret keys visible to the current key.
+    /// Lists the first page of secret keys visible to the current key.
     pub async fn list(&self) -> Result<Vec<types::ApiKeyJsonEncoding>, Error> {
-        Ok(self.core.api_keys_list_api_keys().await?.into_inner())
+        Ok(self
+            .core
+            .api_keys_list_api_keys(None, None, None)
+            .await?
+            .into_inner()
+            .data)
     }
 
     /// Fetches one secret key by id.
@@ -286,18 +291,23 @@ impl PersonsApi<'_> {
     /// Creates a person keyed by a distinct id.
     pub async fn create(
         &self,
-        params: &types::CreatePersonBodyJsonEncoding,
+        params: &types::CreatePersonRequestBodyJsonEncoding,
     ) -> Result<types::PersonJsonEncoding, Error> {
         Ok(self.core.persons_create_person(params).await?.into_inner())
     }
 
-    /// Lists all persons.
-    pub async fn list(&self) -> Result<Vec<types::PersonJsonEncoding>, Error> {
-        Ok(self.core.persons_list_persons().await?.into_inner())
+    /// Lists the first page of persons.
+    pub async fn list(&self) -> Result<Vec<types::PersonJsonEncoding1>, Error> {
+        Ok(self
+            .core
+            .persons_list_persons(None, None, None, None, None)
+            .await?
+            .into_inner()
+            .data)
     }
 
     /// Fetches one person by id.
-    pub async fn get(&self, person_id: &str) -> Result<types::PersonJsonEncoding, Error> {
+    pub async fn get(&self, person_id: &str) -> Result<types::PersonJsonEncoding1, Error> {
         Ok(self
             .core
             .persons_get_person_by_id(person_id)
@@ -306,7 +316,9 @@ impl PersonsApi<'_> {
     }
 
     /// Writes profile fields and traits for the person with the given distinct
-    /// id, creating the person when the distinct id is new.
+    /// id. The distinct id is resolved to a person first, so an unknown
+    /// distinct id fails with [`Error::is_not_found`] rather than creating a
+    /// person; use [`PersonsApi::create`] for that.
     ///
     /// Traits describe the person and persist across events, so a fact like a
     /// subscription plan belongs here rather than repeated on every event's
@@ -314,33 +326,40 @@ impl PersonsApi<'_> {
     pub async fn set_attributes(
         &self,
         params: &crate::PersonAttributes,
-    ) -> Result<types::PersonJsonEncoding, Error> {
-        // The generated trait map is a union type that is awkward to build by
-        // hand, so `PersonAttributes` is converted through the generated body's
-        // own `Deserialize` rather than constructed field by field.
-        let body: types::SetPersonAttributesBodyJsonEncoding = serde_json::from_value(
-            serde_json::to_value(params)
-                .map_err(|error| Error::Request(format!("encoding person attributes: {error}")))?,
-        )
-        .map_err(|error| Error::Request(format!("encoding person attributes: {error}")))?;
+    ) -> Result<types::PersonJsonEncoding1, Error> {
+        let person = self.get_by_distinct_id(&params.distinct_id).await?;
+        let body = types::UpdatePersonBodyJsonEncoding {
+            email: params.email.clone(),
+            name: params.name.clone(),
+            traits: params.traits.clone().map(attribute_values),
+            set_once: params.set_once.clone().map(attribute_values),
+        };
 
         Ok(self
             .core
-            .persons_set_person_attributes(&body)
+            .persons_update_person(&person.person_id, &body)
             .await?
             .into_inner())
     }
 
-    /// Fetches one person by their distinct id.
+    /// Fetches one person by their distinct id. A distinct id with no person
+    /// surfaces as [`Error::is_not_found`].
     pub async fn get_by_distinct_id(
         &self,
         distinct_id: &str,
-    ) -> Result<types::PersonJsonEncoding, Error> {
-        Ok(self
+    ) -> Result<types::PersonJsonEncoding1, Error> {
+        let page = self
             .core
-            .persons_get_person_by_distinct_id(distinct_id)
+            .persons_list_persons(None, Some(distinct_id), None, None, None)
             .await?
-            .into_inner())
+            .into_inner();
+        let Some(person) = page.data.into_iter().next() else {
+            return Err(Error::Api {
+                status: 404,
+                tag: "Api/PersonNotFoundError".to_string(),
+            });
+        };
+        Ok(person)
     }
 
     /// Returns the person's entitlement grants. A 404 surfaces as
@@ -399,7 +418,12 @@ impl PersonsApi<'_> {
         distinct_id: &str,
         perk_slug: &str,
     ) -> Result<bool, Error> {
-        let perks = self.core.perks_list_perks().await?.into_inner();
+        let perks = self
+            .core
+            .perks_list_perks(None, None, None)
+            .await?
+            .into_inner()
+            .data;
         let Some(perk) = perks.iter().find(|perk| perk.slug == perk_slug) else {
             return Ok(false);
         };
@@ -408,9 +432,14 @@ impl PersonsApi<'_> {
 }
 
 impl PerksApi<'_> {
-    /// Lists all perks.
+    /// Lists the first page of perks.
     pub async fn list(&self) -> Result<Vec<types::PerkJsonEncoding>, Error> {
-        Ok(self.core.perks_list_perks().await?.into_inner())
+        Ok(self
+            .core
+            .perks_list_perks(None, None, None)
+            .await?
+            .into_inner()
+            .data)
     }
 }
 
@@ -433,7 +462,7 @@ impl ProjectsApi<'_> {
     pub async fn create(
         &self,
         params: &types::CreateProjectBodyJsonEncoding,
-    ) -> Result<types::ProjectJsonEncoding, Error> {
+    ) -> Result<types::ProjectJsonEncoding1, Error> {
         Ok(self
             .core
             .projects_create_project(params)
@@ -441,46 +470,54 @@ impl ProjectsApi<'_> {
             .into_inner())
     }
 
-    /// Lists all projects of an organization.
+    /// Lists the first page of an organization's projects.
     pub async fn list(
         &self,
         organization_id: &str,
     ) -> Result<Vec<types::ProjectJsonEncoding>, Error> {
         Ok(self
             .core
-            .projects_list_projects(organization_id)
+            .organizations_list_organization_projects(organization_id, None, None)
             .await?
-            .into_inner())
+            .into_inner()
+            .data)
     }
 }
 
 impl ProductsApi<'_> {
-    /// Lists all products.
+    /// Lists the first page of products.
     pub async fn list(&self) -> Result<Vec<types::ProductJsonEncoding>, Error> {
-        Ok(self.core.products_list_products().await?.into_inner())
+        Ok(self
+            .core
+            .products_list_products(None, None, None, None)
+            .await?
+            .into_inner()
+            .data)
     }
 
-    /// Lists every product-perk association of a product.
+    /// Lists the first page of a product's perk associations.
     pub async fn perks_by_product(
         &self,
         product_id: &str,
     ) -> Result<Vec<types::ProductPerkJsonEncoding>, Error> {
         Ok(self
             .core
-            .product_perks_list_product_perks_by_product_id(product_id)
+            .products_list_product_perks(product_id, None, None)
             .await?
-            .into_inner())
+            .into_inner()
+            .data)
     }
 }
 
 impl PaywallsApi<'_> {
-    /// Lists all deployable paywall locations.
+    /// Lists the first page of deployable paywall locations.
     pub async fn locations(&self) -> Result<Vec<types::PaywallLocationJsonEncoding>, Error> {
         Ok(self
             .core
-            .paywall_locations_list_paywall_locations()
+            .paywall_locations_list_paywall_locations(None, None, None, None)
             .await?
-            .into_inner())
+            .into_inner()
+            .data)
     }
 
     /// Registers a new paywall deploy from a free-form manifest produced by
@@ -527,12 +564,16 @@ impl PaywallsApi<'_> {
 impl SchemaApi<'_> {
     /// Returns the full runtime schema of the project.
     pub async fn get(&self) -> Result<types::ProjectSchemaResponseJsonEncoding, Error> {
-        Ok(self.core.schema_get_schema().await?.into_inner())
+        Ok(self.core.schema_get_schema(None).await?.into_inner())
     }
 
     /// Returns the current schema revision.
     pub async fn version(&self) -> Result<types::SchemaVersionJsonEncoding, Error> {
-        Ok(self.core.schema_get_schema_version().await?.into_inner())
+        Ok(self
+            .core
+            .schema_get_schema_version(None)
+            .await?
+            .into_inner())
     }
 }
 
@@ -544,7 +585,7 @@ impl NotificationsApi<'_> {
     ) -> Result<types::SendNotificationResponseJsonEncoding, Error> {
         Ok(self
             .core
-            .notifications_send_notification(notification)
+            .notifications_create_notification(None, notification)
             .await?
             .into_inner())
     }
@@ -573,11 +614,12 @@ resource_api!(WebhookEndpointsApi);
 resource_api!(WebhookDeliveriesApi);
 
 impl WebhookEndpointsApi<'_> {
-    /// Registers a new webhook endpoint.
+    /// Registers a new webhook endpoint. The signing secret is only returned
+    /// here and by [`WebhookEndpointsApi::rotate_secret`]; reads omit it.
     pub async fn create(
         &self,
         params: &types::CreateWebhookEndpointBodyJsonEncoding,
-    ) -> Result<types::WebhookEndpointJsonEncoding, Error> {
+    ) -> Result<types::WebhookEndpointWithSecretJsonEncoding, Error> {
         Ok(self
             .core
             .webhooks_create_webhook_endpoint(params)
@@ -585,13 +627,14 @@ impl WebhookEndpointsApi<'_> {
             .into_inner())
     }
 
-    /// Lists all registered webhook endpoints.
+    /// Lists the first page of registered webhook endpoints.
     pub async fn list(&self) -> Result<Vec<types::WebhookEndpointJsonEncoding>, Error> {
         Ok(self
             .core
-            .webhooks_list_webhook_endpoints()
+            .webhooks_list_webhook_endpoints(None, None, None)
             .await?
-            .into_inner())
+            .into_inner()
+            .data)
     }
 
     /// Fetches one webhook endpoint.
@@ -601,7 +644,7 @@ impl WebhookEndpointsApi<'_> {
     ) -> Result<types::WebhookEndpointJsonEncoding, Error> {
         Ok(self
             .core
-            .webhooks_get_webhook_endpoint(endpoint_id)
+            .webhooks_get_webhook_endpoint(endpoint_id, None)
             .await?
             .into_inner())
     }
@@ -614,7 +657,7 @@ impl WebhookEndpointsApi<'_> {
     ) -> Result<types::WebhookEndpointJsonEncoding, Error> {
         Ok(self
             .core
-            .webhooks_update_webhook_endpoint(endpoint_id, params)
+            .webhooks_update_webhook_endpoint(endpoint_id, None, params)
             .await?
             .into_inner())
     }
@@ -622,19 +665,19 @@ impl WebhookEndpointsApi<'_> {
     /// Removes a webhook endpoint.
     pub async fn delete(&self, endpoint_id: &str) -> Result<(), Error> {
         self.core
-            .webhooks_delete_webhook_endpoint(endpoint_id)
+            .webhooks_delete_webhook_endpoint(endpoint_id, None)
             .await?;
         Ok(())
     }
 
-    /// Replaces the signing secret of an endpoint.
+    /// Replaces the signing secret of an endpoint and returns the new secret.
     pub async fn rotate_secret(
         &self,
         endpoint_id: &str,
-    ) -> Result<types::WebhookEndpointJsonEncoding, Error> {
+    ) -> Result<types::WebhookEndpointWithSecretJsonEncoding1, Error> {
         Ok(self
             .core
-            .webhooks_rotate_webhook_secret(endpoint_id)
+            .webhooks_rotate_webhook_secret(endpoint_id, None)
             .await?
             .into_inner())
     }
@@ -646,20 +689,21 @@ impl WebhookEndpointsApi<'_> {
     ) -> Result<types::WebhookDeliveryJsonEncoding, Error> {
         Ok(self
             .core
-            .webhooks_test_webhook_endpoint(endpoint_id)
+            .webhooks_test_webhook_endpoint(endpoint_id, None)
             .await?
             .into_inner())
     }
 }
 
 impl WebhookDeliveriesApi<'_> {
-    /// Lists recent deliveries.
+    /// Lists the first page of recent deliveries.
     pub async fn list(&self) -> Result<Vec<types::WebhookDeliveryJsonEncoding>, Error> {
         Ok(self
             .core
-            .webhooks_list_webhook_deliveries()
+            .webhooks_list_webhook_deliveries(None, None, None, None)
             .await?
-            .into_inner())
+            .into_inner()
+            .data)
     }
 
     /// Fetches one delivery including its attempts.
@@ -669,7 +713,7 @@ impl WebhookDeliveriesApi<'_> {
     ) -> Result<types::WebhookDeliveryWithAttemptsJsonEncoding, Error> {
         Ok(self
             .core
-            .webhooks_get_webhook_delivery(delivery_id)
+            .webhooks_get_webhook_delivery(delivery_id, None)
             .await?
             .into_inner())
     }
@@ -681,7 +725,7 @@ impl WebhookDeliveriesApi<'_> {
     ) -> Result<types::WebhookDeliveryJsonEncoding, Error> {
         Ok(self
             .core
-            .webhooks_retry_webhook_delivery(delivery_id)
+            .webhooks_retry_webhook_delivery(delivery_id, None)
             .await?
             .into_inner())
     }
@@ -786,6 +830,14 @@ impl EventCaptureApi<'_> {
             .await
             .map_err(|error| Error::Request(format!("decoding capture response: {error}")))
     }
+}
+
+/// Wraps a plain attribute map in the generated newtype the person update
+/// body expects.
+fn attribute_values(
+    values: serde_json::Map<String, serde_json::Value>,
+) -> types::PersonAttributeValues {
+    types::PersonAttributeValues(serde_json::Value::Object(values))
 }
 
 /// Serializes an event and fills in a generated uuid when the caller left it

@@ -10,7 +10,7 @@ class PerksListPerksInternalServerErrorException extends InternalServerErrorExce
     private $response;
     public function __construct(?\Psr\Http\Message\ResponseInterface $response = null)
     {
-        parent::__construct('Api/PerkServiceError | Api/AuthenticationError');
+        parent::__construct('Api/PerkServiceError | Api/AuthServiceError');
         $this->response = $response;
     }
     public function getResponse(): ?\Psr\Http\Message\ResponseInterface

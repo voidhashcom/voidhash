@@ -10,7 +10,7 @@ class SdkUnregisterDeviceInternalServerErrorException extends InternalServerErro
     private $response;
     public function __construct(?\Psr\Http\Message\ResponseInterface $response = null)
     {
-        parent::__construct('Api/AuthenticationError | Api/PushDeviceServiceError');
+        parent::__construct('Api/PushDeviceServiceError | Api/AuthServiceError');
         $this->response = $response;
     }
     public function getResponse(): ?\Psr\Http\Message\ResponseInterface

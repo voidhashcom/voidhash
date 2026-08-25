@@ -7,10 +7,14 @@ class WebhooksDeleteWebhookEndpoint extends \Voidhash\Generated\Core\Runtime\Cli
     protected $endpointId;
     /**
      * @param string $endpointId
+     * @param array{
+     *    "projectId"?: string,
+     * } $queryParameters
      */
-    public function __construct(string $endpointId)
+    public function __construct(string $endpointId, array $queryParameters = [])
     {
         $this->endpointId = $endpointId;
+        $this->queryParameters = $queryParameters;
     }
     use \Voidhash\Generated\Core\Runtime\Client\EndpointTrait;
     public function getMethod(): string
@@ -28,6 +32,15 @@ class WebhooksDeleteWebhookEndpoint extends \Voidhash\Generated\Core\Runtime\Cli
     public function getExtraHeaders(): array
     {
         return ['Accept' => ['application/json']];
+    }
+    protected function getQueryOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
+    {
+        $optionsResolver = parent::getQueryOptionsResolver();
+        $optionsResolver->setDefined(['projectId']);
+        $optionsResolver->setRequired([]);
+        $optionsResolver->setDefaults([]);
+        $optionsResolver->addAllowedTypes('projectId', ['string']);
+        return $optionsResolver;
     }
     /**
      * {@inheritdoc}
@@ -47,7 +60,7 @@ class WebhooksDeleteWebhookEndpoint extends \Voidhash\Generated\Core\Runtime\Cli
             return null;
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\WebhooksDeleteWebhookEndpointUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\WebhooksDeleteWebhookEndpointUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\WebhooksDeleteWebhookEndpointForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

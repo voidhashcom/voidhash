@@ -25,6 +25,10 @@ class CreateWebhookEndpointBodyJsonEncoding
      */
     protected $name;
     /**
+     * @var string|null
+     */
+    protected $projectId;
+    /**
      * @var string
      */
     protected $url;
@@ -80,6 +84,24 @@ class CreateWebhookEndpointBodyJsonEncoding
     {
         $this->initialized['name'] = true;
         $this->name = $name;
+        return $this;
+    }
+    /**
+     * @return string|null
+     */
+    public function getProjectId(): ?string
+    {
+        return $this->projectId;
+    }
+    /**
+     * @param string|null $projectId
+     *
+     * @return self
+     */
+    public function setProjectId(?string $projectId): self
+    {
+        $this->initialized['projectId'] = true;
+        $this->projectId = $projectId;
         return $this;
     }
     /**

@@ -1,6 +1,13 @@
 {
   "title": "Products",
   "pages": [
-    "products.listProducts"
+    "products.listProducts",
+    "products.createProduct",
+    "products.getProduct",
+    "products.updateProduct",
+    "products.deleteProduct",
+    "products.listProductPerks",
+    "products.attachProductPerk",
+    "products.detachProductPerk"
   ]
 }

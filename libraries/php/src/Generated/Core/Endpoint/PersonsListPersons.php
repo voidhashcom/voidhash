@@ -4,6 +4,19 @@ namespace Voidhash\Generated\Core\Endpoint;
 
 class PersonsListPersons extends \Voidhash\Generated\Core\Runtime\Client\BaseEndpoint implements \Voidhash\Generated\Core\Runtime\Client\Endpoint
 {
+    /**
+     * @param array{
+     *    "cursor"?: string,
+     *    "limit"?: string,
+     *    "distinctId"?: string,
+     *    "email"?: string,
+     *    "projectId"?: string,
+     * } $queryParameters
+     */
+    public function __construct(array $queryParameters = [])
+    {
+        $this->queryParameters = $queryParameters;
+    }
     use \Voidhash\Generated\Core\Runtime\Client\EndpointTrait;
     public function getMethod(): string
     {
@@ -21,6 +34,19 @@ class PersonsListPersons extends \Voidhash\Generated\Core\Runtime\Client\BaseEnd
     {
         return ['Accept' => ['application/json']];
     }
+    protected function getQueryOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
+    {
+        $optionsResolver = parent::getQueryOptionsResolver();
+        $optionsResolver->setDefined(['cursor', 'limit', 'distinctId', 'email', 'projectId']);
+        $optionsResolver->setRequired([]);
+        $optionsResolver->setDefaults([]);
+        $optionsResolver->addAllowedTypes('cursor', ['string']);
+        $optionsResolver->addAllowedTypes('limit', ['string']);
+        $optionsResolver->addAllowedTypes('distinctId', ['string']);
+        $optionsResolver->addAllowedTypes('email', ['string']);
+        $optionsResolver->addAllowedTypes('projectId', ['string']);
+        return $optionsResolver;
+    }
     /**
      * {@inheritdoc}
      *
@@ -28,17 +54,17 @@ class PersonsListPersons extends \Voidhash\Generated\Core\Runtime\Client\BaseEnd
      * @throws \Voidhash\Generated\Core\Exception\PersonsListPersonsForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\PersonsListPersonsInternalServerErrorException
      *
-     * @return null|\Voidhash\Generated\Core\Model\PersonJsonEncoding[]
+     * @return null|\Voidhash\Generated\Core\Model\ApiV1PersonsGetResponse200
      */
     protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
         if (is_null($contentType) === false && (200 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\PersonJsonEncoding[]', 'json');
+            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiV1PersonsGetResponse200', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\PersonsListPersonsUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\PersonsListPersonsUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PersonsListPersonsForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

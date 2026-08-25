@@ -13,19 +13,29 @@ import {
 import { createJsonResponse, decodeJson, installFetchMock } from "./helpers";
 
 const EXPECTED_GROUPS = [
+  "analytics",
   "apiKeys",
   "auth",
+  "development",
+  "events",
+  "experiments",
+  "featureFlagOverrides",
+  "featureFlagTargets",
+  "featureFlags",
+  "ingestPolicy",
+  "notificationSends",
   "notifications",
   "organizations",
   "paymentProviderConfigurations",
   "paymentProviderProducts",
   "paywallDeploys",
   "paywallLocations",
+  "paywalls",
   "perks",
   "persons",
-  "productPerks",
   "products",
   "projects",
+  "pushNotificationConfigurations",
   "schema",
   "users",
   "webhooks",
@@ -86,7 +96,7 @@ describe("@voidhash/node", () => {
       secretKey: "vh_sk_test",
     });
 
-    expect(EXPECTED_GROUPS).toHaveLength(16);
+    expect(EXPECTED_GROUPS).toHaveLength(26);
     expect(Object.keys(effectClient).sort()).toEqual([...EXPECTED_NAMESPACES].sort());
     expect(Object.keys(promiseClient).sort()).toEqual([...EXPECTED_NAMESPACES].sort());
     expect("sdk" in effectClient).toBe(false);
@@ -180,17 +190,23 @@ describe("@voidhash/node", () => {
       }),
     ));
 
-  it("supports path params with projects.listProjects({ params })", () =>
+  it("supports path params and the list envelope with organizations.listOrganizationProjects({ params })", () =>
     Effect.runPromise(
       Effect.gen(function* () {
         const { calls } = installFetchMock(() =>
-          createJsonResponse([
-            {
-              id: "proj_1",
-              name: "Alpha",
-              slug: "alpha",
+          createJsonResponse({
+            data: [
+              {
+                id: "proj_1",
+                name: "Alpha",
+                slug: "alpha",
+              },
+            ],
+            pageInfo: {
+              endCursor: null,
+              hasNextPage: false,
             },
-          ]),
+          }),
         );
 
         const client = createVoidhashSdk({
@@ -199,22 +215,30 @@ describe("@voidhash/node", () => {
         });
 
         const projects = yield* Effect.promise(() =>
-          client.projects.listProjects({
+          client.organizations.listOrganizationProjects({
             params: {
               organizationId: "org_123",
+              cursor: undefined,
+              limit: undefined,
             },
           }),
         );
 
-        expect(projects).toEqual([
+        expect(projects.data).toEqual([
           {
             id: "proj_1",
             name: "Alpha",
             slug: "alpha",
           },
         ]);
+        expect(projects.pageInfo).toEqual({
+          endCursor: null,
+          hasNextPage: false,
+        });
         expect(calls[0]?.method).toBe("GET");
-        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/projects/org_123");
+        expect(calls[0]?.url).toBe(
+          "https://api.voidhash.test/api/v1/organizations/org_123/projects",
+        );
         expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
       }),
     ));
@@ -304,22 +328,15 @@ describe("@voidhash/node", () => {
       }),
     ));
 
-  it("supports PATCH bodies with webhooks.updateWebhookEndpoint({ params, payload })", () =>
+  it("supports PATCH bodies with persons.updatePerson({ params, payload })", () =>
     Effect.runPromise(
       Effect.gen(function* () {
         const { calls } = installFetchMock(() =>
           createJsonResponse({
-            consecutiveFailures: 0,
-            createdAt: "2026-03-09T12:00:00.000Z",
-            description: "Updated description",
-            events: ["purchase.completed"],
-            id: "wh_123",
-            lastSuccessAt: null,
-            name: "Updated endpoint",
-            projectId: "proj_123",
-            secret: "secret_123",
-            status: "active",
-            url: "https://example.com/hooks",
+            personId: "person_123",
+            distinctId: "user_123",
+            email: "updated@example.com",
+            name: "Updated Taylor",
           }),
         );
 
@@ -328,31 +345,25 @@ describe("@voidhash/node", () => {
           secretKey: "vh_sk_test",
         });
 
-        const endpoint = yield* Effect.promise(() =>
-          client.webhooks.updateWebhookEndpoint({
+        const person = yield* Effect.promise(() =>
+          client.persons.updatePerson({
             params: {
-              endpointId: "wh_123",
+              personId: "person_123",
             },
             payload: {
-              description: "Updated description",
-              events: ["purchase.completed"],
-              name: "Updated endpoint",
-              status: "disabled",
-              url: "https://example.com/hooks",
+              email: "updated@example.com",
+              name: "Updated Taylor",
             },
           }),
         );
 
-        expect(endpoint.id).toBe("wh_123");
-        expect(endpoint.createdAt).toBe("2026-03-09T12:00:00.000Z");
+        expect(person.personId).toBe("person_123");
+        expect(person.name).toBe("Updated Taylor");
         expect(calls[0]?.method).toBe("PATCH");
-        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/webhooks/endpoints/wh_123");
+        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/persons/person_123");
         expect(decodeJson(calls[0]?.body ?? "{}")).toEqual({
-          description: "Updated description",
-          events: ["purchase.completed"],
-          name: "Updated endpoint",
-          status: "disabled",
-          url: "https://example.com/hooks",
+          email: "updated@example.com",
+          name: "Updated Taylor",
         });
         expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
       }),
@@ -588,16 +599,16 @@ describe("@voidhash/node", () => {
         });
 
         const person = yield* Effect.promise(() =>
-          client.persons.setPersonAttributes({
-            payload: { distinctId: "user_123", traits: { notes_created: 3, plan: "pro" } },
+          client.persons.updatePerson({
+            params: { personId: "person_123" },
+            payload: { traits: { notes_created: 3, plan: "pro" } },
           }),
         );
 
         expect(person.personId).toBe("person_123");
-        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/persons/attributes");
+        expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/persons/person_123");
         expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
         expect(decodeBody(calls[0]?.body)).toEqual({
-          distinctId: "user_123",
           traits: { notes_created: 3, plan: "pro" },
         });
       }),

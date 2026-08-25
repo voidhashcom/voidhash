@@ -1,6 +1,10 @@
 {
   "title": "Payment_provider_configurations",
   "pages": [
-    "payment_provider_configurations.listPaymentProviderConfigurations"
+    "payment_provider_configurations.listPaymentProviderConfigurations",
+    "payment_provider_configurations.createPaymentProviderConfiguration",
+    "payment_provider_configurations.getPaymentProviderConfiguration",
+    "payment_provider_configurations.updatePaymentProviderConfiguration",
+    "payment_provider_configurations.deletePaymentProviderConfiguration"
   ]
 }

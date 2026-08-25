@@ -9,7 +9,6 @@ use Voidhash\Exception\ApiException;
 use Voidhash\VoidhashClient;
 use Voidhash\Webhooks;
 use Voidhash\Generated\Core\Model\CreateSecretKeyBodyJsonEncoding;
-use Voidhash\Generated\Core\Model\SetPersonAttributesBodyJsonEncoding;
 
 final class ClientTest extends TestCase
 {
@@ -24,13 +23,17 @@ final class ClientTest extends TestCase
 
     public function testGetByDistinctIdSendsAuthHeaderAndDecodes(): void
     {
-        $this->http->queueJson(200, ['personId' => 'per_1', 'distinctId' => 'user-123', 'email' => null, 'name' => null]);
+        $this->http->queueJson(200, [
+            'data' => [['personId' => 'per_1', 'distinctId' => 'user-123', 'email' => null, 'name' => null]],
+            'pageInfo' => ['endCursor' => null, 'hasNextPage' => false],
+        ]);
 
         $person = $this->client->persons->getByDistinctId('user-123');
 
         self::assertSame('per_1', $person?->getPersonId());
         $request = $this->http->requests[0];
-        self::assertSame('/api/v1/persons/by-distinct-id/user-123', $request->getUri()->getPath());
+        self::assertSame('/api/v1/persons', $request->getUri()->getPath());
+        self::assertSame('distinctId=user-123', $request->getUri()->getQuery());
         self::assertSame('vh_sk_test', $request->getHeaderLine('x-secret-key'));
     }
 
@@ -82,22 +85,69 @@ final class ClientTest extends TestCase
 
     public function testSetAttributesPostsTraitsForTheNamedPerson(): void
     {
+        $this->http->queueJson(200, [
+            'data' => [['personId' => 'per_1', 'distinctId' => 'user-123', 'email' => null, 'name' => null]],
+            'pageInfo' => ['endCursor' => null, 'hasNextPage' => false],
+        ]);
         $this->http->queueJson(200, ['personId' => 'per_1', 'distinctId' => 'user-123', 'email' => null, 'name' => null]);
 
-        $person = $this->client->persons->setAttributes(
-            (new SetPersonAttributesBodyJsonEncoding())
-                ->setDistinctId('user-123')
-                ->setTraits(['plan' => 'pro', 'notes_created' => 3]),
-        );
+        $person = $this->client->persons->setAttributes([
+            'distinctId' => 'user-123',
+            'traits' => ['plan' => 'pro', 'notes_created' => 3],
+        ]);
 
         self::assertSame('per_1', $person?->getPersonId());
-        $request = $this->http->requests[0];
-        self::assertSame('/api/v1/persons/attributes', $request->getUri()->getPath());
+        $request = $this->http->requests[1];
+        self::assertSame('/api/v1/persons/per_1', $request->getUri()->getPath());
+        self::assertSame('PATCH', $request->getMethod());
         self::assertSame('vh_sk_test', $request->getHeaderLine('x-secret-key'));
 
         $body = json_decode((string) $request->getBody(), true);
-        self::assertSame('user-123', $body['distinctId']);
+        self::assertArrayNotHasKey('distinctId', $body);
         self::assertSame(['plan' => 'pro', 'notes_created' => 3], $body['traits']);
+    }
+
+    public function testSetAttributesCreatesAnUnknownPersonBeforeUpdatingTraits(): void
+    {
+        $this->http->queueJson(200, [
+            'data' => [],
+            'pageInfo' => ['endCursor' => null, 'hasNextPage' => false],
+        ]);
+        $this->http->queueJson(201, [
+            'personId' => 'per_new',
+            'distinctId' => 'new-user',
+            'email' => 'new@example.com',
+            'name' => null,
+        ]);
+        $this->http->queueJson(200, [
+            'personId' => 'per_new',
+            'distinctId' => 'new-user',
+            'email' => 'new@example.com',
+            'name' => null,
+        ]);
+
+        $person = $this->client->persons->setAttributes([
+            'distinctId' => 'new-user',
+            'email' => 'new@example.com',
+            'projectId' => 'prj_1',
+            'traits' => ['plan' => 'starter'],
+        ]);
+
+        self::assertSame('per_new', $person?->getPersonId());
+        self::assertSame(
+            'distinctId=new-user&projectId=prj_1',
+            $this->http->requests[0]->getUri()->getQuery(),
+        );
+        self::assertSame('/api/v1/persons', $this->http->requests[1]->getUri()->getPath());
+        self::assertSame('POST', $this->http->requests[1]->getMethod());
+        self::assertSame('/api/v1/persons/per_new', $this->http->requests[2]->getUri()->getPath());
+        self::assertSame('PATCH', $this->http->requests[2]->getMethod());
+
+        $createBody = json_decode((string) $this->http->requests[1]->getBody(), true);
+        self::assertSame('new-user', $createBody['distinctId']);
+        self::assertSame('new@example.com', $createBody['email']);
+        $updateBody = json_decode((string) $this->http->requests[2]->getBody(), true);
+        self::assertSame(['plan' => 'starter'], $updateBody['traits']);
     }
 
     public function testErrorMappingCarriesStatusAndTag(): void
@@ -120,9 +170,12 @@ final class ClientTest extends TestCase
             ['id' => 'perk_pro', 'name' => 'Pro', 'projectId' => 'prj_1', 'slug' => 'pro'],
         ];
         // perks list (once per hasActivePerk call with a slug selector)
-        $this->http->queueJson(200, $perks());
+        $this->http->queueJson(200, ['data' => $perks(), 'pageInfo' => ['endCursor' => null, 'hasNextPage' => false]]);
         // person lookup
-        $this->http->queueJson(200, ['personId' => 'per_1', 'distinctId' => 'user-1']);
+        $this->http->queueJson(200, [
+            'data' => [['personId' => 'per_1', 'distinctId' => 'user-1']],
+            'pageInfo' => ['endCursor' => null, 'hasNextPage' => false],
+        ]);
         // entitlements
         $this->http->queueJson(200, [
             'grants' => [[
@@ -135,8 +188,11 @@ final class ClientTest extends TestCase
             ]],
         ]);
         // second round for the free-perk lookup
-        $this->http->queueJson(200, $perks());
-        $this->http->queueJson(200, ['personId' => 'per_1', 'distinctId' => 'user-1']);
+        $this->http->queueJson(200, ['data' => $perks(), 'pageInfo' => ['endCursor' => null, 'hasNextPage' => false]]);
+        $this->http->queueJson(200, [
+            'data' => [['personId' => 'per_1', 'distinctId' => 'user-1']],
+            'pageInfo' => ['endCursor' => null, 'hasNextPage' => false],
+        ]);
         $this->http->queueJson(200, ['grants' => []]);
 
         $active = $this->client->persons->entitlements->hasActivePerk([
@@ -160,7 +216,10 @@ final class ClientTest extends TestCase
 
     public function testUnknownPersonResolvesToFalseForHasActivePerk(): void
     {
-        $this->http->queueJson(404, ['_tag' => 'Api/PersonNotFoundError', 'id' => 'ghost']);
+        $this->http->queueJson(200, [
+            'data' => [],
+            'pageInfo' => ['endCursor' => null, 'hasNextPage' => false],
+        ]);
 
         $active = $this->client->persons->entitlements->hasActivePerk([
             'distinctId' => 'ghost',
@@ -182,6 +241,31 @@ final class ClientTest extends TestCase
         self::assertSame('vh_sk_raw', $created?->getRawKey());
         $request = $this->http->requests[0];
         self::assertSame('/api/v1/api-keys', $request->getUri()->getPath());
+    }
+
+    public function testListResourcesCollectEveryPage(): void
+    {
+        $key = fn (string $id): array => [
+            'end' => 'last',
+            'id' => $id,
+            'isPublic' => false,
+            'name' => $id,
+            'prefix' => 'vh_sk_',
+            'projectId' => 'prj_1',
+        ];
+        $this->http->queueJson(200, [
+            'data' => [$key('key_1')],
+            'pageInfo' => ['endCursor' => 'cursor_1', 'hasNextPage' => true],
+        ]);
+        $this->http->queueJson(200, [
+            'data' => [$key('key_2')],
+            'pageInfo' => ['endCursor' => null, 'hasNextPage' => false],
+        ]);
+
+        $keys = $this->client->apiKeys->list();
+
+        self::assertSame(['key_1', 'key_2'], array_map(fn ($item) => $item->getId(), $keys));
+        self::assertSame('cursor=cursor_1', $this->http->requests[1]->getUri()->getQuery());
     }
 
     public function testCaptureSendsSecretKeyAndFullSnakeCaseBody(): void

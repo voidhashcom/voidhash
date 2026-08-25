@@ -6,6 +6,7 @@ use Voidhash\Exception\ApiException;
 use Voidhash\Generated\Core\Client;
 use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\SdkEntitlementGrantJsonEncoding;
+use Voidhash\Internal\PageCollector;
 
 /**
  * Resolves entitlements for persons. Access it through
@@ -17,7 +18,7 @@ final class EntitlementsResource
     {
     }
 
-    /** Resolves a person by distinct id and returns their entitlement grants. A 404 surfaces as an ApiException with tag Api/PersonNotFoundError. */
+    /** Resolves a person by distinct id and returns their entitlement grants. */
     public function grantsByDistinctId(string $distinctId): array
     {
         try {
@@ -76,7 +77,7 @@ final class EntitlementsResource
     private function grantsFor(string $distinctId): array
     {
         try {
-            $person = $this->core->personsGetPersonByDistinctId($distinctId)
+            $person = ($this->core->personsListPersons(['distinctId' => $distinctId])?->getData() ?? [])[0]
                 ?? throw new ApiException(404, 'Api/PersonNotFoundError');
             $entitlements = $this->core->personsGetPersonEntitlements($person->getPersonId())
                 ?? throw new ApiException(500);
@@ -102,7 +103,7 @@ final class EntitlementsResource
     private function listPerks(): array
     {
         try {
-            return $this->core->perksListPerks() ?? [];
+            return PageCollector::collect(fn (array $query) => $this->core->perksListPerks($query));
         } catch (GeneratedApiException $e) {
             throw ApiException::fromThrowable($e);
         }

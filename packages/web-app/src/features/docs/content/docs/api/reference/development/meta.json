@@ -1,0 +1,10 @@
+{
+  "title": "Development",
+  "pages": [
+    "development.getDevelopmentSettings",
+    "development.updateDevelopmentSettings",
+    "development.getDevelopmentState",
+    "development.applyDevelopmentLifecycleAction",
+    "development.resetDevelopmentData"
+  ]
+}

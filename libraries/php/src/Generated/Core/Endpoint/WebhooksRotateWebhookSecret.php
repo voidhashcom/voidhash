@@ -7,10 +7,14 @@ class WebhooksRotateWebhookSecret extends \Voidhash\Generated\Core\Runtime\Clien
     protected $endpointId;
     /**
      * @param string $endpointId
+     * @param array{
+     *    "projectId"?: string,
+     * } $queryParameters
      */
-    public function __construct(string $endpointId)
+    public function __construct(string $endpointId, array $queryParameters = [])
     {
         $this->endpointId = $endpointId;
+        $this->queryParameters = $queryParameters;
     }
     use \Voidhash\Generated\Core\Runtime\Client\EndpointTrait;
     public function getMethod(): string
@@ -29,6 +33,15 @@ class WebhooksRotateWebhookSecret extends \Voidhash\Generated\Core\Runtime\Clien
     {
         return ['Accept' => ['application/json']];
     }
+    protected function getQueryOptionsResolver(): \Symfony\Component\OptionsResolver\OptionsResolver
+    {
+        $optionsResolver = parent::getQueryOptionsResolver();
+        $optionsResolver->setDefined(['projectId']);
+        $optionsResolver->setRequired([]);
+        $optionsResolver->setDefaults([]);
+        $optionsResolver->addAllowedTypes('projectId', ['string']);
+        return $optionsResolver;
+    }
     /**
      * {@inheritdoc}
      *
@@ -37,17 +50,17 @@ class WebhooksRotateWebhookSecret extends \Voidhash\Generated\Core\Runtime\Clien
      * @throws \Voidhash\Generated\Core\Exception\WebhooksRotateWebhookSecretNotFoundException
      * @throws \Voidhash\Generated\Core\Exception\WebhooksRotateWebhookSecretInternalServerErrorException
      *
-     * @return null|\Voidhash\Generated\Core\Model\WebhookEndpointJsonEncoding
+     * @return null|\Voidhash\Generated\Core\Model\WebhookEndpointWithSecretJsonEncoding1
      */
     protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
         if (is_null($contentType) === false && (200 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\WebhookEndpointJsonEncoding', 'json');
+            return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\WebhookEndpointWithSecretJsonEncoding1', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\WebhooksRotateWebhookSecretUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\WebhooksRotateWebhookSecretUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (403 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\WebhooksRotateWebhookSecretForbiddenException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiActionForbiddenErrorJsonEncoding', 'json'), $response);

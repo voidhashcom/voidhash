@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 
 import { VoidhashNodeConfigurationError } from "./errors";
 import type { GroupedVoidhashNodeEffectClient } from "./generated/grouped-client";
@@ -16,17 +16,35 @@ type GetPersonEntitlementsEffect = ReturnType<
   EntitlementsSource["persons"]["getPersonEntitlements"]
 >;
 
-type GetGrantsError =
-  | EffectError<ReturnType<EntitlementsSource["persons"]["getPersonByDistinctId"]>>
-  | EffectError<GetPersonEntitlementsEffect>;
+type ListPersonsEffect = ReturnType<EntitlementsSource["persons"]["listPersons"]>;
 
-type ListPerksError = EffectError<ReturnType<EntitlementsSource["perks"]["listPerks"]>>;
+type ListPerksEffect = ReturnType<EntitlementsSource["perks"]["listPerks"]>;
 
 /**
  * `_tag` of the decoded 404 body returned when no person matches the lookup.
  * `hasActivePerk` maps it to `false` instead of failing.
  */
 const PERSON_NOT_FOUND_TAG = "ApiPersonNotFoundErrorJsonEncoding";
+
+/**
+ * Raised when the distinct-id lookup matches no person.
+ *
+ * The lookup runs through `persons.listPersons`, which answers `200` with an
+ * empty page rather than the `404` the API used to return here, so the SDK
+ * raises this failure itself. `_tag` and `data` deliberately mirror the
+ * generated client's decoded-404 wrapper so callers that branch on either one
+ * keep working.
+ */
+export class VoidhashPersonNotFoundError extends Data.TaggedError(PERSON_NOT_FOUND_TAG)<{
+  readonly data: { readonly _tag: "Api/PersonNotFoundError"; readonly id: string };
+}> {}
+
+type GetGrantsError =
+  | EffectError<ListPersonsEffect>
+  | EffectError<GetPersonEntitlementsEffect>
+  | VoidhashPersonNotFoundError;
+
+type ListPerksError = EffectError<ListPerksEffect>;
 
 type HasActivePerkError =
   | Exclude<GetGrantsError | ListPerksError, { readonly _tag: typeof PERSON_NOT_FOUND_TAG }>
@@ -64,7 +82,7 @@ export interface VoidhashEntitlementsEffectNamespace {
 
   /**
    * Reports whether the person currently holds an active grant for a perk,
-   * selected either by `perkId` or by `perkSlug` (resolved through
+   * selected either by `perkId` or by `perkSlug` (resolved by paging through
    * `perks.listPerks`).
    *
    * An unknown `distinctId` — and an unknown `perkSlug` — resolve to `false`:
@@ -89,6 +107,36 @@ const trimmed = (value: string | undefined): string | undefined => {
 };
 
 /**
+ * Walks the paginated perk catalogue until a perk carries `perkSlug`, yielding
+ * `undefined` when no page holds one.
+ */
+const findPerkIdBySlug = (
+  client: EntitlementsSource,
+  perkSlug: string,
+  cursor: string | undefined,
+): Effect.Effect<string | undefined, ListPerksError> =>
+  Effect.gen(function* () {
+    const page = yield* client.perks.listPerks({
+      params: {
+        cursor,
+        limit: undefined,
+        projectId: undefined,
+      },
+    });
+    const match = page.data.find((perk) => perk.slug === perkSlug);
+
+    if (match !== undefined) {
+      return match.id;
+    }
+
+    if (!page.pageInfo.hasNextPage || page.pageInfo.endCursor === null) {
+      return undefined;
+    }
+
+    return yield* findPerkIdBySlug(client, perkSlug, page.pageInfo.endCursor);
+  });
+
+/**
  * Narrows the request down to a single perk id. Fails when the request does not
  * carry exactly one selector, and yields `undefined` when a `perkSlug` matches
  * no perk in the project.
@@ -108,13 +156,11 @@ const resolvePerkId = (
     );
   }
 
-  if (perkId !== undefined) {
-    return Effect.succeed(perkId);
+  if (perkSlug !== undefined) {
+    return findPerkIdBySlug(client, perkSlug, undefined);
   }
 
-  return Effect.map(client.perks.listPerks(), (perks) =>
-    perks.find((perk) => perk.slug === perkSlug)?.id,
-  );
+  return Effect.succeed(perkId);
 };
 
 /**
@@ -127,9 +173,25 @@ export const makeEntitlements = (
 ): VoidhashEntitlementsEffectNamespace => {
   const getGrants = (distinctId: string) =>
     Effect.gen(function* () {
-      const person = yield* client.persons.getPersonByDistinctId({
-        params: { distinctId },
+      const persons = yield* client.persons.listPersons({
+        params: {
+          cursor: undefined,
+          limit: undefined,
+          distinctId,
+          email: undefined,
+          projectId: undefined,
+        },
       });
+      const [person] = persons.data;
+
+      if (person === undefined) {
+        return yield* Effect.fail(
+          new VoidhashPersonNotFoundError({
+            data: { _tag: "Api/PersonNotFoundError", id: distinctId },
+          }),
+        );
+      }
+
       const entitlements = yield* client.persons.getPersonEntitlements({
         params: { personId: person.personId },
       });

@@ -10,7 +10,7 @@ class PersonsGetPersonEntitlementsInternalServerErrorException extends InternalS
     private $response;
     public function __construct(?\Psr\Http\Message\ResponseInterface $response = null)
     {
-        parent::__construct('Api/PersonServiceError | Api/AuthenticationError');
+        parent::__construct('Api/PerkGrantServiceError | Api/PersonServiceError | Api/AuthServiceError');
         $this->response = $response;
     }
     public function getResponse(): ?\Psr\Http\Message\ResponseInterface

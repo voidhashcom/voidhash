@@ -24,6 +24,7 @@ const event = (
   personId: "person-1",
   previousDistinctId: null,
   processedAt: timestamp,
+  receivedAt: timestamp,
   projectId: "project-1",
   properties: { grossAmountUsd, providerEnvironment },
   requestId: `request-${sequence}`,

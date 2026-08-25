@@ -8,6 +8,7 @@ use Voidhash\Generated\Core\Exception\ApiException as GeneratedApiException;
 use Voidhash\Generated\Core\Model\ApiKeyJsonEncoding;
 use Voidhash\Generated\Core\Model\ApiKeyWithRawKeyJsonEncoding;
 use Voidhash\Generated\Core\Model\CreateSecretKeyBodyJsonEncoding;
+use Voidhash\Internal\PageCollector;
 
 final class ApiKeysResource
 {
@@ -23,7 +24,9 @@ final class ApiKeysResource
     /** @return list<ApiKeyJsonEncoding> */
     public function list(): array
     {
-        return $this->wrap(fn () => $this->core->apiKeysListApiKeys() ?? []);
+        return $this->wrap(
+            fn () => PageCollector::collect(fn (array $query) => $this->core->apiKeysListApiKeys($query)),
+        );
     }
 
     public function get(string $apiKeyId): ?ApiKeyJsonEncoding

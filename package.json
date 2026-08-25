@@ -44,6 +44,8 @@
     "lint": "vp lint",
     "bump": "bumpp",
     "openapi:generate": "node ./scripts/generate-openapi-clients.mjs",
+    "docs:api:generate": "node ./scripts/generate-api-reference-docs.mjs",
+    "docs:api:check": "node ./scripts/generate-api-reference-docs.mjs --check",
     "openapi:generate:dev": "pnpm openapi:generate -- localhost:8787",
     "openapi:generate:prod": "pnpm openapi:generate -- api.voidhash.com",
     "db:generate": "node ./scripts/db-generate.mjs",

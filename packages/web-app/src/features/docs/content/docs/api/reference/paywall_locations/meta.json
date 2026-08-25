@@ -1,6 +1,13 @@
 {
   "title": "Paywall_locations",
   "pages": [
-    "paywall_locations.listPaywallLocations"
+    "paywall_locations.listPaywallLocations",
+    "paywall_locations.createPaywallLocation",
+    "paywall_locations.getPaywallLocation",
+    "paywall_locations.updatePaywallLocation",
+    "paywall_locations.archivePaywallLocation",
+    "paywall_locations.setPaywallLocationShowing",
+    "paywall_locations.clearPaywallLocationShowing",
+    "paywall_locations.listPaywallLocationShowings"
   ]
 }

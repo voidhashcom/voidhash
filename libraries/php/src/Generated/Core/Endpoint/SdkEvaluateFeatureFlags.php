@@ -63,23 +63,23 @@ class SdkEvaluateFeatureFlags extends \Voidhash\Generated\Core\Runtime\Client\Ba
         $optionsResolver->addAllowedTypes('x-distinct-id', ['string']);
         $optionsResolver->addAllowedTypes('x-publishable-key', ['string']);
         $optionsResolver->addAllowedTypes('x-client-bundle-id', ['string']);
-        $optionsResolver->addAllowedTypes('x-client-locale', ['string', 'null']);
-        $optionsResolver->addAllowedTypes('x-client-version', ['string', 'null']);
+        $optionsResolver->addAllowedTypes('x-client-locale', ['string']);
+        $optionsResolver->addAllowedTypes('x-client-version', ['string']);
         $optionsResolver->addAllowedTypes('x-is-backgrounded', ['string']);
         $optionsResolver->addAllowedTypes('x-is-debug-build', ['string']);
-        $optionsResolver->addAllowedTypes('x-nonce', ['string', 'null']);
+        $optionsResolver->addAllowedTypes('x-nonce', ['string']);
         $optionsResolver->addAllowedTypes('x-observer-mode', ['string']);
         $optionsResolver->addAllowedTypes('x-platform', ['string']);
-        $optionsResolver->addAllowedTypes('x-platform-brand', ['string', 'null']);
-        $optionsResolver->addAllowedTypes('x-platform-device', ['string', 'null']);
+        $optionsResolver->addAllowedTypes('x-platform-brand', ['string']);
+        $optionsResolver->addAllowedTypes('x-platform-device', ['string']);
         $optionsResolver->addAllowedTypes('x-platform-flavor', ['string']);
-        $optionsResolver->addAllowedTypes('x-platform-flavor-version', ['string', 'null']);
-        $optionsResolver->addAllowedTypes('x-platform-version', ['string', 'null']);
-        $optionsResolver->addAllowedTypes('x-preferred-locales', ['string', 'null']);
+        $optionsResolver->addAllowedTypes('x-platform-flavor-version', ['string']);
+        $optionsResolver->addAllowedTypes('x-platform-version', ['string']);
+        $optionsResolver->addAllowedTypes('x-preferred-locales', ['string']);
         $optionsResolver->addAllowedTypes('x-sdk', ['string']);
         $optionsResolver->addAllowedTypes('x-sdk-version', ['string']);
-        $optionsResolver->addAllowedTypes('x-storefront', ['string', 'null']);
-        $optionsResolver->addAllowedTypes('x-environment', ['string', 'null']);
+        $optionsResolver->addAllowedTypes('x-storefront', ['string']);
+        $optionsResolver->addAllowedTypes('x-environment', ['string']);
         return $optionsResolver;
     }
     /**
@@ -98,7 +98,7 @@ class SdkEvaluateFeatureFlags extends \Voidhash\Generated\Core\Runtime\Client\Ba
             return $serializer->deserialize($body, 'Voidhash\Generated\Core\Model\SdkFeatureFlagsResponseJsonEncoding', 'json');
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiNotAuthenticatedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsUnauthorizedException($response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\SdkEvaluateFeatureFlagsInternalServerErrorException($response);
