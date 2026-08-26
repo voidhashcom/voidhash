@@ -1,10 +1,12 @@
 package com.voidhash.sdk.schema
 
+import com.voidhash.sdk.VoidhashException
 import com.voidhash.sdk.api.VoidhashApiClient
 import com.voidhash.sdk.cache.CacheManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 /**
  * 30 days. Covers long offline gaps (user reopens the app after a month) while
@@ -12,6 +14,13 @@ import kotlinx.coroutines.launch
  * on cache hits this gives a stale-while-revalidate read path.
  */
 private const val SCHEMA_CACHE_TTL_MS = 1000L * 60 * 60 * 24 * 30
+
+/** Raised when no cached schema is available and the server fetch fails. */
+class FailedToFetchSchemaException(cause: Throwable) : VoidhashException(
+    "FAILED_TO_FETCH_SCHEMA",
+    "Failed to fetch schema at init",
+    cause,
+)
 
 /**
  * Resolves the runtime schema with a stale-while-revalidate cache keyed by the
@@ -31,13 +40,15 @@ class SchemaManager(
     private val onSchema: (RuntimeSchema) -> Unit = {},
     private val onWarning: (String) -> Unit = {},
 ) {
+    private data class FetchedSchema(val raw: JSONObject, val value: RuntimeSchema)
+
     /** Cache key for the schema of [appVersion]. */
     fun cacheKey(appVersion: String): String = "schema:$appVersion"
 
     /** Returns the schema, serving a warm cache immediately and revalidating in the background. */
     suspend fun resolveSchema(distinctId: String): RuntimeSchema {
         if (appVersion == null) {
-            val schema = RuntimeSchema.fromJson(apiClient.getSchema(distinctId))
+            val schema = fetchFromServer(distinctId).value
             onSchema(schema)
             return schema
         }
@@ -51,19 +62,27 @@ class SchemaManager(
             return schema
         }
 
-        val json = apiClient.getSchema(distinctId)
-        cacheManager.set(cacheKey, json, ttlMs = SCHEMA_CACHE_TTL_MS)
-        val schema = RuntimeSchema.fromJson(json)
-        onSchema(schema)
-        return schema
+        val fetched = fetchFromServer(distinctId)
+        cacheManager.set(cacheKey, fetched.raw, ttlMs = SCHEMA_CACHE_TTL_MS)
+        onSchema(fetched.value)
+        return fetched.value
+    }
+
+    private suspend fun fetchFromServer(distinctId: String): FetchedSchema = try {
+        val raw = apiClient.getSchema(distinctId)
+        FetchedSchema(raw, RuntimeSchema.fromJson(raw))
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Throwable) {
+        throw FailedToFetchSchemaException(error)
     }
 
     private fun scheduleBackgroundRefresh(cacheKey: String, distinctId: String) {
         refreshScope.launch {
             try {
-                val json = apiClient.getSchema(distinctId)
-                cacheManager.set(cacheKey, json, ttlMs = SCHEMA_CACHE_TTL_MS)
-                onSchema(RuntimeSchema.fromJson(json))
+                val fetched = fetchFromServer(distinctId)
+                cacheManager.set(cacheKey, fetched.raw, ttlMs = SCHEMA_CACHE_TTL_MS)
+                onSchema(fetched.value)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {

@@ -254,6 +254,9 @@ public actor VoidhashClient {
     ///
     /// The next ``getDistinctId()`` allocates a fresh anonymous distinct id.
     public func reset() async {
+        guard options.enabled else {
+            return
+        }
         await identityStore.reset()
     }
 
@@ -350,6 +353,9 @@ public actor VoidhashClient {
 
     /// Dismisses the presented paywall.
     public func dismissPaywall() async throws {
+        guard options.enabled else {
+            return
+        }
         try await paywallCoordinator().dismiss()
     }
 
@@ -504,7 +510,12 @@ public actor VoidhashClient {
             Task { await self.handleObservedTransaction(storeTransaction) }
         })
 
-        let schema = try await schemaManager.resolveSchema(headers: await headerFactory.build())
+        let schema: RuntimeSchema
+        if let currentSchema {
+            schema = currentSchema
+        } else {
+            schema = try await schemaManager.resolveSchema(headers: await headerFactory.build())
+        }
         currentSchema = schema
 
         if dependencies.startAutoFlush {

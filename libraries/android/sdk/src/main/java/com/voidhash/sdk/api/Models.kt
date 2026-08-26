@@ -80,13 +80,19 @@ data class FeatureFlag(
     val variantKey: String?,
 )
 
-/** The paywall release resolved for a location. */
+/**
+ * The paywall release resolved for a location.
+ *
+ * @property hasRuntime false for visual-editor releases, which do not accept
+ * runtime configuration messages.
+ */
 data class ResolvedPaywall(
     val locationSlug: String,
     val htmlUrl: String,
     val releaseId: String,
     val productSlugs: List<String>,
     val variables: Map<String, Any?>,
+    val hasRuntime: Boolean = true,
 ) {
     companion object {
         internal fun fromJson(json: JSONObject): ResolvedPaywall? {
@@ -106,6 +112,7 @@ data class ResolvedPaywall(
                         source.get(key).takeUnless { it === JSONObject.NULL }
                     }
                 } ?: emptyMap(),
+                hasRuntime = runtime != null,
             )
         }
     }

@@ -109,7 +109,8 @@ class PaywallCoordinator(
     /**
      * Presents the paywall configured for [locationSlug].
      *
-     * @return false when the backend has no paywall showing for the location.
+     * @return false when the backend has no paywall showing for the location or
+     * the presenter declines to show it.
      */
     suspend fun present(
         locationSlug: String,
@@ -134,14 +135,17 @@ class PaywallCoordinator(
             },
         )
 
+        if (!shown) {
+            activePaywall = null
+            activeListener = null
+            return false
+        }
+
         // A warm bundle announces `ready` once, before `show` attaches the
         // handler above, so the ready-triggered configure never runs for it.
         // The runtime applies `configure` idempotently, so re-sending it here
         // covers the warm path without breaking the cold one.
-        if (shown) {
-            sendConfigureMessage(locationSlug, requestId = null)
-        }
-
+        sendConfigureMessage(locationSlug, requestId = null)
         return true
     }
 
@@ -192,6 +196,7 @@ class PaywallCoordinator(
 
     private suspend fun sendConfigureMessage(locationSlug: String, requestId: String?) {
         val paywall = activePaywall ?: return
+        if (!paywall.hasRuntime) return
 
         // A store failure must not leave the bundle configless: it still gets
         // the release's variables, just without products.

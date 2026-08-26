@@ -122,8 +122,8 @@ public actor AnalyticsClient {
         ]
     }
 
-    /// Queues an event. Empty names are ignored.
-    public func capture(_ eventName: String, properties: [String: JSONValue] = [:]) {
+    /// Queues an event. Empty names are ignored and a full batch flushes immediately.
+    public func capture(_ eventName: String, properties: [String: JSONValue] = [:]) async {
         let normalized = eventName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else {
             return
@@ -138,6 +138,10 @@ public actor AnalyticsClient {
                 attempts: 0,
                 availableAt: 0
             ))
+
+        if queue.count >= AnalyticsClient.batchSize {
+            await flush()
+        }
     }
 
     /// Number of events waiting in the queue.

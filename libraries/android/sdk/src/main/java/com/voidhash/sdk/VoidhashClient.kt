@@ -90,10 +90,11 @@ class VoidhashClient internal constructor(
 
             try {
                 val distinctId = identityStore.getDistinctId()
-                // `resolveSchema` publishes through `publishSchema`, and a warm
-                // cache can revalidate before it returns — so only fill the gap
-                // if nothing was published, never overwrite a fresher schema.
-                val schema = schemaManager.resolveSchema(distinctId)
+                // An externally injected schema bypasses cache and network.
+                // Otherwise `resolveSchema` publishes through `publishSchema`,
+                // and a warm cache can revalidate before it returns — so only
+                // fill the gap, never overwrite a fresher schema.
+                val schema = schemaRef.get() ?: schemaManager.resolveSchema(distinctId)
                 schemaRef.compareAndSet(null, schema)
 
                 billing.initConnection { purchase ->
@@ -160,7 +161,9 @@ class VoidhashClient internal constructor(
         val distinctId = identityStore.getDistinctId()
         if (!forceFetch) {
             cacheManager.getObject(personCacheKey(distinctId))?.let {
-                return VoidhashPerson.fromJson(it.value)
+                if (!it.isStale) {
+                    return VoidhashPerson.fromJson(it.value)
+                }
             }
         }
 
@@ -195,6 +198,7 @@ class VoidhashClient internal constructor(
 
     /** Clears the local identity and cache; the next call generates a new anonymous id. */
     suspend fun reset() {
+        if (!enabled) return
         identityStore.reset()
     }
 
@@ -230,7 +234,8 @@ class VoidhashClient internal constructor(
     /**
      * Presents the paywall configured for [location].
      *
-     * @return false when no paywall is showing for the location.
+     * @return false when no paywall is showing for the location or the
+     * presenter declines to show it.
      */
     suspend fun presentPaywall(
         activity: Activity,
