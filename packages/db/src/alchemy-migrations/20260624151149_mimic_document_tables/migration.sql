@@ -1,5 +1,5 @@
 -- Hand-written (not drizzle-generated): the mimic document tables are owned by
--- apps/mimic-db (see src/core/pg-store.ts, whose `ensureDocumentTables` DDL this
+-- vendored/mimic/apps/mimic-db (see src/core/pg-store.ts, whose `ensureDocumentTables` DDL this
 -- mirrors) and are deliberately excluded from the drizzle schema
 -- (drizzle.config.ts filters `!mimic_*`). They must be created here because the
 -- Worker's Hyperdrive credential may be a least-privilege role that can't run

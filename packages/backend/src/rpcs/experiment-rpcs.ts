@@ -1,4 +1,5 @@
-import { AnalyticsService, ExperimentService } from "@voidhash/core/services";
+import { ExperimentService } from "@voidhash/core/services";
+import { AnalyticsQuery } from "@voidhash/core-v2";
 import {
   ExperimentRpcsDef,
   RpcActionForbiddenError,
@@ -7,7 +8,7 @@ import {
   RpcExperimentValidationError,
   RpcExperimentVariantNotFoundError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import { DateTime, Duration, Effect } from "effect";
 
 interface BackingFeatureFlag {
   readonly id: string;
@@ -99,7 +100,7 @@ const toRpcExperiment = (e: {
 export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
   Effect.gen(function* ExperimentRpcsLive() {
     const service = yield* ExperimentService;
-    const analyticsService = yield* AnalyticsService;
+    const analytics = yield* AnalyticsQuery;
 
     // Shared error mappers keep every handler's catchTags terse.
     const serviceError = (error: { readonly cause: string }) =>
@@ -152,11 +153,26 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
           }),
         ),
       GetExperimentResults: (input) =>
-        analyticsService.getExperimentResults(input).pipe(
+        Effect.gen(function* () {
+          const experiment = yield* service.getExperiment({ id: input.experimentId });
+          const now = yield* DateTime.now;
+          return yield* analytics.getExperimentResults({
+            end: experiment.endedAt ?? DateTime.toDateUtc(now),
+            experimentId: experiment.id,
+            primaryMetricEventName: experiment.primaryMetricEventName ?? "purchase_completed",
+            projectId: experiment.projectId,
+            start:
+              experiment.startedAt ??
+              DateTime.toDateUtc(DateTime.subtractDuration(now, Duration.days(input.days ?? 90))),
+          });
+        }).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
-            AnalyticsServiceError: (error) =>
+            AnalyticsQueryError: (error) =>
               Effect.fail(new RpcExperimentServiceError({ cause: error.cause })),
+            ExperimentNotFoundError: (error) =>
+              Effect.fail(new RpcExperimentServiceError({ cause: error.experimentId })),
+            ExperimentServiceError: serviceError,
           }),
         ),
       ListExperiments: (input) =>

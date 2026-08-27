@@ -31,6 +31,7 @@ import {
   ApiSdkValidationError,
 } from "@voidhash/api-contracts/errors";
 import type { AuthenticationError } from "@voidhash/core/domain/auth/Auth";
+import { AnalyticsDelivery, dispatchInternalAnalyticsEvent } from "@voidhash/core-v2";
 import type {
   SdkPersonSnapshot,
   SdkValidationError,
@@ -189,6 +190,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
     const personIdentityService = yield* PersonIdentityService;
     const notificationTokenService = yield* NotificationTokenService;
     const internalFeatureFlagService = yield* InternalFeatureFlagService;
+    const analyticsDelivery = yield* AnalyticsDelivery;
 
     const requireNotificationsEnabled = (organizationId: string) =>
       internalFeatureFlagService
@@ -391,12 +393,13 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
         bridgeAuthSession(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const projectId = session?.projects[0]?.id;
-            if (!projectId) {
+            const project = session?.projects[0];
+            if (!project) {
               return yield* Effect.fail(
                 new ApiSdkServiceError({ cause: "No project associated with this key" }),
               );
             }
+            const projectId = project.id;
 
             // Resolve the subject the same way `evaluateFeatureFlags` does so an
             // experiment-backed location buckets on a stable identity.
@@ -419,14 +422,35 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               return null;
             }
 
-            // `resolved.exposure` (when non-null) carries { experimentId,
-            // variantKey, personId, distinctId } for the assigned subject.
-            // Server-side `$experiment.exposed` emission is wired here once the
-            // analytics dispatch producer (`AnalyticsDispatchService` over the
-            // worker's `CaptureIngressLive`) + `RuntimeContext` are threaded into
-            // the SDK route runtime — see `EXPERIMENT_TRUSTED_SOURCE_TOPIC` /
-            // `makeCapturedEventFromInternalAnalyticsEvent`. Assignment + serving
-            // (below) are fully live; emission is the remaining infra step.
+            const exposure = resolved.exposure;
+            const exposureDistinctId = exposure?.distinctId ?? exposure?.personId;
+            if (exposure && exposureDistinctId) {
+              const eventId = `experiment:${exposure.experimentId.length}:${exposure.experimentId}:${exposureDistinctId.length}:${exposureDistinctId}:${exposure.variantKey}`;
+              yield* dispatchInternalAnalyticsEvent({
+                context: { locationId: resolved.location.id },
+                distinctId: exposureDistinctId,
+                eventId,
+                eventName: "$experiment.exposed",
+                occurredAt: yield* DateTime.nowAsDate,
+                organizationId: project.organizationId,
+                personId: exposure.personId,
+                projectId,
+                properties: {
+                  experimentId: exposure.experimentId,
+                  variantKey: exposure.variantKey,
+                },
+                token: "internal:experiment",
+              }).pipe(
+                Effect.provideService(AnalyticsDelivery, analyticsDelivery),
+                Effect.catchCause((cause) =>
+                  Effect.logWarning("failed to record experiment exposure", {
+                    cause,
+                    experimentId: exposure.experimentId,
+                    projectId,
+                  }),
+                ),
+              );
+            }
 
             return new SdkResolvedPaywall({
               location: resolved.location,

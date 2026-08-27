@@ -1,0 +1,35 @@
+import { Context, Effect, Layer } from "effect";
+
+import {
+  AnalyticsDelivery,
+  type AnalyticsDeliveryShape,
+  type AnalyticsPortError,
+} from "../../../application/ports.ts";
+import type { CapturedEventV1 } from "../../domain/Ingest.ts";
+
+/** Queue producer capabilities required by queued analytics delivery. */
+export interface AnalyticsQueueProducerShape {
+  readonly publish: (
+    envelopes: ReadonlyArray<typeof CapturedEventV1.Type>,
+  ) => Effect.Effect<void, AnalyticsPortError>;
+}
+
+/** Queue producer boundary supplied by the application runtime. */
+export class AnalyticsQueueProducer extends Context.Service<
+  AnalyticsQueueProducer,
+  AnalyticsQueueProducerShape
+>()("@voidhash/core-v2/analytics/AnalyticsQueueProducer") {}
+
+const makeQueuedAnalyticsDelivery = AnalyticsQueueProducer.pipe(
+  Effect.map(
+    (producer) =>
+      ({
+        deliver: producer.publish,
+      }) satisfies AnalyticsDeliveryShape,
+  ),
+);
+
+/** Queue-backed delivery; consumers decode records before invoking the common processor. */
+export const QueuedAnalyticsDeliveryLive = Layer.effect(AnalyticsDelivery)(
+  makeQueuedAnalyticsDelivery,
+);

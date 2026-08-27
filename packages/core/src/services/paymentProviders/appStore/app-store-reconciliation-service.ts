@@ -42,10 +42,14 @@ import { Effect, Layer, Option, Schema, Context } from "effect";
 
 import { constant } from "@voidhash/lib/lang";
 
-import { AppStorePaymentProviderServiceError } from "./errors.ts";
+import {
+  AppStorePaymentProviderProductNotMappedError,
+  AppStorePaymentProviderServiceError,
+} from "./errors.ts";
 import { classifyAppStoreRevocation } from "./helpers.ts";
 import { AppStorePaymentProvider } from "./payment-provider.ts";
 import { AppStorePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
+import { generateId } from "../../../utils/generate-id.ts";
 
 /**
  * Why we reconciled. Drives logging/telemetry; logic doesn't branch on it.
@@ -230,6 +234,28 @@ const make = Effect.gen(function* () {
       transactionsProcessed: 0,
     };
 
+    const parkPendingProductMapping = (error: AppStorePaymentProviderProductNotMappedError) =>
+      queries.insertNotificationProcessedIfAbsent({
+        id: generateId("paymentProviderNotification"),
+        notificationSubtype: null,
+        notificationType: "RECONCILIATION",
+        notificationUuid:
+          `reconciliation:${input.originalTransactionId}:${error.providerProductKey}`.slice(0, 255),
+        parkedRawPayload: {
+          originalTransactionId: input.originalTransactionId,
+          reason: input.reason,
+          triggeredAt: input.triggeredAt.toISOString(),
+        },
+        parkedUntilOriginalTransactionId: input.originalTransactionId,
+        parkedUntilProviderProductKey: error.providerProductKey,
+        paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+        providerId: "apple-app-store",
+        providerOccurredAt: input.triggeredAt,
+        result: "parked_pending_product_mapping",
+        resultNote: `reconciliation waiting for product key ${error.providerProductKey}`,
+        source: "reconciliation",
+      });
+
     /**
      * Paginate through the full transaction history. Apple's
      * `hasMore=true` continues the walk via `revision`; we follow the chain
@@ -285,7 +311,7 @@ const make = Effect.gen(function* () {
           Effect.match({
             onFailure: (error) => ({
               ok: constant(false),
-              error: String(error),
+              error,
             }),
             onSuccess: (result) => ({
               idempotent: result.idempotent,
@@ -302,8 +328,11 @@ const make = Effect.gen(function* () {
           }
         } else {
           report.eventsFailed++;
+          if (outcome.error instanceof AppStorePaymentProviderProductNotMappedError) {
+            yield* parkPendingProductMapping(outcome.error);
+          }
           yield* Effect.logWarning("App Store reconciliation: history transaction replay failed", {
-            error: outcome.error,
+            error: String(outcome.error),
             originalTransactionId: input.originalTransactionId,
           });
         }
@@ -373,7 +402,7 @@ const make = Effect.gen(function* () {
           Effect.match({
             onFailure: (error) => ({
               ok: constant(false),
-              error: String(error),
+              error,
             }),
             onSuccess: (result) => {
               // ACTIVE status is a no-op (the history walk covers renewals)
@@ -393,8 +422,11 @@ const make = Effect.gen(function* () {
           }
         } else {
           report.eventsFailed++;
+          if (outcome.error instanceof AppStorePaymentProviderProductNotMappedError) {
+            yield* parkPendingProductMapping(outcome.error);
+          }
           yield* Effect.logWarning("App Store reconciliation: status snapshot replay failed", {
-            error: outcome.error,
+            error: String(outcome.error),
             originalTransactionId: input.originalTransactionId,
           });
         }
@@ -440,9 +472,8 @@ const providerEnvironmentFor = (environment: string): ProviderEnvironmentValue =
  * ACTIVE status is a no-op (the history walk covers renewals) — the replay
  * returns nothing for it, which counts as already-up-to-date for telemetry.
  */
-const idempotentFlag = (
-  result: { readonly idempotent?: boolean } | null | undefined,
-): boolean => result?.idempotent ?? true;
+const idempotentFlag = (result: { readonly idempotent?: boolean } | null | undefined): boolean =>
+  result?.idempotent ?? true;
 
 export class AppStoreReconciliationService extends Context.Service<AppStoreReconciliationService>()(
   "core/AppStoreReconciliationService",

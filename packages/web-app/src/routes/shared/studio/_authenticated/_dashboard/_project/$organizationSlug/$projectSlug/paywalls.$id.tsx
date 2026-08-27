@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import {
   Badge,
   Breadcrumb,
@@ -20,6 +21,7 @@ import {
   getPaywallDraftReleaseOptions,
   listPaywallsOptions,
 } from "@/features/studio/lib/tanstack-query/paywalls";
+import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import { PaywallLocationStats } from "@/features/studio/paywall-locations/components/shared/paywall-location-stats";
 import { PaywallDetailPlacements } from "@/features/studio/paywalls/components/paywall-detail-page/paywall-detail-placements";
@@ -30,9 +32,21 @@ import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-e
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id",
 )({
-  component: PaywallDetailPage,
+  component: PaywallDetailRoute,
   errorComponent: PaywallDetailPageError,
 });
+
+function PaywallDetailRoute() {
+  const paywallsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.paywalls.key);
+
+  if (!paywallsEnabled) {
+    return (
+      <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "This page is not available." }} />
+    );
+  }
+
+  return <PaywallDetailPage />;
+}
 
 function PaywallDetailPageError() {
   return (

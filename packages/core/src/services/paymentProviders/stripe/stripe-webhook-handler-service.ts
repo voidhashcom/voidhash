@@ -13,9 +13,11 @@ import { DateTime, Effect, Layer, Match, Predicate, Schema, Context } from "effe
 
 import { constant, stringOr } from "@voidhash/lib/lang";
 
+import type { PurchaseProcessingResult } from "../../../domain/purchaseProcessing/PurchaseProcessing.ts";
 import {
   StripePaymentProviderConfigurationNotFoundError,
   StripePaymentProviderProductNotMappedError,
+  StripePaymentProviderTransactionNotFoundError,
   StripePaymentProviderProjectNotFoundError,
   StripePaymentProviderServiceError,
   StripeWebhookSignatureError,
@@ -45,11 +47,7 @@ const propertyOr = <K extends string>(error: unknown, key: K, fallback: string):
 };
 
 /** Reads `error[key]` when it is a string, falling back otherwise. */
-const stringPropertyOr = <K extends string>(
-  error: unknown,
-  key: K,
-  fallback: string,
-): string => {
+const stringPropertyOr = <K extends string>(error: unknown, key: K, fallback: string): string => {
   if (Predicate.hasProperty(error, key)) return stringOr(error[key], fallback);
   return fallback;
 };
@@ -194,6 +192,10 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           yield* Effect.annotateCurrentSpan("voidhash.webhook.id", event.id);
 
           const providerEnvironment = providerEnvironmentForMode(mode);
+          let providerOccurredAt = input.receivedAt;
+          if (event.created !== undefined) {
+            providerOccurredAt = DateTime.toDateUtc(DateTime.makeUnsafe(event.created * 1_000));
+          }
 
           const ack = (handled: boolean): StripeAcceptWebhookEventResult => ({
             accepted: true,
@@ -236,11 +238,17 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
            * Generic over the record method's error channel — narrowed with tag
            * guards (not `catchTag`, which would widen `R` to `unknown`).
            */
-          const handled = <A, E, R>(
-            recordEffect: Effect.Effect<A, E | StripePaymentProviderProductNotMappedError, R>,
+          const handled = <E, R>(
+            recordEffect: Effect.Effect<
+              PurchaseProcessingResult,
+              | E
+              | StripePaymentProviderProductNotMappedError
+              | StripePaymentProviderTransactionNotFoundError,
+              R
+            >,
           ) =>
             recordEffect.pipe(
-              Effect.as(ack(true)),
+              Effect.map((result) => ack(!result.isIgnored())),
               Effect.catchIf(
                 (error): error is StripePaymentProviderProductNotMappedError =>
                   Predicate.hasProperty(error, "_tag") &&
@@ -255,6 +263,9 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
                       eventType: event.type,
                       providerProductKey: error.providerProductKey,
                     });
+                    if (input.isReplay) {
+                      return ack(false);
+                    }
                     yield* queries.insertNotificationProcessedIfAbsent({
                       id: generateId("paymentProviderNotification"),
                       notificationSubtype: null,
@@ -264,8 +275,43 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
                       parkedUntilProviderProductKey: error.providerProductKey,
                       paymentProviderConfigurationId: input.paymentProviderConfigurationId,
                       providerId: "stripe",
+                      providerOccurredAt,
                       result: "parked_pending_product_mapping",
                       resultNote: `product key ${error.providerProductKey} not mapped at event time`,
+                      source: "webhook",
+                    });
+                    return ack(true);
+                  }),
+              ),
+              Effect.catchIf(
+                (error): error is StripePaymentProviderTransactionNotFoundError =>
+                  Predicate.hasProperty(error, "_tag") &&
+                  error._tag === "StripePaymentProviderTransactionNotFoundError",
+                (error) =>
+                  Effect.gen(function* () {
+                    if (input.isReplay) {
+                      return ack(false);
+                    }
+                    yield* Effect.logInfo(
+                      "Stripe webhook parked: original transaction not available yet",
+                      {
+                        candidateKeys: error.candidateKeys,
+                        eventId: event.id,
+                        eventType: event.type,
+                      },
+                    );
+                    yield* queries.insertNotificationProcessedIfAbsent({
+                      id: generateId("paymentProviderNotification"),
+                      notificationSubtype: null,
+                      notificationType: event.type,
+                      notificationUuid: event.id,
+                      parkedRawPayload: input.rawBody,
+                      parkedUntilProviderProductKey: null,
+                      paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+                      providerId: "stripe",
+                      providerOccurredAt,
+                      result: "parked_pending_transaction",
+                      resultNote: `waiting for original transaction: ${error.candidateKeys.join(", ")}`,
                       source: "webhook",
                     });
                     return ack(true);
@@ -333,6 +379,57 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
         (effect) => effect.pipe(Effect.catch((error) => Effect.fail(toStripeServiceError(error)))),
       );
 
+      /** Replays Stripe events that arrived before their original transaction. */
+      const replayParkedTransactionNotifications = Effect.fn(
+        "replayParkedTransactionNotifications",
+      )(function* (input: { readonly paymentProviderConfigurationId: string }) {
+        const parked = yield* queries.findParkedTransactionNotifications(input);
+        let appliedCount = 0;
+        let failedCount = 0;
+        for (const row of parked) {
+          const rawPayload = row.parkedRawPayload;
+          if (typeof rawPayload !== "string") {
+            yield* queries.markParkedNotificationResolved({
+              id: row.id,
+              result: "failed",
+              resultNote: "parked_raw_payload missing or not a string",
+            });
+            failedCount++;
+            continue;
+          }
+          const replayed = yield* acceptWebhookEvent({
+            isReplay: true,
+            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+            rawBody: rawPayload,
+            receivedAt: yield* DateTime.nowAsDate,
+            signatureHeader: "",
+          }).pipe(
+            Effect.match({
+              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+              onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
+            }),
+          );
+          if (replayed.ok && replayed.handled) {
+            yield* queries.markParkedNotificationResolved({
+              id: row.id,
+              result: "applied",
+              resultNote: null,
+            });
+            appliedCount++;
+          } else {
+            let resultNote: string;
+            if (replayed.ok) resultNote = "original transaction is still unavailable";
+            else resultNote = replayed.error;
+            yield* queries.markParkedNotificationAttempted({
+              id: row.id,
+              resultNote,
+            });
+            failedCount++;
+          }
+        }
+        return { appliedCount, failedCount, totalParked: parked.length };
+      });
+
       /**
        * Replays parked notifications for a `(configurationId, providerProductKey)`
        * mapping after the operator creates/activates it. Each parked raw body is
@@ -381,10 +478,10 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           }).pipe(
             Effect.match({
               onFailure: (error) => ({ error: String(error), ok: constant(false) }),
-              onSuccess: () => ({ ok: constant(true) }),
+              onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
             }),
           );
-          if (replayed.ok) {
+          if (replayed.ok && replayed.handled) {
             yield* queries.markParkedNotificationResolved({
               id: row.id,
               result: "applied",
@@ -392,22 +489,34 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
             });
             appliedCount++;
           } else {
-            yield* queries.markParkedNotificationResolved({
+            let resultNote: string;
+            if (replayed.ok) resultNote = "replay completed without applying purchase state";
+            else resultNote = replayed.error;
+            yield* queries.markParkedNotificationAttempted({
               id: row.id,
-              result: "failed",
-              resultNote: replayed.error.slice(0, 500),
+              resultNote,
             });
             failedCount++;
           }
         }
-        yield* Effect.annotateCurrentSpan({
-          "stripe.failed_count": failedCount,
-          "stripe.total_count": parked.length,
+        const dependent = yield* replayParkedTransactionNotifications({
+          paymentProviderConfigurationId: input.paymentProviderConfigurationId,
         });
-        return { appliedCount, failedCount, totalParked: parked.length };
+        const totalApplied = appliedCount + dependent.appliedCount;
+        const totalFailed = failedCount + dependent.failedCount;
+        const totalParked = parked.length + dependent.totalParked;
+        yield* Effect.annotateCurrentSpan({
+          "stripe.failed_count": totalFailed,
+          "stripe.total_count": totalParked,
+        });
+        return { appliedCount: totalApplied, failedCount: totalFailed, totalParked };
       });
 
-      return constant({ acceptWebhookEvent, replayParkedNotificationsForProductMapping });
+      return constant({
+        acceptWebhookEvent,
+        replayParkedNotificationsForProductMapping,
+        replayParkedTransactionNotifications,
+      });
     }),
   },
 ) {

@@ -6,7 +6,7 @@ import {
   ApiInvalidTimeRangeError,
   ApiUnknownInsightError,
 } from "@voidhash/api-contracts/errors";
-import { AnalyticsService } from "@voidhash/core/services";
+import { AnalyticsQuery } from "@voidhash/core-v2";
 import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
@@ -22,7 +22,7 @@ const toBreakdowns = <B>(breakdowns: ReadonlyArray<B> | undefined): Array<B> | u
 
 export const AnalyticsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "analytics", (handlers) =>
   Effect.gen(function* () {
-    const analyticsService = yield* AnalyticsService;
+    const analytics = yield* AnalyticsQuery;
 
     return handlers.handle("queryInsights", ({ payload }) =>
       bridgeAuthSession(
@@ -30,7 +30,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "analytics
           const authSession = yield* AuthSession;
           yield* requireCredential(authSession, ["user", "secret-key"]);
           const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
-          const response = yield* analyticsService.queryProjectAnalyticsInsights({
+          const results = yield* analytics.queryProject({
             projectId,
             queries: payload.queries.map((query) => ({
               breakdowns: toBreakdowns(query.breakdowns),
@@ -42,14 +42,13 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "analytics
               timeRange: query.timeRange,
             })),
           });
-          return new QueryInsightsResult({ results: response.results });
+          return new QueryInsightsResult({ results });
         }),
       ).pipe(
         Effect.catchTags({
           ActionForbiddenError: (e) =>
             Effect.fail(new ApiActionForbiddenError({ message: e.message })),
-          AnalyticsServiceError: (e) =>
-            Effect.fail(new ApiAnalyticsServiceError({ cause: e.cause })),
+          AnalyticsQueryError: (e) => Effect.fail(new ApiAnalyticsServiceError({ cause: e.cause })),
           InvalidAnalyticsQueryError: (e) =>
             Effect.fail(new ApiInvalidMetricError({ message: e.message })),
           InvalidTimeRangeError: (e) =>

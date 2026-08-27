@@ -5,9 +5,9 @@ namespace Voidhash\Resources;
 use Voidhash\Exception\ApiException;
 use Voidhash\Generated\EventCapture\Client;
 use Voidhash\Generated\EventCapture\Exception\ApiException as GeneratedApiException;
-use Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding;
-use Voidhash\Generated\EventCapture\Model\CaptureEvent;
+use Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse;
 use Voidhash\Generated\EventCapture\Model\IV1BatchPostBody;
+use Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem;
 use Voidhash\Generated\EventCapture\Model\IV1CapturePostBody;
 
 /**
@@ -25,7 +25,7 @@ use Voidhash\Generated\EventCapture\Model\IV1CapturePostBody;
  *   properties?: array<string, mixed>,
  *   context?: array<string, mixed>,
  *   sessionId?: string,
- *   timestamp?: \DateTimeInterface
+ *   timestamp: \DateTimeInterface
  * }
  */
 final class EventCaptureResource
@@ -76,7 +76,7 @@ final class EventCaptureResource
     {
         $items = [];
         foreach ($events as $event) {
-            $item = new CaptureEvent();
+            $item = new IV1BatchPostBodyEventsItem();
             self::applyEvent($item, $event);
             $items[] = $item;
         }
@@ -94,7 +94,7 @@ final class EventCaptureResource
     /**
      * @param CaptureEventInput $event
      */
-    private static function applyEvent(IV1CapturePostBody|CaptureEvent $body, array $event): void
+    private static function applyEvent(IV1CapturePostBody|IV1BatchPostBodyEventsItem $body, array $event): void
     {
         $uuid = $event['uuid'] ?? '';
         $body->setUuid($uuid !== '' ? $uuid : self::uuidV4());
@@ -109,13 +109,15 @@ final class EventCaptureResource
         if ($sessionId !== '') {
             $body->setSessionId($sessionId);
         }
-        if (isset($event['timestamp'])) {
-            $body->setTimestamp(self::isoDate($event['timestamp']));
+        $timestamp = $event['timestamp'] ?? null;
+        if (!$timestamp instanceof \DateTimeInterface) {
+            throw new \InvalidArgumentException('voidhash: event timestamp is required');
         }
+        $body->setTimestamp(self::isoDate($timestamp));
     }
 
     /**
-     * @param callable(): (CaptureAcceptedResponseJsonEncoding|\Psr\Http\Message\ResponseInterface|null) $send
+     * @param callable(): (CaptureAcceptedResponse|\Psr\Http\Message\ResponseInterface|null) $send
      *
      * @return array{accepted: int, rejected: int}
      */
@@ -128,8 +130,8 @@ final class EventCaptureResource
         }
 
         return [
-            'accepted' => $accepted instanceof CaptureAcceptedResponseJsonEncoding ? $accepted->getAccepted() : 0,
-            'rejected' => $accepted instanceof CaptureAcceptedResponseJsonEncoding ? $accepted->getRejected() : 0,
+            'accepted' => $accepted instanceof CaptureAcceptedResponse ? $accepted->getAccepted() : 0,
+            'rejected' => $accepted instanceof CaptureAcceptedResponse ? $accepted->getRejected() : 0,
         ];
     }
 

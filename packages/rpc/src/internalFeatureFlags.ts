@@ -59,6 +59,24 @@ export const INTERNAL_FEATURE_FLAGS = constant({
     description: "Enable custom analytics insights, dashboards, and cohorts in Studio.",
     defaultEnabled: false,
   },
+  paywalls: {
+    key: "paywalls",
+    name: "Paywalls",
+    description: "Enable paywall creation, management, and the paywall designer in Studio.",
+    defaultEnabled: false,
+  },
+  paywallLocations: {
+    key: "paywall_locations",
+    name: "Paywall Locations",
+    description: "Enable paywall location management in Studio.",
+    defaultEnabled: false,
+  },
+  featureFlags: {
+    key: "feature_flags",
+    name: "Feature Flags",
+    description: "Enable the customer-facing Feature Flags product in Studio.",
+    defaultEnabled: false,
+  },
   experimentation: {
     key: "experimentation",
     name: "A/B Testing",

@@ -2,7 +2,7 @@
  * `PurchaseLedgerWorkerService` drains the `purchase_ledger` table — written
  * transactionally by `PurchaseProcessingService` — by re-dispatching each row's
  * `eventsPayload` through
- * `AnalyticsDispatchService.dispatchTrusted`. The ledger is the durability
+ * the analytics delivery port. The ledger is the durability
  * backstop: it guarantees every revenue event is eventually dispatched even if an
  * immediate post-commit dispatch is lost.
  *
@@ -14,14 +14,18 @@
  * given row at a time. No leader election needed. Stale claims (worker crashed
  * mid-row) are swept back to `Pending` at the top of each poll.
  *
- * `AnalyticsDispatchService` is edition-specific: Community persists the batch
+ * `AnalyticsDelivery` is edition-specific: Community persists the batch
  * synchronously, while hosted runtimes may enqueue it. Deterministic event ids
  * make the immediate-dispatch and ledger-drain overlap idempotent in both cases.
  */
 import { Cause, Context, Effect, Layer, Schedule, Schema } from "effect";
 
+import {
+  AnalyticsDelivery,
+  dispatchInternalAnalyticsEvents,
+  InternalAnalyticsEventSchema,
+} from "@voidhash/core-v2";
 import { constant } from "@voidhash/lib/lang";
-import { InternalAnalyticsEventSchema } from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
 import {
   Db,
   PurchaseLedgerStatus,
@@ -34,14 +38,13 @@ import {
   sql,
 } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
-import { AnalyticsDispatchService } from "../analyticsIngest/AnalyticsDispatchService.ts";
 
 /**
  * Wire schema for a ledger row's `eventsPayload` — the array of trusted revenue
  * {@link InternalAnalyticsEvent}s the drain re-dispatches. Decoded inline so the
  * worker carries no dependency on the analytics-ingest dispatch internals.
  */
-const LedgerAnalyticsEventsSchema = Schema.Array(InternalAnalyticsEventSchema);
+const LedgerAnalyticsEventsSchema = Schema.toCodecJson(Schema.Array(InternalAnalyticsEventSchema));
 
 export class PurchaseLedgerWorkerServiceError extends Schema.TaggedErrorClass<PurchaseLedgerWorkerServiceError>(
   "PurchaseLedgerWorkerServiceError",
@@ -81,7 +84,7 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
   "PurchaseLedgerWorkerService",
   {
     make: Effect.gen(function* () {
-      const dispatch = yield* AnalyticsDispatchService;
+      const delivery = yield* AnalyticsDelivery;
       const db = yield* Db;
 
       // ==================== Processing ====================
@@ -142,7 +145,8 @@ export class PurchaseLedgerWorkerService extends Context.Service<PurchaseLedgerW
         // crash the poll task instead of feeding the retry/dead-letter ladder.
         // We must NOT mark the row Published unless the batch was actually
         // enqueued onto the shared analytics-ingest queue.
-        const dispatchOutcome = yield* dispatch.dispatchTrusted(events).pipe(
+        const dispatchOutcome = yield* dispatchInternalAnalyticsEvents(events).pipe(
+          Effect.provideService(AnalyticsDelivery, delivery),
           Effect.matchCause({
             onFailure: (cause) => constant({ kind: "failure", error: Cause.pretty(cause) }),
             onSuccess: () => constant({ kind: "success" }),

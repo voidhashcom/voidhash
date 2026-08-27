@@ -11,12 +11,15 @@ import {
   NoBackendRpcExtension,
   buildBackendFetch,
 } from "@voidhash/backend/BackendApp";
+import {
+  makeClickHouseAnalyticsLive,
+  makePostgresAnalyticsLive,
+  migrateClickHouseAnalytics,
+} from "@voidhash/backend/analytics/AnalyticsLive";
 import { makeMimicHostLive } from "@voidhash/backend/MimicHostLive";
 import { RpcAuthLive } from "@voidhash/backend/RpcMiddlewares";
 import { EventCaptureGroupLive } from "@voidhash/backend/routes/event-capture";
-import { AnalyticsEventStore } from "@voidhash/core/services/analytics/AnalyticsEventStore";
-import { AnalyticsDispatchService } from "@voidhash/core/services/analyticsIngest/AnalyticsDispatchService";
-import { EventCaptureService } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
+import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import {
   StandaloneAuthTokenVerifierLive,
@@ -87,7 +90,46 @@ const paywallPublicBaseUrl = (fallback: Effect.Effect<string | undefined>) =>
     });
   }).pipe(Effect.orDie);
 
+const AnalyticsStorage = Config.literals(["postgres", "clickhouse"], "ANALYTICS_STORAGE").pipe(
+  Config.withDefault("postgres"),
+);
+
+const analyticsLiveFromConfig = Effect.gen(function* () {
+  if ((yield* AnalyticsStorage) === "postgres") return makePostgresAnalyticsLive();
+  const config = {
+    database: yield* Config.string("ANALYTICS_CLICKHOUSE_DATABASE").pipe(
+      Config.withDefault("default"),
+    ),
+    password: Redacted.value(
+      yield* Config.redacted("ANALYTICS_CLICKHOUSE_PASSWORD").pipe(
+        Config.withDefault(Redacted.make("")),
+      ),
+    ),
+    url: yield* Config.string("ANALYTICS_CLICKHOUSE_URL").pipe(
+      Config.withDefault("http://localhost:8123"),
+    ),
+    username: yield* Config.string("ANALYTICS_CLICKHOUSE_USERNAME").pipe(
+      Config.withDefault("default"),
+    ),
+  };
+  yield* migrateClickHouseAnalytics(config).pipe(Effect.orDie);
+  return makeClickHouseAnalyticsLive(config);
+});
+
 const workerEnvironment = (publicBaseUrl: Effect.Effect<string | undefined>) => ({
+  ANALYTICS_CLICKHOUSE_DATABASE: Config.string("ANALYTICS_CLICKHOUSE_DATABASE").pipe(
+    Config.withDefault("default"),
+  ),
+  ANALYTICS_CLICKHOUSE_PASSWORD: Config.redacted("ANALYTICS_CLICKHOUSE_PASSWORD").pipe(
+    Config.withDefault(Redacted.make("")),
+  ),
+  ANALYTICS_CLICKHOUSE_URL: Config.string("ANALYTICS_CLICKHOUSE_URL").pipe(
+    Config.withDefault("http://localhost:8123"),
+  ),
+  ANALYTICS_CLICKHOUSE_USERNAME: Config.string("ANALYTICS_CLICKHOUSE_USERNAME").pipe(
+    Config.withDefault("default"),
+  ),
+  ANALYTICS_STORAGE: AnalyticsStorage,
   APNS_DELIVERY_ENABLED: Config.string("APNS_DELIVERY_ENABLED").pipe(Config.withDefault("false")),
   ENCRYPTION_KEY: Config.redacted("ENCRYPTION_KEY").pipe(Config.withDefault(Redacted.make(""))),
   EXCHANGE_RATE_API_KEY: Config.redacted("EXCHANGE_RATE_API_KEY").pipe(
@@ -144,6 +186,7 @@ export default Cloudflare.Worker(
     const authContext = yield* Layer.build(StandaloneAuthTokenVerifierLive(authSecret));
     const authTokenVerifier = Context.get(authContext, AuthTokenVerifier);
     const dbConnection = yield* Cloudflare.Hyperdrive.Connect(DatabaseHyperdrive);
+    const AnalyticsLive = yield* analyticsLiveFromConfig;
 
     const artifactStore = yield* makePaywallArtifactStoreLive(yield* PaywallArtifactsBucket);
     const publicBaseUrl = yield* Config.string("PAYWALL_PUBLIC_BASE_URL").pipe(
@@ -171,12 +214,12 @@ export default Cloudflare.Worker(
     const workflowDb = HyperdriveDbLayer.make(dbConnection).pipe(
       Layer.provide(Layer.succeed(RuntimeContext, runtimeContext)),
     );
-    const workflowEvents = AnalyticsEventStore.layer.pipe(Layer.provide(workflowDb));
-    const workflowDispatch = AnalyticsDispatchService.layer.pipe(
-      Layer.provide(workflowEvents),
+    const workflowAnalytics = AnalyticsLive.pipe(
+      Layer.provide(PersonIdentityService.layer),
+      Layer.provide(BackendNoopIdentityProjectionPublisherLive),
       Layer.provide(workflowDb),
     );
-    const workflowInfrastructure = Layer.mergeAll(workflowDb, workflowDispatch);
+    const workflowInfrastructure = Layer.mergeAll(workflowDb, workflowAnalytics);
 
     yield* Effect.forEach(
       backendWorkflows,
@@ -229,7 +272,12 @@ export default Cloudflare.Worker(
       openapiPath: "/i/docs/openapi.json",
     }).pipe(
       Layer.provide(EventCaptureGroupLive),
-      Layer.provide(EventCaptureService.layer.pipe(Layer.provide(AnalyticsEventStore.layer))),
+      Layer.provide(
+        AnalyticsLive.pipe(
+          Layer.provide(PersonIdentityService.layer),
+          Layer.provide(BackendNoopIdentityProjectionPublisherLive),
+        ),
+      ),
       Layer.provide(HttpServer.layerServices),
       HttpRouter.toHttpEffect,
       Effect.flatMap((handler) => handler),
@@ -246,6 +294,7 @@ export default Cloudflare.Worker(
       const requestContext = yield* Layer.build(requestInfrastructure);
       return yield* Effect.gen(function* () {
         const handler = yield* buildBackendFetch({
+          analytics: AnalyticsLive,
           auth: RpcAuthLive(authTokenVerifier),
           features: NoBackendFeatures,
           infrastructure,

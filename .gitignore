@@ -303,6 +303,8 @@ yalc.lock
 **/tsconfig.tsbuildinfo
 
 resources/
+!vendored/app-store-server-sdk/tests/resources/
+!vendored/app-store-server-sdk/tests/resources/**
 
 # PGlite local database (pnpm db:pglite)
 .pglite/

@@ -83,14 +83,20 @@ export const ProductsGroup = HttpApiGroup.make("products")
     }),
   )
   /**
-   * Deletes a product along with its perk links.
+   * Deletes a product along with its perk links. Provider mappings must be
+   * removed first.
    *
    * Credential: secret-key, user.
    */
   .add(
     HttpApiEndpoint.delete("deleteProduct", "/:productId", {
       params: { productId: Schema.String },
-      error: [ApiActionForbiddenError, ApiProductNotFoundError, ApiProductServiceError],
+      error: [
+        ApiActionForbiddenError,
+        ApiProductNotFoundError,
+        ApiProductServiceError,
+        ApiProductValidationError,
+      ],
     }),
   )
   /**

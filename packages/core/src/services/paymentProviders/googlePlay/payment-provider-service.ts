@@ -12,7 +12,11 @@ import {
   GooglePlayPaymentProviderService,
   type GooglePlayPaymentProviderServiceShape,
 } from "../GooglePlayPaymentProviderService.ts";
-import { GooglePlayPaymentProviderServiceError } from "./errors.ts";
+import {
+  GooglePlayPaymentProviderProductNotMappedError,
+  GooglePlayPaymentProviderServiceError,
+} from "./errors.ts";
+import { generateId } from "../../../utils/generate-id.ts";
 import { getActiveGooglePlayPaymentProviderConfiguration } from "./helpers.ts";
 import { GooglePlayPaymentProvider } from "./payment-provider.ts";
 import { GooglePlayPaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
@@ -99,16 +103,47 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
           purchaseToken: input.purchaseToken,
         });
 
-        const result = yield* googlePlayPaymentProvider.recordPurchase({
-          configuration,
-          distinctId: input.distinctId,
-          eventTime: input.receivedAt,
-          project: fullProject,
-          providerEnvironment: fetched.providerEnvironment,
-          purchase: fetched.purchase,
-          receivedAt: input.receivedAt,
-          source: "sdk",
-        });
+        const result = yield* googlePlayPaymentProvider
+          .recordPurchase({
+            configuration,
+            distinctId: input.distinctId,
+            eventTime: input.receivedAt,
+            project: fullProject,
+            providerEnvironment: fetched.providerEnvironment,
+            purchase: fetched.purchase,
+            receivedAt: input.receivedAt,
+            source: "sdk",
+          })
+          .pipe(
+            Effect.catchIf(
+              (error): error is GooglePlayPaymentProviderProductNotMappedError =>
+                Predicate.hasProperty(error, "_tag") &&
+                error._tag === "GooglePlayPaymentProviderProductNotMappedError",
+              (error) =>
+                Effect.gen(function* () {
+                  yield* queries.insertNotificationProcessedIfAbsent({
+                    id: generateId("paymentProviderNotification"),
+                    notificationSubtype: null,
+                    notificationType: "SDK_PURCHASE",
+                    notificationUuid: `sdk:${input.purchaseToken}:${input.productId}`.slice(0, 255),
+                    parkedRawPayload: {
+                      distinctId: input.distinctId,
+                      productId: input.productId,
+                      purchaseToken: input.purchaseToken,
+                      receivedAt: input.receivedAt.toISOString(),
+                    },
+                    parkedUntilProviderProductKey: error.providerProductKey,
+                    paymentProviderConfigurationId: configuration.id,
+                    providerId: "google-play",
+                    providerOccurredAt: input.receivedAt,
+                    result: "parked_pending_product_mapping",
+                    resultNote: `SDK purchase waiting for product key ${error.providerProductKey}`,
+                    source: "sdk",
+                  });
+                  return yield* Effect.fail(error);
+                }),
+            ),
+          );
 
         yield* Effect.annotateCurrentSpan("voidhash.person.id", result.personId);
         return { personId: result.personId };

@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import {
   Badge,
   Breadcrumb,
@@ -17,6 +18,7 @@ import { RepeatIcon } from "lucide-react";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { listPaywallLocationsOptions } from "@/features/studio/lib/tanstack-query/paywall-locations";
 import { listPaywallsOptions } from "@/features/studio/lib/tanstack-query/paywalls";
+import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import { PaywallLocationPhonePreview } from "@/features/studio/paywall-locations/components/paywall-location-detail-page/paywall-location-phone-preview";
 import { PaywallLocationProperties } from "@/features/studio/paywall-locations/components/paywall-location-detail-page/paywall-location-properties";
@@ -28,9 +30,23 @@ import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-e
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/$id",
 )({
-  component: PaywallLocationDetailPage,
+  component: PaywallLocationDetailRoute,
   errorComponent: PaywallLocationDetailPageError,
 });
+
+function PaywallLocationDetailRoute() {
+  const paywallLocationsEnabled = useInternalFeatureFlag(
+    INTERNAL_FEATURE_FLAGS.paywallLocations.key,
+  );
+
+  if (!paywallLocationsEnabled) {
+    return (
+      <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "This page is not available." }} />
+    );
+  }
+
+  return <PaywallLocationDetailPage />;
+}
 
 function PaywallLocationDetailPageError() {
   return (

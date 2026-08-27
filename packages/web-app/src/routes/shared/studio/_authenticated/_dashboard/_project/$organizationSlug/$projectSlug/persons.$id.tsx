@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
 import { format } from "date-fns";
 import { Clock4Icon } from "lucide-react";
@@ -8,6 +9,7 @@ import { useAuth } from "@/features/studio/components/auth-context";
 
 import { PersonFlagOverridesPanel } from "@/features/studio/feature-flags/components/person-detail-page/person-flag-overrides-panel";
 import { getPersonByDistinctIdOptions } from "@/features/studio/lib/tanstack-query/persons";
+import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import { Page } from "@/features/studio/shell";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
@@ -37,6 +39,7 @@ function PersonDetailPageSkeleton() {
 
 function PersonDetailPage() {
   const { id: distinctId, organizationSlug, projectSlug } = Route.useParams();
+  const featureFlagsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.featureFlags.key);
   const { user } = useAuth();
   const project = CurrentUser.getProjectBySlugs(
     user,
@@ -105,7 +108,9 @@ function PersonDetailPage() {
                 </CardContent>
               </Card>
 
-              <PersonFlagOverridesPanel personId={person.personId} projectId={project.id} />
+              {featureFlagsEnabled && (
+                <PersonFlagOverridesPanel personId={person.personId} projectId={project.id} />
+              )}
             </div>
           </div>
           <div className="col-span-3 mt-8">

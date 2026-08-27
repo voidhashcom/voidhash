@@ -19,8 +19,6 @@ export const ProcessorPersonEventV1 = Schema.Struct({
   version: Schema.Number,
 });
 
-export type ProcessorPersonEventV1 = typeof ProcessorPersonEventV1.Type;
-
 /** Portable person identity mapping consumed by hosted analytics projection. */
 export const ProcessorPersonIdentityEventV1 = Schema.Struct({
   changedAt: Schema.String,
@@ -32,8 +30,6 @@ export const ProcessorPersonIdentityEventV1 = Schema.Struct({
   schemaVersion: Schema.Literal(1),
   version: Schema.Number,
 });
-
-export type ProcessorPersonIdentityEventV1 = typeof ProcessorPersonIdentityEventV1.Type;
 
 export interface IdentityProjectionInput {
   readonly identity: { readonly distinctId: string };

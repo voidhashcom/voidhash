@@ -14,6 +14,7 @@
     "@voidhash/api-contracts": "workspace:*",
     "@voidhash/backend": "workspace:*",
     "@voidhash/core": "workspace:*",
+    "@voidhash/core-v2": "workspace:*",
     "@voidhash/lib": "workspace:*",
     "@voidhash/mimic-db": "workspace:*",
     "@voidhash/mimic-schema": "workspace:*",

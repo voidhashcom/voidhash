@@ -102,6 +102,14 @@ export const googlePlayProviderProductKey = (
 ): string =>
   Option.match(basePlanId, { onNone: () => productId, onSome: (id) => `${productId}:${id}` });
 
+/** Whether an active Play mapping covers a parked product/base-plan key. */
+export const googlePlayMappingMatchesProviderProductKey = (
+  mappingKey: string,
+  providerProductKey: string,
+): boolean =>
+  mappingKey === providerProductKey ||
+  (!mappingKey.includes(":") && providerProductKey.startsWith(`${mappingKey}:`));
+
 /**
  * Picks the provider identifier used to resolve or create Google Play people.
  * Falls through `obfuscatedExternalAccountId → orderId → purchaseToken`. The

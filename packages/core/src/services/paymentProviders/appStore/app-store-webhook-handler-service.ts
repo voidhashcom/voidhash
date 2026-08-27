@@ -4,10 +4,14 @@ import {
   NotificationTypeV2,
 } from "@voidhash/app-store-server-sdk";
 import { generateId } from "../../../utils/index.ts";
-import { ProviderEnvironment } from "@voidhash/db";
+import {
+  ProviderEnvironment,
+  type PaymentProviderNotificationProcessed as DbPaymentProviderNotificationProcessed,
+} from "@voidhash/db";
 import { constant, pick, stringOr } from "@voidhash/lib/lang";
 import { DateTime, Effect, Layer, Match, Option, Predicate, Schema, Context } from "effect";
 
+import type { PurchaseProcessingResult } from "../../../domain/purchaseProcessing/PurchaseProcessing.ts";
 import {
   AppStorePaymentProviderConfigurationNotFoundError,
   AppStorePaymentProviderProductNotMappedError,
@@ -16,20 +20,32 @@ import {
 } from "./errors.ts";
 import { AppStorePaymentProvider, globalConfigurationSchema } from "./payment-provider.ts";
 import { AppStorePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
+import { AppStoreTransactionVerifier } from "./transaction-verifier.ts";
+import { AppStoreReconciliationService } from "./app-store-reconciliation-service.ts";
+
+const ParkedAppStoreSdkPurchase = Schema.Struct({
+  distinctId: Schema.String,
+  receivedAt: Schema.String,
+  transactionId: Schema.String,
+});
+
+const ParkedAppStoreReconciliation = Schema.Struct({
+  originalTransactionId: Schema.String,
+  reason: Schema.Literals(["first_seen", "admin_repair", "install_backfill"]),
+  triggeredAt: Schema.String,
+});
 
 const truncateResultNote = (note: string): string => note.slice(0, 500);
 
 const optionSpanAttribute = <A>(
   value: Option.Option<A>,
   map: (value: A) => unknown = (some) => some,
-): unknown =>
-  Option.match(value, { onNone: () => undefined, onSome: (some) => map(some) });
+): unknown => Option.match(value, { onNone: () => undefined, onSome: (some) => map(some) });
 
 const hasErrorTag = <TTag extends string>(
   error: unknown,
   tag: TTag,
-): error is { readonly _tag: TTag } =>
-  Predicate.hasProperty(error, "_tag") && error._tag === tag;
+): error is { readonly _tag: TTag } => Predicate.hasProperty(error, "_tag") && error._tag === tag;
 
 /** Reads `key` off an unknown error as a string, or `fallback` when absent. */
 const errorProperty = (error: unknown, key: string, fallback: string): string => {
@@ -95,12 +111,22 @@ type AcceptServerNotificationResult = {
   readonly subtype: string | undefined;
 };
 
+const AppStorePaymentProviderLive = AppStorePaymentProvider.layer;
+
+const AppStoreWebhookHandlerDependenciesLive = Layer.mergeAll(
+  AppStorePaymentProviderLive,
+  AppStoreTransactionVerifier.layer.pipe(Layer.provide(AppStorePaymentProviderLive)),
+  AppStoreReconciliationService.layer.pipe(Layer.provide(AppStorePaymentProviderLive)),
+);
+
 export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebhookHandlerService>()(
   "AppStoreWebhookHandlerService",
   {
     make: Effect.gen(function* () {
       const queries = yield* AppStorePaymentProviderServiceQueries;
       const appStorePaymentProvider = yield* AppStorePaymentProvider;
+      const transactionVerifier = yield* AppStoreTransactionVerifier;
+      const reconciliationService = yield* AppStoreReconciliationService;
 
       /**
        * Entry point invoked by the webhook HTTP route. Verifies Apple's
@@ -201,6 +227,10 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           const notificationType = Option.getOrUndefined(notification.notificationType);
           const subtype = Option.getOrUndefined(notification.subtype);
           const notificationUUID = Option.getOrUndefined(notification.notificationUUID);
+          const notificationOccurredAt = Option.match(notification.signedDate, {
+            onNone: () => input.receivedAt,
+            onSome: (milliseconds) => DateTime.toDateUtc(DateTime.makeUnsafe(milliseconds)),
+          });
           if (notificationType) {
             yield* Effect.annotateCurrentSpan(
               "voidhash.payment_provider.event_type",
@@ -283,10 +313,27 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
            */
           if (!signedTransactionInfo) {
             if (notificationType === NotificationTypeV2.TEST) {
+              const effectiveTestUuid =
+                notificationUUID ??
+                `apple:${notificationType}:${subtype ?? ""}:${notificationOccurredAt.getTime()}`;
+              yield* queries.insertNotificationProcessedIfAbsent({
+                id: generateId("paymentProviderNotification"),
+                notificationSubtype: subtype ?? null,
+                notificationType,
+                notificationUuid: effectiveTestUuid.slice(0, 255),
+                parkedRawPayload: null,
+                parkedUntilProviderProductKey: null,
+                paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+                providerId: "apple-app-store",
+                providerOccurredAt: notificationOccurredAt,
+                result: "ignored",
+                resultNote: null,
+                source: "webhook",
+              });
               yield* Effect.annotateCurrentSpan({
                 "app_store.webhook_result": "test_without_transaction",
               });
-              return ack(true);
+              return ack(false);
             }
             yield* writeTerminalFailure("signedTransactionInfo missing from non-TEST notification");
             return ack(false);
@@ -383,7 +430,7 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
            * webhooks must not create purchases on their own — the tenant
            * tracks only the SDK-confirmed subset. To avoid losing notifications
            * that race ahead of the SDK call, we park them keyed on
-           * `originalTransactionId` and replay them in arrival order once
+           * `originalTransactionId` and replay them in provider occurrence order once
            * `processSdkTransaction` succeeds for the series (see
            * `AppStoreReplayParkedSdkNotificationsWorkflow`).
            *
@@ -400,7 +447,18 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           const originalTransactionId = Option.getOrUndefined(
             decodedTransaction.originalTransactionId,
           );
-          if (!input.isReplay && deferReplay && originalTransactionId && notificationUUID) {
+          const providerOccurredAt = notificationOccurredAt;
+          const transactionAnchor = Option.getOrElse(
+            decodedTransaction.transactionId,
+            () => originalTransactionId ?? "unknown",
+          );
+          const effectiveNotificationUuid =
+            notificationUUID ??
+            `apple:${notificationType}:${subtype ?? ""}:${transactionAnchor}:${providerOccurredAt.getTime()}`.slice(
+              0,
+              255,
+            );
+          if (!input.isReplay && deferReplay && originalTransactionId) {
             const sdkConfirmed = yield* queries.hasAnyAppStoreRecordForOriginalTransactionId({
               originalTransactionId,
             });
@@ -418,12 +476,13 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
                 id: generateId("paymentProviderNotification"),
                 notificationSubtype: subtype ?? null,
                 notificationType,
-                notificationUuid: notificationUUID,
+                notificationUuid: effectiveNotificationUuid,
                 parkedRawPayload: input.signedPayload,
                 parkedUntilOriginalTransactionId: originalTransactionId,
                 parkedUntilProviderProductKey: null,
                 paymentProviderConfigurationId: input.paymentProviderConfigurationId,
                 providerId: "apple-app-store",
+                providerOccurredAt,
                 result: "parked_pending_sdk_confirmation",
                 resultNote: null,
                 source: "webhook",
@@ -455,11 +514,15 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
            * enclosing scope. Generic in the record method's success/error/
            * requirements so it works with every `record*` shape uniformly.
            */
-          const handled = <A, E, R>(
-            recordEffect: Effect.Effect<A, E | AppStorePaymentProviderProductNotMappedError, R>,
+          const handled = <E, R>(
+            recordEffect: Effect.Effect<
+              PurchaseProcessingResult,
+              E | AppStorePaymentProviderProductNotMappedError,
+              R
+            >,
           ) =>
             recordEffect.pipe(
-              Effect.as(ack(true)),
+              Effect.map((result) => ack(!result.isIgnored())),
               // `handled` is generic over the record method's error channel `E`,
               // so `catchTag`/`catchTags` can't prove these tags are members of
               // it (and would need an `any` widening that poisons every caller's
@@ -484,21 +547,23 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
                       paymentProviderConfigurationId: error.paymentProviderConfigurationId,
                       providerProductKey: error.providerProductKey,
                     });
-                    if (notificationUUID) {
-                      yield* queries.insertNotificationProcessedIfAbsent({
-                        id: generateId("paymentProviderNotification"),
-                        notificationSubtype: subtype ?? null,
-                        notificationType,
-                        notificationUuid: notificationUUID,
-                        parkedRawPayload: input.signedPayload,
-                        parkedUntilProviderProductKey: error.providerProductKey,
-                        paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-                        providerId: "apple-app-store",
-                        result: "parked_pending_product_mapping",
-                        resultNote: `product key ${error.providerProductKey} not mapped at notification time`,
-                        source: "webhook",
-                      });
+                    if (input.isReplay) {
+                      return ack(false);
                     }
+                    yield* queries.insertNotificationProcessedIfAbsent({
+                      id: generateId("paymentProviderNotification"),
+                      notificationSubtype: subtype ?? null,
+                      notificationType,
+                      notificationUuid: effectiveNotificationUuid,
+                      parkedRawPayload: input.signedPayload,
+                      parkedUntilProviderProductKey: error.providerProductKey,
+                      paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+                      providerId: "apple-app-store",
+                      providerOccurredAt,
+                      result: "parked_pending_product_mapping",
+                      resultNote: `product key ${error.providerProductKey} not mapped at notification time`,
+                      source: "webhook",
+                    });
                     return ack(true);
                   }),
               ),
@@ -644,21 +709,20 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
            * collides on the UNIQUE and leaves the parked row's `result`
            * untouched.
            */
-          if (notificationUUID) {
-            yield* queries.insertNotificationProcessedIfAbsent({
-              id: generateId("paymentProviderNotification"),
-              notificationSubtype: subtype ?? null,
-              notificationType,
-              notificationUuid: notificationUUID,
-              parkedRawPayload: null,
-              parkedUntilProviderProductKey: null,
-              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-              providerId: "apple-app-store",
-              result: terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored"),
-              resultNote: terminalLedgerResultNote,
-              source: "webhook",
-            });
-          }
+          yield* queries.insertNotificationProcessedIfAbsent({
+            id: generateId("paymentProviderNotification"),
+            notificationSubtype: subtype ?? null,
+            notificationType,
+            notificationUuid: effectiveNotificationUuid,
+            parkedRawPayload: null,
+            parkedUntilProviderProductKey: null,
+            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+            providerId: "apple-app-store",
+            providerOccurredAt,
+            result: terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored"),
+            resultNote: terminalLedgerResultNote,
+            source: "webhook",
+          });
 
           yield* Effect.annotateCurrentSpan({
             "app_store.webhook_result":
@@ -695,6 +759,54 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           ),
       );
 
+      const replayWebhookRows = Effect.fn("replayAppStoreWebhookRows")(function* (
+        parked: ReadonlyArray<DbPaymentProviderNotificationProcessed>,
+      ) {
+        let appliedCount = 0;
+        let failedCount = 0;
+        for (const row of parked) {
+          const rawPayload = row.parkedRawPayload;
+          if (typeof rawPayload !== "string") {
+            yield* queries.markParkedNotificationResolved({
+              id: row.id,
+              result: "failed",
+              resultNote: "parked_raw_payload missing or not a string",
+            });
+            failedCount++;
+            continue;
+          }
+          const replayed = yield* acceptServerNotification({
+            isReplay: true,
+            paymentProviderConfigurationId: row.paymentProviderConfigurationId,
+            receivedAt: yield* DateTime.nowAsDate,
+            signedPayload: rawPayload,
+          }).pipe(
+            Effect.match({
+              onFailure: (error) => ({ ok: constant(false), error: String(error) }),
+              onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
+            }),
+          );
+          if (replayed.ok && replayed.handled) {
+            yield* queries.markParkedNotificationResolved({
+              id: row.id,
+              result: "applied",
+              resultNote: null,
+            });
+            appliedCount++;
+          } else {
+            let resultNote: string;
+            if (replayed.ok) resultNote = "replay completed without applying purchase state";
+            else resultNote = replayed.error;
+            yield* queries.markParkedNotificationAttempted({
+              id: row.id,
+              resultNote,
+            });
+            failedCount++;
+          }
+        }
+        return { appliedCount, failedCount, totalParked: parked.length };
+      });
+
       /**
        * Replays all parked notifications for a `(configurationId,
        * providerProductKey)` mapping. Called after a new
@@ -707,8 +819,8 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
        * verify, dispatch to the right `record*` method). The per-event
        * idempotency gate on `purchase_ledger` makes the replay safe against
        * any live event for the same logical transaction that already arrived.
-       * After replay, the parked row is marked `"applied"` (or `"failed"` if
-       * processing surfaced an error) and its parked-state columns cleared.
+       * Only an applied state transition clears the parked row. Retryable
+       * failures and deliberate no-ops remain pending with attempt metadata.
        *
        * Returns counts so the caller can log a summary.
        */
@@ -730,31 +842,132 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           paymentProviderConfigurationId: input.paymentProviderConfigurationId,
           providerProductKey: input.providerProductKey,
         });
-        let appliedCount = 0;
-        let failedCount = 0;
-        for (const row of parked) {
-          const rawPayload = row.parkedRawPayload;
-          if (typeof rawPayload !== "string") {
+        const webhookResult = yield* replayWebhookRows(
+          parked.filter((row) => row.source === "webhook"),
+        );
+        let appliedCount = webhookResult.appliedCount;
+        let failedCount = webhookResult.failedCount;
+        let totalParked = webhookResult.totalParked;
+
+        for (const row of parked.filter((candidate) => candidate.source === "sdk")) {
+          const decoded = yield* Schema.decodeUnknownEffect(ParkedAppStoreSdkPurchase)(
+            row.parkedRawPayload,
+          ).pipe(
+            Effect.match({
+              onFailure: () => ({ _tag: constant("Left") }),
+              onSuccess: (right) => ({ _tag: constant("Right"), right }),
+            }),
+          );
+          if (decoded._tag === "Left") {
             yield* queries.markParkedNotificationResolved({
               id: row.id,
               result: "failed",
-              resultNote: "parked_raw_payload missing or not a string",
+              resultNote: "parked SDK payload is invalid",
+            });
+            failedCount++;
+            totalParked++;
+            continue;
+          }
+          const payload = decoded.right;
+          const replayed = yield* Effect.gen(function* () {
+            const configuration = yield* queries.findPaymentProviderConfigurationById(
+              row.paymentProviderConfigurationId,
+            );
+            if (!configuration) return yield* Effect.fail("configuration not found");
+            const project = yield* queries.findProjectById(configuration.projectId);
+            if (!project) return yield* Effect.fail("project not found");
+            const verified = yield* transactionVerifier.verify({
+              configuration,
+              transactionId: payload.transactionId,
+            });
+            const result = yield* appStorePaymentProvider.recordPurchase({
+              configuration,
+              decodedRenewalInfo: Option.none(),
+              decodedTransaction: verified.decodedTransaction,
+              distinctId: payload.distinctId,
+              project,
+              providerEnvironment: verified.providerEnvironment,
+              receivedAt: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
+              sdkTransactionId: payload.transactionId,
+              source: "sdk",
+            });
+            return {
+              handled: !result.isIgnored(),
+              originalTransactionId: Option.getOrUndefined(
+                verified.decodedTransaction.originalTransactionId,
+              ),
+            };
+          }).pipe(
+            Effect.match({
+              onFailure: (error) => ({ ok: constant(false), error: String(error) }),
+              onSuccess: (result) => ({ ok: constant(true), value: result }),
+            }),
+          );
+          totalParked++;
+          if (replayed.ok && replayed.value.handled) {
+            yield* queries.markParkedNotificationResolved({
+              id: row.id,
+              result: "applied",
+              resultNote: null,
+            });
+            appliedCount++;
+            if (replayed.value.originalTransactionId) {
+              const sdkConfirmationRows =
+                yield* queries.findParkedNotificationsByOriginalTransactionId({
+                  originalTransactionId: replayed.value.originalTransactionId,
+                  paymentProviderConfigurationId: row.paymentProviderConfigurationId,
+                });
+              const sdkConfirmationResult = yield* replayWebhookRows(sdkConfirmationRows);
+              appliedCount += sdkConfirmationResult.appliedCount;
+              failedCount += sdkConfirmationResult.failedCount;
+              totalParked += sdkConfirmationResult.totalParked;
+            }
+          } else {
+            let resultNote: string;
+            if (replayed.ok) resultNote = "replay completed without applying purchase state";
+            else resultNote = replayed.error;
+            yield* queries.markParkedNotificationAttempted({
+              id: row.id,
+              resultNote,
+            });
+            failedCount++;
+          }
+        }
+
+        for (const row of parked.filter((candidate) => candidate.source === "reconciliation")) {
+          const decoded = yield* Schema.decodeUnknownEffect(ParkedAppStoreReconciliation)(
+            row.parkedRawPayload,
+          ).pipe(
+            Effect.match({
+              onFailure: () => ({ _tag: constant("Left") }),
+              onSuccess: (right) => ({ _tag: constant("Right"), right }),
+            }),
+          );
+          totalParked++;
+          if (decoded._tag === "Left") {
+            yield* queries.markParkedNotificationResolved({
+              id: row.id,
+              result: "failed",
+              resultNote: "parked reconciliation payload is invalid",
             });
             failedCount++;
             continue;
           }
-          const replayed = yield* acceptServerNotification({
-            isReplay: true,
-            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            receivedAt: yield* DateTime.nowAsDate,
-            signedPayload: rawPayload,
-          }).pipe(
-            Effect.match({
-              onFailure: (error) => ({ ok: constant(false), error: String(error) }),
-              onSuccess: () => ({ ok: constant(true) }),
-            }),
-          );
-          if (replayed.ok) {
+          const payload = decoded.right;
+          const replayed = yield* reconciliationService
+            .reconcileOriginalTransaction({
+              originalTransactionId: payload.originalTransactionId,
+              paymentProviderConfigurationId: row.paymentProviderConfigurationId,
+              reason: payload.reason,
+              triggeredAt: DateTime.toDateUtc(DateTime.makeUnsafe(payload.triggeredAt)),
+            })
+            .pipe(
+              Effect.match({
+                onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+                onSuccess: (report) => ({ ok: constant(true), report }),
+              }),
+            );
+          if (replayed.ok && replayed.report.eventsFailed === 0) {
             yield* queries.markParkedNotificationResolved({
               id: row.id,
               result: "applied",
@@ -762,19 +975,24 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
             });
             appliedCount++;
           } else {
-            yield* queries.markParkedNotificationResolved({
+            let resultNote: string;
+            if (replayed.ok) {
+              resultNote = `reconciliation still has ${replayed.report.eventsFailed} failed events`;
+            } else {
+              resultNote = replayed.error;
+            }
+            yield* queries.markParkedNotificationAttempted({
               id: row.id,
-              result: "failed",
-              resultNote: replayed.error.slice(0, 500),
+              resultNote,
             });
             failedCount++;
           }
         }
         yield* Effect.annotateCurrentSpan({
           "app_store.failed_count": failedCount,
-          "app_store.total_count": parked.length,
+          "app_store.total_count": totalParked,
         });
-        return { appliedCount, failedCount, totalParked: parked.length };
+        return { appliedCount, failedCount, totalParked };
       });
 
       /**
@@ -783,12 +1001,11 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
        * `AppStoreReplayParkedSdkNotificationsWorkflow` from
        * `processSdkTransaction` after a successful `recordPurchase`.
        *
-       * Walks parked rows in `processedAt ASC` order to reproduce wire
-       * arrival order — out-of-order safety is also guaranteed by the
+       * Walks parked rows in provider occurrence order to preserve the
+       * provider lifecycle — out-of-order safety is also guaranteed by the
        * watermark guards on `subscription.last_event_occurred_at` and
-       * `transaction.last_event_occurred_at`, but reproducing wire order
-       * keeps the analytics/event stream faithful to what Apple actually
-       * delivered. Each row is re-dispatched through `acceptServerNotification`
+       * `transaction.last_event_occurred_at`. Each row is re-dispatched through
+       * `acceptServerNotification`
        * with `isReplay: true` so the SDK-confirmation gate above is bypassed.
        * Per-event idempotency on `purchase_ledger.idempotency_key` makes the
        * replay safe against any live event for the same logical transaction
@@ -812,51 +1029,12 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
           originalTransactionId: input.originalTransactionId,
           paymentProviderConfigurationId: input.paymentProviderConfigurationId,
         });
-        let appliedCount = 0;
-        let failedCount = 0;
-        for (const row of parked) {
-          const rawPayload = row.parkedRawPayload;
-          if (typeof rawPayload !== "string") {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "failed",
-              resultNote: "parked_raw_payload missing or not a string",
-            });
-            failedCount++;
-            continue;
-          }
-          const replayed = yield* acceptServerNotification({
-            isReplay: true,
-            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            receivedAt: yield* DateTime.nowAsDate,
-            signedPayload: rawPayload,
-          }).pipe(
-            Effect.match({
-              onFailure: (error) => ({ ok: constant(false), error: String(error) }),
-              onSuccess: () => ({ ok: constant(true) }),
-            }),
-          );
-          if (replayed.ok) {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "applied",
-              resultNote: null,
-            });
-            appliedCount++;
-          } else {
-            yield* queries.markParkedNotificationResolved({
-              id: row.id,
-              result: "failed",
-              resultNote: replayed.error.slice(0, 500),
-            });
-            failedCount++;
-          }
-        }
+        const result = yield* replayWebhookRows(parked);
         yield* Effect.annotateCurrentSpan({
-          "app_store.failed_count": failedCount,
-          "app_store.total_count": parked.length,
+          "app_store.failed_count": result.failedCount,
+          "app_store.total_count": result.totalParked,
         });
-        return { appliedCount, failedCount, totalParked: parked.length };
+        return result;
       });
 
       return constant({
@@ -869,7 +1047,7 @@ export class AppStoreWebhookHandlerService extends Context.Service<AppStoreWebho
 ) {
   static layer = Layer.effect(AppStoreWebhookHandlerService)(
     AppStoreWebhookHandlerService.make,
-  ).pipe(Layer.provideMerge(AppStorePaymentProvider.layer));
+  ).pipe(Layer.provide(AppStoreWebhookHandlerDependenciesLive));
 }
 
 export type { AcceptServerNotificationResult };

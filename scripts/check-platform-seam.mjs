@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Enforces the platform seam.
 //
-// Service packages under `packages/**` are portable: they depend on the
-// provider-neutral contracts in `@voidhash/platform` and never on a concrete
-// adapter. Importing either concrete adapter from a package would pin portable
+// Service packages under `packages/**` and `vendored/mimic/packages/**` are portable:
+// they depend on the provider-neutral contracts in `@voidhash/platform` and never on a
+// concrete adapter. Importing either concrete adapter from a package would pin portable
 // code to a deployment and break the other composition.
 //
 // Compositions choose adapters, so `apps/**` may import them
@@ -26,6 +26,9 @@ const adapterImports = adapters.map((adapter) => ({
   adapter,
   pattern: new RegExp(`["']${adapter}(?:/[^"']*)?["']`),
 }));
+
+const isPortablePackage = (path) =>
+  path.startsWith("packages/") || path.startsWith("vendored/mimic/packages/");
 
 // Only the runtime dependency map matters here; every other manifest field is
 // irrelevant to the seam and is discarded by the decoder.
@@ -78,7 +81,7 @@ const collectFailures = Effect.gen(function* () {
 
   for (const candidate of tracked.filter(
     (entry) =>
-      entry.startsWith("packages/") &&
+      isPortablePackage(entry) &&
       sourceLike.test(entry) &&
       !isTestFile(entry) &&
       !entry.includes("/node_modules/"),
@@ -92,7 +95,7 @@ const collectFailures = Effect.gen(function* () {
   }
 
   for (const candidate of tracked.filter(
-    (entry) => entry.startsWith("packages/") && entry.endsWith("/package.json"),
+    (entry) => isPortablePackage(entry) && entry.endsWith("/package.json"),
   )) {
     const manifest = yield* decodeManifest(
       yield* fs.readFileString(path.join(repoRoot, candidate), "utf8"),

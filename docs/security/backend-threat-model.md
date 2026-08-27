@@ -2,7 +2,7 @@
 
 Status: alpha review draft  
 Last updated: 2026-08-10<br>
-Scope: `packages/backend`, `apps/mimic-db`, `apps/www`, `packages/core`, and
+Scope: `packages/backend`, `vendored/mimic/apps/mimic-db`, `apps/www`, `packages/core`, and
 `apps/backend`
 
 This document records the security analysis required before the repository can
@@ -247,11 +247,11 @@ Current controls:
   queue publication, applies per-project request/event policy, and returns
   bounded retry guidance.
 - Public-key capture rejects reserved revenue event names. Processing validates
-  route/lane, target project, schema, and policy; rejected events go to a DLQ.
+  the source topic, target project, schema, and policy; rejected events go to a DLQ.
 - Writer and read paths deduplicate event IDs, while queue consumers have batch,
   retry, and dead-letter limits.
 - Tests cover malformed tokens, disabled ingest, request limits, reserved
-  events, project mismatch, invalid lanes/schema, DLQ replay, and duplicate
+  events, project mismatch, invalid source topics/schema, DLQ replay, and duplicate
   event IDs.
 
 Residual work: fuzz batch/body limits and timestamps, verify client-IP trust at

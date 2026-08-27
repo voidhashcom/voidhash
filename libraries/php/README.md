@@ -41,18 +41,27 @@ sent as `x-secret-key`; no publishable key is required:
 $client->eventCapture->capture([
     'event' => 'paywall_viewed',
     'distinctId' => 'user-123',
+    'timestamp' => new \DateTimeImmutable('now'),
     'properties' => ['paywall_id' => 'pw_1'],
 ]);
 
 $client->eventCapture->batch([
-    ['event' => 'paywall_viewed', 'distinctId' => 'user-123'],
-    ['event' => 'purchase_completed', 'distinctId' => 'user-123'],
+    [
+        'event' => 'paywall_viewed',
+        'distinctId' => 'user-123',
+        'timestamp' => new \DateTimeImmutable('now'),
+    ],
+    [
+        'event' => 'purchase_completed',
+        'distinctId' => 'user-123',
+        'timestamp' => new \DateTimeImmutable('now'),
+    ],
 ]);
 ```
 
 Both return `['accepted' => int, 'rejected' => int]`. Each event gets a `uuid`
-deduplication key; pass your own to make a retry idempotent. `sessionId`,
-`timestamp`, `context` and `properties` are optional.
+deduplication key; pass your own to make a retry idempotent. `timestamp` is
+required; `sessionId`, `context` and `properties` are optional.
 
 Pass `publishableKey` to `VoidhashClient::create()` only if you want the ingest
 body `token` a browser SDK would send; it is never the capture credential.

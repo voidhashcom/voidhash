@@ -40,13 +40,12 @@ export const Route = createFileRoute(
 });
 
 /**
- * Gate the feature-flag detail page behind the `experimentation` internal
- * feature flag, matching the flags list route.
+ * Gate the customer-facing feature-flag detail page, matching the list route.
  */
 function FlagDetailRoute() {
-  const experimentationEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.experimentation.key);
+  const featureFlagsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.featureFlags.key);
 
-  if (!experimentationEnabled) {
+  if (!featureFlagsEnabled) {
     return (
       <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "This page is not available." }} />
     );

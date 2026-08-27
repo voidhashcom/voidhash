@@ -40,7 +40,7 @@ class IV1BatchPostBodyNormalizer implements DenormalizerInterface, NormalizerInt
         if (\array_key_exists('events', $data)) {
             $values = [];
             foreach ($data['events'] as $value) {
-                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\EventCapture\Model\CaptureEvent::class, 'json', $context);
+                $values[] = $this->denormalizer->denormalize($value, \Voidhash\Generated\EventCapture\Model\IV1BatchPostBodyEventsItem::class, 'json', $context);
             }
             $object->setEvents($values);
         }

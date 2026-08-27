@@ -40,9 +40,8 @@ type Event struct {
 	Context map[string]any `json:"context"`
 	// SessionID groups events into a session. Omitted when empty.
 	SessionID string `json:"session_id,omitempty"`
-	// Timestamp is when the event occurred. Omitted when nil, in which case
-	// the server uses the receive time.
-	Timestamp *time.Time `json:"timestamp,omitempty"`
+	// Timestamp is when the event occurred.
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // captureRequest is the /i/v1/capture body. context and properties are
@@ -72,6 +71,9 @@ type CaptureResult struct {
 // requires filled in: a generated UUID when none was supplied, and empty
 // objects instead of null for properties and context.
 func (e Event) prepared() (Event, error) {
+	if e.Timestamp.IsZero() {
+		return Event{}, fmt.Errorf("voidhash: event timestamp is required")
+	}
 	if e.UUID == "" {
 		generated, err := newEventUUID()
 		if err != nil {
@@ -102,7 +104,7 @@ func (s *EventCaptureService) Capture(ctx context.Context, event Event) (*Captur
 }
 
 // CaptureBatch posts several events in a single request. All events share one
-// sent_at stamp; each still carries its own uuid and optional timestamp. An
+// sent_at stamp; each still carries its own uuid and occurrence timestamp. An
 // empty slice sends nothing and reports an empty result.
 func (s *EventCaptureService) CaptureBatch(ctx context.Context, events []Event) (*CaptureResult, error) {
 	if len(events) == 0 {

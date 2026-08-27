@@ -61,7 +61,8 @@ For product documentation, visit [voidhash.com](https://voidhash.com/docs).
 [Cloudflare guide](docs/cloudflare-deployment.md) for local and live
 deployment.
 The [architecture overview](docs/architecture.md) explains the Community
-runtime and package boundaries, and the
+runtime and package boundaries, the [analytics guide](docs/analytics.md) lists
+the ingest/query call stacks and storage configuration, and the
 [licensing and self-hosting FAQ](docs/licensing-and-self-hosting-faq.md) covers
 AGPL and the self-hosting model.
 

@@ -9,7 +9,10 @@
       "packages/platform/*",
       "apps/*",
       "libraries/*",
-      "examples/*"
+      "examples/*",
+      "vendored/*",
+      "vendored/mimic/apps/*",
+      "vendored/mimic/packages/*"
     ],
     "catalogs": {
       "react18": {

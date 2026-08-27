@@ -16,7 +16,7 @@
  *      are dispatched here through the shared workflow runtime. The
  *      synchronous record path does not depend on their completion.
  */
-import { Effect, Layer, Option, Predicate, Schema } from "effect";
+import { DateTime, Effect, Layer, Option, Predicate, Schema } from "effect";
 
 import {
   AppStorePaymentProviderService,
@@ -33,6 +33,8 @@ import { getActiveAppStorePaymentProviderConfiguration } from "./helpers.ts";
 import { AppStorePaymentProvider, globalConfigurationSchema } from "./payment-provider.ts";
 import { AppStorePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import { AppStoreTransactionVerifier } from "./transaction-verifier.ts";
+import { AppStorePaymentProviderProductNotMappedError } from "./errors.ts";
+import { generateId } from "../../../utils/generate-id.ts";
 
 /** Reads a property off an unknown value without an `as` assertion. */
 const readProperty = <P extends string>(value: unknown, property: P): unknown => {
@@ -148,17 +150,52 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
           return !alreadyRecorded;
         });
 
-        const result = yield* appStorePaymentProvider.recordPurchase({
-          configuration,
-          decodedRenewalInfo: Option.none(),
-          decodedTransaction,
-          distinctId: input.distinctId,
-          project: fullProject,
-          providerEnvironment,
-          receivedAt: input.receivedAt,
-          sdkTransactionId: input.transactionId,
-          source: "sdk",
-        });
+        const result = yield* appStorePaymentProvider
+          .recordPurchase({
+            configuration,
+            decodedRenewalInfo: Option.none(),
+            decodedTransaction,
+            distinctId: input.distinctId,
+            project: fullProject,
+            providerEnvironment,
+            receivedAt: input.receivedAt,
+            sdkTransactionId: input.transactionId,
+            source: "sdk",
+          })
+          .pipe(
+            Effect.catchIf(
+              (error): error is AppStorePaymentProviderProductNotMappedError =>
+                Predicate.hasProperty(error, "_tag") &&
+                error._tag === "AppStorePaymentProviderProductNotMappedError",
+              (error) =>
+                Effect.gen(function* () {
+                  const providerOccurredAt = Option.match(decodedTransaction.purchaseDate, {
+                    onNone: () => input.receivedAt,
+                    onSome: (milliseconds) => DateTime.toDateUtc(DateTime.makeUnsafe(milliseconds)),
+                  });
+                  yield* queries.insertNotificationProcessedIfAbsent({
+                    id: generateId("paymentProviderNotification"),
+                    notificationSubtype: null,
+                    notificationType: "SDK_PURCHASE",
+                    notificationUuid: `sdk:${input.transactionId}`.slice(0, 255),
+                    parkedRawPayload: {
+                      distinctId: input.distinctId,
+                      receivedAt: input.receivedAt.toISOString(),
+                      transactionId: input.transactionId,
+                    },
+                    parkedUntilOriginalTransactionId: originalTransactionId ?? null,
+                    parkedUntilProviderProductKey: error.providerProductKey,
+                    paymentProviderConfigurationId: configuration.id,
+                    providerId: "apple-app-store",
+                    providerOccurredAt,
+                    result: "parked_pending_product_mapping",
+                    resultNote: `SDK purchase waiting for product key ${error.providerProductKey}`,
+                    source: "sdk",
+                  });
+                  return yield* Effect.fail(error);
+                }),
+            ),
+          );
 
         // Deferred-replay trigger: under the per-tenant
         // `trackNewPurchasesFromAppleServerNotifications = false` mode,

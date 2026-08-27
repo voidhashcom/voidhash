@@ -355,6 +355,16 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
           `User ${session?.user?.id} is not authorized to delete product ${input.id} for project ${existing.projectId}`,
         );
 
+        const providerMapping = yield* db.query.paymentProviderConfigurationProducts.findFirst({
+          columns: { id: true },
+          where: { productId: input.id },
+        });
+        if (providerMapping) {
+          return yield* new ProductValidationError({
+            message: "Remove the product's payment provider mappings before deleting it",
+          });
+        }
+
         yield* db.delete(products).where(eq(products.id, input.id));
 
         yield* auditLog

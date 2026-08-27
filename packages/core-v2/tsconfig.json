@@ -1,0 +1,9 @@
+{
+  "extends": "@voidhash/tsconfig/internal-package-typescript-6.json",
+  "compilerOptions": {
+    "erasableSyntaxOnly": true,
+    "rootDir": "./src"
+  },
+  "include": ["src"],
+  "exclude": ["**/node_modules/**"]
+}

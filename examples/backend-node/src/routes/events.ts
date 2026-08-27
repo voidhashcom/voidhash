@@ -25,6 +25,7 @@ export const createCaptureEventRoute = (options: {
       distinctId: requireString(body.distinctId, "distinct_id_required"),
       event: requireString(body.event, "event_required"),
       properties: properties(body.properties),
+      timestamp: new Date(),
     });
 
     sendJson(response, 202, { status: "accepted" });

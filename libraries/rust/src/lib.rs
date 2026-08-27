@@ -80,7 +80,7 @@ impl PersonAttributes {
 /// Build one with [`Event::new`] and refine it with the chained setters:
 ///
 /// ```
-/// let event = voidhash::Event::new("paywall_viewed", "user-123")
+/// let event = voidhash::Event::new("paywall_viewed", "user-123", chrono::Utc::now())
 ///     .property("paywall_id", "pw_1")
 ///     .session_id("sess_9");
 /// ```
@@ -102,15 +102,17 @@ pub struct Event {
     /// Groups events into a session. Omitted when unset.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
-    /// When the event occurred. Omitted when unset, in which case the server
-    /// uses the receive time.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
+    /// When the event occurred.
+    pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 impl Event {
     /// Creates an event with empty properties and context.
-    pub fn new(event: impl Into<String>, distinct_id: impl Into<String>) -> Self {
+    pub fn new(
+        event: impl Into<String>,
+        distinct_id: impl Into<String>,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    ) -> Self {
         Self {
             uuid: None,
             event: event.into(),
@@ -118,7 +120,7 @@ impl Event {
             properties: serde_json::Map::new(),
             context: serde_json::Map::new(),
             session_id: None,
-            timestamp: None,
+            timestamp,
         }
     }
 
@@ -164,7 +166,7 @@ impl Event {
 
     /// Sets when the event occurred.
     pub fn timestamp(mut self, timestamp: chrono::DateTime<chrono::Utc>) -> Self {
-        self.timestamp = Some(timestamp);
+        self.timestamp = timestamp;
         self
     }
 }

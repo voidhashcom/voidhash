@@ -55,6 +55,7 @@ import { generateId } from "../../../utils/index.ts";
 import { globalConfigurationSchema } from "./config-provider.ts";
 import {
   StripePaymentProviderProductNotMappedError,
+  StripePaymentProviderTransactionNotFoundError,
   StripePaymentProviderServiceError,
 } from "./errors.ts";
 import {
@@ -749,13 +750,14 @@ const make = Effect.gen(function* () {
     eventId: string,
     candidateKeys: ReadonlyArray<string | null | undefined>,
   ) =>
-    Effect.logWarning(
-      "Stripe refund/dispute: no matching transaction found; refund not applied (untracked charge or out-of-order delivery before the purchase webhook)",
-      {
-        candidateKeys: candidateKeys.filter((key) => typeof key === "string"),
+    Effect.fail(
+      new StripePaymentProviderTransactionNotFoundError({
+        candidateKeys: candidateKeys.filter(
+          (key): key is string => typeof key === "string" && key.length > 0,
+        ),
         eventId,
-      },
-    ).pipe(Effect.as(makeIgnored()));
+      }),
+    );
 
   /** `charge.refunded` — a charge was fully refunded. (Partial refunds are not yet reflected.) */
   const recordChargeRefunded = Effect.fn("recordChargeRefunded")(function* (

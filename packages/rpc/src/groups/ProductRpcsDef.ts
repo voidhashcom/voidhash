@@ -68,7 +68,12 @@ export class ProductRpcsDef extends RpcGroup.make(
     success: Schema.Void,
   }),
   Rpc.make("DeleteProduct", {
-    error: Schema.Union([RpcActionForbiddenError, RpcProductServiceError, RpcProductNotFoundError]),
+    error: Schema.Union([
+      RpcActionForbiddenError,
+      RpcProductServiceError,
+      RpcProductNotFoundError,
+      RpcProductValidationError,
+    ]),
     payload: Schema.Struct({
       id: Schema.String,
     }),

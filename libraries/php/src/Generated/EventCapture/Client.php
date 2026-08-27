@@ -17,7 +17,7 @@ class Client extends \Voidhash\Generated\EventCapture\Runtime\Client\Client
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureInternalServerErrorException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureCaptureServiceUnavailableException
      *
-     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse : \Psr\Http\Message\ResponseInterface)
      */
     public function eventCaptureCapture(\Voidhash\Generated\EventCapture\Model\IV1CapturePostBody $requestBody, array $headerParameters = [], string $fetch = self::FETCH_OBJECT)
     {
@@ -36,7 +36,7 @@ class Client extends \Voidhash\Generated\EventCapture\Runtime\Client\Client
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchInternalServerErrorException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchServiceUnavailableException
      *
-     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding : \Psr\Http\Message\ResponseInterface)
+     * @return ($fetch is 'object' ? null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse : \Psr\Http\Message\ResponseInterface)
      */
     public function eventCaptureBatch(\Voidhash\Generated\EventCapture\Model\IV1BatchPostBody $requestBody, array $headerParameters = [], string $fetch = self::FETCH_OBJECT)
     {

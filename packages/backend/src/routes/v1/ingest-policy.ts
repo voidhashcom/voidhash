@@ -1,6 +1,6 @@
 import { EventAdmissionPolicy, VoidhashV1Api } from "@voidhash/api-contracts";
 import { ApiActionForbiddenError, ApiEventAdmissionError } from "@voidhash/api-contracts/errors";
-import { EventAdmissionService } from "@voidhash/core/services";
+import { EventAdmissionService } from "../../analytics/EventAdmissionService.ts";
 import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";

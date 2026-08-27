@@ -1,6 +1,6 @@
 import { AnalyticsEvent, VoidhashV1Api } from "@voidhash/api-contracts";
 import { ApiActionForbiddenError, ApiAnalyticsServiceError } from "@voidhash/api-contracts/errors";
-import { AnalyticsService } from "@voidhash/core/services";
+import { AnalyticsQuery } from "@voidhash/core-v2";
 import { decodeCursor, encodeCursor, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
@@ -16,7 +16,7 @@ const toAfterEventId = (cursor: string | undefined) => {
 
 export const EventsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "events", (handlers) =>
   Effect.gen(function* () {
-    const analyticsService = yield* AnalyticsService;
+    const analytics = yield* AnalyticsQuery;
 
     return handlers.handle("listEvents", ({ query }) =>
       bridgeAuthSession(
@@ -25,7 +25,7 @@ export const EventsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "events", (ha
           yield* requireCredential(authSession, ["user", "secret-key"]);
           const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
           const afterEventId = yield* toAfterEventId(query.cursor);
-          const page = yield* analyticsService.listEventsPage({
+          const page = yield* analytics.listEventsPage({
             afterEventId,
             eventName: query.eventName,
             limit: query.limit,
@@ -61,8 +61,7 @@ export const EventsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "events", (ha
         Effect.catchTags({
           ActionForbiddenError: (e) =>
             Effect.fail(new ApiActionForbiddenError({ message: e.message })),
-          AnalyticsServiceError: (e) =>
-            Effect.fail(new ApiAnalyticsServiceError({ cause: e.cause })),
+          AnalyticsQueryError: (e) => Effect.fail(new ApiAnalyticsServiceError({ cause: e.cause })),
         }),
       ),
     );

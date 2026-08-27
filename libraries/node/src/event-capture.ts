@@ -38,8 +38,8 @@ export type VoidhashCaptureEvent = {
   readonly context?: Record<string, unknown> | undefined;
   /** Groups events into a session. Omitted from the request when unset. */
   readonly sessionId?: string | undefined;
-  /** ISO 8601 time the event occurred. The server uses the receive time when omitted. */
-  readonly timestamp?: string | undefined;
+  /** ISO 8601 time the event occurred. */
+  readonly timestamp: string;
 };
 
 export interface VoidhashEventCaptureEffectNamespace {
@@ -49,7 +49,7 @@ export interface VoidhashEventCaptureEffectNamespace {
   ) => Effect.Effect<VoidhashCaptureResult, CaptureError>;
   /**
    * Posts several events in a single request. All events share one `sent_at`
-   * stamp; each still carries its own uuid and optional timestamp. An empty
+   * stamp; each still carries its own uuid and occurrence timestamp. An empty
    * array is a no-op — the API rejects a batch without events.
    */
   readonly batch: (

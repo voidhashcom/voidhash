@@ -767,7 +767,7 @@ impl EventCaptureApi<'_> {
     }
 
     /// Posts several events in a single request. All events share one
-    /// `sent_at` stamp; each still carries its own uuid and optional timestamp.
+    /// `sent_at` stamp; each still carries its own uuid and occurrence timestamp.
     /// An empty slice sends nothing and reports an empty result.
     pub async fn capture_batch(&self, events: &[crate::Event]) -> Result<CaptureResult, Error> {
         if events.is_empty() {

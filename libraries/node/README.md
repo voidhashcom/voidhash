@@ -245,6 +245,7 @@ sent as the body `token` as well, the way the browser and mobile SDKs authorize:
 await voidhash.eventCapture.capture({
   distinctId: "user_123",
   event: "paywall_viewed",
+  timestamp: new Date().toISOString(),
   properties: { paywallId: "pw_abc", placement: "onboarding" },
   context: { appVersion: "1.4.2", platform: "server" },
 });
@@ -261,18 +262,18 @@ land on the same person as client-side ones.
 | `context`    | `Record<string, unknown>` | Ambient attributes (app version, platform). Defaults to `{}`. |
 | `uuid`       | `string`                 | Deduplication key. Generated per call when omitted.           |
 | `sessionId`  | `string`                 | Groups events into a session.                                 |
-| `timestamp`  | `string`                 | ISO 8601 event time. Server receive time when omitted.        |
+| `timestamp`  | `string`                 | Required. ISO 8601 time when the event occurred.              |
 
 Retries are deduplicated on `uuid`: pass your own — a stable id derived from
 whatever you are recording — when the same event may be sent twice.
 
 Send several events in one request with `batch`. They share a single request
-timestamp, and each still carries its own `uuid` and optional `timestamp`:
+timestamp, and each still carries its own `uuid` and occurrence `timestamp`:
 
 ```ts
 const { accepted, rejected } = await voidhash.eventCapture.batch([
-  { distinctId: "user_123", event: "trial_started" },
-  { distinctId: "user_456", event: "trial_started" },
+  { distinctId: "user_123", event: "trial_started", timestamp: new Date().toISOString() },
+  { distinctId: "user_456", event: "trial_started", timestamp: new Date().toISOString() },
 ]);
 ```
 

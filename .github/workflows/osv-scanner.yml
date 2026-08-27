@@ -11,6 +11,7 @@ on:
       - examples/**/package.json
       - libraries/**/package.json
       - packages/**/package.json
+      - vendored/**/package.json
       - .github/workflows/osv-scanner.yml
   push:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - examples/**/package.json
       - libraries/**/package.json
       - packages/**/package.json
+      - vendored/**/package.json
       - .github/workflows/osv-scanner.yml
   schedule:
     - cron: "30 12 * * 1"

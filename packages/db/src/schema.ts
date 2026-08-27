@@ -171,51 +171,33 @@ export const projects = pgTable(
   ],
 );
 
-export const captureProjectPolicies = pgTable(
-  "capture_project_policy",
-  {
-    projectId: varchar("project_id", { length: 255 })
-      .primaryKey()
-      .references(() => projects.id, { onDelete: "cascade" }),
-    ingestEnabled: boolean("ingest_enabled").notNull().default(true),
-    requestsPerMinute: integer("requests_per_minute"),
-    eventsPerDay: integer("events_per_day"),
-    forceRoute: varchar("force_route", { length: 32 }),
-    customTopic: varchar("custom_topic", { length: 255 }),
-    skipEnrichment: boolean("skip_enrichment").notNull().default(false),
-    processorEnabled: boolean("processor_enabled").notNull().default(true),
-    processorPersonProcessingEnabled: boolean("processor_person_processing_enabled")
-      .notNull()
-      .default(true),
-    processorSchemaMode: varchar("processor_schema_mode", { length: 16 })
-      .notNull()
-      .default("reject"),
-    processorAllowOverflow: boolean("processor_allow_overflow").notNull().default(true),
-    processorAllowHistorical: boolean("processor_allow_historical").notNull().default(true),
-    processorHistoricalMinAgeHours: integer("processor_historical_min_age_hours")
-      .notNull()
-      .default(48),
-    /**
-     * Explicit on/off overrides for the built-in (`$`-prefixed) event registry,
-     * keyed by admission key. An absent key falls back to the edition default in
-     * `@voidhash/core`'s `EventAdmission` registry.
-     */
-    builtinEventOverrides: jsonb("builtin_event_overrides")
-      .$type<Readonly<Record<string, boolean>>>()
-      .notNull()
-      .default({}),
-    /** Custom (non-`$`) event names refused admission for this project. */
-    customEventBlocklist: jsonb("custom_event_blocklist")
-      .$type<readonly string[]>()
-      .notNull()
-      .default([]),
-    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
-      currentTimestamp(),
-    ),
-  },
-  (table) => [index("capture_project_policy_force_route_idx").on(table.forceRoute)],
-);
+export const captureProjectPolicies = pgTable("capture_project_policy", {
+  projectId: varchar("project_id", { length: 255 })
+    .primaryKey()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  ingestEnabled: boolean("ingest_enabled").notNull().default(true),
+  requestsPerMinute: integer("requests_per_minute"),
+  eventsPerDay: integer("events_per_day"),
+  processorEnabled: boolean("processor_enabled").notNull().default(true),
+  /**
+   * Explicit on/off overrides for the built-in (`$`-prefixed) event registry,
+   * keyed by admission key. An absent key falls back to the edition default in
+   * `@voidhash/core-v2`'s event-admission registry.
+   */
+  builtinEventOverrides: jsonb("builtin_event_overrides")
+    .$type<Readonly<Record<string, boolean>>>()
+    .notNull()
+    .default({}),
+  /** Custom (non-`$`) event names refused admission for this project. */
+  customEventBlocklist: jsonb("custom_event_blocklist")
+    .$type<readonly string[]>()
+    .notNull()
+    .default([]),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).$onUpdate(() =>
+    currentTimestamp(),
+  ),
+});
 
 /**
  * Portable analytics event log used by the Community edition. Its semantic
@@ -751,6 +733,9 @@ export const paymentProviderConfigurationProducts = pgTable(
       table.providerProductKey,
       table.productId,
     ),
+    uniqueIndex("provider_configuration_active_product_key_idx")
+      .on(table.paymentProviderConfigurationId, table.providerProductKey)
+      .where(sql`${table.isActive} = true`),
     index("payment_provider_configuration_id_idx").on(table.paymentProviderConfigurationId),
   ],
 );
@@ -1111,9 +1096,8 @@ export type PurchaseLedgerStatusValue =
  * here and short-circuit before any operational write.
  *
  * The ledger has two consumers:
- *  - Analytics dispatch: a separate polling worker drains the table by
- *    re-dispatching each row's `eventsPayload` onto the shared analytics-ingest
- *    queue (`AnalyticsDispatchService.dispatchTrusted`).
+ *  - Analytics delivery: a separate polling worker drains the table and sends
+ *    each row's `eventsPayload` through the configured analytics pipeline.
  *  - Replay-from-source: `rawProviderPayload` archives the upstream signed /
  *    decoded provider payload alongside the normalized fact, so if our
  *    normalization has a bug we can re-derive the analytics without re-
@@ -1137,9 +1121,8 @@ export const purchaseLedger = pgTable(
      */
     resultPayload: jsonb("result_payload").$type<object>().notNull(),
     /**
-     * Serialized `ReadonlyArray<InternalAnalyticsEvent>` the worker
-     * re-dispatches onto the shared analytics-ingest queue. Stored as JSON to
-     * preserve the discriminated-union shape end-to-end.
+     * Serialized trusted analytics events sent through the configured delivery
+     * service. Stored as JSON to preserve their discriminated-union shape.
      */
     eventsPayload: jsonb("events_payload").$type<ReadonlyArray<object>>().notNull(),
     /**
@@ -1190,7 +1173,6 @@ export const analyticsIngestDlq = pgTable(
     captureId: varchar("capture_id", { length: 255 }),
     projectId: varchar("project_id", { length: 255 }).notNull(),
     distinctId: varchar("distinct_id", { length: 512 }),
-    routeClass: varchar("route_class", { length: 32 }).notNull(),
     failureClass: varchar("failure_class", { length: 64 }).notNull(),
     failureMessage: varchar("failure_message", { length: 1000 }).notNull(),
     payloadJson: jsonb("payload_json").$type<unknown>().notNull(),
@@ -1248,6 +1230,15 @@ export const paymentProviderNotificationProcessed = pgTable(
     processedAt: timestamp("processed_at", { withTimezone: true, precision: 3 })
       .notNull()
       .defaultNow(),
+    /** Provider occurrence time used to preserve lifecycle order during replay. */
+    providerOccurredAt: timestamp("provider_occurred_at", {
+      withTimezone: true,
+      precision: 3,
+    }),
+    /** Number of durable replay attempts made for this notification. */
+    attemptCount: integer("attempt_count").notNull().default(0),
+    /** Most recent durable replay attempt. */
+    lastAttemptedAt: timestamp("last_attempted_at", { withTimezone: true, precision: 3 }),
     /**
      * Outcome string. Conventional values:
      *  - `"applied"`        – mapped to a record method and processed.
@@ -1256,6 +1247,8 @@ export const paymentProviderNotificationProcessed = pgTable(
      *                         when the mapping appears.
      *  - `"parked_pending_sdk_confirmation"` – SDK has not yet confirmed the
      *                         transaction series; replay when SDK arrives.
+     *  - `"parked_pending_transaction"` – a dependent event arrived before
+     *                         the original financial transaction.
      *  - `"expired"`        – parked row aged past the 90-day TTL.
      *  - `"failed"`         – decode / signature failure that should not retry.
      */
@@ -1274,6 +1267,13 @@ export const paymentProviderNotificationProcessed = pgTable(
       table.paymentProviderConfigurationId,
       table.result,
       table.parkedUntilProviderProductKey,
+    ),
+    index("notif_parked_replay_order_idx").on(
+      table.paymentProviderConfigurationId,
+      table.result,
+      table.providerOccurredAt,
+      table.processedAt,
+      table.id,
     ),
     index("notif_parked_sdk_idx").on(
       table.paymentProviderConfigurationId,

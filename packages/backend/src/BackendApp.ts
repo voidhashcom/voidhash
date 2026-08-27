@@ -1,12 +1,11 @@
 import { AppStoreServerSdk } from "@voidhash/app-store-server-sdk";
 import { VoidhashV1Api } from "@voidhash/api-contracts";
 import { Db } from "@voidhash/db";
+import { AnalyticsDelivery, AnalyticsQuery } from "@voidhash/core-v2";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import {
-  AnalyticsService,
-  AnalyticsEventStore,
   ApiKeyService,
   AuditLogPort,
   AppStorePaymentProvider,
@@ -17,7 +16,6 @@ import {
   AppStorePaymentProviderConfigLive,
   AppStorePaymentProviderServiceLive,
   AppStoreTransactionVerifier,
-  EventAdmissionService,
   ExperimentService,
   FeatureFlagService,
   FeedbackServiceLive,
@@ -108,6 +106,8 @@ import * as RpcServer from "effect/unstable/rpc/RpcServer";
 import { BackendRpcGroups as RpcGroups } from "./BackendRpcGroups.ts";
 import { GooglePubSubPushVerifierLive } from "./GooglePubSubPushVerifier.ts";
 import { BackendSnapshotHtmlRendererLive } from "./PaywallSnapshotHtmlRenderer.ts";
+import { makePostgresAnalyticsLive } from "./analytics/AnalyticsLive.ts";
+import { EventAdmissionService } from "./analytics/EventAdmissionService.ts";
 
 import { AuthMiddlewareLive } from "./ApiMiddlewares.ts";
 import { McpRouteLayer } from "./routes/mcp.ts";
@@ -137,9 +137,7 @@ import { PerksGroupLive } from "./routes/v1/perks.ts";
 import { PersonsGroupLive } from "./routes/v1/persons.ts";
 import { ProductsGroupLive } from "./routes/v1/products.ts";
 import { ProjectsGroupLive } from "./routes/v1/projects.ts";
-import {
-  PushNotificationConfigurationsGroupLive,
-} from "./routes/v1/push-notification-configurations.ts";
+import { PushNotificationConfigurationsGroupLive } from "./routes/v1/push-notification-configurations.ts";
 import { SchemaGroupLive } from "./routes/v1/schema.ts";
 import { SdkGroupLive } from "./routes/v1/sdk.ts";
 import { UsersGroupLive } from "./routes/v1/users.ts";
@@ -230,8 +228,12 @@ export interface BackendRuntimeLayers<
    */
   readonly mcpOAuth?: Layer.Layer<McpOAuth>;
   readonly infrastructure: Layer.Layer<InfraServices, never, RInfrastructure>;
-  /** Overrides the community PostgreSQL analytics reader for hosted runtimes. */
-  readonly analyticsService?: Layer.Layer<AnalyticsService, never, RInfrastructure>;
+  /** Overrides the community PostgreSQL analytics runtime for hosted deployments. */
+  readonly analytics?: Layer.Layer<
+    AnalyticsDelivery | AnalyticsQuery,
+    never,
+    RInfrastructure | Db | PersonIdentityService
+  >;
   /**
    * Overrides the event-admission service so hosted runtimes resolve the cloud
    * registry defaults (all built-ins on) instead of the self-hosted ones.
@@ -387,6 +389,7 @@ export const BackendAppStorePaymentProviderServiceLive = AppStorePaymentProvider
   Layer.provide(
     AppStoreTransactionVerifier.layer.pipe(Layer.provide(AppStorePaymentProviderEngine.layer)),
   ),
+  Layer.provide(AppStorePaymentProviderEngine.layer),
   Layer.provide(AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer))),
   Layer.provide(
     FxRateService.layer({
@@ -416,6 +419,7 @@ export const BackendGooglePlayPaymentProviderServiceLive =
     Layer.provide(
       GooglePlayPurchaseVerifier.layer.pipe(Layer.provide(GooglePlayPaymentProviderEngine.layer)),
     ),
+    Layer.provide(GooglePlayPaymentProviderEngine.layer),
     Layer.provide(GooglePlayServerApi.layer.pipe(Layer.provide(FetchHttpClient.layer))),
     Layer.provide(
       FxRateService.layer({
@@ -773,7 +777,7 @@ const buildBackendServiceGraph = <
     | "webhookManager"
     | "pushDeliveryDispatch"
     | "mcpOAuth"
-    | "analyticsService"
+    | "analytics"
     | "eventAdmission"
   >,
 ) => {
@@ -839,13 +843,11 @@ const buildBackendServiceGraph = <
   );
 
   const AgentSessionIndexServiceLive = AgentSessionIndexService.layer;
-  const AnalyticsEventStoreLive = AnalyticsEventStore.layer;
+  const AnalyticsLive = layers.analytics ?? makePostgresAnalyticsLive();
   const BaseDomainServicesLayer = Layer.mergeAll(
     AgentSessionIndexServiceLive,
     AgentAttachmentService.layer.pipe(Layer.provide(AgentSessionIndexServiceLive)),
-    layers.analyticsService ?? AnalyticsService.layer.pipe(Layer.provide(AnalyticsEventStoreLive)),
-    // The portable ingest path also consumes the PostgreSQL store directly.
-    AnalyticsEventStoreLive,
+    AnalyticsLive,
     ApiKeyService.layer,
     BackendFeedbackServiceLive,
     BackendAppStorePaymentProviderServiceLive,
@@ -950,7 +952,7 @@ export const buildBackendAgentServices = <
     | "webhookManager"
     | "pushDeliveryDispatch"
     | "mcpOAuth"
-    | "analyticsService"
+    | "analytics"
     | "eventAdmission"
   >,
 ) => {
@@ -1031,7 +1033,7 @@ export const buildBackendRpcServices = <
     | "features"
     | "infrastructure"
     | "webhookManager"
-    | "analyticsService"
+    | "analytics"
     | "rpcExtension"
     | "mcpOAuth"
   >,

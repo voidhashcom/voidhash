@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import {
   cn,
   Page,
@@ -15,6 +16,7 @@ import { useRef, useState } from "react";
 import { z } from "zod";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { listPaywallsOptions } from "@/features/studio/lib/tanstack-query/paywalls";
+import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import { CreatePaywallButton } from "@/features/studio/paywalls/components/paywalls-page/create-paywall-button";
 import { PaywallCard } from "@/features/studio/paywalls/components/paywalls-page/paywall-card";
@@ -59,11 +61,23 @@ const paywallsSearchSchema = z.object({
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/",
 )({
-  component: PaywallsPage,
+  component: PaywallsIndexRoute,
   errorComponent: PaywallsPageError,
   pendingComponent: PaywallsPageSkeleton,
   validateSearch: zodValidator(paywallsSearchSchema),
 });
+
+function PaywallsIndexRoute() {
+  const paywallsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.paywalls.key);
+
+  if (!paywallsEnabled) {
+    return (
+      <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "This page is not available." }} />
+    );
+  }
+
+  return <PaywallsPage />;
+}
 
 function PaywallsPageError() {
   return (

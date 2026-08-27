@@ -54,12 +54,13 @@ key — there is no publishable key involved.
 result, err := client.EventCapture.Capture(context.Background(), voidhash.Event{
 	Event:      "paywall_viewed",
 	DistinctID: "user-123",
+	Timestamp:  time.Now(),
 	Properties: map[string]any{"paywall_id": "pw_1"},
 })
 
 result, err = client.EventCapture.CaptureBatch(context.Background(), []voidhash.Event{
-	{Event: "paywall_viewed", DistinctID: "user-123"},
-	{Event: "purchase_completed", DistinctID: "user-123"},
+	{Event: "paywall_viewed", DistinctID: "user-123", Timestamp: time.Now()},
+	{Event: "purchase_completed", DistinctID: "user-123", Timestamp: time.Now()},
 })
 ```
 

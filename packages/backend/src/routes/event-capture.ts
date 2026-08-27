@@ -1,18 +1,11 @@
 /**
- * HTTP route handlers for the analytics-ingest event-capture endpoints (`/i/*`),
- * served by the Cloudflare-native backend worker (the former standalone
- * AnalyticsPipelineWorker was merged into it).
+ * HTTP route handlers for the analytics-ingest event-capture endpoints (`/i/*`).
  *
- * The capture business logic lives in {@link EventCaptureService} (which
- * already encapsulates token validation, policy enforcement, route selection,
- * and queue publication). This file is responsible for HTTP-shape concerns
+ * The capture business logic lives in `AnalyticsCapture` (which
+ * already encapsulates token validation, policy enforcement, and delivery).
+ * This file is responsible for HTTP-shape concerns
  * only: request-id minting, client-IP extraction, response shaping, and error
  * mapping at the wire boundary.
- *
- * Mirrors `internal/apps/event-capture/src/http/routes.ts` line-for-line in
- * intent; the only deltas are the Cloudflare-native client-IP extraction
- * (`CF-Connecting-IP`) and the absence of a `/i/ready` route (Cloudflare
- * Workers don't have a startup-readiness check the way Bun servers do).
  */
 import {
   CaptureAcceptedResponse,
@@ -22,10 +15,7 @@ import {
   CaptureUnauthorizedError,
   EventCaptureApi,
 } from "@voidhash/api-contracts/event-capture";
-import {
-  EventCaptureService,
-  isSecretCaptureToken,
-} from "@voidhash/core/services/analyticsIngest/EventCaptureService";
+import { AnalyticsCapture } from "@voidhash/core-v2";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import { DateTime, Effect } from "effect";
 import * as HttpEffect from "effect/unstable/http/HttpEffect";
@@ -61,7 +51,7 @@ const extractClientIp = (
  * misconfigured client keep exposing it without the failure ever surfacing.
  *
  * Resolves to an empty string when no credential was supplied;
- * `EventCaptureService` owns the resulting `unauthorized` failure so the wire
+ * `AnalyticsCapture` owns the resulting `unauthorized` failure so the wire
  * response stays uniform.
  */
 const resolveCaptureToken = (
@@ -69,7 +59,7 @@ const resolveCaptureToken = (
   headers: Readonly<Record<string, string | undefined>>,
 ): Effect.Effect<string, CaptureUnauthorizedError> => {
   const bodyToken = payloadToken?.trim();
-  if (bodyToken && isSecretCaptureToken(bodyToken)) {
+  if (bodyToken && /^vh_sk_\w+$/.test(bodyToken)) {
     return Effect.fail(
       new CaptureUnauthorizedError({
         code: "unauthorized",
@@ -99,7 +89,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
   "event_capture",
   (handlers) =>
     Effect.gen(function* () {
-      const captureService = yield* EventCaptureService;
+      const captureService = yield* AnalyticsCapture;
       return handlers
         .handle("capture", ({ request, payload }) =>
           Effect.gen(function* () {
@@ -109,7 +99,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
             const token = yield* resolveCaptureToken(payload.token, request.headers);
 
             const result = yield* captureService
-              .captureEvents({
+              .capture({
                 events: [payload],
                 request: {
                   clientIp: extractClientIp(request.headers),
@@ -135,7 +125,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                     );
                   }),
                 ),
-                Effect.catchTag("EventCaptureServiceError", () =>
+                Effect.catchTag("AnalyticsCaptureError", () =>
                   Effect.fail(
                     new CaptureDependencyUnavailableError({
                       code: "dependency_unavailable",
@@ -167,7 +157,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
             const token = yield* resolveCaptureToken(payload.token, request.headers);
 
             const result = yield* captureService
-              .captureEvents({
+              .capture({
                 events: payload.events,
                 request: {
                   clientIp: extractClientIp(request.headers),
@@ -193,7 +183,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                     );
                   }),
                 ),
-                Effect.catchTag("EventCaptureServiceError", () =>
+                Effect.catchTag("AnalyticsCaptureError", () =>
                   Effect.fail(
                     new CaptureDependencyUnavailableError({
                       code: "dependency_unavailable",

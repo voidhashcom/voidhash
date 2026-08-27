@@ -60,7 +60,7 @@ export const CaptureEvent = Schema.Struct({
   properties: EventPropertiesSchema,
   distinct_id: Schema.NonEmptyString,
   session_id: Schema.optional(Schema.NonEmptyString),
-  timestamp: Schema.optional(DateValidFromString),
+  timestamp: DateValidFromString,
 });
 
 /**

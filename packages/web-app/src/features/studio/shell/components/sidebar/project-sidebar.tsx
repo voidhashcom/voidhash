@@ -37,14 +37,15 @@ export function ProjectSidebar({
   });
   // The VoidQL Query page is gated behind an internal feature flag (unreleased).
   const queryEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.voidqlQuery.key);
-  const customAnalyticsEnabled = useInternalFeatureFlag(
-    INTERNAL_FEATURE_FLAGS.customAnalytics.key,
-  );
+  const customAnalyticsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.customAnalytics.key);
   const notificationsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.notifications.key);
-
-  const experimentationEnabled = useInternalFeatureFlag(
-    INTERNAL_FEATURE_FLAGS.experimentation.key,
+  const paywallsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.paywalls.key);
+  const paywallLocationsEnabled = useInternalFeatureFlag(
+    INTERNAL_FEATURE_FLAGS.paywallLocations.key,
   );
+  const featureFlagsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.featureFlags.key);
+
+  const experimentationEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.experimentation.key);
 
   const data = {
     navMain: [
@@ -52,22 +53,19 @@ export function ProjectSidebar({
         items: [
           {
             icon: GaugeIcon,
-            isActive: () =>
-              pathname ===
-              `/studio/${organizationSlug}/${projectSlug}/overview`,
+            isActive: () => pathname === `/studio/${organizationSlug}/${projectSlug}/overview`,
             title: "Overview",
             url: `/studio/${organizationSlug}/${projectSlug}/overview`,
           },
           {
             icon: ChartNoAxesColumnIncreasing,
             isActive: () =>
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/analytics`,
-              ),
+              pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/analytics`),
             title: "Analytics",
-            url: advancedAnalyticsAvailable && customAnalyticsEnabled
-              ? `/studio/${organizationSlug}/${projectSlug}/analytics/insights`
-              : `/studio/${organizationSlug}/${projectSlug}/analytics/revenue`,
+            url:
+              advancedAnalyticsAvailable && customAnalyticsEnabled
+                ? `/studio/${organizationSlug}/${projectSlug}/analytics/insights`
+                : `/studio/${organizationSlug}/${projectSlug}/analytics/revenue`,
             items: [
               ...(advancedAnalyticsAvailable && customAnalyticsEnabled
                 ? [
@@ -91,8 +89,7 @@ export function ProjectSidebar({
                 : []),
               {
                 isActive: () =>
-                  `/studio/${organizationSlug}/${projectSlug}/analytics/revenue` ===
-                  pathname,
+                  `/studio/${organizationSlug}/${projectSlug}/analytics/revenue` === pathname,
                 title: "Revenue",
                 url: `/studio/${organizationSlug}/${projectSlug}/analytics/revenue`,
               },
@@ -115,9 +112,7 @@ export function ProjectSidebar({
               },
               {
                 isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/analytics/churn`,
-                  ),
+                  pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/analytics/churn`),
                 title: "Churn",
                 url: `/studio/${organizationSlug}/${projectSlug}/analytics/churn`,
               },
@@ -140,109 +135,114 @@ export function ProjectSidebar({
             url: `/studio/${organizationSlug}/${projectSlug}/persons`,
             icon: Users,
             isActive: () =>
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/persons`,
-              ),
+              pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/persons`),
           },
           {
             title: "Products",
             url: `/studio/${organizationSlug}/${projectSlug}/products`,
             icon: Package2,
             isActive: () =>
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/products`,
-              ) ||
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/settings/perks`,
-              ),
+              pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/products`) ||
+              pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/settings/perks`),
             items: [
               {
                 icon: Package2,
                 isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/products`,
-                  ),
+                  pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/products`),
                 title: "Products",
                 url: `/studio/${organizationSlug}/${projectSlug}/products`,
               },
               {
                 icon: Gift,
                 isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/settings/perks`,
-                  ),
+                  pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/settings/perks`),
                 title: "Perks",
                 url: `/studio/${organizationSlug}/${projectSlug}/settings/perks`,
               },
             ],
           },
-          {
-            icon: Smartphone,
-            isActive: () =>
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/paywalls`,
-              ) ||
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
-              ),
-            title: "Paywalls",
-            url: `/studio/${organizationSlug}/${projectSlug}/paywalls`,
-            items: [
-              {
-                icon: Smartphone,
-                isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/paywalls`,
-                  ),
-                title: "Paywalls",
-                url: `/studio/${organizationSlug}/${projectSlug}/paywalls`,
-              },
-              {
-                icon: MapPin,
-                isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
-                  ),
-                title: "Paywall Locations",
-                url: `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
-              },
-            ],
-          },
-          // The A/B Testing suite (Feature Flags + A/B Tests) is gated behind
-          // the `experimentation` internal feature flag so it can be rolled out
-          // to a subset of testers from overwatch before a public launch.
-          ...(experimentationEnabled
+          ...(paywallsEnabled || paywallLocationsEnabled
+            ? [
+                {
+                  icon: Smartphone,
+                  isActive: () =>
+                    pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/paywalls`) ||
+                    pathname.startsWith(
+                      `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
+                    ),
+                  title: "Paywalls",
+                  url: paywallsEnabled
+                    ? `/studio/${organizationSlug}/${projectSlug}/paywalls`
+                    : `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
+                  items: [
+                    ...(paywallsEnabled
+                      ? [
+                          {
+                            icon: Smartphone,
+                            isActive: () =>
+                              pathname.startsWith(
+                                `/studio/${organizationSlug}/${projectSlug}/paywalls`,
+                              ),
+                            title: "Paywalls",
+                            url: `/studio/${organizationSlug}/${projectSlug}/paywalls`,
+                          },
+                        ]
+                      : []),
+                    ...(paywallLocationsEnabled
+                      ? [
+                          {
+                            icon: MapPin,
+                            isActive: () =>
+                              pathname.startsWith(
+                                `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
+                              ),
+                            title: "Paywall Locations",
+                            url: `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
+                          },
+                        ]
+                      : []),
+                  ],
+                },
+              ]
+            : []),
+          ...(featureFlagsEnabled || experimentationEnabled
             ? [
                 {
                   icon: FlaskConical,
                   isActive: () =>
-                    pathname.startsWith(
-                      `/studio/${organizationSlug}/${projectSlug}/flags`,
-                    ) ||
-                    pathname.startsWith(
-                      `/studio/${organizationSlug}/${projectSlug}/experiments`,
-                    ),
+                    pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/flags`) ||
+                    pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/experiments`),
                   title: "A/B Testing",
-                  url: `/studio/${organizationSlug}/${projectSlug}/flags`,
+                  url: featureFlagsEnabled
+                    ? `/studio/${organizationSlug}/${projectSlug}/flags`
+                    : `/studio/${organizationSlug}/${projectSlug}/experiments`,
                   items: [
-                    {
-                      icon: ToggleLeft,
-                      isActive: () =>
-                        pathname.startsWith(
-                          `/studio/${organizationSlug}/${projectSlug}/flags`,
-                        ),
-                      title: "Feature Flags",
-                      url: `/studio/${organizationSlug}/${projectSlug}/flags`,
-                    },
-                    {
-                      icon: FlaskConical,
-                      isActive: () =>
-                        pathname.startsWith(
-                          `/studio/${organizationSlug}/${projectSlug}/experiments`,
-                        ),
-                      title: "A/B Tests",
-                      url: `/studio/${organizationSlug}/${projectSlug}/experiments`,
-                    },
+                    ...(featureFlagsEnabled
+                      ? [
+                          {
+                            icon: ToggleLeft,
+                            isActive: () =>
+                              pathname.startsWith(
+                                `/studio/${organizationSlug}/${projectSlug}/flags`,
+                              ),
+                            title: "Feature Flags",
+                            url: `/studio/${organizationSlug}/${projectSlug}/flags`,
+                          },
+                        ]
+                      : []),
+                    ...(experimentationEnabled
+                      ? [
+                          {
+                            icon: FlaskConical,
+                            isActive: () =>
+                              pathname.startsWith(
+                                `/studio/${organizationSlug}/${projectSlug}/experiments`,
+                              ),
+                            title: "A/B Tests",
+                            url: `/studio/${organizationSlug}/${projectSlug}/experiments`,
+                          },
+                        ]
+                      : []),
                   ],
                 },
               ]
@@ -250,17 +250,13 @@ export function ProjectSidebar({
           {
             icon: Logs,
             isActive: () =>
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/activity`,
-              ),
+              pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/activity`),
             title: "Activity",
             url: `/studio/${organizationSlug}/${projectSlug}/activity/events`,
             items: [
               {
                 isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/activity/events`,
-                  ),
+                  pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/activity/events`),
                 title: "Analytics events",
                 url: `/studio/${organizationSlug}/${projectSlug}/activity/events`,
               },
@@ -281,16 +277,12 @@ export function ProjectSidebar({
           {
             icon: Settings,
             isActive: () =>
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/settings`,
-              ),
+              pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/settings`),
             title: "Settings",
             url: `/studio/${organizationSlug}/${projectSlug}/settings`,
             items: [
               {
-                isActive: () =>
-                  pathname ===
-                  `/studio/${organizationSlug}/${projectSlug}/settings`,
+                isActive: () => pathname === `/studio/${organizationSlug}/${projectSlug}/settings`,
                 title: "General",
                 url: `/studio/${organizationSlug}/${projectSlug}/settings`,
               },
@@ -304,9 +296,7 @@ export function ProjectSidebar({
               },
               {
                 isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/settings/events`,
-                  ),
+                  pathname.startsWith(`/studio/${organizationSlug}/${projectSlug}/settings/events`),
                 title: "Events",
                 url: `/studio/${organizationSlug}/${projectSlug}/settings/events`,
               },

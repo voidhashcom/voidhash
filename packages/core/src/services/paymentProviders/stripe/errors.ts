@@ -44,6 +44,18 @@ export class StripePaymentProviderProductNotMappedError extends Schema.TaggedErr
 }) {}
 
 /**
+ * A refund, reversal, or dispute arrived before its original transaction was
+ * recorded. The webhook handler parks the raw event and retries it after the
+ * purchase path catches up.
+ */
+export class StripePaymentProviderTransactionNotFoundError extends Schema.TaggedErrorClass<StripePaymentProviderTransactionNotFoundError>(
+  "StripePaymentProviderTransactionNotFoundError",
+)("StripePaymentProviderTransactionNotFoundError", {
+  candidateKeys: Schema.Array(Schema.String),
+  eventId: Schema.String,
+}) {}
+
+/**
  * The Stripe webhook signature could not be verified against either the live or
  * the test signing secret (bad signature, wrong secret, or stale timestamp).
  * Surfaced by the ingress route as a 400 so the misconfiguration is visible in

@@ -37,7 +37,7 @@ class IV1CapturePostBody
      */
     protected $sessionId;
     /**
-     * @var string|null
+     * @var string
      */
     protected $timestamp;
     /**
@@ -157,18 +157,18 @@ class IV1CapturePostBody
         return $this;
     }
     /**
-     * @return string|null
+     * @return string
      */
-    public function getTimestamp(): ?string
+    public function getTimestamp(): string
     {
         return $this->timestamp;
     }
     /**
-     * @param string|null $timestamp
+     * @param string $timestamp
      *
      * @return self
      */
-    public function setTimestamp(?string $timestamp): self
+    public function setTimestamp(string $timestamp): self
     {
         $this->initialized['timestamp'] = true;
         $this->timestamp = $timestamp;

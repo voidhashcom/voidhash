@@ -13,33 +13,33 @@
  * Sign convention for the money payload:
  *   +1  purchases, renewals, refund reversals → emit positive deltas
  *   −1  refunds, purchase revokes, and family-revoke cancellations → emit negative deltas
- * Summing `grossAmountUsd` (or any of the breakdown columns) over the
- * `$purchase.*` / `$subscription.*` revenue events therefore yields net
- * revenue with no per-event-type branching downstream.
+ * Summing `grossAmountUsd` (or any of the breakdown columns) over
+ * `REVENUE_MONEY_EVENT_NAMES` therefore yields net revenue with no
+ * per-event-type branching downstream.
  */
 import { Option } from "effect";
 
 import {
   REVENUE_TRUSTED_SOURCE_TOPIC,
-  type RevenuePurchaseCompleted,
-  type RevenuePurchaseRefunded,
-  type RevenuePurchaseRevoked,
-  type RevenuePurchaseTransferredIn,
-  type RevenuePurchaseTransferredOut,
-  type RevenueSubscriptionAutoRenewResumed,
-  type RevenueSubscriptionBillingRetry,
-  type RevenueSubscriptionCanceled,
-  type RevenueSubscriptionCreated,
-  type RevenueSubscriptionExpired,
-  type RevenueSubscriptionExtended,
-  type RevenueSubscriptionOfferRedeemed,
-  type RevenueSubscriptionPriceIncreasePending,
-  type RevenueSubscriptionProductChanged,
-  type RevenueSubscriptionRefundReversed,
-  type RevenueSubscriptionRenewed,
-  type RevenueSubscriptionTransferredIn,
-  type RevenueSubscriptionTransferredOut,
-} from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
+  RevenuePurchaseCompletedSchema,
+  RevenuePurchaseRefundedSchema,
+  RevenuePurchaseRevokedSchema,
+  RevenuePurchaseTransferredInSchema,
+  RevenuePurchaseTransferredOutSchema,
+  RevenueSubscriptionAutoRenewResumedSchema,
+  RevenueSubscriptionBillingRetrySchema,
+  RevenueSubscriptionCanceledSchema,
+  RevenueSubscriptionCreatedSchema,
+  RevenueSubscriptionExpiredSchema,
+  RevenueSubscriptionExtendedSchema,
+  RevenueSubscriptionOfferRedeemedSchema,
+  RevenueSubscriptionPriceIncreasePendingSchema,
+  RevenueSubscriptionProductChangedSchema,
+  RevenueSubscriptionRefundReversedSchema,
+  RevenueSubscriptionRenewedSchema,
+  RevenueSubscriptionTransferredInSchema,
+  RevenueSubscriptionTransferredOutSchema,
+} from "@voidhash/core-v2";
 import type { SubscriptionTransferMode } from "../../domain/paymentProvider/SubscriptionTransfer.ts";
 import type { PurchaseProcessingMoney } from "../../domain/purchaseProcessing/PurchaseProcessing.ts";
 import { deterministicAnalyticsEventId } from "../../utils/deterministic-id.ts";
@@ -48,6 +48,8 @@ export interface RevenueAnalyticsMapperContext {
   readonly token: string;
   readonly organizationId: string;
   readonly projectId: string;
+  readonly productId: string;
+  readonly providerProductKey: string;
   /**
    * The purchase-ledger `idempotency_key` for the action being mapped — the
    * stable anchor for every event's deterministic `eventId`. One ledger row
@@ -80,6 +82,8 @@ interface CommonAnalyticsFields {
 interface RevenuePropertiesBase {
   readonly paymentProviderConfigurationId: string;
   readonly paymentProviderConfigurationProductId: string;
+  readonly productId: string;
+  readonly providerProductKey: string;
   readonly providerEnvironment: number;
   readonly providerEventType: string;
   readonly providerId: string;
@@ -119,9 +123,14 @@ interface EventEnvelope {
   readonly transactionId: string | null;
 }
 
-const revenuePropertiesBase = (input: CommonAnalyticsFields): RevenuePropertiesBase => ({
+const revenuePropertiesBase = (
+  input: CommonAnalyticsFields,
+  cfg: RevenueAnalyticsMapperContext,
+): RevenuePropertiesBase => ({
   paymentProviderConfigurationId: input.paymentProviderConfigurationId,
   paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
+  productId: cfg.productId,
+  providerProductKey: cfg.providerProductKey,
   providerEnvironment: input.providerEnvironment,
   providerEventType: input.providerEventType,
   providerId: input.providerId,
@@ -223,14 +232,16 @@ export const toStartedAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly transactionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionCreated | RevenuePurchaseCompleted> => {
+): ReadonlyArray<
+  typeof RevenueSubscriptionCreatedSchema.Type | typeof RevenuePurchaseCompletedSchema.Type
+> => {
   if (Option.isNone(result.transactionId)) {
     return [];
   }
   const transactionId = result.transactionId.value;
-  const base = revenuePropertiesBase(input);
+  const base = revenuePropertiesBase(input, cfg);
   const money = signedMoneyProperties(input.money, 1);
-  const created: RevenueSubscriptionCreated = {
+  const created: typeof RevenueSubscriptionCreatedSchema.Type = {
     ...buildEnvelope({
       cfg,
       eventName: "$subscription.created",
@@ -241,7 +252,7 @@ export const toStartedAnalyticsInputs = (
     eventName: "$subscription.created",
     properties: { ...base, ...money, isTrial: input.isTrial },
   };
-  const completed: RevenuePurchaseCompleted = {
+  const completed: typeof RevenuePurchaseCompletedSchema.Type = {
     ...buildEnvelope({
       cfg,
       eventName: "$purchase.completed",
@@ -263,7 +274,7 @@ export const toRenewedAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly transactionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionRenewed> => {
+): ReadonlyArray<typeof RevenueSubscriptionRenewedSchema.Type> => {
   if (Option.isNone(result.transactionId)) {
     return [];
   }
@@ -279,7 +290,7 @@ export const toRenewedAnalyticsInputs = (
       }),
       eventName: "$subscription.renewed",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         ...signedMoneyProperties(input.money, 1),
         isTrial: input.isTrial,
       },
@@ -295,7 +306,7 @@ export const toCanceledAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionCanceled> => {
+): ReadonlyArray<typeof RevenueSubscriptionCanceledSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -310,7 +321,7 @@ export const toCanceledAnalyticsInputs = (
       }),
       eventName: "$subscription.canceled",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         cancelAtPeriodEnd: input.cancelAtPeriodEnd,
         cancellationReason: Option.getOrNull(input.cancellationReason),
       },
@@ -322,7 +333,7 @@ export const toExpiredAnalyticsInputs = (
   input: CommonAnalyticsFields & { readonly expiredAt: Date },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionExpired> => {
+): ReadonlyArray<typeof RevenueSubscriptionExpiredSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -336,7 +347,7 @@ export const toExpiredAnalyticsInputs = (
         transactionId: null,
       }),
       eventName: "$subscription.expired",
-      properties: revenuePropertiesBase(input),
+      properties: revenuePropertiesBase(input, cfg),
     },
   ];
 };
@@ -356,7 +367,7 @@ export const toRevokedAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionCanceled> => {
+): ReadonlyArray<typeof RevenueSubscriptionCanceledSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -371,7 +382,7 @@ export const toRevokedAnalyticsInputs = (
       }),
       eventName: "$subscription.canceled",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         ...signedMoneyProperties(input.money, -1),
         revocationReason: Option.getOrNull(input.revocationReason),
       },
@@ -387,7 +398,7 @@ export const toOneTimePurchaseAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly transactionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenuePurchaseCompleted> => {
+): ReadonlyArray<typeof RevenuePurchaseCompletedSchema.Type> => {
   if (Option.isNone(result.transactionId)) {
     return [];
   }
@@ -403,7 +414,7 @@ export const toOneTimePurchaseAnalyticsInputs = (
       }),
       eventName: "$purchase.completed",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         ...signedMoneyProperties(input.money, 1),
         purchaseType: input.purchaseType,
       },
@@ -419,7 +430,7 @@ export const toRefundedAnalyticsInputs = (
   },
   result: { readonly personId: string },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenuePurchaseRefunded> => [
+): ReadonlyArray<typeof RevenuePurchaseRefundedSchema.Type> => [
   {
     ...buildEnvelope({
       cfg,
@@ -430,7 +441,7 @@ export const toRefundedAnalyticsInputs = (
     }),
     eventName: "$purchase.refunded",
     properties: {
-      ...revenuePropertiesBase(input),
+      ...revenuePropertiesBase(input, cfg),
       ...signedMoneyProperties(input.money, -1),
       refundReason: Option.getOrNull(input.refundReason),
     },
@@ -445,7 +456,7 @@ export const toPurchaseRevokedAnalyticsInputs = (
   },
   result: { readonly personId: string },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenuePurchaseRevoked> => [
+): ReadonlyArray<typeof RevenuePurchaseRevokedSchema.Type> => [
   {
     ...buildEnvelope({
       cfg,
@@ -456,7 +467,7 @@ export const toPurchaseRevokedAnalyticsInputs = (
     }),
     eventName: "$purchase.revoked",
     properties: {
-      ...revenuePropertiesBase(input),
+      ...revenuePropertiesBase(input, cfg),
       ...signedMoneyProperties(input.money, -1),
       revocationReason: Option.getOrNull(input.revocationReason),
     },
@@ -476,7 +487,7 @@ export const toRefundReversedAnalyticsInputs = (
   },
   result: { readonly personId: string },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionRefundReversed> => [
+): ReadonlyArray<typeof RevenueSubscriptionRefundReversedSchema.Type> => [
   {
     ...buildEnvelope({
       cfg,
@@ -487,7 +498,7 @@ export const toRefundReversedAnalyticsInputs = (
     }),
     eventName: "$subscription.refund_reversed",
     properties: {
-      ...revenuePropertiesBase(input),
+      ...revenuePropertiesBase(input, cfg),
       ...signedMoneyProperties(input.money, 1),
     },
   },
@@ -500,7 +511,7 @@ export const toBillingRetryAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionBillingRetry> => {
+): ReadonlyArray<typeof RevenueSubscriptionBillingRetrySchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -515,7 +526,7 @@ export const toBillingRetryAnalyticsInputs = (
       }),
       eventName: "$subscription.billing_retry",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         gracePeriodExpiresAt: Option.getOrNull(input.gracePeriodExpiresAt),
       },
     },
@@ -529,7 +540,7 @@ export const toExtendedAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionExtended> => {
+): ReadonlyArray<typeof RevenueSubscriptionExtendedSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -544,7 +555,7 @@ export const toExtendedAnalyticsInputs = (
       }),
       eventName: "$subscription.extended",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         extendedTo: input.extendedTo,
       },
     },
@@ -558,7 +569,7 @@ export const toRenewalPreferenceChangeAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionProductChanged> => {
+): ReadonlyArray<typeof RevenueSubscriptionProductChangedSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -573,7 +584,7 @@ export const toRenewalPreferenceChangeAnalyticsInputs = (
       }),
       eventName: "$subscription.product_changed",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         newProviderProductKey: input.newProviderProductKey,
       },
     },
@@ -587,7 +598,7 @@ export const toOfferRedeemedAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionOfferRedeemed> => {
+): ReadonlyArray<typeof RevenueSubscriptionOfferRedeemedSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -602,7 +613,7 @@ export const toOfferRedeemedAnalyticsInputs = (
       }),
       eventName: "$subscription.offer_redeemed",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         offerId: Option.getOrNull(input.offerId),
       },
     },
@@ -623,7 +634,7 @@ export const toPriceIncreaseAnalyticsInputs = (
   },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionPriceIncreasePending> => {
+): ReadonlyArray<typeof RevenueSubscriptionPriceIncreasePendingSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -638,7 +649,7 @@ export const toPriceIncreaseAnalyticsInputs = (
       }),
       eventName: "$subscription.price_increase_pending",
       properties: {
-        ...revenuePropertiesBase(input),
+        ...revenuePropertiesBase(input, cfg),
         ...signedMoneyProperties(input.money, 1),
         effectiveAt: Option.getOrNull(input.effectiveAt),
       },
@@ -650,7 +661,7 @@ export const toAutoRenewResumedAnalyticsInputs = (
   input: CommonAnalyticsFields & { readonly occurredAt: Date },
   result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionAutoRenewResumed> => {
+): ReadonlyArray<typeof RevenueSubscriptionAutoRenewResumedSchema.Type> => {
   if (Option.isNone(result.subscriptionId)) {
     return [];
   }
@@ -664,7 +675,7 @@ export const toAutoRenewResumedAnalyticsInputs = (
         transactionId: null,
       }),
       eventName: "$subscription.auto_renew_resumed",
-      properties: revenuePropertiesBase(input),
+      properties: revenuePropertiesBase(input, cfg),
     },
   ];
 };
@@ -706,12 +717,17 @@ export interface SubscriptionTransferAnalyticsInput {
 export const toSubscriptionTransferredAnalyticsInputs = (
   input: SubscriptionTransferAnalyticsInput,
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenueSubscriptionTransferredOut | RevenueSubscriptionTransferredIn> => {
+): ReadonlyArray<
+  | typeof RevenueSubscriptionTransferredOutSchema.Type
+  | typeof RevenueSubscriptionTransferredInSchema.Type
+> => {
   const properties = {
     fromDistinctId: input.fromDistinctId,
     fromPersonId: input.fromPersonId,
     paymentProviderConfigurationId: input.paymentProviderConfigurationId,
     paymentProviderConfigurationProductId: input.subscription.paymentProviderConfigurationProductId,
+    productId: cfg.productId,
+    providerProductKey: cfg.providerProductKey,
     providerEnvironment: input.subscription.providerEnvironment,
     providerEventType: "subscription.transferred",
     providerId: input.providerId,
@@ -724,7 +740,7 @@ export const toSubscriptionTransferredAnalyticsInputs = (
     transferReason: input.triggerReason,
     transferredAt: input.occurredAt,
   };
-  const transferredOut: RevenueSubscriptionTransferredOut = {
+  const transferredOut: typeof RevenueSubscriptionTransferredOutSchema.Type = {
     context: baseContext(),
     distinctId: input.fromDistinctId,
     eventId: deterministicAnalyticsEventId({
@@ -741,7 +757,7 @@ export const toSubscriptionTransferredAnalyticsInputs = (
     token: cfg.token,
     transactionId: null,
   };
-  const transferredIn: RevenueSubscriptionTransferredIn = {
+  const transferredIn: typeof RevenueSubscriptionTransferredInSchema.Type = {
     context: baseContext(),
     distinctId: input.toDistinctId,
     eventId: deterministicAnalyticsEventId({
@@ -788,12 +804,16 @@ export interface PurchaseTransferAnalyticsInput {
 export const toPurchaseTransferredAnalyticsInputs = (
   input: PurchaseTransferAnalyticsInput,
   cfg: RevenueAnalyticsMapperContext,
-): ReadonlyArray<RevenuePurchaseTransferredOut | RevenuePurchaseTransferredIn> => {
+): ReadonlyArray<
+  typeof RevenuePurchaseTransferredOutSchema.Type | typeof RevenuePurchaseTransferredInSchema.Type
+> => {
   const properties = {
     fromDistinctId: input.fromDistinctId,
     fromPersonId: input.fromPersonId,
     paymentProviderConfigurationId: input.paymentProviderConfigurationId,
     paymentProviderConfigurationProductId: input.purchase.paymentProviderConfigurationProductId,
+    productId: cfg.productId,
+    providerProductKey: cfg.providerProductKey,
     providerEnvironment: input.purchase.providerEnvironment,
     providerEventType: "purchase.transferred",
     providerId: input.providerId,
@@ -806,7 +826,7 @@ export const toPurchaseTransferredAnalyticsInputs = (
     transferReason: input.triggerReason,
     transferredAt: input.occurredAt,
   };
-  const transferredOut: RevenuePurchaseTransferredOut = {
+  const transferredOut: typeof RevenuePurchaseTransferredOutSchema.Type = {
     context: baseContext(),
     distinctId: input.fromDistinctId,
     eventId: deterministicAnalyticsEventId({
@@ -823,7 +843,7 @@ export const toPurchaseTransferredAnalyticsInputs = (
     token: cfg.token,
     transactionId: null,
   };
-  const transferredIn: RevenuePurchaseTransferredIn = {
+  const transferredIn: typeof RevenuePurchaseTransferredInSchema.Type = {
     context: baseContext(),
     distinctId: input.toDistinctId,
     eventId: deterministicAnalyticsEventId({

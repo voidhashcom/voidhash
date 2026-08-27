@@ -174,21 +174,20 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
           });
         }).pipe(
           Effect.catchTags({
-            CaptureDependencyUnavailableErrorJsonEncoding: (err) =>
-              failRetryable(err.response.status),
-            CaptureInternalServerErrorJsonEncoding: (err) => failRetryable(err.response.status),
+            CaptureDependencyUnavailableError: (err) => failRetryable(err.response.status),
+            CaptureInternalServerError: (err) => failRetryable(err.response.status),
             // The 400 is now a typed contract error rather than an untagged
             // `EventCaptureBatch400`.
-            CaptureInvalidRequestErrorJsonEncoding: (err) => failNonRetryable(err.response.status),
-            CapturePayloadTooLargeErrorJsonEncoding: (err) => failNonRetryable(err.response.status),
-            CaptureRateLimitedErrorJsonEncoding: (err) =>
+            CaptureInvalidRequestError: (err) => failNonRetryable(err.response.status),
+            CapturePayloadTooLargeError: (err) => failNonRetryable(err.response.status),
+            CaptureRateLimitedError: (err) =>
               failRetryable(
                 err.response.status,
                 parseRetryAfterMs(err.response.headers["retry-after"]) ??
                   err.data.retry_after_ms ??
                   undefined,
               ),
-            CaptureUnauthorizedErrorJsonEncoding: (err) => failNonRetryable(err.response.status),
+            CaptureUnauthorizedError: (err) => failNonRetryable(err.response.status),
           }),
           // Unmapped status codes (e.g. 408/502/504) surface as
           // `HttpClientError`; treat network errors and the retryable subset

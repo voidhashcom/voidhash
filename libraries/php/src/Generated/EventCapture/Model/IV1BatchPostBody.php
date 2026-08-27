@@ -13,7 +13,7 @@ class IV1BatchPostBody
         return array_key_exists($property, $this->initialized);
     }
     /**
-     * @var list<CaptureEvent>
+     * @var list<IV1BatchPostBodyEventsItem>
      */
     protected $events;
     /**
@@ -25,14 +25,14 @@ class IV1BatchPostBody
      */
     protected $token;
     /**
-     * @return list<CaptureEvent>
+     * @return list<IV1BatchPostBodyEventsItem>
      */
     public function getEvents(): array
     {
         return $this->events;
     }
     /**
-     * @param list<CaptureEvent> $events
+     * @param list<IV1BatchPostBodyEventsItem> $events
      *
      * @return self
      */

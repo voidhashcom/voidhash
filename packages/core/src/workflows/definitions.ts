@@ -55,6 +55,19 @@ export const PurchaseLedgerDrain = Workflow.define({
   idempotencyKey: ({ runId }) => runId,
 });
 
+/** Retries parked provider events whose product or transaction dependency now exists. */
+export const PendingRevenueReplaySweep = Workflow.define({
+  name: "PendingRevenueReplaySweepWorkflow",
+  payload: { runId: Schema.String },
+  success: Schema.Struct({
+    appliedCount: Schema.Number,
+    candidateCount: Schema.Number,
+    failedCount: Schema.Number,
+    totalParked: Schema.Number,
+  }),
+  idempotencyKey: ({ runId }) => runId,
+});
+
 /** Expires App Store notifications that outlive the SDK-confirmation window. */
 export const AppStoreExpireParkedNotifications = Workflow.define({
   name: "AppStoreExpireParkedNotificationsWorkflow",

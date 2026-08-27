@@ -6,6 +6,7 @@ export type CaptureInput = {
   readonly distinctId: string;
   readonly event: string;
   readonly properties?: Record<string, unknown>;
+  readonly timestamp: Date;
 };
 
 export type PersonAttributesInput = {
@@ -52,6 +53,7 @@ export const createAnalytics = (voidhash: VoidhashNodeClient): Analytics => {
           distinctId: input.distinctId,
           event: input.event,
           properties: input.properties,
+          timestamp: input.timestamp.toISOString(),
         }),
       );
     },
@@ -68,10 +70,7 @@ export const createAnalytics = (voidhash: VoidhashNodeClient): Analytics => {
           payload: { traits: input.traits },
         });
       };
-      forget(
-        `attribute write for "${input.distinctId}"`,
-        update(),
-      );
+      forget(`attribute write for "${input.distinctId}"`, update());
     },
   };
 };

@@ -1,121 +1,117 @@
-import type * as HttpClient from "effect/unstable/http/HttpClient"
-import * as HttpClientError from "effect/unstable/http/HttpClientError"
-import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest"
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse"
-import * as Data from "effect/Data"
-import * as Effect from "effect/Effect"
+import type * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientError from "effect/unstable/http/HttpClientError";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as Data from "effect/Data";
+import * as Effect from "effect/Effect";
 
 export interface EventCaptureCaptureParams {
-  readonly "x-secret-key"?: string | null | undefined
+  readonly "x-secret-key"?: string | null | undefined;
 }
-
-export type Objects = Record<string, unknown>
-
-export type Objects1 = Record<string, unknown>
 
 export interface EventCaptureCaptureRequest {
-  readonly "uuid": string;
-  readonly "event": string;
-  readonly "context": Objects;
-  readonly "properties": Objects1;
-  readonly "distinct_id": string;
-  readonly "session_id"?: string | null | undefined;
-  readonly "timestamp"?: string | null | undefined;
-  readonly "sent_at": string;
-  readonly "token"?: string | null | undefined
+  readonly uuid: string;
+  readonly event: string;
+  readonly context: Record<string, unknown>;
+  readonly properties: Record<string, unknown>;
+  readonly distinct_id: string;
+  readonly session_id?: string | null | undefined;
+  readonly timestamp: string;
+  readonly sent_at: string;
+  readonly token?: string | null | undefined;
 }
 
-export interface CaptureAcceptedResponseJsonEncoding {
-  readonly "accepted": number;
-  readonly "rejected": number
+export interface CaptureAcceptedResponse {
+  readonly accepted: number;
+  readonly rejected: number;
 }
 
-export type CaptureInvalidRequestErrorJsonEncodingTag = "CaptureInvalidRequestError"
+export type CaptureInvalidRequestErrorTag = "CaptureInvalidRequestError";
 
-export type CaptureInvalidRequestErrorJsonEncodingCode = "invalid_request"
+export type CaptureInvalidRequestErrorCode = "invalid_request";
 
-export interface CaptureInvalidRequestErrorJsonEncoding {
-  readonly "_tag": CaptureInvalidRequestErrorJsonEncodingTag;
-  readonly "error": string;
-  readonly "code": CaptureInvalidRequestErrorJsonEncodingCode
+export interface CaptureInvalidRequestError {
+  readonly _tag: CaptureInvalidRequestErrorTag;
+  readonly error: string;
+  readonly code: CaptureInvalidRequestErrorCode;
 }
 
-export type CaptureUnauthorizedErrorJsonEncodingTag = "CaptureUnauthorizedError"
+export type CaptureUnauthorizedErrorTag = "CaptureUnauthorizedError";
 
-export type CaptureUnauthorizedErrorJsonEncodingCode = "unauthorized"
+export type CaptureUnauthorizedErrorCode = "unauthorized";
 
-export interface CaptureUnauthorizedErrorJsonEncoding {
-  readonly "_tag": CaptureUnauthorizedErrorJsonEncodingTag;
-  readonly "error": string;
-  readonly "code": CaptureUnauthorizedErrorJsonEncodingCode
+export interface CaptureUnauthorizedError {
+  readonly _tag: CaptureUnauthorizedErrorTag;
+  readonly error: string;
+  readonly code: CaptureUnauthorizedErrorCode;
 }
 
-export type CapturePayloadTooLargeErrorJsonEncodingTag = "CapturePayloadTooLargeError"
+export type CapturePayloadTooLargeErrorTag = "CapturePayloadTooLargeError";
 
-export type CapturePayloadTooLargeErrorJsonEncodingCode = "payload_too_large"
+export type CapturePayloadTooLargeErrorCode = "payload_too_large";
 
-export interface CapturePayloadTooLargeErrorJsonEncoding {
-  readonly "_tag": CapturePayloadTooLargeErrorJsonEncodingTag;
-  readonly "error": string;
-  readonly "code": CapturePayloadTooLargeErrorJsonEncodingCode
+export interface CapturePayloadTooLargeError {
+  readonly _tag: CapturePayloadTooLargeErrorTag;
+  readonly error: string;
+  readonly code: CapturePayloadTooLargeErrorCode;
 }
 
-export type CaptureRateLimitedErrorJsonEncodingTag = "CaptureRateLimitedError"
+export type CaptureRateLimitedErrorTag = "CaptureRateLimitedError";
 
-export type CaptureRateLimitedErrorJsonEncodingCode = "rate_limited"
+export type CaptureRateLimitedErrorCode = "rate_limited";
 
-export interface CaptureRateLimitedErrorJsonEncoding {
-  readonly "_tag": CaptureRateLimitedErrorJsonEncodingTag;
-  readonly "error": string;
-  readonly "code": CaptureRateLimitedErrorJsonEncodingCode;
-  readonly "retry_after_ms"?: number | null | undefined
+export interface CaptureRateLimitedError {
+  readonly _tag: CaptureRateLimitedErrorTag;
+  readonly error: string;
+  readonly code: CaptureRateLimitedErrorCode;
+  readonly retry_after_ms?: number | null | undefined;
 }
 
-export type CaptureInternalServerErrorJsonEncodingTag = "CaptureInternalServerError"
+export type CaptureInternalServerErrorTag = "CaptureInternalServerError";
 
-export type CaptureInternalServerErrorJsonEncodingCode = "internal_error"
+export type CaptureInternalServerErrorCode = "internal_error";
 
-export interface CaptureInternalServerErrorJsonEncoding {
-  readonly "_tag": CaptureInternalServerErrorJsonEncodingTag;
-  readonly "error": string;
-  readonly "code": CaptureInternalServerErrorJsonEncodingCode
+export interface CaptureInternalServerError {
+  readonly _tag: CaptureInternalServerErrorTag;
+  readonly error: string;
+  readonly code: CaptureInternalServerErrorCode;
 }
 
-export type CaptureDependencyUnavailableErrorJsonEncodingTag = "CaptureDependencyUnavailableError"
+export type CaptureDependencyUnavailableErrorTag = "CaptureDependencyUnavailableError";
 
-export type CaptureDependencyUnavailableErrorJsonEncodingCode = "dependency_unavailable"
+export type CaptureDependencyUnavailableErrorCode = "dependency_unavailable";
 
-export interface CaptureDependencyUnavailableErrorJsonEncoding {
-  readonly "_tag": CaptureDependencyUnavailableErrorJsonEncodingTag;
-  readonly "error": string;
-  readonly "code": CaptureDependencyUnavailableErrorJsonEncodingCode
+export interface CaptureDependencyUnavailableError {
+  readonly _tag: CaptureDependencyUnavailableErrorTag;
+  readonly error: string;
+  readonly code: CaptureDependencyUnavailableErrorCode;
 }
 
 export interface EventCaptureBatchParams {
-  readonly "x-secret-key"?: string | null | undefined
-}
-
-export interface Objects2 {
-  readonly "uuid": string;
-  readonly "event": string;
-  readonly "context": Objects;
-  readonly "properties": Objects1;
-  readonly "distinct_id": string;
-  readonly "session_id"?: string | null | undefined;
-  readonly "timestamp"?: string | null | undefined
+  readonly "x-secret-key"?: string | null | undefined;
 }
 
 export interface EventCaptureBatchRequest {
-  readonly "events": ReadonlyArray<Objects2>;
-  readonly "sent_at": string;
-  readonly "token"?: string | null | undefined
+  readonly events: ReadonlyArray<{
+    readonly uuid: string;
+    readonly event: string;
+    readonly context: Record<string, unknown>;
+    readonly properties: Record<string, unknown>;
+    readonly distinct_id: string;
+    readonly session_id?: string | null | undefined;
+    readonly timestamp: string;
+  }>;
+  readonly sent_at: string;
+  readonly token?: string | null | undefined;
 }
 
 export const make = (
-  httpClient: HttpClient.HttpClient, 
+  httpClient: HttpClient.HttpClient,
   options: {
-    readonly transformClient?: ((client: HttpClient.HttpClient) => Effect.Effect<HttpClient.HttpClient>) | undefined
-  } = {}
+    readonly transformClient?:
+      | ((client: HttpClient.HttpClient) => Effect.Effect<HttpClient.HttpClient>)
+      | undefined;
+  } = {},
 ): VoidhashEventCaptureClient => {
   const unexpectedStatus = (response: HttpClientResponse.HttpClientResponse) =>
     Effect.flatMap(
@@ -127,30 +123,26 @@ export const make = (
               request: response.request,
               response,
               description:
-                typeof description === "string"
-                  ? description
-                  : JSON.stringify(description),
+                typeof description === "string" ? description : JSON.stringify(description),
             }),
           }),
         ),
-    )
+    );
   const withResponse: <A, E>(
     f: (response: HttpClientResponse.HttpClientResponse) => Effect.Effect<A, E>,
-  ) => (
-    request: HttpClientRequest.HttpClientRequest,
-  ) => Effect.Effect<any, any> = options.transformClient
-    ? (f) => (request) =>
-        Effect.flatMap(
-          Effect.flatMap(options.transformClient!(httpClient), (client) =>
-            client.execute(request),
-          ),
-          f,
-        )
-    : (f) => (request) => Effect.flatMap(httpClient.execute(request), f)
+  ) => (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<any, any> =
+    options.transformClient
+      ? (f) => (request) =>
+          Effect.flatMap(
+            Effect.flatMap(options.transformClient!(httpClient), (client) =>
+              client.execute(request),
+            ),
+            f,
+          )
+      : (f) => (request) => Effect.flatMap(httpClient.execute(request), f);
   const decodeSuccess = <A>(response: HttpClientResponse.HttpClientResponse) =>
-    response.json as Effect.Effect<A, HttpClientError.HttpClientError>
-  const decodeVoid = (_response: HttpClientResponse.HttpClientResponse) =>
-    Effect.void
+    response.json as Effect.Effect<A, HttpClientError.HttpClientError>;
+  const decodeVoid = (_response: HttpClientResponse.HttpClientResponse) => Effect.void;
   const decodeError =
     <Tag extends string, E>(tag: Tag) =>
     (
@@ -159,65 +151,111 @@ export const make = (
       never,
       VoidhashEventCaptureClientError<Tag, E> | HttpClientError.HttpClientError
     > =>
-      Effect.flatMap(
-        response.json as Effect.Effect<E, HttpClientError.HttpClientError>,
-        (cause) => Effect.fail(VoidhashEventCaptureClientError(tag, cause, response)),
-      )
-  const onRequest = (
-    successCodes: ReadonlyArray<string>,
-    errorCodes?: Record<string, string>,
-  ) => {
-    const cases: any = { orElse: unexpectedStatus }
+      Effect.flatMap(response.json as Effect.Effect<E, HttpClientError.HttpClientError>, (cause) =>
+        Effect.fail(VoidhashEventCaptureClientError(tag, cause, response)),
+      );
+  const onRequest = (successCodes: ReadonlyArray<string>, errorCodes?: Record<string, string>) => {
+    const cases: any = { orElse: unexpectedStatus };
     for (const code of successCodes) {
-      cases[code] = decodeSuccess
+      cases[code] = decodeSuccess;
     }
     if (errorCodes) {
       for (const [code, tag] of Object.entries(errorCodes)) {
-        cases[code] = decodeError(tag)
+        cases[code] = decodeError(tag);
       }
     }
     if (successCodes.length === 0) {
-      cases["2xx"] = decodeVoid
+      cases["2xx"] = decodeVoid;
     }
-    return withResponse(HttpClientResponse.matchStatus(cases) as any)
-  }
+    return withResponse(HttpClientResponse.matchStatus(cases) as any);
+  };
   return {
     httpClient,
-    "eventCaptureCapture": (options) => HttpClientRequest.post(`/i/v1/capture`).pipe(
-    HttpClientRequest.setHeaders({ "x-secret-key": options.params?.["x-secret-key"] ?? undefined }),
-    HttpClientRequest.bodyJsonUnsafe(options.payload),
-    onRequest(["2xx"], {"400":"CaptureInvalidRequestErrorJsonEncoding","401":"CaptureUnauthorizedErrorJsonEncoding","413":"CapturePayloadTooLargeErrorJsonEncoding","429":"CaptureRateLimitedErrorJsonEncoding","500":"CaptureInternalServerErrorJsonEncoding","503":"CaptureDependencyUnavailableErrorJsonEncoding"})
-  ),
-  "eventCaptureBatch": (options) => HttpClientRequest.post(`/i/v1/batch`).pipe(
-    HttpClientRequest.setHeaders({ "x-secret-key": options.params?.["x-secret-key"] ?? undefined }),
-    HttpClientRequest.bodyJsonUnsafe(options.payload),
-    onRequest(["2xx"], {"400":"CaptureInvalidRequestErrorJsonEncoding","401":"CaptureUnauthorizedErrorJsonEncoding","413":"CapturePayloadTooLargeErrorJsonEncoding","429":"CaptureRateLimitedErrorJsonEncoding","500":"CaptureInternalServerErrorJsonEncoding","503":"CaptureDependencyUnavailableErrorJsonEncoding"})
-  )
-  }
-}
+    eventCaptureCapture: (options) =>
+      HttpClientRequest.post(`/i/v1/capture`).pipe(
+        HttpClientRequest.setHeaders({
+          "x-secret-key": options.params?.["x-secret-key"] ?? undefined,
+        }),
+        HttpClientRequest.bodyJsonUnsafe(options.payload),
+        onRequest(["2xx"], {
+          "400": "CaptureInvalidRequestError",
+          "401": "CaptureUnauthorizedError",
+          "413": "CapturePayloadTooLargeError",
+          "429": "CaptureRateLimitedError",
+          "500": "CaptureInternalServerError",
+          "503": "CaptureDependencyUnavailableError",
+        }),
+      ),
+    eventCaptureBatch: (options) =>
+      HttpClientRequest.post(`/i/v1/batch`).pipe(
+        HttpClientRequest.setHeaders({
+          "x-secret-key": options.params?.["x-secret-key"] ?? undefined,
+        }),
+        HttpClientRequest.bodyJsonUnsafe(options.payload),
+        onRequest(["2xx"], {
+          "400": "CaptureInvalidRequestError",
+          "401": "CaptureUnauthorizedError",
+          "413": "CapturePayloadTooLargeError",
+          "429": "CaptureRateLimitedError",
+          "500": "CaptureInternalServerError",
+          "503": "CaptureDependencyUnavailableError",
+        }),
+      ),
+  };
+};
 
 export interface VoidhashEventCaptureClient {
-  readonly httpClient: HttpClient.HttpClient
-  readonly "eventCaptureCapture": (options: { readonly params?: EventCaptureCaptureParams | undefined; readonly payload: EventCaptureCaptureRequest }) => Effect.Effect<CaptureAcceptedResponseJsonEncoding, HttpClientError.HttpClientError | VoidhashEventCaptureClientError<"CaptureInvalidRequestErrorJsonEncoding", CaptureInvalidRequestErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureUnauthorizedErrorJsonEncoding", CaptureUnauthorizedErrorJsonEncoding> | VoidhashEventCaptureClientError<"CapturePayloadTooLargeErrorJsonEncoding", CapturePayloadTooLargeErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureRateLimitedErrorJsonEncoding", CaptureRateLimitedErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureInternalServerErrorJsonEncoding", CaptureInternalServerErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureDependencyUnavailableErrorJsonEncoding", CaptureDependencyUnavailableErrorJsonEncoding>>
-  readonly "eventCaptureBatch": (options: { readonly params?: EventCaptureBatchParams | undefined; readonly payload: EventCaptureBatchRequest }) => Effect.Effect<CaptureAcceptedResponseJsonEncoding, HttpClientError.HttpClientError | VoidhashEventCaptureClientError<"CaptureInvalidRequestErrorJsonEncoding", CaptureInvalidRequestErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureUnauthorizedErrorJsonEncoding", CaptureUnauthorizedErrorJsonEncoding> | VoidhashEventCaptureClientError<"CapturePayloadTooLargeErrorJsonEncoding", CapturePayloadTooLargeErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureRateLimitedErrorJsonEncoding", CaptureRateLimitedErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureInternalServerErrorJsonEncoding", CaptureInternalServerErrorJsonEncoding> | VoidhashEventCaptureClientError<"CaptureDependencyUnavailableErrorJsonEncoding", CaptureDependencyUnavailableErrorJsonEncoding>>
+  readonly httpClient: HttpClient.HttpClient;
+  readonly eventCaptureCapture: (options: {
+    readonly params?: EventCaptureCaptureParams | undefined;
+    readonly payload: EventCaptureCaptureRequest;
+  }) => Effect.Effect<
+    CaptureAcceptedResponse,
+    | HttpClientError.HttpClientError
+    | VoidhashEventCaptureClientError<"CaptureInvalidRequestError", CaptureInvalidRequestError>
+    | VoidhashEventCaptureClientError<"CaptureUnauthorizedError", CaptureUnauthorizedError>
+    | VoidhashEventCaptureClientError<"CapturePayloadTooLargeError", CapturePayloadTooLargeError>
+    | VoidhashEventCaptureClientError<"CaptureRateLimitedError", CaptureRateLimitedError>
+    | VoidhashEventCaptureClientError<"CaptureInternalServerError", CaptureInternalServerError>
+    | VoidhashEventCaptureClientError<
+        "CaptureDependencyUnavailableError",
+        CaptureDependencyUnavailableError
+      >
+  >;
+  readonly eventCaptureBatch: (options: {
+    readonly params?: EventCaptureBatchParams | undefined;
+    readonly payload: EventCaptureBatchRequest;
+  }) => Effect.Effect<
+    CaptureAcceptedResponse,
+    | HttpClientError.HttpClientError
+    | VoidhashEventCaptureClientError<"CaptureInvalidRequestError", CaptureInvalidRequestError>
+    | VoidhashEventCaptureClientError<"CaptureUnauthorizedError", CaptureUnauthorizedError>
+    | VoidhashEventCaptureClientError<"CapturePayloadTooLargeError", CapturePayloadTooLargeError>
+    | VoidhashEventCaptureClientError<"CaptureRateLimitedError", CaptureRateLimitedError>
+    | VoidhashEventCaptureClientError<"CaptureInternalServerError", CaptureInternalServerError>
+    | VoidhashEventCaptureClientError<
+        "CaptureDependencyUnavailableError",
+        CaptureDependencyUnavailableError
+      >
+  >;
 }
 
 export interface VoidhashEventCaptureClientError<Tag extends string, E> extends Error {
-  readonly _tag: Tag
-  readonly request: HttpClientRequest.HttpClientRequest
-  readonly response: HttpClientResponse.HttpClientResponse
-  readonly data: E
-  readonly message: string
+  readonly _tag: Tag;
+  readonly request: HttpClientRequest.HttpClientRequest;
+  readonly response: HttpClientResponse.HttpClientResponse;
+  readonly data: E;
+  readonly message: string;
 }
 
 class VoidhashEventCaptureClientErrorImpl extends Data.Error<{
-  _tag: string
-  data: any
-  message: string
-  request: HttpClientRequest.HttpClientRequest
-  response: HttpClientResponse.HttpClientResponse
+  _tag: string;
+  data: any;
+  message: string;
+  request: HttpClientRequest.HttpClientRequest;
+  response: HttpClientResponse.HttpClientResponse;
 }> {
-  name = "VoidhashEventCaptureClientError"
+  name = "VoidhashEventCaptureClientError";
 }
 
 export const VoidhashEventCaptureClientError = <Tag extends string, E>(
@@ -231,4 +269,4 @@ export const VoidhashEventCaptureClientError = <Tag extends string, E>(
     message: JSON.stringify(data),
     response,
     request: response.request,
-  }) as any
+  }) as any;

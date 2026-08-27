@@ -28,7 +28,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureAcceptedResponseJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
                 }
               }
             }
@@ -38,7 +38,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureInvalidRequestErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureInvalidRequestError"
                 }
               }
             }
@@ -48,7 +48,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureUnauthorizedErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
                 }
               }
             }
@@ -58,7 +58,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CapturePayloadTooLargeErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CapturePayloadTooLargeError"
                 }
               }
             }
@@ -68,7 +68,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureRateLimitedErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureRateLimitedError"
                 }
               }
             }
@@ -78,7 +78,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureInternalServerErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
                 }
               }
             }
@@ -88,7 +88,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureDependencyUnavailableErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
                 }
               }
             }
@@ -109,10 +109,16 @@
                     "minLength": 1
                   },
                   "context": {
-                    "$ref": "#/components/schemas/Objects_"
+                    "type": "object",
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/CaptureEventValue"
+                    }
                   },
                   "properties": {
-                    "$ref": "#/components/schemas/Objects_1"
+                    "type": "object",
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/CaptureContextValue"
+                    }
                   },
                   "distinct_id": {
                     "type": "string",
@@ -124,7 +130,6 @@
                     "minLength": 1
                   },
                   "timestamp": {
-                    "nullable": true,
                     "type": "string"
                   },
                   "sent_at": {
@@ -142,6 +147,7 @@
                   "context",
                   "properties",
                   "distinct_id",
+                  "timestamp",
                   "sent_at"
                 ],
                 "additionalProperties": false
@@ -175,7 +181,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureAcceptedResponseJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureAcceptedResponse"
                 }
               }
             }
@@ -185,7 +191,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureInvalidRequestErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureInvalidRequestError"
                 }
               }
             }
@@ -195,7 +201,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureUnauthorizedErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureUnauthorizedError"
                 }
               }
             }
@@ -205,7 +211,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CapturePayloadTooLargeErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CapturePayloadTooLargeError"
                 }
               }
             }
@@ -215,7 +221,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureRateLimitedErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureRateLimitedError"
                 }
               }
             }
@@ -225,7 +231,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureInternalServerErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureInternalServerError"
                 }
               }
             }
@@ -235,7 +241,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CaptureDependencyUnavailableErrorJsonEncoding"
+                  "$ref": "#/components/schemas/CaptureDependencyUnavailableError"
                 }
               }
             }
@@ -251,7 +257,50 @@
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                      "$ref": "#/components/schemas/CaptureEvent"
+                      "type": "object",
+                      "properties": {
+                        "uuid": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "event": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "context": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/CaptureEventValue"
+                          }
+                        },
+                        "properties": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "$ref": "#/components/schemas/CaptureContextValue"
+                          }
+                        },
+                        "distinct_id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "session_id": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "timestamp": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "uuid",
+                        "event",
+                        "context",
+                        "properties",
+                        "distinct_id",
+                        "timestamp"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "sent_at": {
@@ -278,19 +327,7 @@
   },
   "components": {
     "schemas": {
-      "Objects_": {
-        "type": "object",
-        "additionalProperties": {
-          "$ref": "#/components/schemas/CaptureEventValue"
-        }
-      },
-      "Objects_1": {
-        "type": "object",
-        "additionalProperties": {
-          "$ref": "#/components/schemas/CaptureContextValue"
-        }
-      },
-      "CaptureAcceptedResponseJsonEncoding": {
+      "CaptureAcceptedResponse": {
         "type": "object",
         "properties": {
           "accepted": {
@@ -306,7 +343,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureInvalidRequestErrorJsonEncoding": {
+      "CaptureInvalidRequestError": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -333,7 +370,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureUnauthorizedErrorJsonEncoding": {
+      "CaptureUnauthorizedError": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -360,7 +397,7 @@
         ],
         "additionalProperties": false
       },
-      "CapturePayloadTooLargeErrorJsonEncoding": {
+      "CapturePayloadTooLargeError": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -387,7 +424,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureRateLimitedErrorJsonEncoding": {
+      "CaptureRateLimitedError": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -418,7 +455,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureDependencyUnavailableErrorJsonEncoding": {
+      "CaptureDependencyUnavailableError": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -445,7 +482,7 @@
         ],
         "additionalProperties": false
       },
-      "CaptureInternalServerErrorJsonEncoding": {
+      "CaptureInternalServerError": {
         "type": "object",
         "properties": {
           "_tag": {
@@ -523,46 +560,6 @@
             }
           }
         ]
-      },
-      "CaptureEvent": {
-        "type": "object",
-        "properties": {
-          "uuid": {
-            "type": "string",
-            "minLength": 1
-          },
-          "event": {
-            "type": "string",
-            "minLength": 1
-          },
-          "context": {
-            "$ref": "#/components/schemas/Objects_"
-          },
-          "properties": {
-            "$ref": "#/components/schemas/Objects_1"
-          },
-          "distinct_id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "session_id": {
-            "nullable": true,
-            "type": "string",
-            "minLength": 1
-          },
-          "timestamp": {
-            "nullable": true,
-            "type": "string"
-          }
-        },
-        "required": [
-          "uuid",
-          "event",
-          "context",
-          "properties",
-          "distinct_id"
-        ],
-        "additionalProperties": false
       }
     },
     "securitySchemes": {}

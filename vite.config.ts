@@ -35,8 +35,8 @@ const reactErgonomicRules = {
  */
 const nonEffectPackages = [
   "libraries/paywalls/**",
-  "packages/mimic-core/**",
-  "packages/mimic/**",
+  "vendored/mimic/packages/mimic-core/**",
+  "vendored/mimic/packages/mimic/**",
   "packages/paywall-style-engine/**",
 ];
 
@@ -71,7 +71,7 @@ const effectRulesOff = Object.fromEntries(Object.keys(recommended).map((rule) =>
  * the two lists must describe the same set of directories.
  */
 const reactSurfaces = [
-  "apps/mimic-admin/**",
+  "vendored/mimic/apps/mimic-admin/**",
   "apps/www/**",
   "examples/**",
   "libraries/react-native/**",

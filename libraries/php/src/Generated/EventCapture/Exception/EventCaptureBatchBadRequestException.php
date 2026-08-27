@@ -5,22 +5,22 @@ namespace Voidhash\Generated\EventCapture\Exception;
 class EventCaptureBatchBadRequestException extends BadRequestException
 {
     /**
-     * @var \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestErrorJsonEncoding
+     * @var \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError
      */
-    private $captureInvalidRequestErrorJsonEncoding;
+    private $captureInvalidRequestError;
     /**
      * @var \Psr\Http\Message\ResponseInterface
      */
     private $response;
-    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestErrorJsonEncoding $captureInvalidRequestErrorJsonEncoding, \Psr\Http\Message\ResponseInterface $response)
+    public function __construct(\Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError $captureInvalidRequestError, \Psr\Http\Message\ResponseInterface $response)
     {
         parent::__construct('CaptureInvalidRequestError');
-        $this->captureInvalidRequestErrorJsonEncoding = $captureInvalidRequestErrorJsonEncoding;
+        $this->captureInvalidRequestError = $captureInvalidRequestError;
         $this->response = $response;
     }
-    public function getCaptureInvalidRequestErrorJsonEncoding(): \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestErrorJsonEncoding
+    public function getCaptureInvalidRequestError(): \Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError
     {
-        return $this->captureInvalidRequestErrorJsonEncoding;
+        return $this->captureInvalidRequestError;
     }
     public function getResponse(): \Psr\Http\Message\ResponseInterface
     {

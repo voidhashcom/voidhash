@@ -60,14 +60,13 @@ export const Route = createFileRoute(
 });
 
 /**
- * Gate the Feature Flags product behind the `experimentation` internal feature
- * flag so the page cannot be reached by direct URL for orgs that are not yet in
- * the tester rollout.
+ * Gate the customer-facing Feature Flags product so disabled organizations
+ * cannot reach it through a direct URL.
  */
 function FlagsIndexRoute() {
-  const experimentationEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.experimentation.key);
+  const featureFlagsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.featureFlags.key);
 
-  if (!experimentationEnabled) {
+  if (!featureFlagsEnabled) {
     return (
       <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "This page is not available." }} />
     );

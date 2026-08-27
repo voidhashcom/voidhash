@@ -54,32 +54,32 @@ class EventCaptureBatch extends \Voidhash\Generated\EventCapture\Runtime\Client\
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchInternalServerErrorException
      * @throws \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchServiceUnavailableException
      *
-     * @return null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding
+     * @return null|\Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse
      */
     protected function transformResponseBody(\Psr\Http\Message\ResponseInterface $response, \Symfony\Component\Serializer\SerializerInterface $serializer, ?string $contentType = null)
     {
         $status = $response->getStatusCode();
         $body = (string) $response->getBody();
         if (is_null($contentType) === false && (202 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            return $serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponseJsonEncoding', 'json');
+            return $serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureAcceptedResponse', 'json');
         }
         if (is_null($contentType) === false && (400 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchBadRequestException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchBadRequestException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureInvalidRequestError', 'json'), $response);
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchUnauthorizedException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureUnauthorizedError', 'json'), $response);
         }
         if (is_null($contentType) === false && (413 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchRequestEntityTooLargeException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchRequestEntityTooLargeException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CapturePayloadTooLargeError', 'json'), $response);
         }
         if (is_null($contentType) === false && (429 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureRateLimitedErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchTooManyRequestsException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureRateLimitedError', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureInternalServerErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchInternalServerErrorException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureInternalServerError', 'json'), $response);
         }
         if (is_null($contentType) === false && (503 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
-            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchServiceUnavailableException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableErrorJsonEncoding', 'json'), $response);
+            throw new \Voidhash\Generated\EventCapture\Exception\EventCaptureBatchServiceUnavailableException($serializer->deserialize($body, 'Voidhash\Generated\EventCapture\Model\CaptureDependencyUnavailableError', 'json'), $response);
         }
     }
     public function getAuthenticationScopes(): array

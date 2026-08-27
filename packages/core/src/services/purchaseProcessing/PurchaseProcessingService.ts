@@ -8,8 +8,7 @@
  * subscription / purchase writes inside `Db.transaction`, syncs unlocked perks
  * via {@link PerkGrantService}, and stages revenue analytics events into the
  * `purchase_ledger` table — {@link PurchaseLedgerWorkerService} drains the
- * ledger and re-dispatches each row's payload onto the shared analytics-ingest
- * queue (via `AnalyticsDispatchService.dispatchTrusted`).
+ * ledger and sends each row's payload through the configured analytics delivery service.
  *
  * Provider identifiers that may be absent (`providerTransactionId`,
  * `providerSubscriptionId`, `providerWebhookNotificationId`,
@@ -21,7 +20,7 @@ import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
 import { constant, pick } from "@voidhash/lib/lang";
 import { Brand, Cause, Context, DateTime, Effect, Layer, Option, Predicate, Schema } from "effect";
 
-import type { InternalAnalyticsEvent } from "../../domain/internalAnalytics/InternalAnalyticsEvents.ts";
+import { InternalAnalyticsEventSchema } from "@voidhash/core-v2";
 import type { PaymentProviderId } from "../../domain/paymentProvider/PaymentProviderConfiguration.ts";
 import type { SubscriptionTransferMode } from "../../domain/paymentProvider/SubscriptionTransfer.ts";
 import {
@@ -417,8 +416,7 @@ const compactSpanAttributes = (attributes: Record<string, unknown>) =>
 const optionSpanAttribute = <A>(
   value: Option.Option<A>,
   map: (value: A) => unknown = (some) => some,
-): unknown =>
-  Option.match(value, { onNone: () => undefined, onSome: (some) => map(some) });
+): unknown => Option.match(value, { onNone: () => undefined, onSome: (some) => map(some) });
 
 /** Reads an error's `cause` when present, else stringifies the error itself. */
 const describeErrorCause = (error: unknown): string => {
@@ -725,7 +723,13 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             with: { product: true },
           });
         const configurationProductOp = Option.fromNullishOr(configurationProductRow);
-        if (Option.isNone(configurationProductOp)) {
+        if (
+          Option.isNone(configurationProductOp) ||
+          !configurationProductOp.value.product ||
+          configurationProductOp.value.product.projectId !== input.projectId ||
+          configurationProductOp.value.paymentProviderConfigurationId !==
+            input.paymentProviderConfigurationId
+        ) {
           return yield* new PurchaseProcessingProductNotMappedError({
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
@@ -962,13 +966,14 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
             readonly personId: string;
             readonly providerId: PaymentProviderId;
             readonly providerEventType: string;
+            readonly paymentProviderConfigurationProductId: string;
             readonly idempotencyKey: string;
             readonly rawProviderPayload: Option.Option<unknown>;
             readonly reservation?: PurchaseLedgerReservation;
             readonly source: PurchaseEventSource;
             readonly buildEvents: (
               cfg: RevenueAnalyticsMapperContext,
-            ) => ReadonlyArray<InternalAnalyticsEvent>;
+            ) => ReadonlyArray<typeof InternalAnalyticsEventSchema.Type>;
             readonly buildResult: (
               analyticsEventIds: ReadonlyArray<string>,
             ) => PurchaseProcessingResult;
@@ -988,11 +993,26 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           // then re-attribute them via the identity overrides, like SDK events.
           // Transfer events already pass real source / target distinct ids.
           const distinctId = yield* _resolveDistinctId(tx, input.personId);
+          const configurationProduct =
+            yield* tx.query.paymentProviderConfigurationProducts.findFirst({
+              where: { id: input.paymentProviderConfigurationProductId },
+              with: { product: true },
+            });
+          if (
+            !configurationProduct?.product ||
+            configurationProduct.product.projectId !== input.projectId
+          ) {
+            return yield* new PurchaseProcessingServiceError({
+              cause: `Revenue product mapping ${input.paymentProviderConfigurationProductId} is missing or outside project ${input.projectId}`,
+            });
+          }
           const events = input.buildEvents({
             distinctId,
             idempotencyKey: input.idempotencyKey,
             organizationId: input.organizationId,
+            productId: configurationProduct.product.id,
             projectId: input.projectId,
+            providerProductKey: configurationProduct.providerProductKey,
             token: resolvedToken,
           });
           // The ledger column stores the raw event objects; widening here keeps
@@ -1088,9 +1108,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           return { id: Option.some(existing.value.id), alreadyExisted: true };
         }
         const money = Option.getOrUndefined(input.money);
-        const usd = Option.getOrUndefined(
-          Option.flatMap(input.money, (value) => value.usd),
-        );
+        const usd = Option.getOrUndefined(Option.flatMap(input.money, (value) => value.usd));
         const transaction: InsertTransaction = {
           amount: money?.grossAmount ?? 0,
           amountUsd: usd?.grossAmount,
@@ -1111,9 +1129,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           storeCommissionAmount: money?.storeCommissionAmount ?? 0,
           storeCommissionAmountUsd: usd?.storeCommissionAmount,
           storeTransactionId: providerTransactionId,
-          storefront: Option.getOrNull(
-            Option.flatMap(input.money, (value) => value.storefront),
-          ),
+          storefront: Option.getOrNull(Option.flatMap(input.money, (value) => value.storefront)),
           taxAmount: money?.taxAmount ?? 0,
           taxAmountUsd: usd?.taxAmount,
         };
@@ -1237,6 +1253,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -1417,6 +1434,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -1443,7 +1461,11 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                     ),
                   ),
                   _webhookEventWhen(renewalAdvanced, () =>
-                    toSubscriptionRenewedWebhookEvent(input, { subscriptionId }, _webhookContext(ctx)),
+                    toSubscriptionRenewedWebhookEvent(
+                      input,
+                      { subscriptionId },
+                      _webhookContext(ctx),
+                    ),
                   ),
                 ],
                 result,
@@ -1553,6 +1575,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -1677,6 +1700,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -1829,6 +1853,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -1928,6 +1953,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -2104,6 +2130,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -2278,6 +2305,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -2358,7 +2386,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
           readonly buildEvents: (
             result: { readonly personId: string; readonly subscriptionId: Option.Option<string> },
             cfg: RevenueAnalyticsMapperContext,
-          ) => ReadonlyArray<InternalAnalyticsEvent>;
+          ) => ReadonlyArray<typeof InternalAnalyticsEventSchema.Type>;
           readonly syncPerksOnApply: boolean;
         }) {
           yield* Effect.annotateCurrentSpan({
@@ -2433,6 +2461,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.action.idempotencyKey,
                 organizationId: input.action.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.action.projectId,
                 providerEventType: input.action.providerEventType,
@@ -2697,6 +2726,7 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                   }),
                 idempotencyKey: input.idempotencyKey,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId: ctx.configurationProduct.id,
                 personId,
                 projectId: input.projectId,
                 providerEventType: input.providerEventType,
@@ -2871,6 +2901,8 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 // defeated the ledger's own `UNIQUE(idempotency_key)` dedup.
                 idempotencyKey: `subscription_transfer:${subscription.id}:${input.fromPersonId}->${input.toPersonId}:${input.occurredAt.toISOString()}`,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId:
+                  subscription.paymentProviderConfigurationProductId,
                 personId: input.toPersonId,
                 projectId: input.projectId,
                 providerEventType: "subscription.transferred",
@@ -3036,6 +3068,8 @@ export class PurchaseProcessingService extends Context.Service<PurchaseProcessin
                 // `occurredAt` rationale.
                 idempotencyKey: `purchase_transfer:${purchase.id}:${input.fromPersonId}->${input.toPersonId}:${input.occurredAt.toISOString()}`,
                 organizationId: input.organizationId,
+                paymentProviderConfigurationProductId:
+                  purchase.paymentProviderConfigurationProductId,
                 personId: input.toPersonId,
                 projectId: input.projectId,
                 providerEventType: "purchase.transferred",

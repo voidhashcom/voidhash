@@ -20,10 +20,8 @@ import {
   Gift,
   Logs,
   type LucideIcon,
-  MapPin,
   Package2,
   Settings,
-  Smartphone,
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -97,8 +95,7 @@ export function ProjectLayoutSkeleton({
     {
       icon: Package2,
       isActive: () =>
-        pathname.startsWith(`${base}/products`) ||
-        pathname.startsWith(`${base}/settings/perks`),
+        pathname.startsWith(`${base}/products`) || pathname.startsWith(`${base}/settings/perks`),
       title: "Products",
       url: `${base}/products`,
       items: [
@@ -113,29 +110,6 @@ export function ProjectLayoutSkeleton({
           isActive: () => pathname.startsWith(`${base}/settings/perks`),
           title: "Perks",
           url: `${base}/settings/perks`,
-        },
-      ],
-    },
-    {
-      icon: Smartphone,
-      isActive: () =>
-        pathname.startsWith(`${base}/paywalls`) ||
-        pathname.startsWith(`${base}/settings/paywall-locations`),
-      title: "Paywalls",
-      url: `${base}/paywalls`,
-      items: [
-        {
-          icon: Smartphone,
-          isActive: () => pathname.startsWith(`${base}/paywalls`),
-          title: "Paywalls",
-          url: `${base}/paywalls`,
-        },
-        {
-          icon: MapPin,
-          isActive: () =>
-            pathname.startsWith(`${base}/settings/paywall-locations`),
-          title: "Paywall Locations",
-          url: `${base}/settings/paywall-locations`,
         },
       ],
     },
@@ -174,8 +148,7 @@ export function ProjectLayoutSkeleton({
           url: `${base}/settings/webhooks`,
         },
         {
-          isActive: () =>
-            pathname.startsWith(`${base}/settings/payment-providers`),
+          isActive: () => pathname.startsWith(`${base}/settings/payment-providers`),
           title: "Payment Providers",
           url: `${base}/settings/payment-providers`,
         },
@@ -183,9 +156,7 @@ export function ProjectLayoutSkeleton({
     },
   ];
 
-  const activeParent = items.find(
-    (item) => item.isActive() && item.items?.length,
-  );
+  const activeParent = items.find((item) => item.isActive() && item.items?.length);
   const [submenuOpen, setSubmenuOpen] = useState(!!activeParent);
 
   useEffect(() => {
@@ -201,11 +172,7 @@ export function ProjectLayoutSkeleton({
       <SidebarProvider className="flex flex-col">
         <NavBarSkeleton />
         <div className="flex flex-1 pt-[var(--header-height)] min-h-0">
-          <Sidebar
-            className="transition-all duration-75"
-            collapsible="icon"
-            variant="inset"
-          >
+          <Sidebar className="transition-all duration-75" collapsible="icon" variant="inset">
             <SidebarContent className="gap-0">
               <div className="h-(--header-height) px-1 py-2 w-full">
                 <SwitcherSkeleton />
@@ -221,8 +188,7 @@ export function ProjectLayoutSkeleton({
                         <SidebarMenuButton
                           asChild
                           isActive={
-                            (!item.items?.length || item.items.length === 0) &&
-                            item.isActive()
+                            (!item.items?.length || item.items.length === 0) && item.isActive()
                           }
                           tooltip={item.title}
                         >
@@ -239,9 +205,7 @@ export function ProjectLayoutSkeleton({
                           </TanstackLink>
                         </SidebarMenuButton>
                         {item.items?.length && (
-                          <SidebarMenuAction
-                            onClick={() => setSubmenuOpen(true)}
-                          >
+                          <SidebarMenuAction onClick={() => setSubmenuOpen(true)}>
                             <ChevronRight />
                             <span className="sr-only">Toggle</span>
                           </SidebarMenuAction>
@@ -269,13 +233,8 @@ export function ProjectLayoutSkeleton({
                         </SidebarMenuItem>
                         {activeParent.items?.map((subItem) => (
                           <SidebarMenuItem key={subItem.title}>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={subItem.isActive()}
-                            >
-                              <TanstackLink
-                                to={subItem.url as any}
-                              >
+                            <SidebarMenuButton asChild isActive={subItem.isActive()}>
+                              <TanstackLink to={subItem.url as any}>
                                 {subItem.icon && <subItem.icon />}
                                 <span>{subItem.title}</span>
                               </TanstackLink>

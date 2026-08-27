@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import {
   cn,
   DataTableSkeleton,
@@ -18,6 +19,7 @@ import {
   listPaywallLocationsOptions,
   listPaywallsOptions,
 } from "@/features/studio/lib/tanstack-query";
+import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import {
   isMetricRange,
@@ -62,11 +64,25 @@ const paywallLocationsSearchSchema = z.object({
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations/",
 )({
-  component: ProjectPaywallLocationsPage,
+  component: PaywallLocationsIndexRoute,
   errorComponent: ProjectPaywallLocationsPageError,
   pendingComponent: ProjectPaywallLocationsPageSkeleton,
   validateSearch: zodValidator(paywallLocationsSearchSchema),
 });
+
+function PaywallLocationsIndexRoute() {
+  const paywallLocationsEnabled = useInternalFeatureFlag(
+    INTERNAL_FEATURE_FLAGS.paywallLocations.key,
+  );
+
+  if (!paywallLocationsEnabled) {
+    return (
+      <VoidhashErrorCard error={{ code: "NOT_FOUND", message: "This page is not available." }} />
+    );
+  }
+
+  return <ProjectPaywallLocationsPage />;
+}
 
 function ProjectPaywallLocationsPageError() {
   return (

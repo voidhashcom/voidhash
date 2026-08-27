@@ -17,11 +17,12 @@ import {
   ApiExperimentValidationError,
   ApiExperimentVariantNotFoundError,
 } from "@voidhash/api-contracts/errors";
-import { AnalyticsService, ExperimentService } from "@voidhash/core/services";
+import { ExperimentService } from "@voidhash/core/services";
+import { AnalyticsQuery } from "@voidhash/core-v2";
 import { paginate, resolveRequestProjectId, sortById } from "@voidhash/core/utils";
 import { ExperimentStatus } from "@voidhash/db";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import { DateTime, Duration, Effect } from "effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
@@ -206,7 +207,7 @@ const resultsAnalyticsFailure = (error: { readonly cause: string; readonly messa
 
 export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experiments", (handlers) =>
   Effect.gen(function* () {
-    const analyticsService = yield* AnalyticsService;
+    const analytics = yield* AnalyticsQuery;
     const experimentService = yield* ExperimentService;
 
     /**
@@ -257,11 +258,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
               projectId,
             });
             const experiment = yield* reload(created.id);
-            return yield* createdResponse(
-              Experiment,
-              experiment,
-              `/experiments/${experiment.id}`,
-            );
+            return yield* createdResponse(Experiment, experiment, `/experiments/${experiment.id}`);
           }),
         ).pipe(
           Effect.catchTags({
@@ -407,9 +404,18 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
-            const results = yield* analyticsService.getExperimentResults({
-              days: query.days,
-              experimentId: params.experimentId,
+            const experiment = yield* experimentService.getExperiment({
+              id: params.experimentId,
+            });
+            const now = yield* DateTime.now;
+            const results = yield* analytics.getExperimentResults({
+              end: experiment.endedAt ?? DateTime.toDateUtc(now),
+              experimentId: experiment.id,
+              primaryMetricEventName: experiment.primaryMetricEventName ?? "purchase_completed",
+              projectId: experiment.projectId,
+              start:
+                experiment.startedAt ??
+                DateTime.toDateUtc(DateTime.subtractDuration(now, Duration.days(query.days ?? 90))),
             });
             return new ExperimentResults({
               variants: results.variants.map((variant) => new ExperimentVariantResult(variant)),
@@ -418,7 +424,9 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
-            AnalyticsServiceError: resultsAnalyticsFailure,
+            AnalyticsQueryError: resultsAnalyticsFailure,
+            ExperimentNotFoundError: notFound,
+            ExperimentServiceError: serviceError,
           }),
         ),
       );

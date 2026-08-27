@@ -222,12 +222,47 @@ const make = Effect.gen(function* () {
     }): Effect.Effect<ReadonlyArray<DbPaymentProviderNotificationProcessed>, DbError, Db> =>
       Effect.gen(function* () {
         return yield* db.query.paymentProviderNotificationProcessed.findMany({
+          orderBy: { providerOccurredAt: "asc", processedAt: "asc", id: "asc" },
           where: {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             result: "parked_pending_product_mapping",
             parkedUntilProviderProductKey: input.providerProductKey,
           },
         });
+      }),
+  );
+
+  /** Lists dependent Stripe events waiting for their original transaction. */
+  const findParkedTransactionNotifications = Effect.fn("findParkedTransactionNotifications")(
+    (input: {
+      readonly paymentProviderConfigurationId: string;
+    }): Effect.Effect<ReadonlyArray<DbPaymentProviderNotificationProcessed>, DbError, Db> =>
+      Effect.gen(function* () {
+        return yield* db.query.paymentProviderNotificationProcessed.findMany({
+          orderBy: { providerOccurredAt: "asc", processedAt: "asc", id: "asc" },
+          where: {
+            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+            result: "parked_pending_transaction",
+          },
+        });
+      }),
+  );
+
+  /** Records a retryable replay attempt while keeping the notification parked. */
+  const markParkedNotificationAttempted = Effect.fn("markParkedNotificationAttempted")(
+    (input: {
+      readonly id: string;
+      readonly resultNote: string;
+    }): Effect.Effect<void, DbError, Db> =>
+      Effect.gen(function* () {
+        yield* db
+          .update(paymentProviderNotificationProcessed)
+          .set({
+            attemptCount: sql`${paymentProviderNotificationProcessed.attemptCount} + 1`,
+            lastAttemptedAt: sql`NOW()`,
+            resultNote: input.resultNote.slice(0, 500),
+          })
+          .where(eq(paymentProviderNotificationProcessed.id, input.id));
       }),
   );
 
@@ -242,6 +277,8 @@ const make = Effect.gen(function* () {
         yield* db
           .update(paymentProviderNotificationProcessed)
           .set({
+            attemptCount: sql`${paymentProviderNotificationProcessed.attemptCount} + 1`,
+            lastAttemptedAt: sql`NOW()`,
             parkedRawPayload: null,
             parkedUntilOriginalTransactionId: null,
             parkedUntilProviderProductKey: null,
@@ -304,12 +341,14 @@ const make = Effect.gen(function* () {
     findActiveProviderProductByPrimaryKey,
     findExternalIdentifier,
     findParkedNotifications,
+    findParkedTransactionNotifications,
     findPaymentProviderConfigurationById,
     findPersonIdentityByDistinctId,
     findProjectById,
     findTransactionByAnyStoreTransactionId,
     insertNotificationProcessedIfAbsent,
     markParkedNotificationResolved,
+    markParkedNotificationAttempted,
     resolveCanonicalPersonId,
     upsertExternalIdentifier,
   });

@@ -294,6 +294,7 @@ const make = Effect.gen(function* () {
     }): Effect.Effect<ReadonlyArray<DbPaymentProviderNotificationProcessed>, DbError, Db> =>
       Effect.gen(function* () {
         return yield* db.query.paymentProviderNotificationProcessed.findMany({
+          orderBy: { providerOccurredAt: "asc", processedAt: "asc", id: "asc" },
           where: {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             result: "parked_pending_product_mapping",
@@ -303,10 +304,28 @@ const make = Effect.gen(function* () {
       }),
   );
 
+  /** Records a retryable replay attempt while keeping the notification parked. */
+  const markParkedNotificationAttempted = Effect.fn("markParkedNotificationAttempted")(
+    (input: {
+      readonly id: string;
+      readonly resultNote: string;
+    }): Effect.Effect<void, DbError, Db> =>
+      Effect.gen(function* () {
+        yield* db
+          .update(paymentProviderNotificationProcessed)
+          .set({
+            attemptCount: sql`${paymentProviderNotificationProcessed.attemptCount} + 1`,
+            lastAttemptedAt: sql`NOW()`,
+            resultNote: input.resultNote.slice(0, 500),
+          })
+          .where(eq(paymentProviderNotificationProcessed.id, input.id));
+      }),
+  );
+
   /**
    * Lists notifications parked waiting for the SDK to confirm a given
-   * `originalTransactionId`. Ordered by `processedAt ASC` so wire-arrival
-   * order is reproduced when the replay activity re-dispatches each row.
+   * `originalTransactionId`. Ordered by provider occurrence time with stable
+   * receipt/id tie-breakers before the replay activity re-dispatches each row.
    */
   const findParkedNotificationsByOriginalTransactionId = Effect.fn(
     "findParkedNotificationsByOriginalTransactionId",
@@ -317,7 +336,7 @@ const make = Effect.gen(function* () {
     }): Effect.Effect<ReadonlyArray<DbPaymentProviderNotificationProcessed>, DbError, Db> =>
       Effect.gen(function* () {
         return yield* db.query.paymentProviderNotificationProcessed.findMany({
-          orderBy: { processedAt: "asc" },
+          orderBy: { providerOccurredAt: "asc", processedAt: "asc", id: "asc" },
           where: {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             result: "parked_pending_sdk_confirmation",
@@ -398,6 +417,8 @@ const make = Effect.gen(function* () {
         yield* db
           .update(paymentProviderNotificationProcessed)
           .set({
+            attemptCount: sql`${paymentProviderNotificationProcessed.attemptCount} + 1`,
+            lastAttemptedAt: sql`NOW()`,
             parkedRawPayload: null,
             parkedUntilOriginalTransactionId: null,
             parkedUntilProviderProductKey: null,
@@ -531,6 +552,7 @@ const make = Effect.gen(function* () {
     resolveCanonicalPersonId,
     upsertExternalIdentifier,
     markParkedNotificationResolved,
+    markParkedNotificationAttempted,
     rebindExternalIdentifier,
   });
 });

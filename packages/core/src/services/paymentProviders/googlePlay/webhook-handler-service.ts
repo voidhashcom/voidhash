@@ -11,6 +11,7 @@ import { generateId } from "../../../utils/index.ts";
 import { constant, pick } from "@voidhash/lib/lang";
 import { Context, DateTime, Effect, Layer, Match, Option, Predicate, Schema } from "effect";
 
+import type { PurchaseProcessingResult } from "../../../domain/purchaseProcessing/PurchaseProcessing.ts";
 import {
   GooglePlayPaymentProviderConfigurationNotFoundError,
   GooglePlayPaymentProviderProductNotMappedError,
@@ -27,6 +28,14 @@ import type { GooglePlayNormalizedPurchase } from "./helpers.ts";
 import { GooglePlayPaymentProvider } from "./payment-provider.ts";
 import { GooglePlayPaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import type { GooglePlaySdkContext } from "./sdk-context.ts";
+import { GooglePlayPurchaseVerifier } from "./purchase-verifier.ts";
+
+const ParkedGooglePlaySdkPurchase = Schema.Struct({
+  distinctId: Schema.String,
+  productId: Schema.String,
+  purchaseToken: Schema.String,
+  receivedAt: Schema.String,
+});
 
 const truncateResultNote = (note: string): string => note.slice(0, 500);
 
@@ -134,12 +143,20 @@ const resolveAnchoredPurchase = (
   return purchase;
 };
 
+const GooglePlayPaymentProviderLive = GooglePlayPaymentProvider.layer;
+
+const GooglePlayWebhookHandlerDependenciesLive = Layer.mergeAll(
+  GooglePlayPaymentProviderLive,
+  GooglePlayPurchaseVerifier.layer.pipe(Layer.provide(GooglePlayPaymentProviderLive)),
+);
+
 export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayWebhookHandlerService>()(
   "GooglePlayWebhookHandlerService",
   {
     make: Effect.gen(function* () {
       const queries = yield* GooglePlayPaymentProviderServiceQueries;
       const googlePlayPaymentProvider = yield* GooglePlayPaymentProvider;
+      const purchaseVerifier = yield* GooglePlayPurchaseVerifier;
 
       const acceptRtdnNotification = Effect.fn("acceptRtdnNotification")(
         function* (input: {
@@ -235,7 +252,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               result: "ignored",
               resultNote: null,
             });
-            return ack(true);
+            return ack(false);
           }
 
           const sdkContext =
@@ -326,11 +343,15 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
            * terminal record failures (write a `failed` ledger row). Mirrors the
            * App Store handler's `handled` wrapper.
            */
-          const handled = <A, E, R>(
-            recordEffect: Effect.Effect<A, E | GooglePlayPaymentProviderProductNotMappedError, R>,
+          const handled = <E, R>(
+            recordEffect: Effect.Effect<
+              PurchaseProcessingResult,
+              E | GooglePlayPaymentProviderProductNotMappedError,
+              R
+            >,
           ) =>
             recordEffect.pipe(
-              Effect.as(ack(true)),
+              Effect.map((result) => ack(!result.isIgnored())),
               Effect.catchIf(
                 (error): error is GooglePlayPaymentProviderProductNotMappedError =>
                   errorTag(error) === "GooglePlayPaymentProviderProductNotMappedError",
@@ -343,9 +364,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
                     // On replay the mapping is still missing — record a failure
                     // instead of re-parking (avoids a self-perpetuating loop).
                     if (input.isReplay) {
-                      return yield* markTerminalRecordFailure(
-                        `product key ${error.providerProductKey} still not mapped on replay`,
-                      );
+                      return ack(false);
                     }
                     yield* Effect.logInfo(
                       "Google Play notification parked: product not yet mapped",
@@ -364,6 +383,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
                       parkedUntilProviderProductKey: error.providerProductKey,
                       paymentProviderConfigurationId: input.paymentProviderConfigurationId,
                       providerId: "google-play",
+                      providerOccurredAt: eventTime,
                       result: "parked_pending_product_mapping",
                       resultNote: `product key ${error.providerProductKey} not mapped at notification time`,
                       source: "webhook",
@@ -437,7 +457,8 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
             Match.orElse(() => Effect.succeed(ack(false))),
           );
 
-          const ledgerResult = terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored");
+          const ledgerResult =
+            terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored");
 
           // Wire-level dedup ledger: one row per notificationUUID. The
           // park-write above (when it fires) wins the UNIQUE and this insert is
@@ -547,7 +568,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
         });
         let appliedCount = 0;
         let failedCount = 0;
-        for (const row of parked) {
+        for (const row of parked.filter((candidate) => candidate.source === "webhook")) {
           const rawPayload = row.parkedRawPayload;
           if (rawPayload === null || rawPayload === undefined) {
             yield* queries.markParkedNotificationResolved({
@@ -567,10 +588,10 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
           }).pipe(
             Effect.match({
               onFailure: (error) => ({ error: String(error), ok: constant(false) }),
-              onSuccess: () => ({ ok: constant(true) }),
+              onSuccess: (result) => ({ handled: result.handled, ok: constant(true) }),
             }),
           );
-          if (replayed.ok) {
+          if (replayed.ok && replayed.handled) {
             yield* queries.markParkedNotificationResolved({
               id: row.id,
               result: "applied",
@@ -578,10 +599,78 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
             });
             appliedCount++;
           } else {
+            let resultNote: string;
+            if (replayed.ok) resultNote = "replay completed without applying purchase state";
+            else resultNote = replayed.error;
+            yield* queries.markParkedNotificationAttempted({
+              id: row.id,
+              resultNote,
+            });
+            failedCount++;
+          }
+        }
+
+        for (const row of parked.filter((candidate) => candidate.source === "sdk")) {
+          const decoded = yield* Schema.decodeUnknownEffect(ParkedGooglePlaySdkPurchase)(
+            row.parkedRawPayload,
+          ).pipe(
+            Effect.match({
+              onFailure: () => ({ _tag: constant("Left") }),
+              onSuccess: (right) => ({ _tag: constant("Right"), right }),
+            }),
+          );
+          if (decoded._tag === "Left") {
             yield* queries.markParkedNotificationResolved({
               id: row.id,
               result: "failed",
-              resultNote: replayed.error.slice(0, 500),
+              resultNote: "parked SDK payload is invalid",
+            });
+            failedCount++;
+            continue;
+          }
+          const payload = decoded.right;
+          const replayed = yield* Effect.gen(function* () {
+            const configuration = yield* queries.findPaymentProviderConfigurationById(
+              row.paymentProviderConfigurationId,
+            );
+            if (!configuration) return yield* Effect.fail("configuration not found");
+            const project = yield* queries.findProjectById(configuration.projectId);
+            if (!project) return yield* Effect.fail("project not found");
+            const verified = yield* purchaseVerifier.verify({
+              configuration,
+              productId: payload.productId,
+              purchaseToken: payload.purchaseToken,
+            });
+            return yield* googlePlayPaymentProvider.recordPurchase({
+              configuration,
+              distinctId: payload.distinctId,
+              eventTime: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
+              project,
+              providerEnvironment: verified.providerEnvironment,
+              purchase: verified.purchase,
+              receivedAt: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
+              source: "sdk",
+            });
+          }).pipe(
+            Effect.match({
+              onFailure: (error) => ({ error: String(error), ok: constant(false) }),
+              onSuccess: (result) => ({ handled: !result.isIgnored(), ok: constant(true) }),
+            }),
+          );
+          if (replayed.ok && replayed.handled) {
+            yield* queries.markParkedNotificationResolved({
+              id: row.id,
+              result: "applied",
+              resultNote: null,
+            });
+            appliedCount++;
+          } else {
+            let resultNote: string;
+            if (replayed.ok) resultNote = "replay completed without applying purchase state";
+            else resultNote = replayed.error;
+            yield* queries.markParkedNotificationAttempted({
+              id: row.id,
+              resultNote,
             });
             failedCount++;
           }
@@ -598,7 +687,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
 ) {
   static layer = Layer.effect(GooglePlayWebhookHandlerService)(
     GooglePlayWebhookHandlerService.make,
-  ).pipe(Layer.provideMerge(GooglePlayPaymentProvider.layer));
+  ).pipe(Layer.provide(GooglePlayWebhookHandlerDependenciesLive));
 }
 
 export type { AcceptRtdnNotificationResult };

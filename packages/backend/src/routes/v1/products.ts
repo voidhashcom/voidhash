@@ -180,6 +180,8 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
             ProductNotFoundError: (e) =>
               Effect.fail(new ApiProductNotFoundError({ message: e.message })),
             ProductServiceError: (e) => Effect.fail(new ApiProductServiceError({ cause: e.cause })),
+            ProductValidationError: (e) =>
+              Effect.fail(new ApiProductValidationError({ message: e.message })),
           }),
         ),
       )

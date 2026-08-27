@@ -72,6 +72,40 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
         googlePlayPaymentProvider,
       ];
 
+      const validateSameProject = (input: {
+        readonly configurationProjectId: string;
+        readonly productProjectId: string;
+      }) => {
+        if (input.configurationProjectId === input.productProjectId) return Effect.void;
+        return Effect.fail(
+          new PaymentProviderProductValidationError({
+            message: "Product and payment provider configuration must belong to the same project",
+          }),
+        );
+      };
+
+      const validateActiveProviderKeyAvailable = Effect.fn("validateActiveProviderKeyAvailable")(
+        function* (input: {
+          readonly paymentProviderConfigurationId: string;
+          readonly productId: string;
+          readonly providerProductKey: string;
+          readonly excludeId?: string;
+        }) {
+          const active = yield* db.query.paymentProviderConfigurationProducts.findFirst({
+            where: {
+              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+              providerProductKey: input.providerProductKey,
+              isActive: true,
+            },
+          });
+          if (active && active.id !== input.excludeId && active.productId !== input.productId) {
+            return yield* new PaymentProviderProductValidationError({
+              message: `Provider product key ${input.providerProductKey} is already mapped to another product`,
+            });
+          }
+        },
+      );
+
       const findProvider = (
         providerId: string,
       ): Effect.Effect<AnyPaymentProviderShape, PaymentProviderProductValidationError> => {
@@ -100,12 +134,17 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             return;
           }
           const requestedAt = DateTime.formatIso(yield* DateTime.now);
-          yield* Workflow.dispatchAndForget(AppStoreReplayParkedNotifications, {
+          yield* Workflow.dispatch(AppStoreReplayParkedNotifications, {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             paymentProviderProductId: input.paymentProviderProductId,
             providerProductKey: input.providerProductKey,
             requestedAt,
-          });
+          }).pipe(
+            Effect.tapError((error) =>
+              Effect.logWarning("Failed to schedule App Store parked replay", { error }),
+            ),
+            Effect.ignore,
+          );
         });
 
       /**
@@ -126,12 +165,17 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             return;
           }
           const requestedAt = DateTime.formatIso(yield* DateTime.now);
-          yield* Workflow.dispatchAndForget(GooglePlayReplayParkedNotifications, {
+          yield* Workflow.dispatch(GooglePlayReplayParkedNotifications, {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             paymentProviderProductId: input.paymentProviderProductId,
             providerProductKey: input.providerProductKey,
             requestedAt,
-          });
+          }).pipe(
+            Effect.tapError((error) =>
+              Effect.logWarning("Failed to schedule Google Play parked replay", { error }),
+            ),
+            Effect.ignore,
+          );
         });
 
       /**
@@ -150,12 +194,17 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             return;
           }
           const requestedAt = DateTime.formatIso(yield* DateTime.now);
-          yield* Workflow.dispatchAndForget(StripeReplayParkedNotifications, {
+          yield* Workflow.dispatch(StripeReplayParkedNotifications, {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             paymentProviderProductId: input.paymentProviderProductId,
             providerProductKey: input.providerProductKey,
             requestedAt,
-          });
+          }).pipe(
+            Effect.tapError((error) =>
+              Effect.logWarning("Failed to schedule Stripe parked replay", { error }),
+            ),
+            Effect.ignore,
+          );
         });
 
       const getProviderProductsByProjectId = Effect.fn("getProviderProductsByProjectId")(
@@ -359,6 +408,11 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             );
           }
 
+          yield* validateSameProject({
+            configurationProjectId: providerConfiguration.projectId,
+            productProjectId: product.projectId,
+          });
+
           yield* Effect.annotateCurrentSpan("voidhash.project.id", product.projectId);
           yield* Effect.annotateCurrentSpan(
             "voidhash.payment_provider.id",
@@ -378,6 +432,11 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
 
           const provider = yield* findProvider(providerConfiguration.providerId);
           const validation = yield* provider.validateProductConfiguration(input.configuration);
+          yield* validateActiveProviderKeyAvailable({
+            paymentProviderConfigurationId: providerConfiguration.id,
+            productId: product.id,
+            providerProductKey: validation.productKey,
+          });
 
           const id = generateId("paymentProviderProduct");
           yield* Effect.annotateCurrentSpan("voidhash.payment_provider.product_id", id);
@@ -493,6 +552,11 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             );
           }
 
+          yield* validateSameProject({
+            configurationProjectId: providerConfiguration.projectId,
+            productProjectId: product.projectId,
+          });
+
           yield* Effect.annotateCurrentSpan("voidhash.project.id", product.projectId);
           yield* Effect.annotateCurrentSpan(
             "voidhash.payment_provider.id",
@@ -511,6 +575,25 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
           );
 
           yield* findProvider(providerConfiguration.providerId);
+
+          const target = yield* db.query.paymentProviderConfigurationProducts.findFirst({
+            where: {
+              paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+              productId: input.productId,
+              providerProductKey: input.providerProductKey,
+            },
+          });
+          if (!target) {
+            return yield* new PaymentProviderProductValidationError({
+              message: `Provider product key ${input.providerProductKey} is not configured for this product`,
+            });
+          }
+          yield* validateActiveProviderKeyAvailable({
+            excludeId: target.id,
+            paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+            productId: input.productId,
+            providerProductKey: input.providerProductKey,
+          });
 
           yield* db.transaction((tx) =>
             Effect.gen(function* () {
@@ -565,19 +648,19 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
 
           yield* scheduleAppStoreParkedReplayIfApplicable({
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            paymentProviderProductId: input.productId,
+            paymentProviderProductId: target.id,
             providerId: providerConfiguration.providerId,
             providerProductKey: input.providerProductKey,
           });
           yield* scheduleGooglePlayParkedReplayIfApplicable({
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            paymentProviderProductId: input.productId,
+            paymentProviderProductId: target.id,
             providerId: providerConfiguration.providerId,
             providerProductKey: input.providerProductKey,
           });
           yield* scheduleStripeParkedReplayIfApplicable({
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-            paymentProviderProductId: input.productId,
+            paymentProviderProductId: target.id,
             providerId: providerConfiguration.providerId,
             providerProductKey: input.providerProductKey,
           });
@@ -640,6 +723,11 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             );
           }
 
+          yield* validateSameProject({
+            configurationProjectId: providerConfiguration.projectId,
+            productProjectId: product.projectId,
+          });
+
           yield* Effect.annotateCurrentSpan("voidhash.project.id", product.projectId);
           yield* Effect.annotateCurrentSpan(
             "voidhash.payment_provider.id",
@@ -654,6 +742,12 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
 
           const provider = yield* findProvider(providerConfiguration.providerId);
           const validation = yield* provider.validateProductConfiguration(input.configuration);
+          yield* validateActiveProviderKeyAvailable({
+            excludeId: providerProduct.id,
+            paymentProviderConfigurationId: providerProduct.paymentProviderConfigurationId,
+            productId: providerProduct.productId,
+            providerProductKey: validation.productKey,
+          });
 
           yield* db.transaction((tx) =>
             Effect.gen(function* () {
@@ -678,6 +772,30 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             .pipe(Effect.ignore);
 
           yield* schemaCache.invalidate(product.projectId);
+
+          if (
+            providerProduct.isActive &&
+            providerProduct.providerProductKey !== validation.productKey
+          ) {
+            yield* scheduleAppStoreParkedReplayIfApplicable({
+              paymentProviderConfigurationId: providerConfiguration.id,
+              paymentProviderProductId: providerProduct.id,
+              providerId: providerConfiguration.providerId,
+              providerProductKey: validation.productKey,
+            });
+            yield* scheduleGooglePlayParkedReplayIfApplicable({
+              paymentProviderConfigurationId: providerConfiguration.id,
+              paymentProviderProductId: providerProduct.id,
+              providerId: providerConfiguration.providerId,
+              providerProductKey: validation.productKey,
+            });
+            yield* scheduleStripeParkedReplayIfApplicable({
+              paymentProviderConfigurationId: providerConfiguration.id,
+              paymentProviderProductId: providerProduct.id,
+              providerId: providerConfiguration.providerId,
+              providerProductKey: validation.productKey,
+            });
+          }
         },
         (effect) =>
           effect.pipe(
@@ -718,8 +836,7 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
               }),
             );
           }
-          // The `product_id` foreign key makes the joined row non-null; a
-          // missing one is a broken invariant, not an expected failure.
+          // A missing joined product is a broken catalog invariant.
           const product: DbProduct | null = providerProduct.product;
           if (!product) {
             return yield* Effect.die(
@@ -733,6 +850,33 @@ export class PaymentProviderProductService extends Context.Service<PaymentProvid
             "project:all",
             `User ${session?.user?.id} is not authorized to delete payment provider products for project ${product.projectId}`,
           );
+
+          const references = yield* Effect.all(
+            [
+              db.query.checkoutSessions.findFirst({
+                columns: { id: true },
+                where: { paymentProviderConfigurationProductId: input.id },
+              }),
+              db.query.purchases.findFirst({
+                columns: { id: true },
+                where: { paymentProviderConfigurationProductId: input.id },
+              }),
+              db.query.subscriptions.findFirst({
+                columns: { id: true },
+                where: { paymentProviderConfigurationProductId: input.id },
+              }),
+              db.query.transactions.findFirst({
+                columns: { id: true },
+                where: { paymentProviderConfigurationProductId: input.id },
+              }),
+            ],
+            { concurrency: "unbounded" },
+          );
+          if (references.some(Boolean)) {
+            return yield* new PaymentProviderProductValidationError({
+              message: "Provider product mappings with purchase history cannot be deleted",
+            });
+          }
 
           yield* db
             .delete(paymentProviderConfigurationProducts)

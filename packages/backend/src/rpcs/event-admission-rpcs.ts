@@ -1,4 +1,4 @@
-import { EventAdmissionService } from "@voidhash/core/services/analyticsIngest/EventAdmissionService";
+import { EventAdmissionService } from "../analytics/EventAdmissionService.ts";
 import {
   EventAdmissionRpcsDef,
   RpcActionForbiddenError,

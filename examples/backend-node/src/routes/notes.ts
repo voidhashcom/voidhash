@@ -59,7 +59,7 @@ export const createCreateNoteRoute = (options: NoteRouteOptions): RouteHandler =
 
     const note = notes.create(distinctId, text);
 
-    analytics.capture({ distinctId, event: ANALYTICS_EVENTS.noteCreated });
+    analytics.capture({ distinctId, event: ANALYTICS_EVENTS.noteCreated, timestamp: new Date() });
     // `plan` and `notes_created` describe the person, not this one event, so
     // they are written as person traits instead of repeated on every capture.
     analytics.setAttributes({
@@ -98,7 +98,11 @@ export const createExportNotesRoute = (options: NoteRouteOptions): RouteHandler 
 
     const stored = notes.list(distinctId);
 
-    analytics.capture({ distinctId, event: ANALYTICS_EVENTS.exportRequested });
+    analytics.capture({
+      distinctId,
+      event: ANALYTICS_EVENTS.exportRequested,
+      timestamp: new Date(),
+    });
     analytics.setAttributes({
       distinctId,
       traits: { notes_created: stored.length, plan: "pro" },

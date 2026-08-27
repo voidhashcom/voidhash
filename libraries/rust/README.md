@@ -59,7 +59,7 @@ async fn main() -> Result<(), voidhash::Error> {
     client
         .event_capture()
         .capture(
-            &Event::new("paywall_viewed", "user-123")
+            &Event::new("paywall_viewed", "user-123", chrono::Utc::now())
                 .property("paywall_id", "pw_1")
                 .context_property("platform", "ios"),
         )
@@ -68,8 +68,8 @@ async fn main() -> Result<(), voidhash::Error> {
     client
         .event_capture()
         .capture_batch(&[
-            Event::new("paywall_viewed", "user-123"),
-            Event::new("purchase_completed", "user-123"),
+            Event::new("paywall_viewed", "user-123", chrono::Utc::now()),
+            Event::new("purchase_completed", "user-123", chrono::Utc::now()),
         ])
         .await?;
     Ok(())

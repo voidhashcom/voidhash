@@ -66,11 +66,8 @@ class IV1CapturePostBodyNormalizer implements DenormalizerInterface, NormalizerI
         elseif (\array_key_exists('session_id', $data) && $data['session_id'] === null) {
             $object->setSessionId(null);
         }
-        if (\array_key_exists('timestamp', $data) && $data['timestamp'] !== null) {
+        if (\array_key_exists('timestamp', $data)) {
             $object->setTimestamp($data['timestamp']);
-        }
-        elseif (\array_key_exists('timestamp', $data) && $data['timestamp'] === null) {
-            $object->setTimestamp(null);
         }
         if (\array_key_exists('sent_at', $data)) {
             $object->setSentAt($data['sent_at']);
@@ -102,9 +99,7 @@ class IV1CapturePostBodyNormalizer implements DenormalizerInterface, NormalizerI
         if ($data->isInitialized('sessionId')) {
             $dataArray['session_id'] = $data->getSessionId();
         }
-        if ($data->isInitialized('timestamp')) {
-            $dataArray['timestamp'] = $data->getTimestamp();
-        }
+        $dataArray['timestamp'] = $data->getTimestamp();
         $dataArray['sent_at'] = $data->getSentAt();
         if ($data->isInitialized('token')) {
             $dataArray['token'] = $data->getToken();

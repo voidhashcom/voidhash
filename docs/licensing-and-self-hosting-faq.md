@@ -54,9 +54,11 @@ port the hosted cloud uses — is a public roadmap item.
 
 ## How does Community analytics work?
 
-Community stores built-in lifecycle and revenue events in PostgreSQL. The
-capture endpoints remain SDK-compatible, while custom events and advanced query
-features are outside the Community analytics surface.
+Community stores analytics in PostgreSQL by default, including custom events
+accepted by the project's admission policy. Operators can point the same
+application services at a provisioned ClickHouse database by setting
+`ANALYTICS_STORAGE=clickhouse` and the `ANALYTICS_CLICKHOUSE_*` connection
+settings. See the [analytics guide](analytics.md).
 
 ## Are pricing or trademark terms defined here?
 

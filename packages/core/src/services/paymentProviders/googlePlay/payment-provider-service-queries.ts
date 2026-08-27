@@ -26,6 +26,8 @@ import {
 import { constant } from "@voidhash/lib/lang";
 import { Effect, Layer, Option, Context } from "effect";
 
+import { googlePlayMappingMatchesProviderProductKey } from "./helpers.ts";
+
 /** Bound on `mergedIntoPersonId` chain-following — cycle/runaway backstop. */
 const MAX_MERGE_CHAIN_HOPS = 10;
 
@@ -287,13 +289,38 @@ const make = Effect.gen(function* () {
       readonly providerProductKey: string;
     }): Effect.Effect<ReadonlyArray<DbPaymentProviderNotificationProcessed>, DbError, Db> =>
       Effect.gen(function* () {
-        return yield* db.query.paymentProviderNotificationProcessed.findMany({
+        const parked = yield* db.query.paymentProviderNotificationProcessed.findMany({
+          orderBy: { providerOccurredAt: "asc", processedAt: "asc", id: "asc" },
           where: {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             result: "parked_pending_product_mapping",
-            parkedUntilProviderProductKey: input.providerProductKey,
           },
         });
+        return parked.filter((row) => {
+          const parkedKey = row.parkedUntilProviderProductKey;
+          return (
+            parkedKey !== null &&
+            googlePlayMappingMatchesProviderProductKey(input.providerProductKey, parkedKey)
+          );
+        });
+      }),
+  );
+
+  /** Records a retryable replay attempt while keeping the notification parked. */
+  const markParkedNotificationAttempted = Effect.fn("markParkedNotificationAttempted")(
+    (input: {
+      readonly id: string;
+      readonly resultNote: string;
+    }): Effect.Effect<void, DbError, Db> =>
+      Effect.gen(function* () {
+        yield* db
+          .update(paymentProviderNotificationProcessed)
+          .set({
+            attemptCount: sql`${paymentProviderNotificationProcessed.attemptCount} + 1`,
+            lastAttemptedAt: sql`NOW()`,
+            resultNote: input.resultNote.slice(0, 500),
+          })
+          .where(eq(paymentProviderNotificationProcessed.id, input.id));
       }),
   );
 
@@ -312,6 +339,8 @@ const make = Effect.gen(function* () {
         yield* db
           .update(paymentProviderNotificationProcessed)
           .set({
+            attemptCount: sql`${paymentProviderNotificationProcessed.attemptCount} + 1`,
+            lastAttemptedAt: sql`NOW()`,
             parkedRawPayload: null,
             parkedUntilOriginalTransactionId: null,
             parkedUntilProviderProductKey: null,
@@ -397,6 +426,7 @@ const make = Effect.gen(function* () {
     insertNotificationProcessedIfAbsent,
     isGooglePlayWebhookStandInPerson,
     markParkedNotificationResolved,
+    markParkedNotificationAttempted,
     rebindExternalIdentifier,
     resolveCanonicalPersonId,
     upsertExternalIdentifier,

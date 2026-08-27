@@ -81,4 +81,16 @@ export class PurchaseProcessingResult extends Schema.TaggedClass<PurchaseProcess
     analyticsEventIds: Schema.Array(Schema.String),
     idempotent: Schema.Boolean,
   },
-) {}
+) {
+  /** Whether the provider deliberately accepted the event without applying purchase state. */
+  isIgnored(): boolean {
+    return (
+      this.personId.length === 0 &&
+      Option.isNone(this.purchaseId) &&
+      Option.isNone(this.subscriptionId) &&
+      Option.isNone(this.transactionId) &&
+      this.changedGrantIds.length === 0 &&
+      this.analyticsEventIds.length === 0
+    );
+  }
+}

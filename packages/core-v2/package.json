@@ -1,0 +1,40 @@
+{
+  "name": "@voidhash/core-v2",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "description": "The next-generation Voidhash application core and backend.",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/core-v2"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "format": "vp fmt .",
+    "lint": "vp lint .",
+    "test": "vp test run -c vitest.unit.mts",
+    "test:watch": "vp test -c vitest.unit.mts",
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@voidhash/api-contracts": "workspace:*",
+    "@voidhash/lib": "workspace:*",
+    "@voidhash/rpc": "workspace:*"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

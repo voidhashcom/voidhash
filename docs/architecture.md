@@ -29,7 +29,7 @@ flowchart TD
   its Nitro adapters instead of owning native purchase logic, so every SDK speaks
   the same wire contracts.
 - `apps/backend` and `apps/www` are the AGPL service entry points, and
-  `apps/mimic-db` supplies the document-sync engine and reusable Cloudflare
+  `vendored/mimic/apps/mimic-db` supplies the document-sync engine and reusable Cloudflare
   Worker/Durable Object deployment they compose.
   `packages/backend` is the backend library, while
   `@voidhash/web-app` is the shared web source package they compose.
@@ -48,6 +48,10 @@ flowchart TD
   packages own portable application and domain behavior.
   Runtime backends are selected per primitive, not per provider, so a deployment
   can move one primitive to a managed service without touching the others.
+- `packages/core-v2` receives complete feature slices from `packages/core` and
+  `packages/backend`. Analytics is fully owned there; its Effect services are
+  composed with PostgreSQL or ClickHouse adapters at the backend edge. See the
+  [analytics guide](analytics.md) for the call stacks and storage selection.
 
 The publication-boundary check rejects non-Community package scopes and
 incomplete package license metadata from this repository.
