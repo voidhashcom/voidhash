@@ -1,6 +1,7 @@
-export const CLICKHOUSE_EVENTS_FULL_TABLE = "events_v2";
-export const CLICKHOUSE_PERSONS_FULL_TABLE = "persons_v1";
-export const CLICKHOUSE_PENDING_OVERRIDES_FULL_TABLE = "person_identity_pending_overrides_v2";
+export const CLICKHOUSE_EVENTS_FULL_TABLE = "analytics_events_v2";
+export const CLICKHOUSE_PERSONS_FULL_TABLE = "analytics_persons_v1";
+export const CLICKHOUSE_PENDING_OVERRIDES_FULL_TABLE =
+  "analytics_person_identity_pending_overrides_v2";
 
 const EVENT_ALIAS = "events";
 const OVERRIDES_ALIAS = "pending_overrides";

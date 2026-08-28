@@ -4,7 +4,6 @@
  *
  * Wire-stable schemas (consumers across processes must keep these stable):
  * - {@link CapturedEventV1} — capture → processor envelope.
- * - {@link ProcessedEventV2} — processor → writer (analytics events).
  * - {@link ProcessorPersonEventV1} — processor → writer (person snapshot).
  * - {@link ProcessorPersonIdentityEventV1} — processor → writer (identity map).
  */
@@ -74,7 +73,6 @@ export const EventContextSchema = Schema.Record(Schema.String, EventContextField
  * The identity the capture layer asserts for an event, as a tagged claim the
  * processor honours:
  *  - `Anonymous` — SDK pre-identify; the processor resolves / creates identity.
- *  - `Stitch`    — SDK `$identify`; the processor stitches `previousDistinctId`.
  *  - `Resolved`  — a server-trusted caller (revenue) already knows the person;
  *                  the processor passes the `(distinctId, personId)` through and
  *                  writes NO `persons_v1` / `person_identity_v1` rows.
@@ -85,11 +83,6 @@ export const EventContextSchema = Schema.Record(Schema.String, EventContextField
  */
 export const CapturedIdentityClaim = Schema.Union([
   Schema.Struct({ _tag: Schema.Literal("Anonymous"), distinctId: Schema.String }),
-  Schema.Struct({
-    _tag: Schema.Literal("Stitch"),
-    distinctId: Schema.String,
-    previousDistinctId: Schema.String,
-  }),
   Schema.Struct({
     _tag: Schema.Literal("Resolved"),
     distinctId: Schema.String,
@@ -125,42 +118,6 @@ export const CapturedEventV1 = Schema.Struct({
   request: CapturedEventRequest,
   identityClaim: Schema.optional(CapturedIdentityClaim),
   trustClass: Schema.optional(TrustClass),
-});
-
-// =============================================================================
-// Processed event (processor → writer)
-// =============================================================================
-
-export const ProcessedEventIdentity = Schema.Struct({
-  personId: Schema.optional(Schema.String),
-  distinctId: Schema.String,
-  mode: Schema.Literals(["full", "personless"]),
-});
-
-export const ProcessedEventTransport = Schema.Struct({
-  sourceOffset: Schema.String,
-  sourcePartition: Schema.Number,
-  sourceTopic: Schema.String,
-});
-
-export const ProcessedEventV2 = Schema.Struct({
-  captureId: Schema.String,
-  context: Schema.Record(Schema.String, Schema.Unknown),
-  distinctId: Schema.String,
-  event: Schema.String,
-  eventTimestamp: AnalyticsTimestamp,
-  groups: Schema.Array(Schema.Never),
-  identity: ProcessedEventIdentity,
-  organizationId: Schema.String,
-  processedAt: AnalyticsTimestamp,
-  processedEventId: Schema.String,
-  projectId: Schema.String,
-  properties: Schema.Record(Schema.String, Schema.Unknown),
-  request: CapturedEventRequest,
-  transport: ProcessedEventTransport,
-  schemaVersion: Schema.Literal(2),
-  sessionId: Schema.optional(Schema.String),
-  token: Schema.String,
 });
 
 // =============================================================================
@@ -345,6 +302,8 @@ export const extractInnerProperties = (wrappedProperties: Record<string, unknown
 // =============================================================================
 
 export const ProcessorProjectPolicy = Schema.Struct({
+  /** Which event names this project stores, layered over the built-in registry defaults. */
+  admission: EventAdmissionPolicy,
   processorEnabled: Schema.Boolean,
 });
 

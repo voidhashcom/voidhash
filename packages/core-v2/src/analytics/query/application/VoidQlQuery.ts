@@ -17,6 +17,7 @@ import {
   type Diagnostic,
   type VoidQlCompileError,
   VoidQlExecutionError,
+  VoidQlIsolationError,
   type VoidQlStatement,
 } from "./voidql/index.ts";
 
@@ -161,7 +162,11 @@ export interface VoidQlQueryShape {
     readonly organizationId: string;
     readonly principal: typeof VoidQlPrincipal.Type;
     readonly text: string;
-  }) => Effect.Effect<VoidQlValidateResult, VoidQlExecutionError, AuthSession>;
+  }) => Effect.Effect<
+    VoidQlValidateResult,
+    VoidQlIsolationError | VoidQlExecutionError,
+    AuthSession
+  >;
 }
 
 const makeVoidQlQuery = Effect.gen(function* () {
@@ -169,8 +174,9 @@ const makeVoidQlQuery = Effect.gen(function* () {
   const executor = yield* VoidQlExecutor;
   const insights = yield* VoidQlInsightRepository;
   const crypto = yield* Crypto.Crypto;
-  const executionError = (message: string) => (error: AnalyticsPortError) =>
-    new VoidQlExecutionError({ cause: String(error.cause), message });
+  const executionError =
+    (message: string) => (error: { readonly cause?: unknown; readonly message: string }) =>
+      new VoidQlExecutionError({ cause: String(error.cause), message });
   const scopeFor = (organizationId: string) =>
     authorizer.organizationProjects(organizationId).pipe(
       Effect.map((availableProjectIds) =>
@@ -178,6 +184,18 @@ const makeVoidQlQuery = Effect.gen(function* () {
       ),
       Effect.mapError(executionError("The query could not be authorized.")),
     );
+  // An empty tenant scope authorizes nothing; every method must reject it with the
+  // same typed error instead of short-circuiting to an empty success.
+  const emptyScopeError = () =>
+    new VoidQlExecutionError({
+      cause: "empty_scope",
+      message: "The organization has no projects available for this request.",
+    });
+  const ensureScope = (organizationId: string) =>
+    Effect.flatMap(scopeFor(organizationId), (scope) => {
+      if (scope.availableProjectIds.length === 0) return Effect.fail(emptyScopeError());
+      return Effect.succeed(scope);
+    });
   const capabilitiesFor = (principal: typeof VoidQlPrincipal.Type) => {
     if (principal.kind === "user") return new Set<Capability>(["pii"]);
     return new Set<Capability>();
@@ -197,6 +215,11 @@ const makeVoidQlQuery = Effect.gen(function* () {
           }),
         ),
       ),
+      // Never leak verifier internals (occurrence counts, physical table names) to
+      // callers; the typed failure carries a generic, sanitized message.
+      Effect.catchTag("VoidQlIsolationError", () =>
+        Effect.fail(new VoidQlIsolationError({ message: "The query failed isolation checks." })),
+      ),
     );
 
   const run = (request: {
@@ -205,8 +228,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
     readonly text: string;
   }) =>
     Effect.gen(function* () {
-      const scope = yield* scopeFor(request.organizationId);
-      if (scope.availableProjectIds.length === 0) return { columns: [], rows: [] };
+      const scope = yield* ensureScope(request.organizationId);
       const compiled = yield* compile(request.text, scope, capabilitiesFor(request.principal));
       const rows = yield* executor
         .execute({
@@ -236,7 +258,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
     deleteInsight: (id) =>
       Effect.gen(function* () {
         const insight = yield* load(id);
-        yield* scopeFor(insight.organizationId);
+        yield* ensureScope(insight.organizationId);
         const deleted = yield* insights
           .delete(id)
           .pipe(Effect.mapError(executionError("The saved query could not be deleted.")));
@@ -244,7 +266,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
       }),
     getSchema: () => Effect.succeed(schemaDescriptor()),
     listInsights: (organizationId) =>
-      scopeFor(organizationId).pipe(
+      ensureScope(organizationId).pipe(
         Effect.flatMap(() => insights.list(organizationId)),
         Effect.mapError((error) => {
           if (error instanceof VoidQlExecutionError) return error;
@@ -264,7 +286,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
       ),
     saveInsight: (request) =>
       Effect.gen(function* () {
-        const scope = yield* scopeFor(request.organizationId);
+        const scope = yield* ensureScope(request.organizationId);
         yield* compile(request.text, scope, new Set<Capability>(["pii"]));
         return yield* insights
           .create({
@@ -278,7 +300,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
       }),
     validate: (request) =>
       Effect.gen(function* () {
-        const scope = yield* scopeFor(request.organizationId);
+        const scope = yield* ensureScope(request.organizationId);
         return yield* compile(request.text, scope, capabilitiesFor(request.principal)).pipe(
           Effect.map(
             (compiled) =>
@@ -288,7 +310,13 @@ const makeVoidQlQuery = Effect.gen(function* () {
               }) satisfies VoidQlValidateResult,
           ),
           Effect.catchIf(isVoidQlCompileError, (error) => {
-            if (error._tag === "VoidQlIsolationError") return Effect.die(error);
+            // Isolation failures surface as a typed (sanitized) failure, not a
+            // defect and not internal details.
+            if (error._tag === "VoidQlIsolationError") {
+              return Effect.fail(
+                new VoidQlIsolationError({ message: "The query failed isolation checks." }),
+              );
+            }
             return Effect.succeed({ valid: false, diagnostic: toDiagnostic(error) });
           }),
         );

@@ -35,7 +35,6 @@ export const RevenueAnalyticsEventNameSchema = Schema.Literals([
   "$subscription.renewed",
   "$subscription.canceled",
   "$subscription.expired",
-  "$subscription.active",
   "$subscription.refund_reversed",
   "$subscription.billing_retry",
   "$subscription.extended",
@@ -64,7 +63,6 @@ export const RESERVED_REVENUE_EVENT_NAMES: ReadonlySet<
   "$subscription.renewed",
   "$subscription.canceled",
   "$subscription.expired",
-  "$subscription.active",
   "$subscription.refund_reversed",
   "$subscription.billing_retry",
   "$subscription.extended",
@@ -145,6 +143,19 @@ export const REVENUE_TRUSTED_SOURCE_TOPIC = constant("revenue.trusted.v1");
  * neither).
  */
 export const EXPERIMENT_TRUSTED_SOURCE_TOPIC = constant("experiment.trusted.v1");
+
+/** Whether an event's trust marker, reserved name, and source topic form a valid server source. */
+export const isTrustedInternalAnalyticsEventSource = (input: {
+  readonly eventName: string;
+  readonly sourceTopic: string;
+  readonly trustClass?: string;
+}): boolean =>
+  (input.trustClass === "trusted-revenue" &&
+    isReservedRevenueEventName(input.eventName) &&
+    input.sourceTopic === REVENUE_TRUSTED_SOURCE_TOPIC) ||
+  (input.trustClass === "trusted-internal" &&
+    input.eventName === "$experiment.exposed" &&
+    input.sourceTopic === EXPERIMENT_TRUSTED_SOURCE_TOPIC);
 
 const baseEventFields = {
   context: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
@@ -292,12 +303,6 @@ export const RevenueSubscriptionCanceledSchema = Schema.Struct({
 export const RevenueSubscriptionExpiredSchema = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.expired"),
-  properties: Schema.Struct({ ...revenuePropertiesBase }),
-});
-
-export const RevenueSubscriptionActiveSchema = Schema.Struct({
-  ...baseEventFields,
-  eventName: Schema.Literal("$subscription.active"),
   properties: Schema.Struct({ ...revenuePropertiesBase }),
 });
 
@@ -475,7 +480,6 @@ export const InternalAnalyticsEventSchema = Schema.Union([
   RevenueSubscriptionRenewedSchema,
   RevenueSubscriptionCanceledSchema,
   RevenueSubscriptionExpiredSchema,
-  RevenueSubscriptionActiveSchema,
   RevenueSubscriptionRefundReversedSchema,
   RevenueSubscriptionBillingRetrySchema,
   RevenueSubscriptionExtendedSchema,
@@ -504,7 +508,6 @@ export const sourceTopicForInternalAnalyticsEvent = (
     case "$subscription.renewed":
     case "$subscription.canceled":
     case "$subscription.expired":
-    case "$subscription.active":
     case "$subscription.refund_reversed":
     case "$subscription.billing_retry":
     case "$subscription.extended":

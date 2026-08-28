@@ -424,6 +424,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
+            AnalyticsAuthorizationDeniedError: forbidden,
             AnalyticsQueryError: resultsAnalyticsFailure,
             ExperimentNotFoundError: notFound,
             ExperimentServiceError: serviceError,

@@ -61,6 +61,8 @@ export const EventsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "events", (ha
         Effect.catchTags({
           ActionForbiddenError: (e) =>
             Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+          AnalyticsAuthorizationDeniedError: (e) =>
+            Effect.fail(new ApiActionForbiddenError({ message: e.message })),
           AnalyticsQueryError: (e) => Effect.fail(new ApiAnalyticsServiceError({ cause: e.cause })),
         }),
       ),

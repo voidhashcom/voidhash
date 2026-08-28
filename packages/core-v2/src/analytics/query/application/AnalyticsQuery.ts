@@ -1,7 +1,12 @@
 import { Context, Effect, Layer, Schema } from "effect";
 import type { AuthSession } from "@voidhash/rpc";
 
-import { AnalyticsAuthorizer, AnalyticsConfig, AnalyticsStore } from "../../application/ports.ts";
+import {
+  AnalyticsAuthorizationDeniedError,
+  AnalyticsAuthorizer,
+  AnalyticsConfig,
+  AnalyticsStore,
+} from "../../application/ports.ts";
 import type { AnalyticsPortError, StoredAnalyticsEvent } from "../../application/ports.ts";
 import {
   AnalyticsInsightQuery,
@@ -12,6 +17,7 @@ import {
   InvalidAnalyticsQueryError,
   type InvalidTimeRangeError,
   RATE_INSIGHTS,
+  STOCK_INSIGHTS,
   type UnknownInsightError,
   type UnsupportedAnalyticsBreakdownError,
   type UnsupportedAnalyticsFilterError,
@@ -28,6 +34,22 @@ import { isRevenueMoneyEventName } from "../../domain/InternalAnalyticsEvents.ts
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 const QUERY_EVENT_LIMIT = 100_000;
+const HISTORY_INSIGHTS: ReadonlySet<typeof BuiltInInsightId.Type> = new Set([
+  "builtin/mrr",
+  "builtin/arr",
+  "builtin/mrr_growth_rate",
+  "builtin/churn_rate",
+  "builtin/person_count",
+  "builtin/new_persons",
+  "builtin/retention",
+  "builtin/arpu",
+  "builtin/active_subscriptions",
+  "builtin/active_trials",
+  "builtin/active_subscribers_growth",
+  "builtin/subscriber_lifetime_value",
+  "builtin/trial_conversions",
+  "builtin/trial_conversion_rate",
+]);
 
 export class AnalyticsQueryError extends Schema.TaggedErrorClass<AnalyticsQueryError>(
   "AnalyticsQueryError",
@@ -98,7 +120,7 @@ export interface AnalyticsQueryShape {
     readonly start: Date;
   }) => Effect.Effect<
     { readonly variants: ReadonlyArray<typeof ExperimentAnalyticsVariant.Type> },
-    AnalyticsQueryError,
+    AnalyticsQueryError | AnalyticsAuthorizationDeniedError,
     AuthSession
   >;
   readonly listEventsPage: (input: {
@@ -111,7 +133,7 @@ export interface AnalyticsQueryShape {
       readonly events: ReadonlyArray<typeof AnalyticsEventListItem.Type>;
       readonly hasNextPage: boolean;
     },
-    AnalyticsQueryError,
+    AnalyticsQueryError | AnalyticsAuthorizationDeniedError,
     AuthSession
   >;
   readonly listRecentEvents: (input: {
@@ -122,7 +144,7 @@ export interface AnalyticsQueryShape {
       readonly events: ReadonlyArray<typeof AnalyticsEventListItem.Type>;
       readonly hasMore: boolean;
     },
-    AnalyticsQueryError,
+    AnalyticsQueryError | AnalyticsAuthorizationDeniedError,
     AuthSession
   >;
   readonly queryOrganization: (input: {
@@ -145,11 +167,14 @@ export interface AnalyticsQueryShape {
 
 export type AnalyticsQueryFailure =
   | AnalyticsQueryError
+  | AnalyticsAuthorizationDeniedError
   | InvalidAnalyticsQueryError
   | InvalidTimeRangeError
   | UnknownInsightError
   | UnsupportedAnalyticsBreakdownError
   | UnsupportedAnalyticsFilterError;
+
+const MAX_QUERIES_PER_BATCH = 20;
 
 const makeAnalyticsQuery = Effect.gen(function* () {
   const authorizer = yield* AnalyticsAuthorizer;
@@ -165,6 +190,11 @@ const makeAnalyticsQuery = Effect.gen(function* () {
     Effect.gen(function* () {
       const insight = yield* getBuiltInInsight(query.insightId);
       yield* ensureNoBreakdowns(query.breakdowns);
+      if (query.limit !== undefined) {
+        return yield* new InvalidAnalyticsQueryError({
+          message: "Limit is not supported for metric insights",
+        });
+      }
       const resolvedTimeRange = yield* resolveTimeRange(query.timeRange);
       const compiledFilter: CompiledAnalyticsFilter = yield* compileAnalyticsFilter({
         availableProjectIds: [...availableProjectIds],
@@ -185,11 +215,18 @@ const makeAnalyticsQuery = Effect.gen(function* () {
       const events = yield* store
         .list({
           end: resolvedTimeRange.end,
-          limit: QUERY_EVENT_LIMIT,
+          limit: QUERY_EVENT_LIMIT + 1,
+          order: "asc",
           projectIds: compiledFilter.projectIds,
-          start: resolvedTimeRange.start,
+          ...(!HISTORY_INSIGHTS.has(query.insightId) && { start: resolvedTimeRange.start }),
         })
         .pipe(Effect.mapError(portError));
+      if (events.length > QUERY_EVENT_LIMIT) {
+        return yield* new AnalyticsQueryError({
+          cause: "query_event_limit_exceeded",
+          message: `The selected time range contains more than ${QUERY_EVENT_LIMIT} events; narrow the range or coarsen the granularity instead of relying on partial results`,
+        });
+      }
       const series = resolvePortableAnalyticsSeries({
         end: resolvedTimeRange.end,
         events,
@@ -200,6 +237,8 @@ const makeAnalyticsQuery = Effect.gen(function* () {
       });
       let summaryValue = sumDataPoints(series);
       if (RATE_INSIGHTS.has(query.insightId)) summaryValue = avgDataPoints(series);
+      else if (STOCK_INSIGHTS.has(query.insightId))
+        summaryValue = series[series.length - 1]?.value ?? 0;
       return {
         insightId: query.insightId,
         key: query.key,
@@ -218,7 +257,15 @@ const makeAnalyticsQuery = Effect.gen(function* () {
   const runMany = (
     availableProjectIds: ReadonlyArray<string>,
     queries: ReadonlyArray<typeof AnalyticsInsightRequest.Type>,
-  ) => Effect.forEach(queries, (query) => run(availableProjectIds, query));
+  ) =>
+    Effect.gen(function* () {
+      if (queries.length > MAX_QUERIES_PER_BATCH) {
+        return yield* new InvalidAnalyticsQueryError({
+          message: `At most ${MAX_QUERIES_PER_BATCH} insight queries are allowed per batch`,
+        });
+      }
+      return yield* Effect.forEach(queries, (query) => run(availableProjectIds, query));
+    });
 
   const identityKey = (event: typeof StoredAnalyticsEvent.Type) =>
     event.personId ?? event.distinctId;
@@ -233,15 +280,24 @@ const makeAnalyticsQuery = Effect.gen(function* () {
   return {
     getExperimentResults: (request) =>
       Effect.gen(function* () {
-        yield* authorizer.requireProject(request.projectId).pipe(Effect.mapError(portError));
+        yield* authorizer
+          .requireProject(request.projectId)
+          .pipe(Effect.catchTag("AnalyticsPortError", portError));
         const events = yield* store
           .list({
             end: request.end,
-            limit: QUERY_EVENT_LIMIT,
+            limit: QUERY_EVENT_LIMIT + 1,
+            order: "asc",
             projectIds: [request.projectId],
             start: request.start,
           })
           .pipe(Effect.mapError(portError));
+        if (events.length > QUERY_EVENT_LIMIT) {
+          return yield* new AnalyticsQueryError({
+            cause: "query_event_limit_exceeded",
+            message: `The selected time range contains more than ${QUERY_EVENT_LIMIT} events; narrow the range instead of relying on partial results`,
+          });
+        }
         const exposures = new Map<
           string,
           { readonly timestamp: Date; readonly variantKey: string }
@@ -302,7 +358,9 @@ const makeAnalyticsQuery = Effect.gen(function* () {
       }),
     listEventsPage: (request) =>
       Effect.gen(function* () {
-        yield* authorizer.requireProject(request.projectId).pipe(Effect.mapError(portError));
+        yield* authorizer
+          .requireProject(request.projectId)
+          .pipe(Effect.catchTag("AnalyticsPortError", portError));
         const limit = Math.min(Math.max(request.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
         const eventNames: string[] = [];
         if (request.eventName) eventNames.push(request.eventName);
@@ -318,7 +376,9 @@ const makeAnalyticsQuery = Effect.gen(function* () {
       }),
     listRecentEvents: (request) =>
       Effect.gen(function* () {
-        yield* authorizer.requireProject(request.projectId).pipe(Effect.mapError(portError));
+        yield* authorizer
+          .requireProject(request.projectId)
+          .pipe(Effect.catchTag("AnalyticsPortError", portError));
         const limit = Math.min(Math.max(request.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
         const events = yield* store
           .list({ limit: limit + 1, order: "desc", projectIds: [request.projectId] })
@@ -327,12 +387,12 @@ const makeAnalyticsQuery = Effect.gen(function* () {
       }),
     queryOrganization: (request) =>
       authorizer.organizationProjects(request.organizationId).pipe(
-        Effect.mapError(portError),
+        Effect.catchTag("AnalyticsPortError", portError),
         Effect.flatMap((projectIds) => runMany(projectIds, request.queries)),
       ),
     queryProject: (request) =>
       authorizer.requireProject(request.projectId).pipe(
-        Effect.mapError(portError),
+        Effect.catchTag("AnalyticsPortError", portError),
         Effect.flatMap(() => runMany([request.projectId], request.queries)),
       ),
   } satisfies AnalyticsQueryShape;

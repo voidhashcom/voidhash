@@ -1,6 +1,6 @@
 import { CatalogSqlSchema, catalog } from "./catalog/brand.ts";
 
-export type ParamValue = string | number | boolean | readonly string[] | readonly number[];
+export type ParamValue = string | number | boolean | readonly string[];
 
 export type SqlPiece =
   | { readonly kind: "sql"; readonly text: typeof CatalogSqlSchema.Type }

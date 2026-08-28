@@ -2,7 +2,7 @@
  * The `events` logical view lowers to the canonical resolved-events shape,
  * automatically deduplicated
  * (`LIMIT 1 BY event_id ORDER BY processed_ts DESC`) and identity-resolved
- * (`effective*IdExpression`) — so the raw `events_v2` MergeTree is never
+ * (`effective*IdExpression`) — so raw analytics record tables are never
  * reachable. Tenant predicates are bound inside the inner `WHERE`.
  */
 import {
@@ -36,7 +36,7 @@ const col = (
     doc,
   }) satisfies CatalogColumn;
 
-/** Columns the inner dedup scan reads off `events_v2` (physical names). */
+/** Columns the inner dedup scan reads from the event compatibility view. */
 const EVENT_INNER_COLUMNS =
   "event_id, event_name, event_ts, project_id, distinct_id, person_id, event_properties, context";
 

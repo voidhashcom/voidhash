@@ -120,6 +120,7 @@ const columns = [
 
 const portError = (message: string) => (cause: unknown) =>
   new AnalyticsPortError({ cause, message });
+const STORE_OPERATION_TIMEOUT = "30 seconds";
 
 const filters = (input: typeof ListAnalyticsEventsInput.Type, values: unknown[]) => {
   const conditions = [`project_id = ANY($${values.push([...input.projectIds])}::text[])`];
@@ -133,21 +134,20 @@ const filters = (input: typeof ListAnalyticsEventsInput.Type, values: unknown[])
 
 const listStatement = (
   input: typeof ListAnalyticsEventsInput.Type,
+  limit: number,
   cursor?: string,
-  fetchExtra = false,
 ) => {
   const values: unknown[] = [];
   const conditions = filters(input, values);
   if (cursor !== undefined) {
+    // The cursor is a bigint sequence: bind it as a string with an explicit
+    // cast so values beyond 2^53 keep full precision.
     let comparator = "<";
     if (input.order === "asc") comparator = ">";
-    conditions.push(`sequence ${comparator} $${values.push(Number(cursor))}`);
+    conditions.push(`sequence ${comparator} $${values.push(cursor)}::bigint`);
   }
   let order = "DESC";
   if (input.order === "asc") order = "ASC";
-  let extra = 0;
-  if (fetchExtra) extra = 1;
-  const limit = Math.max(input.limit ?? 10_000, 0) + extra;
   values.push(limit);
   return {
     name: "analytics.events.list",
@@ -156,6 +156,14 @@ const listStatement = (
     )} ORDER BY sequence ${order} LIMIT $${values.length}`,
     values,
   } satisfies PostgresStatement;
+};
+
+/** Validates a pagination cursor: it must be a bare non-negative integer string. */
+const parseCursor = (afterEventId: string) => {
+  if (!/^\d+$/.test(afterEventId)) {
+    return undefined;
+  }
+  return afterEventId;
 };
 
 const insertStatement = (batch: typeof AnalyticsWriteBatch.Type) => {
@@ -204,7 +212,8 @@ const makePostgresAnalyticsStore = Effect.gen(function* () {
   const client = yield* PostgresAnalyticsClient;
   const list = (input: typeof ListAnalyticsEventsInput.Type) => {
     if (input.projectIds.length === 0) return Effect.succeed([]);
-    return client.query<PostgresEventRow>(listStatement(input)).pipe(
+    return client.query<PostgresEventRow>(listStatement(input, input.limit ?? 10_000)).pipe(
+      Effect.timeout(STORE_OPERATION_TIMEOUT),
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresEventRow))),
       Effect.map((rows) => rows.map(storedEvent)),
       Effect.mapError(portError("failed to list analytics events")),
@@ -227,19 +236,32 @@ const makePostgresAnalyticsStore = Effect.gen(function* () {
             text: "SELECT sequence FROM analytics_event WHERE project_id = ANY($1::text[]) AND event_id = $2 LIMIT 1",
             values: [[...input.projectIds], input.afterEventId],
           })
-          .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresCursorRow))));
+          .pipe(
+            Effect.timeout(STORE_OPERATION_TIMEOUT),
+            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresCursorRow))),
+          );
         if (!anchor[0]) {
           return yield* Effect.fail({
             cause: input.afterEventId,
             message: "analytics event cursor was not found",
           });
         }
-        cursor = String(anchor[0].sequence);
+        const sequence = parseCursor(String(anchor[0].sequence));
+        if (sequence === undefined) {
+          return yield* Effect.fail({
+            cause: anchor[0].sequence,
+            message: "analytics event cursor was not found",
+          });
+        }
+        cursor = sequence;
       }
-      const rows = yield* client
-        .query<PostgresEventRow>(listStatement(input, cursor, true))
-        .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresEventRow))));
       const limit = input.limit ?? 100;
+      const rows = yield* client
+        .query<PostgresEventRow>(listStatement(input, limit + 1, cursor))
+        .pipe(
+          Effect.timeout(STORE_OPERATION_TIMEOUT),
+          Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresEventRow))),
+        );
       return {
         events: rows.slice(0, limit).map(storedEvent),
         hasNextPage: rows.length > limit,
@@ -248,11 +270,15 @@ const makePostgresAnalyticsStore = Effect.gen(function* () {
   };
 
   return {
+    // Identity ownership lives in the primary database for the PostgreSQL
+    // runtime (the identity resolver writes persons there), so the
+    // person/personIdentity projections are intentionally not mirrored here.
     insert: (batch) => {
       if (batch.events.length === 0) return Effect.succeed(0);
       return client.query<{ readonly event_id: string }>(insertStatement(batch)).pipe(
+        Effect.timeout(STORE_OPERATION_TIMEOUT),
         Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresInsertedEventRow))),
-        Effect.map((rows) => rows.length),
+        Effect.map(() => batch.events.length),
         Effect.mapError(portError("failed to insert analytics events")),
       );
     },

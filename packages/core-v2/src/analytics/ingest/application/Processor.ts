@@ -5,18 +5,20 @@ import {
   type ProcessedAnalyticsEvent,
 } from "../../domain/AnalyticsEvent.ts";
 import {
-  REVENUE_TRUSTED_SOURCE_TOPIC,
   isReservedRevenueEventName,
+  isTrustedInternalAnalyticsEventSource,
   sourceTopicForInternalAnalyticsEvent,
   InternalAnalyticsEventSchema,
 } from "../../domain/InternalAnalyticsEvents.ts";
 import {
+  AnalyticsConfig,
   AnalyticsDeadLetterStore,
   AnalyticsIdentityResolver,
   AnalyticsStore,
   ProcessorProjectRepository,
 } from "../../application/ports.ts";
 import type { IdentityResolution, ResolvedAnalyticsIdentity } from "../../application/ports.ts";
+import { admitEvent } from "../domain/EventAdmission.ts";
 import {
   buildDlqEvent,
   CapturedEventV1,
@@ -35,6 +37,28 @@ export class AnalyticsProcessorError extends Schema.TaggedErrorClass<AnalyticsPr
 }) {}
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+
+/** How far a client timestamp may lag behind (24h) or run ahead (5m) of receipt. */
+const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * Clamps client-supplied event timestamps to a bounded window around receipt:
+ * unbounded client clocks would otherwise create arbitrary ClickHouse
+ * partitions (atomic write records partition by their server-derived write time).
+ */
+const clampEventTimestamp = (eventTimestamp: string, receivedAt: string) => {
+  const received = DateTime.toDateUtc(DateTime.makeUnsafe(receivedAt)).getTime();
+  const event = DateTime.toDateUtc(DateTime.makeUnsafe(eventTimestamp)).getTime();
+  const clamped = Math.min(
+    Math.max(event, received - MAX_EVENT_AGE_MS),
+    received + MAX_CLOCK_SKEW_MS,
+  );
+  return DateTime.toDateUtc(DateTime.makeUnsafe(clamped)).toISOString();
+};
+
+const processorError = (error: { readonly cause?: unknown; readonly message: string }) =>
+  new AnalyticsProcessorError({ cause: String(error.cause), message: error.message });
 
 /** Put a trusted internal event onto the same envelope contract used by SDK capture. */
 export const makeInternalCaptureEnvelope = (
@@ -56,6 +80,11 @@ export const makeInternalCaptureEnvelope = (
   if (event.eventName === "$experiment.exposed") {
     trustClass = "trusted-internal";
   }
+  // The top-level transactionId would otherwise be dropped before storage.
+  const enrichedProperties: Record<string, unknown> = { ...event.properties };
+  if ("transactionId" in event && event.transactionId) {
+    enrichedProperties.transactionId = event.transactionId;
+  }
   return {
     schemaVersion: 1,
     captureId: `internal_${event.eventId}`,
@@ -70,7 +99,7 @@ export const makeInternalCaptureEnvelope = (
     organizationId: event.organizationId,
     projectId: event.projectId,
     properties: Schema.decodeUnknownSync(Schema.fromJsonString(EventPropertiesSchema))(
-      encodeJson(event.properties),
+      encodeJson(enrichedProperties),
     ),
     rawPayload: {},
     receivedAt: receivedAt.toISOString(),
@@ -89,13 +118,21 @@ const buildProcessedEvent = (input: {
   readonly identity: typeof ResolvedAnalyticsIdentity.Type;
   readonly now: Date;
   readonly record: typeof CapturedTransportRecord.Type;
-}) =>
-  ({
+  readonly trustedSource: boolean;
+}) => {
+  let eventTimestamp = input.record.capturedEvent.eventTimestamp;
+  if (!input.trustedSource) {
+    eventTimestamp = clampEventTimestamp(
+      input.record.capturedEvent.eventTimestamp,
+      input.record.capturedEvent.receivedAt,
+    );
+  }
+  return {
     captureId: input.record.capturedEvent.captureId,
     context: input.record.capturedEvent.context,
     distinctId: input.record.capturedEvent.distinctId,
     event: input.record.capturedEvent.event,
-    eventTimestamp: input.record.capturedEvent.eventTimestamp,
+    eventTimestamp,
     identity: input.identity,
     organizationId: input.record.capturedEvent.organizationId,
     processedAt: input.now.toISOString(),
@@ -110,9 +147,11 @@ const buildProcessedEvent = (input: {
       sessionId: input.record.capturedEvent.sessionId,
     }),
     token: input.record.capturedEvent.token,
-  }) satisfies ProcessedAnalyticsEvent;
+  } satisfies ProcessedAnalyticsEvent;
+};
 
-const ProcessResult = Schema.Struct({
+/** Outcome of processing a single transport record. */
+export const ProcessResult = Schema.Struct({
   status: Schema.Literals(["dead-lettered", "stored"]),
   inserted: Schema.Int,
 });
@@ -125,6 +164,7 @@ interface AnalyticsProcessorShape {
 }
 
 const makeAnalyticsProcessor = Effect.gen(function* () {
+  const config = yield* AnalyticsConfig;
   const deadLetters = yield* AnalyticsDeadLetterStore;
   const identity = yield* AnalyticsIdentityResolver;
   const projects = yield* ProcessorProjectRepository;
@@ -134,14 +174,6 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
   return {
     process: (record: typeof CapturedTransportRecord.Type) =>
       Effect.gen(function* () {
-        const project = yield* projects
-          .resolve(record.capturedEvent)
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new AnalyticsProcessorError({ cause: String(error.cause), message: error.message }),
-            ),
-          );
         const reject = (
           failureClass: Parameters<typeof buildDlqEvent>[0]["failureClass"],
           message: string,
@@ -160,27 +192,29 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
               sourcePartition: record.sourcePartition,
               sourceTopic: record.sourceTopic,
               token: record.capturedEvent.token,
-            }).pipe(
-              Effect.provideService(Crypto.Crypto, crypto),
-              Effect.mapError(
-                (error) =>
-                  new AnalyticsProcessorError({
-                    cause: String(error.cause),
-                    message: error.message,
-                  }),
-              ),
-            );
-            yield* deadLetters.write([event]).pipe(
-              Effect.mapError(
-                (error) =>
-                  new AnalyticsProcessorError({
-                    cause: String(error.cause),
-                    message: error.message,
-                  }),
-              ),
-            );
+            }).pipe(Effect.provideService(Crypto.Crypto, crypto), Effect.mapError(processorError));
+            yield* deadLetters.write([event]).pipe(Effect.mapError(processorError));
             return { inserted: 0, status: "dead-lettered" } satisfies typeof ProcessResult.Type;
           });
+        const trustedSource = isTrustedInternalAnalyticsEventSource({
+          eventName: record.capturedEvent.event,
+          sourceTopic: record.sourceTopic,
+          trustClass: record.capturedEvent.trustClass,
+        });
+        const claimsTrustedSource =
+          isReservedRevenueEventName(record.capturedEvent.event) ||
+          record.capturedEvent.event === "$experiment.exposed" ||
+          (record.capturedEvent.trustClass !== undefined &&
+            record.capturedEvent.trustClass !== "untrusted-sdk");
+        if (claimsTrustedSource && !trustedSource) {
+          return yield* reject(
+            "reserved_event_name",
+            "internal analytics event does not have a trusted source",
+          );
+        }
+        const project = yield* projects
+          .resolve(record.capturedEvent)
+          .pipe(Effect.mapError(processorError));
         if (!project || project.projectId !== record.capturedEvent.projectId) {
           return yield* reject("project_not_found", "failed to resolve processor project policy");
         }
@@ -188,11 +222,16 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
           return yield* reject("policy_rejected", "processor is disabled for the project");
         }
         if (
-          isReservedRevenueEventName(record.capturedEvent.event) &&
-          (record.capturedEvent.trustClass !== "trusted-revenue" ||
-            record.sourceTopic !== REVENUE_TRUSTED_SOURCE_TOPIC)
+          !admitEvent({
+            edition: config.edition,
+            eventName: record.capturedEvent.event,
+            policy: project.policy.admission,
+          }).admitted
         ) {
-          return yield* reject("reserved_event_name", "reserved revenue event is not trusted");
+          return yield* reject(
+            "policy_rejected",
+            `event ${record.capturedEvent.event} is not admitted for this project`,
+          );
         }
         const now = yield* DateTime.nowAsDate;
         const validation = validateBuiltInProcessorRules({
@@ -203,7 +242,7 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
 
         const claim = record.capturedEvent.identityClaim;
         let resolution: typeof IdentityResolution.Type;
-        if (claim?._tag === "Resolved" && record.capturedEvent.trustClass !== "untrusted-sdk") {
+        if (claim?._tag === "Resolved" && trustedSource) {
           resolution = {
             identity: {
               distinctId: claim.distinctId,
@@ -214,18 +253,10 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
             personIdentityEvents: [],
           };
         } else {
-          resolution = yield* identity.resolve(record).pipe(
-            Effect.mapError(
-              (error) =>
-                new AnalyticsProcessorError({
-                  cause: String(error.cause),
-                  message: error.message,
-                }),
-            ),
-          );
+          resolution = yield* identity.resolve(record).pipe(Effect.mapError(processorError));
         }
         const event = analyticsEventFromProcessed(
-          buildProcessedEvent({ identity: resolution.identity, now, record }),
+          buildProcessedEvent({ identity: resolution.identity, now, record, trustedSource }),
         );
         const inserted = yield* store
           .insert({
@@ -234,12 +265,7 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
             personEvents: resolution.personEvents,
             personIdentityEvents: resolution.personIdentityEvents,
           })
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new AnalyticsProcessorError({ cause: String(error.cause), message: error.message }),
-            ),
-          );
+          .pipe(Effect.mapError(processorError));
         return { inserted, status: "stored" };
       }),
   } satisfies AnalyticsProcessorShape;

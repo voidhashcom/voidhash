@@ -22,8 +22,8 @@ export const ListAnalyticsEventsInput = Schema.Struct({
   end: Schema.optional(Schema.Date),
   /** Optional allow-list of event names. */
   eventNames: Schema.optional(Schema.Array(Schema.String)),
-  /** Maximum number of events to return. */
-  limit: Schema.optional(Schema.Int),
+  /** Maximum number of events to return. Must be positive. */
+  limit: Schema.optional(Schema.Int.pipe(Schema.refine((value): value is number => value > 0))),
   /** Direction in which events are read. */
   order: Schema.optional(Schema.Literals(["asc", "desc"])),
   /** Authorized projects included in the read. */
@@ -38,7 +38,13 @@ export const AnalyticsEventPage = Schema.Struct({
   hasNextPage: Schema.Boolean,
 });
 
-/** Canonical events and identity projections committed as one logical write. */
+/**
+ * Canonical events plus the identity projections derived while processing.
+ * Adapters that maintain their own identity tables commit these as part of the
+ * same logical write; adapters whose identity ownership lives elsewhere (e.g.
+ * the PostgreSQL adapter, where the primary database owns identity) may ignore
+ * the projections but must say so here rather than dropping them silently.
+ */
 export const AnalyticsWriteBatch = Schema.Struct({
   events: Schema.Array(AnalyticsEventV1),
   /** Supplies tenant ownership for every project represented in the batch. */
@@ -49,7 +55,10 @@ export const AnalyticsWriteBatch = Schema.Struct({
 
 /** Portable storage capabilities implemented by PostgreSQL and ClickHouse adapters. */
 export interface AnalyticsStoreShape {
-  /** Persists a processed batch and returns the number of canonical events inserted. */
+  /**
+   * Persists a processed batch and returns the number of canonical events
+   * submitted for insert — duplicates may still be collapsed by the adapter.
+   */
   readonly insert: (
     batch: typeof AnalyticsWriteBatch.Type,
   ) => Effect.Effect<number, AnalyticsPortError>;

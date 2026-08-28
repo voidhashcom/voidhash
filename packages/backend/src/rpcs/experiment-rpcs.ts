@@ -168,6 +168,7 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
         }).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
+            AnalyticsAuthorizationDeniedError: forbidden,
             AnalyticsQueryError: (error) =>
               Effect.fail(new RpcExperimentServiceError({ cause: error.cause })),
             ExperimentNotFoundError: (error) =>

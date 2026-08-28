@@ -4,17 +4,10 @@ import { AnalyticsPortError, AnalyticsStore } from "../../../application/ports.t
 import type {
   AnalyticsEventPage,
   AnalyticsStoreShape,
-  AnalyticsWriteBatch,
   ListAnalyticsEventsInput,
   StoredAnalyticsEvent,
 } from "../../../application/ports.ts";
-import {
-  toAnalyticsEventRow,
-  toClickhouseTimestamp,
-  toPendingOverrideRow,
-  toPersonIdentityRow,
-  toPersonRow,
-} from "./rows.ts";
+import { toAnalyticsWriteBatchRows } from "./rows.ts";
 
 export interface ClickHouseStatement {
   readonly name: string;
@@ -27,6 +20,8 @@ export interface ClickHouseStatement {
 /** ClickHouse client capabilities used by analytics adapters. */
 export interface ClickHouseAnalyticsClientShape {
   readonly insert: (input: {
+    /** Stable token used by ClickHouse to deduplicate an ambiguous retry. */
+    readonly deduplicationToken?: string;
     readonly table: string;
     readonly values: ReadonlyArray<Record<string, unknown>>;
   }) => Effect.Effect<void, unknown>;
@@ -125,10 +120,7 @@ const storedEvent = (row: ClickHouseEventRow) =>
 
 const portError = (message: string) => (cause: unknown) =>
   new AnalyticsPortError({ cause, message });
-
-const isIdentityOverride = (
-  event: (typeof AnalyticsWriteBatch.Type)["personIdentityEvents"][number],
-) => Boolean(event.previousDistinctId && event.version > 0);
+const STORE_OPERATION_TIMEOUT = "30 seconds";
 
 const selectedColumns = [
   "event_id",
@@ -155,43 +147,49 @@ const selectedColumns = [
 
 const listStatement = (
   input: typeof ListAnalyticsEventsInput.Type,
+  limit: number,
   cursor?: { readonly eventId: string; readonly insertedAt: string },
-  extra = 0,
 ) => {
   const params: Record<string, unknown> = { projectIds: [...input.projectIds] };
   const where = ["project_id IN {projectIds:Array(String)}"];
   if (input.start) {
-    params.start = toClickhouseTimestamp(input.start.toISOString());
+    // ISO-8601 with an explicit UTC offset so the range filter is correct on
+    // non-UTC ClickHouse servers too.
+    params.start = input.start.toISOString();
     where.push("event_ts >= {start:DateTime64(3)}");
   }
   if (input.end) {
-    params.end = toClickhouseTimestamp(input.end.toISOString());
+    params.end = input.end.toISOString();
     where.push("event_ts <= {end:DateTime64(3)}");
   }
   if (input.eventNames?.length) {
     params.eventNames = [...input.eventNames];
     where.push("event_name IN {eventNames:Array(String)}");
   }
+  let order = "DESC";
+  if (input.order === "asc") order = "ASC";
+  let cursorClause = "";
   if (cursor) {
     params.cursorInsertedAt = cursor.insertedAt;
     params.cursorEventId = cursor.eventId;
     let comparator = "<";
     if (input.order === "asc") comparator = ">";
-    where.push(
-      `(inserted_ts, event_id) ${comparator} ({cursorInsertedAt:DateTime64(3)}, {cursorEventId:String})`,
-    );
+    cursorClause = `WHERE (inserted_ts, event_id) ${comparator} ({cursorInsertedAt:DateTime64(3)}, {cursorEventId:String})`;
   }
-  params.limit = Math.max(input.limit ?? 10_000, 0) + extra;
-  let order = "DESC";
-  if (input.order === "asc") order = "ASC";
+  // The keyset cursor must be applied OUTSIDE the dedupe subquery: replayed
+  // events carry multiple physical rows until ReplacingMergeTree merges, and a
+  // cursor inside the dedupe would let the older duplicate of an already
+  // returned event resurface on the next page.
   return {
     name: "analytics.events.list",
     sql:
       `SELECT ${selectedColumns} FROM (` +
-      `SELECT ${selectedColumns} FROM events_v2 WHERE ${where.join(" AND ")} ` +
+      `SELECT ${selectedColumns} FROM (` +
+      `SELECT ${selectedColumns} FROM analytics_events_v2 WHERE ${where.join(" AND ")} ` +
       `ORDER BY processed_ts DESC LIMIT 1 BY project_id, event_id` +
+      `) ${cursorClause}` +
       `) ORDER BY inserted_ts ${order}, event_id ${order} LIMIT {limit:UInt32}`,
-    params,
+    params: { ...params, limit: Math.max(limit, 0) },
   } satisfies ClickHouseStatement;
 };
 
@@ -199,7 +197,8 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
   const client = yield* ClickHouseAnalyticsClient;
   const list = (input: typeof ListAnalyticsEventsInput.Type) => {
     if (input.projectIds.length === 0) return Effect.succeed([]);
-    return client.query<ClickHouseEventRow>(listStatement(input)).pipe(
+    return client.query<ClickHouseEventRow>(listStatement(input, input.limit ?? 10_000)).pipe(
+      Effect.timeout(STORE_OPERATION_TIMEOUT),
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseEventRow))),
       Effect.map((rows) => rows.map(storedEvent)),
       Effect.mapError(portError("failed to list analytics events")),
@@ -209,42 +208,19 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
   return {
     insert: (batch) =>
       Effect.gen(function* () {
-        if (batch.events.length > 0) {
-          yield* client.insert({
-            table: "events_v2",
-            values: batch.events.map(toAnalyticsEventRow),
-          });
-        }
-        if (batch.personEvents.length > 0) {
-          yield* client.insert({
-            table: "persons_v1",
-            values: batch.personEvents.map((event) =>
-              toPersonRow(event, batch.organizationIdsByProject[event.projectId] ?? ""),
-            ),
-          });
-        }
-        if (batch.personIdentityEvents.length > 0) {
-          yield* client.insert({
-            table: "person_identity_v1",
-            values: batch.personIdentityEvents.map((event) =>
-              toPersonIdentityRow(event, batch.organizationIdsByProject[event.projectId] ?? ""),
-            ),
-          });
-          const overrides = batch.personIdentityEvents.filter(isIdentityOverride);
-          if (overrides.length > 0) {
-            yield* client.insert({
-              table: "person_identity_overrides_v1",
-              values: overrides.map((event) =>
-                toPersonIdentityRow(event, batch.organizationIdsByProject[event.projectId] ?? ""),
-              ),
-            });
-            yield* client.insert({
-              table: "person_identity_pending_overrides_v2",
-              values: overrides.map((event) =>
-                toPendingOverrideRow(event, batch.organizationIdsByProject[event.projectId] ?? ""),
-              ),
-            });
-          }
+        if (
+          batch.events.length > 0 ||
+          batch.personEvents.length > 0 ||
+          batch.personIdentityEvents.length > 0
+        ) {
+          const rows = toAnalyticsWriteBatchRows(batch);
+          yield* client
+            .insert({
+              deduplicationToken: String(rows[0]!.write_id),
+              table: "analytics_records_v1",
+              values: rows,
+            })
+            .pipe(Effect.timeout(STORE_OPERATION_TIMEOUT));
         }
         return batch.events.length;
       }).pipe(Effect.mapError(portError("failed to insert analytics batch"))),
@@ -265,10 +241,13 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
               readonly inserted_ts: string;
             }>({
               name: "analytics.events.cursor",
-              sql: "SELECT event_id, inserted_ts FROM events_v2 WHERE project_id IN {projectIds:Array(String)} AND event_id = {eventId:String} ORDER BY processed_ts DESC LIMIT 1",
+              sql: "SELECT event_id, inserted_ts FROM analytics_events_v2 WHERE project_id IN {projectIds:Array(String)} AND event_id = {eventId:String} ORDER BY processed_ts DESC LIMIT 1",
               params: { eventId: input.afterEventId, projectIds: [...input.projectIds] },
             })
-            .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseCursorRow))));
+            .pipe(
+              Effect.timeout(STORE_OPERATION_TIMEOUT),
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseCursorRow))),
+            );
           if (anchors[0]) {
             cursor = { eventId: anchors[0].event_id, insertedAt: anchors[0].inserted_ts };
           } else {
@@ -280,8 +259,11 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
         }
         const limit = input.limit ?? 100;
         const rows = yield* client
-          .query<ClickHouseEventRow>(listStatement(input, cursor, 1))
-          .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseEventRow))));
+          .query<ClickHouseEventRow>(listStatement(input, limit + 1, cursor))
+          .pipe(
+            Effect.timeout(STORE_OPERATION_TIMEOUT),
+            Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseEventRow))),
+          );
         return {
           events: rows.slice(0, limit).map(storedEvent),
           hasNextPage: rows.length > limit,

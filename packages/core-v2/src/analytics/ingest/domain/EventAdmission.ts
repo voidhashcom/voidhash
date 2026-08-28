@@ -70,7 +70,7 @@ export const REVENUE_EVENT_ADMISSION_KEY = "revenue";
  * The registry of admissible built-in events. Add an entry here to make a new
  * reserved event name storable; until then the name is rejected as unknown.
  *
- * Revenue is one grouped entry rather than 19 toggles on purpose: the built-in
+ * Revenue is one grouped entry rather than 18 toggles on purpose: the built-in
  * revenue and churn metrics are derived from the whole set, so admitting a
  * subset would silently corrupt them.
  */
@@ -109,7 +109,7 @@ export const BUILTIN_EVENT_ADMISSION_LIST: readonly BuiltinEventAdmissionEntry[]
     key: REVENUE_EVENT_ADMISSION_KEY,
     name: "Revenue",
     description:
-      "Server-verified purchase and subscription events. All 19 revenue events move together.",
+      "Server-verified purchase and subscription events. All 18 revenue events move together.",
     eventNames: [...RESERVED_REVENUE_EVENT_NAMES],
     defaultEnabled: { cloud: true, oss: true },
     warning: "Disabling this stops all revenue, subscription, and churn reporting.",
@@ -231,13 +231,6 @@ export const admitEvent = ({
     ADMITTED,
   );
 };
-
-/** Boolean shorthand over {@link admitEvent} for hot-path filters. */
-export const isEventAdmitted = (input: {
-  readonly edition: typeof AnalyticsEdition.Type;
-  readonly eventName: string;
-  readonly policy: typeof EventAdmissionPolicy.Type;
-}): boolean => admitEvent(input).admitted;
 
 /** One built-in entry resolved against a project's overrides, for the settings UI. */
 export interface ResolvedBuiltinEventAdmission {

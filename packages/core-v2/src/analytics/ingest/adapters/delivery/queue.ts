@@ -2,6 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import {
   AnalyticsDelivery,
+  AnalyticsDeliveryError,
   type AnalyticsDeliveryShape,
   type AnalyticsPortError,
 } from "../../../application/ports.ts";
@@ -24,7 +25,22 @@ const makeQueuedAnalyticsDelivery = AnalyticsQueueProducer.pipe(
   Effect.map(
     (producer) =>
       ({
-        deliver: producer.publish,
+        deliver: (envelopes) =>
+          producer.publish(envelopes).pipe(
+            Effect.as({
+              deadLettered: 0,
+              stored: envelopes.length,
+            }),
+            Effect.mapError(
+              (error) =>
+                new AnalyticsDeliveryError({
+                  cause: error.cause,
+                  deadLettered: 0,
+                  message: error.message,
+                  stored: 0,
+                }),
+            ),
+          ),
       }) satisfies AnalyticsDeliveryShape,
   ),
 );

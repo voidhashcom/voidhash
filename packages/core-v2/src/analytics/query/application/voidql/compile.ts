@@ -8,7 +8,7 @@ import { Crypto, Effect, type PlatformError } from "effect";
 
 import type { Capability, ColumnSpec } from "./catalog/types.ts";
 import { type CompiledSelect, compileSelect } from "./compiler.ts";
-import { isVoidQlCompileError, type VoidQlCompileError } from "./errors.ts";
+import { isVoidQlCompileError, type VoidQlCompileError, VoidQlComplexityError } from "./errors.ts";
 import type { SqlPiece } from "./ir.ts";
 import { parse } from "./parser.ts";
 import type { AuthorizedScope } from "./scope.ts";
@@ -22,6 +22,9 @@ export interface CompiledQuery {
   readonly queryId: string;
 }
 
+/** Hard cap on query source length, bounding lexing/parsing work up front. */
+export const MAX_SOURCE_LENGTH = 100_000;
+
 /**
  * Pure `parse → resolve+print` (no verify). Throws the typed compile errors.
  * Exposed for unit tests and the validate/repair loop.
@@ -30,7 +33,15 @@ export const compileToIr = (
   text: string,
   scope: AuthorizedScope,
   capabilities: ReadonlySet<Capability>,
-): CompiledSelect => compileSelect(parse(text), scope, capabilities);
+): CompiledSelect => {
+  if (text.length > MAX_SOURCE_LENGTH) {
+    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous pure pipeline; compileVoidQl catches this typed error into the error channel, and the validate/repair loop expects a throw.
+    throw new VoidQlComplexityError({
+      message: `Query exceeds the maximum source length of ${MAX_SOURCE_LENGTH} characters.`,
+    });
+  }
+  return compileSelect(parse(text), scope, capabilities);
+};
 
 /**
  * Full pure pipeline including the value-level verifier. Throws on the compile-error

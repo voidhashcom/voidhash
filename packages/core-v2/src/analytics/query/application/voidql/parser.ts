@@ -234,11 +234,23 @@ class Cursor {
     }
     const [head, ...rest] = tail;
     if (head === undefined) return first;
+    const operators = [head.operator, ...rest.map((entry) => entry.operator)];
+    if (new Set(operators).size > 1) {
+      // VoidQL type-checks a left fold, but ClickHouse binds INTERSECT/EXCEPT
+      // tighter than UNION; emitting the arms unparenthesized would execute a
+      // different tree than the one that was checked. Mixed chains are rejected
+      // so the executed SQL always matches VoidQL's semantics.
+      throw new VoidQlUnsupportedError({
+        message: "Mixed set operators (UNION / INTERSECT / EXCEPT) are not supported.",
+        hint: "Chain a single operator type, or nest each grouping in a subquery to force evaluation order.",
+      });
+    }
     this.count();
+    const [firstOperator, ...remainingOperators] = operators;
     return {
       _tag: "SetQuery",
       selects: [first, head.select, ...rest.map((entry) => entry.select)],
-      operators: [head.operator, ...rest.map((entry) => entry.operator)],
+      operators: [firstOperator, ...remainingOperators],
       span: { start: first.span.start, end: tail[tail.length - 1]!.select.span.end },
     };
   }

@@ -29,7 +29,5 @@ export const RESERVED_INTERNAL_ALIASES = new Set([
   "voidql_union",
 ]);
 
-export const getCatalogTable = (name: string): CatalogTable | undefined => CATALOG[name];
-
 export * from "./types.ts";
 export { eventsTable, personsTable, revenueTable };

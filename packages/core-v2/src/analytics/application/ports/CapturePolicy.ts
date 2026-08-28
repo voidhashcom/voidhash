@@ -37,12 +37,25 @@ export interface PolicyCounterShape {
     { readonly allowed: boolean; readonly retryAfterMs?: number },
     AnalyticsPortError
   >;
-  /** Checks whether an event is within its per-day limit. */
-  readonly checkEvent: (input: {
+  /**
+   * Reserves capacity for a batch of events and returns how many may proceed.
+   * The caller must commit the confirmed delivered count so unused capacity is
+   * released after rejection or delivery failure.
+   */
+  readonly reserveEvents: (input: {
+    readonly count: number;
     readonly now: Date;
     readonly projectId: string;
     readonly eventsPerDay?: number;
-  }) => Effect.Effect<boolean, AnalyticsPortError>;
+  }) => Effect.Effect<
+    {
+      /** Finalizes the reservation and releases capacity above `used`. */
+      readonly commit: (used: number) => Effect.Effect<void, AnalyticsPortError>;
+      /** Number of requested events admitted by the quota. */
+      readonly reserved: number;
+    },
+    AnalyticsPortError
+  >;
 }
 
 /** Enforces request- and event-level project quotas. */

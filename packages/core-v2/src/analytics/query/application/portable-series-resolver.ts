@@ -9,11 +9,7 @@ import type { StoredAnalyticsEvent } from "../../application/ports.ts";
 import { DateTime } from "effect";
 
 const eventNames = {
-  subscriptionActivity: new Set([
-    "$subscription.created",
-    "$subscription.renewed",
-    "$subscription.active",
-  ]),
+  subscriptionActivity: new Set(["$subscription.created", "$subscription.renewed"]),
   subscriptionChurn: new Set(["$subscription.canceled", "$subscription.expired"]),
 };
 
@@ -25,14 +21,17 @@ const property = (event: typeof StoredAnalyticsEvent.Type, ...keys: ReadonlyArra
   return undefined;
 };
 
-const numberProperty = (
+const optionalNumberProperty = (
   event: typeof StoredAnalyticsEvent.Type,
   ...keys: ReadonlyArray<string>
 ) => {
   const value = property(event, ...keys);
-  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
   return value;
 };
+
+const numberProperty = (event: typeof StoredAnalyticsEvent.Type, ...keys: ReadonlyArray<string>) =>
+  optionalNumberProperty(event, ...keys) ?? 0;
 
 const booleanProperty = (event: typeof StoredAnalyticsEvent.Type, ...keys: ReadonlyArray<string>) =>
   keys.some((key) => event.properties[key] === true);
@@ -96,17 +95,17 @@ const matchesFilters = (
   filters: CompiledAnalyticsFilter,
 ) => {
   if (!filters.projectIds.includes(event.projectId)) return false;
+  if (filters.providerEnvironments?.length === 0) return false;
   const productId = stringProperty(event, "product_id", "productId", "product.id");
-  if (filters.productIds?.length && !filters.productIds.includes(productId)) return false;
-  const environment = numberProperty(event, "provider_environment", "providerEnvironment");
+  if (filters.productIds !== undefined && !filters.productIds.includes(productId)) return false;
+  // An absent provider_environment is not evidence against the filter; only a
+  // present-but-unlisted environment excludes the event.
+  const environment = optionalNumberProperty(event, "provider_environment", "providerEnvironment");
   if (
     filters.providerEnvironments !== undefined &&
+    environment !== undefined &&
     !filters.providerEnvironments.includes(environment)
   ) {
-    return false;
-  }
-  const status = numberProperty(event, "subscription_status", "subscriptionStatus");
-  if (filters.subscriptionStatuses?.length && !filters.subscriptionStatuses.includes(status)) {
     return false;
   }
   return true;
@@ -116,6 +115,111 @@ const pointsFromValues = (values: ReadonlyMap<string, number>) =>
   [...values.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([timestamp, value]) => ({ timestamp: dateFrom(timestamp), value }));
+
+const advanceBucket = (date: Date, granularity: typeof TimeGranularity.Type) => {
+  const next = dateFrom(date.getTime());
+  if (granularity === "hour") next.setUTCHours(next.getUTCHours() + 1);
+  else if (granularity === "day") next.setUTCDate(next.getUTCDate() + 1);
+  else if (granularity === "week") next.setUTCDate(next.getUTCDate() + 7);
+  else if (granularity === "month") next.setUTCMonth(next.getUTCMonth() + 1);
+  else if (granularity === "quarter") next.setUTCMonth(next.getUTCMonth() + 3);
+  else next.setUTCFullYear(next.getUTCFullYear() + 1);
+  return next;
+};
+
+interface SubscriptionState {
+  readonly amountUsd: number;
+  readonly trial: boolean;
+}
+
+const subscriptionStockByBucket = (input: {
+  readonly end: Date;
+  readonly events: ReadonlyArray<typeof StoredAnalyticsEvent.Type>;
+  readonly granularity: typeof TimeGranularity.Type;
+  readonly start: Date;
+  readonly valueOf: (states: ReadonlyMap<string, SubscriptionState>) => number;
+}) => {
+  const lifecycle = input.events
+    .filter(
+      (event) =>
+        eventNames.subscriptionActivity.has(event.eventName) ||
+        eventNames.subscriptionChurn.has(event.eventName),
+    )
+    .sort(
+      (left, right) =>
+        left.eventTimestamp.getTime() - right.eventTimestamp.getTime() ||
+        left.eventId.localeCompare(right.eventId),
+    );
+  const states = new Map<string, SubscriptionState>();
+  const apply = (event: typeof StoredAnalyticsEvent.Type) => {
+    const id = subscriptionId(event);
+    if (eventNames.subscriptionChurn.has(event.eventName)) {
+      states.delete(id);
+      return;
+    }
+    const previous = states.get(id);
+    const amount = optionalNumberProperty(
+      event,
+      "gross_amount_usd",
+      "grossAmountUsd",
+      "amount_usd",
+      "amountUsd",
+    );
+    let amountUsd = previous?.amountUsd ?? 0;
+    if (amount !== undefined) amountUsd = amount / 100;
+    states.set(id, {
+      amountUsd,
+      trial: booleanProperty(event, "is_trial", "isTrial"),
+    });
+  };
+  let index = 0;
+  while (lifecycle[index] && lifecycle[index].eventTimestamp < input.start) {
+    apply(lifecycle[index]);
+    index += 1;
+  }
+  const points: (typeof AnalyticsDataPoint.Type)[] = [];
+  for (
+    let cursor = startOfBucket(input.start, input.granularity);
+    cursor.getTime() <= input.end.getTime();
+    cursor = advanceBucket(cursor, input.granularity)
+  ) {
+    const next = advanceBucket(cursor, input.granularity);
+    const finalBucket = next.getTime() > input.end.getTime();
+    while (lifecycle[index]) {
+      const timestamp = lifecycle[index].eventTimestamp.getTime();
+      let inBucket = timestamp < next.getTime();
+      if (finalBucket) inBucket = timestamp <= input.end.getTime();
+      if (!inBucket) break;
+      apply(lifecycle[index]);
+      index += 1;
+    }
+    points.push({ timestamp: dateFrom(cursor.getTime()), value: input.valueOf(states) });
+  }
+  return points;
+};
+
+/** Zero-fills every bucket between start and end so series carry no axis gaps. */
+const fillSeries = (
+  points: ReadonlyArray<typeof AnalyticsDataPoint.Type>,
+  start: Date,
+  end: Date,
+  granularity: typeof TimeGranularity.Type,
+) => {
+  const byKey = new Map(
+    points.map((point) => [startOfBucket(point.timestamp, granularity).toISOString(), point]),
+  );
+  const filled: (typeof AnalyticsDataPoint.Type)[] = [];
+  for (
+    let cursor = startOfBucket(start, granularity);
+    cursor.getTime() <= end.getTime();
+    cursor = advanceBucket(cursor, granularity)
+  ) {
+    filled.push(
+      byKey.get(cursor.toISOString()) ?? { timestamp: dateFrom(cursor.getTime()), value: 0 },
+    );
+  }
+  return filled;
+};
 
 const sumByBucket = (
   events: ReadonlyArray<typeof StoredAnalyticsEvent.Type>,
@@ -186,9 +290,8 @@ export const resolvePortableAnalyticsSeries = (input: {
   readonly insightId: typeof BuiltInInsightId.Type;
   readonly start: Date;
 }): (typeof AnalyticsDataPoint.Type)[] => {
-  const filtered = input.events.filter(
-    (event) => matchesFilters(event, input.filters) && withinRange(event, input.start, input.end),
-  );
+  const matching = input.events.filter((event) => matchesFilters(event, input.filters));
+  const filtered = matching.filter((event) => withinRange(event, input.start, input.end));
   const cache = new Map<typeof BuiltInInsightId.Type, (typeof AnalyticsDataPoint.Type)[]>();
 
   const series = (insightId: typeof BuiltInInsightId.Type): (typeof AnalyticsDataPoint.Type)[] => {
@@ -206,18 +309,17 @@ export const resolvePortableAnalyticsSeries = (input: {
         );
         break;
       case "builtin/mrr":
-        result = sumByBucket(
-          filtered.filter(
-            (event) =>
-              (event.eventName === "$subscription.created" ||
-                event.eventName === "$subscription.renewed") &&
-              !booleanProperty(event, "is_trial", "isTrial"),
-          ),
-          input.granularity,
-          (event) =>
-            numberProperty(event, "gross_amount_usd", "grossAmountUsd", "amount_usd", "amountUsd") /
-            100,
-        );
+        result = subscriptionStockByBucket({
+          end: input.end,
+          events: matching,
+          granularity: input.granularity,
+          start: input.start,
+          valueOf: (states) =>
+            [...states.values()].reduce((total, subscription) => {
+              if (subscription.trial) return total;
+              return total + subscription.amountUsd;
+            }, 0),
+        });
         break;
       case "builtin/arr":
         result = series("builtin/mrr").map((point) => ({ ...point, value: point.value * 12 }));
@@ -234,15 +336,14 @@ export const resolvePortableAnalyticsSeries = (input: {
       case "builtin/active_subscriptions":
       case "builtin/active_trials": {
         const trials = insightId === "builtin/active_trials";
-        result = uniqueByBucket(
-          filtered.filter(
-            (event) =>
-              eventNames.subscriptionActivity.has(event.eventName) &&
-              booleanProperty(event, "is_trial", "isTrial") === trials,
-          ),
-          input.granularity,
-          subscriptionId,
-        );
+        result = subscriptionStockByBucket({
+          end: input.end,
+          events: matching,
+          granularity: input.granularity,
+          start: input.start,
+          valueOf: (states) =>
+            [...states.values()].filter((subscription) => subscription.trial === trials).length,
+        });
         break;
       }
       case "builtin/new_subscriptions":
@@ -266,33 +367,75 @@ export const resolvePortableAnalyticsSeries = (input: {
           () => 1,
         );
         break;
-      case "builtin/trial_conversions":
+      case "builtin/trial_conversions": {
+        // No emitter stamps a conversion property, so conversion is derived from
+        // event sequences: a subscription that started as a trial and later saw
+        // a paid renewal; conversion time is that first paid renewal.
+        const trialStarts = new Map<string, Date>();
+        const conversions = new Map<string, typeof StoredAnalyticsEvent.Type>();
+        for (const event of matching) {
+          if (event.eventTimestamp > input.end) continue;
+          if (
+            event.eventName !== "$subscription.created" &&
+            event.eventName !== "$subscription.renewed"
+          )
+            continue;
+          const id = subscriptionId(event);
+          if (event.eventName === "$subscription.created") {
+            if (booleanProperty(event, "is_trial", "isTrial")) {
+              const existing = trialStarts.get(id);
+              if (!existing || event.eventTimestamp < existing) {
+                trialStarts.set(id, event.eventTimestamp);
+              }
+            }
+            continue;
+          }
+          const trialStart = trialStarts.get(id);
+          if (!trialStart || event.eventTimestamp < trialStart) continue;
+          if (booleanProperty(event, "is_trial", "isTrial")) continue;
+          const existing = conversions.get(id);
+          if (!existing || event.eventTimestamp < existing.eventTimestamp)
+            conversions.set(id, event);
+        }
         result = uniqueByBucket(
-          filtered.filter(
-            (event) =>
-              eventNames.subscriptionActivity.has(event.eventName) &&
-              booleanProperty(event, "converted_from_trial", "convertedFromTrial"),
-          ),
+          [...conversions.values()].filter((event) => withinRange(event, input.start, input.end)),
           input.granularity,
           subscriptionId,
         );
         break;
+      }
       case "builtin/person_count":
       case "builtin/new_persons": {
         const firstSeen = new Map<string, typeof StoredAnalyticsEvent.Type>();
-        for (const event of input.events.filter((candidate) =>
-          matchesFilters(candidate, input.filters),
-        )) {
+        for (const event of matching) {
+          if (event.eventTimestamp > input.end) continue;
           const key = personKey(event);
           const existing = firstSeen.get(key);
           if (!existing || existing.eventTimestamp > event.eventTimestamp)
             firstSeen.set(key, event);
         }
-        const firstSeenEvents = [...firstSeen.values()].filter((event) => {
-          if (insightId === "builtin/person_count") return event.eventTimestamp <= input.end;
-          return withinRange(event, input.start, input.end);
+        const firstSeenEvents = [...firstSeen.values()].filter((event) =>
+          withinRange(event, input.start, input.end),
+        );
+        // Fill first so the cumulative total carries zero buckets forward
+        // instead of being overwritten by the final zero-fill pass.
+        const perBucket = fillSeries(
+          sumByBucket(firstSeenEvents, input.granularity, () => 1),
+          input.start,
+          input.end,
+          input.granularity,
+        );
+        if (insightId === "builtin/new_persons") {
+          result = perBucket;
+          break;
+        }
+        let running = [...firstSeen.values()].filter(
+          (event) => event.eventTimestamp < input.start,
+        ).length;
+        result = perBucket.map((point) => {
+          running += point.value;
+          return { timestamp: point.timestamp, value: running };
         });
-        result = sumByBucket(firstSeenEvents, input.granularity, () => 1);
         break;
       }
       case "builtin/mrr_growth_rate": {
@@ -364,5 +507,5 @@ export const resolvePortableAnalyticsSeries = (input: {
     return result;
   };
 
-  return series(input.insightId);
+  return fillSeries(series(input.insightId), input.start, input.end, input.granularity);
 };

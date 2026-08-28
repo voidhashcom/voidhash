@@ -14,11 +14,6 @@ export class InvalidTimeRangeError extends Schema.TaggedErrorClass<InvalidTimeRa
   "InvalidTimeRangeError",
 )("InvalidTimeRangeError", { message: Schema.String }) {}
 
-/** Caller asked for a metric the service doesn't recognise. */
-export class InvalidMetricError extends Schema.TaggedErrorClass<InvalidMetricError>(
-  "InvalidMetricError",
-)("InvalidMetricError", { message: Schema.String, metric: Schema.String }) {}
-
 /** Generic invalid analytics query — composition rules violated. */
 export class InvalidAnalyticsQueryError extends Schema.TaggedErrorClass<InvalidAnalyticsQueryError>(
   "InvalidAnalyticsQueryError",
@@ -60,7 +55,6 @@ export interface CompiledAnalyticsFilter {
   productIds?: string[];
   projectIds: string[];
   providerEnvironments?: number[];
-  subscriptionStatuses?: number[];
 }
 
 export const BuiltInInsightId = Schema.Literals([
@@ -163,12 +157,14 @@ export const AnalyticsFilter: Schema.Codec<AnalyticsFilter> = Schema.Union([
   }),
 ]);
 
+const PositiveInt = Schema.Int.pipe(Schema.refine((value): value is number => value > 0));
+
 export const AnalyticsInsightQuery = Schema.Struct({
   breakdowns: Schema.optional(
     Schema.Array(
       Schema.Struct({
         field: Schema.String,
-        limit: Schema.optional(Schema.Int),
+        limit: Schema.optional(PositiveInt),
         order: Schema.optional(Schema.Literals(["asc", "desc"])),
       }),
     ),
@@ -177,7 +173,7 @@ export const AnalyticsInsightQuery = Schema.Struct({
   granularity: Schema.optional(TimeGranularity),
   insightId: BuiltInInsightId,
   key: Schema.String,
-  limit: Schema.optional(Schema.Int),
+  limit: Schema.optional(PositiveInt),
   timeRange: AnalyticsTimeRange,
 });
 
@@ -192,42 +188,17 @@ export const AnalyticsMetricResult = Schema.Struct({
   summary: AnalyticsInsightSummary,
 });
 
-export const AnalyticsBreakdownResult = Schema.Struct({
-  kind: Schema.Literal("breakdown"),
-  rows: Schema.Array(
-    Schema.Struct({ key: Schema.String, label: Schema.String, value: Schema.Number }),
-  ),
-  summary: Schema.optional(AnalyticsInsightSummary),
-});
-
-export const AnalyticsTimeseriesResult = Schema.Struct({
-  kind: Schema.Literal("timeseries"),
-  series: Schema.Array(AnalyticsDataPoint),
-  summary: AnalyticsInsightSummary,
-});
-
-export const AnalyticsInsightResult = Schema.Union([
-  AnalyticsMetricResult,
-  AnalyticsTimeseriesResult,
-  AnalyticsBreakdownResult,
-]);
+export const AnalyticsInsightResult = AnalyticsMetricResult;
 
 export interface InsightDefinition {
   defaultGranularity: typeof TimeGranularity.Type;
   id: typeof BuiltInInsightId.Type;
-  resultKind: "metric";
-  supportedBreakdownFields: readonly string[];
   supportedFilterFields: readonly string[];
   supportedGranularities: readonly (typeof TimeGranularity.Type)[];
 }
 
 const DEFAULT_FILTER_FIELDS = constant(["project.id"]);
-const REVENUE_FILTER_FIELDS = constant([
-  "project.id",
-  "product.id",
-  "provider.environment",
-  "subscription.status",
-]);
+const REVENUE_FILTER_FIELDS = constant(["project.id", "product.id", "provider.environment"]);
 
 const ALL_GRANULARITIES: ReadonlyArray<typeof TimeGranularity.Type> = [
   "hour",
@@ -250,160 +221,120 @@ export const BUILT_IN_INSIGHTS = [
   {
     defaultGranularity: "day",
     id: "builtin/revenue",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: ALL_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/mrr",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/arr",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/mrr_growth_rate",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/churn_rate",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/churned_revenue",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/person_count",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: DEFAULT_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/new_persons",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: DEFAULT_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/retention",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/arpu",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/arppu",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/active_subscriptions",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/active_trials",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/active_subscribers_growth",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/new_subscriptions",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/churned_subscriptions",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/trials",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/subscriber_lifetime_value",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/trial_conversions",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
   {
     defaultGranularity: "day",
     id: "builtin/trial_conversion_rate",
-    resultKind: "metric",
-    supportedBreakdownFields: [],
     supportedFilterFields: REVENUE_FILTER_FIELDS,
     supportedGranularities: NON_HOURLY_GRANULARITIES,
   },
@@ -413,11 +344,12 @@ export const BUILT_IN_INSIGHTS = [
 // Field registry — supported / reserved analytics filter fields.
 // =============================================================================
 
+// `subscription.status` is intentionally absent: no emitter produces the
+// property yet, so advertising the field would silently filter on nothing.
 export const SUPPORTED_REVENUE_FILTER_FIELDS = constant([
   "project.id",
   "product.id",
   "provider.environment",
-  "subscription.status",
 ]);
 
 export type SupportedRevenueFilterField = (typeof SUPPORTED_REVENUE_FILTER_FIELDS)[number];
@@ -459,6 +391,13 @@ export const RATE_INSIGHTS = new Set<typeof BuiltInInsightId.Type>([
   "builtin/trial_conversion_rate",
 ]);
 
+/** Point-in-time ("stock") insights whose summary is the latest bucket, not a sum. */
+export const STOCK_INSIGHTS = new Set<typeof BuiltInInsightId.Type>([
+  "builtin/active_subscriptions",
+  "builtin/active_trials",
+  "builtin/person_count",
+]);
+
 export const sumDataPoints = (dataPoints: ReadonlyArray<typeof AnalyticsDataPoint.Type>): number =>
   dataPoints.reduce((sum, dataPoint) => sum + dataPoint.value, 0);
 
@@ -494,7 +433,7 @@ export const ensureNoBreakdowns = (
   return Effect.fail(
     new UnsupportedAnalyticsBreakdownError({
       field: breakdowns[0]?.field ?? "unknown",
-      message: "Breakdowns are not supported in this PoC",
+      message: "Breakdowns are not supported yet",
     }),
   );
 };
@@ -513,15 +452,15 @@ const truncateToSecond = (date: Date) => fromEpochMillis(Math.floor(date.getTime
 const fromEpochMillis = (millis: number) => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
 
 /**
- * Builds a `Date` from calendar parts interpreted in the host time zone, which
- * is what the `new Date(year, monthIndex, day)` constructor did here. `month` is
- * one-based for `DateTime`, unlike the zero-based constructor argument.
+ * Builds a `Date` from calendar parts interpreted in UTC so the calendar-based
+ * presets (`today`, `mtd`, `qtd`, `ytd`) resolve identically on every host
+ * regardless of the process time zone.
  */
-const fromLocalParts = (parts: { day: number; month: number; year: number }) =>
+const fromUtcParts = (parts: { day: number; month: number; year: number }) =>
   DateTime.toDateUtc(
     DateTime.makeZonedUnsafe(parts, {
       adjustForTimeZone: true,
-      timeZone: DateTime.zoneMakeLocal(),
+      timeZone: DateTime.zoneMakeNamedUnsafe("UTC"),
     }),
   );
 
@@ -535,10 +474,10 @@ export const resolveTimeRange = (
       case "today":
         return {
           end: now,
-          start: fromLocalParts({
-            day: now.getDate(),
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
+          start: fromUtcParts({
+            day: now.getUTCDate(),
+            month: now.getUTCMonth() + 1,
+            year: now.getUTCFullYear(),
           }),
         };
       case "last_7d":
@@ -552,17 +491,28 @@ export const resolveTimeRange = (
       case "mtd":
         return {
           end: now,
-          start: fromLocalParts({ day: 1, month: now.getMonth() + 1, year: now.getFullYear() }),
+          start: fromUtcParts({
+            day: 1,
+            month: now.getUTCMonth() + 1,
+            year: now.getUTCFullYear(),
+          }),
         };
       case "qtd": {
-        const quarter = Math.floor(now.getMonth() / 3);
+        const quarter = Math.floor(now.getUTCMonth() / 3);
         return {
           end: now,
-          start: fromLocalParts({ day: 1, month: quarter * 3 + 1, year: now.getFullYear() }),
+          start: fromUtcParts({
+            day: 1,
+            month: quarter * 3 + 1,
+            year: now.getUTCFullYear(),
+          }),
         };
       }
       case "ytd":
-        return { end: now, start: fromLocalParts({ day: 1, month: 1, year: now.getFullYear() }) };
+        return {
+          end: now,
+          start: fromUtcParts({ day: 1, month: 1, year: now.getUTCFullYear() }),
+        };
       case "custom": {
         if (timeRange.start > timeRange.end) {
           return yield* Effect.fail(
@@ -588,7 +538,6 @@ interface PartialConstraints {
   productIds?: string[];
   projectIds?: string[];
   providerEnvironments?: number[];
-  subscriptionStatuses?: number[];
 }
 
 const ensureSupportedField = (field: string, supportedFields: readonly string[]) => {
@@ -663,26 +612,24 @@ const mergeAndConstraints = (left: PartialConstraints, right: PartialConstraints
   productIds: intersect(left.productIds, right.productIds),
   projectIds: intersect(left.projectIds, right.projectIds),
   providerEnvironments: intersect(left.providerEnvironments, right.providerEnvironments),
-  subscriptionStatuses: intersect(left.subscriptionStatuses, right.subscriptionStatuses),
 });
 
+/**
+ * The compiled representation can only express conjunction across fields, so an
+ * OR is legal only when both arms constrain the same single field — anything
+ * else would silently narrow to an AND.
+ */
 const mergeOrConstraints = (left: PartialConstraints, right: PartialConstraints) => {
-  const mixedFields =
-    [left.projectIds, left.productIds, left.providerEnvironments, left.subscriptionStatuses].filter(
-      Boolean,
-    ).length > 1 ||
-    [
-      right.projectIds,
-      right.productIds,
-      right.providerEnvironments,
-      right.subscriptionStatuses,
-    ].filter(Boolean).length > 1;
+  const fields = new Set<string>();
+  if (left.productIds || right.productIds) fields.add("productIds");
+  if (left.projectIds || right.projectIds) fields.add("projectIds");
+  if (left.providerEnvironments || right.providerEnvironments) fields.add("providerEnvironments");
 
-  if (mixedFields) {
+  if (fields.size > 1) {
     return Effect.fail(
       new UnsupportedAnalyticsFilterError({
         field: "or",
-        message: "OR filters are only supported for a single field in this PoC",
+        message: "OR filters are only supported within a single field",
       }),
     );
   }
@@ -691,7 +638,6 @@ const mergeOrConstraints = (left: PartialConstraints, right: PartialConstraints)
     productIds: union(left.productIds, right.productIds),
     projectIds: union(left.projectIds, right.projectIds),
     providerEnvironments: union(left.providerEnvironments, right.providerEnvironments),
-    subscriptionStatuses: union(left.subscriptionStatuses, right.subscriptionStatuses),
   });
 };
 
@@ -729,12 +675,6 @@ const compilePredicate = ({
         }
         break;
       }
-      case "subscription.status": {
-        if (op === "eq" || op === "in") {
-          return { subscriptionStatuses: yield* toNumberArray(field, value) };
-        }
-        break;
-      }
     }
 
     return yield* Effect.fail(
@@ -747,10 +687,12 @@ const compilePredicate = ({
 
 type PredicateOp = Extract<AnalyticsFilter, { type: "predicate" }>["op"];
 
-/** Inverts the equality operators a NOT filter wraps; other operators pass through. */
+/** Inverts the operators a NOT filter wraps; non-invertible operators pass through. */
 const negatePredicateOp = (op: PredicateOp) => {
   if (op === "eq") return "neq";
+  if (op === "neq") return "eq";
   if (op === "in") return "not_in";
+  if (op === "not_in") return "in";
   return op;
 };
 
@@ -823,6 +765,5 @@ export const compileAnalyticsFilter = ({
       productIds: compiled.productIds,
       projectIds: compiled.projectIds ?? availableProjectIds,
       providerEnvironments: compiled.providerEnvironments,
-      subscriptionStatuses: compiled.subscriptionStatuses,
     };
   });

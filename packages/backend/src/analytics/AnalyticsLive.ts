@@ -9,6 +9,7 @@ import {
 } from "@voidhash/db";
 import {
   AnalyticsAuthorizer,
+  AnalyticsAuthorizationDeniedError,
   AnalyticsConfig,
   AnalyticsDeadLetterStore,
   AnalyticsIdentityResolver,
@@ -20,6 +21,7 @@ import {
   CaptureCredentialRepository,
   emptyEventAdmissionPolicy,
   extractInnerProperties,
+  isTrustedInternalAnalyticsEventSource,
   parsePersonTraits,
   PolicyCounter,
   PostgresAnalyticsClient,
@@ -88,8 +90,7 @@ const AnalyticsAuthorizerLive = Layer.succeed(AnalyticsAuthorizer, {
         (candidate) => candidate.id === organizationId,
       );
       if (!organization?.permissions.includes("organization:all")) {
-        return yield* new AnalyticsPortError({
-          cause: organizationId,
+        return yield* new AnalyticsAuthorizationDeniedError({
           message: "not authorized to query organization analytics",
         });
       }
@@ -102,8 +103,7 @@ const AnalyticsAuthorizerLive = Layer.succeed(AnalyticsAuthorizer, {
       const session = yield* AuthSession;
       const project = session.projects.find((candidate) => candidate.id === projectId);
       if (!project?.permissions.includes("project:all")) {
-        return yield* new AnalyticsPortError({
-          cause: projectId,
+        return yield* new AnalyticsAuthorizationDeniedError({
           message: "not authorized to query project analytics",
         });
       }
@@ -158,7 +158,11 @@ const ProcessorProjectRepositoryLive = Layer.effect(
     return ProcessorProjectRepository.of({
       resolve: (event) =>
         Effect.gen(function* () {
-          const trusted = event.trustClass && event.trustClass !== "untrusted-sdk";
+          const trusted = isTrustedInternalAnalyticsEventSource({
+            eventName: event.event,
+            sourceTopic: event.sourceTopic,
+            trustClass: event.trustClass,
+          });
           let records: ReadonlyArray<{
             readonly organizationId: string;
             readonly projectId: string;
@@ -185,13 +189,27 @@ const ProcessorProjectRepositoryLive = Layer.effect(
           const record = records[0];
           if (!record) return undefined;
           const [policy] = yield* db
-            .select({ processorEnabled: captureProjectPolicies.processorEnabled })
+            .select({
+              builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
+              customEventBlocklist: captureProjectPolicies.customEventBlocklist,
+              processorEnabled: captureProjectPolicies.processorEnabled,
+            })
             .from(captureProjectPolicies)
             .where(eq(captureProjectPolicies.projectId, record.projectId))
             .limit(1);
+          let admission = emptyEventAdmissionPolicy;
+          if (policy) {
+            admission = {
+              builtinEventOverrides: policy.builtinEventOverrides,
+              customEventBlocklist: policy.customEventBlocklist,
+            };
+          }
           return {
             organizationId: record.organizationId,
-            policy: { processorEnabled: policy?.processorEnabled ?? true },
+            policy: {
+              admission,
+              processorEnabled: policy?.processorEnabled ?? true,
+            },
             projectId: record.projectId,
           };
         }).pipe(Effect.mapError(portError("processor project lookup failed"))),
@@ -363,79 +381,116 @@ export const AnalyticsDbPortsLive = Layer.mergeAll(
   ProcessorProjectRepositoryLive,
 );
 
-/** Complete self-hosted analytics runtime. PostgreSQL is the default storage backend. */
-export const makePostgresAnalyticsLive = () =>
-  AnalyticsInlineLive.pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        AnalyticsDbPortsLive,
-        Layer.succeed(AnalyticsConfig, { edition: "oss", providerEnvironments: [1, 2] }),
-        Layer.succeed(PolicyCounter, {
-          checkEvent: () => Effect.succeed(true),
-          checkRequest: () => Effect.succeed({ allowed: true }),
-        }),
-        PostgresStoreLive,
-        WebCryptoLive,
-      ),
+const PostgresAnalyticsLive = AnalyticsInlineLive.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      AnalyticsDbPortsLive,
+      Layer.succeed(AnalyticsConfig, { edition: "oss", providerEnvironments: [1, 2] }),
+      Layer.succeed(PolicyCounter, {
+        checkRequest: () => Effect.succeed({ allowed: true }),
+        reserveEvents: ({ count }) =>
+          Effect.succeed({ commit: () => Effect.void, reserved: count }),
+      }),
+      PostgresStoreLive,
+      WebCryptoLive,
     ),
-  );
+  ),
+);
 
-const clickHouseClient = (input: {
+/** Complete self-hosted analytics runtime. PostgreSQL is the default storage backend. */
+export const makePostgresAnalyticsLive = () => PostgresAnalyticsLive;
+
+export interface ClickHouseAnalyticsConnectionOptions {
   readonly database: string;
   readonly password: string;
   readonly url: string;
   readonly username: string;
-}) => {
-  const client = createClient({
-    application: "voidhash-analytics",
-    database: input.database,
-    password: input.password,
-    url: input.url,
-    username: input.username,
-  });
-  return {
-    insert: ({ table, values }) =>
-      Effect.tryPromise(() =>
-        client.insert({ table, values: [...values], format: "JSONEachRow" }),
-      ).pipe(Effect.asVoid),
-    query: <Row extends object>(statement: ClickHouseStatement) =>
-      Effect.tryPromise(() =>
-        client.query({
-          query: statement.sql,
-          query_id: statement.queryId,
-          query_params: { ...statement.params },
-          format: "JSONEachRow",
-          ...(statement.quotaKey && {
-            clickhouse_settings: { quota_key: statement.quotaKey },
-          }),
+}
+
+/** Scoped ClickHouse client that closes when its owning Effect layer is released. */
+export const makeClickHouseAnalyticsClientLive = (input: ClickHouseAnalyticsConnectionOptions) =>
+  Layer.effect(
+    ClickHouseAnalyticsClient,
+    Effect.acquireRelease(
+      Effect.sync(() =>
+        createClient({
+          application: "voidhash-analytics",
+          database: input.database,
+          password: input.password,
+          url: input.url,
+          username: input.username,
         }),
-      ).pipe(Effect.flatMap((result) => Effect.tryPromise(() => result.json<Row>()))),
-  } satisfies ClickHouseAnalyticsClientShape;
+      ),
+      (client) => Effect.promise(() => client.close()),
+    ).pipe(
+      Effect.map(
+        (client) =>
+          ({
+            insert: ({ deduplicationToken, table, values }) =>
+              Effect.tryPromise(() =>
+                client.insert({
+                  table,
+                  values: [...values],
+                  format: "JSONEachRow",
+                  ...(deduplicationToken && {
+                    clickhouse_settings: {
+                      insert_deduplication_token: deduplicationToken,
+                    },
+                  }),
+                }),
+              ).pipe(Effect.asVoid),
+            query: <Row extends object>(statement: ClickHouseStatement) =>
+              Effect.tryPromise(() =>
+                client.query({
+                  query: statement.sql,
+                  query_id: statement.queryId,
+                  query_params: { ...statement.params },
+                  format: "JSONEachRow",
+                  ...(statement.quotaKey && {
+                    clickhouse_settings: { quota_key: statement.quotaKey },
+                  }),
+                }),
+              ).pipe(Effect.flatMap((result) => Effect.tryPromise(() => result.json<Row>()))),
+          }) satisfies ClickHouseAnalyticsClientShape,
+      ),
+    ),
+  );
+
+const buildClickHouseAnalyticsLive = (input: ClickHouseAnalyticsConnectionOptions) => {
+  const clientLive = makeClickHouseAnalyticsClientLive(input);
+  return AnalyticsInlineLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        AnalyticsDbPortsLive,
+        Layer.succeed(AnalyticsConfig, { edition: "oss", providerEnvironments: [1, 2] }),
+        ClickHouseAnalyticsStoreLive.pipe(Layer.provide(clientLive)),
+        Layer.succeed(PolicyCounter, {
+          checkRequest: () => Effect.succeed({ allowed: true }),
+          reserveEvents: ({ count }) =>
+            Effect.succeed({ commit: () => Effect.void, reserved: count }),
+        }),
+        WebCryptoLive,
+      ),
+    ),
+  );
 };
 
+const ClickHouseAnalyticsLiveCache = new Map<
+  string,
+  ReturnType<typeof buildClickHouseAnalyticsLive>
+>();
+
 /** Complete self-hosted analytics runtime backed by an operator-managed ClickHouse cluster. */
-export const makeClickHouseAnalyticsLive = (input: {
-  readonly database: string;
-  readonly password: string;
-  readonly url: string;
-  readonly username: string;
-}) =>
-  AnalyticsInlineLive.pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        AnalyticsDbPortsLive,
-        Layer.succeed(AnalyticsConfig, { edition: "oss", providerEnvironments: [1, 2] }),
-        ClickHouseAnalyticsStoreLive.pipe(
-          Layer.provide(Layer.succeed(ClickHouseAnalyticsClient, clickHouseClient(input))),
-        ),
-        Layer.succeed(PolicyCounter, {
-          checkEvent: () => Effect.succeed(true),
-          checkRequest: () => Effect.succeed({ allowed: true }),
-        }),
-        WebCryptoLive,
-      ),
-    ),
-  );
+export const makeClickHouseAnalyticsLive = (input: ClickHouseAnalyticsConnectionOptions) => {
+  const key = [input.url, input.database, input.username, input.password]
+    .map((value) => `${value.length}:${value}`)
+    .join("");
+  const cached = ClickHouseAnalyticsLiveCache.get(key);
+  if (cached) return cached;
+  const live = buildClickHouseAnalyticsLive(input);
+  ClickHouseAnalyticsLiveCache.set(key, live);
+  return live;
+};
 
 /** Create the idempotent analytics tables in an operator-managed ClickHouse database. */
 export const migrateClickHouseAnalytics = (input: {

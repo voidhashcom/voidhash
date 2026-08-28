@@ -73,6 +73,13 @@ const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // isolation failure). Physical tables are emitted only by the catalog `lower()`.
 const PHYSICAL_SHAPED_RE = /_v\d+$/i;
 
+// The tenant-predicate column names. Reserved as *explicit* user aliases (table,
+// CTE, or output): an output alias `AS organization_id` lets a bare WHERE
+// reference print an unqualified `organization_id = …` occurrence the verifier
+// cannot distinguish from an injected predicate. Inferred column names (a plain
+// `SELECT project_id`) are unaffected.
+const TENANT_SCOPED_ALIASES = new Set(["organization_id", "project_id"]);
+
 type ResolvedRelation =
   | { readonly kind: "view"; readonly alias: string; readonly table: CatalogTable }
   | {
@@ -81,9 +88,15 @@ type ResolvedRelation =
       readonly columns: ReadonlyMap<string, VoidQLType>;
     };
 
+interface CteShape {
+  /** The canonical (as-defined) CTE name, always emitted verbatim. */
+  readonly name: string;
+  readonly columns: readonly ColumnSpec[];
+}
+
 interface Frame {
   readonly relations: ResolvedRelation[];
-  readonly cteShapes: Map<string, readonly ColumnSpec[]>;
+  readonly cteShapes: Map<string, CteShape>;
   readonly aliases: Map<string, VoidQLType>;
   readonly parent?: Frame;
 }
@@ -187,6 +200,12 @@ export class Compiler {
         hint: "Pick a different alias.",
       });
     }
+    if (TENANT_SCOPED_ALIASES.has(alias.toLowerCase())) {
+      throw new VoidQlUnsupportedError({
+        message: `'${alias}' is a reserved tenant alias and cannot be used.`,
+        hint: "Pick a different alias.",
+      });
+    }
   }
 
   private viewShape(table: CatalogTable): ReadonlyMap<string, VoidQLType> {
@@ -198,7 +217,7 @@ export class Compiler {
     if (source._tag === "SubquerySource") {
       this.assertBindableAlias(source.alias);
       this.assertUniqueAlias(frame, source.alias);
-      const sub = this.printQuery(source.query, frame);
+      const sub = this.printQuery(source.query, frame, true);
       frame.relations.push({
         kind: "derived",
         alias: source.alias,
@@ -210,17 +229,19 @@ export class Compiler {
     const nameLower = source.name.toLowerCase();
     const cteShape = this.findCteShape(frame, nameLower);
     if (cteShape) {
-      const alias = source.alias ?? source.name;
+      const alias = source.alias ?? cteShape.name;
       if (source.alias) this.assertBindableAlias(source.alias);
       this.assertUniqueAlias(frame, alias);
       frame.relations.push({
         kind: "derived",
         alias,
-        columns: new Map(cteShape.map((c) => [c.name, c.type])),
+        columns: new Map(cteShape.columns.map((c) => [c.name, c.type])),
       });
       let tail = "";
       if (source.alias) tail = ` AS ${this.id(source.alias)}`;
-      return [lit(`${this.id(source.name)}${tail}`)];
+      // Always emit the CTE's canonical name — references resolve
+      // case-insensitively but ClickHouse identifiers do not.
+      return [lit(`${this.id(cteShape.name)}${tail}`)];
     }
 
     const table = CATALOG[nameLower];
@@ -258,10 +279,7 @@ export class Compiler {
     return frame.aliases.get(aliasLower);
   }
 
-  private findCteShape(
-    frame: Frame | undefined,
-    nameLower: string,
-  ): readonly ColumnSpec[] | undefined {
+  private findCteShape(frame: Frame | undefined, nameLower: string): CteShape | undefined {
     for (let f = frame; f; f = f.parent) {
       const match = f.cteShapes.get(nameLower);
       if (match) return match;
@@ -452,9 +470,15 @@ export class Compiler {
         // A string compared against a DateTime column is coerced to DateTime for
         // partition pruning. Guard the parse: an unparseable literal would otherwise
         // escape as an opaque defect/500 and break the validate-repair loop.
-        // `Date.parse` (not `DateTime.make(string)`) keeps the host's literal-parsing
-        // semantics — `DateTime.make` appends `Z` to zone-less strings.
-        const parsed = DateTime.make(Date.parse(expr.value));
+        // `Date.parse` is used for its tolerant literal forms, but it binds
+        // zone-less date-times to the *host* timezone — so a zone-less time is
+        // normalized to UTC explicitly (date-only literals are UTC per spec).
+        const value = expr.value.trim();
+        const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+        const hasZone = /(?:[Zz]|[+-]\d{2}:?\d{2})$/.test(value);
+        let normalized = value;
+        if (!isDateOnly && !hasZone) normalized = `${value.replace(" ", "T")}Z`;
+        const parsed = DateTime.make(Date.parse(normalized));
         if (Option.isNone(parsed)) {
           throw new VoidQlSyntaxError({
             message: `'${expr.value}' is not a valid date/time literal.`,
@@ -499,11 +523,11 @@ export class Compiler {
       case "InExpr":
         return this.printIn(expr, frame);
       case "ExistsExpr": {
-        const query = this.printQuery(expr.query, frame);
+        const query = this.printQuery(expr.query, frame, true);
         return { pieces: [lit("EXISTS ( "), ...query.pieces, lit(" )")], type: "Bool" };
       }
       case "SubqueryExpr": {
-        const query = this.printQuery(expr.query, frame);
+        const query = this.printQuery(expr.query, frame, true);
         if (query.shape.length !== 1) {
           throw new VoidQlUnsupportedError({
             message: "A scalar subquery must return exactly one column.",
@@ -619,6 +643,21 @@ export class Compiler {
     const isPattern =
       expr.op === "like" || expr.op === "notLike" || expr.op === "ilike" || expr.op === "notIlike";
 
+    if (isComparison && expr.left._tag === "StringLit") {
+      // A string literal on the LEFT of a comparison must also coerce to DateTime
+      // when the other operand is DateTime-typed. The right side prints first only
+      // to learn its type; the pieces are assembled in source order so the bind
+      // order still matches the parameter order in the SQL text.
+      const right = this.printExpr(expr.right, frame);
+      let leftExpected: VoidQLType | undefined = undefined;
+      if (right.type === "DateTime") leftExpected = "DateTime";
+      const left = this.printExpr(expr.left, frame, leftExpected);
+      return {
+        pieces: [lit("("), ...left.pieces, lit(sqlOp[expr.op]), ...right.pieces, lit(")")],
+        type: "Bool",
+      };
+    }
+
     const left = this.printExpr(expr.left, frame);
     // Propagate the left operand's type to a comparison RHS so a string literal
     // compared to a DateTime column binds as DateTime.
@@ -641,7 +680,7 @@ export class Compiler {
     if (expr.negated) inOp = " NOT IN (";
     const pieces: SqlPiece[] = [lit("("), ...target.pieces, lit(inOp)];
     if (expr.query) {
-      const query = this.printQuery(expr.query, frame);
+      const query = this.printQuery(expr.query, frame, true);
       if (query.shape.length !== 1) {
         throw new VoidQlUnsupportedError({
           message: "An IN subquery must return exactly one column.",
@@ -738,10 +777,15 @@ export class Compiler {
 
   // ── select ──────────────────────────────────────────────────────────────
 
-  printQuery(query: Query, parent?: Frame): CompiledSelect {
-    if (query._tag === "Select") return this.printSelect(query, parent);
+  /**
+   * Print a query. `isInner` marks nested queries (CTE bodies, subqueries, IN
+   * sets): they receive no implicit safety LIMIT, only the outermost statement is
+   * clamped, so inner semantics are never silently truncated.
+   */
+  printQuery(query: Query, parent?: Frame, isInner = false): CompiledSelect {
+    if (query._tag === "Select") return this.printSelect(query, parent, isInner);
 
-    const compiled = query.selects.map((select) => this.printSelect(select, parent));
+    const compiled = query.selects.map((select) => this.printSelect(select, parent, isInner));
     const shape = compiled[0]!.shape;
     for (const arm of compiled.slice(1)) {
       const compatible =
@@ -764,15 +808,12 @@ export class Compiler {
       if (index > 0) pieces.push(lit(", "));
       pieces.push(lit(`${this.qualified("voidql_union", column.name)} AS ${this.id(column.name)}`));
     });
-    pieces.push(
-      lit(" FROM ( "),
-      ...unionPieces,
-      lit(` ) AS voidql_union LIMIT ${MAX_RESULT_ROWS}`),
-    );
+    pieces.push(lit(" FROM ( "), ...unionPieces, lit(` ) AS voidql_union`));
+    if (!isInner) pieces.push(lit(` LIMIT ${MAX_RESULT_ROWS}`));
     return { pieces, shape, injected: [] };
   }
 
-  printSelect(select: Select, parent?: Frame): CompiledSelect {
+  printSelect(select: Select, parent?: Frame, isInner = false): CompiledSelect {
     const frame: Frame = { relations: [], cteShapes: new Map(), aliases: new Map(), parent };
 
     const ctePieces: SqlPiece[] = [];
@@ -781,15 +822,16 @@ export class Compiler {
       if (
         !IDENT_RE.test(cte.name) ||
         PHYSICAL_SHAPED_RE.test(cte.name) ||
-        RESERVED_INTERNAL_ALIASES.has(nameLower)
+        RESERVED_INTERNAL_ALIASES.has(nameLower) ||
+        TENANT_SCOPED_ALIASES.has(nameLower)
       ) {
         throw new VoidQlUnsupportedError({ message: `Invalid CTE name '${cte.name}'.`, hint: "" });
       }
       if (frame.cteShapes.has(nameLower)) {
         throw new VoidQlUnsupportedError({ message: `Duplicate CTE '${cte.name}'.`, hint: "" });
       }
-      const compiled = this.printQuery(cte.query, frame);
-      frame.cteShapes.set(nameLower, compiled.shape);
+      const compiled = this.printQuery(cte.query, frame, true);
+      frame.cteShapes.set(nameLower, { name: cte.name, columns: compiled.shape });
       let cteLead = ", ";
       if (i === 0) cteLead = "WITH ";
       ctePieces.push(lit(cteLead), lit(`${cte.name} AS ( `), ...compiled.pieces, lit(" )"));
@@ -892,10 +934,15 @@ export class Compiler {
       });
     }
 
-    // LIMIT is always emitted and clamped — defense-in-depth.
-    const limit = Math.min(select.limit ?? MAX_RESULT_ROWS, MAX_RESULT_ROWS);
-    pieces.push(lit(` LIMIT ${limit}`));
-    if (select.offset && select.offset > 0) pieces.push(lit(` OFFSET ${select.offset}`));
+    // The safety LIMIT is clamped onto the outermost statement only — inner
+    // queries (CTE bodies, subqueries, IN sets) carry no implicit LIMIT so their
+    // semantics are never silently truncated past the cap. An explicit user LIMIT
+    // is honored (and clamped) at any depth.
+    if (!isInner || select.limit !== undefined || select.withTies) {
+      const limit = Math.min(select.limit ?? MAX_RESULT_ROWS, MAX_RESULT_ROWS);
+      pieces.push(lit(` LIMIT ${limit}`));
+      if (select.offset && select.offset > 0) pieces.push(lit(` OFFSET ${select.offset}`));
+    }
     if (select.withTies) {
       if (select.orderBy.length === 0) {
         throw new VoidQlUnsupportedError({
@@ -955,6 +1002,14 @@ export class Compiler {
       ) {
         throw new VoidQlUnsupportedError({ message: `Invalid column alias '${name}'.`, hint: "" });
       }
+      // Only an *explicit* user alias is reserved — an inferred column name such as
+      // a plain `SELECT project_id` is a legitimate qualified reference.
+      if (item.alias && TENANT_SCOPED_ALIASES.has(name.toLowerCase())) {
+        throw new VoidQlUnsupportedError({
+          message: `'${name}' is a reserved tenant alias and cannot be used.`,
+          hint: "Pick a different alias.",
+        });
+      }
       if (outputNames.has(name.toLowerCase())) {
         throw new VoidQlUnsupportedError({
           message: `Duplicate output column '${name}'.`,
@@ -982,6 +1037,12 @@ export class Compiler {
     qualifier: string | undefined,
     frame: Frame,
   ): readonly { readonly alias: string; readonly col: string; readonly type: VoidQLType }[] {
+    if (frame.relations.length === 0) {
+      throw new VoidQlUnsupportedError({
+        message: "SELECT * requires a FROM clause.",
+        hint: "Add a FROM clause naming the relation to expand.",
+      });
+    }
     let relations: readonly ResolvedRelation[] = frame.relations;
     if (qualifier) {
       relations = [this.findRelation(frame, qualifier.toLowerCase())].filter(

@@ -1,7 +1,13 @@
 export * from "./errors.ts";
-export { compileVoidQl, compilePure, compileToIr, type CompiledQuery } from "./compile.ts";
+export {
+  MAX_SOURCE_LENGTH,
+  compileVoidQl,
+  compilePure,
+  compileToIr,
+  type CompiledQuery,
+} from "./compile.ts";
 export { MAX_RESULT_ROWS } from "./compiler.ts";
-export { CATALOG, CATALOG_SCHEMA_VERSION, getCatalogTable } from "./catalog/index.ts";
+export { CATALOG, CATALOG_SCHEMA_VERSION } from "./catalog/index.ts";
 export type {
   CatalogTable,
   CatalogColumn,

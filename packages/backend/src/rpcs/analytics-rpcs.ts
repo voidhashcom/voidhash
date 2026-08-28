@@ -1,6 +1,7 @@
 import { AnalyticsQuery } from "@voidhash/core-v2";
 import {
   AnalyticsRpcsDef,
+  RpcActionForbiddenError,
   RpcAnalyticsServiceError,
   RpcInvalidAnalyticsQueryError,
   RpcInvalidTimeRangeError,
@@ -47,6 +48,8 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
               Effect.fail(
                 new RpcAnalyticsServiceError({ cause: error.cause, message: error.message }),
               ),
+            AnalyticsAuthorizationDeniedError: (error) =>
+              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
           }),
         ),
       QueryAnalyticsInsights: ({ queries }) =>
@@ -87,6 +90,8 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
                   message: error.message,
                 }),
               ),
+            AnalyticsAuthorizationDeniedError: (error) =>
+              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
           }),
         ),
     };

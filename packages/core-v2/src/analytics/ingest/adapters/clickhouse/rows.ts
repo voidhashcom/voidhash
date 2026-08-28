@@ -1,82 +1,10 @@
 import { DateTime, Option, Schema } from "effect";
 
-import {
-  extractInnerProperties,
-  ProcessedEventV2,
-  ProcessorPersonEventV1,
-  ProcessorPersonIdentityEventV1,
-} from "../../domain/Ingest.ts";
-import {
-  isReservedRevenueEventName,
-  REVENUE_TRUSTED_SOURCE_TOPIC,
-} from "../../../domain/InternalAnalyticsEvents.ts";
+import { ProcessorPersonEventV1, ProcessorPersonIdentityEventV1 } from "../../domain/Ingest.ts";
 import type { AnalyticsEventV1 } from "../../../domain/AnalyticsEvent.ts";
+import type { AnalyticsWriteBatch } from "../../../application/ports/AnalyticsStore.ts";
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
-
-export type AnalyticsWriterMessageType =
-  | {
-      readonly kind: "processed";
-      readonly messageId: string;
-      readonly value: typeof ProcessedEventV2.Type;
-    }
-  | {
-      readonly kind: "person";
-      readonly messageId: string;
-      readonly value: typeof ProcessorPersonEventV1.Type;
-    }
-  | {
-      readonly kind: "person-distinct-id";
-      readonly messageId: string;
-      readonly value: typeof ProcessorPersonIdentityEventV1.Type;
-    };
-
-/** Whether a row is a trusted revenue event with a deterministic id. */
-export const isRevenueAnalyticsWriterRow = (row: Readonly<Record<string, unknown>>): boolean =>
-  row.source_topic === REVENUE_TRUSTED_SOURCE_TOPIC &&
-  typeof row.event_name === "string" &&
-  isReservedRevenueEventName(row.event_name);
-
-/** Collapse duplicate trusted revenue ids within one write batch. */
-export const dedupeRevenueRowsWithinBatch = (
-  rows: ReadonlyArray<Record<string, unknown>>,
-): { readonly rows: ReadonlyArray<Record<string, unknown>>; readonly skippedCount: number } => {
-  const seen = new Set<string>();
-  const deduped: Array<Record<string, unknown>> = [];
-  let skippedCount = 0;
-  for (const row of rows) {
-    if (!isRevenueAnalyticsWriterRow(row) || typeof row.event_id !== "string") {
-      deduped.push(row);
-      continue;
-    }
-    if (seen.has(row.event_id)) {
-      skippedCount += 1;
-      continue;
-    }
-    seen.add(row.event_id);
-    deduped.push(row);
-  }
-  if (skippedCount === 0) return { rows, skippedCount };
-  return { rows: deduped, skippedCount };
-};
-
-export interface AnalyticsWriterPlan {
-  readonly personIdentityOverrideRows: ReadonlyArray<Record<string, unknown>>;
-  readonly personIdentityPendingOverrideRows: ReadonlyArray<Record<string, unknown>>;
-  readonly personIdentityRows: ReadonlyArray<Record<string, unknown>>;
-  readonly personRows: ReadonlyArray<Record<string, unknown>>;
-  readonly processedEventRows: ReadonlyArray<Record<string, unknown>>;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const asRecord = (value: unknown) => {
-  if (isRecord(value)) {
-    return value;
-  }
-  return {};
-};
 
 const toNullableString = (value: string | undefined) => {
   if (typeof value === "string" && value.trim().length > 0) {
@@ -138,45 +66,6 @@ export const toAnalyticsEventRow = (
   token: event.token,
 });
 
-export const extractPreviousDistinctId = (event: typeof ProcessedEventV2.Type): string | null => {
-  const wrappedProperties = asRecord(event.properties);
-  const innerProperties = extractInnerProperties(wrappedProperties);
-  const previousDistinctId = innerProperties.$previous_distinct_id;
-  if (typeof previousDistinctId !== "string") {
-    return null;
-  }
-  return toNullableString(previousDistinctId);
-};
-
-export const toProcessedEventRow = (
-  event: typeof ProcessedEventV2.Type,
-  insertedAt: Date,
-): Record<string, unknown> => ({
-  capture_id: event.captureId,
-  context: encodeJson(event.context),
-  person_id: toNullableString(event.identity.personId),
-  distinct_id: event.identity.distinctId,
-  event_id: event.processedEventId,
-  event_name: event.event,
-  event_properties: encodeJson(event.properties),
-  event_ts: toClickhouseTimestamp(event.eventTimestamp),
-  identity_mode: event.identity.mode,
-  // The write moment, as opposed to `processed_ts` (pipeline acceptance) and
-  // `event_ts` (client clock); stamped once per batch by the writer.
-  inserted_ts: toClickhouseTimestamp(insertedAt.toISOString()),
-  organization_id: event.organizationId,
-  previous_distinct_id: extractPreviousDistinctId(event),
-  processed_ts: toClickhouseTimestamp(event.processedAt),
-  project_id: event.projectId,
-  request_id: event.request.requestId,
-  request_path: event.request.path ?? "",
-  schema_version: event.schemaVersion,
-  source_offset: event.transport.sourceOffset,
-  source_partition: event.transport.sourcePartition,
-  source_topic: event.transport.sourceTopic,
-  token: event.token,
-});
-
 export const toPersonRow = (
   event: typeof ProcessorPersonEventV1.Type,
   organizationId: string,
@@ -222,58 +111,100 @@ export const toPendingOverrideRow = (
   version: event.version,
 });
 
-/**
- * Builds the per-table ClickHouse row plan. Person/identity rows carry an
- * `organization_id` resolved from their `project_id` via `organizationIdForProject`
- * (the writer resolves this through its metadata port); processed-event rows already carry the
- * organization id from the upstream {@link ProcessedEventV2}. An unknown project
- * resolves to `""`, which the readonly RLS user's row policy treats as not
- * matching any tenant (fail-closed).
- */
-export const buildAnalyticsWriterPlan = (
-  messages: ReadonlyArray<AnalyticsWriterMessageType>,
-  organizationIdForProject: (projectId: string) => string,
-  insertedAt: Date,
-): AnalyticsWriterPlan => {
-  const processedEventRows: Array<Record<string, unknown>> = [];
-  const personRows: Array<Record<string, unknown>> = [];
-  const personIdentityRows: Array<Record<string, unknown>> = [];
-  const personIdentityOverrideRows: Array<Record<string, unknown>> = [];
-  const personIdentityPendingOverrideRows: Array<Record<string, unknown>> = [];
+const writePart = (kind: string, ...values: ReadonlyArray<string | number>) => {
+  const encoded = values.map((value) => String(value)).map((value) => `${value.length}:${value}`);
+  return `${kind}:${encoded.join("")}`;
+};
 
-  for (const message of messages) {
-    switch (message.kind) {
-      case "processed":
-        processedEventRows.push(toProcessedEventRow(message.value, insertedAt));
-        break;
-      case "person":
-        personRows.push(
-          toPersonRow(message.value, organizationIdForProject(message.value.projectId)),
-        );
-        break;
-      case "person-distinct-id": {
-        const organizationId = organizationIdForProject(message.value.projectId);
-        personIdentityRows.push(toPersonIdentityRow(message.value, organizationId));
-        if (
-          typeof message.value.previousDistinctId === "string" &&
-          message.value.previousDistinctId.length > 0 &&
-          message.value.version > 0
-        ) {
-          personIdentityOverrideRows.push(toPersonIdentityRow(message.value, organizationId));
-          personIdentityPendingOverrideRows.push(
-            toPendingOverrideRow(message.value, organizationId),
-          );
-        }
-        break;
-      }
-    }
-  }
-
-  return {
-    personIdentityOverrideRows,
-    personIdentityPendingOverrideRows,
-    personIdentityRows,
-    personRows,
-    processedEventRows,
-  };
+/** Map one logical analytics write to a single-partition ClickHouse record block. */
+export const toAnalyticsWriteBatchRows = (
+  batch: typeof AnalyticsWriteBatch.Type,
+): ReadonlyArray<Record<string, unknown>> => {
+  const overrideEvents = batch.personIdentityEvents.filter((event) =>
+    Boolean(event.previousDistinctId && event.version > 0),
+  );
+  const writeParts = [
+    ...batch.events.map((event) => writePart("event", event.projectId, event.eventId)),
+    ...batch.personEvents.map((event) =>
+      writePart("person", event.projectId, event.personId, event.version),
+    ),
+    ...batch.personIdentityEvents.map((event) =>
+      writePart("identity", event.projectId, event.distinctId, event.version),
+    ),
+  ].sort();
+  if (writeParts.length === 0) return [];
+  const writeId = writeParts.join("|");
+  const writeTimestamp =
+    batch.events[0]?.processedAt.toISOString() ??
+    batch.personEvents[0]?.changedAt ??
+    batch.personIdentityEvents[0]?.changedAt;
+  if (!writeTimestamp) return [];
+  const base = (input: {
+    readonly organizationId: string;
+    readonly projectId: string;
+    readonly recordId: string;
+    readonly recordType: string;
+    readonly recordVersion: number;
+  }) => ({
+    organization_id: input.organizationId,
+    project_id: input.projectId,
+    record_id: input.recordId,
+    record_type: input.recordType,
+    record_version: input.recordVersion,
+    write_id: writeId,
+    write_ts: toClickhouseTimestamp(writeTimestamp),
+  });
+  const organizationId = (projectId: string) => batch.organizationIdsByProject[projectId] ?? "";
+  return [
+    ...batch.events.map((event) => ({
+      ...base({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        recordId: event.eventId,
+        recordType: "event",
+        recordVersion: event.processedAt.getTime(),
+      }),
+      ...toAnalyticsEventRow(event),
+    })),
+    ...batch.personEvents.map((event) => ({
+      ...base({
+        organizationId: organizationId(event.projectId),
+        projectId: event.projectId,
+        recordId: writePart("person", event.projectId, event.personId),
+        recordType: "person",
+        recordVersion: event.version,
+      }),
+      ...toPersonRow(event, organizationId(event.projectId)),
+    })),
+    ...batch.personIdentityEvents.map((event) => ({
+      ...base({
+        organizationId: organizationId(event.projectId),
+        projectId: event.projectId,
+        recordId: writePart("identity", event.projectId, event.distinctId),
+        recordType: "identity",
+        recordVersion: event.version,
+      }),
+      ...toPersonIdentityRow(event, organizationId(event.projectId)),
+    })),
+    ...overrideEvents.map((event) => ({
+      ...base({
+        organizationId: organizationId(event.projectId),
+        projectId: event.projectId,
+        recordId: writePart("override", event.projectId, event.distinctId),
+        recordType: "identity_override",
+        recordVersion: event.version,
+      }),
+      ...toPersonIdentityRow(event, organizationId(event.projectId)),
+    })),
+    ...overrideEvents.map((event) => ({
+      ...base({
+        organizationId: organizationId(event.projectId),
+        projectId: event.projectId,
+        recordId: writePart("pending", event.projectId, event.previousDistinctId ?? ""),
+        recordType: "pending_identity_override",
+        recordVersion: event.version,
+      }),
+      ...toPendingOverrideRow(event, organizationId(event.projectId)),
+    })),
+  ];
 };

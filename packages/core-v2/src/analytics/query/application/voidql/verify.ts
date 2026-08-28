@@ -22,9 +22,9 @@ import type { AuthorizedScope } from "./scope.ts";
 
 /** Physical tables VoidQL is permitted to reference — all only inside a `lower()`. */
 const ALLOWED_PHYSICAL_TABLES = new Set([
-  "events_v2",
-  "persons_v1",
-  "person_identity_pending_overrides_v2",
+  "analytics_events_v2",
+  "analytics_persons_v1",
+  "analytics_person_identity_pending_overrides_v2",
 ]);
 
 /** Tokens that must never appear in compiled VoidQL — the catalog/registry already
@@ -33,6 +33,13 @@ const FORBIDDEN_TOKEN_RE =
   /\b(remote|remoteSecure|url|s3|s3Cluster|file|mysql|postgresql|jdbc|odbc|hdfs|azureBlobStorage|mongodb|cluster|clusterAllReplicas|numbers|generateRandom|dictGet\w*|dictHas|getSetting|currentUser|hostName|serverUUID|getMacro|addressToLine|demangle|evalMLMethod|sleep|sleepEachRow|throwIf)\s*\(/i;
 
 const VERSIONED_TABLE_RE = /\b\w+_v\d+\b/g;
+
+/** Count whole-token occurrences of `needle` (no substring matches, e.g. an
+ * alias `events_v2x` must not count as an `events_v2` occurrence). */
+const countTokens = (haystack: string, needle: string) => {
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return [...haystack.matchAll(new RegExp(`\\b${escaped}\\b`, "g"))].length;
+};
 
 const countOccurrences = (haystack: string, needle: string) => haystack.split(needle).length - 1;
 
@@ -69,8 +76,9 @@ export const verify = (
 
   // ── Triangulation: printer-reported base-refs vs physical tables vs predicates.
   // An `events`/`revenue` lowering scopes TWO physical reads — the dedup scan of
-  // `events_v2` AND the identity-join scan of `person_identity_pending_overrides_v2`
-  // (the latter is scoped inline). A `persons` lowering scopes ONE (`persons_v1`). So each
+  // `analytics_events_v2` AND the identity-join scan of
+  // `analytics_person_identity_pending_overrides_v2` (the latter is scoped inline).
+  // A `persons` lowering scopes ONE (`analytics_persons_v1`). So each
   // event-backed scope contributes 2 tenant predicates and 1 of each physical
   // table; each person-backed scope contributes 1 predicate and 1 `persons_v1`.
   const eventBacked = injected.filter(
@@ -79,14 +87,14 @@ export const verify = (
   const personBacked = injected.filter((s) => s.relation === "persons").length;
   const expectedPredicates = eventBacked * 2 + personBacked;
 
-  if (countOccurrences(sql, "events_v2") !== eventBacked) {
-    fail("events_v2 occurrence count does not match injected event scopes");
+  if (countTokens(sql, "analytics_events_v2") !== eventBacked) {
+    fail("analytics_events_v2 occurrence count does not match injected event scopes");
   }
-  if (countOccurrences(sql, "person_identity_pending_overrides_v2") !== eventBacked) {
+  if (countTokens(sql, "analytics_person_identity_pending_overrides_v2") !== eventBacked) {
     fail("pending-overrides occurrence count does not match injected event scopes");
   }
-  if (countOccurrences(sql, "persons_v1") !== personBacked) {
-    fail("persons_v1 occurrence count does not match injected person scopes");
+  if (countTokens(sql, "analytics_persons_v1") !== personBacked) {
+    fail("analytics_persons_v1 occurrence count does not match injected person scopes");
   }
   if (countOccurrences(sql, "organization_id = {p") !== expectedPredicates) {
     fail("organization_id predicate count does not match scoped physical-read count");

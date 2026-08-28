@@ -25,6 +25,9 @@ export class AnalyticsCaptureError extends Schema.TaggedErrorClass<AnalyticsCapt
   message: Schema.String,
 }) {}
 
+const captureError = (error: { readonly cause?: unknown; readonly message: string }) =>
+  new AnalyticsCaptureError({ cause: String(error.cause), message: error.message });
+
 /** Decoded request accepted by the analytics capture application service. */
 export const CaptureRequest = Schema.Struct({
   request: Schema.Struct({
@@ -47,6 +50,8 @@ export const CaptureResult = Schema.Struct({
 
 const PUBLISHABLE_TOKEN_FORMAT = /^vh_pk_\w+$/;
 const SECRET_TOKEN_FORMAT = /^vh_sk_\w+$/;
+/** Upper bound on events per capture request; one request cannot be arbitrarily large. */
+const MAX_CAPTURE_EVENTS = 100;
 
 const makeCaptureEnvelope = (input: {
   readonly event: typeof CaptureEvent.Type;
@@ -62,9 +67,18 @@ const makeCaptureEnvelope = (input: {
     if (typeof processPersonProfile !== "boolean") {
       processPersonProfile = !input.event.distinct_id.startsWith("vh:anon:");
     }
+    // Server-derived enrichment rides inside the user properties object so it
+    // survives the unwrap-to-inner step at storage time.
+    const innerProperties = {
+      ...input.event.properties,
+      ...(input.request.headers["user-agent"] && {
+        $user_agent: input.request.headers["user-agent"],
+      }),
+      ...(input.request.clientIp && { $ip: input.request.clientIp }),
+    };
     const properties = {
       distinctId: input.event.distinct_id,
-      properties: input.event.properties,
+      properties: innerProperties,
       $process_person_profile: processPersonProfile,
     };
     return {
@@ -78,10 +92,7 @@ const makeCaptureEnvelope = (input: {
       eventTimestamp: input.event.timestamp.toISOString(),
       organizationId: input.organizationId,
       projectId: input.projectId,
-      properties: {
-        ...properties,
-        ...(input.request.clientIp && { $ip: input.request.clientIp }),
-      },
+      properties,
       rawPayload: {
         context: input.event.context,
         distinct_id: input.event.distinct_id,
@@ -143,23 +154,12 @@ const makeAnalyticsCapture = Effect.gen(function* () {
         const isPublic = PUBLISHABLE_TOKEN_FORMAT.test(token);
         let lookupKey = token;
         if (!isPublic) {
-          lookupKey = yield* crypto.digest("SHA-256", new TextEncoder().encode(token)).pipe(
-            Effect.map(Encoding.encodeBase64Url),
-            Effect.mapError(
-              (error) =>
-                new AnalyticsCaptureError({ cause: String(error.cause), message: error.message }),
-            ),
-          );
+          lookupKey = yield* crypto
+            .digest("SHA-256", new TextEncoder().encode(token))
+            .pipe(Effect.map(Encoding.encodeBase64Url), Effect.mapError(captureError));
         }
         const credential = { isPublic, lookupKey };
-        const project = yield* credentials
-          .resolve(credential)
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new AnalyticsCaptureError({ cause: String(error.cause), message: error.message }),
-            ),
-          );
+        const project = yield* credentials.resolve(credential).pipe(Effect.mapError(captureError));
         if (!project) {
           return yield* new CaptureUnauthorizedError({
             code: "unauthorized",
@@ -172,18 +172,19 @@ const makeAnalyticsCapture = Effect.gen(function* () {
             error: "capture is disabled for this project",
           });
         }
+        if (request.events.length > MAX_CAPTURE_EVENTS) {
+          return yield* new CaptureRateLimitedError({
+            code: "rate_limited",
+            error: `request exceeds the maximum of ${MAX_CAPTURE_EVENTS} events`,
+          });
+        }
         const requestLimit = yield* counters
           .checkRequest({
             now: request.request.receivedAt,
             projectId: project.projectId,
             requestsPerMinute: project.policy.requestsPerMinute,
           })
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new AnalyticsCaptureError({ cause: String(error.cause), message: error.message }),
-            ),
-          );
+          .pipe(Effect.mapError(captureError));
         if (!requestLimit.allowed) {
           return yield* new CaptureRateLimitedError({
             code: "rate_limited",
@@ -194,7 +195,10 @@ const makeAnalyticsCapture = Effect.gen(function* () {
           });
         }
 
-        const envelopes: (typeof CapturedEventV1.Type)[] = [];
+        const admitted: Array<{
+          readonly envelope: typeof CapturedEventV1.Type;
+          readonly quotaExempt: boolean;
+        }> = [];
         for (const event of request.events) {
           if (isReservedRevenueEventName(event.event)) continue;
           if (
@@ -206,50 +210,51 @@ const makeAnalyticsCapture = Effect.gen(function* () {
           ) {
             continue;
           }
-          const withinQuota =
-            shouldBypassQuota({ eventName: event.event, trustClass: "untrusted-sdk" }) ||
-            (yield* counters
-              .checkEvent({
-                now: request.request.receivedAt,
-                projectId: project.projectId,
-                eventsPerDay: project.policy.eventsPerDay,
-              })
-              .pipe(
-                Effect.mapError(
-                  (error) =>
-                    new AnalyticsCaptureError({
-                      cause: String(error.cause),
-                      message: error.message,
-                    }),
-                ),
-              ));
-          if (!withinQuota) continue;
-          envelopes.push(
-            yield* makeCaptureEnvelope({
+          admitted.push({
+            envelope: yield* makeCaptureEnvelope({
               event,
               organizationId: project.organizationId,
               projectId: project.projectId,
               receivedAt: request.request.receivedAt,
               request: request.request,
               token: credential.lookupKey,
-            }).pipe(
-              Effect.provideService(Crypto.Crypto, crypto),
-              Effect.mapError(
-                (error) =>
-                  new AnalyticsCaptureError({ cause: String(error.cause), message: error.message }),
-              ),
-            ),
-          );
+            }).pipe(Effect.provideService(Crypto.Crypto, crypto), Effect.mapError(captureError)),
+            quotaExempt: shouldBypassQuota({
+              eventName: event.event,
+              trustClass: "untrusted-sdk",
+            }),
+          });
         }
-        yield* delivery
-          .deliver(envelopes)
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new AnalyticsCaptureError({ cause: String(error.cause), message: error.message }),
-            ),
-          );
-        return { accepted: envelopes.length, rejected: request.events.length - envelopes.length };
+        const reservation = yield* counters
+          .reserveEvents({
+            count: admitted.filter((candidate) => !candidate.quotaExempt).length,
+            now: request.request.receivedAt,
+            projectId: project.projectId,
+            eventsPerDay: project.policy.eventsPerDay,
+          })
+          .pipe(Effect.mapError(captureError));
+        let quotaRemaining = reservation.reserved;
+        const envelopes = admitted.flatMap((candidate) => {
+          if (candidate.quotaExempt) return [candidate.envelope];
+          if (quotaRemaining < 1) return [];
+          quotaRemaining -= 1;
+          return [candidate.envelope];
+        });
+        const deliveryResult = yield* Effect.result(delivery.deliver(envelopes));
+        if (deliveryResult._tag === "Failure") {
+          yield* reservation
+            .commit(Math.min(deliveryResult.failure.stored, reservation.reserved))
+            .pipe(Effect.catch(() => Effect.void));
+          return yield* Effect.fail(captureError(deliveryResult.failure));
+        }
+        const outcome = deliveryResult.success;
+        yield* reservation
+          .commit(Math.min(outcome.stored, reservation.reserved))
+          .pipe(Effect.mapError(captureError));
+        return {
+          accepted: outcome.stored,
+          rejected: request.events.length - outcome.stored,
+        };
       }),
   } satisfies AnalyticsCaptureShape;
 });

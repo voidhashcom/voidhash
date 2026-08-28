@@ -1,5 +1,5 @@
 /**
- * The `persons` logical view. Lowers to a latest-version `persons_v1` read
+ * The `persons` logical view. Lowers to a latest-version person compatibility-view read
  * collapsed with `LIMIT 1 BY (project_id, person_id) ORDER BY version DESC`,
  * then filtered to `is_archived = 0` on the surviving latest
  * row. `email`/`name`/`traits` are PII and require the `pii` capability.

@@ -8,30 +8,20 @@
  */
 import { Schema } from "effect";
 
-import type { Span } from "./ast/VoidQlAst.ts";
-
 /**
- * A typed, span-precise compile diagnostic. Returned as data by validation and
- * mirrored by the thrown error's fields on the run path.
+ * A typed compile diagnostic. Returned as data by validation and mirrored by
+ * the thrown error's fields on the run path.
  */
 export interface Diagnostic {
   /** Which compiler stage produced it. */
-  readonly stage: "lex" | "parse" | "resolve" | "verify";
+  readonly stage: "parse" | "resolve" | "verify";
   /** A stable machine code (e.g. `"unknown_field"`, `"pii"`). */
   readonly code: string;
   /** Human/agent-readable message. */
   readonly message: string;
-  /** Source span, when the failure is attributable to one. */
-  readonly span?: Span;
   /** A teachable hint for self-repair (e.g. "VoidQL is read-only…"). */
   readonly hint?: string;
 }
-
-/** Render a span as a compact `line:col` prefix for flat error messages. */
-export const formatSpan = (span: Span | undefined): string => {
-  if (span) return `line ${span.start.line}, col ${span.start.col}: `;
-  return "";
-};
 
 /** The query text could not be tokenised or parsed into a valid VoidQL AST. */
 export class VoidQlSyntaxError extends Schema.TaggedErrorClass<VoidQlSyntaxError>(

@@ -34,7 +34,7 @@ export interface Token {
   /** For `string` tokens: the decoded value. For `number`: the numeric value. */
   readonly value?: string | number;
   /** For `number` tokens: the resolved scalar type. */
-  readonly numType?: "Int64" | "UInt64" | "Float64";
+  readonly numType?: "Int64" | "Float64";
 }
 
 /** Structural keywords with a grammar production in the supported query surface. */
