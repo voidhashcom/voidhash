@@ -1,8 +1,9 @@
-import { PaymentProviderConfigurationService } from "@voidhash/core/services";
+import { PaymentProviderConfigurationService } from "@voidhash/core-v2";
 import {
   PaymentProviderConfigurationRpcsDef,
   RpcActionForbiddenError,
   RpcPaymentProviderAlreadyExistsError,
+  RpcPaymentProviderConfigurationInUseError,
   RpcPaymentProviderConfigurationKeyUnavailableError,
   RpcPaymentProviderConfigurationNotFoundError,
   RpcPaymentProviderConfigurationServiceError,
@@ -73,6 +74,8 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+            PaymentProviderConfigurationInUseError: (error) =>
+              Effect.fail(new RpcPaymentProviderConfigurationInUseError({ message: error.message })),
             PaymentProviderConfigurationNotFoundError: (error) =>
               Effect.fail(
                 new RpcPaymentProviderConfigurationNotFoundError({ message: error.message }),

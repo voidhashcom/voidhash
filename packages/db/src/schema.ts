@@ -803,7 +803,13 @@ export const purchases = pgTable(
     ),
   },
   (table) => [
-    uniqueIndex("provider_key_idx").on(table.providerKey),
+    /**
+     * Provider keys (store transaction ids) are only unique within a single
+     * store app, so uniqueness is scoped to the configuration product —
+     * mirrors `subscription_store_subscription_unique_idx`. A global unique
+     * index would let one tenant's purchase collide with another's.
+     */
+    uniqueIndex("provider_key_idx").on(table.paymentProviderConfigurationProductId, table.providerKey),
     index("purchase_person_active_idx").on(table.personId, table.refundedAt, table.revokedAt),
   ],
 );
@@ -1915,9 +1921,6 @@ export const webhookDeliveries = pgTable(
 
     /** Number of attempts made */
     attemptCount: integer("attempt_count").notNull().default(0),
-
-    /** Maximum retry attempts */
-    maxAttempts: integer("max_attempts").notNull().default(5),
 
     /** Next scheduled attempt */
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true, precision: 3 }),

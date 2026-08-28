@@ -33,7 +33,15 @@ const make = (config: PaymentConfigSecretCryptoConfig) =>
     // A malformed key is a deployment misconfiguration — fail fast (die) at
     // layer construction rather than degrade silently.
     const keyOpt = yield* Effect.gen(function* () {
-      if (keyB64.length === 0) return Option.none<Uint8Array>();
+      if (keyB64.length === 0) {
+        // Intentional no-op mode for local/dev — but loud, so an
+        // un-provisioned production environment is visible in logs instead of
+        // silently persisting payment-provider secrets as plaintext.
+        yield* Effect.logWarning(
+          "PaymentConfigSecretCrypto: ENCRYPTION_KEY is not set — payment-provider secrets will be stored as plaintext",
+        );
+        return Option.none<Uint8Array>();
+      }
       return Option.some(yield* decodeEncryptionKey(keyB64).pipe(Effect.orDie));
     });
 

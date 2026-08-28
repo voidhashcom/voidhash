@@ -68,6 +68,8 @@ export const ProductRpcsLive = ProductRpcsDef.toLayer(
               Effect.fail(new RpcProductNotFoundError({ message: error.message })),
             ProductServiceError: (error) =>
               Effect.fail(new RpcProductServiceError({ cause: error.cause })),
+            ProductSlugAlreadyExistsError: (error) =>
+              Effect.fail(new RpcProductSlugAlreadyExistsError({ slug: error.slug })),
           }),
         ),
     };

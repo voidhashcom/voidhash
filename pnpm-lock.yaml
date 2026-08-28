@@ -1083,6 +1083,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.1.9(@types/react@19.1.17)
+      '@voidhash/generated-clients':
+        specifier: workspace:*
+        version: link:../generated-clients
       '@voidhash/platform':
         specifier: workspace:*
         version: link:../platform
@@ -1180,6 +1183,9 @@ importers:
       '@voidhash/lib':
         specifier: workspace:*
         version: link:../lib
+      '@voidhash/platform':
+        specifier: workspace:*
+        version: link:../platform
       '@voidhash/rpc':
         specifier: workspace:*
         version: link:../rpc

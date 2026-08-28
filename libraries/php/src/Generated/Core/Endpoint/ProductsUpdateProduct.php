@@ -40,6 +40,7 @@ class ProductsUpdateProduct extends \Voidhash\Generated\Core\Runtime\Client\Base
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductConflictException
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductInternalServerErrorException
      *
      * @return null|\Voidhash\Generated\Core\Model\ProductJsonEncoding
@@ -59,6 +60,9 @@ class ProductsUpdateProduct extends \Voidhash\Generated\Core\Runtime\Client\Base
         }
         if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ProductsUpdateProductNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiProductNotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (409 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\ProductsUpdateProductConflictException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiProductSlugAlreadyExistsErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ProductsUpdateProductInternalServerErrorException($response);

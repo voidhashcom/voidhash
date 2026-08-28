@@ -1,4 +1,4 @@
-import { PaymentProviderProductService } from "@voidhash/core/services";
+import { PaymentProviderProductService } from "@voidhash/core-v2";
 import {
   PaymentProviderProductRpcsDef,
   RpcActionForbiddenError,
@@ -32,6 +32,8 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
       switch (tagged._tag) {
         case "ActionForbiddenError":
           return new RpcActionForbiddenError({ message: tagged.message ?? "" });
+        case "PaymentProviderProductNotFoundError":
+          return new RpcPaymentProviderProductNotFoundError({ message: tagged.message ?? "" });
         case "PaymentProviderProductValidationError":
           return new RpcPaymentProviderProductValidationError({ message: tagged.message ?? "" });
         default:

@@ -20,6 +20,11 @@ export class RpcPaymentProviderConfigurationKeyUnavailableError extends Schema.T
   "RpcPaymentProviderConfigurationKeyUnavailableError",
 )("Rpc/PaymentProviderConfigurationKeyUnavailableError", { message: Schema.String }) {}
 
+/** The configuration still has dependent product mappings and cannot be deleted. */
+export class RpcPaymentProviderConfigurationInUseError extends Schema.TaggedErrorClass<RpcPaymentProviderConfigurationInUseError>(
+  "RpcPaymentProviderConfigurationInUseError",
+)("Rpc/PaymentProviderConfigurationInUseError", { message: Schema.String }) {}
+
 /** A project already has a live configuration for the requested provider. */
 export class RpcPaymentProviderAlreadyExistsError extends Schema.TaggedErrorClass<RpcPaymentProviderAlreadyExistsError>(
   "RpcPaymentProviderAlreadyExistsError",

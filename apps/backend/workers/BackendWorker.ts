@@ -1,6 +1,7 @@
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy/RuntimeContext";
+import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
 import { EventCaptureApi } from "@voidhash/api-contracts/event-capture";
 import {
   BackendComponentCompilerStubLive,
@@ -16,6 +17,12 @@ import {
   makePostgresAnalyticsLive,
   migrateClickHouseAnalytics,
 } from "@voidhash/backend/analytics/AnalyticsLive";
+import {
+  DbFxRateStoreLive,
+  DbPurchaseLedgerStoreLive,
+  DbPurchaseStateStoreLive,
+  ExchangeRateSourceLive,
+} from "@voidhash/backend/purchases/PurchasesLive";
 import { makeMimicHostLive } from "@voidhash/backend/MimicHostLive";
 import { RpcAuthLive } from "@voidhash/backend/RpcMiddlewares";
 import { EventCaptureGroupLive } from "@voidhash/backend/routes/event-capture";
@@ -27,7 +34,7 @@ import {
 } from "@voidhash/core/services/auth/StandaloneIdentityProvider";
 import { StandaloneOrgDirectoryLive } from "@voidhash/core/services/organizations/StandaloneOrgDirectory";
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
-import { backendWorkflows } from "@voidhash/core/workflows/registry";
+import { backendWorkflows } from "@voidhash/backend/purchases/workflows/registry";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import * as MemoryWorkflowRunner from "@voidhash/platform/MemoryWorkflowRunner";
 import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
@@ -219,7 +226,25 @@ export default Cloudflare.Worker(
       Layer.provide(BackendNoopIdentityProjectionPublisherLive),
       Layer.provide(workflowDb),
     );
-    const workflowInfrastructure = Layer.mergeAll(workflowDb, workflowAnalytics);
+    const workflowPurchaseLedger = DbPurchaseLedgerStoreLive.pipe(Layer.provide(workflowDb));
+    const workflowPurchaseState = DbPurchaseStateStoreLive.pipe(Layer.provide(workflowDb));
+    const workflowFxRates = Layer.merge(
+      DbFxRateStoreLive.pipe(Layer.provide(workflowDb)),
+      ExchangeRateSourceLive({
+        apiKey: Config.redacted("EXCHANGE_RATE_API_KEY").pipe(
+          Config.withDefault(Redacted.make("")),
+          Effect.map(Redacted.value),
+          Effect.orDie,
+        ),
+      }).pipe(Layer.provide(FetchHttpClient.layer)),
+    );
+    const workflowInfrastructure = Layer.mergeAll(
+      workflowDb,
+      workflowAnalytics,
+      workflowFxRates,
+      workflowPurchaseLedger,
+      workflowPurchaseState,
+    );
 
     yield* Effect.forEach(
       backendWorkflows,

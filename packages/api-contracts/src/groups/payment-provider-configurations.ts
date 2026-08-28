@@ -4,6 +4,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/ht
 import {
   ApiActionForbiddenError,
   ApiPaymentProviderAlreadyExistsError,
+  ApiPaymentProviderConfigurationInUseError,
   ApiPaymentProviderConfigurationKeyUnavailableError,
   ApiPaymentProviderConfigurationNotFoundError,
   ApiPaymentProviderConfigurationServiceError,
@@ -82,10 +83,13 @@ export const PaymentProviderConfigurationsGroup = HttpApiGroup.make(
   )
   .add(
     // Soft delete: the row is archived so historical purchases keep resolving.
+    // A configuration that still has product mappings is refused with 409 —
+    // remove the mappings first.
     HttpApiEndpoint.delete("deletePaymentProviderConfiguration", "/:configurationId", {
       params: { configurationId: Schema.String },
       error: [
         ApiActionForbiddenError,
+        ApiPaymentProviderConfigurationInUseError,
         ApiPaymentProviderConfigurationNotFoundError,
         ApiPaymentProviderConfigurationServiceError,
       ],

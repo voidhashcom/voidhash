@@ -208,12 +208,16 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
   return {
     insert: (batch) =>
       Effect.gen(function* () {
+        const rows = toAnalyticsWriteBatchRows(batch);
+        const insertedEventCount = rows.reduce((count, row) => {
+          if (row.record_type === "event") return count + 1;
+          return count;
+        }, 0);
         if (
           batch.events.length > 0 ||
           batch.personEvents.length > 0 ||
           batch.personIdentityEvents.length > 0
         ) {
-          const rows = toAnalyticsWriteBatchRows(batch);
           yield* client
             .insert({
               deduplicationToken: String(rows[0]!.write_id),
@@ -222,7 +226,7 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
             })
             .pipe(Effect.timeout(STORE_OPERATION_TIMEOUT));
         }
-        return batch.events.length;
+        return insertedEventCount;
       }).pipe(Effect.mapError(portError("failed to insert analytics batch"))),
     list,
     listPage: (input) => {

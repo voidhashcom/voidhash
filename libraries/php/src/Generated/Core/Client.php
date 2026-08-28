@@ -783,6 +783,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationConflictException
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null : \Psr\Http\Message\ResponseInterface)
@@ -1464,6 +1465,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
     /**
      * @param string $productId
      * @param string $fetch Fetch mode to use (can be OBJECT or RESPONSE)
+     * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductNotFoundException
@@ -1496,6 +1498,7 @@ class Client extends \Voidhash\Generated\Core\Runtime\Client\Client
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductConflictException
      * @throws \Voidhash\Generated\Core\Exception\ProductsUpdateProductInternalServerErrorException
      *
      * @return ($fetch is 'object' ? null|\Voidhash\Generated\Core\Model\ProductJsonEncoding : \Psr\Http\Message\ResponseInterface)

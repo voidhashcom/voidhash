@@ -19,9 +19,11 @@
 import {
   AppStorePaymentProviderService,
   AppStorePaymentProviderServiceError,
-} from "@voidhash/core/services";
+} from "@voidhash/core-v2";
 import { DateTime, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+
+import { appleServerToServerIngressRoute } from "./manifest.ts";
 
 const AppleServerToServerPathParamsSchema = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
@@ -50,8 +52,8 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(
-    "POST",
-    "/api/v1/inbound-webhooks/apple-server-to-server/:paymentProviderConfigurationId",
+    appleServerToServerIngressRoute.method,
+    appleServerToServerIngressRoute.path,
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(
@@ -88,14 +90,26 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
       // The real handler resolves terminal failures (signature/verification/
       // parse/app-identifier mismatches) to `{ accepted: true, handled: false }`
       // — those reach the 202 ack above so Apple stops retrying. An
-      // `AppStorePaymentProviderServiceError` therefore signals a TRANSIENT /
-      // infrastructure failure (config lookup, DB, Apple 5xx), which must return
-      // 5xx so Apple's retry loop re-delivers the notification — never 501,
+      // `AppStorePaymentProviderServiceError` with `kind: "not_found"` means
+      // the configuration/project is gone (deleted or never existed) — answer
+      // 404 so Apple's retry loop is not fed a retry-forever 500. Anything
+      // else signals a TRANSIENT / infrastructure failure (config lookup, DB,
+      // Apple 5xx), which must return 5xx so Apple re-delivers — never 501,
       // which Apple treats as terminal.
       Effect.catchTag(
         "AppStorePaymentProviderServiceError",
         (error: AppStorePaymentProviderServiceError) =>
           Effect.gen(function* () {
+            if (error.kind === "not_found") {
+              yield* Effect.logWarning(
+                "Apple server-to-server notification rejected: configuration not found",
+                { cause: error.cause },
+              );
+              return yield* HttpServerResponse.json(
+                { error: "Unknown payment provider configuration", received: false },
+                { status: 404 },
+              );
+            }
             yield* Effect.logWarning(
               "Apple server-to-server notification failed transiently; signaling retry",
               { cause: error.cause },

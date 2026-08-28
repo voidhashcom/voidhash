@@ -38,7 +38,6 @@ import type {
 } from "@voidhash/core/domain/sdkPerson/SdkPerson";
 import {
   FeatureFlagService,
-  DevelopmentPaymentProviderService,
   InternalFeatureFlagService,
   NotificationTokenService,
   PaywallLocationService,
@@ -47,7 +46,7 @@ import {
   SdkService,
   type SdkServiceError,
 } from "@voidhash/core/services";
-import { getDevelopmentPrice } from "@voidhash/core/services/paymentProviders/development/pricing";
+import { getDevelopmentPrice } from "@voidhash/core-v2";
 import { Db } from "@voidhash/db";
 import type { ProductTypeValue, SubscriptionDurationValue } from "@voidhash/lib";
 import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
@@ -59,6 +58,7 @@ import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, getPersonMetadataFromSdkHeaders } from "../../ApiMiddlewares.ts";
 import { schemaNotModifiedResponse, schemaResponseHeaders } from "./schema.ts";
+import { DevelopmentPaymentProviderService } from "../../purchases/providers/development/DevelopmentPaymentProviderService.ts";
 
 const toSdkCurrentSubscription = (current: SdkPersonSnapshot["subscriptions"]["current"]) => {
   if (!current) return null;
@@ -151,15 +151,30 @@ const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
 export const mapSdkTransactionSubmission = (
   payload: {
     readonly platform: "ios" | "android";
+    readonly appAccountToken?: string;
     readonly providerProductId?: string;
     readonly productSlug: string;
+    readonly purchaseDate: number;
     readonly purchaseToken?: string;
+    readonly quantity: number;
+    readonly receipt?: string;
     readonly transactionId: string;
   },
   clientBundleId: string,
 ) => {
+  // The advisory fields (`appAccountToken`, `purchaseDate`, `quantity`,
+  // `receipt`) travel with both providers so the service can record them for
+  // observability instead of silently discarding them; the store-verified
+  // transaction remains authoritative.
+  const advisory = {
+    appAccountToken: payload.appAccountToken,
+    purchaseDate: payload.purchaseDate,
+    quantity: payload.quantity,
+    receipt: payload.receipt,
+  };
   if (payload.platform === "android") {
     return {
+      ...advisory,
       packageName: clientBundleId,
       productId: payload.providerProductId ?? payload.productSlug,
       providerId: constant("google-play"),
@@ -167,6 +182,7 @@ export const mapSdkTransactionSubmission = (
     };
   }
   return {
+    ...advisory,
     bundleId: clientBundleId,
     providerId: constant("apple-app-store"),
     transactionId: payload.transactionId,

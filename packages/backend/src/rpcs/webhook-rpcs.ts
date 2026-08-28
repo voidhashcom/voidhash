@@ -5,9 +5,33 @@ import {
   RpcWebhookEndpointNotFoundError,
   RpcWebhookServiceError,
   RpcWebhookValidationError,
+  WebhookEndpoint,
+  WebhookEndpointWithSecret,
   WebhookRpcsDef,
 } from "@voidhash/rpc";
 import { Effect } from "effect";
+
+/** Shape the webhook service returns for an endpoint — secret included. */
+type ServiceEndpoint = typeof WebhookEndpointWithSecret.Type;
+
+/**
+ * Strips the signing secret before an endpoint leaves a read, matching the
+ * HTTP surface's `toEndpointResponse`. The service hands back the raw row, so
+ * masking has to happen here rather than being an accident of the response
+ * schema.
+ */
+const toEndpointResponse = (endpoint: ServiceEndpoint): typeof WebhookEndpoint.Type => ({
+  consecutiveFailures: endpoint.consecutiveFailures,
+  createdAt: endpoint.createdAt,
+  description: endpoint.description,
+  events: endpoint.events,
+  id: endpoint.id,
+  lastSuccessAt: endpoint.lastSuccessAt,
+  name: endpoint.name,
+  projectId: endpoint.projectId,
+  status: endpoint.status,
+  url: endpoint.url,
+});
 
 export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
   Effect.gen(function* WebhookRpcsLive() {
@@ -32,11 +56,11 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
                 Effect.fail(new RpcWebhookValidationError({ message: error.message })),
             }),
           ),
-      DeleteWebhookEndpoint: ({ endpointId }) =>
+      DeleteWebhookEndpoint: ({ endpointId, projectId }) =>
         webhookManagerService
           .deleteEndpoint({
             endpointId,
-            projectId: "",
+            projectId,
           })
           .pipe(
             Effect.catchTags({
@@ -48,11 +72,11 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
                 Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
             }),
           ),
-      GetWebhookDelivery: ({ deliveryId }) =>
+      GetWebhookDelivery: ({ deliveryId, projectId }) =>
         webhookManagerService
           .getDeliveryById({
             deliveryId,
-            projectId: "",
+            projectId,
           })
           .pipe(
             Effect.catchTags({
@@ -64,13 +88,14 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
                 Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
             }),
           ),
-      GetWebhookEndpoint: ({ endpointId }) =>
+      GetWebhookEndpoint: ({ endpointId, projectId }) =>
         webhookManagerService
           .getEndpointById({
             endpointId,
-            projectId: "",
+            projectId,
           })
           .pipe(
+            Effect.map(toEndpointResponse),
             Effect.catchTags({
               ActionForbiddenError: (error) =>
                 Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -96,6 +121,7 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
           ),
       ListWebhookEndpoints: ({ projectId }) =>
         webhookManagerService.getEndpoints({ projectId }).pipe(
+          Effect.map((endpoints) => endpoints.map(toEndpointResponse)),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -103,11 +129,11 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
               Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
           }),
         ),
-      RetryWebhookDelivery: ({ deliveryId }) =>
+      RetryWebhookDelivery: ({ deliveryId, projectId }) =>
         webhookManagerService
           .retryDelivery({
             deliveryId,
-            projectId: "",
+            projectId,
           })
           .pipe(
             Effect.catchTags({
@@ -121,11 +147,11 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
                 Effect.fail(new RpcWebhookValidationError({ message: error.message })),
             }),
           ),
-      RotateWebhookSecret: ({ endpointId }) =>
+      RotateWebhookSecret: ({ endpointId, projectId }) =>
         webhookManagerService
           .rotateSecret({
             endpointId,
-            projectId: "",
+            projectId,
           })
           .pipe(
             Effect.catchTags({
@@ -137,11 +163,11 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
                 Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
             }),
           ),
-      TestWebhookEndpoint: ({ endpointId }) =>
+      TestWebhookEndpoint: ({ endpointId, projectId }) =>
         webhookManagerService
           .testEndpoint({
             endpointId,
-            projectId: "",
+            projectId,
           })
           .pipe(
             Effect.catchTags({
@@ -153,18 +179,19 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
                 Effect.fail(new RpcWebhookServiceError({ cause: error.cause })),
             }),
           ),
-      UpdateWebhookEndpoint: ({ endpointId, name, url, events, status, description }) =>
+      UpdateWebhookEndpoint: ({ endpointId, name, url, events, status, description, projectId }) =>
         webhookManagerService
           .updateEndpoint({
             description,
             endpointId,
             events,
             name,
-            projectId: "",
+            projectId,
             status,
             url,
           })
           .pipe(
+            Effect.map(toEndpointResponse),
             Effect.catchTags({
               ActionForbiddenError: (error) =>
                 Effect.fail(new RpcActionForbiddenError({ message: error.message })),

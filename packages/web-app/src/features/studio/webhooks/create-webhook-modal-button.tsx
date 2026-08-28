@@ -1,6 +1,6 @@
 "use client";
 
-import type { WebhookEndpoint } from "@voidhash/rpc";
+import type { WebhookEndpointWithSecret } from "@voidhash/rpc";
 import { Button } from "@voidhash/ui";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
@@ -14,9 +14,11 @@ interface CreateWebhookModalButtonProps {
 
 export function CreateWebhookModalButton({ projectId }: CreateWebhookModalButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [createdWebhook, setCreatedWebhook] = useState<typeof WebhookEndpoint.Type | null>(null);
+  const [createdWebhook, setCreatedWebhook] = useState<
+    typeof WebhookEndpointWithSecret.Type | null
+  >(null);
 
-  const handleSuccess = (webhook: typeof WebhookEndpoint.Type) => {
+  const handleSuccess = (webhook: typeof WebhookEndpointWithSecret.Type) => {
     setCreatedWebhook(webhook);
   };
 

@@ -1,9 +1,6 @@
 import { Db } from "@voidhash/db";
 import { ApiKeyService } from "@voidhash/core/services/apiKeys/ApiKeyService";
-import {
-  RequestEnvironmentMode,
-  resolveRequestEnvironmentMode,
-} from "@voidhash/core/services/requestEnvironment/RequestEnvironmentMode";
+import { RequestEnvironmentMode, resolveRequestEnvironmentMode } from "@voidhash/core-v2";
 import type { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import { LocalUserSessionService } from "@voidhash/core/services/auth/LocalUserSessionService";

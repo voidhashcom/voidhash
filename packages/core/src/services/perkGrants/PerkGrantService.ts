@@ -1,4 +1,5 @@
 import { SubscriptionStatus } from "@voidhash/lib";
+import { RequestEnvironmentMode } from "@voidhash/core-v2";
 import { Context, DateTime, Effect, Layer, Schema } from "effect";
 
 import { constant } from "@voidhash/lib/lang";
@@ -23,7 +24,6 @@ import {
 } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
-import { RequestEnvironmentMode } from "../requestEnvironment/RequestEnvironmentMode.ts";
 // The SDK snapshot's grant projection is the canonical one. Importing it here
 // (rather than re-deriving it) is what keeps `sdk.getPerson` and the
 // secret-key entitlements endpoint from ever disagreeing about a person.
@@ -389,7 +389,25 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                   status: PersonUnlockedPerkStatus.Active,
                   unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
                 };
-                return tx.insert(personUnlockedPerks).values(newPerk).pipe(Effect.as(newPerk.id));
+                return tx
+                  .insert(personUnlockedPerks)
+                  .values(newPerk)
+                  .onConflictDoUpdate({
+                    target: [
+                      personUnlockedPerks.personId,
+                      personUnlockedPerks.perkId,
+                      personUnlockedPerks.environment,
+                    ],
+                    set: {
+                      expiresAt: operation.expiresAt,
+                      status: PersonUnlockedPerkStatus.Active,
+                      unlockedByPurchaseId: null,
+                      unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
+                      updatedAt: now,
+                    },
+                  })
+                  .returning({ id: personUnlockedPerks.id })
+                  .pipe(Effect.map((rows) => rows[0]?.id ?? newPerk.id));
               }
               case "subscription-reactivate": {
                 return tx
@@ -424,7 +442,25 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                   status: PersonUnlockedPerkStatus.Active,
                   unlockedByPurchaseId: operation.purchaseId,
                 };
-                return tx.insert(personUnlockedPerks).values(newPerk).pipe(Effect.as(newPerk.id));
+                return tx
+                  .insert(personUnlockedPerks)
+                  .values(newPerk)
+                  .onConflictDoUpdate({
+                    target: [
+                      personUnlockedPerks.personId,
+                      personUnlockedPerks.perkId,
+                      personUnlockedPerks.environment,
+                    ],
+                    set: {
+                      expiresAt: null,
+                      status: PersonUnlockedPerkStatus.Active,
+                      unlockedByPurchaseId: operation.purchaseId,
+                      unlockedBySubscriptionId: null,
+                      updatedAt: now,
+                    },
+                  })
+                  .returning({ id: personUnlockedPerks.id })
+                  .pipe(Effect.map((rows) => rows[0]?.id ?? newPerk.id));
               }
               case "purchase-reactivate": {
                 return tx

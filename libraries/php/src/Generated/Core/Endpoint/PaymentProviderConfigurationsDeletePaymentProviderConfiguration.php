@@ -35,6 +35,7 @@ class PaymentProviderConfigurationsDeletePaymentProviderConfiguration extends \V
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationNotFoundException
+     * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationConflictException
      * @throws \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationInternalServerErrorException
      *
      * @return null
@@ -54,6 +55,9 @@ class PaymentProviderConfigurationsDeletePaymentProviderConfiguration extends \V
         }
         if (is_null($contentType) === false && (404 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationNotFoundException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiPaymentProviderConfigurationNotFoundErrorJsonEncoding', 'json'), $response);
+        }
+        if (is_null($contentType) === false && (409 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationConflictException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiPaymentProviderConfigurationInUseErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (500 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\PaymentProviderConfigurationsDeletePaymentProviderConfigurationInternalServerErrorException($response);

@@ -28,7 +28,7 @@ const program = Effect.gen(function* () {
         db: database,
         host,
         port,
-        maxConnections: 100,
+        maxConnections: 500,
       }),
     ),
     (server) => Effect.promise(() => server.stop()).pipe(Effect.ignore),

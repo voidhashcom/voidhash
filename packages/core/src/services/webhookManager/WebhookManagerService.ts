@@ -24,11 +24,12 @@ import {
   webhookEndpoints,
 } from "@voidhash/db";
 import * as Workflow from "@voidhash/platform/Workflow";
-import { DeliverWebhook } from "../../workflows/definitions.ts";
+import { DeliverWebhook } from "@voidhash/core-v2";
 import { generateId } from "../../utils/generate-id.ts";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../../utils/pagination.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
 import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
+import { WEBHOOK_DELIVERY_MAX_ATTEMPTS } from "../webhookDispatch/WebhookDeliveryService.ts";
 import { type WebhookEventType, isValidWebhookEvent } from "./event-types.ts";
 
 /**
@@ -91,7 +92,6 @@ interface WebhookDeliveryRow {
   readonly payload: unknown;
   readonly status: number;
   readonly attemptCount: number;
-  readonly maxAttempts: number;
   readonly nextAttemptAt: Date | null;
   readonly eventOccurredAt: Date;
   readonly completedAt: Date | null;
@@ -136,7 +136,7 @@ const mapDeliveryToResponse = (delivery: WebhookDeliveryRow) => ({
   eventOccurredAt: delivery.eventOccurredAt,
   eventType: delivery.eventType,
   id: delivery.id,
-  maxAttempts: delivery.maxAttempts,
+  maxAttempts: WEBHOOK_DELIVERY_MAX_ATTEMPTS,
   nextAttemptAt: delivery.nextAttemptAt,
   payload: decodePayload(delivery.payload),
   projectId: delivery.projectId,
@@ -184,25 +184,24 @@ const deliveriesWhere = (input: {
   return { projectId: input.projectId };
 };
 
+// Lookups are always tenant-scoped: an id belonging to another project reads
+// as not-found rather than resolving and relying on the later permission
+// check alone.
 const endpointLookupWhere = (input: {
   readonly projectId: string;
   readonly endpointId: string;
-}): { id: string; projectId?: string } => {
-  if (input.projectId) {
-    return { id: input.endpointId, projectId: input.projectId };
-  }
-  return { id: input.endpointId };
-};
+}): { id: string; projectId: string } => ({
+  id: input.endpointId,
+  projectId: input.projectId,
+});
 
 const deliveryLookupWhere = (input: {
   readonly projectId: string;
   readonly deliveryId: string;
-}): { id: string; projectId?: string } => {
-  if (input.projectId) {
-    return { id: input.deliveryId, projectId: input.projectId };
-  }
-  return { id: input.deliveryId };
-};
+}): { id: string; projectId: string } => ({
+  id: input.deliveryId,
+  projectId: input.projectId,
+});
 
 const authorizeProject = (projectId: string, action: string) =>
   checkProjectPermission(
@@ -771,7 +770,6 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             endpointId: endpoint.id,
             eventType: delivery.eventType,
             payload: delivery.payload,
-            secret: endpoint.secret,
             url: endpoint.url,
           }).pipe(Effect.forkDetach);
 
@@ -840,7 +838,6 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             endpointId: endpoint.id,
             eventType,
             payload,
-            secret: endpoint.secret,
             url: endpoint.url,
           }).pipe(Effect.forkDetach);
 
@@ -851,7 +848,6 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
             eventOccurredAt,
             eventType,
             id: deliveryId,
-            maxAttempts: 5,
             nextAttemptAt: null,
             payload,
             projectId: endpoint.projectId,

@@ -37,6 +37,7 @@ export class PaymentProviderProductRpcsDef extends RpcGroup.make(
       RpcActionForbiddenError,
       RpcPaymentProviderProductValidationError,
       RpcPaymentProviderProductServiceError,
+      RpcPaymentProviderProductNotFoundError,
     ]),
     payload: Schema.Struct({
       configuration: Schema.Record(Schema.String, Schema.Unknown),

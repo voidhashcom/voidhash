@@ -91,6 +91,7 @@ export function EditWebhookModal({ open, onClose, webhook, projectId }: EditWebh
       endpointId: webhook.id,
       events: data.events,
       name: data.name,
+      projectId,
       status: data.enabled ? "active" : "disabled",
       url: data.url,
     });

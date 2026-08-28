@@ -32,6 +32,7 @@ class ProductsDeleteProduct extends \Voidhash\Generated\Core\Runtime\Client\Base
     /**
      * {@inheritdoc}
      *
+     * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductBadRequestException
      * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductUnauthorizedException
      * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductForbiddenException
      * @throws \Voidhash\Generated\Core\Exception\ProductsDeleteProductNotFoundException
@@ -45,6 +46,9 @@ class ProductsDeleteProduct extends \Voidhash\Generated\Core\Runtime\Client\Base
         $body = (string) $response->getBody();
         if (204 === $status) {
             return null;
+        }
+        if (is_null($contentType) === false && (400 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
+            throw new \Voidhash\Generated\Core\Exception\ProductsDeleteProductBadRequestException($serializer->deserialize($body, 'Voidhash\Generated\Core\Model\ApiProductValidationErrorJsonEncoding', 'json'), $response);
         }
         if (is_null($contentType) === false && (401 === $status && mb_strpos(strtolower($contentType), 'application/json') !== false)) {
             throw new \Voidhash\Generated\Core\Exception\ProductsDeleteProductUnauthorizedException($response);

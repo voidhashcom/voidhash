@@ -10,7 +10,7 @@ import {
   ApiPaymentProviderProductServiceError,
   ApiPaymentProviderProductValidationError,
 } from "@voidhash/api-contracts/errors";
-import { PaymentProviderProductService } from "@voidhash/core/services";
+import { PaymentProviderProductService } from "@voidhash/core-v2";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";

@@ -62,7 +62,7 @@ export function WebhookEndpointActionsDropdown({
       title: "Delete webhook",
     });
     if (res) {
-      deleteWebhook({ endpointId: webhook.id });
+      deleteWebhook({ endpointId: webhook.id, projectId });
     }
   };
 
@@ -92,7 +92,7 @@ export function WebhookEndpointActionsDropdown({
       title: "Rotate secret",
     });
     if (res) {
-      rotateSecret({ endpointId: webhook.id });
+      rotateSecret({ endpointId: webhook.id, projectId });
     }
   };
 
@@ -114,7 +114,7 @@ export function WebhookEndpointActionsDropdown({
   });
 
   const handleTest = () => {
-    testWebhook({ endpointId: webhook.id });
+    testWebhook({ endpointId: webhook.id, projectId });
   };
 
   const isLoading =

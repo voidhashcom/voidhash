@@ -52,8 +52,9 @@ const isSubscriptionDuration = (value: number): value is SubscriptionDurationVal
  * and invalidates the project's cached schema after the DB write succeeds.
  *
  * `createProduct` re-checks slug uniqueness inside `db.transaction` to
- * close the read-then-write race against a concurrent insert. Other writes
- * call queries directly.
+ * close the read-then-write race against a concurrent insert. Updates report
+ * known slug collisions as {@link ProductSlugAlreadyExistsError}; the database
+ * constraint remains the final guard against concurrent renames.
  *
  * `AuditLogPort`, `AuthSession`, `Db`, and `SchemaCacheInvalidationService`
  * are provided by the application root.
@@ -295,6 +296,16 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
           "project:all",
           `User ${session?.user?.id} is not authorized to update product ${input.id} for project ${existing.projectId}`,
         );
+
+        if (input.slug !== undefined && input.slug !== existing.slug) {
+          const conflicting = yield* db.query.products.findFirst({
+            columns: { id: true },
+            where: { projectId: existing.projectId, slug: input.slug },
+          });
+          if (conflicting) {
+            return yield* Effect.fail(new ProductSlugAlreadyExistsError({ slug: input.slug }));
+          }
+        }
 
         const updatedAt = yield* DateTime.nowAsDate;
         yield* db

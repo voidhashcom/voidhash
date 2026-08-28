@@ -200,8 +200,8 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
             return yield* f(engine);
           });
 
-        // Rebuild the live-session index after hibernation. Socket presence is
-        // ephemeral; leased headless participant presence is restored below.
+        // Rebuild the live-session index and live socket presence after
+        // hibernation. Leased headless participant presence is restored below.
         // Only authenticated sockets rejoin the broadcast set; pre-auth sockets
         // get the remainder of their auth deadline.
         const registry = makeSessionRegistry<Cloudflare.WebSocket>({
@@ -221,6 +221,9 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
               attachment.authenticated,
               attachment.connectedAt,
             );
+            if (attachment.authenticated && attachment.presence !== undefined) {
+              presence.set(attachment.connectionId, attachment.presence);
+            }
           }
         }
         const storedHeadless = yield* state.storage.list<HeadlessConnection>({

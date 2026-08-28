@@ -86,18 +86,10 @@ export function WebhookEndpointDetailSidebar({ endpoint }: WebhookEndpointDetail
 
       <div>
         <h2 className="font-semibold text-xl">Secret</h2>
-        <div className="mt-2 flex items-center gap-2">
-          <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-sm">
-            {endpoint.secret.slice(0, 20)}...
-          </code>
-          <Button
-            onClick={() => copyToClipboard(endpoint.secret, "Secret")}
-            size="icon"
-            variant="ghost"
-          >
-            <CopyIcon className="h-4 w-4" />
-          </Button>
-        </div>
+        <p className="mt-2 text-muted-foreground text-sm">
+          The signing secret is shown once, when the endpoint is created and each time it is
+          rotated. If you no longer have it, rotate the secret to get a new one.
+        </p>
       </div>
     </div>
   );

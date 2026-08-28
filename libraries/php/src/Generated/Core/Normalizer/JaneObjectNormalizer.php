@@ -224,6 +224,8 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
         
         \Voidhash\Generated\Core\Model\ApiPaymentProviderConfigurationKeyUnavailableErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiPaymentProviderConfigurationKeyUnavailableErrorJsonEncodingNormalizer::class,
         
+        \Voidhash\Generated\Core\Model\ApiPaymentProviderConfigurationInUseErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiPaymentProviderConfigurationInUseErrorJsonEncodingNormalizer::class,
+
         \Voidhash\Generated\Core\Model\PaymentProviderProductJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\PaymentProviderProductJsonEncodingNormalizer::class,
         
         \Voidhash\Generated\Core\Model\ApiPaymentProviderProductServiceErrorJsonEncoding::class => \Voidhash\Generated\Core\Normalizer\ApiPaymentProviderProductServiceErrorJsonEncodingNormalizer::class,
@@ -731,6 +733,7 @@ class JaneObjectNormalizer implements DenormalizerInterface, NormalizerInterface
             \Voidhash\Generated\Core\Model\ApiPaymentProviderConfigurationValidationErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\UpdatePaymentProviderConfigurationBody::class => false,
             \Voidhash\Generated\Core\Model\ApiPaymentProviderConfigurationKeyUnavailableErrorJsonEncoding::class => false,
+            \Voidhash\Generated\Core\Model\ApiPaymentProviderConfigurationInUseErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\PaymentProviderProductJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\ApiPaymentProviderProductServiceErrorJsonEncoding::class => false,
             \Voidhash\Generated\Core\Model\CreatePaymentProviderProductBody::class => false,

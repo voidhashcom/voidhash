@@ -1,8 +1,9 @@
 import type { ActionForbiddenError } from "@voidhash/core/domain/auth/Auth";
+import { RequestEnvironmentMode } from "@voidhash/core-v2";
 import {
   DevelopmentPaymentProviderService,
   type DevelopmentPaymentProviderServiceError,
-} from "@voidhash/core/services";
+} from "../purchases/providers/development/DevelopmentPaymentProviderService.ts";
 import {
   DevelopmentModeRpcsDef,
   RpcActionForbiddenError,
@@ -10,10 +11,29 @@ import {
 } from "@voidhash/rpc";
 import { Effect } from "effect";
 
+/**
+ * Refuses any request that is not explicitly development traffic — the RPC
+ * twin of the fail-closed gate on the `/v1/development/*` HTTP routes.
+ * Unannotated requests resolve to the production environment, so a caller
+ * must opt in with `x-environment: development` before any simulated
+ * purchase can be created, read or wiped.
+ */
+const requireDevelopmentEnvironment = Effect.gen(function* () {
+  const environment = yield* RequestEnvironmentMode;
+  if (environment.name !== "development") {
+    return yield* Effect.fail(
+      new RpcActionForbiddenError({
+        message: "This operation requires the 'x-environment: development' header.",
+      }),
+    );
+  }
+});
+
 const mapErrors = <A, R>(
   effect: Effect.Effect<A, ActionForbiddenError | DevelopmentPaymentProviderServiceError, R>,
 ) =>
-  effect.pipe(
+  requireDevelopmentEnvironment.pipe(
+    Effect.andThen(effect),
     Effect.catchTags({
       ActionForbiddenError: (error) =>
         Effect.fail(new RpcActionForbiddenError({ message: error.message })),

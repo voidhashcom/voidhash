@@ -220,3 +220,59 @@ export const parseISO4217CurrencyCode = (currency: string) =>
       }),
     );
   });
+
+/** The ISO 4217 minor-unit exponent used for every currency not listed in {@link CURRENCY_MINOR_UNIT_EXPONENTS}. */
+export const DEFAULT_CURRENCY_MINOR_UNIT_EXPONENT = 2;
+
+/**
+ * ISO 4217 minor-unit exponents for every currency whose exponent is *not* the
+ * near-universal 2. `10 ** exponent` minor units make one major unit, so JPY
+ * (0) has no sub-unit at all while KWD (3) is divided into 1000 fils.
+ *
+ * Only the deviations are listed; {@link getCurrencyMinorUnitExponent} answers
+ * {@link DEFAULT_CURRENCY_MINOR_UNIT_EXPONENT} for everything else.
+ */
+export const CURRENCY_MINOR_UNIT_EXPONENTS = constant<Partial<Record<ISO4217CurrencyCode, number>>>(
+  {
+    BHD: 3,
+    BIF: 0,
+    BYR: 0, // Historical; redenominated into the 2-decimal BYN.
+    CLF: 4,
+    CLP: 0,
+    DJF: 0,
+    GNF: 0,
+    IQD: 3,
+    ISK: 0,
+    JOD: 3,
+    JPY: 0,
+    KMF: 0,
+    KRW: 0,
+    KWD: 3,
+    LYD: 3,
+    OMR: 3,
+    PYG: 0,
+    RWF: 0,
+    TND: 3,
+    UGX: 0,
+    UYI: 0,
+    UYW: 4,
+    VND: 0,
+    VUV: 0,
+    XAF: 0,
+    XOF: 0,
+    XPF: 0,
+  },
+);
+
+/**
+ * Returns how many decimal places separate a currency's major unit from its
+ * minor unit — the exponent that turns a major-unit amount into the integer
+ * minor-unit amounts used across the purchase pipeline (`MinorAmount`).
+ *
+ * Unknown / non-currency codes (fund codes, precious metals) fall back to
+ * {@link DEFAULT_CURRENCY_MINOR_UNIT_EXPONENT}.
+ */
+export const getCurrencyMinorUnitExponent = (currency: string): number => {
+  if (!isISO4217CurrencyCode(currency)) return DEFAULT_CURRENCY_MINOR_UNIT_EXPONENT;
+  return CURRENCY_MINOR_UNIT_EXPONENTS[currency] ?? DEFAULT_CURRENCY_MINOR_UNIT_EXPONENT;
+};

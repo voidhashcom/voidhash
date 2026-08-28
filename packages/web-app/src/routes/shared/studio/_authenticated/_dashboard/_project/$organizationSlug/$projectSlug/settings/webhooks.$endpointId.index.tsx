@@ -93,7 +93,9 @@ function WebhookEndpointDetailPage() {
     return Effect.runSync(Effect.die(new Error("Project not found")));
   }
 
-  const { data: endpoint } = useSuspenseQuery(getWebhookEndpointOptions({ endpointId }));
+  const { data: endpoint } = useSuspenseQuery(
+    getWebhookEndpointOptions({ endpointId, projectId: project.id }),
+  );
 
   const { data: deliveries } = useSuspenseQuery(
     listWebhookDeliveriesOptions({ projectId: project.id, endpointId }),

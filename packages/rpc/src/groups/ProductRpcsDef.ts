@@ -59,7 +59,12 @@ export class ProductRpcsDef extends RpcGroup.make(
     }),
   }),
   Rpc.make("UpdateProduct", {
-    error: Schema.Union([RpcActionForbiddenError, RpcProductServiceError, RpcProductNotFoundError]),
+    error: Schema.Union([
+      RpcActionForbiddenError,
+      RpcProductServiceError,
+      RpcProductNotFoundError,
+      RpcProductSlugAlreadyExistsError,
+    ]),
     payload: Schema.Struct({
       id: Schema.String,
       name: Schema.String,

@@ -17,10 +17,14 @@ paths = [
 [[allowlists]]
 description = "Synthetic Stripe credentials used by config-provider tests"
 condition = "AND"
-targetRules = ["generic-api-key"]
+targetRules = ["generic-api-key", "stripe-access-token"]
 regexTarget = "secret"
 regexes = ['''^(?:(?:sk|rk)_(?:live|test)|whsec_)[a-z0-9_]+$''']
-paths = ['''(?:^|/)packages/core/src/services/paymentProviders/stripe/config-provider\.test\.ts$''']
+paths = [
+  '''(?:^|/)packages/core/src/services/paymentProviders/stripe/config-provider\.test\.ts$''',
+  '''(?:^|/)packages/backend/test/paymentProviders/stripe/config-provider\.test\.ts$''',
+  '''(?:^|/)packages/backend/test/paymentProviders/PaymentProviderConfigurationSecrets\.integration\.test\.ts$''',
+]
 
 [[allowlists]]
 description = "Public UUIDv5 namespace used for deterministic account tokens"
@@ -39,6 +43,7 @@ targetRules = ["private-key"]
 paths = [
   '''(?:^|/)packages/core/src/utils/crypto/SecretBox\.test\.ts$''',
   '''(?:^|/)packages/core/test/services/paymentProviders/appStore/sdk-context\.test\.ts$''',
+  '''(?:^|/)packages/backend/test/paymentProviders/appStore/AppStoreSdkContext\.test\.ts$''',
 ]
 
 [[allowlists]]

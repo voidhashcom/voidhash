@@ -4343,6 +4343,16 @@
               }
             }
           },
+          "409": {
+            "description": "Api/PaymentProviderConfigurationInUseError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Api/PaymentProviderConfigurationServiceError | Api/AuthServiceError",
             "content": {
@@ -7908,6 +7918,16 @@
               }
             }
           },
+          "409": {
+            "description": "Api/ProductSlugAlreadyExistsError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Api/ProductServiceError | Api/AuthServiceError",
             "content": {
@@ -7949,6 +7969,16 @@
         "responses": {
           "204": {
             "description": "<No Content>"
+          },
+          "400": {
+            "description": "Api/ProductValidationError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           },
           "401": {
             "description": "Api/AuthenticationError | Api/NotAuthenticatedError",
@@ -16696,6 +16726,25 @@
             "type": "string",
             "enum": [
               "Api/PaymentProviderConfigurationKeyUnavailableError"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "Api_PaymentProviderConfigurationInUseErrorJsonEncoding": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "Api/PaymentProviderConfigurationInUseError"
             ]
           },
           "message": {

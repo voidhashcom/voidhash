@@ -79,7 +79,12 @@ export const ProductsGroup = HttpApiGroup.make("products")
       params: { productId: Schema.String },
       payload: UpdateProductBody,
       success: Product,
-      error: [ApiActionForbiddenError, ApiProductNotFoundError, ApiProductServiceError],
+      error: [
+        ApiActionForbiddenError,
+        ApiProductNotFoundError,
+        ApiProductServiceError,
+        ApiProductSlugAlreadyExistsError,
+      ],
     }),
   )
   /**

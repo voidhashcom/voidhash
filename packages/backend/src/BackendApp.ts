@@ -1,33 +1,26 @@
 import { AppStoreServerSdk } from "@voidhash/app-store-server-sdk";
 import { VoidhashV1Api } from "@voidhash/api-contracts";
 import { Db } from "@voidhash/db";
-import { AnalyticsDelivery, AnalyticsQuery } from "@voidhash/core-v2";
+import {
+  AnalyticsDelivery,
+  AnalyticsQuery,
+  AppStorePaymentProvider,
+  GooglePlayPaymentProvider,
+  StripePaymentProvider,
+} from "@voidhash/core-v2";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
 import { IdentityProvider } from "@voidhash/core/services/auth/IdentityProvider";
 import {
   ApiKeyService,
   AuditLogPort,
-  AppStorePaymentProvider,
-  AppStorePaymentProviderEngine,
   ApplePushNotificationServiceConfigLive,
   AgentSessionIndexService,
   AgentAttachmentService,
-  AppStorePaymentProviderConfigLive,
-  AppStorePaymentProviderServiceLive,
-  AppStoreTransactionVerifier,
   ExperimentService,
   FeatureFlagService,
   FeedbackServiceLive,
-  DevelopmentPaymentProviderService,
   FirebaseCloudMessagingServiceConfigLive,
-  FxRateService,
-  GooglePlayPaymentProvider,
-  GooglePlayPaymentProviderEngine,
-  GooglePlayPaymentProviderConfigLive,
-  GooglePlayPaymentProviderServiceLive,
-  GooglePlayPurchaseVerifier,
-  GooglePlayServerApi,
   IdentityProjectionPublisher,
   InternalFeatureFlagService,
   LocalUserSessionService,
@@ -40,8 +33,6 @@ import {
   OrganizationMembershipSyncPort,
   OrganizationMembershipWebhookPort,
   OrganizationService,
-  PaymentProviderConfigurationService,
-  PaymentProviderProductService,
   PaywallAssetService,
   PersonNotificationTokenService,
   PaywallArtifactStore,
@@ -69,17 +60,10 @@ import {
   SnapshotImageRenderError,
   PushDeliveryDispatch,
   PushNotificationSendService,
-  PurchaseProcessingService,
-  PurchaseService,
   SchemaCacheInvalidationService,
   SchemaService,
   SdkService,
-  StripePaymentProvider,
-  StripePaymentProviderConfigLive,
-  StripePaymentProviderServiceLive,
   UserService,
-  WebhookDispatchService,
-  WebhookEventPublisher,
   WebhookManagerService,
   IdentityLinkBackfillService,
   OrgDirectoryPort,
@@ -108,6 +92,24 @@ import { GooglePubSubPushVerifierLive } from "./GooglePubSubPushVerifier.ts";
 import { BackendSnapshotHtmlRendererLive } from "./PaywallSnapshotHtmlRenderer.ts";
 import { makePostgresAnalyticsLive } from "./analytics/AnalyticsLive.ts";
 import { EventAdmissionService } from "./analytics/EventAdmissionService.ts";
+import {
+  PurchaseProcessingLive,
+  PurchaseQueryLive,
+  PaymentProviderManagementLive,
+  makeFxRatesLive,
+} from "./purchases/PurchasesLive.ts";
+import { AppStorePaymentProviderConfigLive } from "./purchases/providers/app-store/config-provider.ts";
+import { AppStorePaymentProvider as AppStorePaymentProviderEngine } from "./purchases/providers/app-store/payment-provider.ts";
+import { AppStorePaymentProviderServiceLive } from "./purchases/providers/app-store/payment-provider-service.ts";
+import { AppStoreTransactionVerifier } from "./purchases/providers/app-store/transaction-verifier.ts";
+import { DevelopmentPaymentProviderService } from "./purchases/providers/development/DevelopmentPaymentProviderService.ts";
+import { GooglePlayPaymentProviderConfigLive } from "./purchases/providers/google-play/config-provider.ts";
+import { GooglePlayPaymentProvider as GooglePlayPaymentProviderEngine } from "./purchases/providers/google-play/payment-provider.ts";
+import { GooglePlayPaymentProviderServiceLive } from "./purchases/providers/google-play/payment-provider-service.ts";
+import { GooglePlayPurchaseVerifier } from "./purchases/providers/google-play/purchase-verifier.ts";
+import { GooglePlayServerApi } from "./purchases/providers/google-play/sdk-context.ts";
+import { StripePaymentProviderConfigLive } from "./purchases/providers/stripe/config-provider.ts";
+import { StripePaymentProviderServiceLive } from "./purchases/providers/stripe/payment-provider-service.ts";
 
 import { AuthMiddlewareLive } from "./ApiMiddlewares.ts";
 import { McpRouteLayer } from "./routes/mcp.ts";
@@ -142,9 +144,7 @@ import { SchemaGroupLive } from "./routes/v1/schema.ts";
 import { SdkGroupLive } from "./routes/v1/sdk.ts";
 import { UsersGroupLive } from "./routes/v1/users.ts";
 import { WebhooksGroupLive } from "./routes/v1/webhooks.ts";
-import { AppleServerToServerNotificationRouteLayer } from "./routes/webhook-endpoints/apple-server-to-server.ts";
-import { GooglePlayRtdnNotificationRouteLayer } from "./routes/webhook-endpoints/google-play-rtdn.ts";
-import { StripeWebhookNotificationRouteLayer } from "./routes/webhook-endpoints/stripe.ts";
+import { InboundWebhookRoutesLayer } from "./routes/webhook-endpoints/index.ts";
 import { PaywallServingRouteLayer } from "./routes/paywall-serving.ts";
 import { PublicFileServingRouteLayer } from "./routes/public-file-serving.ts";
 import { AnalyticsRpcsLive } from "./rpcs/analytics-rpcs.ts";
@@ -350,26 +350,7 @@ export const BackendFeedbackServiceLive = FeedbackServiceLive({
   defaultChannel: envString("SLACK_FEEDBACK_CHANNEL_ID"),
 });
 
-/**
- * Outbound lifecycle-webhook seam for every purchase write. Resolving it to the
- * live {@link WebhookDispatchService} is what makes `subscription.*` /
- * `purchase.*` events actually reach a project's configured endpoints — with
- * {@link WebhookEventPublisher.noop} the state transitions still happen but
- * nothing is delivered. `Db` comes from the surrounding infrastructure layer.
- */
-const BackendWebhookEventPublisherLive = WebhookEventPublisher.layer.pipe(
-  Layer.provide(WebhookDispatchService.layer),
-);
-
-/**
- * `PurchaseProcessingService` with the dependencies every payment-provider
- * boundary needs: perk syncing inside the write transaction and lifecycle
- * webhook fan-out after it commits.
- */
-const BackendPurchaseProcessingServiceLive = PurchaseProcessingService.layer.pipe(
-  Layer.provide(PerkGrantService.layer),
-  Layer.provide(BackendWebhookEventPublisherLive),
-);
+const BackendPurchasesLive = PurchaseProcessingLive;
 
 /**
  * Live App Store payment-provider service for the Cloudflare backend, used by
@@ -392,11 +373,11 @@ export const BackendAppStorePaymentProviderServiceLive = AppStorePaymentProvider
   Layer.provide(AppStorePaymentProviderEngine.layer),
   Layer.provide(AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer))),
   Layer.provide(
-    FxRateService.layer({
+    makeFxRatesLive({
       apiKey: envString("EXCHANGE_RATE_API_KEY"),
-    }),
+    }).pipe(Layer.provide(FetchHttpClient.layer)),
   ),
-  Layer.provide(BackendPurchaseProcessingServiceLive),
+  Layer.provide(BackendPurchasesLive),
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
       key: envString("ENCRYPTION_KEY"),
@@ -422,11 +403,11 @@ export const BackendGooglePlayPaymentProviderServiceLive =
     Layer.provide(GooglePlayPaymentProviderEngine.layer),
     Layer.provide(GooglePlayServerApi.layer.pipe(Layer.provide(FetchHttpClient.layer))),
     Layer.provide(
-      FxRateService.layer({
+      makeFxRatesLive({
         apiKey: envString("EXCHANGE_RATE_API_KEY"),
-      }),
+      }).pipe(Layer.provide(FetchHttpClient.layer)),
     ),
-    Layer.provide(BackendPurchaseProcessingServiceLive),
+    Layer.provide(BackendPurchasesLive),
     Layer.provide(
       PaymentConfigSecretCrypto.layer({
         key: envString("ENCRYPTION_KEY"),
@@ -447,11 +428,11 @@ export const BackendGooglePlayPaymentProviderServiceLive =
 export const BackendStripePaymentProviderServiceLive = StripePaymentProviderServiceLive.pipe(
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(
-    FxRateService.layer({
+    makeFxRatesLive({
       apiKey: envString("EXCHANGE_RATE_API_KEY"),
-    }),
+    }).pipe(Layer.provide(FetchHttpClient.layer)),
   ),
-  Layer.provide(BackendPurchaseProcessingServiceLive),
+  Layer.provide(BackendPurchasesLive),
   Layer.provide(
     PaymentConfigSecretCrypto.layer({
       key: envString("ENCRYPTION_KEY"),
@@ -871,8 +852,7 @@ const buildBackendServiceGraph = <
     PersonNotificationTokenService.layer,
     OrganizationService.layer,
     PaywallAssetService.layer,
-    PaymentProviderConfigurationService.layer,
-    PaymentProviderProductService.layer,
+    PaymentProviderManagementLive,
     PaywallDeployService.layer,
     PaywallLocationService.layer.pipe(Layer.provide(ExperimentServiceLayer)),
     PaywallReleaseService.layer.pipe(Layer.provide(BackendSnapshotHtmlRendererLive)),
@@ -891,7 +871,7 @@ const buildBackendServiceGraph = <
     ProductPerkService.layer,
     ProductService.layer,
     ProjectService.layer,
-    PurchaseService.layer,
+    PurchaseQueryLive,
     SchemaService.layer,
     UserService.layer,
     layers.webhookManager ?? WebhookManagerService.layer,
@@ -900,7 +880,7 @@ const buildBackendServiceGraph = <
   const DomainServicesLayer = Layer.mergeAll(
     BaseDomainServicesLayer,
     DevelopmentPaymentProviderService.layer.pipe(
-      Layer.provide(BackendPurchaseProcessingServiceLive),
+      Layer.provide(BackendPurchasesLive),
       Layer.provide(SupportServicesLayer),
     ),
     SdkService.layer.pipe(
@@ -1151,10 +1131,13 @@ export const buildBackendFetch = <
   // own services at request time the same way (all part of the merged graph
   // below); the Apple handler resolves the live public App Store service; the
   // Google handler additionally resolves its Pub/Sub OIDC verifier.
+  //
+  // The provider ingress routes are merged as `InboundWebhookRoutesLayer` — the
+  // composition derived from `routes/webhook-endpoints/manifest.ts` — and never
+  // one by one here, because that manifest is what the smoke endpoint registry
+  // enumerates. Add a new ingress route to the manifest, not to this list.
   const WebhookRoutesLayer = Layer.mergeAll(
-    AppleServerToServerNotificationRouteLayer,
-    GooglePlayRtdnNotificationRouteLayer,
-    StripeWebhookNotificationRouteLayer,
+    InboundWebhookRoutesLayer,
     layers.routeExtension ?? Layer.empty,
     layers.features.routes(graph),
   ).pipe(

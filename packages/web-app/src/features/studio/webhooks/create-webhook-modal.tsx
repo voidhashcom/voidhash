@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { WebhookEndpoint } from "@voidhash/rpc";
+import type { WebhookEndpointWithSecret } from "@voidhash/rpc";
 import {
   Button,
   Checkbox,
@@ -42,7 +42,7 @@ interface CreateWebhookModalProps {
   onClose: () => void;
   trigger: React.ReactNode;
   projectId: string;
-  onSuccess?: (webhook: typeof WebhookEndpoint.Type) => void;
+  onSuccess?: (webhook: typeof WebhookEndpointWithSecret.Type) => void;
 }
 
 export function CreateWebhookModal({

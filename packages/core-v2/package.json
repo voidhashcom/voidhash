@@ -25,6 +25,7 @@
   "dependencies": {
     "@voidhash/api-contracts": "workspace:*",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/platform": "workspace:*",
     "@voidhash/rpc": "workspace:*"
   },
   "devDependencies": {

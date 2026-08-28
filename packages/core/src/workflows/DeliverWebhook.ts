@@ -5,12 +5,15 @@ import {
   nextWebhookDeliveryRetryTime,
   WebhookDeliveryService,
 } from "../services/webhookDispatch/WebhookDeliveryService.ts";
-import { DeliverWebhook } from "./definitions.ts";
+import { DeliverWebhook } from "@voidhash/core-v2";
 
 const SendWebhookResult = Schema.Struct({
   durationMs: Schema.Number,
   errorMessage: Schema.NullOr(Schema.String),
   responseBody: Schema.NullOr(Schema.String),
+  // Optional so a step result persisted before this field existed still decodes
+  // when an in-flight instance resumes from its retry sleep.
+  skipped: Schema.optionalKey(Schema.Boolean),
   statusCode: Schema.NullOr(Schema.Number),
   succeeded: Schema.Boolean,
 });
@@ -32,6 +35,13 @@ export const DeliverWebhookRegistration = WorkflowRegistration.make(DeliverWebho
             return yield* delivery.send(attempt);
           }),
         });
+
+        // The endpoint was deleted, disabled, or auto-failed between attempts;
+        // nothing was sent, so there is no attempt to record and no retry to
+        // schedule. The delivery row is left as-is: the sweep only picks up
+        // deliveries of `Active` endpoints, so it resumes if the endpoint is
+        // re-enabled.
+        if (result.skipped) return;
 
         yield* ctx.step({
           name: `record-attempt-${input.deliveryId}-${attemptNumber}`,

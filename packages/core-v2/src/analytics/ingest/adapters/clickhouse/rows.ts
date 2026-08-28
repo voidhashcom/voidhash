@@ -2,6 +2,10 @@ import { DateTime, Option, Schema } from "effect";
 
 import { ProcessorPersonEventV1, ProcessorPersonIdentityEventV1 } from "../../domain/Ingest.ts";
 import type { AnalyticsEventV1 } from "../../../domain/AnalyticsEvent.ts";
+import {
+  isReservedRevenueEventName,
+  REVENUE_TRUSTED_SOURCE_TOPIC,
+} from "../../../domain/InternalAnalyticsEvents.ts";
 import type { AnalyticsWriteBatch } from "../../../application/ports/AnalyticsStore.ts";
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
@@ -116,15 +120,38 @@ const writePart = (kind: string, ...values: ReadonlyArray<string | number>) => {
   return `${kind}:${encoded.join("")}`;
 };
 
+const dedupeRevenueEventsWithinBatch = (
+  events: ReadonlyArray<typeof AnalyticsEventV1.Type>,
+): ReadonlyArray<typeof AnalyticsEventV1.Type> => {
+  const seen = new Set<string>();
+  const deduped: Array<typeof AnalyticsEventV1.Type> = [];
+  for (const event of events) {
+    if (
+      event.sourceTopic !== REVENUE_TRUSTED_SOURCE_TOPIC ||
+      !isReservedRevenueEventName(event.eventName)
+    ) {
+      deduped.push(event);
+      continue;
+    }
+    const key = writePart("event", event.projectId, event.eventId);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(event);
+  }
+  if (deduped.length === events.length) return events;
+  return deduped;
+};
+
 /** Map one logical analytics write to a single-partition ClickHouse record block. */
 export const toAnalyticsWriteBatchRows = (
   batch: typeof AnalyticsWriteBatch.Type,
 ): ReadonlyArray<Record<string, unknown>> => {
+  const events = dedupeRevenueEventsWithinBatch(batch.events);
   const overrideEvents = batch.personIdentityEvents.filter((event) =>
     Boolean(event.previousDistinctId && event.version > 0),
   );
   const writeParts = [
-    ...batch.events.map((event) => writePart("event", event.projectId, event.eventId)),
+    ...events.map((event) => writePart("event", event.projectId, event.eventId)),
     ...batch.personEvents.map((event) =>
       writePart("person", event.projectId, event.personId, event.version),
     ),
@@ -135,7 +162,7 @@ export const toAnalyticsWriteBatchRows = (
   if (writeParts.length === 0) return [];
   const writeId = writeParts.join("|");
   const writeTimestamp =
-    batch.events[0]?.processedAt.toISOString() ??
+    events[0]?.processedAt.toISOString() ??
     batch.personEvents[0]?.changedAt ??
     batch.personIdentityEvents[0]?.changedAt;
   if (!writeTimestamp) return [];
@@ -156,7 +183,7 @@ export const toAnalyticsWriteBatchRows = (
   });
   const organizationId = (projectId: string) => batch.organizationIdsByProject[projectId] ?? "";
   return [
-    ...batch.events.map((event) => ({
+    ...events.map((event) => ({
       ...base({
         organizationId: event.organizationId,
         projectId: event.projectId,

@@ -9,7 +9,7 @@ export const listWebhookEndpointsOptions = (options: { projectId: string }) =>
     queryKey: queryKeys.webhook.list(options),
   });
 
-export const getWebhookEndpointOptions = (options: { endpointId: string }) =>
+export const getWebhookEndpointOptions = (options: { endpointId: string; projectId: string }) =>
   eq.queryOptions({
     queryFn: () => VoidhashRpc.request((rpc) => rpc.GetWebhookEndpoint(options)),
     queryKey: queryKeys.webhook.getEndpoint(options.endpointId),
@@ -21,7 +21,7 @@ export const listWebhookDeliveriesOptions = (options: { projectId: string; endpo
     queryKey: queryKeys.webhook.deliveries(options),
   });
 
-export const getWebhookDeliveryOptions = (options: { deliveryId: string }) =>
+export const getWebhookDeliveryOptions = (options: { deliveryId: string; projectId: string }) =>
   eq.queryOptions({
     queryFn: () => VoidhashRpc.request((rpc) => rpc.GetWebhookDelivery(options)),
     queryKey: queryKeys.webhook.getDelivery(options.deliveryId),
@@ -44,6 +44,7 @@ export const updateWebhookEndpointOptions = () =>
   eq.mutationOptions({
     mutationFn: (variables: {
       endpointId: string;
+      projectId: string;
       name?: string;
       url?: string;
       events?: string[];
@@ -55,28 +56,28 @@ export const updateWebhookEndpointOptions = () =>
 
 export const deleteWebhookEndpointOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: { endpointId: string }) =>
+    mutationFn: (variables: { endpointId: string; projectId: string }) =>
       VoidhashRpc.request((rpc) => rpc.DeleteWebhookEndpoint(variables)),
     mutationKey: ["deleteWebhookEndpoint"],
   });
 
 export const rotateWebhookSecretOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: { endpointId: string }) =>
+    mutationFn: (variables: { endpointId: string; projectId: string }) =>
       VoidhashRpc.request((rpc) => rpc.RotateWebhookSecret(variables)),
     mutationKey: ["rotateWebhookSecret"],
   });
 
 export const testWebhookEndpointOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: { endpointId: string }) =>
+    mutationFn: (variables: { endpointId: string; projectId: string }) =>
       VoidhashRpc.request((rpc) => rpc.TestWebhookEndpoint(variables)),
     mutationKey: ["testWebhookEndpoint"],
   });
 
 export const retryWebhookDeliveryOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: { deliveryId: string }) =>
+    mutationFn: (variables: { deliveryId: string; projectId: string }) =>
       VoidhashRpc.request((rpc) => rpc.RetryWebhookDelivery(variables)),
     mutationKey: ["retryWebhookDelivery"],
   });

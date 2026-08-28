@@ -19,7 +19,6 @@ import {
 } from "@voidhash/ui";
 import {
   ChevronRightIcon,
-  CopyIcon,
   EllipsisVerticalIcon,
   PencilIcon,
   RefreshCwIcon,
@@ -82,7 +81,7 @@ export function WebhookEndpointRecord({
       title: "Delete webhook",
     });
     if (res) {
-      deleteWebhook({ endpointId: webhook.id });
+      deleteWebhook({ endpointId: webhook.id, projectId });
     }
   };
 
@@ -109,7 +108,7 @@ export function WebhookEndpointRecord({
       title: "Rotate secret",
     });
     if (res) {
-      rotateSecret({ endpointId: webhook.id });
+      rotateSecret({ endpointId: webhook.id, projectId });
     }
   };
 
@@ -125,7 +124,7 @@ export function WebhookEndpointRecord({
   });
 
   const handleTest = () => {
-    testWebhook({ endpointId: webhook.id });
+    testWebhook({ endpointId: webhook.id, projectId });
   };
 
   const statusBadge = {
@@ -181,23 +180,6 @@ export function WebhookEndpointRecord({
         </div>
         <div className="flex items-center gap-2">
           <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  disabled={isLoading}
-                  onClick={() => copyToClipboard(webhook.secret, "Secret")}
-                  size="icon"
-                  variant="ghost"
-                >
-                  <CopyIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Copy secret</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button className="z-20" disabled={isLoading} size="icon" variant="outline">

@@ -23,7 +23,10 @@ export interface Workflow<
 /** Any provider-neutral durable workflow definition. */
 export type Any = Workflow<string, any, any>;
 
-/** Retry policy understood by every workflow adapter. */
+/**
+ * Retry policy understood by every workflow adapter. Omitting it is
+ * `"platform-default"`: the adapter lets its backend retry the failed step.
+ */
 export type StepRetry = "platform-default" | "none";
 
 /** Options for one durable workflow activity. */

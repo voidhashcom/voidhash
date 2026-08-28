@@ -21,12 +21,14 @@
 import {
   GooglePlayPaymentProviderService,
   GooglePlayPaymentProviderServiceError,
-} from "@voidhash/core/services";
+} from "@voidhash/core-v2";
 import { pick } from "@voidhash/lib/lang";
 import { DateTime, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import { GooglePubSubPushVerifier } from "../../GooglePubSubPushVerifier.ts";
+
+import { googlePlayRtdnIngressRoute } from "./manifest.ts";
 
 const GooglePlayRtdnPathParamsSchema = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
@@ -41,8 +43,8 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(
-    "POST",
-    "/api/v1/inbound-webhooks/google-play-rtdn/:paymentProviderConfigurationId",
+    googlePlayRtdnIngressRoute.method,
+    googlePlayRtdnIngressRoute.path,
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(
@@ -91,18 +93,29 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
         paymentProviderConfigurationId: pathParamsResult.success.paymentProviderConfigurationId,
       });
 
-      // 204 acks the Pub/Sub delivery (terminal + handled outcomes both ack).
+      // 200 acks the Pub/Sub delivery (terminal + handled outcomes both ack).
       return yield* HttpServerResponse.json({ received: true }, { status: 200 });
     }).pipe(
-      // The service folds terminal/business outcomes into a success value, so a
-      // `GooglePlayPaymentProviderServiceError` signals a TRANSIENT/infra failure
-      // (config lookup, DB, Play 5xx/rate-limit) — return 5xx so Pub/Sub
-      // re-delivers. Never return a status Pub/Sub would treat differently for a
-      // transient error.
+      // The service folds terminal/business outcomes into a success value. A
+      // `GooglePlayPaymentProviderServiceError` with `kind: "not_found"` means
+      // the configuration/project is gone (deleted or never existed) — answer
+      // 404 so Pub/Sub is not fed a retry-forever 500. Anything else signals a
+      // TRANSIENT/infra failure (config lookup, DB, Play 5xx/rate-limit) —
+      // return 5xx so Pub/Sub re-delivers.
       Effect.catchTag(
         "GooglePlayPaymentProviderServiceError",
         (error: GooglePlayPaymentProviderServiceError) =>
           Effect.gen(function* () {
+            if (error.kind === "not_found") {
+              yield* Effect.logWarning(
+                "Google Play RTDN notification rejected: configuration not found",
+                { cause: error.cause },
+              );
+              return yield* HttpServerResponse.json(
+                { error: "Unknown payment provider configuration", received: false },
+                { status: 404 },
+              );
+            }
             yield* Effect.logWarning(
               "Google Play RTDN notification failed transiently; signaling retry",
               { cause: error.cause },

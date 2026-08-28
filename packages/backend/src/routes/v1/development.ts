@@ -4,8 +4,8 @@ import {
   ApiDevelopmentEnvironmentRequiredError,
   ApiDevelopmentModeServiceError,
 } from "@voidhash/api-contracts/errors";
-import { DevelopmentPaymentProviderService } from "@voidhash/core/services";
-import { RequestEnvironmentMode } from "@voidhash/core/services/requestEnvironment/RequestEnvironmentMode";
+import { DevelopmentPaymentProviderService } from "../../purchases/providers/development/DevelopmentPaymentProviderService.ts";
+import { RequestEnvironmentMode } from "@voidhash/core-v2";
 import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";

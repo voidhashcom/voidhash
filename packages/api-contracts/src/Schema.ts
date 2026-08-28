@@ -820,7 +820,7 @@ export class WebhookDeliveryWithAttempts extends Schema.Class<WebhookDeliveryWit
 
 /**
  * Payment provider that drove the transition. Mirrors `PaymentProviderId` in
- * `packages/core/src/domain/paymentProvider/PaymentProviderConfiguration.ts`;
+ * `packages/core-v2/src/purchases/domain/ProviderConfiguration.ts`;
  * extending it is a coordinated contract change.
  */
 export const WebhookPaymentProvider = Schema.Literals([

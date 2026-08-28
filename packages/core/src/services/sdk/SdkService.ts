@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
 
 import { constant } from "@voidhash/lib/lang";
 import { AuthSession, AuthenticationError } from "../../domain/auth/Auth.ts";
@@ -9,17 +9,19 @@ import {
   SdkValidationError,
 } from "../../domain/sdkPerson/SdkPerson.ts";
 import { Db, PersonOrigin, type PersonOriginValue } from "@voidhash/db";
+import {
+  AppStorePaymentProviderService,
+  GooglePlayPaymentProviderService,
+  PurchaseQuery,
+  RequestEnvironmentMode,
+} from "@voidhash/core-v2";
 import { isAnonymousId } from "../../utils/sdk.ts";
-import { AppStorePaymentProviderService } from "../paymentProviders/AppStorePaymentProviderService.ts";
-import { GooglePlayPaymentProviderService } from "../paymentProviders/GooglePlayPaymentProviderService.ts";
 import { PerkGrantService } from "../perkGrants/PerkGrantService.ts";
 import { IdentityProjectionPublisher } from "../personIdentity/IdentityProjectionPublisher.ts";
 import {
   type PersonIdentityResult,
   PersonIdentityService,
 } from "../personIdentity/PersonIdentityService.ts";
-import { PurchaseService } from "../purchases/PurchaseService.ts";
-import { RequestEnvironmentMode } from "../requestEnvironment/RequestEnvironmentMode.ts";
 import { elevateProjectAccess } from "./elevate-auth.ts";
 import {
   ACTIVE_MIGRATION_STATUSES,
@@ -146,7 +148,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
   make: Effect.gen(function* () {
     const personIdentityService = yield* PersonIdentityService;
     const perkGrantService = yield* PerkGrantService;
-    const purchaseService = yield* PurchaseService;
+    const purchaseService = yield* PurchaseQuery;
     const identityProjectionPublisher = yield* IdentityProjectionPublisher;
     const db = yield* Db;
 
@@ -722,6 +724,17 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
          * last-resort fallback and may be omitted.
          */
         readonly productId?: string;
+        /**
+         * Advisory client-reported fields. The server re-verifies the
+         * transaction with the store, so these are recorded for
+         * observability/diagnostics only — never trusted for money or
+         * authorization. `quantity > 1` is surfaced as a warning because the
+         * purchase pipeline currently records quantity-agnostic transactions.
+         */
+        readonly appAccountToken?: string;
+        readonly purchaseDate?: number;
+        readonly quantity?: number;
+        readonly receipt?: string;
       }) {
         const session = yield* AuthSession;
         const distinctId = session?.person?.distinctId;
@@ -757,6 +770,30 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         if (input.bundleId) {
           yield* Effect.annotateCurrentSpan("voidhash.app.bundle_id", input.bundleId);
         }
+        if (input.appAccountToken) {
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.transaction.app_account_token",
+            input.appAccountToken,
+          );
+        }
+        if (input.purchaseDate !== undefined) {
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.transaction.client_purchase_date",
+            input.purchaseDate,
+          );
+        }
+        if (input.quantity !== undefined) {
+          yield* Effect.annotateCurrentSpan("voidhash.transaction.quantity", input.quantity);
+          if (input.quantity > 1) {
+            // The purchase pipeline records quantity-agnostic transactions;
+            // surface multi-quantity consumables loudly instead of silently
+            // equating qty 5 with qty 1.
+            yield* Effect.logWarning(
+              "SDK purchase submitted with quantity > 1; the transaction is recorded once with store-reported amounts",
+              { quantity: input.quantity, transactionId: input.transactionId },
+            );
+          }
+        }
 
         if (input.providerId === "google-play") {
           if (!input.purchaseToken || !input.packageName) {
@@ -775,12 +812,24 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
             purchaseToken: input.purchaseToken,
             receivedAt: yield* DateTime.nowAsDate,
           });
+          if (googleResult.parked) {
+            // Accepted but waiting on a product mapping; a replay applies it
+            // later. No snapshot to return yet — an eventually-consistent
+            // success, not an error.
+            yield* Effect.logInfo("SDK purchase parked pending product mapping", {
+              providerId: "google-play",
+              providerProductKey: googleResult.providerProductKey,
+            });
+            return Option.none();
+          }
           yield* Effect.annotateCurrentSpan("voidhash.person.id", googleResult.personId);
-          return yield* buildSnapshot({
-            distinctId,
-            personId: googleResult.personId,
-            projectId,
-          });
+          return Option.some(
+            yield* buildSnapshot({
+              distinctId,
+              personId: googleResult.personId,
+              projectId,
+            }),
+          );
         }
 
         if (!input.transactionId || !input.bundleId) {
@@ -799,14 +848,26 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
           receivedAt: yield* DateTime.nowAsDate,
           transactionId: input.transactionId,
         });
+        if (result.parked) {
+          // Accepted but waiting on a product mapping; a replay applies it
+          // later. No snapshot to return yet — an eventually-consistent
+          // success, not an error.
+          yield* Effect.logInfo("SDK purchase parked pending product mapping", {
+            providerId: "apple-app-store",
+            providerProductKey: result.providerProductKey,
+          });
+          return Option.none();
+        }
 
         yield* Effect.annotateCurrentSpan("voidhash.person.id", result.personId);
 
-        return yield* buildSnapshot({
-          distinctId,
-          personId: result.personId,
-          projectId,
-        });
+        return Option.some(
+          yield* buildSnapshot({
+            distinctId,
+            personId: result.personId,
+            projectId,
+          }),
+        );
       },
       (effect) =>
         effect.pipe(

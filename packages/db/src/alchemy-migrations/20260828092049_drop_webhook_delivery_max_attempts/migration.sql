@@ -1,0 +1,1 @@
+ALTER TABLE "webhook_delivery" DROP COLUMN "max_attempts";

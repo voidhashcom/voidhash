@@ -36,6 +36,15 @@ export class ApiPaymentProviderConfigurationKeyUnavailableError extends Schema.T
   { httpApiStatus: 400 },
 ) {}
 
+/** Payment provider configuration still has dependent product mappings */
+export class ApiPaymentProviderConfigurationInUseError extends Schema.TaggedErrorClass<ApiPaymentProviderConfigurationInUseError>()(
+  "Api/PaymentProviderConfigurationInUseError",
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 409 },
+) {}
+
 /** Payment provider already exists */
 export class ApiPaymentProviderAlreadyExistsError extends Schema.TaggedErrorClass<ApiPaymentProviderAlreadyExistsError>()(
   "Api/PaymentProviderAlreadyExistsError",

@@ -88,6 +88,26 @@ const executionResult = <A>(
   );
 };
 
+/**
+ * Extra attempts a `platform-default` step gets in process.
+ *
+ * `Activity.make` installs no failure-retry policy of its own — its only
+ * built-in schedule covers interrupts — so without this a step would run once
+ * here while Cloudflare Workflows retries the same step five times. The count
+ * mirrors the platform default; the delays deliberately do not, because this
+ * runner backs local development and unit tests where the behaviour that has to
+ * match production is *retried versus not*, not the wall-clock backoff.
+ */
+const PLATFORM_DEFAULT_STEP_RETRIES = 5;
+
+const withStepRetry = <A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+  retry: WorkflowContract.StepRetry | undefined,
+): Effect.Effect<A, E, R> => {
+  if (retry === "none") return effect;
+  return Activity.retry(effect, { times: PLATFORM_DEFAULT_STEP_RETRIES });
+};
+
 const makeStep = <Success extends Schema.Top, R>(
   workflowName: string,
   dependencies: Layer.Layer<R>,
@@ -101,8 +121,11 @@ const makeStep = <Success extends Schema.Top, R>(
           success: options.success,
           error: WorkflowRunnerError,
           execute: catchRunnerCause(
-            PlatformRuntime.pipe(
-              Effect.andThen(options.execute.pipe(Effect.provide(dependencies))),
+            withStepRetry(
+              PlatformRuntime.pipe(
+                Effect.andThen(options.execute.pipe(Effect.provide(dependencies))),
+              ),
+              options.retry,
             ),
             workflowName,
             `step:${options.name}`,

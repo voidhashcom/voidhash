@@ -6,12 +6,13 @@ import {
 import {
   ApiActionForbiddenError,
   ApiPaymentProviderAlreadyExistsError,
+  ApiPaymentProviderConfigurationInUseError,
   ApiPaymentProviderConfigurationKeyUnavailableError,
   ApiPaymentProviderConfigurationNotFoundError,
   ApiPaymentProviderConfigurationServiceError,
   ApiPaymentProviderConfigurationValidationError,
 } from "@voidhash/api-contracts/errors";
-import { PaymentProviderConfigurationService } from "@voidhash/core/services";
+import { PaymentProviderConfigurationService } from "@voidhash/core-v2";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
 import { Effect } from "effect";
@@ -39,7 +40,7 @@ const toConfiguration = (value: unknown): Record<string, unknown> => {
  * objects and empty arrays all mean "not configured yet", which is what a
  * caller wants to know.
  */
-const isPresent = (value: unknown): boolean => {
+export const isPresent = (value: unknown): boolean => {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") return value.length > 0;
   if (Array.isArray(value)) return value.length > 0;
@@ -54,7 +55,7 @@ const isPresent = (value: unknown): boolean => {
  * service-account JSON. Field *names* are not secret, values are — so the API
  * reports presence only and the credential itself never leaves the server.
  */
-const configurationPresence = (value: unknown): Record<string, boolean> => {
+export const configurationPresence = (value: unknown): Record<string, boolean> => {
   if (!isRecord(value)) return {};
   const flags: Record<string, boolean> = {};
   for (const [key, fieldValue] of Object.entries(value)) {
@@ -240,6 +241,8 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
                 Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PaymentProviderConfigurationInUseError: (e) =>
+                Effect.fail(new ApiPaymentProviderConfigurationInUseError({ message: e.message })),
               PaymentProviderConfigurationNotFoundError: (e) =>
                 Effect.fail(
                   new ApiPaymentProviderConfigurationNotFoundError({ message: e.message }),

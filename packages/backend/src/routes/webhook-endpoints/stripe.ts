@@ -19,12 +19,11 @@
  *   - transient infra failure (DB / Stripe API) → 500 (Stripe re-delivers).
  * The kind→status mapping is driven by `StripePaymentProviderServiceError.kind`.
  */
-import {
-  StripePaymentProviderService,
-  StripePaymentProviderServiceError,
-} from "@voidhash/core/services";
+import { StripePaymentProviderService, StripePaymentProviderServiceError } from "@voidhash/core-v2";
 import { DateTime, Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+
+import { stripeIngressRoute } from "./manifest.ts";
 
 const StripeWebhookPathParamsSchema = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
@@ -46,8 +45,8 @@ const registerStripeWebhookRoute = Effect.gen(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(
-    "POST",
-    "/api/v1/inbound-webhooks/stripe/:paymentProviderConfigurationId",
+    stripeIngressRoute.method,
+    stripeIngressRoute.path,
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(

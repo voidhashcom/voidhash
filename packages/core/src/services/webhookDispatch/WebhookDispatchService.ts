@@ -3,7 +3,7 @@ import { Context, DateTime, Effect, Layer, Schema } from "effect";
 import * as Workflow from "@voidhash/platform/Workflow";
 
 import { Db, WebhookDeliveryStatus, WebhookEndpointStatus, webhookDeliveries } from "@voidhash/db";
-import { DeliverWebhook } from "../../workflows/definitions.ts";
+import { DeliverWebhook } from "@voidhash/core-v2";
 import { generateId } from "../../utils/generate-id.ts";
 import { WebhookServiceError } from "../webhookManager/WebhookManagerService.ts";
 import type { WebhookEventType } from "../webhookManager/event-types.ts";
@@ -91,7 +91,6 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
               endpointId: endpoint.id,
               eventType: input.eventType,
               payload: input.payload,
-              secret: endpoint.secret,
               url: endpoint.url,
             }).pipe(Effect.forkDetach);
           }

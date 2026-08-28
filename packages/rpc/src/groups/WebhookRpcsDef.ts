@@ -10,6 +10,11 @@ import {
 } from "../errors/webhook.ts";
 import { AuthMiddleware } from "../middlewares.ts";
 
+/**
+ * A webhook endpoint as returned by reads. The signing secret is deliberately
+ * absent: it is shown once at creation and once per rotation, and is not
+ * recoverable afterwards. Use {@link WebhookEndpointWithSecret} for those two.
+ */
 export const WebhookEndpoint = Schema.Struct({
   consecutiveFailures: Schema.Number,
   createdAt: Schema.NullOr(Schema.Date),
@@ -19,13 +24,22 @@ export const WebhookEndpoint = Schema.Struct({
   lastSuccessAt: Schema.NullOr(Schema.Date),
   name: Schema.String,
   projectId: Schema.String,
-  secret: Schema.String,
   status: Schema.Union([
     Schema.Literal("active"),
     Schema.Literal("disabled"),
     Schema.Literal("failed"),
   ]),
   url: Schema.String,
+});
+
+/**
+ * A webhook endpoint plus its plaintext signing secret. Returned only by
+ * `CreateWebhookEndpoint` and `RotateWebhookSecret`, mirroring the HTTP
+ * surface, which are the only moments the caller can still capture it.
+ */
+export const WebhookEndpointWithSecret = Schema.Struct({
+  ...WebhookEndpoint.fields,
+  secret: Schema.String,
 });
 
 export const WebhookDelivery = Schema.Struct({
@@ -96,6 +110,7 @@ export class WebhookRpcsDef extends RpcGroup.make(
     ]),
     payload: {
       endpointId: Schema.String,
+      projectId: Schema.String,
     },
     success: WebhookEndpoint,
   }),
@@ -112,7 +127,7 @@ export class WebhookRpcsDef extends RpcGroup.make(
       projectId: Schema.String,
       url: Schema.String,
     },
-    success: WebhookEndpoint,
+    success: WebhookEndpointWithSecret,
   }),
   Rpc.make("UpdateWebhookEndpoint", {
     error: Schema.Union([
@@ -126,6 +141,7 @@ export class WebhookRpcsDef extends RpcGroup.make(
       endpointId: Schema.String,
       events: Schema.optional(Schema.Array(Schema.String)),
       name: Schema.optional(Schema.String),
+      projectId: Schema.String,
       status: Schema.optional(Schema.Union([Schema.Literal("active"), Schema.Literal("disabled")])),
       url: Schema.optional(Schema.String),
     },
@@ -139,6 +155,7 @@ export class WebhookRpcsDef extends RpcGroup.make(
     ]),
     payload: {
       endpointId: Schema.String,
+      projectId: Schema.String,
     },
     success: Schema.Void,
   }),
@@ -150,8 +167,9 @@ export class WebhookRpcsDef extends RpcGroup.make(
     ]),
     payload: {
       endpointId: Schema.String,
+      projectId: Schema.String,
     },
-    success: WebhookEndpoint,
+    success: WebhookEndpointWithSecret,
   }),
   Rpc.make("TestWebhookEndpoint", {
     error: Schema.Union([
@@ -161,6 +179,7 @@ export class WebhookRpcsDef extends RpcGroup.make(
     ]),
     payload: {
       endpointId: Schema.String,
+      projectId: Schema.String,
     },
     success: WebhookDelivery,
   }),
@@ -180,6 +199,7 @@ export class WebhookRpcsDef extends RpcGroup.make(
     ]),
     payload: {
       deliveryId: Schema.String,
+      projectId: Schema.String,
     },
     success: WebhookDeliveryWithAttempts,
   }),
@@ -192,6 +212,7 @@ export class WebhookRpcsDef extends RpcGroup.make(
     ]),
     payload: {
       deliveryId: Schema.String,
+      projectId: Schema.String,
     },
     success: WebhookDelivery,
   }),

@@ -36,6 +36,7 @@ export interface SessionAttachment {
   authenticated: boolean;
   permission?: "read" | "write";
   tokenId?: string;
+  presence?: PresenceEntry;
 }
 
 export interface DocumentSessionAuth {
@@ -189,10 +190,12 @@ export const handleDocumentSocketMessage = <TSocket>(
       }
       case "presence_set": {
         if (!attachment.authenticated || attachment.permission !== "write") return;
-        yield* ctx.presence.set(attachment.connectionId, {
+        const entry: PresenceEntry = {
           data: message.data,
           userId: attachment.tokenId,
-        });
+        };
+        yield* ctx.presence.set(attachment.connectionId, entry);
+        ctx.setAttachment(socket, { ...attachment, presence: entry });
         yield* broadcastToAuthenticated(
           ctx,
           presenceUpdateMessage(attachment.connectionId, message.data, attachment.tokenId),
@@ -202,6 +205,8 @@ export const handleDocumentSocketMessage = <TSocket>(
       case "presence_clear": {
         if (!attachment.authenticated) return;
         yield* ctx.presence.remove(attachment.connectionId);
+        const { presence: _presence, ...next } = attachment;
+        ctx.setAttachment(socket, next);
         yield* broadcastToAuthenticated(ctx, presenceRemoveMessage(attachment.connectionId));
         return;
       }
@@ -233,9 +238,7 @@ export const handleDocumentSocketMessage = <TSocket>(
         return;
       }
     }
-  }).pipe(
-    Effect.catch((error) => ctx.send(socket, errorMessage(causeMessage(error)))),
-  );
+  }).pipe(Effect.catch((error) => ctx.send(socket, errorMessage(causeMessage(error)))));
 
 /**
  * Cleans up after a closed/errored socket: forgets the session and, when it

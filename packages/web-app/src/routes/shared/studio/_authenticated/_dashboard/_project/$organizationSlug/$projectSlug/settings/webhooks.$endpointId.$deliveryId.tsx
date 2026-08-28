@@ -1,9 +1,12 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from "@voidhash/ui";
+import { Effect } from "effect";
 import { RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/features/studio/components/auth-context";
+import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import { Page } from "@/features/studio/shell";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { WebhookDeliveryAttemptTimeline } from "@/features/studio/webhooks/webhook-delivery-attempt-timeline";
@@ -93,10 +96,24 @@ function WebhookDeliveryDetailPageSkeleton() {
 function WebhookDeliveryDetailPage() {
   const { deliveryId, endpointId, organizationSlug, projectSlug } = Route.useParams();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const project = CurrentUser.getProjectBySlugs(
+    user,
+    organizationSlug as string,
+    projectSlug as string,
+  );
 
-  const { data: delivery } = useSuspenseQuery(getWebhookDeliveryOptions({ deliveryId }));
+  if (!project) {
+    return Effect.runSync(Effect.die(new Error("Project not found")));
+  }
 
-  const { data: endpoint } = useSuspenseQuery(getWebhookEndpointOptions({ endpointId }));
+  const { data: delivery } = useSuspenseQuery(
+    getWebhookDeliveryOptions({ deliveryId, projectId: project.id }),
+  );
+
+  const { data: endpoint } = useSuspenseQuery(
+    getWebhookEndpointOptions({ endpointId, projectId: project.id }),
+  );
 
   const { mutate: retryDelivery, status: retryStatus } = useMutation({
     ...retryWebhookDeliveryOptions(),
@@ -147,7 +164,7 @@ function WebhookDeliveryDetailPage() {
             {canRetry && (
               <Button
                 disabled={retryStatus === "pending"}
-                onClick={() => retryDelivery({ deliveryId })}
+                onClick={() => retryDelivery({ deliveryId, projectId: project.id })}
               >
                 <RefreshCwIcon className="mr-2 h-4 w-4" />
                 {retryStatus === "pending" ? "Retrying..." : "Retry"}

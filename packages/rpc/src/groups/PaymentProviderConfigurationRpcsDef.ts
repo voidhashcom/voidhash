@@ -4,6 +4,7 @@ import { Schema } from "effect";
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
   RpcPaymentProviderAlreadyExistsError,
+  RpcPaymentProviderConfigurationInUseError,
   RpcPaymentProviderConfigurationKeyUnavailableError,
   RpcPaymentProviderConfigurationNotFoundError,
   RpcPaymentProviderConfigurationServiceError,
@@ -82,6 +83,7 @@ export class PaymentProviderConfigurationRpcsDef extends RpcGroup.make(
       RpcActionForbiddenError,
       RpcPaymentProviderConfigurationServiceError,
       RpcPaymentProviderConfigurationNotFoundError,
+      RpcPaymentProviderConfigurationInUseError,
     ]),
     payload: Schema.Struct({
       paymentProviderConfigurationId: Schema.String,
