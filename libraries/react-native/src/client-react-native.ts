@@ -4,6 +4,7 @@ import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
 import { VoidhashClient, type VoidhashClientOptions } from "./client";
+import { COMMERCE_FEATURES_ENABLED } from "./core/constants";
 import { SchemeNotSetError } from "./errors";
 import { getVoidhashEngine } from "./nitro";
 import { voidhashProviderFactory } from "./react/components/provider";
@@ -37,7 +38,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
   const distinctId = options.distinctId ?? null;
   const enabled = options.enabled ?? true;
   const ingestUrl = options.ingestUrl;
-  const readOnly = options.readOnly ?? false;
+  const readOnly = !COMMERCE_FEATURES_ENABLED || (options.readOnly ?? false);
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
   const scheme =
     options.scheme ??
@@ -48,7 +49,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
   // A disabled client never presents a paywall and so never rides the scheme
   // back into the app: requiring one would force apps that ship the SDK behind
   // a feature flag to configure a deep-link scheme they don't use yet.
-  if (!scheme && enabled) {
+  if (!scheme && enabled && COMMERCE_FEATURES_ENABLED) {
     return Effect.runSync(Effect.die(new SchemeNotSetError()));
   }
 

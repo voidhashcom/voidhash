@@ -5,6 +5,7 @@ import { AppState, Linking, Platform } from "react-native";
 import type { SdkResolvedPaywall } from "@voidhash/generated-clients";
 import type { VoidhashClient } from "../../client";
 import type { Product } from "../../core/entities/product";
+import { COMMERCE_FEATURES_ENABLED } from "../../core/constants";
 import { VoidhashError } from "../../errors";
 import type { PaywallReleaseRuntime } from "../../core/paywalls/paywall-service";
 import type { LocationSlug } from "../../core/schema/registry";
@@ -25,7 +26,8 @@ import type { VoidhashContext } from "../components/provider";
  * instead of guessing from a boolean.
  *
  * - `disabled`: the client was created with `enabled: false`, so no paywall
- *   was ever resolved. Terminal — retrying can't change it.
+ *   was ever resolved, or paywalls are unavailable in this release. Terminal
+ *   — retrying can't change it.
  * - `not_initialized`: the provider is still running `init()` (or the hook is
  *   used outside a `VoidhashProvider`).
  * - `initialization_failed`: the provider's `init()` rejected; `error` is the
@@ -556,11 +558,12 @@ interface ShowPaywallForLocationOptions {
  */
 async function showPaywallForLocation(
   options: ShowPaywallForLocationOptions,
+  commerceFeaturesEnabled = COMMERCE_FEATURES_ENABLED,
 ): Promise<ShowPaywallResult> {
   const { client, locationKey, onBridgeEvent, preloadPaywall, presenter, voidhashContext } =
     options;
 
-  if (voidhashContext?.status === "disabled") {
+  if (!commerceFeaturesEnabled || voidhashContext?.status === "disabled") {
     return { status: "disabled" };
   }
 
@@ -621,8 +624,9 @@ async function showPaywallForLocation(
 
 export async function __internal_showPaywallForLocationForTests(
   options: ShowPaywallForLocationOptions,
+  commerceFeaturesEnabled = true,
 ) {
-  return await showPaywallForLocation(options);
+  return await showPaywallForLocation(options, commerceFeaturesEnabled);
 }
 
 function incrementActiveHookCount(locationSlug: string) {
@@ -652,7 +656,7 @@ export function paywallByLocationHookFactory(
   ): UsePaywallByLocationResult {
     const voidhashContext = React.useContext(vhContext);
     const locationKey = normalizeLocation(String(locationSlug));
-    const isReady = voidhashContext?.status === "ready";
+    const isReady = COMMERCE_FEATURES_ENABLED && voidhashContext?.status === "ready";
 
     // `paywallOptions` is typically a fresh object literal on every render, so
     // the preload effect reads the callback through a ref instead of taking a

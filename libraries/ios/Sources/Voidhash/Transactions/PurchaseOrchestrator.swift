@@ -130,7 +130,7 @@ public actor PurchaseOrchestrator {
     ///
     /// The read-only flag is pinned when the purchase starts: a purchase this SDK owns is still
     /// finished even if the host app flips to observer mode while the store sheet is open.
-    public func purchase(product: VoidhashProduct, schema: RuntimeSchema) async throws {
+    func purchase(product: VoidhashProduct, schema: RuntimeSchema) async throws {
         let readOnlyAtPurchaseStart = isReadOnly()
         let distinctId = await distinctIdProvider()
         let storeTransaction = try await engine.buyProduct(

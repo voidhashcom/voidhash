@@ -32,8 +32,6 @@ The SDK records common lifecycle events for you:
 - `$app_became_active`
 - `$sign_out`
 
-Paywalls also send their analytics through the same queue and include the paywall location.
-
 ## Flush before a boundary
 
 Events flush automatically in batches (20 per request or every 5 seconds, retried with exponential

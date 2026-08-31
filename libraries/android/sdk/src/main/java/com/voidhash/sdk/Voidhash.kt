@@ -91,7 +91,7 @@ object Voidhash {
         options.distinctId?.let(identityStore::setDistinctId)
 
         val currentActivity = ActivityHolder()
-        val readOnlyRef = AtomicBoolean(options.readOnly)
+        val readOnlyRef = AtomicBoolean(options.readOnly || !COMMERCE_FEATURES_ENABLED)
         val readOnlyProvider = { clientRef.get()?.currentReadOnly ?: readOnlyRef.get() }
 
         val httpClient = OkHttpClient()
@@ -192,7 +192,7 @@ object Voidhash {
             },
             activitySink = currentActivity::set,
             enabled = options.enabled,
-            readOnly = options.readOnly,
+            readOnly = options.readOnly || !COMMERCE_FEATURES_ENABLED,
             onWarning = ::warn,
         )
 

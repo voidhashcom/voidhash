@@ -1,6 +1,11 @@
 # Voidhash React Native SDK
 
-React Native SDK for in-app purchases, paywalls, entitlements, and product analytics.
+React Native SDK for entitlements, feature flags, product analytics, and observer-mode revenue
+tracking.
+
+> **Initial release:** SDK-started purchases and hosted paywalls are temporarily unavailable. The
+> SDK always runs in observer mode: it observes and submits store transactions to Voidhash, but
+> never finishes or acknowledges them. The host billing integration remains the transaction owner.
 
 Full documentation: <https://voidhash.com/docs/react-native>. This file covers the details most
 often needed while integrating.
@@ -60,21 +65,21 @@ from `voidhash.gen.d.ts`, written by `npx voidhash-cli types generate`.
 import { createVoidhashClient } from "@voidhash/react-native";
 
 export const voidhash = createVoidhashClient("vh_pk_...", {
-  scheme: "myapp",
+  debug: __DEV__,
 });
 ```
 
-| Option                   | Default                    | Notes                                                        |
-| ------------------------ | -------------------------- | ------------------------------------------------------------ |
-| `scheme`                 | Expo app scheme            | Purchase callback scheme. Required unless Expo provides one. |
-| `distinctId`             | Persisted anonymous id     | Seed the initial identity; usually omit and `identify()`.    |
-| `debug`                  | `false`                    | Verbose HTTP logging.                                        |
-| `dev`                    | `false`                    | Fake-store purchases in debug builds; ignored in release.    |
-| `enabled`                | `true`                     | `false` ships the SDK fully inert. Fixed at construction.    |
-| `readOnly`               | `false`                    | Observer mode. Mutable via `client.setReadOnly()`.           |
-| `baseUrl`                | `https://api.voidhash.com` | API origin.                                                  |
-| `ingestUrl`              | Same origin as `baseUrl`   | Analytics origin override.                                   |
-| `unstable_swallowErrors` | `false`                    | See below.                                                   |
+| Option                   | Default                    | Notes                                                       |
+| ------------------------ | -------------------------- | ----------------------------------------------------------- |
+| `scheme`                 | Expo app scheme            | Reserved for paywalls; not required in the initial release. |
+| `distinctId`             | Persisted anonymous id     | Seed the initial identity; usually omit and `identify()`.   |
+| `debug`                  | `false`                    | Verbose HTTP logging.                                       |
+| `dev`                    | `false`                    | Reserved for SDK-started test purchases.                    |
+| `enabled`                | `true`                     | `false` ships the SDK fully inert. Fixed at construction.   |
+| `readOnly`               | `true`                     | Forced on while commerce features are unavailable.          |
+| `baseUrl`                | `https://api.voidhash.com` | API origin.                                                 |
+| `ingestUrl`              | Same origin as `baseUrl`   | Analytics origin override.                                  |
+| `unstable_swallowErrors` | `false`                    | See below.                                                  |
 
 ## Provider and initialization
 
@@ -121,37 +126,18 @@ hook order never changes between a flagged-off and a flagged-on build. `enabled`
 construction; enabling later means creating a new client, which is cheap because a disabled one
 never built its runtime.
 
-## Read-only observer mode
+## Observer mode and transaction reporting
 
-Observer mode lets the SDK coexist with an existing billing integration during a migration.
+The initial release always runs with `client.isReadOnly === true`. Passing `readOnly: false` or
+calling `client.setReadOnly(false)` cannot transfer store ownership to Voidhash yet.
 
-```ts
-createVoidhashClient("vh_pk_...", {
-  readOnly: true,
-  scheme: "myapp",
-});
-```
+| Starts purchases | Syncs transactions to Voidhash | Finishes/acknowledges store transactions |
+| ---------------- | ------------------------------ | ---------------------------------------- |
+| No               | Yes                            | No                                       |
 
-| Mode                        | Starts purchases | Syncs transactions to Voidhash | Finishes/acknowledges store transactions |
-| --------------------------- | ---------------- | ------------------------------ | ---------------------------------------- |
-| `readOnly: true`            | No               | Yes                            | No                                       |
-| `readOnly: false` (default) | Yes              | Yes                            | Yes (after successful server sync)       |
-
-`client.purchase()` and `client.setPersonAttributesSync()` are blocked in observer mode; hosted
-paywall purchase actions fail the same way, because they call `purchase()` internally. Reads,
-`restorePurchases()`, `setPersonAttributes()`, and analytics keep working.
-
-Switch ownership at runtime instead of recreating the client:
-
-```ts
-voidhash.client.setReadOnly(false); // Voidhash now owns purchases
-voidhash.client.isReadOnly; // boolean
-```
-
-The switch takes effect at the next decision point of each consumer: purchase gating, the observer's
-finish/acknowledge decision, and the `x-observer-mode` request header. A purchase already in flight
-keeps the mode it started with, so a `setReadOnly(true)` landing mid-purchase can never strand that
-transaction unfinished with the store.
+`client.purchase()` returns `READ_ONLY_PURCHASE_NOT_ALLOWED`. `client.setPersonAttributesSync()`
+is also blocked by observer mode. Reads, `restorePurchases()`, asynchronous
+`setPersonAttributes()`, identity, feature flags, and analytics keep working.
 
 Observer reconciliation:
 
@@ -163,54 +149,10 @@ Observer reconciliation:
 
 ## Paywalls
 
-`usePaywallByLocation(locationSlug, options?)` preloads and presents a paywall through a native
-full-screen presenter.
-
-```ts
-const { show } = voidhash.usePaywallByLocation("onboarding", {
-  onPurchase: ({ productId, requestId }) => console.log("Purchased", productId, requestId),
-  onRestore: ({ requestId }) => console.log("Restored", requestId),
-  onError: (error, { action }) => console.error("Paywall action failed", action, error),
-  onPreloadError: (error) => reportError("preload", error),
-});
-
-const result = await show();
-
-if (result.status !== "shown") {
-  // fall back to an app-owned screen
-}
-```
-
-`show()` never rejects. It resolves to a `ShowPaywallResult`:
-
-```ts
-type ShowPaywallResult =
-  | { status: "shown" }
-  | { status: "disabled" } // client created with `enabled: false`
-  | { status: "not_initialized" } // still initializing, or used outside the provider
-  | { status: "native_unavailable" } // no native presenter on this platform
-  | { status: "not_assigned" } // no published paywall for the location
-  | { status: "initialization_failed"; error: Error }
-  | { status: "failed"; error: Error };
-```
-
-`onPreloadError` reports a failed background preload. The SDK retries on the next app foreground
-and again on `show()`, and a `show()` hitting the same failure returns `failed` rather than calling
-the callback. Preload failures are also logged with `console.warn` in every environment.
-
-Behavior:
-
-- Assignment is resolved in JS (`getPaywallForLocation`), then preloaded natively (Swift/Kotlin).
-- Presentation is native full-screen — no React Native `Modal` dependency.
-- Preload runs on hook mount and when the app returns to the foreground.
-- Pre-rendered native WebViews stay warm while hook instances are active for a location.
-
-Bridge actions:
-
-- Incoming actions: `ready`, `close`, `purchase`, `restore`, `openExternal`, `event`, `log`.
-- `purchase` and `restore` return structured response envelopes (`success` / `error`).
-- A successful `purchase` or `restore` auto-dismisses the presenter.
-- `onPurchase`, `onRestore`, and `onError` fire for the corresponding bridge outcome.
+Hosted paywalls are temporarily unavailable in the initial release. The compatibility surface is
+kept in the package for the upcoming launch, but it is inert: `getPaywallForLocation()` returns
+`Ok(null)`, `usePaywallByLocation(...).show()` returns `{ status: "disabled" }`, and the SDK does
+not resolve, preload, or present a paywall.
 
 ## Unstable error swallowing
 

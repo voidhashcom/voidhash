@@ -3,12 +3,8 @@ description: Native iOS apps with StoreKit 2.
 icon: svgl:swift
 pages:
   - index
-  - quickstart
-  - paywalls
-  - purchases
   - entitlements
   - identify-users
   - feature-flags
   - analytics
-  - development-mode
   - errors

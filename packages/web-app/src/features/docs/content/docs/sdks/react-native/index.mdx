@@ -5,25 +5,31 @@ icon: svgl:react
 ---
 
 `@voidhash/react-native` supports Expo development builds and bare React Native apps on iOS and
-Android. Start with the [quickstart](/sdks/react-native/quickstart) if you have not installed it yet.
+Android.
+
+<Callout type="warn" title="Initial release is observer-only">
+  SDK-started purchases and hosted paywalls are temporarily unavailable. Store transactions are
+  still observed and submitted to Voidhash for revenue analytics, but the SDK never finishes or
+  acknowledges them.
+</Callout>
 
 ## Compatibility
 
-| Requirement                  | Version                                    |
-| ---------------------------- | ------------------------------------------ |
-| Platforms                    | iOS and Android                            |
-| Expo SDK                     | Verified on 55; developed against 54       |
-| React Native                 | Verified on 0.83; developed against 0.81   |
-| `react-native-nitro-modules` | Peer `^0.35.5` — use a 0.35.x release      |
-| `@react-native-async-storage/async-storage` | Peer `^1.24.0 \|\| ^2.0.0`  |
+| Requirement                                 | Version                                  |
+| ------------------------------------------- | ---------------------------------------- |
+| Platforms                                   | iOS and Android                          |
+| Expo SDK                                    | Verified on 55; developed against 54     |
+| React Native                                | Verified on 0.83; developed against 0.81 |
+| `react-native-nitro-modules`                | Peer `^0.35.5` — use a 0.35.x release    |
+| `@react-native-async-storage/async-storage` | Peer `^1.24.0 \|\| ^2.0.0`               |
 
 `effect`, `expo`, `expo-constants`, `expo-linking`, `react`, and `react-native` are also peer
 dependencies and must be installed in the app.
 
 <Callout type="warn" title="Nitro versions must match">
   Every Nitro-based module in the app resolves against one shared native runtime. Mixing Nitro
-  versions across modules produces native build or load failures that do not point back at
-  Voidhash. Check every dependency that ships Nitro specs before upgrading one of them.
+  versions across modules produces native build or load failures that do not point back at Voidhash.
+  Check every dependency that ships Nitro specs before upgrading one of them.
 </Callout>
 
 Because the package ships native code, changing it requires a new development build — Expo Go
@@ -36,9 +42,7 @@ Create one client for the lifetime of the app:
 ```ts title="src/lib/voidhash.ts"
 import { createVoidhashClient } from "@voidhash/react-native";
 
-export const voidhash = createVoidhashClient("vh_pk_...", {
-  dev: true,
-});
+export const voidhash = createVoidhashClient("vh_pk_...");
 ```
 
 The publishable key is safe to include in the app. Never ship `vh_sk_...` secret keys.
@@ -50,17 +54,14 @@ the schema lives on the server and is fetched when the provider mounts.
 
 | Option       | Default                       | Use                                                                        |
 | ------------ | ----------------------------- | -------------------------------------------------------------------------- |
-| `scheme`     | Expo app scheme               | Purchase callback scheme. Required when Expo config cannot provide one.    |
+| `scheme`     | Expo app scheme               | Reserved for paywalls; not required in the initial release.                |
 | `distinctId` | Persisted or new anonymous ID | Seed the initial customer identity. Usually omit it and call `identify()`. |
 | `debug`      | `false`                       | Enable additional SDK diagnostics.                                         |
-| `dev`        | `false`                       | Use isolated fake-store purchases in debug builds; ignored in releases.    |
+| `dev`        | `false`                       | Reserved for SDK-started test purchases.                                   |
 | `enabled`    | `true`                        | Set `false` to ship the SDK fully inert. Fixed at construction.            |
-| `readOnly`   | `false`                       | Start in observer mode. Flip later with `client.setReadOnly()`.            |
+| `readOnly`   | `true`                        | Forced on while commerce features are unavailable.                         |
 | `baseUrl`    | `https://api.voidhash.com`    | Override the API origin for self-hosted deployments.                       |
 | `ingestUrl`  | Same origin as `baseUrl`      | Override only the analytics origin.                                        |
-
-See [Development purchase mode](/sdks/react-native/development-mode) for its debug-only safety boundary and Studio
-lifecycle controls.
 
 ### Disabled clients
 
@@ -74,17 +75,12 @@ creating a new client, which is cheap because a disabled one never built its run
 
 ### Observer mode
 
-`readOnly` is mutable at runtime:
+The initial release always reports `client.isReadOnly === true`. Passing `readOnly: false` or
+calling `client.setReadOnly(false)` cannot transfer store ownership to Voidhash yet.
 
-```ts
-voidhash.client.setReadOnly(false);
-voidhash.client.isReadOnly; // boolean
-voidhash.client.isEnabled; // boolean, fixed at construction
-```
-
-While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them,
-and `purchase()` / `setPersonAttributesSync()` are blocked. A purchase already in flight keeps the
-mode it started with. See [Migrate in observer mode](/resources/observer-mode).
+Observed and restored transactions are submitted to Voidhash, but are never finished or
+acknowledged. `purchase()` returns `READ_ONLY_PURCHASE_NOT_ALLOWED`, while reads,
+`restorePurchases()`, identity, feature flags, and analytics keep working.
 
 ## Provider
 
@@ -99,13 +95,13 @@ the transaction observer. Hooks wait until initialization completes.
 
 `useVoidhash()` reads the provider's state:
 
-| Field           | Type                                                        | Notes                                             |
-| --------------- | ----------------------------------------------------------- | ------------------------------------------------- |
-| `status`        | `"initializing" \| "ready" \| "failed" \| "disabled"`       | `disabled` is terminal.                           |
-| `initError`     | `Error \| null`                                             | Set only while `status` is `"failed"`.            |
-| `retryInit`     | `() => void`                                                | Re-runs `init()`. No-op unless `status` is failed. |
-| `isInitialized` | `boolean`                                                   | Alias for `status === "ready"`.                   |
-| `client`        | `VoidhashClient`                                            | The underlying imperative client.                 |
+| Field           | Type                                                  | Notes                                              |
+| --------------- | ----------------------------------------------------- | -------------------------------------------------- |
+| `status`        | `"initializing" \| "ready" \| "failed" \| "disabled"` | `disabled` is terminal.                            |
+| `initError`     | `Error \| null`                                       | Set only while `status` is `"failed"`.             |
+| `retryInit`     | `() => void`                                          | Re-runs `init()`. No-op unless `status` is failed. |
+| `isInitialized` | `boolean`                                             | Alias for `status === "ready"`.                    |
+| `client`        | `VoidhashClient`                                      | The underlying imperative client.                  |
 
 Initialization can fail — a cold start with no network, for example. Handle it rather than leaving
 the app in a permanent loading state:
@@ -120,15 +116,13 @@ if (status === "failed") {
 
 ## Hooks
 
-| Hook                                   | Use                                                          |
-| -------------------------------------- | ------------------------------------------------------------ |
-| `usePaywallByLocation(slug, options?)` | Preload and present the paywall assigned to a location.      |
-| `useProducts()`                        | Read store-backed product metadata.                          |
-| `usePurchase(options?)`                | Purchase a product from custom UI.                           |
-| `useHasPerk(slug)`                     | Check whether the current person holds an active perk grant. |
-| `useCurrentPerson()`                   | Read entitlements, subscription state, and purchase history. |
-| `useFeatureFlags(keys?)`               | Evaluate flags and variants for the current person.          |
-| `useVoidhash()`                        | Read provider state and the underlying client.               |
+| Hook                     | Use                                                          |
+| ------------------------ | ------------------------------------------------------------ |
+| `useProducts()`          | Read store-backed product metadata.                          |
+| `useHasPerk(slug)`       | Check whether the current person holds an active perk grant. |
+| `useCurrentPerson()`     | Read entitlements, subscription state, and purchase history. |
+| `useFeatureFlags(keys?)` | Evaluate flags and variants for the current person.          |
+| `useVoidhash()`          | Read provider state and the underlying client.               |
 
 ### useHasPerk
 
@@ -173,37 +167,6 @@ while a fresh copy loads in the background; the cached copy survives up to two d
 [access checks fail open offline](/sdks/react-native/entitlements#offline-and-failure-behavior). The SDK refreshes
 the snapshot after purchases, restores, and identity changes.
 
-### usePaywallByLocation
-
-The hook returns `{ show }`. `show()` never rejects; it resolves to a `ShowPaywallResult`:
-
-```ts
-type ShowPaywallResult =
-  | { status: "shown" }
-  | { status: "disabled" }
-  | { status: "not_initialized" }
-  | { status: "native_unavailable" }
-  | { status: "not_assigned" }
-  | { status: "initialization_failed"; error: Error }
-  | { status: "failed"; error: Error };
-```
-
-Options:
-
-| Option           | Fires when                                                                |
-| ---------------- | ------------------------------------------------------------------------- |
-| `onPurchase`     | A purchase started from the hosted paywall succeeded.                     |
-| `onRestore`      | A restore started from the hosted paywall succeeded.                       |
-| `onError`        | A hosted paywall `purchase` or `restore` action failed.                   |
-| `onPreloadError` | Background preloading of this location's paywall failed.                  |
-
-`onPreloadError` is a reporting hook, not a recovery path: the SDK retries on the next app
-foreground and again on `show()`, and a `show()` that hits the same failure returns a `failed`
-result instead of calling the callback. Failures are also logged with `console.warn` in every
-environment.
-
-See [Display a paywall](/sdks/react-native/paywalls) for what each status means and how to fall back.
-
 ## Imperative client
 
 The `voidhash.client` object exposes the same core workflows outside React:
@@ -222,7 +185,7 @@ voidhash.client.capture("screen_viewed", { screen: "home" });
 
 ## Generated slug types
 
-Run this after changing products, perks, or paywall locations in Studio:
+Run this after changing products or perks in Studio:
 
 ```bash
 npx voidhash-cli types generate
@@ -247,14 +210,3 @@ return <Account person={person} />;
 Every error carries a stable `code`, such as `FAILED_TO_GET_CURRENT_PERSON`. Match on
 `result.error.code` when recovery differs, and report the full error for everything else. The
 complete code list with recovery guidance lives on the [Errors](/sdks/react-native/errors) page.
-
-## Platform helpers
-
-iOS exposes two additional client methods:
-
-```ts
-await voidhash.client.iosPresentCodeRedemptionSheet();
-await voidhash.client.iosShowManageSubscriptions();
-```
-
-Guard them with `Platform.OS === "ios"`.

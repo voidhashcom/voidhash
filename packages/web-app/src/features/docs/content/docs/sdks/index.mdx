@@ -4,15 +4,21 @@ description: Voidhash client SDKs for React Native, Swift, and Kotlin.
 icon: Package
 ---
 
-Voidhash ships three client SDKs with the same core workflows — paywalls, purchases,
-entitlements, feature flags, and analytics — tailored to each platform. Every SDK talks to the same
-project schema, so products, paywalls, and locations configured in Studio work across all of them.
+Voidhash ships three client SDKs for entitlements, feature flags, analytics, and observer-mode
+transaction reporting. Every SDK talks to the same project schema and submits observed store
+transactions for revenue analytics without taking ownership from the host billing integration.
 
-| SDK           | Platforms    | Store integration |
-| ------------- | ------------ | ----------------- |
-| React Native  | iOS, Android | StoreKit 2 and Google Play Billing through native modules |
-| Swift         | iOS          | StoreKit 2        |
-| Kotlin        | Android      | Google Play Billing |
+<Callout type="warn" title="Initial release is observer-only">
+  SDK-started purchases and hosted paywalls are temporarily unavailable. The commerce
+  implementations remain in the packages for a later launch, but the public clients cannot enable or
+  invoke them yet.
+</Callout>
+
+| SDK          | Platforms    | Store integration                                         |
+| ------------ | ------------ | --------------------------------------------------------- |
+| React Native | iOS, Android | StoreKit 2 and Google Play Billing through native modules |
+| Swift        | iOS          | StoreKit 2                                                |
+| Kotlin       | Android      | Google Play Billing                                       |
 
 ## Pick your platform
 
@@ -34,5 +40,5 @@ project schema, so products, paywalls, and locations configured in Studio work a
   />
 </Cards>
 
-New to Voidhash? Start with the [quickstart](/quickstart) for your platform, then connect a store in
-[Store setup](/store-setup/apple-app-store) or [Connect Google Play](/store-setup/google-play).
+Choose your platform above, then connect a store in [Store setup](/store-setup/apple-app-store) or
+[Connect Google Play](/store-setup/google-play).

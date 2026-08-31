@@ -1,7 +1,11 @@
 # @voidhash/ios
 
-The Voidhash iOS SDK: in-app purchases, entitlements, paywalls, feature flags and analytics
-for bare Swift apps.
+The Voidhash iOS SDK for entitlements, feature flags, analytics, and observer-mode transaction
+reporting in bare Swift apps.
+
+> **Initial release:** SDK-started purchases and hosted paywalls are temporarily unavailable. The
+> SDK observes and submits StoreKit transactions to Voidhash for revenue analytics, but never
+> finishes them. The host billing integration remains the transaction owner.
 
 The package ships two library products:
 
@@ -16,7 +20,7 @@ Requirements: iOS 15+, Swift 6 toolchain (the sources build with Swift 5.9 langu
 
 ### Swift Package Manager
 
-In Xcode: *File → Add Package Dependencies…* and enter the repository URL
+In Xcode: _File → Add Package Dependencies…_ and enter the repository URL
 `https://github.com/voidhashcom/voidhash`, then add the **Voidhash** library to your app target.
 
 In a `Package.swift`:
@@ -61,8 +65,8 @@ options.ingestUrl = nil            // analytics ingest origin; defaults to baseU
 options.debug = false              // SDK logging + `x-is-debug-build`
 options.distinctId = nil           // start with your own id instead of an anonymous one
 options.enabled = true             // false makes every call inert (no network at all)
-options.readOnly = false           // observer mode: sync transactions, never finish them
-options.dev = false                // requests development mode (debug builds only, see below)
+options.readOnly = true            // forced on in the initial observer-only release
+options.dev = false                // reserved for SDK-started test purchases
 options.onWarning = { message in   // diagnostics that are never raised to the caller
     print(message)                 // defaults to the unified log
 }
@@ -75,20 +79,7 @@ connection, schema fetch, reconciliation of transactions observed while the app 
 in the background and is awaited implicitly by the first call that needs it; `await
 voidhash.waitForInitialization()` waits for it explicitly.
 
-## Development mode
-
-Set `options.dev = true` to test a full integration on any simulator without an App Store
-Connect setup. Honored **only in debug builds** (`#if DEBUG` — the mock store does not exist in
-release binaries); release builds always use the real App Store regardless of the flag.
-
-In development mode purchases run against a mock store: products are synthesized from the
-schema's computed development metadata (price and period come from the dashboard product), a
-confirmation sheet labelled "Test purchase" replaces the StoreKit sheet, and the recorded
-purchase is marked with the development environment so it never mixes with production data.
-Every request carries `x-environment: development`, which scopes person snapshots and
-entitlements to the test universe.
-
-## Products and purchases
+## Products and transaction reporting
 
 ```swift
 let products = try await voidhash.getProducts()
@@ -96,39 +87,31 @@ let products = try await voidhash.getProducts()
 if let product = products.first(where: { $0.slug == "pro-monthly" }) {
     // Prices are already formatted for the customer's storefront.
     print(product.displayPrice, product.interval ?? "one-time")
-    try await voidhash.purchase(product: product)
 }
 
+// Reads StoreKit history, submits transactions to Voidhash, and refreshes the person.
 try await voidhash.restorePurchases()
 ```
 
-`purchase(product:)` buys through StoreKit 2, syncs the transaction to Voidhash and only then
-finishes it with the store. Failures surface as `VoidhashStoreError`, whose string form is
-`"CODE: message"` — `USER_CANCELLED`, `PURCHASE_PENDING`, `INVALID_PRODUCT_ID`, …:
+Initialization installs the StoreKit observer and reconciles existing transactions. Observed and
+restored transactions are sent to `sync-transaction` with observer mode enabled, and are left
+unfinished for the host billing integration.
+
+`purchase(product:)` is retained for the upcoming commerce launch but currently throws
+`READ_ONLY_PURCHASE_NOT_ALLOWED` before StoreKit is touched:
 
 ```swift
 do {
     try await voidhash.purchase(product: product)
-} catch let error as VoidhashStoreError where error.code == "USER_CANCELLED" {
-    // The customer dismissed the store sheet.
+} catch let error as VoidhashStoreError
+    where error.code == "READ_ONLY_PURCHASE_NOT_ALLOWED"
+{
+    // Use the host app's existing billing integration.
 }
 ```
 
-Observer mode (you own the purchase code, Voidhash only records it) can be toggled at runtime:
-
-```swift
-await voidhash.setReadOnly(true)
-```
-
-A purchase that started while the SDK owned the flow is still finished with the store even if
-the flag flips mid-flight.
-
-Store sheets:
-
-```swift
-try await voidhash.presentCodeRedemptionSheet()
-try await voidhash.showManageSubscriptions()
-```
+Passing `readOnly: false` or calling `setReadOnly(false)` cannot transfer StoreKit ownership to
+Voidhash in this release. SDK-owned store sheets are also inert until commerce launches.
 
 ## People and entitlements
 
@@ -164,38 +147,10 @@ backoff; `flush()` sends everything queued right now.
 
 ## Paywalls
 
-```swift
-final class Paywalls: VoidhashPaywallDelegate {
-    func paywall(_ location: String, didPurchaseProductId productId: String, requestId: String?) {
-        // Unlock the feature.
-    }
-
-    func paywallDidDismiss(_ location: String) {}
-}
-
-// From a view controller — `from:` is optional and defaults to the key window's top controller.
-let result = try await voidhash.presentPaywall(
-    location: "onboarding",
-    from: self,
-    delegate: paywallsDelegate
-)
-
-switch result {
-case .shown: break
-case .notAssigned: break   // no published paywall for this location
-case .failed: break        // the presenter declined to present
-}
-```
-
-The delegate is held weakly, so keep your own strong reference to it for as long as the paywall
-is presented — every method has a default no-op implementation, and a released delegate simply
-stops receiving callbacks.
-
-The SDK resolves the paywall assigned to the location, presents it in a full-screen WebView and
-speaks the paywall bridge protocol on your behalf: purchases and restores started inside the
-paywall run through the same purchase pipeline, `close` dismisses it, external links open in the
-browser, and custom bundle events are captured into analytics. Dismiss it yourself with
-`try await voidhash.dismissPaywall()`.
+Hosted paywalls are temporarily unavailable. Their compatibility surface remains in the package
+for the upcoming launch, but it performs no network or presentation work:
+`presentPaywall(...)` returns `.notAssigned`, paywall resolution returns `nil`, and
+`dismissPaywall()` is a no-op.
 
 ## Test
 

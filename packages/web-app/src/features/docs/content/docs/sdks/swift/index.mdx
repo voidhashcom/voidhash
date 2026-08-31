@@ -4,17 +4,21 @@ description: Client configuration and API reference for the Voidhash iOS SDK.
 icon: svgl:swift
 ---
 
-The Voidhash iOS SDK adds in-app purchases, entitlements, paywalls, feature flags, and analytics to
-native Swift apps. Start with the [Swift quickstart](/sdks/swift/quickstart) if you have not
-installed it yet.
+The Voidhash iOS SDK adds entitlements, feature flags, analytics, and observer-mode transaction
+reporting to native Swift apps.
+
+<Callout type="warn" title="Initial release is observer-only">
+  SDK-started purchases and hosted paywalls are temporarily unavailable. StoreKit transactions are
+  still observed and submitted to Voidhash for revenue analytics, but the SDK never finishes them.
+</Callout>
 
 ## Compatibility
 
-| Requirement | Version                                        |
-| ----------- | ---------------------------------------------- |
-| Platform    | iOS 15+ (paywalls require UIKit)               |
+| Requirement | Version                                          |
+| ----------- | ------------------------------------------------ |
+| Platform    | iOS 15+ (paywalls require UIKit)                 |
 | Toolchain   | Swift 6, builds with the Swift 5.9 language mode |
-| StoreKit    | StoreKit 2                                     |
+| StoreKit    | StoreKit 2                                       |
 
 The package ships two library products:
 
@@ -64,21 +68,21 @@ options.ingestUrl = nil            // Analytics ingest origin; defaults to baseU
 options.debug = false              // SDK logging + marks requests as from a debug build
 options.distinctId = nil           // Seed the initial customer identity; usually omit
 options.enabled = true             // false makes every call inert (no network at all)
-options.readOnly = false           // Observer mode: sync transactions, never finish them
+options.readOnly = true            // Forced on in the initial observer-only release
 options.onWarning = { message in } // Diagnostics never raised to the caller
 
 let voidhash = Voidhash.configure(publishableKey: "vh_pk_...", options: options)
 ```
 
-| Option        | Default                    | Use                                                                        |
-| ------------- | -------------------------- | -------------------------------------------------------------------------- |
-| `baseUrl`     | `https://api.voidhash.com` | Override the API origin for self-hosted deployments.                       |
-| `ingestUrl`   | Same origin as `baseUrl`   | Override only the analytics origin.                                        |
-| `debug`       | `false`                    | Enable diagnostics and mark requests as debug-build traffic.               |
-| `distinctId`  | Generated anonymous ID     | Seed the initial customer identity. Usually omit it and call `identify()`. |
-| `enabled`     | `true`                     | Set `false` to ship the SDK fully inert.                                   |
-| `readOnly`    | `false`                    | Start in observer mode. Flip later with `setReadOnly()`.                   |
-| `onWarning`   | Unified log                | Receives background failures that are not surfaced as thrown errors.       |
+| Option       | Default                    | Use                                                                        |
+| ------------ | -------------------------- | -------------------------------------------------------------------------- |
+| `baseUrl`    | `https://api.voidhash.com` | Override the API origin for self-hosted deployments.                       |
+| `ingestUrl`  | Same origin as `baseUrl`   | Override only the analytics origin.                                        |
+| `debug`      | `false`                    | Enable diagnostics and mark requests as debug-build traffic.               |
+| `distinctId` | Generated anonymous ID     | Seed the initial customer identity. Usually omit it and call `identify()`. |
+| `enabled`    | `true`                     | Set `false` to ship the SDK fully inert.                                   |
+| `readOnly`   | `true`                     | Forced on while commerce features are unavailable.                         |
+| `onWarning`  | Unified log                | Receives background failures that are not surfaced as thrown errors.       |
 
 ### Disabled clients
 
@@ -87,17 +91,10 @@ With `enabled: false`, every method is inert: no requests are made, no store con
 
 ### Observer mode
 
-Observer mode is mutable at runtime:
+The initial release always uses observer mode. Passing `readOnly: false` or calling
+`setReadOnly(false)` cannot transfer StoreKit ownership to Voidhash yet.
 
-```swift
-await voidhash.setReadOnly(false)
-```
-
-While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them.
-A purchase already in flight keeps the mode it started with. See
-[Migrate in observer mode](/resources/observer-mode).
-
-## Products and purchases
+## Products and transaction reporting
 
 ```swift
 let products = try await voidhash.getProducts()
@@ -105,32 +102,14 @@ let products = try await voidhash.getProducts()
 if let product = products.first(where: { $0.slug == "pro-monthly" }) {
     // Prices are already formatted for the customer's storefront.
     print(product.displayPrice, product.interval ?? "one-time")
-    try await voidhash.purchase(product: product)
 }
 
 try await voidhash.restorePurchases()
 ```
 
-`purchase(product:)` buys through StoreKit 2, syncs the transaction to Voidhash, and only then
-finishes it with the store.
-
-Failures surface as `VoidhashStoreError`, whose string form is `"CODE: message"`. Match known codes
-when recovery differs:
-
-```swift
-do {
-    try await voidhash.purchase(product: product)
-} catch let error as VoidhashStoreError where error.code == "USER_CANCELLED" {
-    // The customer dismissed the store sheet.
-}
-```
-
-Store sheets:
-
-```swift
-try await voidhash.presentCodeRedemptionSheet()
-try await voidhash.showManageSubscriptions()
-```
+Initialization and restore submit observed StoreKit transactions to Voidhash without finishing
+them. `purchase(product:)` is retained for a later commerce launch but currently throws
+`READ_ONLY_PURCHASE_NOT_ALLOWED` before StoreKit is touched. SDK-owned store sheets are inert.
 
 ## People and entitlements
 
@@ -178,37 +157,5 @@ events. See [Capture analytics](/sdks/swift/analytics).
 
 ## Paywalls
 
-```swift
-final class Paywalls: VoidhashPaywallDelegate {
-    func paywall(_ location: String, didPurchaseProductId productId: String, requestId: String?) {
-        // Unlock the feature.
-    }
-
-    func paywallDidDismiss(_ location: String) {}
-}
-
-// `from:` is optional and defaults to the key window's top controller.
-let result = try await voidhash.presentPaywall(
-    location: "onboarding",
-    from: self,
-    delegate: paywallsDelegate
-)
-
-switch result {
-case .shown: break
-case .notAssigned: break // No published paywall for this location
-case .failed: break      // Resolve or presentation failed
-}
-```
-
-Every delegate method has a default no-op implementation. The delegate is held weakly, so keep your
-own strong reference for as long as the paywall is presented — a released delegate silently stops
-receiving callbacks.
-
-Dismiss the paywall yourself with:
-
-```swift
-try await voidhash.dismissPaywall()
-```
-
-See [Display a paywall](/sdks/swift/paywalls) for locations, fallbacks, and safe paywall changes.
+Hosted paywalls are temporarily unavailable. `presentPaywall(...)` returns `.notAssigned`, paywall
+resolution returns `nil`, and no network or presentation work is performed.

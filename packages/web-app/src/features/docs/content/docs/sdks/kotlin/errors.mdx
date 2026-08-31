@@ -22,29 +22,27 @@ try {
 These codes name the client operation that failed. The message text is informational — never match
 on it.
 
-| Code                            | Thrown by                    | Recovery guidance                                              |
-| ------------------------------- | ---------------------------- | -------------------------------------------------------------- |
-| `CONFIGURATION_MISSING`         | Any call before init succeeds| Retry after `initialize()` succeeds.                           |
-| `FAILED_TO_GET_CURRENT_PERSON`  | `getCurrentPerson()`         | Serve cached state; see [Check access](/sdks/kotlin/entitlements). |
-| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`    | Retry later.                                                   |
-| `FAILED_TO_IDENTIFY`            | `identify()`                 | Retry; an already-identified person surfaces this code too.    |
-| `FAILED_TO_GET_FEATURE_FLAGS`   | `getFeatureFlags()`          | Fall back to defaults.                                         |
-| `FAILED_TO_GET_PRODUCTS`        | `getProducts()`              | Retry or render without store metadata.                        |
-| `FAILED_TO_PURCHASE`            | `purchase(...)`              | See [Purchases](/sdks/kotlin/purchases).                       |
-| `FAILED_TO_RESTORE_PURCHASES`   | `restorePurchases()`         | Prompt the customer to retry.                                  |
-| `FAILED_TO_PRESENT_PAYWALL`     | `presentPaywall(...)`        | Reported as a `false` return; fall back to your own screen.    |
-| `FAILED_TO_FLUSH_ANALYTICS`     | `flush()`                    | Events stay queued and flush later.                            |
+| Code                              | Thrown by                     | Recovery guidance                                                  |
+| --------------------------------- | ----------------------------- | ------------------------------------------------------------------ |
+| `CONFIGURATION_MISSING`           | Any call before init succeeds | Retry after `initialize()` succeeds.                               |
+| `FAILED_TO_GET_CURRENT_PERSON`    | `getCurrentPerson()`          | Serve cached state; see [Check access](/sdks/kotlin/entitlements). |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`       | Retry later.                                                       |
+| `FAILED_TO_IDENTIFY`              | `identify()`                  | Retry; an already-identified person surfaces this code too.        |
+| `FAILED_TO_GET_FEATURE_FLAGS`     | `getFeatureFlags()`           | Fall back to defaults.                                             |
+| `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry or render without store metadata.                            |
+| `FAILED_TO_PURCHASE`              | `purchase(...)`               | Reserved for the later commerce launch.                            |
+| `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                      |
+| `FAILED_TO_FLUSH_ANALYTICS`       | `flush()`                     | Events stay queued and flush later.                                |
 
 ## Client-state codes
 
-| Code                               | Meaning                                                                 |
-| ---------------------------------- | ----------------------------------------------------------------------- |
-| `READ_ONLY_PURCHASE_NOT_ALLOWED`   | Observer mode blocks writes. See [Migrate in observer mode](/resources/observer-mode). |
-| `UNSUPPORTED_PLATFORM`             | A platform-specific method ran elsewhere.                                |
-| `UNKNOWN`                          | An unexpected failure. Report the full error.                            |
+| Code                             | Meaning                                                          |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `READ_ONLY_PURCHASE_NOT_ALLOWED` | Purchase initiation is unavailable in the observer-only release. |
+| `UNSUPPORTED_PLATFORM`           | A platform-specific method ran elsewhere.                        |
+| `UNKNOWN`                        | An unexpected failure. Report the full error.                    |
 
 ## Next steps
 
 - [Check access](/sdks/kotlin/entitlements)
-- [Make and restore purchases](/sdks/kotlin/purchases)
 - [Kotlin SDK reference](/sdks/kotlin)

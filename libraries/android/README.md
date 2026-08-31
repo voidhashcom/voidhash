@@ -2,10 +2,14 @@
 
 The bare Voidhash Android SDK plus the shared native core every Voidhash Android surface reuses.
 
+> **Initial release:** SDK-started purchases and hosted paywalls are temporarily unavailable. The
+> SDK observes and submits Google Play transactions to Voidhash for revenue analytics, but never
+> acknowledges or consumes them. The host billing integration remains the transaction owner.
+
 Two Gradle modules live here:
 
-- **`:sdk`** (`com.voidhash.sdk`) — the public SDK: configuration, identity, products, purchases,
-  paywalls, feature flags and analytics.
+- **`:sdk`** (`com.voidhash.sdk`) — the public SDK: configuration, identity, products, transaction
+  reporting, feature flags and analytics.
 - **`:core`** (`com.voidhash.core`) — the shared engine. The React Native SDK includes its sources
   directly; `:sdk` depends on the module.
 
@@ -78,46 +82,36 @@ as `Voidhash.shared` afterwards.
 
 `VoidhashOptions`:
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `baseUrl` | `https://api.voidhash.com` | Voidhash API origin |
-| `ingestUrl` | `baseUrl` | Analytics ingest origin |
-| `debug` | `false` | Reports the build as a debug build and enables verbose logging |
-| `distinctId` | `null` | Pins the initial distinct id instead of generating an anonymous one |
-| `enabled` | `true` | When false the client is inert: no network, no billing connection |
-| `readOnly` | `false` | Observer mode — transactions are synced but never finished with the store |
-| `dev` | `false` | Requests development mode (debug builds only, see below) |
-
-## Development mode
-
-Set `VoidhashOptions(dev = true)` to test a full integration on any emulator or device without
-store credentials. Honored **only in debug builds** (`FLAG_DEBUGGABLE`) — release builds always
-use real Google Play Billing regardless of the flag.
-
-In development mode purchases run against a mock store: products are synthesized from the
-schema's computed development metadata (price and period come from the dashboard product), a
-confirmation sheet labelled "Test purchase — nothing will be charged" replaces the Play Billing
-flow, and the recorded purchase is marked with the development environment so it never mixes
-with production data. Every request carries `x-environment: development`, which scopes person
-snapshots and entitlements to the test universe.
+| Option       | Default                    | Meaning                                                             |
+| ------------ | -------------------------- | ------------------------------------------------------------------- |
+| `baseUrl`    | `https://api.voidhash.com` | Voidhash API origin                                                 |
+| `ingestUrl`  | `baseUrl`                  | Analytics ingest origin                                             |
+| `debug`      | `false`                    | Reports the build as a debug build and enables verbose logging      |
+| `distinctId` | `null`                     | Pins the initial distinct id instead of generating an anonymous one |
+| `enabled`    | `true`                     | When false the client is inert: no network, no billing connection   |
+| `readOnly`   | `true`                     | Forced on while commerce features are unavailable                   |
+| `dev`        | `false`                    | Reserved for SDK-started test purchases                             |
 
 ## API
 
 Every method on `VoidhashClient` other than `capture`, `getDistinctId` and `setReadOnly` is a
 suspending function.
 
-### Products and purchases
+### Products and transaction reporting
 
 ```kotlin
 val products = voidhash.getProducts()
-val transaction = voidhash.purchase(activity, products.first())
+// Reads Play history, submits transactions to Voidhash, and refreshes the person.
 voidhash.restorePurchases()
 ```
 
-`purchase` launches the Play Billing flow from `activity`, syncs the resulting transaction to the
-backend and then acknowledges it (or consumes it for `one-time-consumable` products). In observer
-mode (`setReadOnly(true)`) the sync still happens but the store finish is left to the host app —
-except for a purchase started before the flag flipped, which is always finished.
+Initialization installs the Play purchase observer and reconciles existing transactions. Observed
+and restored transactions are sent to `sync-transaction` with observer mode enabled, and are left
+unacknowledged for the host billing integration.
+
+`purchase(...)` is retained for the upcoming commerce launch but currently raises
+`READ_ONLY_PURCHASE_NOT_ALLOWED` before Play Billing is touched. Passing `readOnly = false` or
+calling `setReadOnly(false)` cannot transfer store ownership to Voidhash in this release.
 
 ### Identity
 
@@ -149,18 +143,9 @@ Events are batched (20 events or every 5 seconds) and retried with exponential b
 
 ### Paywalls
 
-```kotlin
-voidhash.presentPaywall(activity, location = "onboarding", listener = object : PaywallListener {
-    override fun onPurchaseCompleted(transaction: VoidhashTransaction) = unlock()
-    override fun onEvent(name: String, properties: Map<String, Any?>) = track(name, properties)
-    override fun onDismiss() = Unit
-})
-```
-
-`presentPaywall` resolves the paywall configured for the location, presents it fullscreen and speaks
-the paywall bridge protocol natively: purchases, restores, close and external links are handled for
-you; custom events and logs are forwarded to the listener. It returns `false` when the backend has
-no paywall showing for the location.
+Hosted paywalls are temporarily unavailable. Their compatibility surface remains in the package
+for the upcoming launch, but it performs no network or presentation work: `presentPaywall(...)`
+returns `false` and `resolvePaywall(...)` returns `null`.
 
 ### Shutdown
 

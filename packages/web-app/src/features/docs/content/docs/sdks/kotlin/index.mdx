@@ -4,18 +4,23 @@ description: Client configuration and API reference for the Voidhash Android SDK
 icon: svgl:kotlin
 ---
 
-The Voidhash Android SDK adds in-app purchases, entitlements, paywalls, feature flags, and
-analytics to native Android apps. Start with the [Kotlin quickstart](/sdks/kotlin/quickstart) if
-you have not installed it yet.
+The Voidhash Android SDK adds entitlements, feature flags, analytics, and observer-mode transaction
+reporting to native Android apps.
+
+<Callout type="warn" title="Initial release is observer-only">
+  SDK-started purchases and hosted paywalls are temporarily unavailable. Google Play transactions
+  are still observed and submitted to Voidhash for revenue analytics, but the SDK never acknowledges
+  or consumes them.
+</Callout>
 
 ## Compatibility
 
-| Requirement  | Version                    |
-| ------------ | -------------------------- |
-| `minSdk`     | 23                         |
-| `compileSdk` | 34                         |
+| Requirement  | Version                                   |
+| ------------ | ----------------------------------------- |
+| `minSdk`     | 23                                        |
+| `compileSdk` | 34                                        |
 | Build        | AGP 8.9.0, Kotlin 2.0.21, Java 8 bytecode |
-| Billing      | Play Billing 8.0.0         |
+| Billing      | Play Billing 8.0.0                        |
 
 Two Gradle modules ship in `@voidhash/android`: **`:sdk`** (`com.voidhash.sdk`), the public SDK you
 integrate against, and **`:core`** (`com.voidhash.core`), the shared engine it depends on.
@@ -38,7 +43,7 @@ The publishable key is safe to include in the app. Never ship `vh_sk_...` secret
 
 There is no schema argument: the schema lives on the server and is fetched by `initialize()`, which
 connects to Google Play, resolves the schema, reconciles unfinished store transactions, and starts
-the analytics queue. It is safe to call repeatedly — only the first *successful* call does work,
+the analytics queue. It is safe to call repeatedly — only the first _successful_ call does work,
 concurrent callers wait for it, and a failed call leaves the client uninitialized so it can be
 retried:
 
@@ -68,7 +73,7 @@ val voidhash = Voidhash.configure(
 | `debug`      | `false`                    | Enable verbose logging and mark requests as debug-build traffic.           |
 | `distinctId` | Generated anonymous ID     | Seed the initial customer identity. Usually omit it and call `identify()`. |
 | `enabled`    | `true`                     | Set `false` to ship the SDK fully inert.                                   |
-| `readOnly`   | `false`                    | Start in observer mode. Flip later with `setReadOnly()`.                   |
+| `readOnly`   | `true`                     | Forced on while commerce features are unavailable.                         |
 
 Every method on `VoidhashClient` other than `capture`, `getDistinctId`, and `setReadOnly` is a
 suspending function: the SDK never blocks the caller's thread and never posts work back to the main
@@ -81,34 +86,19 @@ With `enabled: false`, every method is inert: no requests are made, no billing c
 
 ### Observer mode
 
-Observer mode is mutable at runtime:
+The initial release always uses observer mode. Passing `readOnly = false` or calling
+`setReadOnly(false)` cannot transfer Google Play ownership to Voidhash yet.
 
-```kotlin
-voidhash.setReadOnly(false)
-```
-
-While observer mode is on, Voidhash reports transactions but never finishes or acknowledges them.
-A purchase already in flight keeps the mode it started with. See
-[Migrate in observer mode](/resources/observer-mode).
-
-## Products and purchases
+## Products and transaction reporting
 
 ```kotlin
 val products = voidhash.getProducts()
-
-products.firstOrNull { it.slug == "pro-monthly" }?.let { monthly ->
-    // Launch the Play Billing flow from an activity.
-    val transaction = voidhash.purchase(activity, monthly)
-}
-
 voidhash.restorePurchases()
 ```
 
-`purchase` launches the Play Billing flow from `activity`, syncs the resulting transaction to
-Voidhash, and then acknowledges it — or consumes it for `one-time-consumable` products.
-
-Restore reconciles every purchase the store still reports and refreshes the current person. See
-[Make and restore purchases](/sdks/kotlin/purchases) for failure handling.
+Initialization and restore submit observed Google Play transactions to Voidhash without
+acknowledging or consuming them. `purchase(...)` is retained for a later commerce launch but
+currently raises `READ_ONLY_PURCHASE_NOT_ALLOWED` before Play Billing is touched.
 
 ## People and entitlements
 
@@ -153,20 +143,8 @@ Events are batched (20 events or every 5 seconds) and retried with exponential b
 
 ## Paywalls
 
-```kotlin
-voidhash.presentPaywall(activity, location = "onboarding", listener = object : PaywallListener {
-    override fun onPurchaseCompleted(transaction: VoidhashTransaction) = unlock()
-    override fun onEvent(name: String, properties: Map<String, Any?>) = track(name, properties)
-    override fun onDismiss() = Unit
-})
-```
-
-`presentPaywall` resolves the paywall configured for the location, presents it fullscreen, and
-speaks the paywall bridge protocol natively: purchases, restores, close, and external links are
-handled for you; custom events and logs are forwarded to the listener. It returns `false` when the
-backend has no published paywall for the location.
-
-See [Display a paywall](/sdks/kotlin/paywalls) for locations, fallbacks, and safe paywall changes.
+Hosted paywalls are temporarily unavailable. `presentPaywall(...)` returns `false`, paywall
+resolution returns `null`, and no network or presentation work is performed.
 
 ## Shutdown
 

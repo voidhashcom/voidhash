@@ -26,9 +26,7 @@ import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { PurchasePendingError, UserCancelledError } from "./core/payment-adapters/errors";
 import { findActiveGrant, type EntitlementGrant } from "./core/entitlements/find-grant";
-import {
-  engineApiClientLayer,
-} from "./core/networking/engine-api-client";
+import { engineApiClientLayer } from "./core/networking/engine-api-client";
 import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
@@ -42,6 +40,7 @@ import {
   makeSdkConfiguration,
 } from "./core/sdk-configuration";
 import { TransactionService } from "./core/transactions/transaction-service";
+import { COMMERCE_FEATURES_ENABLED } from "./core/constants";
 import {
   type VoidhashErrorCode,
   NotInitializedError,
@@ -73,8 +72,9 @@ export interface VoidhashClientOptions {
   ingestUrl?: string;
   /**
    * Starts the SDK in observer mode: transactions are reported to Voidhash but
-   * never finished/acknowledged with the store, and purchases are blocked. Can
-   * be flipped later with `client.setReadOnly()`.
+   * never finished/acknowledged with the store, and purchases are blocked.
+   * Commerce is temporarily unavailable, so the current release always runs
+   * in this mode even when `false` is provided.
    */
   readOnly?: boolean;
   scheme?: string;
@@ -248,8 +248,21 @@ export class VoidhashClient {
       developmentMode: this.developmentMode,
       ingestUrl,
       publishableKey,
-      readOnly,
+      readOnly: readOnly || !COMMERCE_FEATURES_ENABLED,
     });
+    if (enabled && nativeEngine !== undefined) {
+      nativeEngine.configure(
+        publishableKey,
+        JSON.stringify({
+          baseUrl,
+          debug,
+          dev: this.developmentMode,
+          enabled,
+          ingestUrl,
+          readOnly: this.sdkConfiguration.isReadOnly(),
+        }),
+      );
+    }
     this.effectRuntime = CreateEffectRuntime(
       platform,
       this.developmentMode,
@@ -412,8 +425,8 @@ export class VoidhashClient {
   }
 
   /**
-   * Whether the SDK currently runs in observer ("read-only") mode. Reflects
-   * the latest {@link VoidhashClient.setReadOnly} call.
+   * Whether the SDK currently runs in observer ("read-only") mode. The
+   * current release always returns `true` while commerce is unavailable.
    */
   get isReadOnly() {
     return this.sdkConfiguration.isReadOnly();
@@ -437,9 +450,10 @@ export class VoidhashClient {
    * lands may also complete under the previous mode.
    *
    * No-ops in effect on a disabled client — it never processes transactions.
+   * While commerce is unavailable, passing `false` keeps observer mode on.
    */
   setReadOnly(readOnly: boolean) {
-    this.sdkConfiguration.setReadOnly(readOnly);
+    this.sdkConfiguration.setReadOnly(readOnly || !COMMERCE_FEATURES_ENABLED);
   }
 
   /**
@@ -646,10 +660,10 @@ export class VoidhashClient {
 
   /**
    * Resolves the currently assigned paywall showing for a location slug.
-   * Answers `Ok(null)` while disabled.
+   * Answers `Ok(null)` while disabled or while paywalls are unavailable.
    */
   async getPaywallForLocation(locationSlug: LocationSlug) {
-    if (!this.enabled) {
+    if (!this.enabled || !COMMERCE_FEATURES_ENABLED) {
       return Result.ok(null);
     }
 
@@ -682,7 +696,8 @@ export class VoidhashClient {
   }
 
   /**
-   * Purchases a product. Blocked in observer mode — the check reads the mode
+   * Purchases a product. Temporarily unavailable in this release and blocked
+   * in observer mode — the check reads the mode
    * in effect when the purchase starts, so a `setReadOnly()` landing later
    * doesn't abandon it. Resolves to a `Result`; cancellation and deferral are
    * `Ok` outcomes, every failure is an `Err` carrying a coded
@@ -791,8 +806,9 @@ export class VoidhashClient {
   // IOS only methods
   // ===============================
 
+  /** Presents Apple's offer-code sheet. Inert while commerce is unavailable. */
   async iosPresentCodeRedemptionSheet(): Promise<Result<void, VoidhashError>> {
-    if (!this.enabled) {
+    if (!this.enabled || !COMMERCE_FEATURES_ENABLED) {
       return Result.ok(undefined);
     }
 
@@ -807,8 +823,9 @@ export class VoidhashClient {
     });
   }
 
+  /** Presents Apple's subscription manager. Inert while commerce is unavailable. */
   async iosShowManageSubscriptions(): Promise<Result<void, VoidhashError>> {
-    if (!this.enabled) {
+    if (!this.enabled || !COMMERCE_FEATURES_ENABLED) {
       return Result.ok(undefined);
     }
 

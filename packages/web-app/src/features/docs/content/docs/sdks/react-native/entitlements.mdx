@@ -25,14 +25,14 @@ return hasAccess ? <PremiumContent /> : <UpgradePrompt />;
 
 The hook returns:
 
-| Field       | Meaning                                                                              |
-| ----------- | ------------------------------------------------------------------------------------ |
-| `hasAccess` | `true` when the person holds an active grant for the perk.                            |
-| `grant`     | The active grant behind `hasAccess`, or `null`.                                       |
-| `isLoading` | `true` until the first snapshot has loaded.                                           |
-| `isStale`   | `true` when `hasAccess` was served from cache because a refresh failed.               |
-| `error`     | The refresh error, if any.                                                            |
-| `refetch`   | Force a refresh.                                                                      |
+| Field       | Meaning                                                                 |
+| ----------- | ----------------------------------------------------------------------- |
+| `hasAccess` | `true` when the person holds an active grant for the perk.              |
+| `grant`     | The active grant behind `hasAccess`, or `null`.                         |
+| `isLoading` | `true` until the first snapshot has loaded.                             |
+| `isStale`   | `true` when `hasAccess` was served from cache because a refresh failed. |
+| `error`     | The refresh error, if any.                                              |
+| `refetch`   | Force a refresh.                                                        |
 
 Outside React, use the imperative counterpart:
 
@@ -128,4 +128,3 @@ refetch();
 
 - [Check access from your backend](/libraries/node/check-access)
 - [Identify customers across devices](/sdks/react-native/identify-users)
-- [Make and restore purchases](/sdks/react-native/purchases)

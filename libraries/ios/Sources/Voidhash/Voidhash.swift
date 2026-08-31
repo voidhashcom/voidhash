@@ -1,6 +1,10 @@
 import Foundation
 import VoidhashCore
 
+// Temporary release gate. Transaction observation and submission intentionally stay active while
+// SDK-started purchases and hosted paywalls are unavailable.
+let commerceFeaturesEnabled = false
+
 /// Configuration of a ``VoidhashClient``.
 public struct VoidhashOptions: Sendable {
     /// API origin. Defaults to `https://api.voidhash.com`.
@@ -13,7 +17,8 @@ public struct VoidhashOptions: Sendable {
     public var distinctId: String?
     /// When `false` every client method is inert and no requests are made.
     public var enabled: Bool
-    /// Observer mode: the SDK syncs transactions but never finishes them with the store.
+    /// Observer mode: the SDK syncs transactions but never finishes them with the store. The
+    /// current release always enables this mode while commerce is unavailable.
     public var readOnly: Bool
     /// Requests development mode: purchases run against a mock store and are recorded under
     /// the development environment — nothing is charged. Honored only in debug builds; a
@@ -30,7 +35,7 @@ public struct VoidhashOptions: Sendable {
         debug: Bool = false,
         distinctId: String? = nil,
         enabled: Bool = true,
-        readOnly: Bool = false,
+        readOnly: Bool = true,
         dev: Bool = false,
         onWarning: VoidhashWarningHandler? = nil
     ) {
@@ -39,7 +44,7 @@ public struct VoidhashOptions: Sendable {
         self.debug = debug
         self.distinctId = distinctId
         self.enabled = enabled
-        self.readOnly = readOnly
+        self.readOnly = readOnly || !commerceFeaturesEnabled
         self.dev = dev
         self.onWarning = onWarning
     }

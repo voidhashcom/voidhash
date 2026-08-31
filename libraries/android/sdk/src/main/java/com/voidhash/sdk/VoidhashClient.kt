@@ -55,7 +55,7 @@ class VoidhashClient internal constructor(
     readOnly: Boolean,
     private val onWarning: (String) -> Unit = {},
 ) {
-    private val readOnlyFlag = AtomicBoolean(readOnly)
+    private val readOnlyFlag = AtomicBoolean(readOnly || !COMMERCE_FEATURES_ENABLED)
     private val schemaRef = AtomicReference<RuntimeSchema?>(null)
     private val initMutex = Mutex()
     private var initialized = false
@@ -133,10 +133,16 @@ class VoidhashClient internal constructor(
 
     /**
      * Buys [product]. [activity] becomes the activity Play Billing launches its
-     * flow from.
+     * flow from. Temporarily unavailable while the SDK is observer-only.
      */
     suspend fun purchase(activity: Activity, product: VoidhashProduct): VoidhashTransaction {
         check(enabled) { "CONFIGURATION_MISSING: Voidhash is disabled" }
+        if (!COMMERCE_FEATURES_ENABLED) {
+            throw VoidhashException(
+                "READ_ONLY_PURCHASE_NOT_ALLOWED",
+                "Read-only mode is enabled. Purchasing is disabled for observer-only operation.",
+            )
+        }
         activitySink(activity)
         return try {
             orchestrator.purchase(product, requireSchema())
@@ -226,23 +232,24 @@ class VoidhashClient internal constructor(
     /**
      * Switches observer mode. In observer mode transactions are still synced to
      * the backend but never finished with the store — the host app owns that.
+     * While commerce is unavailable, passing `false` keeps observer mode enabled.
      */
     fun setReadOnly(readOnly: Boolean) {
-        readOnlyFlag.set(readOnly)
+        readOnlyFlag.set(readOnly || !COMMERCE_FEATURES_ENABLED)
     }
 
     /**
      * Presents the paywall configured for [location].
      *
-     * @return false when no paywall is showing for the location or the
-     * presenter declines to show it.
+     * @return false while paywalls are unavailable, when no paywall is showing
+     * for the location, or when the presenter declines to show it.
      */
     suspend fun presentPaywall(
         activity: Activity,
         location: String,
         listener: PaywallListener? = null,
     ): Boolean {
-        if (!enabled) return false
+        if (!enabled || !COMMERCE_FEATURES_ENABLED) return false
         activitySink(activity)
 
         val coordinator = paywallCoordinatorFactory(paywallPurchaseHandler)
@@ -285,7 +292,7 @@ class VoidhashClient internal constructor(
      * needs.
      */
     suspend fun resolvePaywall(location: String): ResolvedPaywall? {
-        if (!enabled) return null
+        if (!enabled || !COMMERCE_FEATURES_ENABLED) return null
         return apiClient.resolvePaywall(identityStore.getDistinctId(), location)
     }
 

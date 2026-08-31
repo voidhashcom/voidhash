@@ -21,32 +21,26 @@ do {
 These codes name the client operation that failed. The message text is informational — never match
 on it.
 
-| Code                            | Thrown by                    | Recovery guidance                                              |
-| ------------------------------- | ---------------------------- | -------------------------------------------------------------- |
-| `CONFIGURATION_MISSING`         | Any call before init succeeds| Await `waitForInitialization()` or retry later.                |
-| `FAILED_TO_GET_CURRENT_PERSON`  | `getCurrentPerson()`         | Serve cached state; see [Check access](/sdks/swift/entitlements). |
-| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`    | Retry later.                                                   |
-| `FAILED_TO_IDENTIFY`            | `identify()`                 | Retry; an already-identified person surfaces this code too.    |
-| `FAILED_TO_GET_FEATURE_FLAGS`   | `getFeatureFlags()`          | Fall back to defaults.                                         |
-| `FAILED_TO_GET_PRODUCTS`        | `getProducts()`              | Retry or render without store metadata.                        |
-| `FAILED_TO_PURCHASE`            | `purchase(product:)`         | See [Purchases](/sdks/swift/purchases).                        |
-| `FAILED_TO_RESTORE_PURCHASES`   | `restorePurchases()`         | Prompt the customer to retry.                                  |
-| `FAILED_TO_PRESENT_PAYWALL`     | `presentPaywall(...)`        | Reported as `.failed`; fall back to your own screen.           |
+| Code                              | Thrown by                     | Recovery guidance                                                 |
+| --------------------------------- | ----------------------------- | ----------------------------------------------------------------- |
+| `CONFIGURATION_MISSING`           | Any call before init succeeds | Await `waitForInitialization()` or retry later.                   |
+| `FAILED_TO_GET_CURRENT_PERSON`    | `getCurrentPerson()`          | Serve cached state; see [Check access](/sdks/swift/entitlements). |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()`       | Retry later.                                                      |
+| `FAILED_TO_IDENTIFY`              | `identify()`                  | Retry; an already-identified person surfaces this code too.       |
+| `FAILED_TO_GET_FEATURE_FLAGS`     | `getFeatureFlags()`           | Fall back to defaults.                                            |
+| `FAILED_TO_GET_PRODUCTS`          | `getProducts()`               | Retry or render without store metadata.                           |
+| `FAILED_TO_PURCHASE`              | `purchase(product:)`          | Reserved for the later commerce launch.                           |
+| `FAILED_TO_RESTORE_PURCHASES`     | `restorePurchases()`          | Prompt the customer to retry.                                     |
 
-## Purchase codes
+## Purchase availability
 
-`purchase(product:)` throws only when something went wrong. Cancellation is an expected code —
-match it separately from real failures:
+`purchase(product:)` currently throws before StoreKit is touched:
 
-| Code                | Meaning                                                          |
-| ------------------- | ---------------------------------------------------------------- |
-| `USER_CANCELLED`    | The customer dismissed the native store sheet. Expected.          |
-| `PURCHASE_PENDING`  | The purchase needs external action; access arrives when it reconciles. |
-| `READ_ONLY_NOT_ALLOWED` | Observer mode blocks writes. See [Migrate in observer mode](/resources/observer-mode). |
-| `UNKNOWN`           | An unexpected failure. Report the full error.                     |
+| Code                             | Meaning                                                          |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `READ_ONLY_PURCHASE_NOT_ALLOWED` | Purchase initiation is unavailable in the observer-only release. |
 
 ## Next steps
 
 - [Check access](/sdks/swift/entitlements)
-- [Make and restore purchases](/sdks/swift/purchases)
 - [Swift SDK reference](/sdks/swift)

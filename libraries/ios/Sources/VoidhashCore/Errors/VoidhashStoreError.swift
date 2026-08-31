@@ -47,6 +47,11 @@ extension VoidhashStoreError {
     public static let purchasePending = VoidhashStoreError(
         code: "PURCHASE_PENDING", message: "The payment was deferred")
 
+    /// Purchase initiation is unavailable while the SDK is observing another store owner.
+    public static let readOnlyPurchaseNotAllowed = VoidhashStoreError(
+        code: "READ_ONLY_PURCHASE_NOT_ALLOWED",
+        message: "Read-only mode is enabled. Purchasing is disabled for observer-only operation.")
+
     public static let purchaseUnknownResult = VoidhashStoreError(
         code: "PURCHASE_UNKNOWN_RESULT", message: "Unknown purchase result")
 

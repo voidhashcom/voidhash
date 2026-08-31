@@ -107,7 +107,10 @@ class PurchaseOrchestrator(
     /**
      * Buys [product], syncs the resulting transaction and refreshes the person.
      */
-    suspend fun purchase(product: VoidhashProduct, schema: RuntimeSchema): VoidhashTransaction {
+    internal suspend fun purchase(
+        product: VoidhashProduct,
+        schema: RuntimeSchema,
+    ): VoidhashTransaction {
         // Pinned at purchase start: a purchase this SDK owns must still be
         // finished with the store even if the app flips to observer mode while
         // the store sheet is open.
