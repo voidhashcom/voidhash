@@ -6,6 +6,7 @@ import {
 } from "../../application/ports/PaymentProviderManagementOperations.ts";
 import {
   PaymentProviderConfigurationServiceError,
+  PaymentProviderConfigurationValidationError,
   PaymentProviderId,
 } from "../../domain/ProviderConfiguration.ts";
 
@@ -29,7 +30,9 @@ const makePaymentProviderConfigurationService = Effect.gen(function* () {
   return {
     createPaymentProviderConfiguration: (input) =>
       Schema.decodeUnknownEffect(CreateInput)(input).pipe(
-        Effect.mapError(invalid),
+        Effect.mapError(
+          (error) => new PaymentProviderConfigurationValidationError({ cause: String(error) }),
+        ),
         Effect.flatMap(operations.createPaymentProviderConfiguration),
       ),
     deletePaymentProviderConfiguration: (input) =>

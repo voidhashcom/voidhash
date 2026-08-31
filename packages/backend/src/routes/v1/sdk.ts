@@ -206,7 +206,6 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
     const personIdentityService = yield* PersonIdentityService;
     const notificationTokenService = yield* NotificationTokenService;
     const internalFeatureFlagService = yield* InternalFeatureFlagService;
-    const analyticsDelivery = yield* AnalyticsDelivery;
 
     const requireNotificationsEnabled = (organizationId: string) =>
       internalFeatureFlagService
@@ -441,31 +440,34 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             const exposure = resolved.exposure;
             const exposureDistinctId = exposure?.distinctId ?? exposure?.personId;
             if (exposure && exposureDistinctId) {
-              const eventId = `experiment:${exposure.experimentId.length}:${exposure.experimentId}:${exposureDistinctId.length}:${exposureDistinctId}:${exposure.variantKey}`;
-              yield* dispatchInternalAnalyticsEvent({
-                context: { locationId: resolved.location.id },
-                distinctId: exposureDistinctId,
-                eventId,
-                eventName: "$experiment.exposed",
-                occurredAt: yield* DateTime.nowAsDate,
-                organizationId: project.organizationId,
-                personId: exposure.personId,
-                projectId,
-                properties: {
-                  experimentId: exposure.experimentId,
-                  variantKey: exposure.variantKey,
-                },
-                token: "internal:experiment",
-              }).pipe(
-                Effect.provideService(AnalyticsDelivery, analyticsDelivery),
-                Effect.catchCause((cause) =>
-                  Effect.logWarning("failed to record experiment exposure", {
-                    cause,
+              const analyticsDelivery = yield* Effect.serviceOption(AnalyticsDelivery);
+              if (Option.isSome(analyticsDelivery)) {
+                const eventId = `experiment:${exposure.experimentId.length}:${exposure.experimentId}:${exposureDistinctId.length}:${exposureDistinctId}:${exposure.variantKey}`;
+                yield* dispatchInternalAnalyticsEvent({
+                  context: { locationId: resolved.location.id },
+                  distinctId: exposureDistinctId,
+                  eventId,
+                  eventName: "$experiment.exposed",
+                  occurredAt: yield* DateTime.nowAsDate,
+                  organizationId: project.organizationId,
+                  personId: exposure.personId,
+                  projectId,
+                  properties: {
                     experimentId: exposure.experimentId,
-                    projectId,
-                  }),
-                ),
-              );
+                    variantKey: exposure.variantKey,
+                  },
+                  token: "internal:experiment",
+                }).pipe(
+                  Effect.provideService(AnalyticsDelivery, analyticsDelivery.value),
+                  Effect.catchCause((cause) =>
+                    Effect.logWarning("failed to record experiment exposure", {
+                      cause,
+                      experimentId: exposure.experimentId,
+                      projectId,
+                    }),
+                  ),
+                );
+              }
             }
 
             return new SdkResolvedPaywall({

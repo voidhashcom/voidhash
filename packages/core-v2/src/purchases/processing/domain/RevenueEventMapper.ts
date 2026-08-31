@@ -39,10 +39,10 @@ import {
   RevenueSubscriptionRenewedSchema,
   RevenueSubscriptionTransferredInSchema,
   RevenueSubscriptionTransferredOutSchema,
-} from "../../../analytics/AnalyticsFeature.ts";
+} from "../../contract/RevenueEvents.ts";
 import type { SubscriptionTransferMode } from "../../domain/SubscriptionTransfer.ts";
 import type { PurchaseProcessingMoney } from "../../domain/PurchaseProcessing.ts";
-import { deterministicAnalyticsEventId } from "./RevenueEventId.ts";
+import { deterministicAnalyticsEventId } from "../../contract/RevenueEventId.ts";
 
 export interface RevenueAnalyticsMapperContext {
   readonly token: string;

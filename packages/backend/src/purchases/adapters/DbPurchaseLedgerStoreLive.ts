@@ -1,5 +1,7 @@
 import {
+  MAX_PURCHASE_LEDGER_REQUEUE_IDS,
   PurchaseLedgerClaimedRow,
+  PurchaseLedgerDeadLetterRow,
   PurchaseLedgerStore,
   PurchasePortError,
 } from "@voidhash/core-v2";
@@ -17,7 +19,7 @@ import {
   sql,
 } from "@voidhash/db";
 import { generateId } from "@voidhash/core/utils/generate-id";
-import { Effect, Layer, Schema } from "effect";
+import { DateTime, Effect, Layer, Schema } from "effect";
 
 const portError = (message: string) => (cause: unknown) =>
   new PurchasePortError({ cause, message });
@@ -122,6 +124,7 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
             claimedBy: null,
             lastError: input.lastError,
             status: PurchaseLedgerStatus.DeadLetter,
+            updatedAt: sql`NOW()`,
           })
           .where(ownedClaim(input))
           .pipe(
@@ -158,6 +161,177 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
           })
           .where(ownedClaim(input))
           .pipe(Effect.asVoid, Effect.mapError(portError("failed to retry a purchase ledger row"))),
+
+      listDeadLetters: (input) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select({
+              attemptCount: purchaseLedger.attemptCount,
+              createdAt: purchaseLedger.createdAt,
+              eventsPayload: purchaseLedger.eventsPayload,
+              id: purchaseLedger.id,
+              lastError: purchaseLedger.lastError,
+              organizationId: purchaseLedger.organizationId,
+              personId: purchaseLedger.personId,
+              projectId: purchaseLedger.projectId,
+              providerEventType: purchaseLedger.providerEventType,
+              providerId: purchaseLedger.providerId,
+              rawProviderPayload: purchaseLedger.rawProviderPayload,
+              source: purchaseLedger.source,
+            })
+            .from(purchaseLedger)
+            .where(eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter))
+            .orderBy(asc(purchaseLedger.createdAt))
+            .limit(input.limit)
+            .offset(input.offset);
+          const totals = yield* db
+            .select({ count: sql<number>`count(*)` })
+            .from(purchaseLedger)
+            .where(eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter));
+          return {
+            items: yield* Schema.decodeUnknownEffect(Schema.Array(PurchaseLedgerDeadLetterRow))(
+              rows,
+            ),
+            total: Number(totals[0]?.count ?? 0),
+          };
+        }).pipe(Effect.mapError(portError("failed to list dead-lettered purchase ledger rows"))),
+
+      requeueDeadLetters: ({ ids }) => {
+        if (ids.length === 0) return Effect.succeed(0);
+        if (ids.length > MAX_PURCHASE_LEDGER_REQUEUE_IDS) {
+          return Effect.fail(
+            new PurchasePortError({
+              cause: ids.length,
+              message: `cannot requeue more than ${MAX_PURCHASE_LEDGER_REQUEUE_IDS} purchase ledger rows at once`,
+            }),
+          );
+        }
+        return db
+          .update(purchaseLedger)
+          .set({
+            attemptCount: 0,
+            claimedAt: null,
+            claimedBy: null,
+            nextAttemptAt: null,
+            status: PurchaseLedgerStatus.Pending,
+          })
+          .where(
+            and(
+              eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter),
+              inArray(purchaseLedger.id, [...ids]),
+            ),
+          )
+          .returning({ id: purchaseLedger.id })
+          .pipe(
+            Effect.map((rows) => rows.length),
+            Effect.mapError(portError("failed to requeue dead-lettered purchase ledger rows")),
+          );
+      },
+
+      sweepTransientDeadLetters: ({ limit, minimumDeadLetterAgeSeconds }) =>
+        db
+          .transaction((tx) =>
+            Effect.gen(function* () {
+              const candidates = yield* tx
+                .select({ id: purchaseLedger.id })
+                .from(purchaseLedger)
+                .where(
+                  and(
+                    eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter),
+                    or(
+                      isNull(purchaseLedger.lastError),
+                      sql`${purchaseLedger.lastError} NOT LIKE 'decode failed:%'`,
+                    ),
+                    sql`COALESCE(${purchaseLedger.updatedAt}, ${purchaseLedger.createdAt}) <= NOW() - ${minimumDeadLetterAgeSeconds} * INTERVAL '1 second'`,
+                  ),
+                )
+                .orderBy(asc(purchaseLedger.createdAt))
+                .limit(limit)
+                .for("update", { skipLocked: true });
+
+              let requeuedCount = 0;
+              if (candidates.length > 0) {
+                const requeued = yield* tx
+                  .update(purchaseLedger)
+                  .set({
+                    attemptCount: 0,
+                    claimedAt: null,
+                    claimedBy: null,
+                    nextAttemptAt: null,
+                    status: PurchaseLedgerStatus.Pending,
+                  })
+                  .where(
+                    and(
+                      eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter),
+                      inArray(
+                        purchaseLedger.id,
+                        candidates.map((candidate) => candidate.id),
+                      ),
+                    ),
+                  )
+                  .returning({ id: purchaseLedger.id });
+                requeuedCount = requeued.length;
+              }
+
+              const deadLetters = yield* tx
+                .select({ count: sql<number>`count(*)` })
+                .from(purchaseLedger)
+                .where(eq(purchaseLedger.status, PurchaseLedgerStatus.DeadLetter));
+              const pending = yield* tx
+                .select({
+                  count: sql<number>`count(*)`,
+                  oldest: sql<Date | null>`min(${purchaseLedger.createdAt})`,
+                })
+                .from(purchaseLedger)
+                .where(eq(purchaseLedger.status, PurchaseLedgerStatus.Pending));
+              const overdue = yield* tx
+                .select({
+                  count: sql<number>`count(*)`,
+                  oldest: sql<Date | null>`min(COALESCE(${purchaseLedger.nextAttemptAt}, ${purchaseLedger.createdAt}))`,
+                })
+                .from(purchaseLedger)
+                .where(
+                  and(
+                    eq(purchaseLedger.status, PurchaseLedgerStatus.Pending),
+                    or(
+                      isNull(purchaseLedger.nextAttemptAt),
+                      lte(purchaseLedger.nextAttemptAt, sql`NOW()`),
+                    ),
+                  ),
+                );
+              const pendingCount = Number(pending[0]?.count ?? 0);
+              const oldest = pending[0]?.oldest;
+              const overduePendingCount = Number(overdue[0]?.count ?? 0);
+              const oldestOverdue = overdue[0]?.oldest;
+              const now = yield* DateTime.nowAsDate;
+              let oldestPendingAgeSeconds = 0;
+              if (pendingCount > 0 && oldest !== null && oldest !== undefined) {
+                oldestPendingAgeSeconds = Math.max(0, (now.getTime() - oldest.getTime()) / 1_000);
+              }
+              let oldestOverdueAgeSeconds = 0;
+              if (
+                overduePendingCount > 0 &&
+                oldestOverdue !== null &&
+                oldestOverdue !== undefined
+              ) {
+                oldestOverdueAgeSeconds = Math.max(
+                  0,
+                  (now.getTime() - oldestOverdue.getTime()) / 1_000,
+                );
+              }
+
+              return {
+                deadLetterCount: Number(deadLetters[0]?.count ?? 0),
+                oldestOverdueAgeSeconds,
+                oldestPendingAgeSeconds,
+                overduePendingCount,
+                pendingCount,
+                requeuedCount,
+                transientCandidateCount: candidates.length,
+              };
+            }),
+          )
+          .pipe(Effect.mapError(portError("failed to sweep purchase ledger dead letters"))),
     });
   }),
 );

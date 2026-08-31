@@ -30,7 +30,7 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
     const mapCreateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
       switch (tagged._tag) {
-        case "ActionForbiddenError":
+        case "PurchaseActionForbiddenError":
           return new RpcActionForbiddenError({ message: tagged.message ?? "" });
         case "PaymentProviderProductNotFoundError":
           return new RpcPaymentProviderProductNotFoundError({ message: tagged.message ?? "" });
@@ -45,7 +45,7 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
     const mapUpdateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
       switch (tagged._tag) {
-        case "ActionForbiddenError":
+        case "PurchaseActionForbiddenError":
           return new RpcActionForbiddenError({ message: tagged.message ?? "" });
         case "PaymentProviderProductNotFoundError":
           return new RpcPaymentProviderProductNotFoundError({ message: tagged.message ?? "" });
@@ -66,7 +66,7 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
       DeletePaymentProviderProduct: (input) =>
         paymentProviderProductService.deletePaymentProviderProduct(input).pipe(
           Effect.catchTags({
-            ActionForbiddenError: (error) =>
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             PaymentProviderProductServiceError: (error) =>
               Effect.fail(new RpcPaymentProviderProductServiceError({ cause: error.cause })),
@@ -77,7 +77,7 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
       ListProviderProductsByProductId: ({ productId }) =>
         paymentProviderProductService.getProviderProductsByProductId(productId).pipe(
           Effect.catchTags({
-            ActionForbiddenError: (error) =>
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             PaymentProviderProductServiceError: (error) =>
               Effect.fail(new RpcPaymentProviderProductServiceError({ cause: error.cause })),
@@ -88,7 +88,7 @@ export const PaymentProviderProductRpcsLive = PaymentProviderProductRpcsDef.toLa
       SetActivePaymentProviderProduct: (input) =>
         paymentProviderProductService.setActivePaymentProviderProduct(input).pipe(
           Effect.catchTags({
-            ActionForbiddenError: (error) =>
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             PaymentProviderProductServiceError: (error) =>
               Effect.fail(new RpcPaymentProviderProductServiceError({ cause: error.cause })),

@@ -57,7 +57,7 @@ export const PurchaseAuthorizerLive = Layer.succeed(PurchaseAuthorizer, {
       const session = yield* AuthSession;
       const project = session.projects.find((candidate) => candidate.id === projectId);
       if (!project?.permissions.includes("project:all")) {
-        return yield* Effect.fail(new PurchaseActionForbiddenError(message));
+        return yield* Effect.fail(new PurchaseActionForbiddenError({ message }));
       }
     }),
 });

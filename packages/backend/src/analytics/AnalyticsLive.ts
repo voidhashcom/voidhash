@@ -43,7 +43,7 @@ import {
   type ResolveDistinctIdInput,
 } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { AuthSession } from "@voidhash/rpc";
-import { Crypto, DateTime, Effect, Layer, PlatformError } from "effect";
+import { Crypto, DateTime, Duration, Effect, Layer, PlatformError } from "effect";
 
 const portError = (message: string) => (cause: unknown) =>
   new AnalyticsPortError({ cause, message });
@@ -407,26 +407,51 @@ export interface ClickHouseAnalyticsConnectionOptions {
   readonly username: string;
 }
 
-/** Scoped ClickHouse client that closes when its owning Effect layer is released. */
-export const makeClickHouseAnalyticsClientLive = (input: ClickHouseAnalyticsConnectionOptions) =>
+export interface ClickHouseAnalyticsClientLiveOptions {
+  /** Lazy one-time initializer run before the first query or insert. */
+  readonly initialize?: Effect.Effect<void, unknown>;
+}
+
+/**
+ * Scoped ClickHouse client that closes with its layer. An optional initializer
+ * is memoized after success and invalidated after failure, so unavailable
+ * infrastructure fails analytics operations without failing application boot.
+ */
+export const makeClickHouseAnalyticsClientLive = (
+  input: ClickHouseAnalyticsConnectionOptions,
+  options: ClickHouseAnalyticsClientLiveOptions = {},
+) =>
   Layer.effect(
     ClickHouseAnalyticsClient,
-    Effect.acquireRelease(
-      Effect.sync(() =>
-        createClient({
-          application: "voidhash-analytics",
-          database: input.database,
-          password: input.password,
-          url: input.url,
-          username: input.username,
-        }),
-      ),
-      (client) => Effect.promise(() => client.close()),
-    ).pipe(
-      Effect.map(
-        (client) =>
-          ({
-            insert: ({ deduplicationToken, table, values }) =>
+    Effect.gen(function* () {
+      const client = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          createClient({
+            application: "voidhash-analytics",
+            database: input.database,
+            password: input.password,
+            url: input.url,
+            username: input.username,
+          }),
+        ),
+        (client) => Effect.promise(() => client.close()),
+      );
+      const [initialize, invalidate] = yield* Effect.cachedInvalidateWithTTL(
+        options.initialize ?? Effect.void,
+        Duration.infinity,
+      );
+      const ensureInitialized = initialize.pipe(
+        Effect.tapError((cause) =>
+          Effect.logError("ClickHouse analytics initialization failed", { cause }).pipe(
+            Effect.andThen(invalidate),
+          ),
+        ),
+      );
+
+      return {
+        insert: ({ deduplicationToken, table, values }) =>
+          ensureInitialized.pipe(
+            Effect.andThen(
               Effect.tryPromise(() =>
                 client.insert({
                   table,
@@ -439,7 +464,11 @@ export const makeClickHouseAnalyticsClientLive = (input: ClickHouseAnalyticsConn
                   }),
                 }),
               ).pipe(Effect.asVoid),
-            query: <Row extends object>(statement: ClickHouseStatement) =>
+            ),
+          ),
+        query: <Row extends object>(statement: ClickHouseStatement) =>
+          ensureInitialized.pipe(
+            Effect.andThen(
               Effect.tryPromise(() =>
                 client.query({
                   query: statement.sql,
@@ -451,13 +480,16 @@ export const makeClickHouseAnalyticsClientLive = (input: ClickHouseAnalyticsConn
                   }),
                 }),
               ).pipe(Effect.flatMap((result) => Effect.tryPromise(() => result.json<Row>()))),
-          }) satisfies ClickHouseAnalyticsClientShape,
-      ),
-    ),
+            ),
+          ),
+      } satisfies ClickHouseAnalyticsClientShape;
+    }),
   );
 
 const buildClickHouseAnalyticsLive = (input: ClickHouseAnalyticsConnectionOptions) => {
-  const clientLive = makeClickHouseAnalyticsClientLive(input);
+  const clientLive = makeClickHouseAnalyticsClientLive(input, {
+    initialize: migrateClickHouseAnalytics(input),
+  });
   return AnalyticsInlineLive.pipe(
     Layer.provide(
       Layer.mergeAll(

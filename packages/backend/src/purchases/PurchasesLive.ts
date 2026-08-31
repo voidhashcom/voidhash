@@ -8,7 +8,6 @@ import {
   ExchangeRateSourceLive,
   type ExchangeRateSourceConfig,
 } from "./adapters/ExchangeRateSourceLive.ts";
-import { PaymentProviderManagementLive } from "./adapters/DbPaymentProviderManagementLive.ts";
 
 export { DbPurchaseLedgerStoreLive } from "./adapters/DbPurchaseLedgerStoreLive.ts";
 export { DbPurchaseStateStoreLive } from "./adapters/DbPurchaseStateStore.ts";
@@ -46,11 +45,3 @@ export const makeFxRatesLive = (config: ExchangeRateSourceConfig) =>
     Layer.provide(DbFxRateStoreLive),
     Layer.provide(ExchangeRateSourceLive(config)),
   );
-
-/** Complete purchases application slice with infrastructure requirements left explicit. */
-export const PurchasesLive = Layer.mergeAll(
-  PaymentProviderManagementLive,
-  PurchaseProcessingLive,
-  PurchaseLedgerLive,
-  PurchaseQueryLive,
-);

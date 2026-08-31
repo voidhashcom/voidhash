@@ -1,13 +1,16 @@
 import type { WorkflowRegistration } from "@voidhash/platform/WorkflowRegistration";
 
 import type {
-  AnalyticsDelivery,
   FxRateSource,
   FxRateStore,
   PurchaseLedgerStore,
   PurchaseStateStore,
+  RevenueEventSink,
 } from "@voidhash/core-v2";
-import { PurchaseLedgerDrainRegistration } from "@voidhash/core-v2";
+import {
+  PurchaseLedgerDrainRegistration,
+  PurchaseLedgerSweepRegistration,
+} from "@voidhash/core-v2";
 import type { Db } from "@voidhash/db";
 import { DeliverWebhookRegistration } from "@voidhash/core/workflows/DeliverWebhook";
 import { WebhookDeliverySweepRegistration } from "@voidhash/core/workflows/WebhookDeliverySweep";
@@ -23,11 +26,11 @@ import { StripeReplayParkedNotificationsRegistration } from "./StripeReplayParke
 /** Infrastructure every backend workflow registration may consume. */
 export type BackendWorkflowInfra =
   | Db
-  | AnalyticsDelivery
   | FxRateSource
   | FxRateStore
   | PurchaseLedgerStore
-  | PurchaseStateStore;
+  | PurchaseStateStore
+  | RevenueEventSink;
 
 /** Complete backend workflow registry shared by every platform adapter. */
 export const backendWorkflows: ReadonlyArray<WorkflowRegistration<BackendWorkflowInfra>> = [
@@ -35,6 +38,7 @@ export const backendWorkflows: ReadonlyArray<WorkflowRegistration<BackendWorkflo
   WebhookDeliverySweepRegistration,
   FxRateSyncRegistration,
   PurchaseLedgerDrainRegistration,
+  PurchaseLedgerSweepRegistration,
   PendingRevenueReplaySweepRegistration,
   AppStoreExpireParkedNotificationsRegistration,
   AppStoreReplayParkedNotificationsRegistration,

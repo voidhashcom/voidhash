@@ -93,4 +93,4 @@ export interface PurchaseStateStoreShape {
 export class PurchaseStateStore extends Context.Service<
   PurchaseStateStore,
   PurchaseStateStoreShape
->()("purchases/PurchaseStateStore") {}
+>()("@voidhash/core-v2/purchases/PurchaseStateStore") {}

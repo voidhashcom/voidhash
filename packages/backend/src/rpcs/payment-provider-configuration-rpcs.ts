@@ -33,7 +33,7 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
     const mapUpdateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
       switch (tagged._tag) {
-        case "ActionForbiddenError":
+        case "PurchaseActionForbiddenError":
           return new RpcActionForbiddenError({ message: tagged.message ?? "" });
         case "PaymentProviderConfigurationKeyUnavailableError":
           return new RpcPaymentProviderConfigurationKeyUnavailableError({
@@ -57,7 +57,7 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
       CreatePaymentProviderConfiguration: (input) =>
         paymentProviderConfigurationService.createPaymentProviderConfiguration(input).pipe(
           Effect.catchTags({
-            ActionForbiddenError: (error) =>
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             PaymentProviderAlreadyExistsError: (error) =>
               Effect.fail(new RpcPaymentProviderAlreadyExistsError({ message: error.message })),
@@ -72,10 +72,12 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
       DeletePaymentProviderConfiguration: (input) =>
         paymentProviderConfigurationService.deletePaymentProviderConfiguration(input).pipe(
           Effect.catchTags({
-            ActionForbiddenError: (error) =>
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             PaymentProviderConfigurationInUseError: (error) =>
-              Effect.fail(new RpcPaymentProviderConfigurationInUseError({ message: error.message })),
+              Effect.fail(
+                new RpcPaymentProviderConfigurationInUseError({ message: error.message }),
+              ),
             PaymentProviderConfigurationNotFoundError: (error) =>
               Effect.fail(
                 new RpcPaymentProviderConfigurationNotFoundError({ message: error.message }),
@@ -87,7 +89,7 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
       GetPaymentProviderConfiguration: ({ id }) =>
         paymentProviderConfigurationService.getPaymentProviderConfigurationById(id).pipe(
           Effect.catchTags({
-            ActionForbiddenError: (error) =>
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             PaymentProviderConfigurationNotFoundError: (error) =>
               Effect.fail(
@@ -100,7 +102,7 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
       ListPaymentProviderConfigurations: ({ projectId }) =>
         paymentProviderConfigurationService.getPaymentProviderConfigurations(projectId).pipe(
           Effect.catchTags({
-            ActionForbiddenError: (error) =>
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
             PaymentProviderConfigurationServiceError: (error) =>
               Effect.fail(new RpcPaymentProviderConfigurationServiceError({ cause: error.cause })),

@@ -419,6 +419,12 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
                   cause: `Permission denied during SDK snapshot composition: ${error.message}`,
                 }),
               ),
+            PurchaseActionForbiddenError: (error) =>
+              Effect.fail(
+                new SdkServiceError({
+                  cause: `Permission denied during SDK snapshot composition: ${error.message}`,
+                }),
+              ),
           }),
         ),
     );
@@ -555,6 +561,12 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
                 }),
               ),
             ActionForbiddenError: (error) =>
+              Effect.fail(
+                new SdkServiceError({
+                  cause: `Permission denied during SDK snapshot composition: ${error.message}`,
+                }),
+              ),
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(
                 new SdkServiceError({
                   cause: `Permission denied during SDK snapshot composition: ${error.message}`,
@@ -702,6 +714,12 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
                 }),
               ),
             ActionForbiddenError: (error) =>
+              Effect.fail(
+                new SdkServiceError({
+                  cause: `Permission denied during SDK snapshot composition: ${error.message}`,
+                }),
+              ),
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(
                 new SdkServiceError({
                   cause: `Permission denied during SDK snapshot composition: ${error.message}`,
@@ -889,6 +907,12 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
                 }),
               ),
             ActionForbiddenError: (error) =>
+              Effect.fail(
+                new SdkServiceError({
+                  cause: `Permission denied during SDK snapshot composition: ${error.message}`,
+                }),
+              ),
+            PurchaseActionForbiddenError: (error) =>
               Effect.fail(
                 new SdkServiceError({
                   cause: `Permission denied during SDK snapshot composition: ${error.message}`,

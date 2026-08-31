@@ -3,6 +3,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy/RuntimeContext";
 import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
 import { EventCaptureApi } from "@voidhash/api-contracts/event-capture";
+import { RevenueEventSinkLive } from "@voidhash/core-v2";
 import {
   BackendComponentCompilerStubLive,
   BackendNoopIdentityProjectionPublisherLive,
@@ -15,7 +16,6 @@ import {
 import {
   makeClickHouseAnalyticsLive,
   makePostgresAnalyticsLive,
-  migrateClickHouseAnalytics,
 } from "@voidhash/backend/analytics/AnalyticsLive";
 import {
   DbFxRateStoreLive,
@@ -119,7 +119,6 @@ const analyticsLiveFromConfig = Effect.gen(function* () {
       Config.withDefault("default"),
     ),
   };
-  yield* migrateClickHouseAnalytics(config).pipe(Effect.orDie);
   return makeClickHouseAnalyticsLive(config);
 });
 
@@ -221,10 +220,14 @@ export default Cloudflare.Worker(
     const workflowDb = HyperdriveDbLayer.make(dbConnection).pipe(
       Layer.provide(Layer.succeed(RuntimeContext, runtimeContext)),
     );
-    const workflowAnalytics = AnalyticsLive.pipe(
-      Layer.provide(PersonIdentityService.layer),
-      Layer.provide(BackendNoopIdentityProjectionPublisherLive),
-      Layer.provide(workflowDb),
+    const workflowAnalytics = RevenueEventSinkLive.pipe(
+      Layer.provide(
+        AnalyticsLive.pipe(
+          Layer.provide(PersonIdentityService.layer),
+          Layer.provide(BackendNoopIdentityProjectionPublisherLive),
+          Layer.provide(workflowDb),
+        ),
+      ),
     );
     const workflowPurchaseLedger = DbPurchaseLedgerStoreLive.pipe(Layer.provide(workflowDb));
     const workflowPurchaseState = DbPurchaseStateStoreLive.pipe(Layer.provide(workflowDb));

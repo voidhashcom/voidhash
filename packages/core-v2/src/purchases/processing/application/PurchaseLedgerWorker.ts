@@ -1,11 +1,8 @@
 import { Cause, Context, Effect, Layer, Schedule, Schema } from "effect";
 
-import {
-  AnalyticsDelivery,
-  dispatchInternalAnalyticsEvents,
-  InternalAnalyticsEventSchema,
-} from "../../../analytics/AnalyticsFeature.ts";
 import { PurchaseLedgerStore } from "../../application/ports/PurchaseLedgerStore.ts";
+import { RevenueEventSink } from "../../application/ports/RevenueEventSink.ts";
+import { RevenueEventSchema } from "../../contract/RevenueEvents.ts";
 import {
   PurchaseLedgerWorkerServiceError,
   PurchaseLedgerWorkerPollOptions,
@@ -14,24 +11,25 @@ import {
   type PurchaseLedgerWorkerPollResult,
 } from "../domain/PurchaseLedger.ts";
 
-const LedgerAnalyticsEvents = Schema.toCodecJson(Schema.Array(InternalAnalyticsEventSchema));
+const LedgerRevenueEvents = Schema.toCodecJson(Schema.Array(RevenueEventSchema));
 
-const DEFAULT_RUN_OPTIONS: typeof PurchaseLedgerWorkerRunOptions.Type = {
+export const DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS: typeof PurchaseLedgerWorkerRunOptions.Type = {
   batchSize: 100,
-  maxAttempts: 8,
+  maxAttempts: 50,
   pollIntervalMillis: 5_000,
   staleClaimSeconds: 5 * 60,
 };
 
-const DECODE_FAILED = "decode_failed";
 const DEAD_LETTERED = "dead_lettered";
 const PUBLISHED = "published";
 const RETRIED = "retried";
 
-type DeliveryResult = { readonly error: string; readonly ok: false } | { readonly ok: true };
+type DeliveryResult =
+  | { readonly error: string; readonly ok: false }
+  | { readonly deadLettered: number; readonly ok: true; readonly stored: number };
 
 const makePurchaseLedgerWorker = Effect.gen(function* () {
-  const delivery = yield* AnalyticsDelivery;
+  const sink = yield* RevenueEventSink;
   const store = yield* PurchaseLedgerStore;
 
   const processRow = Effect.fn("PurchaseLedgerWorker.processRow")(function* (
@@ -44,9 +42,7 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
       "purchase_ledger.id": row.id,
     });
 
-    const decoded = yield* Schema.decodeUnknownEffect(LedgerAnalyticsEvents)(
-      row.eventsPayload,
-    ).pipe(
+    const decoded = yield* Schema.decodeUnknownEffect(LedgerRevenueEvents)(row.eventsPayload).pipe(
       Effect.catch((error) =>
         store
           .deadLetter({
@@ -55,21 +51,31 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
             id: row.id,
             lastError: `decode failed: ${String(error)}`.slice(0, 1_000),
           })
-          .pipe(Effect.as(DECODE_FAILED)),
+          .pipe(Effect.as(null)),
       ),
     );
-    if (decoded === DECODE_FAILED) return DEAD_LETTERED;
-
-    const delivered = yield* dispatchInternalAnalyticsEvents(decoded).pipe(
-      Effect.provideService(AnalyticsDelivery, delivery),
-      Effect.matchCause({
-        onFailure: (cause) => ({ error: Cause.pretty(cause), ok: false }) satisfies DeliveryResult,
-        onSuccess: () => ({ ok: true }) satisfies DeliveryResult,
-      }),
-    );
-    if (delivered.ok) {
+    if (decoded === null) return DEAD_LETTERED;
+    if (decoded.length === 0) {
       yield* store.publish({ claimedBy: row.claimedBy, id: row.id });
       return PUBLISHED;
+    }
+
+    const delivered = yield* sink.deliver(decoded).pipe(
+      Effect.matchCause({
+        onFailure: (cause) => ({ error: Cause.pretty(cause), ok: false }) satisfies DeliveryResult,
+        onSuccess: (outcome) => ({ ok: true, ...outcome }) satisfies DeliveryResult,
+      }),
+    );
+    if (delivered.ok && delivered.deadLettered === 0 && delivered.stored === decoded.length) {
+      yield* store.publish({ claimedBy: row.claimedBy, id: row.id });
+      return PUBLISHED;
+    }
+
+    let deliveryError: string;
+    if (delivered.ok) {
+      deliveryError = `delivery incomplete: stored ${delivered.stored}/${decoded.length}, dead-lettered ${delivered.deadLettered}`;
+    } else {
+      deliveryError = delivered.error;
     }
 
     const nextAttempt = row.attemptCount + 1;
@@ -78,7 +84,7 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
         attemptCount: nextAttempt,
         claimedBy: row.claimedBy,
         id: row.id,
-        lastError: delivered.error.slice(0, 1_000),
+        lastError: deliveryError.slice(0, 1_000),
       });
       return DEAD_LETTERED;
     }
@@ -88,12 +94,14 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
       backoffSeconds: Math.min(3_600, 2 ** nextAttempt),
       claimedBy: row.claimedBy,
       id: row.id,
-      lastError: delivered.error.slice(0, 1_000),
+      lastError: deliveryError.slice(0, 1_000),
     });
     return RETRIED;
   });
 
-  const poll = (options: typeof PurchaseLedgerWorkerPollOptions.Type = DEFAULT_RUN_OPTIONS) =>
+  const poll = (
+    options: typeof PurchaseLedgerWorkerPollOptions.Type = DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS,
+  ) =>
     Effect.gen(function* () {
       const decodedOptions = yield* Schema.decodeUnknownEffect(PurchaseLedgerWorkerPollOptions)(
         options,
@@ -130,7 +138,9 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
       Effect.withSpan("PurchaseLedgerWorker.poll"),
     );
 
-  const run = (options: typeof PurchaseLedgerWorkerRunOptions.Type = DEFAULT_RUN_OPTIONS) =>
+  const run = (
+    options: typeof PurchaseLedgerWorkerRunOptions.Type = DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS,
+  ) =>
     Schema.decodeUnknownEffect(PurchaseLedgerWorkerRunOptions)(options).pipe(
       Effect.mapError((error) => new PurchaseLedgerWorkerServiceError({ cause: String(error) })),
       Effect.flatMap((decodedOptions) =>
@@ -151,5 +161,6 @@ export class PurchaseLedgerWorker extends Context.Service<
   PurchaseLedgerWorker,
   PurchaseLedgerWorkerShape
 >()("@voidhash/core-v2/purchases/PurchaseLedgerWorker", { make: makePurchaseLedgerWorker }) {
+  static readonly DEFAULT_RUN_OPTIONS = DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS;
   static readonly layer = Layer.effect(PurchaseLedgerWorker)(PurchaseLedgerWorker.make);
 }

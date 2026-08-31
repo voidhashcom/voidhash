@@ -34,11 +34,7 @@ export const PurchaseLedgerDrainRegistration = WorkflowRegistration.make(Purchas
           success: PollResult,
           execute: Effect.gen(function* () {
             const worker = yield* PurchaseLedgerWorker;
-            return yield* worker.poll({
-              batchSize: 100,
-              maxAttempts: 8,
-              staleClaimSeconds: 5 * 60,
-            });
+            return yield* worker.poll(PurchaseLedgerWorker.DEFAULT_RUN_OPTIONS);
           }),
         });
 

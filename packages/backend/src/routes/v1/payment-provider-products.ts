@@ -99,6 +99,8 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
                 Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PurchaseActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
               PaymentProviderProductServiceError: (e) =>
                 Effect.fail(new ApiPaymentProviderProductServiceError({ cause: e.cause })),
             }),
@@ -126,6 +128,8 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
                 Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PurchaseActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
               PaymentProviderProductNotFoundError: (e) =>
                 Effect.fail(new ApiPaymentProviderProductNotFoundError({ message: e.message })),
               PaymentProviderProductServiceError: (e) =>
@@ -146,6 +150,8 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PurchaseActionForbiddenError: (e) =>
                 Effect.fail(new ApiActionForbiddenError({ message: e.message })),
               PaymentProviderProductNotFoundError: (e) =>
                 Effect.fail(new ApiPaymentProviderProductNotFoundError({ message: e.message })),
@@ -172,6 +178,8 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
                 Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PurchaseActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
               PaymentProviderProductNotFoundError: (e) =>
                 Effect.fail(new ApiPaymentProviderProductNotFoundError({ message: e.message })),
               PaymentProviderProductServiceError: (e) =>
@@ -191,6 +199,8 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PurchaseActionForbiddenError: (e) =>
                 Effect.fail(new ApiActionForbiddenError({ message: e.message })),
               PaymentProviderProductServiceError: (e) =>
                 Effect.fail(new ApiPaymentProviderProductServiceError({ cause: e.cause })),
@@ -218,6 +228,8 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
+                Effect.fail(new ApiActionForbiddenError({ message: e.message })),
+              PurchaseActionForbiddenError: (e) =>
                 Effect.fail(new ApiActionForbiddenError({ message: e.message })),
               PaymentProviderProductNotFoundError: (e) =>
                 Effect.fail(new ApiPaymentProviderProductNotFoundError({ message: e.message })),

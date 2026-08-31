@@ -30,7 +30,9 @@ export interface AnalyticsDeliveryShape {
   /**
    * Hands accepted capture envelopes to the configured processing path. Every
    * envelope is attempted before a hard failure is reported, and the outcome
-   * distinguishes stored from dead-lettered envelopes.
+   * distinguishes stored from dead-lettered envelopes. Queue-backed delivery
+   * reports durable queue acceptance optimistically as `stored`; only inline
+   * delivery can report the processor's final dead-letter outcome here.
    */
   readonly deliver: (
     envelopes: ReadonlyArray<typeof CapturedEventV1.Type>,

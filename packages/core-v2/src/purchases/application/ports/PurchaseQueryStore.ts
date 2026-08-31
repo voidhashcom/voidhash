@@ -1,5 +1,5 @@
 import type { AuthSession } from "@voidhash/rpc";
-import { Context, type Effect } from "effect";
+import { Context, Schema, type Effect } from "effect";
 
 import type { Purchase } from "../../domain/Purchase.ts";
 import type { PurchasePortError } from "./PurchasePortError.ts";
@@ -32,15 +32,9 @@ export interface PurchaseAuthorizerShape {
   ) => Effect.Effect<void, PurchaseActionForbiddenError, AuthSession>;
 }
 
-export class PurchaseActionForbiddenError extends Error {
-  readonly _tag = "ActionForbiddenError";
-  override readonly message: string;
-
-  constructor(message: string) {
-    super(message);
-    this.message = message;
-  }
-}
+export class PurchaseActionForbiddenError extends Schema.TaggedErrorClass<PurchaseActionForbiddenError>(
+  "PurchaseActionForbiddenError",
+)("PurchaseActionForbiddenError", { message: Schema.String }) {}
 
 /** Authorization boundary used by purchase queries. */
 export class PurchaseAuthorizer extends Context.Service<

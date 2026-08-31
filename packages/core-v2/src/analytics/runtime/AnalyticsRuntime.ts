@@ -10,6 +10,10 @@ import {
 import { InlineAnalyticsDeliveryLive } from "../ingest/adapters/delivery/inline.ts";
 import { QueuedAnalyticsDeliveryLive } from "../ingest/adapters/delivery/queue.ts";
 import { AnalyticsQuery } from "../query/application/AnalyticsQuery.ts";
+import {
+  RevenueEventSink,
+  RevenueEventSinkError,
+} from "../../purchases/application/ports/RevenueEventSink.ts";
 
 const ProcessorWithInlineDeliveryLive = InlineAnalyticsDeliveryLive.pipe(
   Layer.provideMerge(AnalyticsProcessor.layer),
@@ -40,6 +44,34 @@ export const AnalyticsQueuedLive = Layer.mergeAll(
   CaptureWithQueuedDeliveryLive,
   AnalyticsProcessor.layer,
   AnalyticsQuery.layer,
+);
+
+/** Queue-backed delivery without the analytics processor or query graph. */
+export const AnalyticsQueuedDeliveryOnlyLive = QueuedAnalyticsDeliveryLive;
+
+/** Adapts analytics capture envelopes to the purchase-owned revenue sink. */
+export const RevenueEventSinkLive = Layer.effect(
+  RevenueEventSink,
+  Effect.gen(function* () {
+    const delivery = yield* AnalyticsDelivery;
+    return RevenueEventSink.of({
+      deliver: (events) =>
+        Effect.gen(function* () {
+          const receivedAt = yield* DateTime.nowAsDate;
+          return yield* delivery.deliver(
+            events.map((event) => makeInternalCaptureEnvelope(event, receivedAt)),
+          );
+        }).pipe(
+          Effect.mapError(
+            (error) =>
+              new RevenueEventSinkError({
+                cause: error,
+                message: error.message,
+              }),
+          ),
+        ),
+    });
+  }),
 );
 
 /** Validate and dispatch a server-trusted event through the configured delivery service. */

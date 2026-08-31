@@ -80,6 +80,22 @@ export const PurchaseLedgerDrain = Workflow.define({
   idempotencyKey: ({ runId }) => runId,
 });
 
+/** Requeues transient purchase-ledger dead letters and records backlog health. */
+export const PurchaseLedgerSweep = Workflow.define({
+  name: "PurchaseLedgerSweepWorkflow",
+  payload: { runId: Schema.String },
+  success: Schema.Struct({
+    deadLetterCount: Schema.Number,
+    oldestOverdueAgeSeconds: Schema.Number,
+    oldestPendingAgeSeconds: Schema.Number,
+    overduePendingCount: Schema.Number,
+    pendingCount: Schema.Number,
+    requeuedCount: Schema.Number,
+    transientCandidateCount: Schema.Number,
+  }),
+  idempotencyKey: ({ runId }) => runId,
+});
+
 /** Retries parked provider events whose product or transaction dependency now exists. */
 export const PendingRevenueReplaySweep = Workflow.define({
   name: "PendingRevenueReplaySweepWorkflow",
