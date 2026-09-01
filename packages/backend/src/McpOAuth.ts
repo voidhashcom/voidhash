@@ -8,13 +8,15 @@
  * {@link McpOAuthUnconfiguredLive}, which reports the endpoint as unconfigured
  * so clients fall back to key auth.
  */
-import { Context, Data, Effect, Layer } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
-export class McpOAuthError extends Data.TaggedError("McpOAuthError")<{
-  readonly kind: "invalid_token" | "misconfigured" | "upstream";
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class McpOAuthError extends Schema.TaggedErrorClass<McpOAuthError>("McpOAuthError")(
+  "McpOAuthError",
+  { kind: Schema.Literals(["invalid_token" , "misconfigured" , "upstream"]), message: Schema.String, cause: Schema.optional(Schema.Unknown) },
+) {}
 
 /** Identity claims an MCP access token must carry. */
 export interface McpOAuthClaims {
@@ -24,7 +26,7 @@ export interface McpOAuthClaims {
 
 export interface McpOAuthShape {
   /** Issuer advertised by OAuth discovery, or `undefined` when unconfigured. */
-  readonly authorizationServer: string | undefined;
+  readonly authorizationServer: string | typeof Schema.Undefined.Type;
   /** Verifies a resource-bound access token and returns its identity claims. */
   readonly verifyAccessToken: (
     token: string,

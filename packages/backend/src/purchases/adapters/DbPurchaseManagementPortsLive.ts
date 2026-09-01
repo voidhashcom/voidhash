@@ -28,7 +28,11 @@ import {
   paymentProviderConfigurations,
   products,
 } from "@voidhash/db";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
 
 const portError = (message: string) => (cause: unknown) =>
   new PurchasePortError({ cause, message });
@@ -135,7 +139,7 @@ export const makeDbPurchaseManagementRepository = (
       Effect.mapError(portError("failed to find provider product mapping")),
     ),
   findScopedConfiguration: (input) => {
-    if (input.projectIds.length === 0) return Effect.succeed(undefined);
+    if (Arr.isReadonlyArrayEmpty(input.projectIds)) return Effect.succeed(undefined);
     return db.query.paymentProviderConfigurations
       .findFirst({
         where: {
@@ -281,7 +285,7 @@ export const makeDbPurchaseManagementRepository = (
         columns: { id: true },
         where: { paymentProviderConfigurationProductId: id },
       }),
-    ]).pipe(
+    ], { concurrency: 1 }).pipe(
       Effect.map((references) => references.some((reference) => reference !== undefined)),
       Effect.mapError(portError("failed to inspect provider product history")),
     ),

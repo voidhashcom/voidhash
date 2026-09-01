@@ -1,9 +1,12 @@
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
 import { make as makeCoreClient } from "@voidhash/generated-clients";
 import {
   make as makeIngestClient,
   type VoidhashEventCaptureClient,
 } from "@voidhash/generated-clients/event-capture";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { VoidhashNodeConfigurationError } from "../errors";
@@ -23,26 +26,20 @@ export const DEFAULT_INGEST_URL = "https://ingest.voidhash.com";
 
 const SECRET_KEY_HEADER = "x-secret-key";
 
-const hasSecretKeyHeader = (headers: Record<string, string | undefined> | undefined) =>
-  Object.keys(headers ?? {}).some((headerName) => headerName.toLowerCase() === SECRET_KEY_HEADER);
+const hasSecretKeyHeader = (headers?: Record<string, string>) =>
+  R.keys(headers ?? {}).some((headerName) => headerName.toLowerCase() === SECRET_KEY_HEADER);
 
-const normalizeHeaders = (
-  headers: Record<string, string | undefined> | undefined,
-): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(headers ?? {}).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string",
-    ),
-  );
+const normalizeHeaders = (headers?: Record<string, string>): Record<string, string> =>
+  headers ?? {};
 
 const resolveUrl = (
   optionName: string,
-  url: string | undefined,
+  url: Option.Option<string>,
   fallback: string,
 ): Effect.Effect<string, VoidhashNodeConfigurationError> =>
   Effect.gen(function* () {
     const resolved = yield* Effect.try({
-      try: () => new URL(url ?? fallback),
+      try: () => new URL(Option.getOrElse(url, () => fallback)),
       catch: (cause) =>
         new VoidhashNodeConfigurationError(`${optionName} must be a valid URL.`, {
           cause,
@@ -64,7 +61,7 @@ const resolveOptions = (options: VoidhashNodeClientOptions) =>
       return yield* Effect.fail(new VoidhashNodeConfigurationError("secretKey is required."));
     }
 
-    if (typeof globalThis.fetch !== "function") {
+    if (!P.isFunction(globalThis.fetch)) {
       return yield* Effect.fail(
         new VoidhashNodeConfigurationError("globalThis.fetch must be available."),
       );
@@ -77,9 +74,13 @@ const resolveOptions = (options: VoidhashNodeClientOptions) =>
     }
 
     return {
-      baseUrl: yield* resolveUrl("baseUrl", options.baseUrl, DEFAULT_BASE_URL),
+      baseUrl: yield* resolveUrl("baseUrl", Option.fromNullishOr(options.baseUrl), DEFAULT_BASE_URL),
       headers: normalizeHeaders(options.headers),
-      ingestUrl: yield* resolveUrl("ingestUrl", options.ingestUrl, DEFAULT_INGEST_URL),
+      ingestUrl: yield* resolveUrl(
+        "ingestUrl",
+        Option.fromNullishOr(options.ingestUrl),
+        DEFAULT_INGEST_URL,
+      ),
       secretKey: options.secretKey,
     };
   });

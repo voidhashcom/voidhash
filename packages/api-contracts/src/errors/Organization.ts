@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic organization service error */
 export class ApiOrganizationServiceError extends Schema.TaggedErrorClass<ApiOrganizationServiceError>()(

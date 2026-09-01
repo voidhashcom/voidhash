@@ -6,7 +6,11 @@ import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import * as Alchemy from "alchemy";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy/RuntimeContext";
-import { Cause, Effect, Layer, Option } from "effect";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import { makeControlStoreRpcClient } from "./ControlStoreRpc.ts";
 import {
   HttpMiddleware,
   HttpRouter,
@@ -35,7 +39,7 @@ export interface MimicDbWorkerOptions {
   readonly main: string;
   readonly migrations: MigrationRegistry;
   readonly telemetry?: (
-    env: Record<string, unknown> | undefined,
+    env: Option.Option<Record<string, unknown>>,
     stage: string,
   ) => Layer.Layer<never>;
   readonly workerEnv?: Effect.Effect<Record<string, unknown>, never, any>;
@@ -69,11 +73,7 @@ export const makeMimicDbWorker = (options: MimicDbWorkerOptions) => {
 
   const workerProps = Effect.gen(function* () {
     const { stage } = yield* Alchemy.Stack;
-    let workerEnv: Record<string, unknown> = {};
-    if (options.workerEnv !== undefined) {
-      workerEnv = yield* options.workerEnv;
-    }
-
+    const workerEnv = options.workerEnv === undefined ? {} : yield* options.workerEnv;
     return {
       main: options.main,
       workersDev: { enabled: true, previewsEnabled: false },
@@ -86,10 +86,13 @@ export const makeMimicDbWorker = (options: MimicDbWorkerOptions) => {
     };
   }).pipe(Effect.orDie);
 
-  class MimicDbWorker extends Cloudflare.Worker<MimicDbWorker>()(
+  const workerFactory = Cloudflare.Worker<object>();
+  // The published class-factory declaration omits the Effect-backed props arm
+  // implemented at runtime. Keep the compatibility bridge local until the
+  // upstream declaration catches up.
+  const MimicDbWorker: ReturnType<typeof workerFactory> = Reflect.apply(workerFactory, undefined, [
     "MimicDbWorker",
-    // oxlint-disable-next-line effect/noAs -- Alchemy beta.66's three-argument Worker overload omits Effect-backed props even though the runtime accepts them.
-    workerProps as unknown as Cloudflare.WorkerProps,
+    workerProps,
     Effect.gen(function* () {
       const hosts = yield* MimicHostObject;
       const docs = yield* MimicDocumentObject;
@@ -115,16 +118,10 @@ export const makeMimicDbWorker = (options: MimicDbWorkerOptions) => {
       // Worker init (plan/dev eval) crashes. The control store forwards each call
       // to a freshly-resolved host stub at request time; `docStub` is likewise
       // only invoked inside request handlers.
-      // oxlint-disable-next-line effect/noAs -- the Proxy target is an intentionally empty object standing in for ControlStoreApi whose methods are supplied entirely by the get trap; `satisfies` cannot type an unimplemented stub.
-      const controlStore = new Proxy({} as ControlStoreApi, {
-        get:
-          (_target, prop: string) =>
-          (...args: unknown[]) =>
-            // oxlint-disable-next-line effect/noAs -- the Durable Object stub's RPC method names are only known at runtime, so the trap needs an index-signature view of the freshly-resolved host stub to forward the call (see comment above).
-            (hosts.getByName("default") as unknown as Record<string, (...a: unknown[]) => unknown>)[
-              prop
-            ]!(...args),
-      });
+      const controlStore: ControlStoreApi = makeControlStoreRpcClient(
+        () => hosts.getByName("default"),
+        provideRuntimeContext,
+      );
 
       const host = makeDurableHostService({
         controlStore,
@@ -162,9 +159,13 @@ export const makeMimicDbWorker = (options: MimicDbWorkerOptions) => {
       // Optional telemetry is provided around each request so an exporter can
       // flush on scope close before the isolate freezes. Without a deployment
       // hook, Effect's no-op tracer remains in place.
-      const env: Record<string, unknown> | undefined = Option.getOrUndefined(workerEnv);
+      const env = workerEnv;
+      const appEnv = Option.match(env, {
+        onNone: () => undefined,
+        onSome: (value) => value["APP_ENV"],
+      });
       const TelemetryLive =
-        options.telemetry?.(env, stringOr(env?.APP_ENV, "development")) ?? Layer.empty;
+        options.telemetry?.(env, stringOr(appEnv, "development")) ?? Layer.empty;
 
       return {
         fetch: Effect.gen(function* () {
@@ -204,7 +205,7 @@ export const makeMimicDbWorker = (options: MimicDbWorkerOptions) => {
         Layer.mergeAll(Cloudflare.Hyperdrive.ConnectBinding, Cloudflare.Queues.WriteQueueBinding),
       ),
     ),
-  ) {}
+  ]);
 
   return MimicDbWorker;
 };

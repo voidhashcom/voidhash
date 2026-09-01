@@ -15,13 +15,17 @@ import {
 } from "@voidhash/db";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
 import { pick } from "@voidhash/lib/lang";
-import { DateTime, Effect, Option } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { PurchaseProcessingResult } from "@voidhash/core-v2";
 import {
   GooglePlayPaymentProviderNotEnabledForFollowingPackageNameError,
   GooglePlayPurchaseProcessingIdempotencyKeyDerivationError,
 } from "./errors.ts";
+import * as Schema from "effect/Schema";
+import * as Match from "effect/Match";
 
 /** Stable serviceId for the per-provider external-identifier binding (cross-owner transfer / rebind). */
 export const GOOGLE_PLAY_SERVICE_ID = "google-play";
@@ -64,7 +68,7 @@ export interface GooglePlayNormalizedPurchase {
 }
 
 /** Parses an RFC-3339 timestamp string (Play V2 dates) into an `Option<Date>`. */
-const parseRfc3339 = (value: string | undefined): Option.Option<Date> => {
+const parseRfc3339 = (value: string | typeof Schema.Undefined.Type): Option.Option<Date> => {
   if (!value) return Option.none();
   return Option.map(DateTime.make(value), DateTime.toDateUtc);
 };
@@ -270,25 +274,18 @@ export const getGooglePlayPurchaseProcessingIdempotencyKey = (input: {
         purchaseToken: purchase.purchaseToken,
       });
 
-    switch (eventType) {
-      case "purchase":
-      case "renewal":
-      case "one_time_purchase":
-      case "refund": {
-        if (Option.isNone(purchase.orderId)) return yield* fail("orderId");
+    return yield* Match.value(eventType).pipe(
+      Match.whenOr("purchase", "renewal", "one_time_purchase", "refund", () =>
+        Effect.gen(function* () {
+if (Option.isNone(purchase.orderId)) return yield* fail("orderId");
         return `google:${purchase.orderId.value}:${eventType}`;
-      }
-      case "revoke": {
-        return `google:${purchase.purchaseToken}:revoke`;
-      }
-      case "expired":
-      case "canceled":
-      case "billing_retry":
-      case "extended":
-      case "price_increase":
-      case "auto_renew_resumed": {
-        if (Option.isNone(purchase.expiryTime)) return yield* fail("expiryTime");
+        })),
+      Match.when("revoke", () => Effect.succeed(`google:${purchase.purchaseToken}:revoke`)),
+      Match.whenOr("expired", "canceled", "billing_retry", "extended", "price_increase", "auto_renew_resumed", () =>
+        Effect.gen(function* () {
+if (Option.isNone(purchase.expiryTime)) return yield* fail("expiryTime");
         return `google:${purchase.purchaseToken}:${eventType}:${purchase.expiryTime.value.getTime()}`;
-      }
-    }
+        })),
+      Match.exhaustive,
+    );
   });

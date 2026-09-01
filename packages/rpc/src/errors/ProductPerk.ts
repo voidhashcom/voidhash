@@ -3,7 +3,7 @@
  * join row between a `Product` and a `Perk`). Class names and `_tag` values
  * are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all product-perk service error. Wraps `DatabaseError` (and other

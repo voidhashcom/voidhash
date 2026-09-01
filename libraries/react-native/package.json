@@ -78,11 +78,13 @@
     "specs": "pnpm run typescript && nitrogen --logLevel=\"debug\""
   },
   "dependencies": {
+    "@expo/require-utils": "^55.0.0",
     "@noble/hashes": "^2.2.0",
     "@voidhash/android": "workspace:*",
     "@voidhash/generated-clients": "workspace:*",
     "@voidhash/ios": "workspace:*",
-    "better-result": "3.0.1"
+    "better-result": "3.0.1",
+    "pathe": "^2.0.3"
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",

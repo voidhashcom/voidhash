@@ -1,17 +1,13 @@
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 /**
- * Returns the first argument that is a non-empty string, skipping `null`,
- * `undefined`, and empty strings. Returns `null` when none qualify. Useful for
+ * Returns the first argument that contains a non-empty string, skipping
+ * `None` and empty strings. Returns `None` when none qualify. Useful for
  * coalescing optional profile fields (e.g. picking an email/name from several
  * candidate sources in priority order).
  */
 export const firstDefinedString = (
-  ...values: ReadonlyArray<string | null | undefined>
-): string | null => {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
-  }
-
-  return null;
-};
+  ...values: ReadonlyArray<Option.Option<string>>
+): Option.Option<string> =>
+  Arr.findFirst(values, Option.exists(Str.isNonEmpty)).pipe(Option.flatten);

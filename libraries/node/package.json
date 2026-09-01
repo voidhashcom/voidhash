@@ -69,9 +69,11 @@
     "test:watch": "vitest -c vitest.unit.mts"
   },
   "dependencies": {
+    "@noble/hashes": "^2.2.0",
     "effect": "catalog:"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@voidhash/generated-clients": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
     "tsup": "^8.5.1",

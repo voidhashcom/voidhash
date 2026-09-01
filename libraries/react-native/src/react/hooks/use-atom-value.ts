@@ -6,33 +6,6 @@ interface AtomStore<A> {
   readonly snapshot: () => A;
 }
 
-// Mirrors the WeakMap caching pattern used by `@effect/atom-react` so the
-// `useSyncExternalStore` subscribe/snapshot pair is stable across renders.
-const storeRegistry = new WeakMap<
-  AtomRegistry.AtomRegistry,
-  WeakMap<Atom.Atom<unknown>, AtomStore<unknown>>
->();
-
-function getStore<A>(registry: AtomRegistry.AtomRegistry, atom: Atom.Atom<A>): AtomStore<A> {
-  let stores = storeRegistry.get(registry);
-  if (stores === undefined) {
-    stores = new WeakMap();
-    storeRegistry.set(registry, stores);
-  }
-
-  const cached = stores.get(atom as Atom.Atom<unknown>);
-  if (cached !== undefined) {
-    return cached as AtomStore<A>;
-  }
-
-  const store: AtomStore<A> = {
-    subscribe: (notify) => registry.subscribe(atom, notify),
-    snapshot: () => registry.get(atom),
-  };
-  stores.set(atom as Atom.Atom<unknown>, store as AtomStore<unknown>);
-  return store;
-}
-
 /**
  * Reads the value of an Effect `Atom` and re-renders whenever it changes.
  *
@@ -41,7 +14,13 @@ function getStore<A>(registry: AtomRegistry.AtomRegistry, atom: Atom.Atom<A>): A
  * React peer range than this package currently supports).
  */
 export function useAtomValue<A>(registry: AtomRegistry.AtomRegistry, atom: Atom.Atom<A>): A {
-  const store = getStore(registry, atom);
+  const store = React.useMemo<AtomStore<A>>(
+    () => ({
+      subscribe: (notify) => registry.subscribe(atom, notify),
+      snapshot: () => registry.get(atom),
+    }),
+    [registry, atom],
+  );
   const value = React.useSyncExternalStore(store.subscribe, store.snapshot);
 
   // Atoms are lazy: without an active mount they may be removed from the

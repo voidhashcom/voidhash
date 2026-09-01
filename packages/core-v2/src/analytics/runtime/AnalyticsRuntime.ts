@@ -1,4 +1,8 @@
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import { AnalyticsDelivery } from "../application/ports.ts";
 import { InternalAnalyticsEventSchema } from "../domain/InternalAnalyticsEvents.ts";
@@ -55,21 +59,23 @@ export const RevenueEventSinkLive = Layer.effect(
   Effect.gen(function* () {
     const delivery = yield* AnalyticsDelivery;
     return RevenueEventSink.of({
-      deliver: (events) =>
-        Effect.gen(function* () {
+      deliver: Effect.fn("RevenueEventSink.deliver")(
+        function* (events) {
           const receivedAt = yield* DateTime.nowAsDate;
           return yield* delivery.deliver(
             events.map((event) => makeInternalCaptureEnvelope(event, receivedAt)),
           );
-        }).pipe(
+        },
+        (
           Effect.mapError(
             (error) =>
               new RevenueEventSinkError({
                 cause: error,
                 message: error.message,
               }),
-          ),
+          )
         ),
+      ),
     });
   }),
 );
@@ -89,7 +95,7 @@ export const dispatchInternalAnalyticsEvents = (input: unknown) =>
     const events = yield* Schema.decodeUnknownEffect(Schema.Array(InternalAnalyticsEventSchema))(
       input,
     );
-    if (events.length === 0) return;
+    if (Arr.isReadonlyArrayEmpty(events)) return;
     const delivery = yield* AnalyticsDelivery;
     const receivedAt = yield* DateTime.nowAsDate;
     yield* delivery.deliver(events.map((event) => makeInternalCaptureEnvelope(event, receivedAt)));

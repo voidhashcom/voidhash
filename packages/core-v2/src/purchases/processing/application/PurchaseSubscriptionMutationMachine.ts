@@ -1,10 +1,15 @@
 import { SubscriptionStatus } from "@voidhash/lib";
-import { Context, Effect, Layer, Option } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
 
 import {
   EntitlementSync,
   PurchaseIdGenerator,
   PurchaseLedgerWriteStore,
+  PurchasePortError,
   PurchaseStateRepository,
   PurchaseUnitOfWork,
   type PurchaseLedgerReservation,
@@ -63,7 +68,7 @@ interface ApplyMutationInput<I extends Action> {
     context: RevenueAnalyticsMapperContext,
   ) => ReadonlyArray<RevenueEvent>;
   readonly buildPatch: (existing: {
-    readonly expiresAt: Date | null;
+    readonly expiresAt: Option.Option<Date>;
     readonly id: string;
     readonly status: number;
   }) => SubscriptionPatch;
@@ -108,7 +113,9 @@ const subscriptionIdentifierError = (input: Action) =>
     cause: `Subscription event has no subscription identifier (providerEventType=${input.providerEventType}, providerWebhookNotificationId=${Option.getOrElse(input.providerWebhookNotificationId, () => "—")})`,
   });
 
-const makePurchaseSubscriptionMutationMachine = Effect.gen(function* () {
+const makePurchaseSubscriptionMutationMachine = Effect.fn(
+  "makePurchaseSubscriptionMutationMachine",
+)(function* () {
   const ids = yield* PurchaseIdGenerator;
   const repository = yield* PurchaseStateRepository;
   const unitOfWork = yield* PurchaseUnitOfWork;
@@ -218,7 +225,7 @@ const makePurchaseSubscriptionMutationMachine = Effect.gen(function* () {
           const ledger = yield* PurchaseLedgerWriteStore;
           const entitlements = yield* EntitlementSync;
           const claim = yield* reserve(ledger, input.action);
-          if (claim._tag === "duplicate") return claim.result;
+          if (P.hasProperty(claim, "result")) return claim.result;
 
           const existing = yield* txRepository.findSubscriptionByStoreSubscriptionId({
             paymentProviderConfigurationProductId: context.configurationProduct.id,
@@ -231,7 +238,7 @@ const makePurchaseSubscriptionMutationMachine = Effect.gen(function* () {
           }
 
           const updated = yield* txRepository.updateSubscriptionIfFresher({
-            ...input.buildPatch(existing),
+            ...input.buildPatch({ ...existing, expiresAt: Option.fromNullishOr(existing.expiresAt) }),
             id: existing.id,
             occurredAt: input.action.occurredAt,
           });
@@ -263,7 +270,7 @@ const makePurchaseSubscriptionMutationMachine = Effect.gen(function* () {
       );
     }).pipe(
       Effect.mapError((error) => {
-        if (error._tag === "PurchasePortError") {
+        if (error instanceof PurchasePortError) {
           return new PurchaseProcessingServiceError({ cause: describePurchaseErrorCause(error) });
         }
         return error;
@@ -334,8 +341,8 @@ const makePurchaseSubscriptionMutationMachine = Effect.gen(function* () {
         buildEvents: (result, context) => toAutoRenewResumedAnalyticsInputs(input, result, context),
         buildPatch: (existing) => {
           const periodStillRunning =
-            existing.expiresAt === null ||
-            existing.expiresAt.getTime() > input.occurredAt.getTime();
+            Option.isNone(existing.expiresAt) ||
+            existing.expiresAt.value.getTime() > input.occurredAt.getTime();
           const patch = {
             cancelAtPeriodEnd: false,
             canceledAt: null,
@@ -348,7 +355,7 @@ const makePurchaseSubscriptionMutationMachine = Effect.gen(function* () {
         syncPerksOnApply: true,
       }),
   } satisfies PurchaseSubscriptionMutationMachineShape;
-});
+})();
 
 /** Core state-machine slice for subscription metadata transitions. */
 export class PurchaseSubscriptionMutationMachine extends Context.Service<

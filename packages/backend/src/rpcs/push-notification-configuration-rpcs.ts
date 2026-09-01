@@ -8,7 +8,9 @@ import {
   RpcPushNotificationConfigurationValidationError,
 } from "@voidhash/rpc";
 import { constant } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as P from "effect/Predicate";
+import * as Match from "effect/Match";
 
 /**
  * Studio RPC surface for per-(project, provider) push credentials — the
@@ -27,11 +29,16 @@ interface TaggedErrorLike {
 }
 
 const isTaggedErrorLike = (error: unknown): error is TaggedErrorLike =>
-  typeof error === "object" && error !== null;
+  P.isObject(error) && error !== null;
 
 const taggedErrorFields = (error: unknown): TaggedErrorLike => {
   if (isTaggedErrorLike(error)) return error;
   return {};
+};
+
+const toRpcConfiguration = <A extends { readonly enabled: boolean }>(configuration: A) => {
+  const { enabled, ...rest } = configuration;
+  return { ...rest, isEnabled: enabled };
 };
 
 export const PushNotificationConfigurationRpcsLive = PushNotificationConfigurationRpcsDef.toLayer(
@@ -39,30 +46,26 @@ export const PushNotificationConfigurationRpcsLive = PushNotificationConfigurati
     const service = yield* NotificationsConfigurationService;
     const mapUpdateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
-      switch (tagged._tag) {
-        case "ActionForbiddenError":
-          return new RpcActionForbiddenError({ message: tagged.message ?? "" });
-        case "NotificationConfigNotFoundError":
-          return new RpcPushNotificationConfigurationNotFoundError({
+      return Match.value(tagged).pipe(
+        Match.when({ _tag: "ActionForbiddenError" }, () => new RpcActionForbiddenError({ message: tagged.message ?? "" })),
+        Match.when({ _tag: "NotificationConfigNotFoundError" }, () => new RpcPushNotificationConfigurationNotFoundError({
             message: tagged.message ?? "",
-          });
-        case "NotificationConfigKeyUnavailableError":
-          return new RpcPushNotificationConfigurationKeyUnavailableError({
+          })),
+        Match.when({ _tag: "NotificationConfigKeyUnavailableError" }, () => new RpcPushNotificationConfigurationKeyUnavailableError({
             message: tagged.message ?? "",
-          });
-        case "NotificationConfigValidationError":
-          return new RpcPushNotificationConfigurationValidationError({
+          })),
+        Match.when({ _tag: "NotificationConfigValidationError" }, () => new RpcPushNotificationConfigurationValidationError({
             cause: String(tagged.cause ?? error),
-          });
-        default:
-          return new RpcPushNotificationConfigurationServiceError({
+          })),
+        Match.orElse(() => new RpcPushNotificationConfigurationServiceError({
             cause: String(tagged.cause ?? error),
-          });
-      }
+          })),
+      );
     };
     return {
       ListPushNotificationConfigurations: ({ projectId }) =>
         service.getPushNotificationConfigurations(projectId).pipe(
+          Effect.map((configurations) => configurations.map(toRpcConfiguration)),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -72,6 +75,7 @@ export const PushNotificationConfigurationRpcsLive = PushNotificationConfigurati
         ),
       GetPushNotificationConfiguration: ({ id }) =>
         service.getPushNotificationConfigurationById(id).pipe(
+          Effect.map(toRpcConfiguration),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -102,8 +106,8 @@ export const PushNotificationConfigurationRpcsLive = PushNotificationConfigurati
               Effect.fail(new RpcPushNotificationConfigurationServiceError({ cause: error.cause })),
           }),
         ),
-      UpdatePushNotificationConfiguration: (input) =>
-        service.updatePushNotificationConfiguration(input).pipe(
+      UpdatePushNotificationConfiguration: ({ isEnabled, ...input }) =>
+        service.updatePushNotificationConfiguration({ ...input, enabled: isEnabled }).pipe(
           Effect.map((result) => constant({ id: result.id })),
           Effect.mapError(mapUpdateError),
         ),

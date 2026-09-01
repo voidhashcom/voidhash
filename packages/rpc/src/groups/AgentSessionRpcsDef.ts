@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
 
 import {
@@ -10,7 +10,7 @@ import { RpcActionForbiddenError } from "../errors/common.ts";
 import { AuthMiddleware } from "../middlewares.ts";
 
 /** Searchable metadata returned for a durable agent session. */
-export const AgentSessionSummarySchema = Schema.Struct({
+export const AgentSessionSummary = Schema.Struct({
   id: Schema.String,
   organizationId: Schema.String,
   projectId: Schema.String,
@@ -21,14 +21,16 @@ export const AgentSessionSummarySchema = Schema.Struct({
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
 });
+export type AgentSessionSummary = typeof AgentSessionSummary.Type;
 
 /** Public attachment metadata accepted by the Pi prompt protocol. */
-export const AgentAttachmentSchema = Schema.Struct({
+export const AgentAttachment = Schema.Struct({
   url: Schema.String,
   name: Schema.String,
   contentType: Schema.String,
   sizeBytes: Schema.Number,
 });
+export type AgentAttachment = typeof AgentAttachment.Type;
 
 /** Authenticated metadata and attachment operations for durable Pi sessions. */
 export class AgentSessionRpcsDef extends RpcGroup.make(
@@ -40,7 +42,7 @@ export class AgentSessionRpcsDef extends RpcGroup.make(
       surface: Schema.String,
       paywallId: Schema.optional(Schema.String),
     },
-    success: Schema.Array(AgentSessionSummarySchema),
+    success: Schema.Array(AgentSessionSummary),
   }),
   Rpc.make("GetAgentSession", {
     error: Schema.Union([
@@ -49,7 +51,7 @@ export class AgentSessionRpcsDef extends RpcGroup.make(
       RpcAgentSessionNotFoundError,
     ]),
     payload: { sessionId: Schema.String },
-    success: AgentSessionSummarySchema,
+    success: AgentSessionSummary,
   }),
   Rpc.make("DeleteAgentSession", {
     error: Schema.Union([
@@ -82,6 +84,9 @@ export class AgentSessionRpcsDef extends RpcGroup.make(
       contentType: Schema.String,
       dataBase64: Schema.String,
     },
-    success: AgentAttachmentSchema,
+    success: AgentAttachment,
   }),
 ).middleware(AuthMiddleware) {}
+
+export { AgentSessionSummary as AgentSessionSummarySchema };
+export { AgentAttachment as AgentAttachmentSchema };

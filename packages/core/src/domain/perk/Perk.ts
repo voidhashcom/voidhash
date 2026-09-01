@@ -2,7 +2,7 @@
  * Perk domain — typed errors that signal a perk invariant violation. Row
  * data lives in the `perks` Drizzle table.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Perk row not found in the database. */
 export class PerkNotFoundError extends Schema.TaggedErrorClass<PerkNotFoundError>(

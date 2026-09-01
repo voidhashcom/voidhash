@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 import { ProductType } from "../Schema.ts";
@@ -13,6 +13,7 @@ export const ProductListParams = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   type: Schema.optional(ProductType),
 }).annotate({ identifier: "ProductListParams" });
+export type ProductListParams = typeof ProductListParams.Type;
 
 /**
  * Query parameters of `GET /perks`. Perks carry no filterable attribute beyond
@@ -22,6 +23,7 @@ export const PerkListParams = Schema.Struct({
   ...PageParams.fields,
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "PerkListParams" });
+export type PerkListParams = typeof PerkListParams.Type;
 
 /**
  * Body of `POST /products`. `duration` is only meaningful for `subscription`

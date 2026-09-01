@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 import { PersonService } from "@voidhash/core/services";
 import { PersonOrigin } from "@voidhash/db";
 import {
@@ -7,15 +8,16 @@ import {
   RpcPersonNotFoundError,
   RpcPersonServiceError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 const toRpcPerson = (person: {
-  createdAt: Date | null;
+  createdAt: Date | typeof Schema.Null.Type;
   personId: string;
   distinctId: string;
-  email: string | null;
+  email: string | typeof Schema.Null.Type;
   kind: number;
-  name: string | null;
+  name: string | typeof Schema.Null.Type;
 }) =>
   ({
     createdAt: person.createdAt,
@@ -34,8 +36,8 @@ export const PersonRpcsLive = PersonRpcsDef.toLayer(
         personService
           .createPerson({
             distinctId,
-            email: email ?? null,
-            name: name ?? null,
+            email: Option.fromNullishOr(email),
+            name: Option.fromNullishOr(name),
             origin: PersonOrigin.API,
             projectId,
           })

@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import {
   RpcActionForbiddenError,
@@ -14,6 +14,7 @@ export const Project = Schema.Struct({
   name: Schema.String,
   slug: Schema.String,
 });
+export type Project = typeof Project.Type;
 
 export class ProjectRpcsDef extends RpcGroup.make(
   Rpc.make("CreateProject", {

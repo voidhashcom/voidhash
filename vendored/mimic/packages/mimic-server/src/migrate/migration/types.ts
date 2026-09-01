@@ -1,4 +1,5 @@
 import type { Schema, Value } from "@voidhash/mimic-core";
+import type * as Option from "effect/Option";
 
 export type SchemaMigrationIssueCode =
   | "incompatible-type"
@@ -20,7 +21,7 @@ export interface SchemaMigrationCompatibilityIssue {
 }
 
 export type ReconcileMigrationValueResult =
-  | { readonly ok: true; readonly value: Value | undefined }
+  | { readonly ok: true; readonly value: Option.Option<Value> }
   | { readonly ok: false; readonly error: SchemaMigrationIssue };
 
 export interface AnalyzeMigrationOptions {

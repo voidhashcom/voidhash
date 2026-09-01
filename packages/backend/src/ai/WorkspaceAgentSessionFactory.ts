@@ -13,13 +13,18 @@ import {
 } from "@voidhash/agent";
 import { PaywallService } from "@voidhash/core/services";
 import { pick } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import { runPromise } from "../runtime-boundary.ts";
 
 import { buildDesignerContext } from "./DesignerContext.ts";
 import { registeredSkillSource } from "./skills/registry.ts";
 import { designerAgentSystemPrompt } from "./surfaces.ts";
 import { AgentEditSessionTracker, makeWorkspaceAgentTools } from "./WorkspaceAgentTools.ts";
 import type { WorkspaceToolDeps } from "./workspace-tools.ts";
+import * as Str from "effect/String";
+import * as Schema from "effect/Schema";
 
 /** Services resolved by the Pi agent's in-process tools. */
 export type WorkspaceAgentDeps = WorkspaceToolDeps | PaywallService;
@@ -29,13 +34,13 @@ export interface WorkspaceAgentSessionFactoryOptions<ConnectionData> {
   readonly defaultModel: Model<string>;
   readonly visionModel: Model<string>;
   readonly streamFn?: StreamFn;
-  readonly getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined;
+  readonly getApiKey?: (provider: string) => Promise<string | typeof Schema.Undefined.Type> | string | typeof Schema.Undefined.Type;
   readonly runEffect: EffectRunner<ConnectionData, WorkspaceAgentDeps>;
   readonly resolveModel?: (
     provider: string,
     modelId: string,
     connectionData: ConnectionData,
-  ) => Model<string> | undefined | Promise<Model<string> | undefined>;
+  ) => Model<string> | typeof Schema.Undefined.Type | Promise<Model<string> | typeof Schema.Undefined.Type>;
 }
 
 const messageHasImage = (message: AgentMessage): boolean =>
@@ -44,16 +49,15 @@ const messageHasImage = (message: AgentMessage): boolean =>
   message.content.some((content) => content.type === "image");
 
 const latestUserHasImage = (messages: ReadonlyArray<AgentMessage>): boolean => {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (message?.role === "user") return messageHasImage(message);
-  }
-  return false;
+  return Option.exists(
+    Arr.findLast(messages, (message) => message.role === "user"),
+    messageHasImage,
+  );
 };
 
 const skillPrompt = (): string => {
   const disclosure = renderSkillDisclosure(registeredSkillSource());
-  if (disclosure.length === 0) return "";
+  if (Str.isEmpty(disclosure)) return "";
   return `\n\nCall \`read_skill\` before work covered by a listed skill.\n${disclosure}`;
 };
 
@@ -74,7 +78,7 @@ const contextSystemPrompt = <ConnectionData>(
   ).then((resolved) => `${designerAgentSystemPrompt(resolved)}${skillPrompt()}`);
 
 /** Spreads `streamFn` only when the host supplied one, leaving the Pi default otherwise. */
-const optionalStreamFn = (streamFn: StreamFn | undefined): { streamFn?: StreamFn } => {
+const optionalStreamFn = (streamFn: StreamFn | typeof Schema.Undefined.Type): { streamFn?: StreamFn } => {
   if (streamFn === undefined) return {};
   return { streamFn };
 };
@@ -82,7 +86,7 @@ const optionalStreamFn = (streamFn: StreamFn | undefined): { streamFn?: StreamFn
 type GetApiKey = NonNullable<WorkspaceAgentSessionFactoryOptions<unknown>["getApiKey"]>;
 
 /** Spreads `getApiKey` only when the host supplied one. */
-const optionalGetApiKey = (getApiKey: GetApiKey | undefined): { getApiKey?: GetApiKey } => {
+const optionalGetApiKey = (getApiKey: GetApiKey | typeof Schema.Undefined.Type): { getApiKey?: GetApiKey } => {
   if (getApiKey === undefined) return {};
   return { getApiKey };
 };
@@ -141,7 +145,9 @@ export const makeWorkspaceAgentSessionFactory = <ConnectionData>(
           followUpMode: "all",
           toolExecution: "sequential",
           afterToolCall: ({ result }) =>
-            Effect.runPromise(Effect.sync(() => effectAgentToolErrorOverride(result))),
+            runPromise(
+              Effect.sync(() => effectAgentToolErrorOverride(result) ?? undefined),
+            ),
           prepareNextTurnWithContext: ({ context: piContext }) =>
             contextSystemPrompt(input, options.runEffect).then((nextSystemPrompt) => ({
               context: { ...piContext, systemPrompt: nextSystemPrompt },

@@ -1,4 +1,4 @@
-import { ProductService } from "@voidhash/core/services";
+import { ProductService, type ProductView } from "@voidhash/core/services";
 import {
   ProductRpcsDef,
   RpcActionForbiddenError,
@@ -7,7 +7,14 @@ import {
   RpcProductSlugAlreadyExistsError,
   RpcProductValidationError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+
+/** Converts the domain's explicit duration absence to the nullable RPC schema. */
+const toRpcProduct = (product: ProductView) => ({
+  ...product,
+  duration: Option.getOrNull(product.duration),
+});
 
 export const ProductRpcsLive = ProductRpcsDef.toLayer(
   Effect.gen(function* ProductRpcsLive() {
@@ -41,6 +48,7 @@ export const ProductRpcsLive = ProductRpcsDef.toLayer(
         ),
       GetProduct: ({ id }) =>
         productService.getProductById(id).pipe(
+          Effect.map(toRpcProduct),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -52,6 +60,7 @@ export const ProductRpcsLive = ProductRpcsDef.toLayer(
         ),
       ListProducts: ({ projectId }) =>
         productService.getProducts(projectId).pipe(
+          Effect.map((products) => products.map(toRpcProduct)),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),

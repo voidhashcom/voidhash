@@ -9,7 +9,15 @@
 import { type ProviderEnvironmentValue } from "@voidhash/db";
 import { generateId } from "@voidhash/core/utils";
 import { constant, pick } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Match, Option, Predicate, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 import { createHash } from "@voidhash/core/services/apiKeys/create-hash";
 
 import type { PurchaseProcessingResult } from "@voidhash/core-v2";
@@ -25,12 +33,14 @@ import {
   categorizeNotification,
   decodeNotificationFromBase64,
 } from "./notifications.ts";
-import { globalConfigurationSchema } from "./config-provider.ts";
+import { globalConfiguration as globalConfigurationSchema } from "./config-provider.ts";
 import type { GooglePlayNormalizedPurchase } from "./helpers.ts";
 import { GooglePlayPaymentProvider } from "./payment-provider.ts";
 import { GooglePlayPaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import type { GooglePlaySdkContext } from "./sdk-context.ts";
 import { GooglePlayPurchaseVerifier } from "./purchase-verifier.ts";
+import { MutableSet } from "../../../collection-boundary.ts";
+import { hasTag } from "../../../runtime-boundary.ts";
 
 const ParkedGooglePlaySdkPurchase = Schema.Struct({
   distinctId: Schema.String,
@@ -43,7 +53,7 @@ const truncateResultNote = (note: string): string => note.slice(0, 500);
 
 /** Lowercase hex sha256 over a UTF-8 string (WebCrypto via `uncrypto`, workerd-safe). */
 const sha256Hex = (value: string): Effect.Effect<string> =>
-  Effect.promise(() => createHash("SHA-256", "hex").digest(value));
+  Effect.tryPromise({ try: () => createHash("SHA-256", "hex").digest(value), catch: (cause) => cause }).pipe(Effect.orDie);
 
 /** Serializes the (already JSON-parsed) Pub/Sub body for the audit hash. */
 const encodeJsonBody = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
@@ -54,7 +64,7 @@ const encodeJsonBody = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
  * token is gone/invalid; an invalid-request (400) means a permanently
  * malformed token.
  */
-const TERMINAL_FETCH_TAGS = new Set<string>([
+const TERMINAL_FETCH_TAGS = new MutableSet<string>([
   "GooglePlayPurchaseNotFoundError",
   "GooglePlaySubscriptionNotFoundError",
   "GooglePlayProductNotFoundError",
@@ -62,7 +72,7 @@ const TERMINAL_FETCH_TAGS = new Set<string>([
 ]);
 
 /** Tags that collapse into a terminal record-failure ledger row (ack, don't retry). */
-const TERMINAL_RECORD_FAILURE_TAGS = new Set<string>([
+const TERMINAL_RECORD_FAILURE_TAGS = new MutableSet<string>([
   "GooglePlayPaymentProviderTransactionMissingPersonIdentifierError",
   "GooglePlayPurchaseProcessingIdempotencyKeyDerivationError",
   // PurchaseProcessingService's own product-not-mapped guard (distinct from the
@@ -72,17 +82,17 @@ const TERMINAL_RECORD_FAILURE_TAGS = new Set<string>([
   "InvalidISO4217CurrencyCodeError",
 ]);
 
-const errorTag = (error: unknown): string | undefined => {
-  if (Predicate.hasProperty(error, "_tag") && typeof error._tag === "string") return error._tag;
+const errorTag = (error: unknown): string | typeof Schema.Undefined.Type => {
+  if (P.hasProperty(error, "_tag") && P.isString(error._tag)) return error._tag;
   return undefined;
 };
 
 type AcceptRtdnNotificationResult = {
   readonly accepted: true;
   readonly handled: boolean;
-  readonly notificationType: string | undefined;
-  readonly notificationUUID: string | undefined;
-  readonly subtype: string | undefined;
+  readonly notificationType: string | typeof Schema.Undefined.Type;
+  readonly notificationUUID: string | typeof Schema.Undefined.Type;
+  readonly subtype: string | typeof Schema.Undefined.Type;
 };
 
 /** Length of `payment_provider_notification_processed.notification_uuid`. */
@@ -94,7 +104,7 @@ const NOTIFICATION_UUID_MAX_LENGTH = 255;
  * identifying fields when absent. RTDN has no native notification UUID.
  */
 const deriveNotificationUuid = (
-  messageId: string | undefined,
+  messageId: string | typeof Schema.Undefined.Type,
   decoded: DecodedNotification,
 ): Effect.Effect<string> =>
   Effect.gen(function* () {
@@ -140,7 +150,7 @@ const resolveNotificationType = (decoded: DecodedNotification): string => {
  * The notification's own event time, falling back to the receive time when the
  * RTDN body omits it or carries an unparseable value.
  */
-const resolveEventTime = (eventTimeMillis: string | undefined, receivedAt: Date): Date => {
+const resolveEventTime = (eventTimeMillis: string | typeof Schema.Undefined.Type, receivedAt: Date): Date => {
   if (!eventTimeMillis) return receivedAt;
   const parsed = DateTime.make(Number(eventTimeMillis));
   if (Option.isNone(parsed)) return receivedAt;
@@ -276,8 +286,10 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
             subtype: undefined,
           });
 
-          let terminalLedgerResult: "failed" | undefined;
-          let terminalLedgerResultNote: string | null = null;
+          const terminalLedger: {
+            result: "failed" | typeof Schema.Undefined.Type;
+            resultNote: string | typeof Schema.Null.Type;
+          } = { result: undefined, resultNote: null };
 
           // Cross-app guard (the Google analogue of Apple's bundle-id check):
           // a notification for a different package than this configuration's
@@ -406,16 +418,16 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
           };
 
           const markTerminalRecordFailure = (reason: string) =>
-            Effect.gen(function* () {
-              terminalLedgerResult = "failed";
-              terminalLedgerResultNote = truncateResultNote(reason);
+            Effect.fn("markTerminalRecordFailure")(function* () {
+              terminalLedger.result = "failed";
+              terminalLedger.resultNote = truncateResultNote(reason);
               yield* Effect.logWarning("Google Play notification record failed permanently", {
                 notificationType,
                 notificationUUID,
-                resultNote: terminalLedgerResultNote,
+                resultNote: terminalLedger.resultNote,
               });
               return ack(false);
-            });
+            })();
 
           /**
            * Wraps a record call to coerce success into `ack(true)` and intercept
@@ -436,7 +448,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
                 (error): error is GooglePlayPaymentProviderProductNotMappedError =>
                   errorTag(error) === "GooglePlayPaymentProviderProductNotMappedError",
                 (error) =>
-                  Effect.gen(function* () {
+                  Effect.fn("handled")(function* () {
                     yield* Effect.annotateCurrentSpan(
                       "voidhash.payment_provider.provider_product_key",
                       error.providerProductKey,
@@ -469,7 +481,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
                       source: "webhook",
                     });
                     return ack(true);
-                  }),
+                  })(),
               ),
               Effect.catchIf(
                 (error) => TERMINAL_RECORD_FAILURE_TAGS.has(errorTag(error) ?? ""),
@@ -538,7 +550,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
           );
 
           const ledgerResult =
-            terminalLedgerResult ?? pick(matchResult.handled, "applied", "ignored");
+            terminalLedger.result ?? pick(matchResult.handled, "applied", "ignored");
 
           // Wire-level dedup ledger: one row per notificationUUID. The
           // park-write above (when it fires) wins the UNIQUE and this insert is
@@ -549,7 +561,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
             notificationUUID,
             providerOccurredAt: eventTime,
             result: ledgerResult,
-            resultNote: terminalLedgerResultNote,
+            resultNote: terminalLedger.resultNote,
           });
 
           yield* Effect.annotateCurrentSpan({ "google_play.webhook_result": ledgerResult });
@@ -619,7 +631,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
         readonly notificationUUID: string;
         readonly providerOccurredAt: Date;
         readonly result: string;
-        readonly resultNote: string | null;
+        readonly resultNote: string | typeof Schema.Null.Type;
       }) {
         return queries.insertNotificationProcessedIfAbsent({
           id: generateId("paymentProviderNotification"),
@@ -655,9 +667,9 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
           paymentProviderConfigurationId: input.paymentProviderConfigurationId,
           providerProductKey: input.providerProductKey,
         });
-        let appliedCount = 0;
-        let failedCount = 0;
-        for (const row of parked.filter((candidate) => candidate.source === "webhook")) {
+        const webhookResults = yield* Effect.forEach(
+          parked.filter((candidate) => candidate.source === "webhook"),
+          Effect.fn("replayParkedGooglePlayWebhook")(function* (row) {
           const rawPayload = row.parkedRawPayload;
           if (rawPayload === null || rawPayload === undefined) {
             yield* queries.markParkedNotificationResolved({
@@ -665,8 +677,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               result: "failed",
               resultNote: "parked_raw_payload missing",
             });
-            failedCount++;
-            continue;
+            return { appliedCount: 0, failedCount: 1 };
           }
           const receivedAt = yield* DateTime.nowAsDate;
           const replayed = yield* acceptRtdnNotification({
@@ -686,20 +697,22 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               result: "applied",
               resultNote: null,
             });
-            appliedCount++;
+            return { appliedCount: 1, failedCount: 0 };
           } else {
-            let resultNote: string;
-            if (replayed.ok) resultNote = "replay completed without applying purchase state";
-            else resultNote = replayed.error;
+            const resultNote = replayed.ok ? "replay completed without applying purchase state" : replayed.error;
             yield* queries.markParkedNotificationAttempted({
               id: row.id,
               resultNote,
             });
-            failedCount++;
+            return { appliedCount: 0, failedCount: 1 };
           }
-        }
+          }),
+          { concurrency: 1 },
+        );
 
-        for (const row of parked.filter((candidate) => candidate.source === "sdk")) {
+        const sdkResults = yield* Effect.forEach(
+          parked.filter((candidate) => candidate.source === "sdk"),
+          Effect.fn("replayParkedGooglePlaySdkPurchase")(function* (row) {
           const decoded = yield* Schema.decodeUnknownEffect(ParkedGooglePlaySdkPurchase)(
             row.parkedRawPayload,
           ).pipe(
@@ -708,17 +721,16 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               onSuccess: (right) => ({ _tag: constant("Right"), right }),
             }),
           );
-          if (decoded._tag === "Left") {
+          if (hasTag(decoded, "Left")) {
             yield* queries.markParkedNotificationResolved({
               id: row.id,
               result: "failed",
               resultNote: "parked SDK payload is invalid",
             });
-            failedCount++;
-            continue;
+            return { appliedCount: 0, failedCount: 1 };
           }
           const payload = decoded.right;
-          const replayed = yield* Effect.gen(function* () {
+          const replayed = yield* Effect.fn("replayed")(function* () {
             const configuration = yield* queries.findPaymentProviderConfigurationById(
               row.paymentProviderConfigurationId,
             );
@@ -740,7 +752,7 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               receivedAt: DateTime.toDateUtc(DateTime.makeUnsafe(payload.receivedAt)),
               source: "sdk",
             });
-          }).pipe(
+          })().pipe(
             Effect.match({
               onFailure: (error) => ({ error: String(error), ok: constant(false) }),
               onSuccess: (result) => ({ handled: !result.isIgnored(), ok: constant(true) }),
@@ -752,19 +764,24 @@ export class GooglePlayWebhookHandlerService extends Context.Service<GooglePlayW
               result: "applied",
               resultNote: null,
             });
-            appliedCount++;
+            return { appliedCount: 1, failedCount: 0 };
           } else {
-            let resultNote: string;
-            if (replayed.ok) resultNote = "replay completed without applying purchase state";
-            else resultNote = replayed.error;
+            const resultNote = replayed.ok ? "replay completed without applying purchase state" : replayed.error;
             yield* queries.markParkedNotificationAttempted({
               id: row.id,
               resultNote,
             });
-            failedCount++;
+            return { appliedCount: 0, failedCount: 1 };
           }
-        }
-        return { appliedCount, failedCount, totalParked: parked.length };
+          }),
+          { concurrency: 1 },
+        );
+        const results = [...webhookResults, ...sdkResults];
+        return {
+          appliedCount: Arr.reduce(results, 0, (count, result) => count + result.appliedCount),
+          failedCount: Arr.reduce(results, 0, (count, result) => count + result.failedCount),
+          totalParked: Arr.length(parked),
+        };
       });
 
       return constant({

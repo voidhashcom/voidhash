@@ -1,5 +1,6 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { Effect, Layer } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import { PurchaseLedgerStore } from "../../application/ports/PurchaseLedgerStore.ts";
 import {

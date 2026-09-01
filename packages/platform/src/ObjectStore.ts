@@ -1,5 +1,7 @@
-import type { Effect, Option } from "effect";
-import { Context, Schema } from "effect";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
+import * as Context from "effect/Context";
+import * as Schema from "effect/Schema";
 
 import type { PlatformRuntime } from "./PlatformRuntime.ts";
 
@@ -17,15 +19,15 @@ export class ObjectStoreError extends Schema.TaggedErrorClass<ObjectStoreError>(
 /** Raw bytes and metadata returned for a stored object. */
 export interface StoredObject {
   readonly body: Uint8Array;
-  readonly contentType: string | null;
-  readonly etag: string | null;
+  readonly contentType: Option.Option<string>;
+  readonly etag: Option.Option<string>;
   readonly size: number;
 }
 
 /** Metadata returned without downloading an object body. */
 export interface StoredObjectHead {
-  readonly contentType: string | null;
-  readonly etag: string | null;
+  readonly contentType: Option.Option<string>;
+  readonly etag: Option.Option<string>;
   readonly size: number;
 }
 

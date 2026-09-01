@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 const NullableDate = Schema.NullOr(Schema.Date);
 
@@ -20,3 +20,4 @@ export class Purchase extends Schema.Class<Purchase>("Purchase")({
 }) {}
 
 export const PurchaseRows = Schema.Array(Purchase);
+export type PurchaseRows = typeof PurchaseRows.Type;

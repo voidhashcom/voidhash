@@ -5,7 +5,12 @@ import {
   type SubscriptionDurationValue,
 } from "@voidhash/lib";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -31,7 +36,8 @@ export class ProductServiceError extends Schema.TaggedErrorClass<ProductServiceE
 
 /** `products.type` is a plain smallint column mirroring the `ProductType` enum. */
 const asProductType = (type: any): ProductTypeValue => type;
-const asSubscriptionDuration = (duration: any): SubscriptionDurationValue | null => duration;
+const asSubscriptionDuration = (duration: any): Option.Option<SubscriptionDurationValue> =>
+  Option.fromNullishOr(duration);
 
 const isProductType = (value: number): value is ProductTypeValue =>
   value === ProductType.Subscription ||
@@ -189,10 +195,11 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
         );
 
         const productType = input.type ?? ProductType.Subscription;
-        let duration = input.duration;
-        if (input.type === undefined && input.duration === undefined) {
-          duration = SubscriptionDuration.Monthly;
-        }
+        const requestedDuration = Option.fromNullishOr(input.duration);
+        const duration =
+          input.type === undefined && Option.isNone(requestedDuration)
+            ? Option.some(SubscriptionDuration.Monthly)
+            : requestedDuration;
         if (!isProductType(productType)) {
           return yield* Effect.fail(
             new ProductValidationError({ message: "Unknown product type" }),
@@ -200,7 +207,7 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
         }
         if (
           productType === ProductType.Subscription &&
-          (duration === undefined || !isSubscriptionDuration(duration))
+          !Option.exists(duration, isSubscriptionDuration)
         ) {
           return yield* Effect.fail(
             new ProductValidationError({ message: "Subscription products require a duration" }),
@@ -208,14 +215,12 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
         }
 
         const productId = generateId("product");
-        let storedDuration: number | null = null;
-        if (productType === ProductType.Subscription) {
-          storedDuration = duration ?? null;
-        }
+        const storedDuration =
+          productType === ProductType.Subscription ? duration : Option.none<number>();
         yield* Effect.annotateCurrentSpan("voidhash.product.id", productId);
 
-        yield* db.transaction((tx) =>
-          Effect.gen(function* () {
+        yield* db.transaction(
+          Effect.fn("ProductService.createProductTransaction")(function* (tx) {
             const existing = yield* tx.query.products.findFirst({
               where: { slug: input.slug, projectId: input.projectId },
             });
@@ -228,7 +233,7 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
               projectId: input.projectId,
               slug: input.slug,
               type: productType,
-              duration: storedDuration,
+              duration: Option.getOrNull(storedDuration),
             });
           }),
         );
@@ -241,7 +246,7 @@ export class ProductService extends Context.Service<ProductService>()("ProductSe
             action: AuditLogAction.Created,
             changes: {
               snapshot: {
-                duration: storedDuration,
+                duration: Option.getOrNull(storedDuration),
                 name: input.name,
                 slug: input.slug,
                 type: productType,

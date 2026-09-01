@@ -1,4 +1,4 @@
-import { Context } from "effect";
+import * as Context from "effect/Context";
 
 export class SdkConfiguration extends Context.Service<
   SdkConfiguration,
@@ -7,7 +7,7 @@ export class SdkConfiguration extends Context.Service<
     readonly debug: boolean;
     readonly developmentMode: boolean;
     readonly environmentMode: "production" | "development";
-    readonly ingestUrl: string | undefined;
+    readonly ingestUrl?: string;
     readonly publishableKey: string;
     /**
      * Observer mode: the SDK watches store transactions but never claims
@@ -23,7 +23,7 @@ export interface SdkConfigurationValues {
   readonly baseUrl: string;
   readonly debug: boolean;
   readonly developmentMode: boolean;
-  readonly ingestUrl: string | undefined;
+  readonly ingestUrl?: string;
   readonly publishableKey: string;
   readonly readOnly: boolean;
 }

@@ -16,6 +16,7 @@ import type {
   TextSnapshotNode,
   ViewSnapshotNode,
 } from "@voidhash/paywall-renderer-web-core";
+import * as Option from "effect/Option";
 
 import type { GetLocalizablePropInfos } from "../hooks/use-localizable-props";
 import { readLocalizableComponentProp } from "../state/utils/localization";
@@ -156,7 +157,7 @@ export function buildTranslationRows(
     let row: TranslationRow;
     if (slot.kind === "text") {
       const data = (node as TextSnapshotNode).data;
-      const resolved = resolveText(data, locale, defaultLocale);
+      const resolved = resolveText(data, Option.fromNullishOr(locale), defaultLocale);
       row = {
         base: slot.baseValue,
         key: slot.nodeId,
@@ -168,7 +169,7 @@ export function buildTranslationRows(
       };
     } else if (slot.kind === "image") {
       const data = (node as ViewSnapshotNode).data;
-      const resolved = resolveBackgroundImage(data, locale, defaultLocale);
+      const resolved = resolveBackgroundImage(data, Option.fromNullishOr(locale), defaultLocale);
       row = {
         base: slot.baseValue,
         key: slot.nodeId,
@@ -183,7 +184,7 @@ export function buildTranslationRows(
       if (prop === undefined || prop.value.type !== "literal") {
         continue;
       }
-      const resolved = resolveComponentPropValue(prop, locale, defaultLocale);
+      const resolved = resolveComponentPropValue(prop, Option.fromNullishOr(locale), defaultLocale);
       const key = `${slot.nodeId}/${slot.propName}`;
       row = {
         base: propValueText(slot.baseValue),
@@ -252,7 +253,11 @@ export function filterTranslationGroups(
   const search = filter.search?.trim().toLowerCase() ?? "";
   const result: TranslationScreenGroup[] = [];
   for (const group of groups) {
-    if (filter.screenId !== undefined && filter.screenId !== "all" && group.screenId !== filter.screenId) {
+    if (
+      filter.screenId !== undefined &&
+      filter.screenId !== "all" &&
+      group.screenId !== filter.screenId
+    ) {
       continue;
     }
     const rows = group.rows.filter((row) => {

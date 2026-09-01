@@ -66,6 +66,7 @@
     "@voidhash/generated-clients": "workspace:*"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@voidhash/tsconfig": "workspace:*",

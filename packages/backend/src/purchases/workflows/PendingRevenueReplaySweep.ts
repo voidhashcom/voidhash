@@ -14,7 +14,11 @@ import {
   transactions,
 } from "@voidhash/db";
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { DateTime, Effect, Layer, Match, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import * as Schema from "effect/Schema";
 
 import { AppStoreWebhookHandlerService } from "../providers/app-store/app-store-webhook-handler-service.ts";
 import { GooglePlayWebhookHandlerService } from "../providers/google-play/webhook-handler-service.ts";
@@ -22,6 +26,8 @@ import { googlePlayMappingMatchesProviderProductKey } from "../providers/google-
 import { StripeWebhookHandlerService } from "../providers/stripe/stripe-webhook-handler-service.ts";
 import { PendingRevenueReplaySweep } from "@voidhash/core-v2";
 import { appStore, googlePlay, stripe } from "./paymentDependencies.ts";
+import * as Arr from "effect/Array";
+import { MutableMap, MutableSet } from "../../collection-boundary.ts";
 
 const SweepResult = Schema.Struct({
   appliedCount: Schema.Number,
@@ -56,7 +62,7 @@ export const makePendingRevenueReplayCandidatePlan = (
   sdkConfirmationCandidateCount: number,
   transactionCandidates: ReadonlyArray<TransactionReplayCandidate>,
 ) => {
-  const productStripeConfigurations = new Set(
+  const productStripeConfigurations = new MutableSet(
     productCandidates
       .filter((candidate) => candidate.providerId === "stripe")
       .map((candidate) => candidate.paymentProviderConfigurationId),
@@ -127,7 +133,7 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
               ),
             )
             .returning({ id: paymentProviderNotificationProcessed.id });
-          if (expiredRows.length > 0) {
+          if (Arr.isReadonlyArrayNonEmpty(expiredRows)) {
             yield* Effect.logWarning("Pending revenue replay sweep expired parked rows", {
               expiredCount: expiredRows.length,
             });
@@ -164,17 +170,17 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
             .from(paymentProviderConfigurationProducts)
             .where(eq(paymentProviderConfigurationProducts.isActive, true));
 
-          const mappingKeysByConfiguration = new Map<string, string[]>();
-          for (const mapping of activeMappings) {
+          const mappingKeysByConfiguration = new MutableMap<string, string[]>();
+          Arr.forEach(activeMappings, (mapping) => {
             const keys = mappingKeysByConfiguration.get(mapping.paymentProviderConfigurationId);
             if (keys) keys.push(mapping.providerProductKey);
             else
               mappingKeysByConfiguration.set(mapping.paymentProviderConfigurationId, [
                 mapping.providerProductKey,
               ]);
-          }
+          });
 
-          const productCandidatesByKey = new Map<
+          const productCandidatesByKey = new MutableMap<
             string,
             {
               readonly paymentProviderConfigurationId: string;
@@ -182,9 +188,9 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
               readonly providerProductKey: string;
             }
           >();
-          for (const parked of parkedProductGroups) {
+          Arr.forEach(parkedProductGroups, (parked) => {
             const parkedKey = parked.providerProductKey;
-            if (!parkedKey) continue;
+            if (!parkedKey) return;
             const mappingKeys =
               mappingKeysByConfiguration.get(parked.paymentProviderConfigurationId) ?? [];
             let replayKey = mappingKeys.find((key) => key === parkedKey);
@@ -193,7 +199,7 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
                 googlePlayMappingMatchesProviderProductKey(key, parkedKey),
               );
             }
-            if (!replayKey) continue;
+            if (!replayKey) return;
             const candidate = {
               paymentProviderConfigurationId: parked.paymentProviderConfigurationId,
               providerId: parked.providerId,
@@ -203,7 +209,7 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
               `${candidate.paymentProviderConfigurationId}\u0000${candidate.providerId}\u0000${replayKey}`,
               candidate,
             );
-          }
+          });
           const productCandidates = [...productCandidatesByKey.values()];
 
           const transactionCandidates = yield* db
@@ -235,14 +241,9 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
               paymentProviderNotificationProcessed.parkedUntilOriginalTransactionId,
             );
 
-          let appliedCount = 0;
-          let sdkConfirmationCandidateCount = 0;
-          let failedCount = 0;
-          let totalParked = 0;
-          for (const candidate of productCandidates) {
+          const productResults = yield* Effect.forEach(productCandidates, (candidate) => {
             const providerProductKey = candidate.providerProductKey;
-            if (!providerProductKey) continue;
-            const result = yield* Match.value(candidate.providerId).pipe(
+            return Match.value(candidate.providerId).pipe(
               Match.when("apple-app-store", () =>
                 appStoreHandler.replayParkedNotificationsForProductMapping({
                   paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
@@ -265,14 +266,12 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
                 Effect.succeed({ appliedCount: 0, failedCount: 0, totalParked: 0 }),
               ),
             );
-            appliedCount += result.appliedCount;
-            failedCount += result.failedCount;
-            totalParked += result.totalParked;
-          }
+          }, { concurrency: 1 });
 
-          for (const candidate of sdkConfirmationGroups) {
+          const sdkResults = yield* Effect.forEach(sdkConfirmationGroups, Effect.fn("replaySdkConfirmation")(function* (candidate) {
             const originalTransactionId = candidate.originalTransactionId;
-            if (!originalTransactionId) continue;
+            if (!originalTransactionId)
+              return { appliedCount: 0, candidateCount: 0, failedCount: 0, totalParked: 0 };
             const subscriptionDependency = yield* db
               .select({ id: subscriptions.id })
               .from(subscriptions)
@@ -313,18 +312,24 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
                 ),
               )
               .limit(1);
-            if (subscriptionDependency.length === 0 && transactionDependency.length === 0) {
-              continue;
+            if (
+              Arr.isReadonlyArrayEmpty(subscriptionDependency) &&
+              Arr.isReadonlyArrayEmpty(transactionDependency)
+            ) {
+              return { appliedCount: 0, candidateCount: 0, failedCount: 0, totalParked: 0 };
             }
-            sdkConfirmationCandidateCount++;
             const result = yield* appStoreHandler.replayParkedNotificationsForSdkConfirmation({
               originalTransactionId,
               paymentProviderConfigurationId: candidate.paymentProviderConfigurationId,
             });
-            appliedCount += result.appliedCount;
-            failedCount += result.failedCount;
-            totalParked += result.totalParked;
-          }
+            return { ...result, candidateCount: 1 };
+          }), { concurrency: 1 });
+
+          const sdkConfirmationCandidateCount = Arr.reduce(
+            sdkResults,
+            0,
+            (count, result) => count + result.candidateCount,
+          );
 
           const candidatePlan = makePendingRevenueReplayCandidatePlan(
             productCandidates,
@@ -332,12 +337,15 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
             transactionCandidates,
           );
           const candidateCount = candidatePlan.candidateCount;
-          for (const candidate of candidatePlan.transactionCandidates) {
-            const result = yield* stripeHandler.replayParkedTransactionNotifications(candidate);
-            appliedCount += result.appliedCount;
-            failedCount += result.failedCount;
-            totalParked += result.totalParked;
-          }
+          const transactionResults = yield* Effect.forEach(
+            candidatePlan.transactionCandidates,
+            stripeHandler.replayParkedTransactionNotifications,
+            { concurrency: 1 },
+          );
+          const allResults = [...productResults, ...sdkResults, ...transactionResults];
+          const appliedCount = Arr.reduce(allResults, 0, (count, result) => count + result.appliedCount);
+          const failedCount = Arr.reduce(allResults, 0, (count, result) => count + result.failedCount);
+          const totalParked = Arr.reduce(allResults, 0, (count, result) => count + result.totalParked);
 
           const remainingBacklog = yield* db
             .select({
@@ -366,7 +374,7 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
             now,
           );
           let oldestAgeSeconds = 0;
-          if (remainingBacklog.length > 0) {
+          if (Arr.isReadonlyArrayNonEmpty(remainingBacklog)) {
             oldestAgeSeconds = Math.max(0, (now - oldestOccurredAt) / 1_000);
           }
           const maxAttemptCount = remainingBacklog.reduce(
@@ -389,9 +397,9 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
             remainingBacklogCount: remainingBacklog.length,
           };
           yield* Effect.logInfo("Pending revenue replay sweep complete", summary);
-          if (remainingBacklog.length > 0) {
-            const groups = new Map<string, number>();
-            for (const row of remainingBacklog) {
+          if (Arr.isReadonlyArrayNonEmpty(remainingBacklog)) {
+            const groups = new MutableMap<string, number>();
+            Arr.forEach(remainingBacklog, (row) => {
               const key = [
                 row.providerId,
                 row.paymentProviderConfigurationId,
@@ -399,7 +407,7 @@ export const PendingRevenueReplaySweepRegistration = WorkflowRegistration.make(
                 row.result,
               ].join(":");
               groups.set(key, (groups.get(key) ?? 0) + 1);
-            }
+            });
             yield* Effect.logWarning("Pending revenue replay backlog remains", {
               ...summary,
               groups: [...groups].map(([key, count]) => ({ count, key })),

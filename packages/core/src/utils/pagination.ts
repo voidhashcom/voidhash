@@ -1,4 +1,9 @@
-import { Effect, Encoding, Result } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
 
 import { ActionForbiddenError } from "../domain/auth/Auth.ts";
 
@@ -10,7 +15,7 @@ export const MAX_PAGE_SIZE = 100;
 
 /** The cursor state returned alongside a page of results. */
 export interface PageInfo {
-  readonly endCursor: string | null;
+  readonly endCursor: string | typeof Schema.Null.Type;
   readonly hasNextPage: boolean;
 }
 
@@ -22,13 +27,7 @@ export interface Page<A> {
 
 /** Returns a copy ordered by the unique identity used as its pagination cursor. */
 export const sortById = <A>(items: ReadonlyArray<A>, getId: (item: A) => string): Array<A> =>
-  [...items].sort((left, right) => {
-    const leftId = getId(left);
-    const rightId = getId(right);
-    if (leftId < rightId) return -1;
-    if (leftId > rightId) return 1;
-    return 0;
-  });
+  Arr.sortWith(items, getId, Str.Order);
 
 /**
  * Encodes an item's identity into an opaque cursor. Base64url keeps the value
@@ -85,7 +84,7 @@ export const decodeCursor = (cursor: string): Effect.Effect<string, ActionForbid
 export const paginate = <A>(
   items: ReadonlyArray<A>,
   getId: (item: A) => string,
-  params: { readonly cursor?: string | undefined; readonly limit?: number | undefined },
+  params: { readonly cursor?: string; readonly limit?: number },
 ): Effect.Effect<Page<A>, ActionForbiddenError> =>
   Effect.gen(function* () {
     const limit = Math.min(params.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
@@ -109,10 +108,7 @@ export const paginate = <A>(
     const data = items.slice(start, start + limit);
     const hasNextPage = start + limit < items.length;
     const last = data[data.length - 1];
-    let nextCursor: string | null = null;
-    if (hasNextPage && last !== undefined) {
-      nextCursor = encodeCursor(getId(last));
-    }
+    const nextCursor = hasNextPage && last !== undefined ? encodeCursor(getId(last)) : null;
 
     return {
       data,

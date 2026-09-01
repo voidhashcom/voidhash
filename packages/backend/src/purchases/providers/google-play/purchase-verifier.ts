@@ -2,7 +2,9 @@ import type {
   PaymentProviderConfiguration as DbPaymentProviderConfiguration,
   ProviderEnvironmentValue,
 } from "@voidhash/db";
-import { Context, Effect, Layer } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import type { GooglePlayNormalizedPurchase } from "./helpers.ts";
 import { GooglePlayPaymentProvider } from "./payment-provider.ts";
@@ -34,7 +36,7 @@ export class GooglePlayPurchaseVerifier extends Context.Service<
 
       return GooglePlayPurchaseVerifier.of({
         verify: (input) =>
-          Effect.gen(function* () {
+          Effect.fn("verify")(function* () {
             const sdkContext = yield* provider.buildSdkContextFromConfiguration(
               input.configuration,
             );
@@ -52,7 +54,7 @@ export class GooglePlayPurchaseVerifier extends Context.Service<
                   }),
                 ),
               );
-          }),
+          })(),
       });
     }),
   );

@@ -1,11 +1,11 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 // ChangesetDeploymentServiceError has been moved to:
 // - @voidhash/generated-clients (API layer)
 // - @voidhash/core/domain/errors (domain layer)
 
 // Paywall Locations
-export const PaywallLocationCreateChangeSchema = Schema.Struct({
+export const PaywallLocationCreateChange = Schema.Struct({
   changeType: Schema.Literal("create-paywall-location"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -14,8 +14,9 @@ export const PaywallLocationCreateChangeSchema = Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type PaywallLocationCreateChange = typeof PaywallLocationCreateChange.Type;
 
-export const PaywallLocationUpdateChangeSchema = Schema.Struct({
+export const PaywallLocationUpdateChange = Schema.Struct({
   changeType: Schema.Literal("update-paywall-location"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -24,17 +25,19 @@ export const PaywallLocationUpdateChangeSchema = Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type PaywallLocationUpdateChange = typeof PaywallLocationUpdateChange.Type;
 
-export const PaywallLocationArchiveChangeSchema = Schema.Struct({
+export const PaywallLocationArchiveChange = Schema.Struct({
   changeType: Schema.Literal("archive-paywall-location"),
   key: Schema.String,
   payload: Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type PaywallLocationArchiveChange = typeof PaywallLocationArchiveChange.Type;
 
 // Perks
-export const PerkCreateChangeSchema = Schema.Struct({
+export const PerkCreateChange = Schema.Struct({
   changeType: Schema.Literal("create-perk"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -42,8 +45,9 @@ export const PerkCreateChangeSchema = Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type PerkCreateChange = typeof PerkCreateChange.Type;
 
-export const PerkUpdateChangeSchema = Schema.Struct({
+export const PerkUpdateChange = Schema.Struct({
   changeType: Schema.Literal("update-perk"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -51,17 +55,19 @@ export const PerkUpdateChangeSchema = Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type PerkUpdateChange = typeof PerkUpdateChange.Type;
 
-export const PerkDeleteChangeSchema = Schema.Struct({
+export const PerkDeleteChange = Schema.Struct({
   changeType: Schema.Literal("delete-perk"),
   key: Schema.String,
   payload: Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type PerkDeleteChange = typeof PerkDeleteChange.Type;
 
 // Products
-export const ProductCreateChangeSchema = Schema.Struct({
+export const ProductCreateChange = Schema.Struct({
   changeType: Schema.Literal("create-product"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -69,8 +75,9 @@ export const ProductCreateChangeSchema = Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type ProductCreateChange = typeof ProductCreateChange.Type;
 
-export const ProductUpdateChangeSchema = Schema.Struct({
+export const ProductUpdateChange = Schema.Struct({
   changeType: Schema.Literal("update-product"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -78,17 +85,19 @@ export const ProductUpdateChangeSchema = Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type ProductUpdateChange = typeof ProductUpdateChange.Type;
 
-export const ProductDeleteChangeSchema = Schema.Struct({
+export const ProductDeleteChange = Schema.Struct({
   changeType: Schema.Literal("delete-product"),
   key: Schema.String,
   payload: Schema.Struct({
     slug: Schema.String,
   }),
 });
+export type ProductDeleteChange = typeof ProductDeleteChange.Type;
 
 // Product Perks
-export const ProductPerkCreateChangeSchema = Schema.Struct({
+export const ProductPerkCreateChange = Schema.Struct({
   changeType: Schema.Literal("create-product-perk"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -96,8 +105,9 @@ export const ProductPerkCreateChangeSchema = Schema.Struct({
     productSlug: Schema.String,
   }),
 });
+export type ProductPerkCreateChange = typeof ProductPerkCreateChange.Type;
 
-export const ProductPerkDeleteChangeSchema = Schema.Struct({
+export const ProductPerkDeleteChange = Schema.Struct({
   changeType: Schema.Literal("delete-product-perk"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -105,9 +115,10 @@ export const ProductPerkDeleteChangeSchema = Schema.Struct({
     productSlug: Schema.String,
   }),
 });
+export type ProductPerkDeleteChange = typeof ProductPerkDeleteChange.Type;
 
 // Payment Provider Products
-export const PaymentProviderProductCreateChangeSchema = Schema.Struct({
+export const PaymentProviderProductCreateChange = Schema.Struct({
   changeType: Schema.Literal("create-payment-provider-product"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -116,8 +127,9 @@ export const PaymentProviderProductCreateChangeSchema = Schema.Struct({
     providerId: Schema.String,
   }),
 });
+export type PaymentProviderProductCreateChange = typeof PaymentProviderProductCreateChange.Type;
 
-export const PaymentProviderProductUpdateChangeSchema = Schema.Struct({
+export const PaymentProviderProductUpdateChange = Schema.Struct({
   changeType: Schema.Literal("update-payment-provider-product"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -126,8 +138,9 @@ export const PaymentProviderProductUpdateChangeSchema = Schema.Struct({
     providerId: Schema.String,
   }),
 });
+export type PaymentProviderProductUpdateChange = typeof PaymentProviderProductUpdateChange.Type;
 
-export const PaymentProviderProductDeleteChangeSchema = Schema.Struct({
+export const PaymentProviderProductDeleteChange = Schema.Struct({
   changeType: Schema.Literal("delete-payment-provider-product"),
   key: Schema.String,
   payload: Schema.Struct({
@@ -135,30 +148,33 @@ export const PaymentProviderProductDeleteChangeSchema = Schema.Struct({
     providerId: Schema.String,
   }),
 });
+export type PaymentProviderProductDeleteChange = typeof PaymentProviderProductDeleteChange.Type;
 
-export const ChangeSchema = Schema.Union([
-  PaywallLocationCreateChangeSchema,
-  PaywallLocationUpdateChangeSchema,
-  PaywallLocationArchiveChangeSchema,
-  PerkCreateChangeSchema,
-  PerkUpdateChangeSchema,
-  PerkDeleteChangeSchema,
-  ProductCreateChangeSchema,
-  ProductUpdateChangeSchema,
-  ProductDeleteChangeSchema,
-  ProductPerkCreateChangeSchema,
-  ProductPerkDeleteChangeSchema,
-  PaymentProviderProductCreateChangeSchema,
-  PaymentProviderProductUpdateChangeSchema,
-  PaymentProviderProductDeleteChangeSchema,
+export const Change = Schema.Union([
+  PaywallLocationCreateChange,
+  PaywallLocationUpdateChange,
+  PaywallLocationArchiveChange,
+  PerkCreateChange,
+  PerkUpdateChange,
+  PerkDeleteChange,
+  ProductCreateChange,
+  ProductUpdateChange,
+  ProductDeleteChange,
+  ProductPerkCreateChange,
+  ProductPerkDeleteChange,
+  PaymentProviderProductCreateChange,
+  PaymentProviderProductUpdateChange,
+  PaymentProviderProductDeleteChange,
 ]);
+export type Change = typeof Change.Type;
 
-export const ChangesetSchema = Schema.Struct({
-  changes: Schema.Array(ChangeSchema),
+export const Changeset = Schema.Struct({
+  changes: Schema.Array(Change),
 });
+export type Changeset = typeof Changeset.Type;
 
-export function sortChangeset(changeset: typeof ChangesetSchema.Type) {
-  const sortedChangeTypesByPriority: (typeof ChangeSchema.Type.changeType)[] = [
+export function sortChangeset(changeset: typeof Changeset.Type) {
+  const sortedChangeTypesByPriority: (typeof Change.Type.changeType)[] = [
     "create-paywall-location",
     "create-perk",
     "create-product",
@@ -175,11 +191,31 @@ export function sortChangeset(changeset: typeof ChangesetSchema.Type) {
     "delete-perk",
   ];
 
-  const sortedChangeset = [...changeset.changes].sort(
-    (a, b) =>
-      sortedChangeTypesByPriority.indexOf(a.changeType) -
-      sortedChangeTypesByPriority.indexOf(b.changeType),
+  const sortedChangeset = Arr.sort(
+    changeset.changes,
+    Order.mapInput(Order.Number, (change: (typeof Changeset.Type.changes)[number]) =>
+      sortedChangeTypesByPriority.indexOf(change.changeType),
+    ),
   );
 
   return sortedChangeset;
 }
+
+export { PaywallLocationCreateChange as PaywallLocationCreateChangeSchema };
+export { PaywallLocationUpdateChange as PaywallLocationUpdateChangeSchema };
+export { PaywallLocationArchiveChange as PaywallLocationArchiveChangeSchema };
+export { PerkCreateChange as PerkCreateChangeSchema };
+export { PerkUpdateChange as PerkUpdateChangeSchema };
+export { PerkDeleteChange as PerkDeleteChangeSchema };
+export { ProductCreateChange as ProductCreateChangeSchema };
+export { ProductUpdateChange as ProductUpdateChangeSchema };
+export { ProductDeleteChange as ProductDeleteChangeSchema };
+export { ProductPerkCreateChange as ProductPerkCreateChangeSchema };
+export { ProductPerkDeleteChange as ProductPerkDeleteChangeSchema };
+export { PaymentProviderProductCreateChange as PaymentProviderProductCreateChangeSchema };
+export { PaymentProviderProductUpdateChange as PaymentProviderProductUpdateChangeSchema };
+export { PaymentProviderProductDeleteChange as PaymentProviderProductDeleteChangeSchema };
+export { Change as ChangeSchema };
+export { Changeset as ChangesetSchema };
+import * as Arr from "effect/Array";
+import * as Order from "effect/Order";

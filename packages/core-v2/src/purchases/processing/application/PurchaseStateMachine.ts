@@ -1,4 +1,6 @@
-import { Context, Effect, Layer } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import {
   type PurchaseProcessingError,
@@ -20,7 +22,7 @@ import { PurchaseRefundStateMachine } from "./PurchaseRefundStateMachine.ts";
 import { PurchaseSubscriptionMutationMachine } from "./PurchaseSubscriptionMutationMachine.ts";
 import { PurchaseTransferStateMachine } from "./PurchaseTransferStateMachine.ts";
 
-const makePurchaseStateMachine = Effect.gen(function* () {
+const makePurchaseStateMachine = Effect.fn("makePurchaseStateMachine")(function* () {
   const lifecycle = yield* PurchaseLifecycleStateMachine;
   const refunds = yield* PurchaseRefundStateMachine;
   const subscriptionMutations = yield* PurchaseSubscriptionMutationMachine;
@@ -58,8 +60,7 @@ const makePurchaseStateMachine = Effect.gen(function* () {
     enterBillingRetry: (input) => observeAction(subscriptionMutations.enterBillingRetry, input),
     expireSubscription: (input) => observeAction(lifecycle.expireSubscription, input),
     extendSubscription: (input) => observeAction(subscriptionMutations.extendSubscription, input),
-    recordPriceIncrease: (input) =>
-      observeAction(subscriptionMutations.recordPriceIncrease, input),
+    recordPriceIncrease: (input) => observeAction(subscriptionMutations.recordPriceIncrease, input),
     redeemOffer: (input) => observeAction(subscriptionMutations.redeemOffer, input),
     refundPurchase: (input) => observeAction(refunds.refundPurchase, input),
     renewSubscription: (input) => observeAction(lifecycle.renewSubscription, input),
@@ -71,7 +72,7 @@ const makePurchaseStateMachine = Effect.gen(function* () {
     transferPurchase: (input) => observeTransfer(transfers.transferPurchase, input),
     transferSubscription: (input) => observeTransfer(transfers.transferSubscription, input),
   } satisfies PurchaseStateStoreShape;
-});
+})();
 
 /** Provider-neutral transactional state machine implementing all normalized purchase actions. */
 export class PurchaseStateMachine extends Context.Service<

@@ -1,5 +1,7 @@
 import { constant } from "@voidhash/lib/lang";
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
 
 import { ApiClient } from "../../utils/api-client";
 import { RemoteSchemaFetchError } from "../errors/schema";
@@ -8,17 +10,21 @@ import {
   createEmptyNormalizedSchema,
   type NormalizedSchema,
 } from "../schema/normalized-schema";
+import * as Arr from "effect/Array";
+import * as HashSet from "effect/HashSet";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as MutableHashSet from "effect/MutableHashSet";
 
-const SUPPORTED_PROVIDER_IDS: ReadonlySet<string> = new Set<string>([
+const SUPPORTED_PROVIDER_IDS: HashSet.HashSet<string> = HashSet.make(
   "appleAppStore",
   "googlePlay",
-] satisfies ReadonlyArray<ProviderId>);
+);
 
 /** Narrows a provider id reported by the API to one the CLI understands. */
 const isSupportedProviderId = (providerId: string): providerId is ProviderId =>
-  SUPPORTED_PROVIDER_IDS.has(providerId);
+  HashSet.has(SUPPORTED_PROVIDER_IDS, providerId);
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("make")(function* effect() {
   const apiClient = yield* ApiClient;
 
   /**
@@ -31,29 +37,29 @@ const make = Effect.gen(function* effect() {
    * version hash too — we no longer re-derive it on the client.
    */
   const fetchRemoteSchema = () =>
-    Effect.gen(function* fetchRemoteSchema() {
+    Effect.fn("fetchRemoteSchema")(function* fetchRemoteSchema() {
       yield* Effect.logDebug("Fetching remote schema from API");
       const response = yield* apiClient.schemaGetSchema();
 
       const schema: NormalizedSchema = createEmptyNormalizedSchema();
 
-      for (const perk of response.perks) {
-        schema.perks.set(perk.slug, {
+      Arr.forEach(response.perks, (perk) => {
+        MutableHashMap.set(schema.perks, perk.slug, {
           name: perk.name,
           slug: perk.slug,
         });
-      }
+      });
 
-      for (const location of response.locations) {
-        schema.locations.set(location.slug, {
+      Arr.forEach(response.locations, (location) => {
+        MutableHashMap.set(schema.locations, location.slug, {
           description: location.description,
           name: location.name,
           slug: location.slug,
         });
-      }
+      });
 
-      for (const product of response.products) {
-        schema.products.set(product.slug, {
+      Arr.forEach(response.products, (product) => {
+        MutableHashMap.set(schema.products, product.slug, {
           duration: product.duration,
           name: product.name,
           perks: [...product.perks],
@@ -69,21 +75,21 @@ const make = Effect.gen(function* effect() {
           slug: product.slug,
           type: product.type,
         });
-      }
+      });
 
-      for (const providerId of response.enabledProviders) {
-        schema.enabledProviders.add(providerId);
-      }
+      Arr.forEach(response.enabledProviders, (providerId) => {
+        MutableHashSet.add(schema.enabledProviders, providerId);
+      });
 
       yield* Effect.logDebug(
-        `Fetched ${schema.locations.size} locations, ${schema.perks.size} perks, ${schema.products.size} products`,
+        `Fetched ${MutableHashMap.size(schema.locations)} locations, ${MutableHashMap.size(schema.perks)} perks, ${MutableHashMap.size(schema.products)} products`,
       );
 
       // The server-side version is the canonical hash and trumps any local
       // re-derivation. Surface it so callers (codegen, `types check`) can
       // bake it into the `.d.ts` header / compare against the local one.
       return { schema, version: response.version };
-    }).pipe(
+    })().pipe(
       Effect.withSpan("SchemaService.fetchRemoteSchema"),
       Effect.catch((e) =>
         Effect.fail(
@@ -101,10 +107,10 @@ const make = Effect.gen(function* effect() {
    * just to compare hashes.
    */
   const fetchSchemaVersion = () =>
-    Effect.gen(function* fetchSchemaVersion() {
+    Effect.fn("fetchSchemaVersion")(function* fetchSchemaVersion() {
       const response = yield* apiClient.schemaGetSchemaVersion();
       return response.version;
-    }).pipe(
+    })().pipe(
       Effect.withSpan("SchemaService.fetchSchemaVersion"),
       Effect.catch((e) =>
         Effect.fail(
@@ -119,7 +125,7 @@ const make = Effect.gen(function* effect() {
     fetchRemoteSchema,
     fetchSchemaVersion,
   });
-});
+})();
 
 type SchemaServiceShape = Effect.Success<typeof make>;
 

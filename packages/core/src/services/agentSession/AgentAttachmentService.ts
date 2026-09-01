@@ -1,5 +1,10 @@
 import { constant } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Result, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -49,8 +54,9 @@ export class AgentAttachmentService extends Context.Service<AgentAttachmentServi
       const sessions = yield* AgentSessionIndexService;
       const publicFiles = yield* PublicFileStore;
 
-      const assertScope = (input: AgentAttachmentUploadInput) =>
-        Effect.gen(function* () {
+      const assertScope = Effect.fn("AgentAttachmentService.assertScope")(function* (
+        input: AgentAttachmentUploadInput,
+      ) {
           const indexed = yield* Effect.result(sessions.get({ sessionId: input.sessionId }));
           if (Result.isSuccess(indexed)) {
             if (indexed.success.organizationId !== input.organizationId) {
@@ -91,7 +97,11 @@ export class AgentAttachmentService extends Context.Service<AgentAttachmentServi
           });
           const attachmentId = generateId("agentAttachment");
           const key = `agent-sessions/${input.sessionId}/attachments/${attachmentId}.${ext}`;
-          yield* publicFiles.putObject({ key, body: bytes, contentType: input.contentType });
+          yield* publicFiles.putObject({
+            key,
+            body: bytes,
+            contentType: Option.some(input.contentType),
+          });
           return {
             url: publicFiles.publicUrl(key),
             name: input.name.slice(0, 255),

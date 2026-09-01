@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 
@@ -33,6 +33,7 @@ export const PaywallListParams = Schema.Struct({
   includeArchived: Schema.optional(BooleanParam),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "PaywallListParams" });
+export type PaywallListParams = typeof PaywallListParams.Type;
 
 /**
  * Body for `POST /paywalls`. The `slug` is the stable serving/analytics key and
@@ -57,6 +58,7 @@ export class UpdatePaywallBody extends Schema.Class<UpdatePaywallBody>("UpdatePa
 // ========================================================
 
 export const PaywallReleaseStatus = Schema.Literals(["draft", "published"]);
+export type PaywallReleaseStatus = typeof PaywallReleaseStatus.Type;
 
 /**
  * A rendered snapshot of a paywall. A `draft` carries `createdAt` and its
@@ -82,6 +84,7 @@ export const PaywallReleaseListParams = Schema.Struct({
   ...PageParams.fields,
   status: Schema.optional(Schema.Literals(["draft"])),
 }).annotate({ identifier: "PaywallReleaseListParams" });
+export type PaywallReleaseListParams = typeof PaywallReleaseListParams.Type;
 
 /**
  * Result of activating a published release. Activation flips the serving
@@ -108,6 +111,7 @@ export const PaywallLocationListParams = Schema.Struct({
   includeArchived: Schema.optional(BooleanParam),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "PaywallLocationListParams" });
+export type PaywallLocationListParams = typeof PaywallLocationListParams.Type;
 
 /**
  * Query parameters for location item reads. The location row is fetched
@@ -117,6 +121,7 @@ export const PaywallLocationListParams = Schema.Struct({
 export const PaywallLocationItemParams = Schema.Struct({
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "PaywallLocationItemParams" });
+export type PaywallLocationItemParams = typeof PaywallLocationItemParams.Type;
 
 /** Body for `POST /paywall-locations`. The `slug` is immutable once created. */
 export class CreatePaywallLocationBody extends Schema.Class<CreatePaywallLocationBody>(
@@ -142,6 +147,7 @@ export class UpdatePaywallLocationBody extends Schema.Class<UpdatePaywallLocatio
 }) {}
 
 export const PaywallLocationShowingType = Schema.Literals(["paywall_release", "feature_flag"]);
+export type PaywallLocationShowingType = typeof PaywallLocationShowingType.Type;
 
 const PaywallLocationShowingPaywall = Schema.Struct({
   id: Schema.String,
@@ -197,6 +203,7 @@ export class SetPaywallLocationShowingBody extends Schema.Class<SetPaywallLocati
 // ========================================================
 
 export const PaywallDeployStatus = Schema.Literals(["pending", "ready"]);
+export type PaywallDeployStatus = typeof PaywallDeployStatus.Type;
 
 const PaywallDeployPaywallSummary = Schema.Struct({
   contentHash: Schema.String,
@@ -234,6 +241,7 @@ export const PaywallDeployListParams = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   status: Schema.optional(PaywallDeployStatus),
 }).annotate({ identifier: "PaywallDeployListParams" });
+export type PaywallDeployListParams = typeof PaywallDeployListParams.Type;
 
 /**
  * Query parameters for `GET /paywall-deploys/:deployId`. The deploy is read
@@ -242,3 +250,4 @@ export const PaywallDeployListParams = Schema.Struct({
 export const PaywallDeployItemParams = Schema.Struct({
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "PaywallDeployItemParams" });
+export type PaywallDeployItemParams = typeof PaywallDeployItemParams.Type;

@@ -19,10 +19,11 @@
  */
 import { documentEditSchema } from "@voidhash/ai-shared";
 import { constant } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { z } from "zod";
 
 import * as WorkspaceTools from "../ai/workspace-tools.ts";
+import * as Schema from "effect/Schema";
 
 /** A JSON Schema object (the `inputSchema` advertised for a tool). */
 export type JsonSchema = Record<string, unknown>;
@@ -301,5 +302,5 @@ export const mcpToolDescriptors = (): ReadonlyArray<McpToolDescriptor> =>
   MCP_TOOLS.map((tool) => tool.descriptor);
 
 /** Look up a tool by name for `tools/call`; `undefined` for an unknown tool. */
-export const findMcpTool = (name: string): McpTool | undefined =>
+export const findMcpTool = (name: string): McpTool | typeof Schema.Undefined.Type =>
   MCP_TOOLS.find((tool) => tool.descriptor.name === name);

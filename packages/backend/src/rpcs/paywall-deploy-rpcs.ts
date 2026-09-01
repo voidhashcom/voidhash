@@ -6,7 +6,8 @@ import {
   RpcPaywallDeployValidationError,
   RpcReleaseNotFoundError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 export const PaywallDeployRpcsLive = PaywallDeployRpcsDef.toLayer(
   Effect.gen(function* () {
@@ -15,6 +16,21 @@ export const PaywallDeployRpcsLive = PaywallDeployRpcsDef.toLayer(
     return {
       ListPaywallDeploys: ({ projectId }) =>
         deployService.listDeploys({ projectId }).pipe(
+          Effect.map((deploys) =>
+            deploys.map((deploy) => ({
+              ...deploy,
+              components: deploy.components.map((component) => ({
+                ...component,
+                componentId: Option.getOrNull(component.componentId),
+                version: Option.getOrNull(component.version),
+              })),
+              paywalls: deploy.paywalls.map((paywall) => ({
+                ...paywall,
+                releaseId: Option.getOrNull(paywall.releaseId),
+                version: Option.getOrNull(paywall.version),
+              })),
+            })),
+          ),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),

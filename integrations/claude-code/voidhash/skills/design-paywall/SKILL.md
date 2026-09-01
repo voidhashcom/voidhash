@@ -634,7 +634,7 @@ There is **NO `id`** — a component is identified by its FILE PATH
 (`components/<name>.tsx`), which is the path a `component` node references.
 
 - `render: ({ props, actions }) => ReactNode` — the template. `props` has
-  defaults filled and `.optional()` props typed `T | undefined`; `actions` are
+  defaults filled and `.optional()` props typed `T | typeof Schema.Undefined.Type`; `actions` are
   typed callbacks.
 - Preview-state `data` accepts `products`, `variables`, `platform`,
   `safeAreaInsets`, and `dimensions` for deterministic runtime-hook branches.

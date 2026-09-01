@@ -1,6 +1,6 @@
 import type { ViewSnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { buildViewStyles } from "@voidhash/paywall-renderer-web-core";
-import type { ComponentChildren } from "preact";
+import { h, type ComponentChildren } from "preact";
 
 import { useInteractions } from "../hooks/use-interactions";
 import { useLocalizedBackgroundImage } from "../hooks/use-localized-background";
@@ -24,16 +24,13 @@ export function View({ node, children }: ViewProps) {
       : { ...style, backgroundImage: localizedBackground },
   );
 
-  return (
-    <div
-      data-node-id={node.id}
-      onClick={onClick}
-      style={{
-        ...(styles as Record<string, string | number>),
-        ...(onClick ? { cursor: "pointer" } : {}),
-      }}
-    >
-      {children as unknown as null}
-    </div>
+  return h(
+    "div",
+    {
+      "data-node-id": node.id,
+      onClick,
+      style: { ...styles, ...(onClick ? { cursor: "pointer" } : {}) },
+    },
+    children,
   );
 }

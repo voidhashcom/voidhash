@@ -1,5 +1,5 @@
 import type { Value } from "@voidhash/mimic-core";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 export interface DocumentSnapshotResponse {
   readonly id: string;
@@ -8,9 +8,12 @@ export interface DocumentSnapshotResponse {
   readonly version: number;
 }
 
-export const DocumentSnapshotResponseSchema = Schema.Struct({
+export const DocumentSnapshotResponseCodec = Schema.Struct({
   id: Schema.String,
   collectionId: Schema.String,
   value: Schema.Unknown,
   version: Schema.Number,
 });
+export type DocumentSnapshotResponseCodec = typeof DocumentSnapshotResponseCodec.Type;
+
+export { DocumentSnapshotResponseCodec as DocumentSnapshotResponseSchema };

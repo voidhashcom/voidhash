@@ -1,5 +1,15 @@
+import * as P from "effect/Predicate";
 import { Result } from "better-result";
-import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
+import * as Arr from "effect/Array";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
+import { pipe } from "effect/Function";
 import { FetchHttpClient } from "effect/unstable/http";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
@@ -22,6 +32,7 @@ import { LifecycleService } from "./core/lifecycle/lifecycle-service";
 import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifecycle-adapter";
 import { ApiClient } from "./core/networking/api-client";
 import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
+import { DevelopmentPaymentAdapter } from "./core/payment-adapters/development-payment-adapter";
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { PurchasePendingError, UserCancelledError } from "./core/payment-adapters/errors";
@@ -49,6 +60,9 @@ import {
 } from "./errors";
 import type { PaywallRuntimeConfig } from "./internal/paywall-bridge/protocol";
 import type { VoidhashEngine as VoidhashEngineSpec } from "./specs/VoidhashEngine.nitro";
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 
 export interface VoidhashClientOptions {
   baseUrl?: string;
@@ -101,18 +115,12 @@ const CreateEffectRuntime = (
   sdkConfiguration: typeof SdkConfiguration.Service,
   nativeEngine?: VoidhashEngineSpec,
 ) => {
-  // oxlint-disable effect/noDynamicImports -- This debug-only edge must stay dynamic so Metro can omit the adapter from release bundles.
   const paymentAdapterLayer: Layer.Layer<PaymentAdapter> =
     __DEV__ && developmentMode
-      ? (
-          require("./core/payment-adapters/development-payment-adapter") as {
-            DevelopmentPaymentAdapter: Layer.Layer<PaymentAdapter>;
-          }
-        ).DevelopmentPaymentAdapter
+      ? DevelopmentPaymentAdapter
       : platform === "ios"
         ? AppStoreAdapter
         : GooglePlayAdapter;
-  // oxlint-enable effect/noDynamicImports
   // The embedded native engine replaces the TypeScript networking stack when it exists:
   // headers and environment mode are then built natively, exactly like a pure-native app.
   const apiClientLayer =
@@ -150,12 +158,15 @@ const DISABLED_PAYWALL_RUNTIME_CONFIG: PaywallRuntimeConfig = { products: [], va
 
 /** Matches an Effect `Data.TaggedError` by tag without importing its class. */
 const isTaggedError = (value: unknown, tag: string): boolean =>
-  typeof value === "object" && value !== null && "_tag" in value && value._tag === tag;
+  P.isObject(value) && value !== null && "_tag" in value && value._tag === tag;
 
 const toErrorWithMessage = (code: VoidhashErrorCode, unknownCause: unknown) => {
-  const cause = unknownCause instanceof Error ? unknownCause : new Error(String(unknownCause));
+  const message =
+    P.isObject(unknownCause) && "message" in unknownCause && P.isString(unknownCause.message)
+      ? unknownCause.message
+      : String(unknownCause);
 
-  return new VoidhashError(code, `${code}: ${cause.message}`, { cause });
+  return new VoidhashError(code, `${code}: ${message}`, { cause: unknownCause });
 };
 
 /**
@@ -178,8 +189,8 @@ export type PurchaseOutcome =
 
 /** Answer to an entitlement check for one perk. */
 export interface HasPerkResult {
-  /** The active grant behind `hasAccess`, or `null` when there is none. */
-  grant: EntitlementGrant | null;
+  /** The active grant behind `hasAccess`, when one exists. */
+  grant: Option.Option<EntitlementGrant>;
   hasAccess: boolean;
   /**
    * True when `hasAccess` was served from the cached snapshot because a
@@ -199,17 +210,17 @@ type InitializedEffectClient = Effect.Success<
 
 export class VoidhashClient {
   private _isInitialized = false;
-  private analyticsFlushInFlight: Promise<Result<void, VoidhashError>> | null = null;
-  private appLifecycleSubscription: { remove: () => void } | null = null;
+  private analyticsFlushInFlight = Option.none<Promise<Result<void, VoidhashError>>>();
+  private appLifecycleSubscription = Option.none<{ remove: () => void }>();
   private preInitAnalyticsBuffer: Array<{
     eventName: string;
     properties: Record<string, unknown>;
   }> = [];
-  private initialDistinctId: string | null;
+  private initialDistinctId: Option.Option<string>;
   private enabled: boolean;
   private sdkConfiguration: SdkConfigurationHandle;
   private scheme: string;
-  private internalSchema: RuntimeSchema | undefined;
+  private internalSchema?: RuntimeSchema;
   private unstableSwallowErrors: boolean;
   private atomRegistry: AtomRegistry.AtomRegistry;
   private developmentMode: boolean;
@@ -220,10 +231,10 @@ export class VoidhashClient {
   private initializedClient?: InitializedEffectClient;
 
   constructor(
-    initialDistinctId: string | null,
+    initialDistinctId: unknown,
     scheme: string,
     baseUrl: string,
-    ingestUrl: string | undefined,
+    ingestUrl: unknown,
     publishableKey: string,
     readOnly: boolean,
     unstableSwallowErrors: boolean,
@@ -235,30 +246,35 @@ export class VoidhashClient {
     enabled = true,
     nativeEngine?: VoidhashEngineSpec,
   ) {
-    this.initialDistinctId = initialDistinctId;
+    this.initialDistinctId = Option.isOption(initialDistinctId)
+      ? Option.filter(initialDistinctId, P.isString)
+      : Option.liftPredicate(initialDistinctId, P.isString);
     this.enabled = enabled;
     this.developmentMode = __DEV__ && dev;
     this.scheme = scheme;
     this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
     this.atomRegistry = atomRegistry;
+    const normalizedIngestUrl = Option.isOption(ingestUrl)
+      ? Option.filter(ingestUrl, P.isString)
+      : Option.liftPredicate(ingestUrl, P.isString);
     this.sdkConfiguration = makeSdkConfiguration({
       baseUrl,
       debug,
       developmentMode: this.developmentMode,
-      ingestUrl,
+      ingestUrl: normalizedIngestUrl.valueOrUndefined,
       publishableKey,
       readOnly: readOnly || !COMMERCE_FEATURES_ENABLED,
     });
     if (enabled && nativeEngine !== undefined) {
       nativeEngine.configure(
         publishableKey,
-        JSON.stringify({
+        effectEncodeJson({
           baseUrl,
           debug,
           dev: this.developmentMode,
           enabled,
-          ingestUrl,
+          ingestUrl: normalizedIngestUrl.valueOrUndefined,
           readOnly: this.sdkConfiguration.isReadOnly(),
         }),
       );
@@ -286,8 +302,9 @@ export class VoidhashClient {
       : Result.err(toErrorWithMessage("UNKNOWN", Cause.squash(exit.cause)));
 
     if (result.isErr() && this.unstableSwallowErrors) {
-      // This warning is intentionally surfaced in all environments.
-      console.warn(`[voidhash] swallowed error in ${operation}`, result.error);
+      EffectRuntime.runSync(
+        Effect.logWarning(`[voidhash] swallowed error in ${operation}`, result.error),
+      );
       return Result.ok(undefined);
     }
 
@@ -308,7 +325,7 @@ export class VoidhashClient {
     return this.runSideEffect("init", async () => {
       const initializedClientResult = await this.toResult(
         this.unitializedClient.init({
-          distinctId: this.initialDistinctId ?? undefined,
+          distinctId: this.initialDistinctId.valueOrUndefined,
           internalSchema: this.internalSchema,
         }),
         "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
@@ -340,7 +357,7 @@ export class VoidhashClient {
         this.triggerBackgroundFlush("flush analytics from timer");
       });
 
-      if (this.preInitAnalyticsBuffer.length > 0) {
+      if (Arr.isReadonlyArrayNonEmpty(this.preInitAnalyticsBuffer)) {
         this.effectRuntime.runSync(
           initializedClient.transferAnalyticsEvents(this.preInitAnalyticsBuffer),
         );
@@ -352,10 +369,11 @@ export class VoidhashClient {
         "FAILED_TO_CAPTURE_STARTUP_EVENTS",
       );
       if (startupEventsResult.isErr()) {
-        // This warning is intentionally surfaced in all environments.
-        console.warn(
-          "[voidhash] failed to capture automatic startup analytics",
-          startupEventsResult.error,
+        EffectRuntime.runSync(
+          Effect.logWarning(
+            "[voidhash] failed to capture automatic startup analytics",
+            startupEventsResult.error,
+          ),
         );
       }
 
@@ -401,8 +419,8 @@ export class VoidhashClient {
       if (endResult.isErr()) {
         return Result.err(endResult.error);
       }
-      this.appLifecycleSubscription?.remove();
-      this.appLifecycleSubscription = null;
+      Option.getOrUndefined(this.appLifecycleSubscription)?.remove();
+      this.appLifecycleSubscription = Option.none();
       this._isInitialized = false;
       return Result.ok(undefined);
     });
@@ -490,7 +508,7 @@ export class VoidhashClient {
     options: { allowStale?: boolean } = {},
   ): Promise<Result<HasPerkResult, VoidhashError>> {
     if (!this.enabled) {
-      return Result.ok({ grant: null, hasAccess: false, isStale: false });
+      return Result.ok({ grant: Option.none(), hasAccess: false, isStale: false });
     }
 
     if (!this.initializedClient) {
@@ -503,8 +521,8 @@ export class VoidhashClient {
     );
 
     if (refreshResult.isOk()) {
-      const grant = findActiveGrant(refreshResult.value, perkSlug);
-      return Result.ok({ grant, hasAccess: grant !== null, isStale: false });
+      const grant = findActiveGrant(Option.fromNullOr(refreshResult.value), perkSlug);
+      return Result.ok({ grant, hasAccess: Option.isSome(grant), isStale: false });
     }
 
     const refreshError = refreshResult.error;
@@ -516,8 +534,11 @@ export class VoidhashClient {
       this.initializedClient.getCachedPerson(),
       "FAILED_TO_GET_CURRENT_PERSON",
     );
-    const grant = findActiveGrant(cachedResult.isOk() ? cachedResult.value : null, perkSlug);
-    if (grant === null) {
+    const grant = findActiveGrant(
+      cachedResult.isOk() ? Option.fromNullOr(cachedResult.value) : Option.none(),
+      perkSlug,
+    );
+    if (Option.isNone(grant)) {
       // No cached evidence of access — surface the refresh failure rather
       // than answering a confident "no" from nothing.
       return Result.err(refreshError);
@@ -684,9 +705,7 @@ export class VoidhashClient {
    */
   async getProducts() {
     if (!this.enabled) {
-      // A disabled client never talks to the store, so no slug resolves. The
-      // cast mirrors `ProductService`'s own slug-keyed map construction.
-      return Result.ok({} as ProductsBySlug);
+      return Result.ok<ProductsBySlug>(R.empty());
     }
 
     if (!this.initializedClient) {
@@ -781,8 +800,8 @@ export class VoidhashClient {
     }
 
     return this.runSideEffect("flush", async () => {
-      if (this.analyticsFlushInFlight) {
-        await this.analyticsFlushInFlight;
+      if (Option.isSome(this.analyticsFlushInFlight)) {
+        await this.analyticsFlushInFlight.value;
         return Result.ok(undefined);
       }
 
@@ -794,9 +813,9 @@ export class VoidhashClient {
         this.initializedClient.flush(),
         "FAILED_TO_FLUSH_ANALYTICS",
       ).finally(() => {
-        this.analyticsFlushInFlight = null;
+        this.analyticsFlushInFlight = Option.none();
       });
-      this.analyticsFlushInFlight = inFlight;
+      this.analyticsFlushInFlight = Option.some(inFlight);
 
       return inFlight;
     });
@@ -850,7 +869,8 @@ export class VoidhashClient {
    */
   readonly internal = {
     getAtomRegistry: () => this.atomRegistry,
-    getSchema: (): RuntimeSchema | null => this.initializedClient?.getSchema() ?? null,
+    getSchema: (): Option.Option<RuntimeSchema> =>
+      Option.fromUndefinedOr(this.initializedClient?.getSchema()),
     getSuccessCallbackBaseUrl: () => `${this.scheme}://voidhash/callback/success`,
     getErrorCallbackBaseUrl: () => `${this.scheme}://voidhash/callback/error`,
     buildPaywallRuntimeConfig: (runtime: PaywallReleaseRuntime) =>
@@ -880,8 +900,9 @@ export class VoidhashClient {
   private triggerBackgroundFlush(operation: string) {
     void this.flush().then((result) => {
       if (result.isErr()) {
-        // This warning is intentionally surfaced in all environments.
-        console.warn(`[voidhash] failed to ${operation}`, result.error);
+        EffectRuntime.runSync(
+          Effect.logWarning(`[voidhash] failed to ${operation}`, result.error),
+        );
       }
     });
   }

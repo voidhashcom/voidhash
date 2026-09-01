@@ -1,6 +1,6 @@
 import { VoidhashV1Api } from "@voidhash/api-contracts";
 import { type AnyAuthSession, AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession } from "../../ApiMiddlewares.ts";

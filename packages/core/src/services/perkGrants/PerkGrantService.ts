@@ -1,6 +1,13 @@
+import * as Arr from "effect/Array";
 import { SubscriptionStatus } from "@voidhash/lib";
 import { RequestEnvironmentMode } from "@voidhash/core-v2";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { constant } from "@voidhash/lib/lang";
 
@@ -58,7 +65,7 @@ type SyncPerkOperation =
       readonly perkId: string;
       readonly environment: number;
       readonly unlockedBySubscriptionId: string;
-      readonly expiresAt: Date | null;
+      readonly expiresAt: Option.Option<Date>;
     }
   | {
       readonly status: "subscription-reactivate";
@@ -66,7 +73,7 @@ type SyncPerkOperation =
       readonly perkId: string;
       readonly environment: number;
       readonly unlockedBySubscriptionId: string;
-      readonly expiresAt: Date | null;
+      readonly expiresAt: Option.Option<Date>;
     }
   | {
       readonly status: "purchase-create";
@@ -99,14 +106,18 @@ type DesiredPerkEntitlement =
       readonly source: "subscription";
       readonly perkId: string;
       readonly subscriptionId: string;
-      readonly expiresAt: Date | null;
+      readonly expiresAt: Option.Option<Date>;
       readonly environment: number;
     };
 
 const entitlementKey = (environment: number, perkId: string) => `${environment}:${perkId}`;
 
-const sameDate = (left: Date | null, right: Date | null) =>
-  left === right || (left !== null && right !== null && left.getTime() === right.getTime());
+const sameDate = (left: Option.Option<Date>, right: Option.Option<Date>): boolean =>
+  Option.match(left, {
+    onNone: () => Option.isNone(right),
+    onSome: (leftDate) =>
+      Option.exists(right, (rightDate) => leftDate.getTime() === rightDate.getTime()),
+  });
 
 /**
  * `PerkGrantService` reconciles a person's `personUnlockedPerks` against
@@ -128,29 +139,28 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
     const syncUnlockedPerks = Effect.fn("syncUnlockedPerks")(
       function* (tx: DbTransaction, personId: string) {
         yield* Effect.annotateCurrentSpan("voidhash.person.id", personId);
-        const [unlockedPerks, personSubscriptions, personPurchases] = yield* Effect.all([
-          Effect.gen(function* () {
-            return yield* tx.query.personUnlockedPerks.findMany({
+        const [unlockedPerks, personSubscriptions, personPurchases] = yield* Effect.all(
+          [
+            tx.query.personUnlockedPerks.findMany({
               where: { personId },
-            });
-          }),
-          Effect.gen(function* () {
-            const rows = yield* tx.query.subscriptions.findMany({
-              where: { personId },
-              with: { paymentProviderConfigurationProduct: true },
-            });
-            // The product foreign key is non-null, so the relation always
-            // resolves; narrowing it here is what keeps the row type precise.
-            return rows.flatMap((row): ReadonlyArray<SubscriptionWithProduct> => {
-              const product = row.paymentProviderConfigurationProduct;
-              if (!product) {
-                return [];
-              }
-              return [{ ...row, paymentProviderConfigurationProduct: product }];
-            });
-          }),
-          Effect.gen(function* () {
-            const rows = yield* tx
+            }),
+            tx.query.subscriptions
+              .findMany({
+                where: { personId },
+                with: { paymentProviderConfigurationProduct: true },
+              })
+              .pipe(
+                Effect.map((rows) =>
+                  Arr.flatMap(rows, (row): ReadonlyArray<SubscriptionWithProduct> => {
+                    const product = row.paymentProviderConfigurationProduct;
+                    if (!product) {
+                      return [];
+                    }
+                    return [{ ...row, paymentProviderConfigurationProduct: product }];
+                  }),
+                ),
+              ),
+            tx
               .select({
                 paymentProviderConfigurationProduct: paymentProviderConfigurationProducts,
                 purchase: purchases,
@@ -163,15 +173,21 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
                   paymentProviderConfigurationProducts.id,
                 ),
               )
-              .where(eq(purchases.personId, personId));
-            return rows.map(
-              (row): PurchaseWithProduct => ({
-                ...row.purchase,
-                paymentProviderConfigurationProduct: row.paymentProviderConfigurationProduct,
-              }),
-            );
-          }),
-        ]);
+              .where(eq(purchases.personId, personId))
+              .pipe(
+                Effect.map((rows) =>
+                  Arr.map(
+                    rows,
+                    (row): PurchaseWithProduct => ({
+                      ...row.purchase,
+                      paymentProviderConfigurationProduct: row.paymentProviderConfigurationProduct,
+                    }),
+                  ),
+                ),
+              ),
+          ],
+          { concurrency: 1 },
+        );
 
         const activePurchases = personPurchases.filter(
           (purchase) => purchase.refundedAt === null && purchase.revokedAt === null,
@@ -191,78 +207,66 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
           configurationProductIds.slice(0, 20).join(","),
         );
 
-        const unlockablePerks = yield* Effect.gen(function* () {
-          if (configurationProductIds.length === 0) {
-            return [];
-          }
-          const rows = yield* tx
-            .select()
-            .from(paymentProviderConfigurationProducts)
-            .innerJoin(products, eq(paymentProviderConfigurationProducts.productId, products.id))
-            .innerJoin(productPerks, eq(productPerks.productId, products.id))
-            .where(inArray(paymentProviderConfigurationProducts.id, configurationProductIds));
-          return rows.map((row) => row.product_perk);
-        });
+        const unlockablePerks = Arr.isReadonlyArrayEmpty(configurationProductIds)
+          ? []
+          : yield* tx
+              .select()
+              .from(paymentProviderConfigurationProducts)
+              .innerJoin(products, eq(paymentProviderConfigurationProducts.productId, products.id))
+              .innerJoin(productPerks, eq(productPerks.productId, products.id))
+              .where(inArray(paymentProviderConfigurationProducts.id, configurationProductIds))
+              .pipe(Effect.map((rows) => Arr.map(rows, (row) => row.product_perk)));
 
-        const desiredByEnvironmentAndPerk = new Map<string, DesiredPerkEntitlement>();
-
-        for (const purchase of activePurchases) {
-          for (const productPerk of unlockablePerks) {
-            if (
-              productPerk.productId === purchase.paymentProviderConfigurationProduct.productId &&
-              !desiredByEnvironmentAndPerk.has(
-                entitlementKey(purchase.providerEnvironment, productPerk.perkId),
-              )
-            ) {
-              desiredByEnvironmentAndPerk.set(
-                entitlementKey(purchase.providerEnvironment, productPerk.perkId),
-                {
-                  environment: purchase.providerEnvironment,
-                  perkId: productPerk.perkId,
-                  purchaseId: purchase.id,
-                  source: "purchase",
-                },
-              );
-            }
-          }
-        }
-
-        for (const subscription of personSubscriptions) {
-          if (subscription.status !== SubscriptionStatus.Active) {
-            continue;
-          }
-          for (const productPerk of unlockablePerks) {
-            if (
-              productPerk.productId ===
-                subscription.paymentProviderConfigurationProduct.productId &&
-              !desiredByEnvironmentAndPerk.has(
-                entitlementKey(subscription.providerEnvironment, productPerk.perkId),
-              )
-            ) {
-              desiredByEnvironmentAndPerk.set(
-                entitlementKey(subscription.providerEnvironment, productPerk.perkId),
-                {
-                  environment: subscription.providerEnvironment,
-                  expiresAt: subscription.expiresAt,
-                  perkId: productPerk.perkId,
-                  source: "subscription",
-                  subscriptionId: subscription.id,
-                },
-              );
-            }
-          }
-        }
-
-        const desiredPerkIds = [...desiredByEnvironmentAndPerk.values()].map(
-          (entitlement) => entitlement.perkId,
+        const purchaseEntitlements = Arr.reduce(
+          activePurchases,
+          HashMap.empty<string, DesiredPerkEntitlement>(),
+          (entitlements, purchase) =>
+            Arr.reduce(unlockablePerks, entitlements, (current, productPerk) => {
+              const key = entitlementKey(purchase.providerEnvironment, productPerk.perkId);
+              return productPerk.productId ===
+                purchase.paymentProviderConfigurationProduct.productId && !HashMap.has(current, key)
+                ? HashMap.set(current, key, {
+                    environment: purchase.providerEnvironment,
+                    perkId: productPerk.perkId,
+                    purchaseId: purchase.id,
+                    source: "purchase",
+                  })
+                : current;
+            }),
         );
+
+        const desiredByEnvironmentAndPerk = Arr.reduce(
+          personSubscriptions,
+          purchaseEntitlements,
+          (entitlements, subscription) =>
+            subscription.status === SubscriptionStatus.Active
+              ? Arr.reduce(unlockablePerks, entitlements, (current, productPerk) => {
+                  const key = entitlementKey(subscription.providerEnvironment, productPerk.perkId);
+                  return productPerk.productId ===
+                    subscription.paymentProviderConfigurationProduct.productId &&
+                    !HashMap.has(current, key)
+                    ? HashMap.set(current, key, {
+                        environment: subscription.providerEnvironment,
+                        expiresAt: Option.fromNullishOr(subscription.expiresAt),
+                        perkId: productPerk.perkId,
+                        source: "subscription",
+                        subscriptionId: subscription.id,
+                      })
+                    : current;
+                })
+              : entitlements,
+        );
+
+        const desiredEntitlements = Arr.fromIterable(HashMap.values(desiredByEnvironmentAndPerk));
+        const desiredPerkIds = Arr.map(desiredEntitlements, (entitlement) => entitlement.perkId);
         yield* Effect.annotateCurrentSpan("voidhash.perk.count", desiredPerkIds.length);
         yield* Effect.annotateCurrentSpan(
           "voidhash.perk.ids",
           desiredPerkIds.slice(0, 20).join(","),
         );
 
-        const desiredOperations = [...desiredByEnvironmentAndPerk.values()].flatMap(
+        const desiredOperations = Arr.flatMap(
+          desiredEntitlements,
           (entitlement): SyncPerkOperation[] => {
             const existingPerk = unlockedPerks.find(
               (unlockedPerk) =>
@@ -315,7 +319,7 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               existingPerk.status !== PersonUnlockedPerkStatus.Active ||
               existingPerk.unlockedBySubscriptionId !== entitlement.subscriptionId ||
               existingPerk.unlockedByPurchaseId !== null ||
-              !sameDate(existingPerk.expiresAt, entitlement.expiresAt)
+              !sameDate(Option.fromNullishOr(existingPerk.expiresAt), entitlement.expiresAt)
             ) {
               return [
                 {
@@ -338,7 +342,8 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
               unlockedPerk.status === PersonUnlockedPerkStatus.Active &&
               (unlockedPerk.unlockedByPurchaseId !== null ||
                 unlockedPerk.unlockedBySubscriptionId !== null) &&
-              !desiredByEnvironmentAndPerk.has(
+              !HashMap.has(
+                desiredByEnvironmentAndPerk,
                 entitlementKey(unlockedPerk.environment, unlockedPerk.perkId),
               ),
           )
@@ -378,105 +383,102 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
         const now = yield* DateTime.nowAsDate;
         const writtenIds = yield* Effect.all(
           operations.map((operation) => {
-            switch (operation.status) {
-              case "subscription-create": {
-                const newPerk: InsertPersonUnlockedPerk = {
-                  personId,
-                  environment: operation.environment,
-                  expiresAt: operation.expiresAt,
-                  id: generateId("personUnlockedPerk"),
-                  perkId: operation.perkId,
+            if (operation.status === "subscription-create") {
+              const newPerk: InsertPersonUnlockedPerk = {
+                personId,
+                environment: operation.environment,
+                expiresAt: Option.getOrNull(operation.expiresAt),
+                id: generateId("personUnlockedPerk"),
+                perkId: operation.perkId,
+                status: PersonUnlockedPerkStatus.Active,
+                unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
+              };
+              return tx
+                .insert(personUnlockedPerks)
+                .values(newPerk)
+                .onConflictDoUpdate({
+                  target: [
+                    personUnlockedPerks.personId,
+                    personUnlockedPerks.perkId,
+                    personUnlockedPerks.environment,
+                  ],
+                  set: {
+                    expiresAt: Option.getOrNull(operation.expiresAt),
+                    status: PersonUnlockedPerkStatus.Active,
+                    unlockedByPurchaseId: null,
+                    unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
+                    updatedAt: now,
+                  },
+                })
+                .returning({ id: personUnlockedPerks.id })
+                .pipe(Effect.map((rows) => rows[0]?.id ?? newPerk.id));
+            }
+            if (operation.status === "subscription-reactivate") {
+              return tx
+                .update(personUnlockedPerks)
+                .set({
+                  expiresAt: Option.getOrNull(operation.expiresAt),
                   status: PersonUnlockedPerkStatus.Active,
                   unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
-                };
-                return tx
-                  .insert(personUnlockedPerks)
-                  .values(newPerk)
-                  .onConflictDoUpdate({
-                    target: [
-                      personUnlockedPerks.personId,
-                      personUnlockedPerks.perkId,
-                      personUnlockedPerks.environment,
-                    ],
-                    set: {
-                      expiresAt: operation.expiresAt,
-                      status: PersonUnlockedPerkStatus.Active,
-                      unlockedByPurchaseId: null,
-                      unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
-                      updatedAt: now,
-                    },
-                  })
-                  .returning({ id: personUnlockedPerks.id })
-                  .pipe(Effect.map((rows) => rows[0]?.id ?? newPerk.id));
-              }
-              case "subscription-reactivate": {
-                return tx
-                  .update(personUnlockedPerks)
-                  .set({
-                    expiresAt: operation.expiresAt,
-                    status: PersonUnlockedPerkStatus.Active,
-                    unlockedBySubscriptionId: operation.unlockedBySubscriptionId,
-                    unlockedByPurchaseId: null,
-                    updatedAt: now,
-                  })
-                  .where(eq(personUnlockedPerks.id, operation.id))
-                  .pipe(Effect.as(operation.id));
-              }
-              case "expire": {
-                return tx
-                  .update(personUnlockedPerks)
-                  .set({
-                    status: PersonUnlockedPerkStatus.Expired,
-                    updatedAt: now,
-                  })
-                  .where(eq(personUnlockedPerks.id, operation.id))
-                  .pipe(Effect.as(operation.id));
-              }
-              case "purchase-create": {
-                const newPerk: InsertPersonUnlockedPerk = {
-                  expiresAt: null,
-                  environment: operation.environment,
-                  id: generateId("personUnlockedPerk"),
-                  perkId: operation.perkId,
-                  personId,
-                  status: PersonUnlockedPerkStatus.Active,
-                  unlockedByPurchaseId: operation.purchaseId,
-                };
-                return tx
-                  .insert(personUnlockedPerks)
-                  .values(newPerk)
-                  .onConflictDoUpdate({
-                    target: [
-                      personUnlockedPerks.personId,
-                      personUnlockedPerks.perkId,
-                      personUnlockedPerks.environment,
-                    ],
-                    set: {
-                      expiresAt: null,
-                      status: PersonUnlockedPerkStatus.Active,
-                      unlockedByPurchaseId: operation.purchaseId,
-                      unlockedBySubscriptionId: null,
-                      updatedAt: now,
-                    },
-                  })
-                  .returning({ id: personUnlockedPerks.id })
-                  .pipe(Effect.map((rows) => rows[0]?.id ?? newPerk.id));
-              }
-              case "purchase-reactivate": {
-                return tx
-                  .update(personUnlockedPerks)
-                  .set({
+                  unlockedByPurchaseId: null,
+                  updatedAt: now,
+                })
+                .where(eq(personUnlockedPerks.id, operation.id))
+                .pipe(Effect.as(operation.id));
+            }
+            if (operation.status === "expire") {
+              return tx
+                .update(personUnlockedPerks)
+                .set({
+                  status: PersonUnlockedPerkStatus.Expired,
+                  updatedAt: now,
+                })
+                .where(eq(personUnlockedPerks.id, operation.id))
+                .pipe(Effect.as(operation.id));
+            }
+            if (operation.status === "purchase-create") {
+              const newPerk: InsertPersonUnlockedPerk = {
+                expiresAt: null,
+                environment: operation.environment,
+                id: generateId("personUnlockedPerk"),
+                perkId: operation.perkId,
+                personId,
+                status: PersonUnlockedPerkStatus.Active,
+                unlockedByPurchaseId: operation.purchaseId,
+              };
+              return tx
+                .insert(personUnlockedPerks)
+                .values(newPerk)
+                .onConflictDoUpdate({
+                  target: [
+                    personUnlockedPerks.personId,
+                    personUnlockedPerks.perkId,
+                    personUnlockedPerks.environment,
+                  ],
+                  set: {
                     expiresAt: null,
                     status: PersonUnlockedPerkStatus.Active,
                     unlockedByPurchaseId: operation.purchaseId,
                     unlockedBySubscriptionId: null,
                     updatedAt: now,
-                  })
-                  .where(eq(personUnlockedPerks.id, operation.id))
-                  .pipe(Effect.as(operation.id));
-              }
+                  },
+                })
+                .returning({ id: personUnlockedPerks.id })
+                .pipe(Effect.map((rows) => rows[0]?.id ?? newPerk.id));
             }
+            return tx
+              .update(personUnlockedPerks)
+              .set({
+                expiresAt: null,
+                status: PersonUnlockedPerkStatus.Active,
+                unlockedByPurchaseId: operation.purchaseId,
+                unlockedBySubscriptionId: null,
+                updatedAt: now,
+              })
+              .where(eq(personUnlockedPerks.id, operation.id))
+              .pipe(Effect.as(operation.id));
           }),
+          { concurrency: 1 },
         );
 
         yield* Effect.annotateCurrentSpan("voidhash.perk_grant.result.count", writtenIds.length);
@@ -500,20 +502,15 @@ export class PerkGrantService extends Context.Service<PerkGrantService>()("PerkG
           yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
         }
         const environmentMode = yield* RequestEnvironmentMode;
+        const db = yield* Db;
         const [person, perks] = yield* Effect.all(
           [
-            Effect.gen(function* () {
-              const db = yield* Db;
-              return yield* db.query.persons.findFirst({ where: { id: personId } });
-            }),
-            Effect.gen(function* () {
-              const db = yield* Db;
-              return yield* db.query.personUnlockedPerks.findMany({
-                where: {
-                  personId,
-                  environment: { in: [...environmentMode.providerEnvironments] },
-                },
-              });
+            db.query.persons.findFirst({ where: { id: personId } }),
+            db.query.personUnlockedPerks.findMany({
+              where: {
+                personId,
+                environment: { in: [...environmentMode.providerEnvironments] },
+              },
             }),
           ],
           { concurrency: "unbounded" },

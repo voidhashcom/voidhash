@@ -1,4 +1,7 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import {
   PaymentProviderConfigurationOperations,
@@ -15,14 +18,16 @@ const CreateInput = Schema.Struct({ projectId: Id, providerId: PaymentProviderId
 const DeleteInput = Schema.Struct({ paymentProviderConfigurationId: Id });
 const UpdateInput = Schema.Struct({
   configuration: Schema.Record(Schema.String, Schema.Unknown),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Id,
   name: Schema.optional(Schema.String),
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled" }));
 
 export type PaymentProviderConfigurationServiceShape = PaymentProviderConfigurationOperationsShape;
 
-const makePaymentProviderConfigurationService = Effect.gen(function* () {
+const makePaymentProviderConfigurationService = Effect.fn(
+  "makePaymentProviderConfigurationService",
+)(function* () {
   const operations = yield* PaymentProviderConfigurationOperations;
   const invalid = (error: unknown) =>
     new PaymentProviderConfigurationServiceError({ cause: String(error) });
@@ -53,10 +58,12 @@ const makePaymentProviderConfigurationService = Effect.gen(function* () {
     updatePaymentProviderConfiguration: (input) =>
       Schema.decodeUnknownEffect(UpdateInput)(input).pipe(
         Effect.mapError(invalid),
-        Effect.flatMap(operations.updatePaymentProviderConfiguration),
+        Effect.flatMap(({ isEnabled, ...update }) =>
+          operations.updatePaymentProviderConfiguration({ ...update, enabled: isEnabled }),
+        ),
       ),
   } satisfies PaymentProviderConfigurationServiceShape;
-});
+})();
 
 export class PaymentProviderConfigurationService extends Context.Service<
   PaymentProviderConfigurationService,

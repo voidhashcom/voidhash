@@ -3,7 +3,7 @@
  * RPCs (dashboard read-side + release activation). Class names and `_tag`
  * values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all paywall deploy service error. Wraps `DatabaseError`,

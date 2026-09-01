@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import * as R from "effect/Record";
+import * as Schema from "effect/Schema";
 import { constant } from "@voidhash/lib/lang";
 
 // ===== Environment =====
@@ -11,12 +12,13 @@ export const Environment = constant({
 
 export type Environment = (typeof Environment)[keyof typeof Environment];
 
-export const EnvironmentSchema = Schema.Union([
+export const EnvironmentCodec = Schema.Union([
   Schema.Literal(Environment.SANDBOX),
   Schema.Literal(Environment.PRODUCTION),
   Schema.Literal(Environment.XCODE),
   Schema.Literal(Environment.LOCAL_TESTING),
 ]);
+export type EnvironmentCodec = typeof EnvironmentCodec.Type;
 
 // ===== Status (subscription status) =====
 export const Status = constant({
@@ -29,13 +31,14 @@ export const Status = constant({
 
 export type Status = (typeof Status)[keyof typeof Status];
 
-export const StatusSchema = Schema.Union([
+export const StatusCodec = Schema.Union([
   Schema.Literal(Status.ACTIVE),
   Schema.Literal(Status.EXPIRED),
   Schema.Literal(Status.BILLING_RETRY),
   Schema.Literal(Status.BILLING_GRACE_PERIOD),
   Schema.Literal(Status.REVOKED),
 ]);
+export type StatusCodec = typeof StatusCodec.Type;
 
 // ===== Type (product type) =====
 export const Type = constant({
@@ -47,12 +50,13 @@ export const Type = constant({
 
 export type Type = (typeof Type)[keyof typeof Type];
 
-export const TypeSchema = Schema.Union([
+export const TypeCodec = Schema.Union([
   Schema.Literal(Type.AUTO_RENEWABLE_SUBSCRIPTION),
   Schema.Literal(Type.NON_CONSUMABLE),
   Schema.Literal(Type.CONSUMABLE),
   Schema.Literal(Type.NON_RENEWING_SUBSCRIPTION),
 ]);
+export type TypeCodec = typeof TypeCodec.Type;
 
 // ===== ProductType (for transaction history requests) =====
 export const ProductType = constant({
@@ -64,12 +68,13 @@ export const ProductType = constant({
 
 export type ProductType = (typeof ProductType)[keyof typeof ProductType];
 
-export const ProductTypeSchema = Schema.Union([
+export const ProductTypeCodec = Schema.Union([
   Schema.Literal(ProductType.AUTO_RENEWABLE),
   Schema.Literal(ProductType.NON_RENEWABLE),
   Schema.Literal(ProductType.CONSUMABLE),
   Schema.Literal(ProductType.NON_CONSUMABLE),
 ]);
+export type ProductTypeCodec = typeof ProductTypeCodec.Type;
 
 // ===== Order (sort order) =====
 export const Order = constant({
@@ -79,10 +84,11 @@ export const Order = constant({
 
 export type Order = (typeof Order)[keyof typeof Order];
 
-export const OrderSchema = Schema.Union([
+export const OrderCodec = Schema.Union([
   Schema.Literal(Order.ASCENDING),
   Schema.Literal(Order.DESCENDING),
 ]);
+export type OrderCodec = typeof OrderCodec.Type;
 
 // ===== NotificationTypeV2 =====
 export const NotificationTypeV2 = constant({
@@ -110,9 +116,10 @@ export const NotificationTypeV2 = constant({
 
 export type NotificationTypeV2 = (typeof NotificationTypeV2)[keyof typeof NotificationTypeV2];
 
-export const NotificationTypeV2Schema = Schema.Union(
-  Object.values(NotificationTypeV2).map((v) => Schema.Literal(v)),
+export const NotificationTypeV2Codec = Schema.Union(
+  R.values(NotificationTypeV2).map((v) => Schema.Literal(v)),
 );
+export type NotificationTypeV2Codec = typeof NotificationTypeV2Codec.Type;
 
 // ===== Subtype =====
 export const Subtype = constant({
@@ -137,7 +144,8 @@ export const Subtype = constant({
 
 export type Subtype = (typeof Subtype)[keyof typeof Subtype];
 
-export const SubtypeSchema = Schema.Union(Object.values(Subtype).map((v) => Schema.Literal(v)));
+export const SubtypeCodec = Schema.Union(R.values(Subtype).map((v) => Schema.Literal(v)));
+export type SubtypeCodec = typeof SubtypeCodec.Type;
 
 // ===== OfferType =====
 export const OfferType = constant({
@@ -149,12 +157,13 @@ export const OfferType = constant({
 
 export type OfferType = (typeof OfferType)[keyof typeof OfferType];
 
-export const OfferTypeSchema = Schema.Union([
+export const OfferTypeCodec = Schema.Union([
   Schema.Literal(OfferType.INTRODUCTORY_OFFER),
   Schema.Literal(OfferType.PROMOTIONAL_OFFER),
   Schema.Literal(OfferType.OFFER_CODE),
   Schema.Literal(OfferType.WIN_BACK_OFFER),
 ]);
+export type OfferTypeCodec = typeof OfferTypeCodec.Type;
 
 // ===== OfferDiscountType =====
 export const OfferDiscountType = constant({
@@ -166,12 +175,13 @@ export const OfferDiscountType = constant({
 
 export type OfferDiscountType = (typeof OfferDiscountType)[keyof typeof OfferDiscountType];
 
-export const OfferDiscountTypeSchema = Schema.Union([
+export const OfferDiscountTypeCodec = Schema.Union([
   Schema.Literal(OfferDiscountType.FREE_TRIAL),
   Schema.Literal(OfferDiscountType.PAY_AS_YOU_GO),
   Schema.Literal(OfferDiscountType.PAY_UP_FRONT),
   Schema.Literal(OfferDiscountType.ONE_TIME),
 ]);
+export type OfferDiscountTypeCodec = typeof OfferDiscountTypeCodec.Type;
 
 // ===== AutoRenewStatus =====
 export const AutoRenewStatus = constant({
@@ -181,10 +191,11 @@ export const AutoRenewStatus = constant({
 
 export type AutoRenewStatus = (typeof AutoRenewStatus)[keyof typeof AutoRenewStatus];
 
-export const AutoRenewStatusSchema = Schema.Union([
+export const AutoRenewStatusCodec = Schema.Union([
   Schema.Literal(AutoRenewStatus.OFF),
   Schema.Literal(AutoRenewStatus.ON),
 ]);
+export type AutoRenewStatusCodec = typeof AutoRenewStatusCodec.Type;
 
 // ===== ExpirationIntent =====
 export const ExpirationIntent = constant({
@@ -197,13 +208,14 @@ export const ExpirationIntent = constant({
 
 export type ExpirationIntent = (typeof ExpirationIntent)[keyof typeof ExpirationIntent];
 
-export const ExpirationIntentSchema = Schema.Union([
+export const ExpirationIntentCodec = Schema.Union([
   Schema.Literal(ExpirationIntent.CUSTOMER_CANCELLED),
   Schema.Literal(ExpirationIntent.BILLING_ERROR),
   Schema.Literal(ExpirationIntent.CUSTOMER_DID_NOT_CONSENT_TO_PRICE_INCREASE),
   Schema.Literal(ExpirationIntent.PRODUCT_NOT_AVAILABLE),
   Schema.Literal(ExpirationIntent.OTHER),
 ]);
+export type ExpirationIntentCodec = typeof ExpirationIntentCodec.Type;
 
 // ===== PriceIncreaseStatus =====
 export const PriceIncreaseStatus = constant({
@@ -213,10 +225,11 @@ export const PriceIncreaseStatus = constant({
 
 export type PriceIncreaseStatus = (typeof PriceIncreaseStatus)[keyof typeof PriceIncreaseStatus];
 
-export const PriceIncreaseStatusSchema = Schema.Union([
+export const PriceIncreaseStatusCodec = Schema.Union([
   Schema.Literal(PriceIncreaseStatus.CUSTOMER_HAS_NOT_RESPONDED),
   Schema.Literal(PriceIncreaseStatus.CUSTOMER_CONSENTED_OR_WAS_NOTIFIED_WITHOUT_NEEDING_CONSENT),
 ]);
+export type PriceIncreaseStatusCodec = typeof PriceIncreaseStatusCodec.Type;
 
 // ===== TransactionReason =====
 export const TransactionReason = constant({
@@ -226,10 +239,11 @@ export const TransactionReason = constant({
 
 export type TransactionReason = (typeof TransactionReason)[keyof typeof TransactionReason];
 
-export const TransactionReasonSchema = Schema.Union([
+export const TransactionReasonCodec = Schema.Union([
   Schema.Literal(TransactionReason.PURCHASE),
   Schema.Literal(TransactionReason.RENEWAL),
 ]);
+export type TransactionReasonCodec = typeof TransactionReasonCodec.Type;
 
 // ===== RevocationReason =====
 export const RevocationReason = constant({
@@ -239,10 +253,11 @@ export const RevocationReason = constant({
 
 export type RevocationReason = (typeof RevocationReason)[keyof typeof RevocationReason];
 
-export const RevocationReasonSchema = Schema.Union([
+export const RevocationReasonCodec = Schema.Union([
   Schema.Literal(RevocationReason.REFUNDED_DUE_TO_ISSUE),
   Schema.Literal(RevocationReason.REFUNDED_FOR_OTHER_REASON),
 ]);
+export type RevocationReasonCodec = typeof RevocationReasonCodec.Type;
 
 // ===== RevocationType =====
 export const RevocationType = constant({
@@ -253,11 +268,12 @@ export const RevocationType = constant({
 
 export type RevocationType = (typeof RevocationType)[keyof typeof RevocationType];
 
-export const RevocationTypeSchema = Schema.Union([
+export const RevocationTypeCodec = Schema.Union([
   Schema.Literal(RevocationType.REFUND_FULL),
   Schema.Literal(RevocationType.REFUND_PRORATED),
   Schema.Literal(RevocationType.FAMILY_REVOKE),
 ]);
+export type RevocationTypeCodec = typeof RevocationTypeCodec.Type;
 
 // ===== InAppOwnershipType =====
 export const InAppOwnershipType = constant({
@@ -267,10 +283,11 @@ export const InAppOwnershipType = constant({
 
 export type InAppOwnershipType = (typeof InAppOwnershipType)[keyof typeof InAppOwnershipType];
 
-export const InAppOwnershipTypeSchema = Schema.Union([
+export const InAppOwnershipTypeCodec = Schema.Union([
   Schema.Literal(InAppOwnershipType.FAMILY_SHARED),
   Schema.Literal(InAppOwnershipType.PURCHASED),
 ]);
+export type InAppOwnershipTypeCodec = typeof InAppOwnershipTypeCodec.Type;
 
 // ===== Platform (consumption) =====
 export const Platform = constant({
@@ -281,11 +298,12 @@ export const Platform = constant({
 
 export type Platform = (typeof Platform)[keyof typeof Platform];
 
-export const PlatformSchema = Schema.Union([
+export const PlatformCodec = Schema.Union([
   Schema.Literal(Platform.UNDECLARED),
   Schema.Literal(Platform.APPLE),
   Schema.Literal(Platform.NON_APPLE),
 ]);
+export type PlatformCodec = typeof PlatformCodec.Type;
 
 // ===== PurchasePlatform =====
 export const PurchasePlatform = constant({
@@ -297,12 +315,13 @@ export const PurchasePlatform = constant({
 
 export type PurchasePlatform = (typeof PurchasePlatform)[keyof typeof PurchasePlatform];
 
-export const PurchasePlatformSchema = Schema.Union([
+export const PurchasePlatformCodec = Schema.Union([
   Schema.Literal(PurchasePlatform.IOS),
   Schema.Literal(PurchasePlatform.MAC_OS),
   Schema.Literal(PurchasePlatform.TV_OS),
   Schema.Literal(PurchasePlatform.VISION_OS),
 ]);
+export type PurchasePlatformCodec = typeof PurchasePlatformCodec.Type;
 
 // ===== AccountTenure =====
 export const AccountTenure = constant({
@@ -318,9 +337,10 @@ export const AccountTenure = constant({
 
 export type AccountTenure = (typeof AccountTenure)[keyof typeof AccountTenure];
 
-export const AccountTenureSchema = Schema.Union(
-  Object.values(AccountTenure).map((v) => Schema.Literal(v)),
+export const AccountTenureCodec = Schema.Union(
+  R.values(AccountTenure).map((v) => Schema.Literal(v)),
 );
+export type AccountTenureCodec = typeof AccountTenureCodec.Type;
 
 // ===== PlayTime =====
 export const PlayTime = constant({
@@ -336,7 +356,8 @@ export const PlayTime = constant({
 
 export type PlayTime = (typeof PlayTime)[keyof typeof PlayTime];
 
-export const PlayTimeSchema = Schema.Union(Object.values(PlayTime).map((v) => Schema.Literal(v)));
+export const PlayTimeCodec = Schema.Union(R.values(PlayTime).map((v) => Schema.Literal(v)));
+export type PlayTimeCodec = typeof PlayTimeCodec.Type;
 
 // ===== ConsumptionStatus =====
 export const ConsumptionStatus = constant({
@@ -348,12 +369,13 @@ export const ConsumptionStatus = constant({
 
 export type ConsumptionStatus = (typeof ConsumptionStatus)[keyof typeof ConsumptionStatus];
 
-export const ConsumptionStatusSchema = Schema.Union([
+export const ConsumptionStatusCodec = Schema.Union([
   Schema.Literal(ConsumptionStatus.UNDECLARED),
   Schema.Literal(ConsumptionStatus.NOT_CONSUMED),
   Schema.Literal(ConsumptionStatus.PARTIALLY_CONSUMED),
   Schema.Literal(ConsumptionStatus.FULLY_CONSUMED),
 ]);
+export type ConsumptionStatusCodec = typeof ConsumptionStatusCodec.Type;
 
 // ===== DeliveryStatus (V2) =====
 export const DeliveryStatus = constant({
@@ -366,13 +388,14 @@ export const DeliveryStatus = constant({
 
 export type DeliveryStatus = (typeof DeliveryStatus)[keyof typeof DeliveryStatus];
 
-export const DeliveryStatusSchema = Schema.Union([
+export const DeliveryStatusCodec = Schema.Union([
   Schema.Literal(DeliveryStatus.DELIVERED),
   Schema.Literal(DeliveryStatus.UNDELIVERED_QUALITY_ISSUE),
   Schema.Literal(DeliveryStatus.UNDELIVERED_WRONG_ITEM),
   Schema.Literal(DeliveryStatus.UNDELIVERED_SERVER_OUTAGE),
   Schema.Literal(DeliveryStatus.UNDELIVERED_OTHER),
 ]);
+export type DeliveryStatusCodec = typeof DeliveryStatusCodec.Type;
 
 // ===== DeliveryStatusV1 (deprecated) =====
 export const DeliveryStatusV1 = constant({
@@ -386,9 +409,10 @@ export const DeliveryStatusV1 = constant({
 
 export type DeliveryStatusV1 = (typeof DeliveryStatusV1)[keyof typeof DeliveryStatusV1];
 
-export const DeliveryStatusV1Schema = Schema.Union(
-  Object.values(DeliveryStatusV1).map((v) => Schema.Literal(v)),
+export const DeliveryStatusV1Codec = Schema.Union(
+  R.values(DeliveryStatusV1).map((v) => Schema.Literal(v)),
 );
+export type DeliveryStatusV1Codec = typeof DeliveryStatusV1Codec.Type;
 
 // ===== RefundPreference (V2) =====
 export const RefundPreference = constant({
@@ -399,11 +423,12 @@ export const RefundPreference = constant({
 
 export type RefundPreference = (typeof RefundPreference)[keyof typeof RefundPreference];
 
-export const RefundPreferenceSchema = Schema.Union([
+export const RefundPreferenceCodec = Schema.Union([
   Schema.Literal(RefundPreference.DECLINE),
   Schema.Literal(RefundPreference.GRANT_FULL),
   Schema.Literal(RefundPreference.GRANT_PRORATED),
 ]);
+export type RefundPreferenceCodec = typeof RefundPreferenceCodec.Type;
 
 // ===== RefundPreferenceV1 (deprecated) =====
 export const RefundPreferenceV1 = constant({
@@ -415,12 +440,13 @@ export const RefundPreferenceV1 = constant({
 
 export type RefundPreferenceV1 = (typeof RefundPreferenceV1)[keyof typeof RefundPreferenceV1];
 
-export const RefundPreferenceV1Schema = Schema.Union([
+export const RefundPreferenceV1Codec = Schema.Union([
   Schema.Literal(RefundPreferenceV1.UNDECLARED),
   Schema.Literal(RefundPreferenceV1.PREFER_GRANT),
   Schema.Literal(RefundPreferenceV1.PREFER_DECLINE),
   Schema.Literal(RefundPreferenceV1.NO_PREFERENCE),
 ]);
+export type RefundPreferenceV1Codec = typeof RefundPreferenceV1Codec.Type;
 
 // ===== UserStatus =====
 export const UserStatus = constant({
@@ -433,13 +459,14 @@ export const UserStatus = constant({
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
 
-export const UserStatusSchema = Schema.Union([
+export const UserStatusCodec = Schema.Union([
   Schema.Literal(UserStatus.UNDECLARED),
   Schema.Literal(UserStatus.ACTIVE),
   Schema.Literal(UserStatus.SUSPENDED),
   Schema.Literal(UserStatus.TERMINATED),
   Schema.Literal(UserStatus.LIMITED_ACCESS),
 ]);
+export type UserStatusCodec = typeof UserStatusCodec.Type;
 
 // ===== SendAttemptResult =====
 export const SendAttemptResult = constant({
@@ -458,9 +485,10 @@ export const SendAttemptResult = constant({
 
 export type SendAttemptResult = (typeof SendAttemptResult)[keyof typeof SendAttemptResult];
 
-export const SendAttemptResultSchema = Schema.Union(
-  Object.values(SendAttemptResult).map((v) => Schema.Literal(v)),
+export const SendAttemptResultCodec = Schema.Union(
+  R.values(SendAttemptResult).map((v) => Schema.Literal(v)),
 );
+export type SendAttemptResultCodec = typeof SendAttemptResultCodec.Type;
 
 // ===== OrderLookupStatus =====
 export const OrderLookupStatus = constant({
@@ -470,10 +498,11 @@ export const OrderLookupStatus = constant({
 
 export type OrderLookupStatus = (typeof OrderLookupStatus)[keyof typeof OrderLookupStatus];
 
-export const OrderLookupStatusSchema = Schema.Union([
+export const OrderLookupStatusCodec = Schema.Union([
   Schema.Literal(OrderLookupStatus.VALID),
   Schema.Literal(OrderLookupStatus.INVALID),
 ]);
+export type OrderLookupStatusCodec = typeof OrderLookupStatusCodec.Type;
 
 // ===== ExtendReasonCode =====
 export const ExtendReasonCode = constant({
@@ -485,12 +514,13 @@ export const ExtendReasonCode = constant({
 
 export type ExtendReasonCode = (typeof ExtendReasonCode)[keyof typeof ExtendReasonCode];
 
-export const ExtendReasonCodeSchema = Schema.Union([
+export const ExtendReasonCodeCodec = Schema.Union([
   Schema.Literal(ExtendReasonCode.UNDECLARED),
   Schema.Literal(ExtendReasonCode.CUSTOMER_SATISFACTION),
   Schema.Literal(ExtendReasonCode.OTHER),
   Schema.Literal(ExtendReasonCode.SERVICE_ISSUE_OR_OUTAGE),
 ]);
+export type ExtendReasonCodeCodec = typeof ExtendReasonCodeCodec.Type;
 
 // ===== ImageState =====
 export const ImageState = constant({
@@ -501,11 +531,12 @@ export const ImageState = constant({
 
 export type ImageState = (typeof ImageState)[keyof typeof ImageState];
 
-export const ImageStateSchema = Schema.Union([
+export const ImageStateCodec = Schema.Union([
   Schema.Literal(ImageState.PENDING_REVIEW),
   Schema.Literal(ImageState.APPROVED),
   Schema.Literal(ImageState.REJECTED),
 ]);
+export type ImageStateCodec = typeof ImageStateCodec.Type;
 
 // ===== MessageState =====
 export const MessageState = constant({
@@ -516,11 +547,12 @@ export const MessageState = constant({
 
 export type MessageState = (typeof MessageState)[keyof typeof MessageState];
 
-export const MessageStateSchema = Schema.Union([
+export const MessageStateCodec = Schema.Union([
   Schema.Literal(MessageState.PENDING_REVIEW),
   Schema.Literal(MessageState.APPROVED),
   Schema.Literal(MessageState.REJECTED),
 ]);
+export type MessageStateCodec = typeof MessageStateCodec.Type;
 
 // ===== LifetimeDollarsPurchased =====
 export const LifetimeDollarsPurchased = constant({
@@ -537,9 +569,10 @@ export const LifetimeDollarsPurchased = constant({
 export type LifetimeDollarsPurchased =
   (typeof LifetimeDollarsPurchased)[keyof typeof LifetimeDollarsPurchased];
 
-export const LifetimeDollarsPurchasedSchema = Schema.Union(
-  Object.values(LifetimeDollarsPurchased).map((v) => Schema.Literal(v)),
+export const LifetimeDollarsPurchasedCodec = Schema.Union(
+  R.values(LifetimeDollarsPurchased).map((v) => Schema.Literal(v)),
 );
+export type LifetimeDollarsPurchasedCodec = typeof LifetimeDollarsPurchasedCodec.Type;
 
 // ===== LifetimeDollarsRefunded =====
 export const LifetimeDollarsRefunded = constant({
@@ -556,9 +589,10 @@ export const LifetimeDollarsRefunded = constant({
 export type LifetimeDollarsRefunded =
   (typeof LifetimeDollarsRefunded)[keyof typeof LifetimeDollarsRefunded];
 
-export const LifetimeDollarsRefundedSchema = Schema.Union(
-  Object.values(LifetimeDollarsRefunded).map((v) => Schema.Literal(v)),
+export const LifetimeDollarsRefundedCodec = Schema.Union(
+  R.values(LifetimeDollarsRefunded).map((v) => Schema.Literal(v)),
 );
+export type LifetimeDollarsRefundedCodec = typeof LifetimeDollarsRefundedCodec.Type;
 
 // ===== ConsumptionRequestReason =====
 export const ConsumptionRequestReason = constant({
@@ -572,13 +606,14 @@ export const ConsumptionRequestReason = constant({
 export type ConsumptionRequestReason =
   (typeof ConsumptionRequestReason)[keyof typeof ConsumptionRequestReason];
 
-export const ConsumptionRequestReasonSchema = Schema.Union([
+export const ConsumptionRequestReasonCodec = Schema.Union([
   Schema.Literal(ConsumptionRequestReason.UNINTENDED_PURCHASE),
   Schema.Literal(ConsumptionRequestReason.FULFILLMENT_ISSUE),
   Schema.Literal(ConsumptionRequestReason.UNSATISFIED_WITH_PURCHASE),
   Schema.Literal(ConsumptionRequestReason.LEGAL),
   Schema.Literal(ConsumptionRequestReason.OTHER),
 ]);
+export type ConsumptionRequestReasonCodec = typeof ConsumptionRequestReasonCodec.Type;
 
 // ===== GetTransactionHistoryVersion =====
 export const GetTransactionHistoryVersion = constant({
@@ -590,10 +625,11 @@ export const GetTransactionHistoryVersion = constant({
 export type GetTransactionHistoryVersion =
   (typeof GetTransactionHistoryVersion)[keyof typeof GetTransactionHistoryVersion];
 
-export const GetTransactionHistoryVersionSchema = Schema.Union([
+export const GetTransactionHistoryVersionCodec = Schema.Union([
   Schema.Literal(GetTransactionHistoryVersion.V1),
   Schema.Literal(GetTransactionHistoryVersion.V2),
 ]);
+export type GetTransactionHistoryVersionCodec = typeof GetTransactionHistoryVersionCodec.Type;
 
 // ===== ImageSize =====
 export const ImageSize = constant({
@@ -602,7 +638,8 @@ export const ImageSize = constant({
 
 export type ImageSize = (typeof ImageSize)[keyof typeof ImageSize];
 
-export const ImageSizeSchema = Schema.Union([Schema.Literal(ImageSize.FULL_SIZE)]);
+export const ImageSizeCodec = Schema.Union([Schema.Literal(ImageSize.FULL_SIZE)]);
+export type ImageSizeCodec = typeof ImageSizeCodec.Type;
 
 // ===== HeaderPosition =====
 export const HeaderPosition = constant({
@@ -612,10 +649,11 @@ export const HeaderPosition = constant({
 
 export type HeaderPosition = (typeof HeaderPosition)[keyof typeof HeaderPosition];
 
-export const HeaderPositionSchema = Schema.Union([
+export const HeaderPositionCodec = Schema.Union([
   Schema.Literal(HeaderPosition.ABOVE_IMAGE),
   Schema.Literal(HeaderPosition.BELOW_IMAGE),
 ]);
+export type HeaderPositionCodec = typeof HeaderPositionCodec.Type;
 
 // ===== BillingPlanType =====
 export const BillingPlanType = constant({
@@ -625,10 +663,11 @@ export const BillingPlanType = constant({
 
 export type BillingPlanType = (typeof BillingPlanType)[keyof typeof BillingPlanType];
 
-export const BillingPlanTypeSchema = Schema.Union([
+export const BillingPlanTypeCodec = Schema.Union([
   Schema.Literal(BillingPlanType.BILLED_UPFRONT),
   Schema.Literal(BillingPlanType.MONTHLY),
 ]);
+export type BillingPlanTypeCodec = typeof BillingPlanTypeCodec.Type;
 
 // ===== RenewalBillingPlanType =====
 export const RenewalBillingPlanType = constant({
@@ -639,10 +678,11 @@ export const RenewalBillingPlanType = constant({
 export type RenewalBillingPlanType =
   (typeof RenewalBillingPlanType)[keyof typeof RenewalBillingPlanType];
 
-export const RenewalBillingPlanTypeSchema = Schema.Union([
+export const RenewalBillingPlanTypeCodec = Schema.Union([
   Schema.Literal(RenewalBillingPlanType.BILLED_UPFRONT),
   Schema.Literal(RenewalBillingPlanType.MONTHLY),
 ]);
+export type RenewalBillingPlanTypeCodec = typeof RenewalBillingPlanTypeCodec.Type;
 
 // ===== PerformanceTestStatus =====
 export const PerformanceTestStatus = constant({
@@ -654,11 +694,12 @@ export const PerformanceTestStatus = constant({
 export type PerformanceTestStatus =
   (typeof PerformanceTestStatus)[keyof typeof PerformanceTestStatus];
 
-export const PerformanceTestStatusSchema = Schema.Union([
+export const PerformanceTestStatusCodec = Schema.Union([
   Schema.Literal(PerformanceTestStatus.PENDING),
   Schema.Literal(PerformanceTestStatus.IN_PROGRESS),
   Schema.Literal(PerformanceTestStatus.COMPLETED),
 ]);
+export type PerformanceTestStatusCodec = typeof PerformanceTestStatusCodec.Type;
 
 // ===== PerformanceTestResult =====
 export const PerformanceTestResult = constant({
@@ -669,10 +710,11 @@ export const PerformanceTestResult = constant({
 export type PerformanceTestResult =
   (typeof PerformanceTestResult)[keyof typeof PerformanceTestResult];
 
-export const PerformanceTestResultSchema = Schema.Union([
+export const PerformanceTestResultCodec = Schema.Union([
   Schema.Literal(PerformanceTestResult.PASS),
   Schema.Literal(PerformanceTestResult.FAIL),
 ]);
+export type PerformanceTestResultCodec = typeof PerformanceTestResultCodec.Type;
 
 // ===== AdvancedCommercePeriod =====
 export const AdvancedCommercePeriod = constant({
@@ -687,9 +729,10 @@ export const AdvancedCommercePeriod = constant({
 export type AdvancedCommercePeriod =
   (typeof AdvancedCommercePeriod)[keyof typeof AdvancedCommercePeriod];
 
-export const AdvancedCommercePeriodSchema = Schema.Union(
-  Object.values(AdvancedCommercePeriod).map((v) => Schema.Literal(v)),
+export const AdvancedCommercePeriodCodec = Schema.Union(
+  R.values(AdvancedCommercePeriod).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommercePeriodCodec = typeof AdvancedCommercePeriodCodec.Type;
 
 // ===== AdvancedCommerceOfferPeriod =====
 export const AdvancedCommerceOfferPeriod = constant({
@@ -704,9 +747,10 @@ export const AdvancedCommerceOfferPeriod = constant({
 export type AdvancedCommerceOfferPeriod =
   (typeof AdvancedCommerceOfferPeriod)[keyof typeof AdvancedCommerceOfferPeriod];
 
-export const AdvancedCommerceOfferPeriodSchema = Schema.Union(
-  Object.values(AdvancedCommerceOfferPeriod).map((v) => Schema.Literal(v)),
+export const AdvancedCommerceOfferPeriodCodec = Schema.Union(
+  R.values(AdvancedCommerceOfferPeriod).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommerceOfferPeriodCodec = typeof AdvancedCommerceOfferPeriodCodec.Type;
 
 // ===== AdvancedCommerceOfferReason =====
 export const AdvancedCommerceOfferReason = constant({
@@ -718,9 +762,10 @@ export const AdvancedCommerceOfferReason = constant({
 export type AdvancedCommerceOfferReason =
   (typeof AdvancedCommerceOfferReason)[keyof typeof AdvancedCommerceOfferReason];
 
-export const AdvancedCommerceOfferReasonSchema = Schema.Union(
-  Object.values(AdvancedCommerceOfferReason).map((v) => Schema.Literal(v)),
+export const AdvancedCommerceOfferReasonCodec = Schema.Union(
+  R.values(AdvancedCommerceOfferReason).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommerceOfferReasonCodec = typeof AdvancedCommerceOfferReasonCodec.Type;
 
 // ===== AdvancedCommerceReason =====
 export const AdvancedCommerceReason = constant({
@@ -732,9 +777,10 @@ export const AdvancedCommerceReason = constant({
 export type AdvancedCommerceReason =
   (typeof AdvancedCommerceReason)[keyof typeof AdvancedCommerceReason];
 
-export const AdvancedCommerceReasonSchema = Schema.Union(
-  Object.values(AdvancedCommerceReason).map((v) => Schema.Literal(v)),
+export const AdvancedCommerceReasonCodec = Schema.Union(
+  R.values(AdvancedCommerceReason).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommerceReasonCodec = typeof AdvancedCommerceReasonCodec.Type;
 
 // ===== AdvancedCommerceRefundReason =====
 export const AdvancedCommerceRefundReason = constant({
@@ -750,9 +796,10 @@ export const AdvancedCommerceRefundReason = constant({
 export type AdvancedCommerceRefundReason =
   (typeof AdvancedCommerceRefundReason)[keyof typeof AdvancedCommerceRefundReason];
 
-export const AdvancedCommerceRefundReasonSchema = Schema.Union(
-  Object.values(AdvancedCommerceRefundReason).map((v) => Schema.Literal(v)),
+export const AdvancedCommerceRefundReasonCodec = Schema.Union(
+  R.values(AdvancedCommerceRefundReason).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommerceRefundReasonCodec = typeof AdvancedCommerceRefundReasonCodec.Type;
 
 // ===== AdvancedCommerceRefundType =====
 export const AdvancedCommerceRefundType = constant({
@@ -764,9 +811,10 @@ export const AdvancedCommerceRefundType = constant({
 export type AdvancedCommerceRefundType =
   (typeof AdvancedCommerceRefundType)[keyof typeof AdvancedCommerceRefundType];
 
-export const AdvancedCommerceRefundTypeSchema = Schema.Union(
-  Object.values(AdvancedCommerceRefundType).map((v) => Schema.Literal(v)),
+export const AdvancedCommerceRefundTypeCodec = Schema.Union(
+  R.values(AdvancedCommerceRefundType).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommerceRefundTypeCodec = typeof AdvancedCommerceRefundTypeCodec.Type;
 
 // ===== AdvancedCommerceEffective =====
 export const AdvancedCommerceEffective = constant({
@@ -777,9 +825,10 @@ export const AdvancedCommerceEffective = constant({
 export type AdvancedCommerceEffective =
   (typeof AdvancedCommerceEffective)[keyof typeof AdvancedCommerceEffective];
 
-export const AdvancedCommerceEffectiveSchema = Schema.Union(
-  Object.values(AdvancedCommerceEffective).map((v) => Schema.Literal(v)),
+export const AdvancedCommerceEffectiveCodec = Schema.Union(
+  R.values(AdvancedCommerceEffective).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommerceEffectiveCodec = typeof AdvancedCommerceEffectiveCodec.Type;
 
 // ===== AdvancedCommercePriceIncreaseInfoStatus =====
 export const AdvancedCommercePriceIncreaseInfoStatus = constant({
@@ -791,6 +840,57 @@ export const AdvancedCommercePriceIncreaseInfoStatus = constant({
 export type AdvancedCommercePriceIncreaseInfoStatus =
   (typeof AdvancedCommercePriceIncreaseInfoStatus)[keyof typeof AdvancedCommercePriceIncreaseInfoStatus];
 
-export const AdvancedCommercePriceIncreaseInfoStatusSchema = Schema.Union(
-  Object.values(AdvancedCommercePriceIncreaseInfoStatus).map((v) => Schema.Literal(v)),
+export const AdvancedCommercePriceIncreaseInfoStatusCodec = Schema.Union(
+  R.values(AdvancedCommercePriceIncreaseInfoStatus).map((v) => Schema.Literal(v)),
 );
+export type AdvancedCommercePriceIncreaseInfoStatusCodec = typeof AdvancedCommercePriceIncreaseInfoStatusCodec.Type;
+
+export { EnvironmentCodec as EnvironmentSchema };
+export { StatusCodec as StatusSchema };
+export { TypeCodec as TypeSchema };
+export { ProductTypeCodec as ProductTypeSchema };
+export { OrderCodec as OrderSchema };
+export { NotificationTypeV2Codec as NotificationTypeV2Schema };
+export { SubtypeCodec as SubtypeSchema };
+export { OfferTypeCodec as OfferTypeSchema };
+export { OfferDiscountTypeCodec as OfferDiscountTypeSchema };
+export { AutoRenewStatusCodec as AutoRenewStatusSchema };
+export { ExpirationIntentCodec as ExpirationIntentSchema };
+export { PriceIncreaseStatusCodec as PriceIncreaseStatusSchema };
+export { TransactionReasonCodec as TransactionReasonSchema };
+export { RevocationReasonCodec as RevocationReasonSchema };
+export { RevocationTypeCodec as RevocationTypeSchema };
+export { InAppOwnershipTypeCodec as InAppOwnershipTypeSchema };
+export { PlatformCodec as PlatformSchema };
+export { PurchasePlatformCodec as PurchasePlatformSchema };
+export { AccountTenureCodec as AccountTenureSchema };
+export { PlayTimeCodec as PlayTimeSchema };
+export { ConsumptionStatusCodec as ConsumptionStatusSchema };
+export { DeliveryStatusCodec as DeliveryStatusSchema };
+export { DeliveryStatusV1Codec as DeliveryStatusV1Schema };
+export { RefundPreferenceCodec as RefundPreferenceSchema };
+export { RefundPreferenceV1Codec as RefundPreferenceV1Schema };
+export { UserStatusCodec as UserStatusSchema };
+export { SendAttemptResultCodec as SendAttemptResultSchema };
+export { OrderLookupStatusCodec as OrderLookupStatusSchema };
+export { ExtendReasonCodeCodec as ExtendReasonCodeSchema };
+export { ImageStateCodec as ImageStateSchema };
+export { MessageStateCodec as MessageStateSchema };
+export { LifetimeDollarsPurchasedCodec as LifetimeDollarsPurchasedSchema };
+export { LifetimeDollarsRefundedCodec as LifetimeDollarsRefundedSchema };
+export { ConsumptionRequestReasonCodec as ConsumptionRequestReasonSchema };
+export { GetTransactionHistoryVersionCodec as GetTransactionHistoryVersionSchema };
+export { ImageSizeCodec as ImageSizeSchema };
+export { HeaderPositionCodec as HeaderPositionSchema };
+export { BillingPlanTypeCodec as BillingPlanTypeSchema };
+export { RenewalBillingPlanTypeCodec as RenewalBillingPlanTypeSchema };
+export { PerformanceTestStatusCodec as PerformanceTestStatusSchema };
+export { PerformanceTestResultCodec as PerformanceTestResultSchema };
+export { AdvancedCommercePeriodCodec as AdvancedCommercePeriodSchema };
+export { AdvancedCommerceOfferPeriodCodec as AdvancedCommerceOfferPeriodSchema };
+export { AdvancedCommerceOfferReasonCodec as AdvancedCommerceOfferReasonSchema };
+export { AdvancedCommerceReasonCodec as AdvancedCommerceReasonSchema };
+export { AdvancedCommerceRefundReasonCodec as AdvancedCommerceRefundReasonSchema };
+export { AdvancedCommerceRefundTypeCodec as AdvancedCommerceRefundTypeSchema };
+export { AdvancedCommerceEffectiveCodec as AdvancedCommerceEffectiveSchema };
+export { AdvancedCommercePriceIncreaseInfoStatusCodec as AdvancedCommercePriceIncreaseInfoStatusSchema };

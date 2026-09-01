@@ -1,4 +1,9 @@
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Arr from "effect/Array";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { CacheManager } from "../caching/cache-manager";
@@ -12,7 +17,7 @@ export interface FeatureFlagsResult {
     readonly enabled: boolean;
     readonly key: string;
     readonly payload: unknown;
-    readonly variantKey: string | null;
+    readonly variantKey: Option.Option<string>;
   }>;
 }
 
@@ -20,8 +25,8 @@ const FEATURE_FLAGS_CACHE_TTL_MS = 1000 * 60 * 5;
 
 // Sort a *copy* of the caller's array — the input is part of their data and
 // must not be mutated, which the previous in-place `.sort()` was doing.
-const generateCacheKey = (flagKeys: string[] | undefined) =>
-  `feature-flags:${flagKeys && flagKeys.length > 0 ? [...flagKeys].sort().join(",") : "all"}`;
+const generateCacheKey = (flagKeys?: string[]) =>
+  `feature-flags:${flagKeys && Arr.isReadonlyArrayNonEmpty(flagKeys) ? Arr.sort(flagKeys, Str.Order).join(",") : "all"}`;
 
 /**
  * Evaluates feature flags via the SDK API with a 5-minute cache. Publishes
@@ -38,7 +43,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
       const atomRegistry = yield* AtomRegistry.AtomRegistry;
       const identityManager = yield* IdentityManager;
 
-      const publishResult = (flagKeys: string[] | undefined, result: FeatureFlagsResult) => {
+      const publishResult = (result: FeatureFlagsResult, flagKeys?: string[]) => {
         const normalizedKey = normalizeFeatureFlagKeys(flagKeys);
         const current = atomRegistry.get(featureFlagsByKeyAtom);
         atomRegistry.set(featureFlagsByKeyAtom, {
@@ -47,32 +52,39 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
         });
       };
 
-      const getFeatureFlags = (flagKeys?: string[]) =>
-        Effect.gen(function* () {
-          const cacheKey = generateCacheKey(flagKeys);
-          const cached = yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
-          if (cached && !cached.isExpired && !cached.isStale) {
-            publishResult(flagKeys, cached.value);
-            return cached.value;
-          }
+      const getFeatureFlags = Effect.fn("FeatureFlagService.getFeatureFlags")(function* (
+        flagKeys?: string[],
+      ) {
+        const cacheKey = generateCacheKey(flagKeys);
+        const cached = yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
+        if (Option.isSome(cached) && !cached.value.isExpired && !cached.value.isStale) {
+          publishResult(cached.value.value, flagKeys);
+          return cached.value.value;
+        }
 
-          const commonHeaders = yield* getCommonSdkHeaders();
-          const distinctId = yield* identityManager.getDistinctId();
-          const result = yield* apiClient.sdk.evaluateFeatureFlags({
-            headers: {
-              ...commonHeaders,
-              "x-distinct-id": distinctId,
-            },
-            payload: { flagKeys },
-          });
-
-          yield* cacheManager.set(cacheKey, result, {
-            ttl: FEATURE_FLAGS_CACHE_TTL_MS,
-          });
-
-          publishResult(flagKeys, result);
-          return result;
+        const commonHeaders = yield* getCommonSdkHeaders();
+        const distinctId = yield* identityManager.getDistinctId();
+        const response = yield* apiClient.sdk.evaluateFeatureFlags({
+          headers: {
+            ...commonHeaders,
+            "x-distinct-id": distinctId,
+          },
+          payload: { flagKeys },
         });
+        const result: FeatureFlagsResult = {
+          flags: response.flags.map((flag) => ({
+            ...flag,
+              variantKey: flag.variantKey,
+          })),
+        };
+
+        yield* cacheManager.set(cacheKey, result, {
+          ttl: FEATURE_FLAGS_CACHE_TTL_MS,
+        });
+
+        publishResult(result, flagKeys);
+        return result;
+      });
 
       return { getFeatureFlags } as const;
     }),

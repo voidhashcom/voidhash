@@ -6,7 +6,11 @@ import {
 } from "@voidhash/core-v2";
 import { Db, fxRates } from "@voidhash/db";
 import { generateId } from "@voidhash/core/utils/generate-id";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 const portError = (message: string) => (cause: unknown) =>
   new PurchasePortError({ cause, message });
@@ -34,8 +38,8 @@ export const DbFxRateStoreLive = Layer.effect(
       findExact: ({ asOfDate, currency }) =>
         db.query.fxRates.findFirst({ where: { asOfDate: { eq: asOfDate }, currency } }).pipe(
           Effect.flatMap((row) => {
-            if (row === undefined) return Effect.succeed(undefined);
-            return decodeRate(row);
+            if (row === undefined) return Effect.succeed(Option.none());
+            return decodeRate(row).pipe(Effect.map(Option.some));
           }),
           Effect.mapError(portError("failed to load exact FX rate")),
         ),
@@ -47,8 +51,8 @@ export const DbFxRateStoreLive = Layer.effect(
           })
           .pipe(
             Effect.flatMap((row) => {
-              if (row === undefined) return Effect.succeed(undefined);
-              return decodeRate(row);
+              if (row === undefined) return Effect.succeed(Option.none());
+              return decodeRate(row).pipe(Effect.map(Option.some));
             }),
             Effect.mapError(portError("failed to load carried FX rate")),
           ),
@@ -58,7 +62,7 @@ export const DbFxRateStoreLive = Layer.effect(
           Effect.mapError(portError("failed to inspect FX cache")),
         ),
       persist: (rates) =>
-        Effect.gen(function* () {
+        Effect.fn("persist")(function* () {
           const fetchedAt = yield* DateTime.nowAsDate;
           yield* Effect.forEach(
             rates,
@@ -76,7 +80,7 @@ export const DbFxRateStoreLive = Layer.effect(
                 .onConflictDoNothing({ target: [fxRates.currency, fxRates.asOfDate] }),
             { concurrency: 8, discard: true },
           );
-        }).pipe(Effect.mapError(portError("failed to persist FX rates"))),
+        })().pipe(Effect.mapError(portError("failed to persist FX rates"))),
     } satisfies FxRateStoreShape);
   }),
 );

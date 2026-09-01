@@ -11,7 +11,8 @@ export {
 // Signed with raw WebCrypto ECDSA, then re-encoded to the ASN.1 DER form Apple
 // expects (see `rawEcdsaSignatureToDer`).
 
-import { Effect, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { causeMessage } from "@voidhash/lib/lang";
 import { importPKCS8 } from "jose";
 import { JwtCreationError } from "../errors/index.ts";

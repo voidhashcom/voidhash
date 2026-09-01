@@ -18,11 +18,19 @@ import { IdentityLinkBackfillService } from "@voidhash/core/services/auth/Identi
 import { ActionForbiddenError } from "@voidhash/core/domain/auth/Auth";
 import { AuthSession } from "@voidhash/rpc";
 import { Db, type DbError } from "@voidhash/db";
-import { Config, Effect, Layer, Option, pipe } from "effect";
+import * as Config from "effect/Config";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import { pipe } from "effect/Function";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import { HttpServerRequest } from "effect/unstable/http";
 
 import { withIdentity } from "./Telemetry.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Schema from "effect/Schema";
+import * as Match from "effect/Match";
 
 type AuthMiddlewareError = ApiAuthenticationError | ApiAuthServiceError | ApiNotAuthenticatedError;
 type AuthMiddlewareSession = ApiUserSession | ApiSecretKeySession | ApiPublishableKeySession;
@@ -40,9 +48,7 @@ const hasSessionCookieHeader = (headers: Headers, cookieName: string): boolean =
 
 const toWebHeaders = (headers: HttpHeaders.Headers): Headers =>
   new Headers(
-    Object.entries(headers).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string",
-    ),
+    R.toEntries(headers).filter((entry): entry is [string, string] => P.isString(entry[1])),
   );
 
 /** Selects the highest-precedence credential carried by an HTTP request. */
@@ -123,11 +129,11 @@ export const AuthMiddlewareLive = Layer.effect(
 
     const authenticateApiKey = (rawApiKey: string) =>
       pipe(
-        Effect.gen(function* () {
+        Effect.fn("authenticateApiKey")(function* () {
           const record = yield* apiKeyService.validateUserApiKey(rawApiKey);
           const access = yield* localUserSessions.loadUserAccess(record.user.id);
-          return localUserSessions.toUserSession(record.user, access, null, null);
-        }),
+          return localUserSessions.toUserSession(record.user, access, Option.none(), Option.none());
+        })(),
         Effect.catchTags({
           ApiKeyNotFoundError: () =>
             Effect.fail(new ApiNotAuthenticatedError({ message: "You are not authenticated" })),
@@ -144,9 +150,9 @@ export const AuthMiddlewareLive = Layer.effect(
 
     const authenticateUserSession = (headers: Headers) =>
       pipe(
-        Effect.gen(function* () {
+        Effect.fn("authenticateUserSession")(function* () {
           const identity = yield* identityProvider.authenticateSessionCookie(headers);
-          if (!identity) {
+          if (Option.isNone(identity)) {
             return yield* Effect.fail(
               new ApiNotAuthenticatedError({ message: "You are not authenticated" }),
             );
@@ -155,20 +161,20 @@ export const AuthMiddlewareLive = Layer.effect(
           const resolveUser = () => {
             if (shouldBackfillWorkosLocalState) {
               return workosLocalSync
-                .syncAuthenticatedUser(identity)
+                .syncAuthenticatedUser(identity.value)
                 .pipe(Effect.map((synced) => synced.localUser));
             }
-            return localUserSessions.resolveLocalUser(identity);
+            return localUserSessions.resolveLocalUser(identity.value);
           };
           const localUser = yield* resolveUser();
           const access = yield* localUserSessions.loadUserAccess(localUser.id);
           return localUserSessions.toUserSession(
             localUser,
             access,
-            headers.get("cookie"),
-            identity.id,
+            Option.fromNullishOr(headers.get("cookie")),
+            Option.some(identity.value.id),
           );
-        }),
+        })(),
         Effect.catchTags({
           EffectDrizzleQueryError: (e) => Effect.fail(mapDatabaseError(e)),
           IdentityProviderError: (e) =>
@@ -190,7 +196,7 @@ export const AuthMiddlewareLive = Layer.effect(
 
     const authenticateSecretKey = (rawSecretKey: string) =>
       pipe(
-        Effect.gen(function* () {
+        Effect.fn("authenticateSecretKey")(function* () {
           const record = yield* apiKeyService.validateSecretKey(rawSecretKey);
           return {
             cookie: null,
@@ -210,7 +216,7 @@ export const AuthMiddlewareLive = Layer.effect(
             ],
             user: null,
           } satisfies ApiSecretKeySession;
-        }),
+        })(),
         Effect.catchTags({
           ApiKeyNotFoundError: () =>
             Effect.fail(
@@ -231,7 +237,7 @@ export const AuthMiddlewareLive = Layer.effect(
 
     const authenticatePublishableKey = (input: { distinctId: string; rawPublishableKey: string }) =>
       pipe(
-        Effect.gen(function* () {
+        Effect.fn("authenticatePublishableKey")(function* () {
           const record = yield* apiKeyService.validatePublishableKey(input.rawPublishableKey);
           return {
             cookie: null,
@@ -251,7 +257,7 @@ export const AuthMiddlewareLive = Layer.effect(
             ],
             user: null,
           } satisfies ApiPublishableKeySession;
-        }),
+        })(),
         Effect.catchTags({
           ApiKeyNotFoundError: () =>
             Effect.fail(
@@ -273,23 +279,24 @@ export const AuthMiddlewareLive = Layer.effect(
     const authenticateSelectedMethod = (
       selected: SelectedAuthMethod,
     ): Effect.Effect<AuthMiddlewareSession, AuthMiddlewareError, Db> => {
-      switch (selected.method) {
-        case "api-key":
-          return authenticateApiKey(selected.rawApiKey);
-        case "user-session":
-          return authenticateUserSession(selected.headers);
-        case "secret-key":
-          return authenticateSecretKey(selected.rawSecretKey);
-        case "publishable-key":
-          return authenticatePublishableKey({
-            distinctId: selected.distinctId,
-            rawPublishableKey: selected.rawPublishableKey,
-          });
-      }
+      return Match.value(selected).pipe(
+        Match.when({ method: "api-key" }, ({ rawApiKey }) => authenticateApiKey(rawApiKey)),
+        Match.when({ method: "user-session" }, ({ headers }) => authenticateUserSession(headers)),
+        Match.when({ method: "secret-key" }, ({ rawSecretKey }) =>
+          authenticateSecretKey(rawSecretKey),
+        ),
+        Match.when({ method: "publishable-key" }, ({ distinctId, rawPublishableKey }) =>
+          authenticatePublishableKey({
+            distinctId,
+            rawPublishableKey,
+          }),
+        ),
+        Match.exhaustive,
+      );
     };
 
     return AuthMiddleware.of((httpEffect) =>
-      Effect.gen(function* () {
+      Effect.fn("AuthMiddlewareLive")(function* () {
         const req = yield* HttpServerRequest.HttpServerRequest;
         const environmentMode = resolveRequestEnvironmentMode(
           Option.getOrUndefined(HttpHeaders.get(req.headers, "x-environment")),
@@ -302,7 +309,7 @@ export const AuthMiddlewareLive = Layer.effect(
             Effect.provideService(RequestEnvironmentMode, environmentMode),
           ),
         );
-      }),
+      })(),
     );
   }),
 );
@@ -355,24 +362,24 @@ export const requireCredential = (
  */
 export const getPersonMetadataFromSdkHeaders = (parsedHeaders: {
   readonly "x-client-bundle-id": string;
-  readonly "x-client-locale"?: string | undefined;
-  readonly "x-client-version"?: string | undefined;
+  readonly "x-client-locale"?: string | typeof Schema.Undefined.Type;
+  readonly "x-client-version"?: string | typeof Schema.Undefined.Type;
   readonly "x-distinct-id": string;
   readonly "x-is-backgrounded": "false";
   readonly "x-is-debug-build": "true" | "false";
-  readonly "x-nonce"?: string | undefined;
+  readonly "x-nonce"?: string | typeof Schema.Undefined.Type;
   readonly "x-observer-mode": "true" | "false";
   readonly "x-platform": string;
-  readonly "x-platform-brand"?: string | undefined;
-  readonly "x-platform-device"?: string | undefined;
+  readonly "x-platform-brand"?: string | typeof Schema.Undefined.Type;
+  readonly "x-platform-device"?: string | typeof Schema.Undefined.Type;
   readonly "x-platform-flavor": "native" | "browser";
-  readonly "x-platform-flavor-version"?: string | undefined;
-  readonly "x-platform-version"?: string | undefined;
-  readonly "x-preferred-locales"?: string | undefined;
+  readonly "x-platform-flavor-version"?: string | typeof Schema.Undefined.Type;
+  readonly "x-platform-version"?: string | typeof Schema.Undefined.Type;
+  readonly "x-preferred-locales"?: string | typeof Schema.Undefined.Type;
   readonly "x-publishable-key": string;
   readonly "x-sdk": "react-native" | "web" | "ios" | "android";
   readonly "x-sdk-version": string;
-  readonly "x-storefront"?: string | undefined;
+  readonly "x-storefront"?: string | typeof Schema.Undefined.Type;
 }) => ({
   clientBundleId: parsedHeaders["x-client-bundle-id"],
   clientLocale: parsedHeaders["x-client-locale"],

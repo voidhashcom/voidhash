@@ -4,7 +4,7 @@
  * `Product`. Row data lives in the `paymentProviderConfigurationProducts`
  * Drizzle table.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 export const PaymentProviderProduct = Schema.Struct({
   configuration: Schema.NullOr(Schema.Record(Schema.String, Schema.Unknown)),
@@ -16,8 +16,10 @@ export const PaymentProviderProduct = Schema.Struct({
   providerProductKey: Schema.NonEmptyString,
   updatedAt: Schema.NullOr(Schema.Date),
 });
+export type PaymentProviderProduct = typeof PaymentProviderProduct.Type;
 
 export const PaymentProviderProducts = Schema.Array(PaymentProviderProduct);
+export type PaymentProviderProducts = typeof PaymentProviderProducts.Type;
 
 export const ProjectPaymentProviderProduct = Schema.Struct({
   configuration: Schema.NullOr(Schema.Record(Schema.String, Schema.Unknown)),
@@ -26,8 +28,10 @@ export const ProjectPaymentProviderProduct = Schema.Struct({
   productId: Schema.NonEmptyString,
   providerId: Schema.String,
 });
+export type ProjectPaymentProviderProduct = typeof ProjectPaymentProviderProduct.Type;
 
 export const ProjectPaymentProviderProducts = Schema.Array(ProjectPaymentProviderProduct);
+export type ProjectPaymentProviderProducts = typeof ProjectPaymentProviderProducts.Type;
 
 /** Provider-product row not found. */
 export class PaymentProviderProductNotFoundError extends Schema.TaggedErrorClass<PaymentProviderProductNotFoundError>(

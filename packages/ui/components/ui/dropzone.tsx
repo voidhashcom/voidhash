@@ -43,29 +43,22 @@ export function Dropzone({
     e.stopPropagation();
     setIsDragging(false);
 
-    const files = [...e.dataTransfer.files];
-    if (files.length > 0) {
-      const file = files[0];
-      if (maxSize && file && file.size > maxSize) {
-        return;
-      }
-      if (file) {
-        onFileChange(file);
-      }
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (maxSize && file.size > maxSize) {
+      return;
     }
+    onFileChange(file);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target;
-    if (files && files.length > 0) {
-      const file = files[0];
-      if (maxSize && file && file.size > maxSize) {
-        return;
-      }
-      if (file) {
-        onFileChange(file);
-      }
+    const file = files?.[0];
+    if (!file) return;
+    if (maxSize && file.size > maxSize) {
+      return;
     }
+    onFileChange(file);
   };
 
   return (

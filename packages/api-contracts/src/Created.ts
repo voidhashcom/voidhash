@@ -1,4 +1,5 @@
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 import { HttpServerResponse } from "effect/unstable/http";
 
 /**
@@ -37,11 +38,10 @@ export const createdResponse = <S extends Schema.Top>(
   resource: S["Type"],
   location: string,
 ): Effect.Effect<HttpServerResponse.HttpServerResponse, never, S["EncodingServices"]> =>
-  Schema.encodeEffect(schema)(resource).pipe(
+  Schema.encodeEffect(Schema.fromJsonString(schema))(resource).pipe(
     Effect.orDie,
     Effect.map((encoded) =>
-      // oxlint-disable-next-line effect/noGlobals -- must reproduce the framework's own success encoding byte for byte (`getResponseEncode`'s Json branch does exactly this), so the body is identical whether or not the handler sets a Location header.
-      HttpServerResponse.text(JSON.stringify(encoded), {
+      HttpServerResponse.text(encoded, {
         contentType: "application/json",
         status: 201,
       }).pipe(HttpServerResponse.setHeader("location", `${API_V1_PREFIX}${location}`)),

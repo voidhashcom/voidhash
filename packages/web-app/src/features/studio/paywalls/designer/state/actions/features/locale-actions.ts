@@ -15,6 +15,7 @@ import type {
 } from "@voidhash/mimic-schema";
 import type { Primitive } from "@voidhash/mimic-core";
 import type { RootSnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import * as Option from "effect/Option";
 
 import { commander } from "../../designer-commander";
 import {
@@ -279,12 +280,13 @@ export const addLocale = commander.undoableAction<{ tag: string }, { entryId: st
     const info = readLocalizationInfo(root);
     const canonical = canonicalizeLocaleTag(params.tag);
     if (
-      canonical === null ||
-      canonical === info.defaultLocale ||
-      info.locales.includes(canonical)
+      Option.isNone(canonical) ||
+      canonical.value === info.defaultLocale ||
+      info.locales.includes(canonical.value)
     ) {
       return { entryId: null };
     }
+    const tag = canonical.value;
     const rootId = root.id;
     const { mimic } = state;
     const entryId = mimic.document.transaction((docRoot) => {
@@ -292,7 +294,7 @@ export const addLocale = commander.undoableAction<{ tag: string }, { entryId: st
       if (rootNode === undefined) {
         return null;
       }
-      return rootNode.data.localization.locales.push({ tag: canonical }).id;
+      return rootNode.data.localization.locales.push({ tag }).id;
     });
     return { entryId };
   },

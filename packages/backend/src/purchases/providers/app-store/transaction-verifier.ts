@@ -6,14 +6,19 @@ import type {
 } from "@voidhash/db";
 import { ProviderEnvironment } from "@voidhash/db";
 import { pick } from "@voidhash/lib/lang";
-import { Context, Data, Effect, Layer, Option } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 import { AppStorePaymentProvider } from "./payment-provider.ts";
+import * as Schema from "effect/Schema";
 
 /** Apple returned transaction info without the signed payload we need to decode. */
-export class AppStoreSignedTransactionMissingError extends Data.TaggedError(
+export class AppStoreSignedTransactionMissingError extends Schema.TaggedErrorClass<AppStoreSignedTransactionMissingError>("AppStoreSignedTransactionMissingError")(
   "AppStoreSignedTransactionMissingError",
-)<{ readonly message: string }> {}
+  { message: Schema.String },
+) {}
 
 /** Canonical App Store transaction data accepted by the record engine. */
 export interface AppStoreVerifiedTransaction {
@@ -41,7 +46,7 @@ export class AppStoreTransactionVerifier extends Context.Service<
 
       return AppStoreTransactionVerifier.of({
         verify: (input) =>
-          Effect.gen(function* () {
+          Effect.fn("verify")(function* () {
             const sdkContext = yield* provider.buildSdkContextFromConfiguration(
               input.configuration,
             );
@@ -70,7 +75,7 @@ export class AppStoreTransactionVerifier extends Context.Service<
                 ProviderEnvironment.Production,
               ),
             };
-          }),
+          })(),
       });
     }),
   );

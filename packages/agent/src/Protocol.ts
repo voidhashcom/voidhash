@@ -1,7 +1,7 @@
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import { constant } from "@voidhash/lib/lang";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Current WebSocket protocol version. */
 export const AGENT_PROTOCOL_VERSION = constant(1);
@@ -21,7 +21,7 @@ const TextCommand = constant({
 });
 
 /** Commands accepted by an agent-session WebSocket. */
-export const AgentClientMessageSchema = Schema.Union([
+export const AgentClientMessage = Schema.Union([
   Schema.Struct({ ...TextCommand, type: Schema.Literal("prompt") }),
   Schema.Struct({ ...TextCommand, type: Schema.Literal("steer") }),
   Schema.Struct({ ...TextCommand, type: Schema.Literal("follow_up") }),
@@ -44,7 +44,7 @@ export const AgentClientMessageSchema = Schema.Union([
   }),
 ]);
 
-export type AgentClientMessage = typeof AgentClientMessageSchema.Type;
+export type AgentClientMessage = typeof AgentClientMessage.Type;
 
 /** Portable session owner stored with the transcript. */
 export interface AgentSessionOwner {
@@ -97,7 +97,7 @@ export type AgentServerMessage =
     };
 
 const decodeClientFrame = Schema.decodeUnknownSync(
-  Schema.fromJsonString(AgentClientMessageSchema),
+  Schema.fromJsonString(AgentClientMessage),
 );
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 

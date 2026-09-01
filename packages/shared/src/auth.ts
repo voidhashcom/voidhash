@@ -1,72 +1,84 @@
-import { Schema, Context } from "effect";
+import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
+import * as P from "effect/Predicate";
 
-export const SessionOrganizationSchema = Schema.Struct({
+const booleanValue = Schema.declare(P.isBoolean);
+
+export const SessionOrganization = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   permissions: Schema.Array(Schema.String),
   slug: Schema.String,
 });
+export type SessionOrganization = typeof SessionOrganization.Type;
 
-export const SessionProjectSchema = Schema.Struct({
+export const SessionProject = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   organizationId: Schema.String,
   permissions: Schema.Array(Schema.String),
   slug: Schema.String,
 });
+export type SessionProject = typeof SessionProject.Type;
 
-const SessionOrganizationsSchema = Schema.Array(SessionOrganizationSchema);
-const SessionProjectsSchema = Schema.Array(SessionProjectSchema);
+const SessionOrganizations = Schema.Array(SessionOrganization);
+const SessionProjects = Schema.Array(SessionProject);
 
-export const SessionCustomerSchema = Schema.Struct({
+export const SessionCustomer = Schema.Struct({
   distinctId: Schema.String,
 });
+export type SessionCustomer = typeof SessionCustomer.Type;
 
-export const SessionUserSchema = Schema.Struct({
+export const SessionUser = Schema.Struct({
   createdAt: Schema.Date,
   email: Schema.String,
-  emailVerified: Schema.Boolean,
+  emailVerified: booleanValue,
   id: Schema.String,
   image: Schema.NullOr(Schema.String),
   name: Schema.String,
   updatedAt: Schema.Date,
 });
+export type SessionUser = typeof SessionUser.Type;
 
-export const UserSessionSchema = Schema.Struct({
+export const UserSession = Schema.Struct({
   cookie: Schema.NullOr(Schema.String),
   customer: Schema.Null,
   method: Schema.Literal("user"),
   name: Schema.String,
-  organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema,
-  user: SessionUserSchema,
+  organizations: SessionOrganizations,
+  projects: SessionProjects,
+  user: SessionUser,
 });
+export type UserSession = typeof UserSession.Type;
 
-export const SecretKeySessionSchema = Schema.Struct({
+export const SecretKeySession = Schema.Struct({
   cookie: Schema.Null,
   customer: Schema.Null,
   method: Schema.Literal("secret-key"),
   name: Schema.String,
-  organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema,
+  organizations: SessionOrganizations,
+  projects: SessionProjects,
   user: Schema.Null,
 });
+export type SecretKeySession = typeof SecretKeySession.Type;
 
-export const PublishableKeySessionSchema = Schema.Struct({
+export const PublishableKeySession = Schema.Struct({
   cookie: Schema.Null,
-  customer: SessionCustomerSchema,
+  customer: SessionCustomer,
   method: Schema.Literal("publishable-key"),
   name: Schema.String,
-  organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema,
+  organizations: SessionOrganizations,
+  projects: SessionProjects,
   user: Schema.Null,
 });
+export type PublishableKeySession = typeof PublishableKeySession.Type;
 
-export const AuthSessionSchema = Schema.Union([
-  UserSessionSchema,
-  SecretKeySessionSchema,
-  PublishableKeySessionSchema,
+export const AuthSessionValue = Schema.Union([
+  UserSession,
+  SecretKeySession,
+  PublishableKeySession,
 ]);
+export type AuthSessionValue = typeof AuthSessionValue.Type;
 
 // type User = {
 //   name: string;
@@ -93,10 +105,6 @@ export const AuthSessionSchema = Schema.Union([
 //     readonly permissions: string[];
 //   }[];
 // };
-
-export type UserSession = typeof UserSessionSchema.Type;
-export type SecretKeySession = typeof SecretKeySessionSchema.Type;
-export type PublishableKeySession = typeof PublishableKeySessionSchema.Type;
 
 // export type UserSession = VoidhashBaseSession & {
 //   readonly method: 'user';
@@ -130,3 +138,8 @@ export class AuthSession extends Context.Service<
   AuthSession,
   UserSession | SecretKeySession | PublishableKeySession
 >()("shared/auth/AuthSession") {}
+
+export { SessionOrganization as SessionOrganizationSchema };
+export { SessionProject as SessionProjectSchema };
+export { SessionCustomer as SessionCustomerSchema };
+export { SessionUser as SessionUserSchema };

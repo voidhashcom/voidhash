@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -15,6 +15,7 @@ export const Perk = Schema.Struct({
   projectId: Schema.String,
   slug: Schema.String,
 });
+export type Perk = typeof Perk.Type;
 
 export class PerkRpcsDef extends RpcGroup.make(
   Rpc.make("ListPerks", {

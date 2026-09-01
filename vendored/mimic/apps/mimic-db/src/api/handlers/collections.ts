@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { CollectionsRpcs, CurrentUser } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag } from "../../app/hostService.ts";
@@ -22,7 +23,11 @@ export const CollectionsHandlersLive = CollectionsRpcs.toLayer(
         Effect.gen(function* () {
           const user = yield* CurrentUser;
           yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "read");
-          return yield* host.listCollections(databaseId);
+          const collections = yield* host.listCollections(databaseId);
+          return collections.map((collection) => ({
+            ...collection,
+            migrationVersion: Option.getOrNull(collection.migrationVersion),
+          }));
         }),
       DeleteCollection: ({ collectionId }) =>
         Effect.gen(function* () {

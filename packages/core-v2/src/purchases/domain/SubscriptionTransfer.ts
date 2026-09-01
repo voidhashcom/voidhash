@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Transfer-mode policy for cross-owner entitlement transfers.
@@ -25,6 +25,7 @@ export const SubscriptionTransferMode = Schema.Literals([
   "keep_with_previous_owner",
   "transfer_if_no_active_on_target",
 ]);
+export type SubscriptionTransferMode = typeof SubscriptionTransferMode.Type;
 
 /**
  * Effective mode applied when a payment-provider configuration predates the

@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -17,14 +17,15 @@ export const PaymentProviderConfiguration = Schema.Struct({
   configuration: Schema.NullOr(Schema.ObjectKeyword),
   createdAt: Schema.NullOr(Schema.Date),
   deletedAt: Schema.NullOr(Schema.Date),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.String,
   name: Schema.String,
   paymentProviderKey: Schema.String,
   projectId: Schema.String,
   providerId: Schema.String,
   updatedAt: Schema.NullOr(Schema.Date),
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled" }));
+export type PaymentProviderConfiguration = typeof PaymentProviderConfiguration.Type;
 
 export class PaymentProviderConfigurationRpcsDef extends RpcGroup.make(
   Rpc.make("ListPaymentProviderConfigurations", {
@@ -70,10 +71,10 @@ export class PaymentProviderConfigurationRpcsDef extends RpcGroup.make(
     ]),
     payload: Schema.Struct({
       configuration: Schema.Record(Schema.String, Schema.Unknown),
-      enabled: Schema.Boolean,
+      isEnabled: Schema.Boolean,
       id: Schema.String,
       name: Schema.String,
-    }),
+    }).pipe(Schema.encodeKeys({ isEnabled: "enabled" })),
     success: Schema.Struct({
       id: Schema.String,
     }),

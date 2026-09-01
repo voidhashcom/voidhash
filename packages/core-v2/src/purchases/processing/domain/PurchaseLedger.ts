@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Maximum number of terminal rows accepted by one operator replay request. */
 export const MAX_PURCHASE_LEDGER_REQUEUE_IDS = 200;
@@ -15,6 +15,7 @@ export const PurchaseLedgerClaimedRow = Schema.Struct({
   eventsPayload: Schema.Array(Schema.Unknown),
   id: Schema.String.check(Schema.isMinLength(1)),
 });
+export type PurchaseLedgerClaimedRow = typeof PurchaseLedgerClaimedRow.Type;
 
 /** Operator-facing forensic view of a terminal purchase-ledger row. */
 export const PurchaseLedgerDeadLetterRow = Schema.Struct({
@@ -31,6 +32,7 @@ export const PurchaseLedgerDeadLetterRow = Schema.Struct({
   rawProviderPayload: Schema.Unknown,
   source: Schema.NullOr(Schema.String),
 });
+export type PurchaseLedgerDeadLetterRow = typeof PurchaseLedgerDeadLetterRow.Type;
 
 /** Health and replay counters returned by the periodic ledger sweep. */
 export const PurchaseLedgerSweepResult = Schema.Struct({
@@ -42,17 +44,20 @@ export const PurchaseLedgerSweepResult = Schema.Struct({
   requeuedCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   transientCandidateCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 });
+export type PurchaseLedgerSweepResult = typeof PurchaseLedgerSweepResult.Type;
 
 export const PurchaseLedgerWorkerPollOptions = Schema.Struct({
   batchSize: Schema.Int.check(Schema.isGreaterThan(0)),
   maxAttempts: Schema.Int.check(Schema.isGreaterThan(0)),
   staleClaimSeconds: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 });
+export type PurchaseLedgerWorkerPollOptions = typeof PurchaseLedgerWorkerPollOptions.Type;
 
 export const PurchaseLedgerWorkerRunOptions = Schema.Struct({
   ...PurchaseLedgerWorkerPollOptions.fields,
   pollIntervalMillis: Schema.Int.check(Schema.isGreaterThan(0)),
 });
+export type PurchaseLedgerWorkerRunOptions = typeof PurchaseLedgerWorkerRunOptions.Type;
 
 export interface PurchaseLedgerWorkerPollResult {
   readonly claimedCount: number;

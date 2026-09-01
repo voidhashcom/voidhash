@@ -24,6 +24,7 @@
     "pg": "^8.13.0"
   },
   "devDependencies": {
+    "@effect/vitest": "catalog:",
     "@types/node": "^24.0.12",
     "@types/pg": "^8.15.0",
     "@voidhash/tsconfig": "workspace:*",

@@ -2,7 +2,7 @@
  * Paywall asset errors — typed errors returned by paywall-asset RPCs. Class
  * names and `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Catch-all service failure (db / storage). */
 export class RpcPaywallAssetServiceError extends Schema.TaggedErrorClass<RpcPaywallAssetServiceError>(

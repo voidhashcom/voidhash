@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import * as React from "react";
 
 import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 
@@ -14,15 +14,15 @@ function ScrollArea({
 }: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
   fadeHint?: boolean;
 }) {
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [canScroll, setCanScroll] = useState({
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = React.useState({
     top: false,
     bottom: false,
     left: false,
     right: false,
   });
 
-  const checkScroll = useCallback(() => {
+  const checkScroll = React.useCallback(() => {
     const el = viewportRef.current;
     if (!el) return;
     const threshold = 10;
@@ -34,7 +34,7 @@ function ScrollArea({
     });
   }, []);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!fadeHint) return;
     const el = viewportRef.current;
     if (!el) return;

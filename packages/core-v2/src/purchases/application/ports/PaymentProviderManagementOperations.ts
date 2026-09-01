@@ -1,5 +1,6 @@
 import type { AuthSession } from "@voidhash/rpc";
-import { Context, type Effect } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
 import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import type { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 

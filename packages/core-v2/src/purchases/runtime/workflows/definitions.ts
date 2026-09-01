@@ -1,5 +1,5 @@
 import * as Workflow from "@voidhash/platform/Workflow";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 const replayResult = Schema.Struct({
   appliedCount: Schema.Number,

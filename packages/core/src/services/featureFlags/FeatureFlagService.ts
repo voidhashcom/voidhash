@@ -1,6 +1,17 @@
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
 import { createId } from "@paralleldrive/cuid2";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as Schema from "effect/Schema";
 import { subtle } from "uncrypto";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -50,7 +61,7 @@ interface EvaluationResult {
   readonly key: string;
   readonly payload: unknown;
   readonly reason: string;
-  readonly variantKey: string | null;
+  readonly variantKey: Option.Option<string>;
 }
 
 interface CustomerFeatureFlagVariantInput {
@@ -63,13 +74,13 @@ interface CustomerFeatureFlagVariantInput {
 const isJsonValue = (value: unknown, seen = new WeakSet<object>()): boolean => {
   if (
     value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value))
+    P.isString(value) ||
+    P.isBoolean(value) ||
+    (P.isNumber(value) && Number.isFinite(value))
   ) {
     return true;
   }
-  if (typeof value !== "object") {
+  if (!P.isObject(value)) {
     return false;
   }
   if (seen.has(value)) {
@@ -80,7 +91,7 @@ const isJsonValue = (value: unknown, seen = new WeakSet<object>()): boolean => {
     return false;
   }
   seen.add(value);
-  let valid = Object.values(value).every((item) => isJsonValue(item, seen));
+  let valid = R.values(value).every((item) => isJsonValue(item, seen));
   if (Array.isArray(value)) {
     valid = value.every((item) => isJsonValue(item, seen));
   }
@@ -91,30 +102,27 @@ const isJsonValue = (value: unknown, seen = new WeakSet<object>()): boolean => {
 const validateCustomerVariants = (
   type: FeatureFlagTypeValue,
   variants: ReadonlyArray<CustomerFeatureFlagVariantInput>,
-): string | undefined => {
-  if (type === FeatureFlagType.Boolean && variants.length > 0) {
-    return "Boolean feature flags cannot have variants";
+): Option.Option<string> => {
+  if (type === FeatureFlagType.Boolean && Arr.isReadonlyArrayNonEmpty(variants)) {
+    return Option.some("Boolean feature flags cannot have variants");
   }
-
-  for (const variant of variants) {
-    if (type === FeatureFlagType.String && typeof variant.value !== "string") {
-      return "String feature flag variants must have string values";
-    }
-    if (
-      type === FeatureFlagType.Number &&
-      (typeof variant.value !== "number" || !Number.isFinite(variant.value))
-    ) {
-      return "Number feature flag variants must have finite number values";
-    }
-    if (type === FeatureFlagType.Json && !isJsonValue(variant.value)) {
-      return "JSON feature flag variants must contain valid JSON values";
-    }
-    if (type === FeatureFlagType.Json && variant.label !== undefined) {
-      return "JSON feature flag variants cannot have labels";
-    }
-  }
-
-  return undefined;
+  const invalid = variants.find((variant) =>
+    type === FeatureFlagType.String
+      ? !P.isString(variant.value)
+      : type === FeatureFlagType.Number
+        ? !P.isNumber(variant.value) || !Number.isFinite(variant.value)
+        : type === FeatureFlagType.Json
+          ? !isJsonValue(variant.value) || variant.label !== undefined
+          : false,
+  );
+  if (!invalid) return Option.none();
+  if (type === FeatureFlagType.String)
+    return Option.some("String feature flag variants must have string values");
+  if (type === FeatureFlagType.Number)
+    return Option.some("Number feature flag variants must have finite number values");
+  if (!isJsonValue(invalid.value))
+    return Option.some("JSON feature flag variants must contain valid JSON values");
+  return Option.some("JSON feature flag variants cannot have labels");
 };
 
 const distributeVariantWeights = (count: number): number[] => {
@@ -144,11 +152,11 @@ export const EXPERIMENT_FLAG_OWNER_TYPE = "experiment";
  * isolates without needing a seeded RNG.
  */
 const hashToBucket = (input: string): Effect.Effect<number> =>
-  Effect.promise(() => subtle.digest("SHA-256", new TextEncoder().encode(input))).pipe(
+  promiseOrDie(() => subtle.digest("SHA-256", new TextEncoder().encode(input))).pipe(
     Effect.map((hashBuffer) => {
       const hashArray = new Uint8Array(hashBuffer);
-      const value =
-        (hashArray[0]! << 24) | (hashArray[1]! << 16) | (hashArray[2]! << 8) | hashArray[3]!;
+      const [first = 0, second = 0, third = 0, fourth = 0] = hashArray;
+      const value = (first << 24) | (second << 16) | (third << 8) | fourth;
       return (value >>> 0) % 10000;
     }),
   );
@@ -160,33 +168,26 @@ const archivedFilter = (includeArchived: boolean): { archivedAt?: { isNull: true
 };
 
 /** Key filter fragment: only applied when the caller narrowed the flag keys. */
-const keyFilter = (keys: ReadonlyArray<string> | undefined): { key?: { in: string[] } } => {
-  if (keys && keys.length > 0) return { key: { in: [...keys] } };
+const keyFilter = (keys: Option.Option<ReadonlyArray<string>>): { key?: { in: string[] } } => {
+  if (Option.isSome(keys) && Arr.isReadonlyArrayNonEmpty(keys.value))
+    return { key: { in: [...keys.value] } };
   return {};
 };
 
 /** Existing variant row for an optional variant id. */
 const lookupExistingVariant = <T>(
-  existingById: ReadonlyMap<string, T>,
-  id: string | undefined,
-): T | undefined => {
-  if (!id) return undefined;
-  return existingById.get(id);
-};
+  existingById: HashMap.HashMap<string, T>,
+  id: Option.Option<string>,
+): Option.Option<T> => Option.flatMap(id, (variantId) => HashMap.get(existingById, variantId));
 
-const groupByToMap = <T, K>(items: readonly T[], key: (item: T) => K): Map<K, T[]> => {
-  const map = new Map<K, T[]>();
-  for (const item of items) {
-    const k = key(item);
-    const arr = map.get(k);
-    if (arr) {
-      arr.push(item);
-    } else {
-      map.set(k, [item]);
-    }
-  }
-  return map;
-};
+const groupByToMap = <T, K>(items: readonly T[], key: (item: T) => K): HashMap.HashMap<K, T[]> =>
+  items.reduce(
+    (map, item) =>
+      HashMap.modifyAt(map, key(item), (current) =>
+        Option.some([...Option.getOrElse(current, () => []), item]),
+      ),
+    HashMap.empty<K, T[]>(),
+  );
 
 /**
  * `FeatureFlagService` is the orchestration entry point for the feature-flag
@@ -229,16 +230,20 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           );
 
           const validationError = validateCustomerVariants(type, variants);
-          if (validationError) {
-            return yield* Effect.fail(new FeatureFlagServiceError({ cause: validationError }));
+          if (Option.isSome(validationError)) {
+            return yield* Effect.fail(
+              new FeatureFlagServiceError({ cause: validationError.value }),
+            );
           }
 
           const requestedWeights = variants.map((variant) => variant.weightBps);
-          let weights = distributeVariantWeights(variants.length);
-          if (requestedWeights.every((weight): weight is number => weight !== undefined)) {
-            weights = requestedWeights;
-          }
-          if (weights.length > 0 && weights.reduce((sum, weight) => sum + weight, 0) !== 10000) {
+          const weights = requestedWeights.every((weight): weight is number => weight !== undefined)
+            ? requestedWeights
+            : distributeVariantWeights(variants.length);
+          if (
+            Arr.isReadonlyArrayNonEmpty(weights) &&
+            weights.reduce((sum, weight) => sum + weight, 0) !== 10000
+          ) {
             return yield* Effect.fail(
               new FeatureFlagServiceError({
                 cause: `Variant weights must sum to 10000, got ${weights.reduce(
@@ -269,8 +274,8 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             version: 1,
           };
 
-          yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+          yield* db.transaction(
+            Effect.fn("FeatureFlagService.createFlag.transaction")(function* (tx) {
               const existing = yield* tx.query.featureFlags.findFirst({
                 where: {
                   key: input.key,
@@ -282,17 +287,21 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                 return yield* Effect.fail(new FeatureFlagKeyAlreadyExistsError({ key: input.key }));
               }
               yield* tx.insert(featureFlags).values(newFlag);
-              for (const [index, variant] of variants.entries()) {
-                const id = generateId("featureFlagVariant");
-                yield* tx.insert(featureFlagVariants).values({
-                  id,
-                  featureFlagId: flagId,
-                  key: id,
-                  name: variant.label ?? "",
-                  payload: variant.value,
-                  weightBps: weights[index]!,
-                });
-              }
+              yield* Effect.forEach(
+                variants,
+                (variant, index) => {
+                  const id = generateId("featureFlagVariant");
+                  return tx.insert(featureFlagVariants).values({
+                    id,
+                    featureFlagId: flagId,
+                    key: id,
+                    name: variant.label ?? "",
+                    payload: variant.value,
+                    weightBps: Option.getOrElse(Option.fromUndefinedOr(weights[index]), () => 0),
+                  });
+                },
+                { concurrency: 1, discard: true },
+              );
             }),
           );
 
@@ -435,7 +444,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
         function* (input: {
           readonly id: string;
           readonly name?: string;
-          readonly description?: string | null;
+          readonly description?: Option.Option<string>;
           readonly enabled?: boolean;
           readonly rolloutBps?: number;
           readonly key?: string;
@@ -480,15 +489,16 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             version: sql`${featureFlags.version} + 1`,
           };
           if (input.name !== undefined) updates.name = input.name;
-          if (input.description !== undefined) updates.description = input.description;
+          if (input.description !== undefined)
+            updates.description = Option.getOrNull(input.description);
           if (input.enabled !== undefined) updates.enabled = input.enabled;
           if (input.rolloutBps !== undefined) updates.rolloutBps = input.rolloutBps;
           if (input.key !== undefined) updates.key = input.key;
 
           if (input.key && input.key !== existingFlag.key) {
             const keyChange = input.key;
-            yield* db.transaction((tx) =>
-              Effect.gen(function* () {
+            yield* db.transaction(
+              Effect.fn("FeatureFlagService.updateFlag.transaction")(function* (tx) {
                 const conflicting = yield* tx.query.featureFlags.findFirst({
                   where: {
                     key: keyChange,
@@ -525,7 +535,10 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             },
           });
           yield* Effect.log(`Updated feature flag ${input.id}`);
-          return updated!;
+          if (!updated) {
+            return yield* Effect.fail(new FeatureFlagNotFoundError({ featureFlagId: input.id }));
+          }
+          return updated;
         },
         (effect) =>
           effect.pipe(
@@ -765,54 +778,67 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           );
 
           const validationError = validateCustomerVariants(existingFlag.type, input.variants);
-          if (validationError) {
-            return yield* Effect.fail(new FeatureFlagServiceError({ cause: validationError }));
+          if (Option.isSome(validationError)) {
+            return yield* Effect.fail(
+              new FeatureFlagServiceError({ cause: validationError.value }),
+            );
           }
 
-          const existingById = new Map(
+          const existingById = HashMap.fromIterable(
             existingFlag.variants.map((variant) => constant([variant.id, variant])),
           );
-          const seenIds = new Set<string>();
-          for (const variant of input.variants) {
-            if (!variant.id) {
-              continue;
-            }
-            if (seenIds.has(variant.id)) {
-              return yield* Effect.fail(
-                new FeatureFlagServiceError({
-                  cause: `Duplicate variant id '${variant.id}' for flag ${input.featureFlagId}`,
-                }),
-              );
-            }
-            if (!existingById.has(variant.id)) {
-              return yield* Effect.fail(
-                new FeatureFlagServiceError({
-                  cause: `Variant '${variant.id}' does not belong to flag ${input.featureFlagId}`,
-                }),
-              );
-            }
-            seenIds.add(variant.id);
+          const providedIds = input.variants.flatMap((variant) =>
+            Option.toArray(Option.fromUndefinedOr(variant.id)),
+          );
+          const duplicateId = providedIds.find((id, index) => providedIds.indexOf(id) !== index);
+          if (duplicateId) {
+            return yield* Effect.fail(
+              new FeatureFlagServiceError({
+                cause: `Duplicate variant id '${duplicateId}' for flag ${input.featureFlagId}`,
+              }),
+            );
+          }
+          const foreignId = providedIds.find((id) => !HashMap.has(existingById, id));
+          if (foreignId) {
+            return yield* Effect.fail(
+              new FeatureFlagServiceError({
+                cause: `Variant '${foreignId}' does not belong to flag ${input.featureFlagId}`,
+              }),
+            );
           }
 
           const weights = distributeVariantWeights(input.variants.length);
-          yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+          yield* db.transaction(
+            Effect.fn("FeatureFlagService.updateCustomerVariants.transaction")(function* (tx) {
               yield* tx
                 .delete(featureFlagVariants)
                 .where(eq(featureFlagVariants.featureFlagId, input.featureFlagId));
 
-              for (const [index, variant] of input.variants.entries()) {
-                const existingVariant = lookupExistingVariant(existingById, variant.id);
-                const id = existingVariant?.id ?? generateId("featureFlagVariant");
-                yield* tx.insert(featureFlagVariants).values({
-                  id,
-                  featureFlagId: input.featureFlagId,
-                  key: existingVariant?.key ?? id,
-                  name: variant.label ?? "",
-                  payload: variant.value,
-                  weightBps: weights[index]!,
-                });
-              }
+              yield* Effect.forEach(
+                input.variants,
+                (variant, index) => {
+                  const existingVariant = lookupExistingVariant(
+                    existingById,
+                    Option.fromUndefinedOr(variant.id),
+                  );
+                  const id = Option.match(existingVariant, {
+                    onNone: () => generateId("featureFlagVariant"),
+                    onSome: (row) => row.id,
+                  });
+                  return tx.insert(featureFlagVariants).values({
+                    id,
+                    featureFlagId: input.featureFlagId,
+                    key: Option.match(existingVariant, {
+                      onNone: () => id,
+                      onSome: (row) => row.key,
+                    }),
+                    name: variant.label ?? "",
+                    payload: variant.value,
+                    weightBps: Option.getOrElse(Option.fromUndefinedOr(weights[index]), () => 0),
+                  });
+                },
+                { concurrency: 1, discard: true },
+              );
 
               yield* tx
                 .update(featureFlags)
@@ -882,7 +908,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             `User ${session?.user?.id} is not authorized to update variants for feature flag ${input.featureFlagId}`,
           );
 
-          if (input.variants.length > 0) {
+          if (Arr.isReadonlyArrayNonEmpty(input.variants)) {
             const totalWeight = input.variants.reduce((sum, v) => sum + v.weightBps, 0);
             if (totalWeight !== 10000) {
               return yield* Effect.fail(
@@ -893,35 +919,37 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             }
           }
 
-          const seen = new Set<string>();
-          for (const variant of input.variants) {
-            if (seen.has(variant.key)) {
-              return yield* Effect.fail(
-                new FeatureFlagServiceError({
-                  cause: `Duplicate variant key '${variant.key}' for flag ${input.featureFlagId}`,
-                }),
-              );
-            }
-            seen.add(variant.key);
+          const variantKeys = input.variants.map((variant) => variant.key);
+          const duplicateKey = variantKeys.find((key, index) => variantKeys.indexOf(key) !== index);
+          if (duplicateKey) {
+            return yield* Effect.fail(
+              new FeatureFlagServiceError({
+                cause: `Duplicate variant key '${duplicateKey}' for flag ${input.featureFlagId}`,
+              }),
+            );
           }
 
-          yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+          yield* db.transaction(
+            Effect.fn("FeatureFlagService.updateFlagVariants.transaction")(function* (tx) {
               yield* tx
                 .delete(featureFlagVariants)
                 .where(eq(featureFlagVariants.featureFlagId, input.featureFlagId));
 
-              for (const variant of input.variants) {
-                const record: InsertFeatureFlagVariant = {
-                  id: generateId("featureFlagVariant"),
-                  featureFlagId: input.featureFlagId,
-                  key: variant.key,
-                  name: variant.name,
-                  weightBps: variant.weightBps,
-                  payload: variant.payload ?? null,
-                };
-                yield* tx.insert(featureFlagVariants).values(record);
-              }
+              yield* Effect.forEach(
+                input.variants,
+                (variant) => {
+                  const record: InsertFeatureFlagVariant = {
+                    id: generateId("featureFlagVariant"),
+                    featureFlagId: input.featureFlagId,
+                    key: variant.key,
+                    name: variant.name,
+                    weightBps: variant.weightBps,
+                    payload: variant.payload ?? null,
+                  };
+                  return tx.insert(featureFlagVariants).values(record);
+                },
+                { concurrency: 1, discard: true },
+              );
             }),
           );
 
@@ -994,11 +1022,8 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             },
           });
 
-          let targetId: string;
-          if (existing) {
-            targetId = existing.id;
-          } else {
-            targetId = generateId("featureFlagTarget");
+          const targetId = existing?.id ?? generateId("featureFlagTarget");
+          if (!existing) {
             const record: InsertFeatureFlagTarget = {
               id: targetId,
               featureFlagId: input.featureFlagId,
@@ -1098,8 +1123,8 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           readonly featureFlagId: string;
           readonly identityType: number;
           readonly identityValue: string;
-          readonly forcedEnabled?: boolean | null;
-          readonly forcedVariantKey?: string | null;
+          readonly forcedEnabled?: Option.Option<boolean>;
+          readonly forcedVariantKey?: Option.Option<string>;
           readonly note?: string;
         }) {
           const session = yield* AuthSession;
@@ -1139,27 +1164,31 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             },
           });
 
-          let overrideId: string;
+          const overrideId = existing?.id ?? generateId("featureFlagOverride");
           if (existing) {
-            overrideId = existing.id;
             yield* db
               .update(featureFlagOverrides)
               .set({
-                forcedEnabled: input.forcedEnabled,
-                forcedVariantKey: input.forcedVariantKey,
+                forcedEnabled: input.forcedEnabled
+                  ? Option.getOrNull(input.forcedEnabled)
+                  : undefined,
+                forcedVariantKey: input.forcedVariantKey
+                  ? Option.getOrNull(input.forcedVariantKey)
+                  : undefined,
                 note: input.note,
                 updatedByUserId: session?.user?.id ?? null,
               })
               .where(eq(featureFlagOverrides.id, existing.id));
           } else {
-            overrideId = generateId("featureFlagOverride");
             const record: InsertFeatureFlagOverride = {
               id: overrideId,
               featureFlagId: input.featureFlagId,
               identityType: input.identityType,
               identityValue: input.identityValue,
-              forcedEnabled: input.forcedEnabled ?? null,
-              forcedVariantKey: input.forcedVariantKey ?? null,
+              forcedEnabled: input.forcedEnabled ? Option.getOrNull(input.forcedEnabled) : null,
+              forcedVariantKey: input.forcedVariantKey
+                ? Option.getOrNull(input.forcedVariantKey)
+                : null,
               note: input.note ?? null,
               createdByUserId: session?.user?.id ?? null,
               updatedByUserId: session?.user?.id ?? null,
@@ -1369,76 +1398,77 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             where: {
               projectId: input.projectId,
               archivedAt: { isNull: true },
-              ...keyFilter(input.keys),
+              ...keyFilter(Option.fromUndefinedOr(input.keys)),
             },
           });
 
           yield* Effect.annotateCurrentSpan("voidhash.feature_flag.count", flags.length);
 
-          if (flags.length === 0) {
-            const empty: EvaluationResult[] = [];
-            return empty;
+          if (Arr.isReadonlyArrayEmpty(flags)) {
+            return [];
           }
 
           const flagIds = flags.map((f) => f.id);
 
-          const [allTargets, allOverrides, allVariants] = yield* Effect.all([
-            db.query.featureFlagTargets.findMany({
-              where: {
-                featureFlagId: { in: flagIds },
-                archivedAt: { isNull: true },
-              },
-            }),
-            db.query.featureFlagOverrides.findMany({
-              where: {
-                featureFlagId: { in: flagIds },
-                archivedAt: { isNull: true },
-              },
-            }),
-            db.query.featureFlagVariants.findMany({
-              where: {
-                featureFlagId: { in: flagIds },
-                archivedAt: { isNull: true },
-              },
-            }),
-          ]);
+          const [allTargets, allOverrides, allVariants] = yield* Effect.all(
+            [
+              db.query.featureFlagTargets.findMany({
+                where: {
+                  featureFlagId: { in: flagIds },
+                  archivedAt: { isNull: true },
+                },
+              }),
+              db.query.featureFlagOverrides.findMany({
+                where: {
+                  featureFlagId: { in: flagIds },
+                  archivedAt: { isNull: true },
+                },
+              }),
+              db.query.featureFlagVariants.findMany({
+                where: {
+                  featureFlagId: { in: flagIds },
+                  archivedAt: { isNull: true },
+                },
+              }),
+            ],
+            { concurrency: 1 },
+          );
 
-          let personContext:
-            | {
-                readonly distinctIds: string[];
-                readonly email: string | undefined;
-                readonly externalIds: string[];
-              }
-            | undefined;
-          if (input.personId) {
-            const personId = input.personId;
-            const [person, distinctIdentities, externalIdentifiers] = yield* Effect.all([
-              db.query.persons.findFirst({
-                where: {
-                  id: personId,
-                  projectId: input.projectId,
-                },
-              }),
-              db.query.personIdentities.findMany({
-                where: {
-                  personId,
-                  projectId: input.projectId,
-                },
-              }),
-              db.query.personExternalIdentifiers.findMany({
-                where: {
-                  personId,
-                  projectId: input.projectId,
-                },
-              }),
-            ]);
-
-            personContext = {
-              distinctIds: distinctIdentities.map((identity) => identity.distinctId),
-              email: person?.email ?? undefined,
-              externalIds: externalIdentifiers.map((identifier) => identifier.identifier),
-            };
-          }
+          const personContext = yield* Option.match(Option.fromUndefinedOr(input.personId), {
+            onNone: () => Effect.succeed(Option.none()),
+            onSome: (personId) =>
+              Effect.all(
+                [
+                  db.query.persons.findFirst({
+                    where: {
+                      id: personId,
+                      projectId: input.projectId,
+                    },
+                  }),
+                  db.query.personIdentities.findMany({
+                    where: {
+                      personId,
+                      projectId: input.projectId,
+                    },
+                  }),
+                  db.query.personExternalIdentifiers.findMany({
+                    where: {
+                      personId,
+                      projectId: input.projectId,
+                    },
+                  }),
+                ],
+                { concurrency: 1 },
+              ).pipe(
+                Effect.map(([person, distinctIdentities, externalIdentifiers]) =>
+                  Option.some({
+                    distinctIds: distinctIdentities.map((identity) => identity.distinctId),
+                    email: Option.fromNullishOr(person?.email),
+                    externalIds: externalIdentifiers.map((identifier) => identifier.identifier),
+                  }),
+                ),
+              ),
+          });
 
           const targetsByFlag = groupByToMap(allTargets, (t) => t.featureFlagId);
           const overridesByFlag = groupByToMap(allOverrides, (o) => o.featureFlagId);
@@ -1447,10 +1477,13 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           const results = yield* Effect.all(
             flags.map((flag) =>
               Effect.catch(
-                Effect.gen(function* () {
-                  const targets = targetsByFlag.get(flag.id) ?? [];
-                  const overrides = overridesByFlag.get(flag.id) ?? [];
-                  const variants = variantsByFlag.get(flag.id) ?? [];
+                Effect.fn("FeatureFlagService.evaluateFlag")(function* () {
+                  const targets = Option.getOrElse(HashMap.get(targetsByFlag, flag.id), () => []);
+                  const overrides = Option.getOrElse(
+                    HashMap.get(overridesByFlag, flag.id),
+                    () => [],
+                  );
+                  const variants = Option.getOrElse(HashMap.get(variantsByFlag, flag.id), () => []);
 
                   if (!flag.enabled) {
                     return {
@@ -1459,32 +1492,64 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                       key: flag.key,
                       payload: null,
                       reason: "disabled",
-                      variantKey: null,
+                      variantKey: Option.none(),
                     } satisfies EvaluationResult;
                   }
 
-                  const subjectIdentities: Array<{ type: number; value: string }> = [];
-                  const seen = new Set<string>();
-                  const pushIdentity = (type: number, value: string | undefined) => {
-                    if (!value) return;
-                    const key = `${type}:${value}`;
-                    if (seen.has(key)) return;
-                    seen.add(key);
-                    subjectIdentities.push({ type, value });
-                  };
-
-                  pushIdentity(FeatureFlagIdentityType.PersonId, input.personId);
-                  pushIdentity(FeatureFlagIdentityType.DistinctId, input.distinctId);
-                  for (const distinctId of personContext?.distinctIds ?? []) {
-                    pushIdentity(FeatureFlagIdentityType.DistinctId, distinctId);
-                  }
-                  pushIdentity(FeatureFlagIdentityType.Email, input.email ?? personContext?.email);
-                  for (const externalId of input.externalIds ?? []) {
-                    pushIdentity(FeatureFlagIdentityType.ExternalId, externalId);
-                  }
-                  for (const externalId of personContext?.externalIds ?? []) {
-                    pushIdentity(FeatureFlagIdentityType.ExternalId, externalId);
-                  }
+                  const contextDistinctIds = Option.match(personContext, {
+                    onNone: () => [],
+                    onSome: (context) => context.distinctIds,
+                  });
+                  const contextExternalIds = Option.match(personContext, {
+                    onNone: () => [],
+                    onSome: (context) => context.externalIds,
+                  });
+                  const contextEmail = Option.flatMap(personContext, (context) => context.email);
+                  const identityCandidates = [
+                    ...Option.toArray(
+                      Option.map(Option.fromUndefinedOr(input.personId), (value) => ({
+                        type: FeatureFlagIdentityType.PersonId,
+                        value,
+                      })),
+                    ),
+                    ...Option.toArray(
+                      Option.map(Option.fromUndefinedOr(input.distinctId), (value) => ({
+                        type: FeatureFlagIdentityType.DistinctId,
+                        value,
+                      })),
+                    ),
+                    ...contextDistinctIds.map((value) => ({
+                      type: FeatureFlagIdentityType.DistinctId,
+                      value,
+                    })),
+                    ...Option.toArray(
+                      Option.map(
+                        Option.orElse(Option.fromUndefinedOr(input.email), () => contextEmail),
+                        (value) => ({ type: FeatureFlagIdentityType.Email, value }),
+                      ),
+                    ),
+                    ...(input.externalIds ?? []).map((value) => ({
+                      type: FeatureFlagIdentityType.ExternalId,
+                      value,
+                    })),
+                    ...contextExternalIds.map((value) => ({
+                      type: FeatureFlagIdentityType.ExternalId,
+                      value,
+                    })),
+                  ];
+                  const initialIdentityState: {
+                    readonly seen: HashSet.HashSet<string>;
+                    readonly identities: Array<{ type: number; value: string }>;
+                  } = { seen: HashSet.empty(), identities: [] };
+                  const subjectIdentities = identityCandidates.reduce((state, identity) => {
+                    const key = `${identity.type}:${identity.value}`;
+                    return HashSet.has(state.seen, key)
+                      ? state
+                      : {
+                          seen: HashSet.add(state.seen, key),
+                          identities: [...state.identities, identity],
+                        };
+                  }, initialIdentityState).identities;
 
                   const override = subjectIdentities
                     .map((identity) =>
@@ -1493,7 +1558,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                           o.identityType === identity.type && o.identityValue === identity.value,
                       ),
                     )
-                    .find((o) => typeof o !== "undefined");
+                    .find((o) => !P.isUndefined(o));
 
                   if (override) {
                     if (override.forcedEnabled === false) {
@@ -1503,7 +1568,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                         key: flag.key,
                         payload: null,
                         reason: "override",
-                        variantKey: null,
+                        variantKey: Option.none(),
                       } satisfies EvaluationResult;
                     }
                     // A forced variant pins the subject to a specific arm
@@ -1520,7 +1585,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                         key: flag.key,
                         payload: forcedVariant?.payload ?? null,
                         reason: "override",
-                        variantKey: override.forcedVariantKey,
+                        variantKey: Option.some(override.forcedVariantKey),
                       } satisfies EvaluationResult;
                     }
                     if (override.forcedEnabled === true) {
@@ -1530,7 +1595,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                         key: flag.key,
                         payload: null,
                         reason: "override",
-                        variantKey: null,
+                        variantKey: Option.none(),
                       } satisfies EvaluationResult;
                     }
                   }
@@ -1550,21 +1615,24 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                       key: flag.key,
                       payload: null,
                       reason: "denied",
-                      variantKey: null,
+                      variantKey: Option.none(),
                     } satisfies EvaluationResult;
                   }
 
                   const allowTargets = targets.filter(
                     (t) => t.listType === FeatureFlagTargetListType.Allow,
                   );
-                  if (allowTargets.length > 0 && !allowTargets.some(matchesTarget)) {
+                  if (
+                    Arr.isReadonlyArrayNonEmpty(allowTargets) &&
+                    !allowTargets.some(matchesTarget)
+                  ) {
                     return {
                       enabled: false,
                       flagId: flag.id,
                       key: flag.key,
                       payload: null,
                       reason: "not-allowed",
-                      variantKey: null,
+                      variantKey: Option.none(),
                     } satisfies EvaluationResult;
                   }
 
@@ -1576,7 +1644,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                       key: flag.key,
                       payload: null,
                       reason: "no-identity",
-                      variantKey: null,
+                      variantKey: Option.none(),
                     } satisfies EvaluationResult;
                   }
 
@@ -1589,7 +1657,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                       key: flag.key,
                       payload: null,
                       reason: "rollout",
-                      variantKey: null,
+                      variantKey: Option.none(),
                     } satisfies EvaluationResult;
                   }
 
@@ -1597,28 +1665,46 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                   // reinserted on every sync (fresh ids), so ordering by id
                   // would shift cumulative-weight boundaries and reassign
                   // already-bucketed subjects. Keys are stable across syncs.
-                  const activeVariants = variants
-                    .filter((variant) => variant.weightBps > 0)
-                    .sort((a, b) => a.key.localeCompare(b.key));
+                  const variantKeyOrder: Order.Order<(typeof variants)[number]> = Order.mapInput(
+                    Order.String,
+                    (variant: (typeof variants)[number]) => variant.key,
+                  );
+                  const activeVariants = Arr.sort(
+                    variants.filter((variant) => variant.weightBps > 0),
+                    variantKeyOrder,
+                  );
 
-                  if (activeVariants.length > 0) {
-                    const variantBucket = yield* hashToBucket(
-                      `${flag.salt}:variant:${subjectKey}`,
-                    );
+                  if (Arr.isReadonlyArrayNonEmpty(activeVariants)) {
+                    const variantBucket = yield* hashToBucket(`${flag.salt}:variant:${subjectKey}`);
 
-                    let cumulative = 0;
-                    for (const variant of activeVariants) {
-                      cumulative += variant.weightBps;
-                      if (variantBucket < cumulative) {
-                        return {
-                          enabled: true,
-                          flagId: flag.id,
-                          key: flag.key,
-                          payload: variant.payload ?? null,
-                          reason: "rollout",
-                          variantKey: variant.key,
-                        } satisfies EvaluationResult;
-                      }
+                    const initialVariantWeightState: {
+                      readonly cumulative: number;
+                      readonly weighted: Array<{
+                        cumulative: number;
+                        variant: (typeof activeVariants)[number];
+                      }>;
+                    } = { cumulative: 0, weighted: [] };
+                    const selected = activeVariants
+                      .reduce(
+                        (state, variant) => ({
+                          cumulative: state.cumulative + variant.weightBps,
+                          weighted: [
+                            ...state.weighted,
+                            { cumulative: state.cumulative + variant.weightBps, variant },
+                          ],
+                        }),
+                        initialVariantWeightState,
+                      )
+                      .weighted.find((entry) => variantBucket < entry.cumulative);
+                    if (selected) {
+                      return {
+                        enabled: true,
+                        flagId: flag.id,
+                        key: flag.key,
+                        payload: selected.variant.payload ?? null,
+                        reason: "rollout",
+                        variantKey: Option.some(selected.variant.key),
+                      } satisfies EvaluationResult;
                     }
                   }
 
@@ -1628,9 +1714,9 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                     key: flag.key,
                     payload: null,
                     reason: "rollout",
-                    variantKey: null,
+                    variantKey: Option.none(),
                   } satisfies EvaluationResult;
-                }),
+                })(),
                 () =>
                   Effect.succeed({
                     enabled: false,
@@ -1638,13 +1724,17 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                     key: flag.key,
                     payload: null,
                     reason: "error",
-                    variantKey: null,
+                    variantKey: Option.none(),
                   } satisfies EvaluationResult),
               ),
             ),
+            { concurrency: 1 },
           );
 
-          return results;
+          return results.map((result) => ({
+            ...result,
+            variantKey: Option.getOrNull(result.variantKey),
+          }));
         },
         (effect) =>
           effect.pipe(
@@ -1679,3 +1769,4 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
 ) {
   static layer = Layer.effect(FeatureFlagService)(FeatureFlagService.make);
 }
+import { promiseOrDie } from "../../effect-boundary.ts";

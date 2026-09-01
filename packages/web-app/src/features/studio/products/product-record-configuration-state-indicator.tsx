@@ -47,7 +47,7 @@ export function ProductRecordConfigurationStateIndicator({
   return (
     <div className="flex flex-row items-center gap-3">
       {paymentProviderConfigurations
-        .filter((f) => !!f.enabled)
+        .filter((f) => f.isEnabled)
         .map((paymentProviderConfiguration) =>
           providerProducts.some(
             (providerProduct) =>

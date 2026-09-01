@@ -1,4 +1,8 @@
-import { Effect, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as Schema from "effect/Schema";
 import { subtle } from "uncrypto";
 
 import type { SchemaProviderId } from "../../domain/schema/Schema.ts";
@@ -13,10 +17,12 @@ export interface SchemaProjection {
   readonly locations: ReadonlyArray<{
     readonly slug: string;
     readonly name: string;
-    readonly description: string | null;
+    readonly description: Option.Option<string>;
   }>;
   readonly products: ReadonlyArray<{
-    readonly duration?: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
+    readonly duration?: Option.Option<
+      "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual"
+    >;
     readonly slug: string;
     readonly name: string;
     readonly type: "subscription" | "one-time" | "one-time-consumable";
@@ -36,11 +42,12 @@ const DB_PROVIDER_ID_TO_SCHEMA: Record<string, SchemaProviderId> = {
 
 /**
  * Map a database `providerId` to the schema `providerId` used by the CLI and
- * SDK. Returns `null` for providers the schema contract doesn't surface yet
+ * SDK. Returns `None` for providers the schema contract doesn't surface yet
  * (e.g. `"stripe"`); callers should drop those rows.
  */
-export const mapDbProviderIdToSchemaProviderId = (dbProviderId: string): SchemaProviderId | null =>
-  DB_PROVIDER_ID_TO_SCHEMA[dbProviderId] ?? null;
+export const mapDbProviderIdToSchemaProviderId = (
+  dbProviderId: string,
+): Option.Option<SchemaProviderId> => Option.fromNullishOr(DB_PROVIDER_ID_TO_SCHEMA[dbProviderId]);
 
 /**
  * Compute the deterministic `sha256:<hex>` schema version hash from a
@@ -59,40 +66,49 @@ export const computeSchemaVersion = (projection: SchemaProjection): Effect.Effec
   Effect.gen(function* () {
     // Field order matches the CLI emit. The JSON codec below serialises in
     // insertion order for non-integer string keys, byte-for-byte as the CLI does.
-    const products = [...projection.products]
-      .map((product) => ({
-        duration: product.duration ?? null,
+    const providerOrder = Order.mapInput(
+      Order.String,
+      (provider: { readonly providerId: SchemaProviderId }) => provider.providerId,
+    );
+    const slugOrder = Order.mapInput(Order.String, (item: { readonly slug: string }) => item.slug);
+    const products = Arr.sort(
+      projection.products.map((product) => ({
+        duration: Option.getOrNull(product.duration ?? Option.none()),
         name: product.name,
-        perks: [...product.perks].sort(),
-        providers: [...product.providers]
-          .map((provider) => ({
+        perks: Arr.sort(product.perks, Order.String),
+        providers: Arr.sort(
+          product.providers.map((provider) => ({
             providerId: provider.providerId,
             configuration: provider.configuration,
-          }))
-          .sort((a, b) => a.providerId.localeCompare(b.providerId)),
+          })),
+          providerOrder,
+        ),
         slug: product.slug,
         type: product.type,
-      }))
-      .sort((a, b) => a.slug.localeCompare(b.slug));
+      })),
+      slugOrder,
+    );
 
-    const locations = [...projection.locations]
-      .map((location) => ({
-        description: location.description,
+    const locations = Arr.sort(
+      projection.locations.map((location) => ({
+        description: Option.getOrNull(location.description),
         name: location.name,
         slug: location.slug,
-      }))
-      .sort((a, b) => a.slug.localeCompare(b.slug));
+      })),
+      slugOrder,
+    );
 
-    const perks = [...projection.perks]
-      .map((perk) => ({ name: perk.name, slug: perk.slug }))
-      .sort((a, b) => a.slug.localeCompare(b.slug));
+    const perks = Arr.sort(
+      projection.perks.map((perk) => ({ name: perk.name, slug: perk.slug })),
+      slugOrder,
+    );
 
     const payload = Schema.encodeSync(Schema.UnknownFromJsonString)({
       locations,
       perks,
       products,
     });
-    const hashBuffer = yield* Effect.promise(() =>
+    const hashBuffer = yield* promiseOrDie(() =>
       subtle.digest("SHA-256", new TextEncoder().encode(payload)),
     );
     const hashHex = [...new Uint8Array(hashBuffer)]
@@ -100,3 +116,4 @@ export const computeSchemaVersion = (projection: SchemaProjection): Effect.Effec
       .join("");
     return `sha256:${hashHex}`;
   });
+import { promiseOrDie } from "../../effect-boundary.ts";

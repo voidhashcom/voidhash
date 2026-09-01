@@ -4,7 +4,9 @@ import {
 } from "@voidhash/core/services/paywallReleases/SnapshotHtmlRenderer";
 import { causeMessage } from "@voidhash/lib/lang";
 import type { ComponentArtifacts, SnapshotNode } from "@voidhash/paywall-renderer-preact";
-import { Effect, Layer } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as P from "effect/Predicate";
 
 /**
  * The only boundary where the schema-neutral `SnapshotHtmlRenderInput` (typed
@@ -12,12 +14,12 @@ import { Effect, Layer } from "effect";
  * structural node type. Shape-only check; the renderer validates the contents.
  */
 const isSnapshotNode = (value: unknown): value is SnapshotNode =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 /** Companion boundary check for the component preview trees carried alongside the snapshot. */
 const isComponentTrees = (
   value: Record<string, Record<string, unknown>>,
-): value is ComponentArtifacts["trees"] => typeof value === "object" && value !== null;
+): value is ComponentArtifacts["trees"] => P.isObject(value) && value !== null;
 
 const renderFailure = (cause: unknown) =>
   new SnapshotHtmlRenderError({
@@ -31,7 +33,7 @@ const loadPreactRenderer = () => import("@voidhash/paywall-renderer-preact");
 /** Portable Preact adapter for hydrated visual paywall release documents. */
 export const BackendSnapshotHtmlRendererLive = Layer.succeed(SnapshotHtmlRenderer, {
   render: (input) =>
-    Effect.gen(function* () {
+    Effect.fn("render")(function* () {
       if (!isSnapshotNode(input.snapshot)) {
         return yield* renderFailure("The paywall release document is not a snapshot node");
       }
@@ -65,5 +67,5 @@ export const BackendSnapshotHtmlRendererLive = Layer.succeed(SnapshotHtmlRendere
             metadata: input.metadata,
           }).html,
       });
-    }),
+    })(),
 });

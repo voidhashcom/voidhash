@@ -1,3 +1,5 @@
+import * as P from "effect/Predicate";
+import * as Str from "effect/String";
 /**
  * Analytics-ingest domain. Owns the wire-stable capture and processor
  * contracts plus their pure validation rules.
@@ -8,7 +10,11 @@
  * - {@link ProcessorPersonIdentityEventV1} — processor → writer (identity map).
  */
 import { emptyEventAdmissionPolicy, EventAdmissionPolicy } from "./EventAdmission.ts";
-import { Crypto, DateTime, Effect, Option, Schema } from "effect";
+import * as Crypto from "effect/Crypto";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 // =============================================================================
 // Captured event (capture → processor)
@@ -20,6 +26,7 @@ export const AnalyticsTimestamp = Schema.String.pipe(
     expected: "a valid analytics timestamp",
   }),
 );
+export type AnalyticsTimestamp = typeof AnalyticsTimestamp.Type;
 
 export const CapturedEventRequest = Schema.Struct({
   path: Schema.optional(Schema.String),
@@ -28,46 +35,49 @@ export const CapturedEventRequest = Schema.Struct({
   clientIp: Schema.optional(Schema.String),
   isInternal: Schema.optional(Schema.Boolean),
 });
+export type CapturedEventRequest = typeof CapturedEventRequest.Type;
 
-type EventPropertiesFieldPrimitive = string | number | boolean | null;
+type EventPropertiesFieldPrimitive = string | number | boolean | typeof Schema.Null.Type;
 type EventPropertiesField =
   | EventPropertiesFieldPrimitive
   | ReadonlyArray<EventPropertiesField>
   | { readonly [key: string]: EventPropertiesField };
 
-const EventPropertiesFieldSchema: Schema.Codec<EventPropertiesField> = Schema.Union([
+const EventPropertiesFieldCodec: Schema.Codec<EventPropertiesField> = Schema.Union([
   Schema.String,
   Schema.Finite,
   Schema.Boolean,
   Schema.Null,
   Schema.Array(
-    Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesFieldSchema),
+    Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesFieldCodec),
   ),
   Schema.Record(
     Schema.String,
-    Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesFieldSchema),
+    Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesFieldCodec),
   ),
 ]);
-export const EventPropertiesSchema = Schema.Record(Schema.String, EventPropertiesFieldSchema);
+export const EventProperties = Schema.Record(Schema.String, EventPropertiesFieldCodec);
+export type EventProperties = typeof EventProperties.Type;
 
-type EventContextFieldPrimitive = string | number | boolean | null;
+type EventContextFieldPrimitive = string | number | boolean | typeof Schema.Null.Type;
 type EventContextField =
   | EventContextFieldPrimitive
   | ReadonlyArray<EventContextField>
   | { readonly [key: string]: EventContextField };
 
-const EventContextFieldSchema: Schema.Codec<EventContextField> = Schema.Union([
+const EventContextFieldCodec: Schema.Codec<EventContextField> = Schema.Union([
   Schema.String,
   Schema.Finite,
   Schema.Boolean,
   Schema.Null,
-  Schema.Array(Schema.suspend((): Schema.Codec<EventContextField> => EventContextFieldSchema)),
+  Schema.Array(Schema.suspend((): Schema.Codec<EventContextField> => EventContextFieldCodec)),
   Schema.Record(
     Schema.String,
-    Schema.suspend((): Schema.Codec<EventContextField> => EventContextFieldSchema),
+    Schema.suspend((): Schema.Codec<EventContextField> => EventContextFieldCodec),
   ),
 ]);
-export const EventContextSchema = Schema.Record(Schema.String, EventContextFieldSchema);
+export const EventContext = Schema.Record(Schema.String, EventContextFieldCodec);
+export type EventContext = typeof EventContext.Type;
 
 /**
  * The identity the capture layer asserts for an event, as a tagged claim the
@@ -89,6 +99,7 @@ export const CapturedIdentityClaim = Schema.Union([
     personId: Schema.String,
   }),
 ]);
+export type CapturedIdentityClaim = typeof CapturedIdentityClaim.Type;
 
 /**
  * Origin / trust of a captured event. The ingest queue is internal-only and
@@ -97,6 +108,7 @@ export const CapturedIdentityClaim = Schema.Union([
  * `trusted-revenue` for server-emitted revenue events.
  */
 export const TrustClass = Schema.Literals(["untrusted-sdk", "trusted-revenue", "trusted-internal"]);
+export type TrustClass = typeof TrustClass.Type;
 
 export const CapturedEventV1 = Schema.Struct({
   schemaVersion: Schema.Literal(1),
@@ -112,13 +124,14 @@ export const CapturedEventV1 = Schema.Struct({
   receivedAt: AnalyticsTimestamp,
   sentAt: Schema.optional(AnalyticsTimestamp),
   sourceTopic: Schema.String,
-  properties: EventPropertiesSchema,
-  context: EventContextSchema,
+  properties: EventProperties,
+  context: EventContext,
   rawPayload: Schema.Record(Schema.String, Schema.Unknown),
   request: CapturedEventRequest,
   identityClaim: Schema.optional(CapturedIdentityClaim),
   trustClass: Schema.optional(TrustClass),
 });
+export type CapturedEventV1 = typeof CapturedEventV1.Type;
 
 // =============================================================================
 // Processor outputs (person snapshot / identity event)
@@ -137,6 +150,7 @@ export const ProcessorPersonEventV1 = Schema.Struct({
   traits: Schema.Record(Schema.String, Schema.Unknown),
   version: Schema.Number,
 });
+export type ProcessorPersonEventV1 = typeof ProcessorPersonEventV1.Type;
 
 export const ProcessorPersonIdentityEventV1 = Schema.Struct({
   changedAt: AnalyticsTimestamp,
@@ -148,6 +162,7 @@ export const ProcessorPersonIdentityEventV1 = Schema.Struct({
   schemaVersion: Schema.Literal(1),
   version: Schema.Number,
 });
+export type ProcessorPersonIdentityEventV1 = typeof ProcessorPersonIdentityEventV1.Type;
 
 // =============================================================================
 // Capture project policy
@@ -157,15 +172,16 @@ export const CaptureProjectPolicy = Schema.Struct({
   /** Which event names this project stores, layered over the built-in registry defaults. */
   admission: EventAdmissionPolicy,
   eventsPerDay: Schema.optional(Schema.Int),
-  ingestEnabled: Schema.Boolean,
+  isIngestEnabled: Schema.Boolean,
   projectId: Schema.String,
   requestsPerMinute: Schema.optional(Schema.Int),
 });
+export type CaptureProjectPolicy = typeof CaptureProjectPolicy.Type;
 
 export const defaultCaptureProjectPolicy = (projectId: string) =>
   ({
     admission: emptyEventAdmissionPolicy,
-    ingestEnabled: true,
+    isIngestEnabled: true,
     projectId,
   }) satisfies typeof CaptureProjectPolicy.Type;
 
@@ -182,6 +198,7 @@ export const CapturedTransportRecord = Schema.Struct({
   sourcePartition: Schema.Int,
   sourceTopic: Schema.String,
 });
+export type CapturedTransportRecord = typeof CapturedTransportRecord.Type;
 
 export const EventProcessorDlqV1 = Schema.Struct({
   captureId: Schema.optional(Schema.String),
@@ -207,6 +224,7 @@ export const EventProcessorDlqV1 = Schema.Struct({
   sourceTopic: Schema.String,
   token: Schema.optional(Schema.String),
 });
+export type EventProcessorDlqV1 = typeof EventProcessorDlqV1.Type;
 
 export const buildDlqEvent = ({
   captureId,
@@ -227,8 +245,7 @@ export const buildDlqEvent = ({
     // DLQ record stays minimal on the wire.
     const optional: {
       -readonly [K in "captureId" | "distinctId" | "projectId" | "rawKey" | "rawValue" | "token"]?:
-        | (typeof EventProcessorDlqV1.Type)[K]
-        | undefined;
+        (typeof EventProcessorDlqV1.Type)[K];
     } = {};
     if (captureId) optional.captureId = captureId;
     if (distinctId) optional.distinctId = distinctId;
@@ -263,7 +280,7 @@ export interface PersonTraits {
 }
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  P.isObject(value) && value !== null && !Array.isArray(value);
 
 export const parsePersonTraits = (
   properties: Record<string, unknown>,
@@ -271,12 +288,12 @@ export const parsePersonTraits = (
   | { readonly ok: true; readonly value: PersonTraits }
   | { readonly ok: false; readonly message: string } => {
   const rawSet = properties.$set;
-  if (typeof rawSet !== "undefined" && !isPlainRecord(rawSet)) {
+  if (!P.isUndefined(rawSet) && !isPlainRecord(rawSet)) {
     return { message: "$set must be an object", ok: false };
   }
 
   const rawSetOnce = properties.$set_once;
-  if (typeof rawSetOnce !== "undefined" && !isPlainRecord(rawSetOnce)) {
+  if (!P.isUndefined(rawSetOnce) && !isPlainRecord(rawSetOnce)) {
     return { message: "$set_once must be an object", ok: false };
   }
 
@@ -304,14 +321,16 @@ export const extractInnerProperties = (wrappedProperties: Record<string, unknown
 export const ProcessorProjectPolicy = Schema.Struct({
   /** Which event names this project stores, layered over the built-in registry defaults. */
   admission: EventAdmissionPolicy,
-  processorEnabled: Schema.Boolean,
+  isProcessorEnabled: Schema.Boolean,
 });
+export type ProcessorProjectPolicy = typeof ProcessorProjectPolicy.Type;
 
 export const ResolvedProcessorProject = Schema.Struct({
   organizationId: Schema.String,
   policy: ProcessorProjectPolicy,
   projectId: Schema.String,
 });
+export type ResolvedProcessorProject = typeof ResolvedProcessorProject.Type;
 
 export const ANONYMOUS_DISTINCT_ID_PREFIX = "vh:anon:";
 
@@ -332,16 +351,13 @@ export const validateBuiltInProcessorRules = ({
   if (!traitsResult.ok) return traitsResult.message;
 
   const rawProcessPersonProfile = capturedEvent.properties.$process_person_profile;
-  if (
-    typeof rawProcessPersonProfile !== "undefined" &&
-    typeof rawProcessPersonProfile !== "boolean"
-  ) {
+  if (!P.isUndefined(rawProcessPersonProfile) && !P.isBoolean(rawProcessPersonProfile)) {
     return "$process_person_profile must be a boolean";
   }
 
   if (capturedEvent.event === "$identify") {
     const rawPreviousDistinctId = innerProperties.$previous_distinct_id;
-    if (typeof rawPreviousDistinctId !== "string" || rawPreviousDistinctId.length === 0) {
+    if (!P.isString(rawPreviousDistinctId) || Str.isEmpty(rawPreviousDistinctId)) {
       return "$identify requires properties.$previous_distinct_id";
     }
     if (capturedEvent.distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)) {
@@ -351,3 +367,6 @@ export const validateBuiltInProcessorRules = ({
 
   return undefined;
 };
+
+export { EventProperties as EventPropertiesSchema };
+export { EventContext as EventContextSchema };

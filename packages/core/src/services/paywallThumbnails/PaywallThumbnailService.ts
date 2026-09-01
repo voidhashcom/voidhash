@@ -1,5 +1,14 @@
 import { constant, pick } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Option, Predicate, Random, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Random from "effect/Random";
+import * as Schema from "effect/Schema";
 
 import { Db, eq, paywalls, type Paywall } from "@voidhash/db";
 import { hashSource } from "@voidhash/paywall-workspace";
@@ -37,36 +46,35 @@ export class PaywallThumbnailServiceError extends Schema.TaggedErrorClass<Paywal
 /** A snapshot tree node in the renderer `SnapshotNode` shape (structural subset). */
 interface SnapshotNodeLike {
   readonly type: string;
-  readonly data?: { readonly contentHash?: unknown } | undefined;
-  readonly children?: readonly unknown[] | undefined;
+  readonly data?: { readonly contentHash?: unknown };
+  readonly children?: readonly unknown[];
 }
 
 const isSnapshotNodeLike = (value: unknown): value is SnapshotNodeLike =>
-  Predicate.hasProperty(value, "type") && typeof value.type === "string";
+  P.hasProperty(value, "type") && P.isString(value.type);
 
 /**
  * Collects the distinct non-empty `contentHash`es of the snapshot's deployed
  * `component` nodes (depth-first). Local code components pin a sentinel
  * `contentHash: ""` and are handled separately by the component compiler.
  */
-export const collectDeployedComponentContentHashes = (snapshot: unknown): ReadonlySet<string> => {
-  const hashes = new Set<string>();
-  const visit = (value: unknown): void => {
-    if (!isSnapshotNodeLike(value)) {
-      return;
-    }
+export const collectDeployedComponentContentHashes = (
+  snapshot: unknown,
+): HashSet.HashSet<string> => {
+  const visit = (value: unknown): HashSet.HashSet<string> => {
+    if (!isSnapshotNodeLike(value)) return HashSet.empty();
+    let hashes = HashSet.empty<string>();
     if (value.type === "component") {
       const contentHash = value.data?.contentHash;
-      if (typeof contentHash === "string" && contentHash !== "") {
-        hashes.add(contentHash);
+      if (P.isString(contentHash) && contentHash !== "") {
+        hashes = HashSet.add(hashes, contentHash);
       }
     }
-    for (const child of value.children ?? []) {
-      visit(child);
-    }
+    return Arr.reduce(value.children ?? [], hashes, (collected, child) =>
+      HashSet.union(collected, visit(child)),
+    );
   };
-  visit(snapshot);
-  return hashes;
+  return visit(snapshot);
 };
 
 const decodeLocalComponentData = Schema.decodeUnknownOption(
@@ -79,23 +87,23 @@ const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unkno
 export const collectLocalComponentSources = (
   snapshot: unknown,
 ): ReadonlyArray<{ readonly path: string; readonly source: string }> => {
-  const components: Array<{ readonly path: string; readonly source: string }> = [];
-  const visit = (value: unknown): void => {
-    if (!isSnapshotNodeLike(value)) {
-      return;
-    }
+  const visit = (
+    value: unknown,
+  ): ReadonlyArray<{ readonly path: string; readonly source: string }> => {
+    if (!isSnapshotNodeLike(value)) return [];
+    let components: ReadonlyArray<{ readonly path: string; readonly source: string }> = [];
     if (value.type === "codeComponent") {
       const data = decodeLocalComponentData(value.data);
       if (Option.isSome(data)) {
-        components.push({ path: data.value.path, source: data.value.source });
+        components = [{ path: data.value.path, source: data.value.source }];
       }
     }
-    for (const child of value.children ?? []) {
-      visit(child);
-    }
+    return Arr.reduce(value.children ?? [], components, (collected, child) => [
+      ...collected,
+      ...visit(child),
+    ]);
   };
-  visit(snapshot);
-  return components;
+  return visit(snapshot);
 };
 
 /**
@@ -133,42 +141,57 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
       /**
        * Fetches the "default"-state preview tree for each deployed component
        * contentHash from the public serving layout
-       * (`c/<contentHash>/previews/default.json`). A missing object (`null`) or an
+       * (`c/<contentHash>/previews/default.json`). A missing object or an
        * undecodable tree degrades to absent (the renderer shows a placeholder). A
        * real store failure (`PaywallArtifactStoreError` — e.g. an R2 outage) is NOT
        * swallowed: it propagates so the render fails rather than pinning a
        * placeholder-filled thumbnail + advancing `thumbnail_seq`.
        */
-      const fetchComponentTrees = (contentHashes: ReadonlySet<string>) =>
-        Effect.gen(function* () {
-          const trees: Record<string, Record<string, unknown>> = {};
-          for (const contentHash of contentHashes) {
-            const key = componentServingPreviewKey(contentHash, THUMBNAIL_PREVIEW_STATE);
-            const object = yield* artifactStore.getObject(key);
-            if (object === null) {
-              continue;
-            }
-            const tree = Option.getOrNull(decodeJson(new TextDecoder().decode(object.body)));
-            if (tree !== null) {
-              trees[contentHash] = { [THUMBNAIL_PREVIEW_STATE]: tree };
-            }
-          }
-          return trees;
-        });
+      const fetchComponentTrees = Effect.fn("PaywallThumbnailService.fetchComponentTrees")(
+        function* (contentHashes: HashSet.HashSet<string>) {
+          const entries = yield* Effect.forEach(
+            contentHashes,
+            (contentHash) => {
+              const key = componentServingPreviewKey(contentHash, THUMBNAIL_PREVIEW_STATE);
+              return artifactStore
+                .getObject(key)
+                .pipe(
+                  Effect.map(
+                    Option.flatMap((object) =>
+                      Option.map(
+                        decodeJson(new TextDecoder().decode(object.body)),
+                        (tree) => [contentHash, { [THUMBNAIL_PREVIEW_STATE]: tree }] as const,
+                      ),
+                    ),
+                  ),
+                );
+            },
+            { concurrency: 1 },
+          );
+          const emptyTrees: Record<string, Record<string, unknown>> = {};
+          return Arr.reduce(Arr.getSomes(entries), emptyTrees, (trees, [contentHash, tree]) => ({
+            ...trees,
+            [contentHash]: tree,
+          }));
+        },
+      );
 
-      const compileLocalComponentTrees = (snapshot: unknown) =>
-        Effect.gen(function* () {
-          const trees: Record<string, Record<string, unknown>> = {};
-          const components = collectLocalComponentSources(snapshot);
-          const hashes = components.map((component) => hashSource(component.source));
-          const cached = yield* componentManifestCache.getMany(hashes);
+      const compileLocalComponentTrees = Effect.fn(
+        "PaywallThumbnailService.compileLocalComponentTrees",
+      )(function* (snapshot: unknown) {
+        const components = collectLocalComponentSources(snapshot);
+        const hashes = Arr.map(components, (component) => hashSource(component.source));
+        const cached = yield* componentManifestCache.getMany(hashes);
 
-          for (const component of components) {
+        const entries = yield* Effect.forEach(
+          components,
+          Effect.fn("PaywallThumbnailService.compileLocalComponent")(function* (component) {
             const sourceHash = hashSource(component.source);
-            const cachedTrees = cached.get(sourceHash)?.previewTrees;
-            if (cachedTrees !== null && cachedTrees !== undefined) {
-              trees[component.path] = { ...cachedTrees };
-              continue;
+            const cachedTrees = HashMap.get(cached, sourceHash).pipe(
+              Option.flatMap((row) => row.previewTrees),
+            );
+            if (Option.isSome(cachedTrees)) {
+              return [component.path, { ...cachedTrees.value }] as const;
             }
 
             const result = yield* componentCompiler.compileAndExtract(component.source);
@@ -182,22 +205,29 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
             if (result.status === "error") {
               return yield* Effect.fail(
                 new PaywallThumbnailServiceError({
-                  message: `Local component ${component.path} failed to compile: ${result.diagnostics
-                    .map((diagnostic) => diagnostic.message)
-                    .join("; ")}`,
+                  message: `Local component ${component.path} failed to compile: ${Arr.map(
+                    result.diagnostics,
+                    (diagnostic) => diagnostic.message,
+                  ).join("; ")}`,
                 }),
               );
             }
-            trees[component.path] = { ...result.previewTrees };
             yield* componentManifestCache.record({
               sourceHash,
               status: "ready",
               manifest: result.manifest,
               previewTrees: result.previewTrees,
             });
-          }
-          return trees;
-        });
+            return [component.path, { ...result.previewTrees }] as const;
+          }),
+          { concurrency: 1 },
+        );
+        const emptyTrees: Record<string, Record<string, unknown>> = {};
+        return Arr.reduce(entries, emptyTrees, (trees, [path, previewTrees]) => ({
+          ...trees,
+          [path]: previewTrees,
+        }));
+      });
 
       const renderPaywall = Effect.fn("renderPaywallThumbnail")(function* (input: {
         readonly force?: boolean;
@@ -234,8 +264,8 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
         });
 
         const key = derivePaywallThumbnailKey(paywall.projectId, paywall.id);
-        const stored = yield* db.transaction((tx) =>
-          Effect.gen(function* () {
+        const stored = yield* db.transaction(
+          Effect.fn("PaywallThumbnailService.renderPaywall.transaction")(function* (tx) {
             // Serialize only the final overwrite. Rendering happens before this
             // transaction, while the lock prevents an older completed render
             // from replacing a newer thumbnail at the shared object key.
@@ -259,21 +289,25 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
               return false;
             }
 
-            const previousThumbnailUrl = current.thumbnailUrl;
-            const previousKey = (() => {
-              if (previousThumbnailUrl === null) return null;
-              return paywallThumbnailKeyFromUrl(
-                previousThumbnailUrl,
-                paywall.projectId,
-                paywall.id,
-                publicFileStore.publicBaseUrl,
-              );
-            })();
-            if (previousKey !== null && previousKey !== key) {
-              yield* publicFileStore.deleteObject(previousKey);
+            const previousKey = Option.flatMap(
+              Option.fromNullishOr(current.thumbnailUrl),
+              (previousThumbnailUrl) =>
+                paywallThumbnailKeyFromUrl(
+                  previousThumbnailUrl,
+                  paywall.projectId,
+                  paywall.id,
+                  publicFileStore.publicBaseUrl,
+                ),
+            );
+            if (Option.isSome(previousKey) && previousKey.value !== key) {
+              yield* publicFileStore.deleteObject(previousKey.value);
             }
 
-            yield* publicFileStore.putObject({ body: png, contentType: "image/png", key });
+            yield* publicFileStore.putObject({
+              body: png,
+              contentType: Option.some("image/png"),
+              key,
+            });
             // Ephemeral cache-buster for a forced re-render — not a domain id.
             const nonce = yield* Random.nextInt;
             const cacheVersion = pick(force, `${seq}&r=${nonce}`, String(seq));
@@ -349,8 +383,8 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
           ),
       );
 
-      const renderCurrentPaywall = (paywallId: string, force: boolean) =>
-        Effect.gen(function* () {
+      const renderCurrentPaywall = Effect.fn("PaywallThumbnailService.renderCurrentPaywall")(
+        function* (paywallId: string, force: boolean) {
           yield* Effect.annotateCurrentSpan("voidhash.paywall.id", paywallId);
           const paywall = yield* db.query.paywalls.findFirst({ where: { id: paywallId } });
           if (!paywall) {
@@ -374,36 +408,39 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
             seq,
             snapshot: document.root,
           });
-        }).pipe(
-          Effect.catchTags({
-            EffectDrizzleQueryError: (error) =>
-              Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
-            ComponentCompilerError: (error) =>
-              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-            ComponentManifestCacheError: (error) =>
-              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-            ComponentManifestInvalidError: (error) =>
-              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-            MimicHostError: (error) =>
-              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-            PaywallArtifactStoreError: (error) =>
-              Effect.fail(
-                new PaywallThumbnailServiceError({
-                  message: `${error.message}: ${error.cause}`,
-                }),
-              ),
-            PublicFileStoreError: (error) =>
-              Effect.fail(
-                new PaywallThumbnailServiceError({
-                  message: `${error.message}: ${error.cause}`,
-                }),
-              ),
-            SqlError: (error) =>
-              Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
-            SnapshotImageRenderError: (error) =>
-              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-          }),
-        );
+        },
+        (effect) =>
+          effect.pipe(
+            Effect.catchTags({
+              EffectDrizzleQueryError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
+              ComponentCompilerError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+              ComponentManifestCacheError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+              ComponentManifestInvalidError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+              MimicHostError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+              PaywallArtifactStoreError: (error) =>
+                Effect.fail(
+                  new PaywallThumbnailServiceError({
+                    message: `${error.message}: ${error.cause}`,
+                  }),
+                ),
+              PublicFileStoreError: (error) =>
+                Effect.fail(
+                  new PaywallThumbnailServiceError({
+                    message: `${error.message}: ${error.cause}`,
+                  }),
+                ),
+              SqlError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
+              SnapshotImageRenderError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            }),
+          ),
+      );
 
       const renderCurrent = Effect.fn("renderCurrentPaywallThumbnail")((paywallId: string) =>
         renderCurrentPaywall(paywallId, false),

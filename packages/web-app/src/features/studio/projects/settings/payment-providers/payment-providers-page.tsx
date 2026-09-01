@@ -150,7 +150,7 @@ export const PaymentProvidersPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {paymentProviderConfiguration.enabled && <Badge>Enabled</Badge>}
+                      {paymentProviderConfiguration.isEnabled && <Badge>Enabled</Badge>}
                       <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
@@ -200,7 +200,7 @@ export const PaymentProvidersPage = () => {
                   {/* If configuration exists, show the enabled/disabled badge and the chevron right */}
                   {paymentProviderConfiguration.id && (
                     <div className="flex items-center gap-2">
-                      {paymentProviderConfiguration.enabled ? (
+                      {paymentProviderConfiguration.isEnabled ? (
                         <Badge>Enabled</Badge>
                       ) : (
                         <Badge variant="outline">Disabled</Badge>

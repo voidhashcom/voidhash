@@ -1,3 +1,6 @@
+
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 /**
  * HTML document template for self-contained paywall output.
  */
@@ -33,7 +36,7 @@ export function generateDocument(options: DocumentTemplateOptions): string {
   const metadataComment = metadata
     ? `<!--
 VOIDHASH_PAYWALL_METADATA
-${JSON.stringify(metadata)}
+${effectEncodeJson(metadata)}
 END_VOIDHASH_PAYWALL_METADATA
 -->\n`
     : "";

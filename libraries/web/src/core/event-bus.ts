@@ -1,38 +1,39 @@
-import { Context } from "effect";
+import * as Context from "effect/Context";
 
 import type { VoidhashEventMap, VoidhashEventName } from "../types";
 
 export class EventBus {
   private listeners: {
-    [TEvent in VoidhashEventName]: Set<(payload: VoidhashEventMap[TEvent]) => void>;
+    [TEvent in VoidhashEventName]: Array<(payload: VoidhashEventMap[TEvent]) => void>;
   } = {
-    "analytics-flush-needed": new Set(),
-    "analytics-flushed": new Set(),
-    "analytics-partial-rejection": new Set(),
-    error: new Set(),
-    "feature-flags-updated": new Set(),
-    "identity-changed": new Set(),
-    initialized: new Set(),
+    "analytics-flush-needed": [],
+    "analytics-flushed": [],
+    "analytics-partial-rejection": [],
+    error: [],
+    "feature-flags-updated": [],
+    "identity-changed": [],
+    initialized: [],
   };
 
   emit<TEvent extends VoidhashEventName>(event: TEvent, payload: VoidhashEventMap[TEvent]) {
-    for (const listener of this.listeners[event] ?? []) {
-      listener(payload);
-    }
+    this.listeners[event].forEach((listener) => listener(payload));
   }
 
   off<TEvent extends VoidhashEventName>(
     event: TEvent,
     listener: (payload: VoidhashEventMap[TEvent]) => void,
   ) {
-    this.listeners[event]?.delete(listener);
+    const index = this.listeners[event].indexOf(listener);
+    if (index >= 0) {
+      this.listeners[event].splice(index, 1);
+    }
   }
 
   on<TEvent extends VoidhashEventName>(
     event: TEvent,
     listener: (payload: VoidhashEventMap[TEvent]) => void,
   ) {
-    this.listeners[event]?.add(listener);
+    this.listeners[event].push(listener);
 
     return () => {
       this.off(event, listener);

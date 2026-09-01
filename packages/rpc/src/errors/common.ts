@@ -6,7 +6,7 @@
  * Class names and `_tag` values are namespaced with `Rpc` / `Rpc/` so they
  * cannot collide with errors defined elsewhere in the monorepo.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Action is forbidden due to insufficient permissions */
 export class RpcActionForbiddenError extends Schema.TaggedErrorClass<RpcActionForbiddenError>(

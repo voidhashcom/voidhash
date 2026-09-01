@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Domain errors for the push-notification configuration aggregate. Mirrors the

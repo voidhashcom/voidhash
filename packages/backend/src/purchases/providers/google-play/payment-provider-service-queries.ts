@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 /**
  * DB-bound primitives for the Google Play payment-provider services. Mirrors
  * the App Store query module — Google Play owns its own provider/source-specific
@@ -24,14 +25,17 @@ import {
   Db,
 } from "@voidhash/db";
 import { constant } from "@voidhash/lib/lang";
-import { Effect, Layer, Option, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Context from "effect/Context";
 
 import { googlePlayMappingMatchesProviderProductKey } from "./helpers.ts";
 
 /** Bound on `mergedIntoPersonId` chain-following — cycle/runaway backstop. */
 const MAX_MERGE_CHAIN_HOPS = 10;
 
-const make = Effect.gen(function* () {
+const make = Effect.fn("make")(function* () {
   const db = yield* Db;
 
   const findPaymentProviderConfigurationsByProjectId = Effect.fn(
@@ -40,14 +44,14 @@ const make = Effect.gen(function* () {
     (
       projectId: string,
     ): Effect.Effect<ReadonlyArray<DbPaymentProviderConfiguration>, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("findPaymentProviderConfigurationsByProjectId")(function* () {
         return yield* db.query.paymentProviderConfigurations.findMany({
           where: {
             projectId,
             deletedAt: { isNull: true },
           },
         });
-      }),
+      })(),
   );
 
   const findPaymentProviderConfigurationProductByPrimaryKey = Effect.fn(
@@ -56,8 +60,8 @@ const make = Effect.gen(function* () {
     (input: {
       readonly paymentProviderConfigurationId: string;
       readonly providerProductKey: string;
-    }): Effect.Effect<DbPaymentProviderConfigurationProduct | undefined, DbError, Db> =>
-      Effect.gen(function* () {
+    }): Effect.Effect<DbPaymentProviderConfigurationProduct | typeof Schema.Undefined.Type, DbError, Db> =>
+      Effect.fn("findPaymentProviderConfigurationProductByPrimaryKey")(function* () {
         return yield* db.query.paymentProviderConfigurationProducts.findFirst({
           where: {
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
@@ -65,26 +69,26 @@ const make = Effect.gen(function* () {
             isActive: true,
           },
         });
-      }),
+      })(),
   );
 
   const findPaymentProviderConfigurationById = Effect.fn("findPaymentProviderConfigurationById")(
-    (id: string): Effect.Effect<DbPaymentProviderConfiguration | undefined, DbError, Db> =>
-      Effect.gen(function* () {
+    (id: string): Effect.Effect<DbPaymentProviderConfiguration | typeof Schema.Undefined.Type, DbError, Db> =>
+      Effect.fn("findPaymentProviderConfigurationById")(function* () {
         return yield* db.query.paymentProviderConfigurations.findFirst({
           where: {
             id,
             deletedAt: { isNull: true },
           },
         });
-      }),
+      })(),
   );
 
   const findProjectById = Effect.fn("findProjectById")(
-    (id: string): Effect.Effect<DbProject | undefined, DbError, Db> =>
-      Effect.gen(function* () {
+    (id: string): Effect.Effect<DbProject | typeof Schema.Undefined.Type, DbError, Db> =>
+      Effect.fn("findProjectById")(function* () {
         return yield* db.query.projects.findFirst({ where: { id } });
-      }),
+      })(),
   );
 
   const findPersonIdentityByDistinctId = Effect.fn("findPersonIdentityByDistinctId")(
@@ -92,7 +96,7 @@ const make = Effect.gen(function* () {
       readonly projectId: string;
       readonly distinctId: string;
     }): Effect.Effect<Option.Option<{ readonly personId: string }>, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("findPersonIdentityByDistinctId")(function* () {
         const row = yield* db.query.personIdentities.findFirst({
           columns: { personId: true },
           where: {
@@ -101,7 +105,7 @@ const make = Effect.gen(function* () {
           },
         });
         return Option.fromNullishOr(row);
-      }),
+      })(),
   );
 
   const findExternalIdentifier = Effect.fn("findExternalIdentifier")(
@@ -114,7 +118,7 @@ const make = Effect.gen(function* () {
       DbError,
       Db
     > =>
-      Effect.gen(function* () {
+      Effect.fn("findExternalIdentifier")(function* () {
         const row = yield* db.query.personExternalIdentifiers.findFirst({
           columns: { id: true, personId: true },
           where: {
@@ -124,7 +128,7 @@ const make = Effect.gen(function* () {
           },
         });
         return Option.fromNullishOr(row);
-      }),
+      })(),
   );
 
   const createExternalIdentifier = Effect.fn("createExternalIdentifier")(
@@ -136,10 +140,10 @@ const make = Effect.gen(function* () {
       readonly identifier: string;
       readonly isDefault: boolean;
     }): Effect.Effect<{ readonly id: string }, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("createExternalIdentifier")(function* () {
         yield* db.insert(personExternalIdentifiers).values(input);
         return { id: input.id };
-      }),
+      })(),
   );
 
   /**
@@ -158,7 +162,7 @@ const make = Effect.gen(function* () {
       readonly identifier: string;
       readonly isDefault: boolean;
     }): Effect.Effect<void, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("upsertExternalIdentifier")(function* () {
         yield* db
           .insert(personExternalIdentifiers)
           .values(input)
@@ -170,7 +174,7 @@ const make = Effect.gen(function* () {
             ],
             set: { personId: input.personId },
           });
-      }),
+      })(),
   );
 
   /**
@@ -184,21 +188,23 @@ const make = Effect.gen(function* () {
    */
   const resolveCanonicalPersonId = Effect.fn("resolveCanonicalPersonId")(
     (input: { readonly personId: string }): Effect.Effect<string, DbError, Db> =>
-      Effect.gen(function* () {
-        let currentId = input.personId;
-        for (let hop = 0; hop < MAX_MERGE_CHAIN_HOPS; hop++) {
-          const row = yield* db.query.persons.findFirst({
-            columns: { mergedIntoPersonId: true },
-            where: { id: currentId },
-          });
-          const mergedInto = row?.mergedIntoPersonId;
-          if (!mergedInto || mergedInto === currentId) {
-            return currentId;
-          }
-          currentId = mergedInto;
-        }
-        return currentId;
-      }),
+      Effect.fn("resolveCanonicalPersonIdLoop")(function loop(
+        currentId: string,
+        hop: number,
+      ): Effect.Effect<string, DbError> {
+        if (hop >= MAX_MERGE_CHAIN_HOPS) return Effect.succeed(currentId);
+        return db.query.persons.findFirst({
+          columns: { mergedIntoPersonId: true },
+          where: { id: currentId },
+        }).pipe(
+          Effect.flatMap((row) => {
+            const mergedInto = row?.mergedIntoPersonId;
+            return !mergedInto || mergedInto === currentId
+              ? Effect.succeed(currentId)
+              : loop(mergedInto, hop + 1);
+          }),
+        );
+      })(input.personId, 0),
   );
 
   /**
@@ -212,12 +218,12 @@ const make = Effect.gen(function* () {
       readonly id: string;
       readonly newPersonId: string;
     }): Effect.Effect<void, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("rebindExternalIdentifier")(function* () {
         yield* db
           .update(personExternalIdentifiers)
           .set({ personId: input.newPersonId })
           .where(eq(personExternalIdentifiers.id, input.id));
-      }),
+      })(),
   );
 
   /**
@@ -230,7 +236,7 @@ const make = Effect.gen(function* () {
       readonly projectId: string;
       readonly personId: string;
     }): Effect.Effect<Option.Option<string>, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("findDistinctIdForPerson")(function* () {
         const row = yield* db.query.personIdentities.findFirst({
           columns: { distinctId: true },
           where: {
@@ -239,7 +245,7 @@ const make = Effect.gen(function* () {
           },
         });
         return Option.fromNullishOr(row?.distinctId);
-      }),
+      })(),
   );
 
   /**
@@ -258,7 +264,7 @@ const make = Effect.gen(function* () {
     (
       input: InsertPaymentProviderNotificationProcessed,
     ): Effect.Effect<{ readonly inserted: boolean }, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("insertNotificationProcessedIfAbsent")(function* () {
         yield* db
           .insert(paymentProviderNotificationProcessed)
           .values(input)
@@ -276,7 +282,7 @@ const make = Effect.gen(function* () {
           },
         });
         return { inserted: surviving?.id === input.id };
-      }),
+      })(),
   );
 
   /**
@@ -288,7 +294,7 @@ const make = Effect.gen(function* () {
       readonly paymentProviderConfigurationId: string;
       readonly providerProductKey: string;
     }): Effect.Effect<ReadonlyArray<DbPaymentProviderNotificationProcessed>, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("findParkedNotifications")(function* () {
         const parked = yield* db.query.paymentProviderNotificationProcessed.findMany({
           orderBy: { providerOccurredAt: "asc", processedAt: "asc", id: "asc" },
           where: {
@@ -303,7 +309,7 @@ const make = Effect.gen(function* () {
             googlePlayMappingMatchesProviderProductKey(input.providerProductKey, parkedKey)
           );
         });
-      }),
+      })(),
   );
 
   /** Records a retryable replay attempt while keeping the notification parked. */
@@ -312,7 +318,7 @@ const make = Effect.gen(function* () {
       readonly id: string;
       readonly resultNote: string;
     }): Effect.Effect<void, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("markParkedNotificationAttempted")(function* () {
         yield* db
           .update(paymentProviderNotificationProcessed)
           .set({
@@ -321,7 +327,7 @@ const make = Effect.gen(function* () {
             resultNote: input.resultNote.slice(0, 500),
           })
           .where(eq(paymentProviderNotificationProcessed.id, input.id));
-      }),
+      })(),
   );
 
   /**
@@ -333,9 +339,9 @@ const make = Effect.gen(function* () {
     (input: {
       readonly id: string;
       readonly result: string;
-      readonly resultNote: string | null;
+      readonly resultNote: string | typeof Schema.Null.Type;
     }): Effect.Effect<void, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("markParkedNotificationResolved")(function* () {
         yield* db
           .update(paymentProviderNotificationProcessed)
           .set({
@@ -349,7 +355,7 @@ const make = Effect.gen(function* () {
             resultNote: input.resultNote,
           })
           .where(eq(paymentProviderNotificationProcessed.id, input.id));
-      }),
+      })(),
   );
 
   /**
@@ -363,7 +369,7 @@ const make = Effect.gen(function* () {
       readonly projectId: string;
       readonly personId: string;
     }): Effect.Effect<boolean, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("isGooglePlayWebhookStandInPerson")(function* () {
         const row = yield* db.query.persons.findFirst({
           columns: { origin: true },
           where: {
@@ -372,7 +378,7 @@ const make = Effect.gen(function* () {
           },
         });
         return row?.origin === PersonOrigin.GooglePlayWebhook;
-      }),
+      })(),
   );
 
   /**
@@ -390,12 +396,12 @@ const make = Effect.gen(function* () {
       Option.Option<{
         readonly id: string;
         readonly paymentProviderConfigurationProductId: string;
-        readonly paymentProviderConfigurationId: string | undefined;
+        readonly paymentProviderConfigurationId: string | typeof Schema.Undefined.Type;
       }>,
       DbError,
       Db
     > =>
-      Effect.gen(function* () {
+      Effect.fn("findSubscriptionByStoreSubscriptionId")(function* () {
         const row = yield* db.query.subscriptions.findFirst({
           columns: { id: true, paymentProviderConfigurationProductId: true },
           where: { storeSubscriptionId: input.storeSubscriptionId },
@@ -412,7 +418,7 @@ const make = Effect.gen(function* () {
             row.paymentProviderConfigurationProduct?.paymentProviderConfigurationId,
           paymentProviderConfigurationProductId: row.paymentProviderConfigurationProductId,
         });
-      }),
+      })(),
   );
 
   /**
@@ -424,13 +430,13 @@ const make = Effect.gen(function* () {
     (input: {
       readonly providerKey: string;
     }): Effect.Effect<Option.Option<{ readonly id: string; readonly type: number }>, DbError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("findPurchaseByProviderKey")(function* () {
         const row = yield* db.query.purchases.findFirst({
           columns: { id: true, type: true },
           where: { providerKey: input.providerKey },
         });
         return Option.fromNullishOr(row);
-      }),
+      })(),
   );
 
   return constant({
@@ -453,7 +459,7 @@ const make = Effect.gen(function* () {
     resolveCanonicalPersonId,
     upsertExternalIdentifier,
   });
-});
+})();
 
 export type GooglePlayPaymentProviderServiceQueriesShape = Effect.Success<typeof make>;
 

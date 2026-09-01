@@ -106,7 +106,7 @@ export const ProductDetailPage = () => {
 
       return {
         configuration: paymentProviderConfiguration,
-        enabled: !!paymentProviderConfiguration && paymentProviderConfiguration.enabled,
+        enabled: !!paymentProviderConfiguration && paymentProviderConfiguration.isEnabled,
         id: paymentProviderConfiguration.id,
         name: paymentProviderConfiguration.name,
         paymentProvider,

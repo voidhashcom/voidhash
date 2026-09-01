@@ -1,4 +1,6 @@
-export type VoidhashTraitValue = string | number | boolean | null;
+import type * as Option from "effect/Option";
+
+export type VoidhashTraitValue = string | number | boolean | Option.Option<never>;
 
 export type VoidhashTraits = Record<string, VoidhashTraitValue>;
 
@@ -10,14 +12,13 @@ export type VoidhashTraits = Record<string, VoidhashTraitValue>;
 export type VoidhashPersonAttributes = {
   readonly email?: string;
   readonly name?: string;
-  readonly [key: string]: VoidhashTraitValue | undefined;
-};
+} & Readonly<Record<string, VoidhashTraitValue>>;
 
 export interface FeatureFlagEntry {
   readonly enabled: boolean;
   readonly key: string;
   readonly payload: unknown;
-  readonly variantKey: string | null;
+  readonly variantKey: Option.Option<string>;
 }
 
 export interface FeatureFlagsResult {
@@ -68,7 +69,7 @@ export interface InitializedEvent {
 
 export interface IdentityChangedEvent {
   readonly distinctId: string;
-  readonly previousDistinctId: string | null;
+  readonly previousDistinctId: Option.Option<string>;
 }
 
 export interface FeatureFlagsUpdatedEvent {

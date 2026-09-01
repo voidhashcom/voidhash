@@ -1,4 +1,6 @@
-import { Option, Schema } from "effect";
+import * as R from "effect/Record";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { constant } from "@voidhash/lib/lang";
 
 /**
@@ -87,9 +89,10 @@ export const APIErrorCode = constant({
 
 export type APIErrorCode = (typeof APIErrorCode)[keyof typeof APIErrorCode];
 
-export const APIErrorCodeSchema = Schema.Union(
-  Object.values(APIErrorCode).map((code) => Schema.Literal(code)),
+export const APIErrorCodeCodec = Schema.Union(
+  R.values(APIErrorCode).map((code) => Schema.Literal(code)),
 );
+export type APIErrorCodeCodec = typeof APIErrorCodeCodec.Type;
 
 /**
  * Validation errors (4000xxx) - invalid parameters, IDs, formats.
@@ -259,3 +262,5 @@ export function createAppStoreApiError(
   // Default: validation error (covers all 4000xxx codes and unknown)
   return new AppStoreValidationError({ httpStatusCode, apiError, errorMessage });
 }
+
+export { APIErrorCodeCodec as APIErrorCodeSchema };

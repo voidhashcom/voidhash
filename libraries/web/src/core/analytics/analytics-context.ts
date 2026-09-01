@@ -1,9 +1,11 @@
-import { DateTime, Effect } from "effect";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as P from "effect/Predicate";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
-import type {
-  EventContextField,
-  EventPropertiesField,
-} from "@voidhash/generated-clients/event-capture";
+import type { EventContextField } from "@voidhash/generated-clients/event-capture";
 
 import type { VoidhashTrackOptions } from "../../types";
 import { BrowserPlatformProvider } from "../platform/browser-platform-provider";
@@ -11,31 +13,29 @@ import type { AnalyticsRequestEvent } from "./contracts";
 
 const normalizeAnalyticsValue = (
   value: unknown,
-): EventContextField | EventPropertiesField | undefined => {
+): Option.Option<EventContextField> => {
   if (
     value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
+    P.isString(value) ||
+    P.isNumber(value) ||
+    P.isBoolean(value)
   ) {
-    return value;
+    return Option.some(value);
   }
 
   if (value instanceof Date) {
-    return value.toISOString();
+    return Option.some(value.toISOString());
   }
 
   if (Array.isArray(value)) {
-    return value
-      .map((entry) => normalizeAnalyticsValue(entry))
-      .filter((entry) => typeof entry !== "undefined");
+    return Option.some(Arr.getSomes(value.map((entry) => normalizeAnalyticsValue(entry))));
   }
 
-  if (typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).flatMap(normalizeAnalyticsEntry));
+  if (P.isObject(value)) {
+    return Option.some(R.fromEntries(R.toEntries(value).flatMap(normalizeAnalyticsEntry)));
   }
 
-  return undefined;
+  return Option.none();
 };
 
 /**
@@ -43,38 +43,40 @@ const normalizeAnalyticsValue = (
  * analytics-compatible representation.
  */
 const normalizeAnalyticsEntry = ([key, value]: [string, unknown]): ReadonlyArray<
-  [string, EventContextField | EventPropertiesField]
+  [string, EventContextField]
 > => {
   const normalized = normalizeAnalyticsValue(value);
-  if (typeof normalized === "undefined") {
+  if (Option.isNone(normalized)) {
     return [];
   }
 
-  return [[key, normalized]];
+  return [[key, normalized.value]];
 };
 
 const normalizeAnalyticsRecord = (
   entries: Record<string, unknown>,
-): Record<string, EventContextField | EventPropertiesField> =>
-  Object.fromEntries(Object.entries(entries).flatMap(normalizeAnalyticsEntry));
-
-const currentTimestamp = () => Effect.runSync(Effect.map(DateTime.now, DateTime.formatIso));
+): Record<string, EventContextField> =>
+  R.fromEntries(R.toEntries(entries).flatMap(normalizeAnalyticsEntry));
 
 const createEventId = (platform: BrowserPlatformProvider) =>
   `evt_${platform.randomId().split("-").join("")}`;
 
-export const createAnalyticsEvent = (
+/** Builds a normalized analytics event with Effect-provided time. */
+export const createAnalyticsEvent = Effect.fn("createAnalyticsEvent")(function* (
   platform: BrowserPlatformProvider,
   distinctId: string,
   eventName: string,
   properties?: Record<string, unknown>,
   options?: VoidhashTrackOptions,
-): AnalyticsRequestEvent => ({
-  context: normalizeAnalyticsRecord(platform.buildAnalyticsContext()),
-  distinct_id: distinctId,
-  event: eventName,
-  properties: normalizeAnalyticsRecord(properties ?? {}),
-  timestamp: options?.timestamp ?? currentTimestamp(),
-  session_id: options?.sessionId,
-  uuid: options?.eventId ?? createEventId(platform),
+) {
+  const timestamp = options?.timestamp ?? DateTime.formatIso(yield* DateTime.now);
+  return {
+    context: normalizeAnalyticsRecord(platform.buildAnalyticsContext()),
+    distinct_id: distinctId,
+    event: eventName,
+    properties: normalizeAnalyticsRecord(properties ?? {}),
+    timestamp,
+    session_id: options?.sessionId,
+    uuid: options?.eventId ?? createEventId(platform),
+  } satisfies AnalyticsRequestEvent;
 });

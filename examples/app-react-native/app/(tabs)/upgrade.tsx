@@ -2,6 +2,7 @@ import type { Product } from "@voidhash/react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import * as Option from "effect/Option";
 
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
@@ -37,8 +38,11 @@ export default function UpgradeScreen() {
   // Product slugs come from the project's schema, so the display order is the
   // app's decision. Anything the store returned that Nimbus doesn't know about
   // still shows up, after the three it does.
-  const knownOffers = PRO_PRODUCT_SLUGS.map((slug) => products.get(slug)).filter(
-    (product): product is Product => product !== null,
+  const knownOffers = PRO_PRODUCT_SLUGS.flatMap((slug) =>
+    Option.match(products.get(slug), {
+      onNone: () => [],
+      onSome: (product) => [product],
+    }),
   );
   const knownSlugs = new Set(knownOffers.map((product) => product.slug));
   const offers = [

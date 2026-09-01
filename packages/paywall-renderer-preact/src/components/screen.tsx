@@ -3,7 +3,7 @@ import {
   buildScreenContainerStyles,
   buildScreenLayoutStyles,
 } from "@voidhash/paywall-renderer-web-core";
-import type { ComponentChildren } from "preact";
+import { h, type ComponentChildren } from "preact";
 
 import { useLocalizedBackgroundImage } from "../hooks/use-localized-background";
 import { useResolvedStyle } from "../hooks/use-resolved-style";
@@ -24,12 +24,9 @@ export function Screen({ node, children }: ScreenProps) {
       : { ...style, backgroundImage: localizedBackground },
   );
   const layoutStyles = buildScreenLayoutStyles(style);
-  return (
-    <div data-node-id={node.id} style={containerStyles as Record<string, string | number>}>
-      <div style={layoutStyles as Record<string, string | number>}>
-        {/* I hate all of this, but it's the only way to get the types to work, probably due to conflicts with Preact and React. */}
-        {children as unknown as null}
-      </div>
-    </div>
+  return h(
+    "div",
+    { "data-node-id": node.id, style: containerStyles },
+    h("div", { style: layoutStyles }, children),
   );
 }

@@ -4,7 +4,7 @@
  * `PaymentProviderConfiguration` and a `Product`). Class names and `_tag`
  * values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Provider-product row not found. */
 export class RpcPaymentProviderProductNotFoundError extends Schema.TaggedErrorClass<RpcPaymentProviderProductNotFoundError>(

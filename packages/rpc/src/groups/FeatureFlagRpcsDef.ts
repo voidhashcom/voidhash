@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcAuditLogServiceError } from "../errors/AuditLog.ts";
 import { RpcActionForbiddenError } from "../errors/common.ts";
@@ -13,6 +13,7 @@ import {
 import { AuthMiddleware } from "../middlewares.ts";
 
 export const RpcFeatureFlagType = Schema.Literals(["boolean", "string", "number", "json"]);
+export type RpcFeatureFlagType = typeof RpcFeatureFlagType.Type;
 
 export const RpcFeatureFlagTarget = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.Date),
@@ -24,6 +25,7 @@ export const RpcFeatureFlagTarget = Schema.Struct({
   listType: Schema.Number,
   updatedAt: Schema.NullOr(Schema.Date),
 });
+export type RpcFeatureFlagTarget = typeof RpcFeatureFlagTarget.Type;
 
 export const RpcFeatureFlagOverride = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.Date),
@@ -38,6 +40,7 @@ export const RpcFeatureFlagOverride = Schema.Struct({
   updatedAt: Schema.NullOr(Schema.Date),
   updatedByUserId: Schema.NullOr(Schema.String),
 });
+export type RpcFeatureFlagOverride = typeof RpcFeatureFlagOverride.Type;
 
 export const RpcFeatureFlagVariant = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.Date),
@@ -48,15 +51,16 @@ export const RpcFeatureFlagVariant = Schema.Struct({
   updatedAt: Schema.NullOr(Schema.Date),
   value: Schema.Unknown,
 });
+export type RpcFeatureFlagVariant = typeof RpcFeatureFlagVariant.Type;
 
 export const RpcFeatureFlag = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.Date),
   createdAt: Schema.NullOr(Schema.Date),
   createdByUserId: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.String,
-  internal: Schema.Boolean,
+  isInternal: Schema.Boolean,
   overrides: Schema.Array(RpcFeatureFlagOverride),
   ownerId: Schema.NullOr(Schema.String),
   ownerType: Schema.NullOr(Schema.String),
@@ -69,15 +73,16 @@ export const RpcFeatureFlag = Schema.Struct({
   updatedByUserId: Schema.NullOr(Schema.String),
   variants: Schema.Array(RpcFeatureFlagVariant),
   version: Schema.Number,
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled", isInternal: "internal" }));
+export type RpcFeatureFlag = typeof RpcFeatureFlag.Type;
 
 export const RpcFeatureFlagListItem = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.Date),
   createdAt: Schema.NullOr(Schema.Date),
   description: Schema.NullOr(Schema.String),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.String,
-  internal: Schema.Boolean,
+  isInternal: Schema.Boolean,
   ownerId: Schema.NullOr(Schema.String),
   ownerType: Schema.NullOr(Schema.String),
   projectId: Schema.String,
@@ -87,7 +92,8 @@ export const RpcFeatureFlagListItem = Schema.Struct({
   updatedAt: Schema.NullOr(Schema.Date),
   variantCount: Schema.Number,
   version: Schema.Number,
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled", isInternal: "internal" }));
+export type RpcFeatureFlagListItem = typeof RpcFeatureFlagListItem.Type;
 
 const commonError = Schema.Union([
   RpcFeatureFlagServiceError,

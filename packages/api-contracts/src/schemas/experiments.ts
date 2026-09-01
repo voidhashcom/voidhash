@@ -4,7 +4,7 @@
  * `status` small-int column is exposed under its name rather than its number,
  * because the public surface also filters on it (`GET /experiments?status=`).
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 
@@ -14,6 +14,7 @@ import { PageParams } from "../Pagination.ts";
  * promoted a winner and can never run again.
  */
 export const ExperimentStatus = Schema.Literals(["draft", "running", "paused", "concluded"]);
+export type ExperimentStatus = typeof ExperimentStatus.Type;
 
 /** Summary of the backing feature flag that performs runtime assignment. */
 export class ExperimentBackingFlag extends Schema.Class<ExperimentBackingFlag>(
@@ -125,6 +126,7 @@ export const ListExperimentsParams = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   status: Schema.optional(ExperimentStatus),
 }).annotate({ identifier: "ListExperimentsParams" });
+export type ListExperimentsParams = typeof ListExperimentsParams.Type;
 
 /**
  * Query parameters accepted by `GET /experiments/:experimentId/results`.
@@ -136,6 +138,7 @@ export const ExperimentResultsParams = Schema.Struct({
     Schema.FiniteFromString.check(Schema.isBetween({ maximum: 365, minimum: 1 })),
   ),
 }).annotate({ identifier: "ExperimentResultsParams" });
+export type ExperimentResultsParams = typeof ExperimentResultsParams.Type;
 
 /**
  * Body of `POST /experiments`. A new test lands in `draft` with a seeded

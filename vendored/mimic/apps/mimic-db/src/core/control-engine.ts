@@ -1,3 +1,4 @@
+import * as Arr from "effect/Array";
 import type { SchemaObject, Value } from "@voidhash/mimic-core";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import {
@@ -8,7 +9,9 @@ import {
   type DatabasePermission,
   type DocumentPermission,
 } from "@voidhash/mimic-server/rpc";
-import { Clock, Effect } from "effect";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { normalizeSchemaObject, sanitizeValueForSchema } from "../document/schema.ts";
 import { hashHex, randomId } from "./ids.ts";
@@ -36,7 +39,7 @@ interface CollectionView {
   readonly name: string;
   readonly schema: SchemaObject;
   readonly schemaVersion: number;
-  readonly migrationVersion: number | null;
+  readonly migrationVersion: Option.Option<number>;
 }
 
 const toCollectionView = (record: CollectionRecord): CollectionView => ({
@@ -59,7 +62,7 @@ export interface ControlEngineApi {
     token: string,
     collectionId: string,
     documentId: string,
-    origin: string | null,
+    origin: Option.Option<string>,
   ) => Effect.Effect<
     { readonly tokenId: string; readonly permission: DocumentPermission },
     UnauthorizedError
@@ -106,7 +109,7 @@ export interface ControlEngineApi {
     userId: string,
     databaseId: string,
   ) => Effect.Effect<void, NotFoundError>;
-  readonly listGrants: (userId?: string) => Effect.Effect<
+  readonly listGrants: (userId: Option.Option<string>) => Effect.Effect<
     readonly {
       readonly id: string;
       readonly userId: string;
@@ -119,7 +122,7 @@ export interface ControlEngineApi {
     documentId: string,
     permission: DocumentPermission,
     origins: readonly string[],
-    expiresInSeconds: number | undefined,
+    expiresInSeconds: Option.Option<number>,
   ) => Effect.Effect<{ readonly token: string }, NotFoundError>;
   readonly ensureDatabasePermission: (
     userId: string,
@@ -143,15 +146,15 @@ export interface ControlEngineApi {
    */
   readonly prepareDocument: (
     collectionId: string,
-    id: string | undefined,
+    id: Option.Option<string>,
     value: unknown,
-    isMaterialized?: (documentId: string) => Effect.Effect<boolean>,
+    isMaterialized: Option.Option<(documentId: string) => Effect.Effect<boolean>>,
   ) => Effect.Effect<
     {
       readonly documentId: string;
       readonly value: Value;
       readonly schemaVersion: number;
-      readonly migrationVersion: number | null;
+      readonly migrationVersion: Option.Option<number>;
     },
     NotFoundError | ConflictError
   >;
@@ -185,15 +188,17 @@ export const makeControlEngine = (
   const findCollection: ControlEngineApi["findCollection"] = (collectionId) =>
     store.findCollectionById(collectionId).pipe(
       Effect.flatMap((record) => {
-        if (!record) return Effect.fail(notFound(`Collection not found: ${collectionId}`));
-        return Effect.succeed(record);
+        if (Option.isNone(record))
+          return Effect.fail(notFound(`Collection not found: ${collectionId}`));
+        return Effect.succeed(record.value);
       }),
     );
 
-  const listGrantRows = (userId: string | undefined) => {
-    if (!userId) return store.listGrants();
-    return store.listGrantsByUser(userId);
-  };
+  const listGrantRows = (userId: Option.Option<string>) =>
+    Option.match(userId, {
+      onNone: () => store.listGrants(),
+      onSome: (value) => store.listGrantsByUser(value),
+    });
 
   return {
     store,
@@ -201,8 +206,8 @@ export const makeControlEngine = (
 
     ensureRootUser: (username, password) =>
       Effect.gen(function* () {
-        const passwordHash = hashHex(password);
-        const existing = yield* store.findUserByUsername(username);
+        const passwordHash = yield* hashHex(password);
+        const existing = Option.getOrUndefined(yield* store.findUserByUsername(username));
         if (!existing) {
           yield* store.createUser({ id: randomId(), username, passwordHash, isSuperuser: true });
         } else if (existing.passwordHash !== passwordHash) {
@@ -211,33 +216,36 @@ export const makeControlEngine = (
       }),
 
     authenticateBasic: (username, password) =>
-      store.findUserByUsername(username).pipe(
-        Effect.flatMap((user) => {
-          if (!user || user.passwordHash !== hashHex(password)) {
-            return Effect.fail(unauthorized("Invalid credentials"));
-          }
-          return Effect.succeed({
-            userId: user.id,
-            username: user.username,
-            isSuperuser: user.isSuperuser,
-          });
-        }),
-      ),
+      Effect.gen(function* () {
+        const user = Option.getOrUndefined(yield* store.findUserByUsername(username));
+        if (!user || user.passwordHash !== (yield* hashHex(password))) {
+          return yield* Effect.fail(unauthorized("Invalid credentials"));
+        }
+        return {
+          userId: user.id,
+          username: user.username,
+          isSuperuser: user.isSuperuser,
+        };
+      }),
 
     authenticateDocumentToken: (token, collectionId, documentId, origin) =>
       Effect.gen(function* () {
         const now = yield* Clock.currentTimeMillis;
-        const record = yield* store.findTokenByHash(hashHex(token));
+        const record = Option.getOrUndefined(yield* store.findTokenByHash(yield* hashHex(token)));
         if (
           !record ||
           record.collectionId !== collectionId ||
           record.documentId !== documentId ||
-          record.usedAt !== null ||
+          Option.isSome(record.usedAt) ||
           record.expiresAtMs < now
         ) {
           return yield* Effect.fail(unauthorized("Invalid document token"));
         }
-        if (record.origins.length > 0 && origin !== null && !record.origins.includes(origin)) {
+        if (
+          Arr.isReadonlyArrayNonEmpty(record.origins) &&
+          Option.isSome(origin) &&
+          !record.origins.includes(origin.value)
+        ) {
           return yield* Effect.fail(unauthorized("Document token origin is not allowed"));
         }
         yield* store.markTokenUsed(record.id, now);
@@ -246,7 +254,7 @@ export const makeControlEngine = (
 
     createDatabase: (name, description) =>
       Effect.gen(function* () {
-        const existing = yield* store.findDatabaseByName(name);
+        const existing = Option.getOrUndefined(yield* store.findDatabaseByName(name));
         if (existing) return yield* Effect.fail(conflict(`Database '${name}' already exists`));
         const id = randomId();
         yield* store.createDatabase({ id, name, description });
@@ -264,7 +272,7 @@ export const makeControlEngine = (
 
     deleteDatabase: (databaseId) =>
       Effect.gen(function* () {
-        const record = yield* store.findDatabaseById(databaseId);
+        const record = Option.getOrUndefined(yield* store.findDatabaseById(databaseId));
         if (!record) return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
         if (registry.collections.some((entry) => entry.database === record.name)) {
           return yield* Effect.fail(
@@ -276,9 +284,9 @@ export const makeControlEngine = (
 
     createCollection: (databaseId, name, schemaInput) =>
       Effect.gen(function* () {
-        const database = yield* store.findDatabaseById(databaseId);
+        const database = Option.getOrUndefined(yield* store.findDatabaseById(databaseId));
         if (!database) return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
-        const existing = yield* store.findCollectionByName(databaseId, name);
+        const existing = Option.getOrUndefined(yield* store.findCollectionByName(databaseId, name));
         if (existing) return yield* Effect.fail(conflict(`Collection '${name}' already exists`));
         const schema = normalizeSchemaObject(schemaInput);
         const id = randomId();
@@ -288,15 +296,15 @@ export const makeControlEngine = (
           name,
           schemaJson: schema,
           schemaVersion: 1,
-          migrationVersion: null,
+          migrationVersion: Option.none(),
         });
         yield* store.addSchemaVersion({
           collectionId: id,
           version: 1,
           schemaJson: schema,
-          dataMigrationSource: null,
+          dataMigrationSource: Option.none(),
         });
-        return { id, databaseId, name, schema, schemaVersion: 1, migrationVersion: null };
+        return { id, databaseId, name, schema, schemaVersion: 1, migrationVersion: Option.none() };
       }),
 
     listCollections: (databaseId) =>
@@ -307,7 +315,9 @@ export const makeControlEngine = (
     deleteCollection: (collectionId) =>
       Effect.gen(function* () {
         const collection = yield* findCollection(collectionId);
-        const database = yield* store.findDatabaseById(collection.databaseId);
+        const database = Option.getOrUndefined(
+          yield* store.findDatabaseById(collection.databaseId),
+        );
         if (database && isRegistryCollection(registry, database.name, collection.name)) {
           return yield* Effect.fail(
             conflict(
@@ -320,13 +330,13 @@ export const makeControlEngine = (
 
     createUser: (username, password) =>
       Effect.gen(function* () {
-        const existing = yield* store.findUserByUsername(username);
+        const existing = Option.getOrUndefined(yield* store.findUserByUsername(username));
         if (existing) return yield* Effect.fail(conflict(`User '${username}' already exists`));
         const id = randomId();
         yield* store.createUser({
           id,
           username,
-          passwordHash: hashHex(password),
+          passwordHash: yield* hashHex(password),
           isSuperuser: false,
         });
         return { id, username, isSuperuser: false };
@@ -346,7 +356,7 @@ export const makeControlEngine = (
     deleteUser: (userId) =>
       store.findUserById(userId).pipe(
         Effect.flatMap((user) => {
-          if (!user) return Effect.fail(notFound(`User not found: ${userId}`));
+          if (Option.isNone(user)) return Effect.fail(notFound(`User not found: ${userId}`));
           return store.deleteUser(userId);
         }),
       ),
@@ -354,17 +364,20 @@ export const makeControlEngine = (
     grantPermission: (userId, databaseId, permission) =>
       Effect.gen(function* () {
         const user = yield* store.findUserById(userId);
-        if (!user) return yield* Effect.fail(notFound(`User not found: ${userId}`));
+        if (Option.isNone(user)) return yield* Effect.fail(notFound(`User not found: ${userId}`));
         const database = yield* store.findDatabaseById(databaseId);
-        if (!database) return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
+        if (Option.isNone(database))
+          return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
         yield* store.createGrant({ id: randomId(), userId, databaseId, permission });
       }),
 
     revokePermission: (userId, databaseId) =>
       store.findGrant(userId, databaseId).pipe(
         Effect.flatMap((grant) => {
-          if (!grant) {
-            return Effect.fail(notFound(`Grant not found for user ${userId} on database ${databaseId}`));
+          if (Option.isNone(grant)) {
+            return Effect.fail(
+              notFound(`Grant not found for user ${userId} on database ${databaseId}`),
+            );
           }
           return store.removeGrant(userId, databaseId);
         }),
@@ -385,21 +398,21 @@ export const makeControlEngine = (
     createDocumentToken: (collectionId, documentId, permission, origins, expiresInSeconds) =>
       Effect.gen(function* () {
         yield* findCollection(collectionId);
-        const index = yield* store.findDocumentIndex(documentId);
-        if (!index || index.collectionId !== collectionId || index.deletedAt !== null) {
+        const index = Option.getOrUndefined(yield* store.findDocumentIndex(documentId));
+        if (!index || index.collectionId !== collectionId || Option.isSome(index.deletedAt)) {
           return yield* Effect.fail(notFound(`Document not found: ${documentId}`));
         }
         const now = yield* Clock.currentTimeMillis;
         const token = randomId();
         yield* store.createToken({
           id: randomId(),
-          tokenHash: hashHex(token),
+          tokenHash: yield* hashHex(token),
           collectionId,
           documentId,
           permission,
           origins,
-          expiresAtMs: now + (expiresInSeconds ?? 300) * 1000,
-          usedAt: null,
+          expiresAtMs: now + Option.getOrElse(expiresInSeconds, () => 300) * 1000,
+          usedAt: Option.none(),
         });
         return { token };
       }),
@@ -407,10 +420,14 @@ export const makeControlEngine = (
     ensureDatabasePermission: (userId, isSuperuser, databaseId, required) =>
       Effect.gen(function* () {
         const database = yield* store.findDatabaseById(databaseId);
-        if (!database) return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
+        if (Option.isNone(database))
+          return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
         if (isSuperuser) return;
         const grant = yield* store.findGrant(userId, databaseId);
-        if (!grant || permissionRank(grant.permission) < permissionRank(required)) {
+        if (
+          Option.isNone(grant) ||
+          permissionRank(grant.value.permission) < permissionRank(required)
+        ) {
           return yield* Effect.fail(
             forbidden(`Permission '${required}' required on database ${databaseId}`),
           );
@@ -423,9 +440,9 @@ export const makeControlEngine = (
     prepareDocument: (collectionId, id, value, isMaterialized) =>
       Effect.gen(function* () {
         const collection = yield* findCollection(collectionId);
-        const documentId = id ?? randomId();
-        const existing = yield* store.findDocumentIndex(documentId);
-        if (existing && existing.deletedAt === null) {
+        const documentId = Option.getOrElse(id, randomId);
+        const existing = Option.getOrUndefined(yield* store.findDocumentIndex(documentId));
+        if (existing && Option.isNone(existing.deletedAt)) {
           if (existing.collectionId === collectionId) {
             // A live index row under the SAME collection is a real conflict
             // only while the document object actually holds state. The index
@@ -436,10 +453,10 @@ export const makeControlEngine = (
             // When the caller can prove the object is unmaterialized, re-seed
             // it (fall through to registerDocument, which the caller pairs with
             // a fresh document-object create) instead of conflicting.
-            if (isMaterialized === undefined) {
+            if (Option.isNone(isMaterialized)) {
               return yield* Effect.fail(conflict(`Document '${documentId}' already exists`));
             }
-            const materialized = yield* isMaterialized(documentId);
+            const materialized = yield* isMaterialized.value(documentId);
             if (materialized) {
               return yield* Effect.fail(conflict(`Document '${documentId}' already exists`));
             }
@@ -454,7 +471,7 @@ export const makeControlEngine = (
             // deleted_at); the document object is addressed per collection, so
             // the new document starts from fresh state.
             const owner = yield* store.findCollectionById(existing.collectionId);
-            if (owner !== undefined) {
+            if (Option.isSome(owner)) {
               return yield* Effect.fail(conflict(`Document '${documentId}' already exists`));
             }
           }
@@ -472,7 +489,11 @@ export const makeControlEngine = (
     findDocument: (collectionId, documentId) =>
       store.findDocumentIndex(documentId).pipe(
         Effect.flatMap((index) => {
-          if (index && index.collectionId === collectionId && index.deletedAt === null) {
+          if (
+            Option.isSome(index) &&
+            index.value.collectionId === collectionId &&
+            Option.isNone(index.value.deletedAt)
+          ) {
             return Effect.void;
           }
           return Effect.fail(notFound(`Document not found: ${documentId}`));

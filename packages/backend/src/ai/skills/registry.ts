@@ -1,7 +1,9 @@
 import type { SkillSource } from "@voidhash/agent/SkillSource";
+import * as Option from "effect/Option";
 
 import { componentAuthoringSkill } from "./component-authoring.ts";
 import { paywallAuthoringSkill } from "./paywall-authoring.ts";
+import * as Schema from "effect/Schema";
 
 /** A lazily materialized skill delivered through every agent channel. */
 export interface SkillDefinition {
@@ -29,20 +31,20 @@ const definitions: ReadonlyArray<SkillDefinition> = [
 export const listSkills = (): ReadonlyArray<SkillDefinition> => definitions;
 
 /** Looks up one registered skill by its stable name. */
-export const findSkill = (name: string): SkillDefinition | undefined =>
+export const findSkill = (name: string): SkillDefinition | typeof Schema.Undefined.Type =>
   definitions.find((definition) => definition.name === name);
 
 /** Creates the non-filesystem skill source consumed by the Pi agent. */
 export const registeredSkillSource = (): SkillSource => ({
   list: () => definitions.map(({ name, description }) => ({ name, description })),
-  read: (name) => findSkill(name)?.body(),
+  read: (name) => Option.fromNullishOr(findSkill(name)?.body()),
 });
 
 /** Stable MCP resource URI for one registered skill. */
 export const skillResourceUri = (name: string): string => `voidhash://skills/${name}`;
 
 /** Resolves a registered skill from its MCP resource URI. */
-export const skillFromResourceUri = (uri: string): SkillDefinition | undefined => {
+export const skillFromResourceUri = (uri: string): SkillDefinition | typeof Schema.Undefined.Type => {
   const prefix = "voidhash://skills/";
   if (!uri.startsWith(prefix)) return undefined;
   return findSkill(uri.slice(prefix.length));

@@ -3,7 +3,7 @@
  * invalid anonymous id) plus the catch-all service error. Class names and
  * `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Person not found in the database. */
 export class RpcPersonNotFoundError extends Schema.TaggedErrorClass<RpcPersonNotFoundError>(

@@ -1,5 +1,7 @@
-import type { Scope, Schema } from "effect";
-import { Effect, Layer } from "effect";
+import type * as Scope from "effect/Scope";
+import type * as Schema from "effect/Schema";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import type { PlatformRuntime } from "./PlatformRuntime.ts";
 import * as Workflow from "./Workflow.ts";

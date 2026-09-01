@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcAuthenticationError, RpcAvatarValidationError } from "../errors/common.ts";
 import { RpcUserServiceError } from "../errors/user.ts";
@@ -8,7 +8,7 @@ import { AuthMiddleware } from "../middlewares.ts";
 export const User = Schema.Struct({
   createdAt: Schema.Date,
   email: Schema.String,
-  emailVerified: Schema.Boolean,
+  isEmailVerified: Schema.Boolean,
   id: Schema.String,
   image: Schema.NullOr(Schema.String),
   name: Schema.String,
@@ -38,7 +38,8 @@ export const User = Schema.Struct({
     }),
   ),
   updatedAt: Schema.Date,
-});
+}).pipe(Schema.encodeKeys({ isEmailVerified: "emailVerified" }));
+export type User = typeof User.Type;
 
 export class UserRpcsDef extends RpcGroup.make(
   Rpc.make("CurrentUser", {

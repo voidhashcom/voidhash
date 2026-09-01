@@ -1,4 +1,9 @@
-import { DateTime } from "effect";
+import * as Arr from "effect/Array";
+import * as DateTime from "effect/DateTime";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import type * as Ordering from "effect/Ordering";
 
 import { PurchaseType, SubscriptionStatus } from "@voidhash/lib";
 
@@ -34,7 +39,7 @@ import {
 import type { PersonIdentityResult } from "../personIdentity/PersonIdentityService.ts";
 
 export type SubscriptionWithProduct = DbSubscription & {
-  readonly paymentProviderConfigurationProduct: DbPaymentProviderConfigurationProduct | null;
+  readonly paymentProviderConfigurationProduct: Option.Option<DbPaymentProviderConfigurationProduct>;
 };
 
 /**
@@ -53,12 +58,18 @@ export interface SnapshotMigrationJobRow {
 export interface TemporaryCanonicalScope {
   readonly canonicalPersonId: string;
   readonly includedPersonIds: ReadonlyArray<string>;
-  readonly sourcePersonId: string | null;
-  readonly migrationJobId: string | null;
+  readonly sourcePersonId: Option.Option<string>;
+  readonly migrationJobId: Option.Option<string>;
   readonly mode: SdkPersonSnapshotMode;
 }
 
 const CONFLICTING_IDENTIFIED_WARNING_FRAGMENT = "different identified person";
+
+const normalizeOrdering = (value: number): Ordering.Ordering => {
+  if (value < 0) return -1;
+  if (value > 0) return 1;
+  return 0;
+};
 
 /**
  * Migration job statuses that signal the source resources have NOT yet been
@@ -76,13 +87,13 @@ const isConflictingIdentifiedWarning = (warnings: ReadonlyArray<string>) =>
 
 const targetOnlyScope = (
   personId: string,
-  migrationJobId: string | null = null,
+  migrationJobId: Option.Option<string> = Option.none(),
 ): TemporaryCanonicalScope => ({
   canonicalPersonId: personId,
   includedPersonIds: [personId],
   migrationJobId,
   mode: "persisted",
-  sourcePersonId: null,
+  sourcePersonId: Option.none(),
 });
 
 export interface DecideSnapshotScopeInput {
@@ -107,7 +118,10 @@ export const decideSnapshotScope = (input: DecideSnapshotScopeInput): TemporaryC
 };
 
 const decideFromIdentityResult = (input: DecideSnapshotScopeInput): TemporaryCanonicalScope => {
-  const identityResult = input.identityResult!;
+  const identityResult = Option.getOrElse(
+    Option.fromNullishOr(input.identityResult),
+    () => ({ personEvents: [], warnings: [] }),
+  );
   const target = targetOnlyScope(input.personId);
 
   if (isConflictingIdentifiedWarning(identityResult.warnings)) {
@@ -130,9 +144,9 @@ const decideFromIdentityResult = (input: DecideSnapshotScopeInput): TemporaryCan
   return {
     canonicalPersonId: input.personId,
     includedPersonIds: [input.personId, input.sourceMapping.personId],
-    migrationJobId: input.activeJob?.id ?? null,
+    migrationJobId: Option.fromNullishOr(input.activeJob?.id),
     mode: "temporary_pending_transfer",
-    sourcePersonId: input.sourceMapping.personId,
+    sourcePersonId: Option.some(input.sourceMapping.personId),
   };
 };
 
@@ -142,15 +156,15 @@ const decideFromMigrationJob = (input: DecideSnapshotScopeInput): TemporaryCanon
   }
 
   if (!input.sourceMapping || input.sourceMapping.personId === input.personId) {
-    return targetOnlyScope(input.personId, input.activeJob.id);
+    return targetOnlyScope(input.personId, Option.some(input.activeJob.id));
   }
 
   return {
     canonicalPersonId: input.personId,
     includedPersonIds: [input.personId, input.sourceMapping.personId],
-    migrationJobId: input.activeJob.id,
+    migrationJobId: Option.some(input.activeJob.id),
     mode: "temporary_pending_transfer",
-    sourcePersonId: input.sourceMapping.personId,
+    sourcePersonId: Option.some(input.sourceMapping.personId),
   };
 };
 
@@ -170,13 +184,13 @@ const toCurrentStatus = (status: SdkSubscriptionHistoryStatus): SdkSubscriptionC
 
 /** Which purchase artefact unlocked a perk grant, if any. */
 const grantSource = (perk: {
-  readonly unlockedBySubscriptionId: string | null;
-  readonly unlockedByPurchaseId: string | null;
+  readonly unlockedBySubscriptionId: Option.Option<string>;
+  readonly unlockedByPurchaseId: Option.Option<string>;
 }): SdkPersonSnapshotGrantSource => {
-  if (perk.unlockedBySubscriptionId) {
+  if (Option.isSome(perk.unlockedBySubscriptionId)) {
     return "subscription";
   }
-  if (perk.unlockedByPurchaseId) {
+  if (Option.isSome(perk.unlockedByPurchaseId)) {
     return "purchase";
   }
   return "manual";
@@ -234,32 +248,37 @@ export const compareSubscriptionsForCurrent = (
 export const selectCurrentSubscription = (
   candidates: ReadonlyArray<SubscriptionWithProduct>,
   now: Date,
-): SdkPersonSnapshotCurrentSubscription | null => {
+): Option.Option<SdkPersonSnapshotCurrentSubscription> => {
   const eligible = candidates.filter((subscription) => {
     const status = mapSubscriptionStatus(subscription, now);
     return status !== "expired";
   });
-  if (eligible.length === 0) {
-    return null;
+  if (Arr.isReadonlyArrayEmpty(eligible)) {
+    return Option.none();
   }
 
-  const sorted = [...eligible].sort((left, right) =>
-    compareSubscriptionsForCurrent(left, right, now),
+  const sorted = Arr.sort(
+    eligible,
+    Order.make((left: SubscriptionWithProduct, right: SubscriptionWithProduct) =>
+      normalizeOrdering(compareSubscriptionsForCurrent(left, right, now)),
+    ),
   );
   const best = sorted[0];
   if (!best) {
-    return null;
+    return Option.none();
   }
 
   const status = mapSubscriptionStatus(best, now);
   const currentStatus = toCurrentStatus(status);
 
-  return new SdkPersonSnapshotCurrentSubscription({
+  return Option.some(new SdkPersonSnapshotCurrentSubscription({
     expiresAt: best.expiresAt ?? null,
-    productId: best.paymentProviderConfigurationProduct?.productId ?? null,
+    productId: Option.getOrNull(
+      Option.map(best.paymentProviderConfigurationProduct, (product) => product.productId),
+    ),
     status: currentStatus,
     subscriptionId: best.id,
-  });
+  }));
 };
 
 export const mapSubscriptionHistory = (
@@ -270,7 +289,9 @@ export const mapSubscriptionHistory = (
     canceledAt: subscription.canceledAt ?? null,
     expiresAt: subscription.expiresAt ?? null,
     isTrial: subscription.isTrial,
-    productId: subscription.paymentProviderConfigurationProduct?.productId ?? null,
+    productId: Option.getOrNull(
+      Option.map(subscription.paymentProviderConfigurationProduct, (product) => product.productId),
+    ),
     sourcePersonId: subscription.personId,
     startsAt: subscription.startsAt,
     status: mapSubscriptionStatus(subscription, now),
@@ -286,11 +307,13 @@ export const mapPurchaseType = (purchase: DbPurchase): SdkPersonSnapshotPurchase
 
 export const mapPurchaseHistory = (
   purchase: DbPurchase,
-  productIdLookup: ReadonlyMap<string, string>,
+  productIdLookup: HashMap.HashMap<string, string>,
 ): SdkPersonSnapshotPurchaseHistory =>
   new SdkPersonSnapshotPurchaseHistory({
     createdAt: purchase.createdAt ?? EPOCH,
-    productId: productIdLookup.get(purchase.paymentProviderConfigurationProductId) ?? null,
+    productId: Option.getOrNull(
+      HashMap.get(productIdLookup, purchase.paymentProviderConfigurationProductId),
+    ),
     providerKey: purchase.providerKey,
     purchaseId: purchase.id,
     sourcePersonId: purchase.personId,
@@ -306,15 +329,17 @@ const grantStatus = (status: number): SdkPersonSnapshotGrantStatus => {
 };
 
 export const mapGrant = (perk: DbPersonUnlockedPerk): SdkPersonSnapshotGrant => {
-  const source = grantSource(perk);
-  const sourceId = perk.unlockedBySubscriptionId ?? perk.unlockedByPurchaseId ?? null;
+  const unlockedBySubscriptionId = Option.fromNullishOr(perk.unlockedBySubscriptionId);
+  const unlockedByPurchaseId = Option.fromNullishOr(perk.unlockedByPurchaseId);
+  const source = grantSource({ unlockedByPurchaseId, unlockedBySubscriptionId });
+  const sourceId = Option.orElse(unlockedBySubscriptionId, () => unlockedByPurchaseId);
   const status = grantStatus(perk.status);
 
   return new SdkPersonSnapshotGrant({
     expiresAt: perk.expiresAt ?? null,
     perkId: perk.perkId,
     source,
-    sourceId,
+    sourceId: Option.getOrNull(sourceId),
     sourcePersonId: perk.personId,
     status,
   });
@@ -323,102 +348,101 @@ export const mapGrant = (perk: DbPersonUnlockedPerk): SdkPersonSnapshotGrant => 
 export const dedupeSubscriptions = (
   rows: ReadonlyArray<SubscriptionWithProduct>,
 ): ReadonlyArray<SubscriptionWithProduct> => {
-  const byId = new Map<string, SubscriptionWithProduct>();
-  for (const row of rows) {
-    if (!byId.has(row.id)) {
-      byId.set(row.id, row);
-    }
-  }
-  const byStoreId = new Map<string, SubscriptionWithProduct>();
-  for (const row of byId.values()) {
-    const existing = byStoreId.get(row.storeSubscriptionId);
-    if (!existing) {
-      byStoreId.set(row.storeSubscriptionId, row);
-      continue;
-    }
-    const existingUpdated = existing.updatedAt?.getTime() ?? 0;
-    const candidateUpdated = row.updatedAt?.getTime() ?? 0;
-    if (candidateUpdated > existingUpdated) {
-      byStoreId.set(row.storeSubscriptionId, row);
-    }
-  }
-  return [...byStoreId.values()];
+  const byId = Arr.reduce(rows, HashMap.empty<string, SubscriptionWithProduct>(), (acc, row) =>
+    HashMap.has(acc, row.id) ? acc : HashMap.set(acc, row.id, row),
+  );
+  const byStoreId = Arr.reduce(
+    HashMap.values(byId),
+    HashMap.empty<string, SubscriptionWithProduct>(),
+    (acc, row) => {
+      const existing = HashMap.get(acc, row.storeSubscriptionId);
+      if (Option.isNone(existing)) {
+        return HashMap.set(acc, row.storeSubscriptionId, row);
+      }
+      const existingUpdated = existing.value.updatedAt?.getTime() ?? 0;
+      const candidateUpdated = row.updatedAt?.getTime() ?? 0;
+      return candidateUpdated > existingUpdated
+        ? HashMap.set(acc, row.storeSubscriptionId, row)
+        : acc;
+    },
+  );
+  return [...HashMap.values(byStoreId)];
 };
 
 export const dedupePurchases = (rows: ReadonlyArray<DbPurchase>): ReadonlyArray<DbPurchase> => {
-  const byId = new Map<string, DbPurchase>();
-  for (const row of rows) {
-    if (!byId.has(row.id)) {
-      byId.set(row.id, row);
-    }
-  }
-  const byProviderKey = new Map<string, DbPurchase>();
-  for (const row of byId.values()) {
-    const existing = byProviderKey.get(row.providerKey);
-    if (!existing) {
-      byProviderKey.set(row.providerKey, row);
-      continue;
-    }
-    const existingCreated = existing.createdAt?.getTime() ?? 0;
-    const candidateCreated = row.createdAt?.getTime() ?? 0;
-    if (candidateCreated > existingCreated) {
-      byProviderKey.set(row.providerKey, row);
-    }
-  }
-  return [...byProviderKey.values()];
+  const byId = Arr.reduce(rows, HashMap.empty<string, DbPurchase>(), (acc, row) =>
+    HashMap.has(acc, row.id) ? acc : HashMap.set(acc, row.id, row),
+  );
+  const byProviderKey = Arr.reduce(
+    HashMap.values(byId),
+    HashMap.empty<string, DbPurchase>(),
+    (acc, row) => {
+      const existing = HashMap.get(acc, row.providerKey);
+      if (Option.isNone(existing)) {
+        return HashMap.set(acc, row.providerKey, row);
+      }
+      const existingCreated = existing.value.createdAt?.getTime() ?? 0;
+      const candidateCreated = row.createdAt?.getTime() ?? 0;
+      return candidateCreated > existingCreated ? HashMap.set(acc, row.providerKey, row) : acc;
+    },
+  );
+  return [...HashMap.values(byProviderKey)];
 };
 
 export const dedupeGrants = (
   rows: ReadonlyArray<DbPersonUnlockedPerk>,
 ): ReadonlyArray<DbPersonUnlockedPerk> => {
-  const byKey = new Map<string, DbPersonUnlockedPerk>();
-  for (const row of rows) {
+  const byKey = Arr.reduce(rows, HashMap.empty<string, DbPersonUnlockedPerk>(), (acc, row) => {
     const key = row.perkId;
-    const existing = byKey.get(key);
-    if (!existing) {
-      byKey.set(key, row);
-      continue;
+    const existing = HashMap.get(acc, key);
+    if (Option.isNone(existing)) {
+      return HashMap.set(acc, key, row);
     }
-    const existingActive = existing.status === PersonUnlockedPerkStatus.Active;
+    const existingActive = existing.value.status === PersonUnlockedPerkStatus.Active;
     const candidateActive = row.status === PersonUnlockedPerkStatus.Active;
     if (!existingActive && candidateActive) {
-      byKey.set(key, row);
-      continue;
+      return HashMap.set(acc, key, row);
     }
     if (
       existingActive === candidateActive &&
       (row.environment ?? ProviderEnvironment.Production) <
-        (existing.environment ?? ProviderEnvironment.Production)
+        (existing.value.environment ?? ProviderEnvironment.Production)
     ) {
-      byKey.set(key, row);
+      return HashMap.set(acc, key, row);
     }
-  }
-  return [...byKey.values()];
+    return acc;
+  });
+  return [...HashMap.values(byKey)];
 };
 
 export const sortSubscriptionHistory = (
   history: ReadonlyArray<SdkPersonSnapshotSubscriptionHistory>,
 ): ReadonlyArray<SdkPersonSnapshotSubscriptionHistory> =>
-  [...history].sort((left, right) => {
+  Arr.sort(history, Order.make((left: SdkPersonSnapshotSubscriptionHistory, right: SdkPersonSnapshotSubscriptionHistory) => {
     const leftStarts = left.startsAt.getTime();
     const rightStarts = right.startsAt.getTime();
     if (leftStarts !== rightStarts) {
-      return rightStarts - leftStarts;
+      return normalizeOrdering(rightStarts - leftStarts);
     }
     const leftExpires = left.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY;
     const rightExpires = right.expiresAt?.getTime() ?? Number.NEGATIVE_INFINITY;
-    return rightExpires - leftExpires;
-  });
+    return normalizeOrdering(rightExpires - leftExpires);
+  }));
 
 export const sortPurchaseHistory = (
   history: ReadonlyArray<SdkPersonSnapshotPurchaseHistory>,
 ): ReadonlyArray<SdkPersonSnapshotPurchaseHistory> =>
-  [...history].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+  Arr.sort(
+    history,
+    Order.make((left: SdkPersonSnapshotPurchaseHistory, right: SdkPersonSnapshotPurchaseHistory) =>
+      normalizeOrdering(right.createdAt.getTime() - left.createdAt.getTime()),
+    ),
+  );
 
 export const sortGrants = (
   grants: ReadonlyArray<SdkPersonSnapshotGrant>,
 ): ReadonlyArray<SdkPersonSnapshotGrant> =>
-  [...grants].sort((left, right) => {
+  Arr.sort(grants, Order.make((left: SdkPersonSnapshotGrant, right: SdkPersonSnapshotGrant) => {
     if (left.status !== right.status) {
       if (left.status === "active") {
         return -1;
@@ -428,10 +452,10 @@ export const sortGrants = (
     const leftExpires = left.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
     const rightExpires = right.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY;
     if (leftExpires !== rightExpires) {
-      return leftExpires - rightExpires;
+      return normalizeOrdering(leftExpires - rightExpires);
     }
-    return left.perkId.localeCompare(right.perkId);
-  });
+    return normalizeOrdering(left.perkId.localeCompare(right.perkId));
+  }));
 
 /**
  * Profile (`email` + `name`) for the snapshot. When the orchestrator was
@@ -445,12 +469,12 @@ export const resolveProfile = ({
 }: {
   readonly identityResult?: PersonIdentityResult;
   readonly targetPerson: DbPerson;
-}): { readonly email: string | null; readonly name: string | null } => {
+}): { readonly email: Option.Option<string>; readonly name: Option.Option<string> } => {
   const targetEvent = identityResult?.personEvents.find(
     (event) => event.personId === targetPerson.id,
   );
-  const email = targetEvent?.email ?? targetPerson.email ?? null;
-  const name = targetEvent?.name ?? targetPerson.name ?? null;
+  const email = Option.fromNullishOr(targetEvent?.email ?? targetPerson.email);
+  const name = Option.fromNullishOr(targetEvent?.name ?? targetPerson.name);
   return { email, name };
 };
 
@@ -462,7 +486,7 @@ export interface ComposeSnapshotInput {
   readonly subscriptions: ReadonlyArray<SubscriptionWithProduct>;
   readonly purchases: ReadonlyArray<DbPurchase>;
   readonly grants: ReadonlyArray<DbPersonUnlockedPerk>;
-  readonly purchaseProductIdLookup: ReadonlyMap<string, string>;
+  readonly purchaseProductIdLookup: HashMap.HashMap<string, string>;
   readonly identityResult?: PersonIdentityResult;
   readonly now: Date;
 }
@@ -492,18 +516,18 @@ export const composeSnapshot = (input: ComposeSnapshotInput): SdkPersonSnapshot 
 
   return new SdkPersonSnapshot({
     distinctId: input.distinctId,
-    email: profile.email,
+    email: Option.getOrNull(profile.email),
     entitlements: new SdkPersonSnapshotEntitlements({ grants }),
-    name: profile.name,
+    name: Option.getOrNull(profile.name),
     personId: input.personId,
     purchases: new SdkPersonSnapshotPurchases({ history: purchaseHistory }),
     snapshotContext: new SdkPersonSnapshotContext({
       includedPersonIds: input.scope.includedPersonIds,
-      migrationJobId: input.scope.migrationJobId,
+      migrationJobId: Option.getOrNull(input.scope.migrationJobId),
       mode: input.scope.mode,
     }),
     subscriptions: new SdkPersonSnapshotSubscriptions({
-      current: currentSubscription,
+      current: Option.getOrNull(currentSubscription),
       history: subscriptionHistory,
     }),
   });

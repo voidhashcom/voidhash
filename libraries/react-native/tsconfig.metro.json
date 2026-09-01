@@ -7,8 +7,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node10",
+    "module": "node20",
+    "moduleResolution": "node16",
     "rootDir": "./src/metro",
     "outDir": "./build/metro",
     "declaration": false,

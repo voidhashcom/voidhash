@@ -117,7 +117,7 @@ function PaymentProvidersIndexPage() {
 
                 {paymentProviderConfiguration.id ? (
                   <div className="flex shrink-0 items-center gap-2">
-                    {paymentProviderConfiguration.enabled ? (
+                    {paymentProviderConfiguration.isEnabled ? (
                       <Badge className="text-[11px]">Enabled</Badge>
                     ) : (
                       <Badge className="text-[11px]" variant="outline">
@@ -176,7 +176,7 @@ function PaymentProvidersIndexPage() {
 
                 {paymentProviderConfiguration.id ? (
                   <div className="flex shrink-0 items-center gap-2">
-                    {paymentProviderConfiguration.enabled ? (
+                    {paymentProviderConfiguration.isEnabled ? (
                       <Badge className="text-[11px]">Enabled</Badge>
                     ) : (
                       <Badge className="text-[11px]" variant="outline">

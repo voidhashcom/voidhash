@@ -57,20 +57,24 @@ import {
   validateComponentFileName,
 } from "@voidhash/paywall-workspace";
 import { constant } from "@voidhash/lib/lang";
-import {
-  Cause,
-  Data,
-  Effect,
-  Encoding,
-  Exit,
-  Option,
-  Schema,
-  SchemaGetter,
-  SchemaTransformation,
-} from "effect";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import { runPromise, runPromiseWith } from "../runtime-boundary.ts";
+import * as Encoding from "effect/Encoding";
+import * as Exit from "effect/Exit";
+import * as Schema from "effect/Schema";
+import * as SchemaGetter from "effect/SchemaGetter";
+import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import { runWorkspaceBash, truncateBashOutput } from "./vfs/bash-tool.ts";
 import { paywallVfsFiles, type WorkspaceVfsSources } from "./vfs/workspace-vfs.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as Str from "effect/String";
+import { MutableMap, MutableSet } from "../collection-boundary.ts";
 
 /** JSON text codec for the compact payloads the tools emit. */
 const toJsonText = Schema.encodeSync(Schema.UnknownFromJsonString);
@@ -95,13 +99,14 @@ const toPrettyJsonText = Schema.encodeSync(PrettyJsonText);
  * preview that raced a concurrent edit). It never crosses an RPC boundary — the
  * tool folds it into a client-facing message.
  */
-class WorkspaceToolError extends Data.TaggedError("WorkspaceToolError")<{
-  readonly message: string;
-}> {}
+class WorkspaceToolError extends Schema.TaggedErrorClass<WorkspaceToolError>("WorkspaceToolError")(
+  "WorkspaceToolError",
+  { message: Schema.String },
+) {}
 
 /** A non-null object, the shape every untyped failure/data probe expects. */
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === "object";
+  value !== null && P.isObject(value);
 
 /**
  * Narrow an untyped mimic document root to the snapshot shape these tools read
@@ -109,9 +114,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * checked — the serializer and the validator tolerate everything below them.
  */
 const isSnapshotNode = (value: unknown): value is SnapshotDocumentNode =>
-  isRecord(value) && typeof value.id === "string" && typeof value.type === "string";
+  isRecord(value) && P.isString(value.id) && P.isString(value.type);
 
-const snapshotRoot = (root: unknown): SnapshotDocumentNode | null => {
+const snapshotRoot = (root: unknown): SnapshotDocumentNode | typeof Schema.Null.Type => {
   if (isSnapshotNode(root)) {
     return root;
   }
@@ -194,7 +199,7 @@ const failureDiagnosticLines = (error: unknown): string[] => {
       return [];
     }
     const message = entry.message;
-    if (typeof message === "string" && message.length > 0) {
+    if (P.isString(message) && Str.isNonEmpty(message)) {
       return [`- ${message}`];
     }
     return [];
@@ -202,19 +207,19 @@ const failureDiagnosticLines = (error: unknown): string[] => {
 };
 
 /** The readable payload an error carries in `cause`, when it carries one. */
-const failureCauseText = (cause: unknown): string | undefined => {
-  if (typeof cause === "string" && cause.length > 0) {
+const failureCauseText = (cause: unknown): string | typeof Schema.Undefined.Type => {
+  if (P.isString(cause) && Str.isNonEmpty(cause)) {
     return cause;
   }
-  if (cause instanceof Error && cause.message.length > 0) {
+  if (P.isError(cause) && Str.isNonEmpty(cause.message)) {
     return cause.message;
   }
   return undefined;
 };
 
-const failureTag = (error: Record<string, unknown>): string | undefined => {
+const failureTag = (error: Record<string, unknown>): string | typeof Schema.Undefined.Type => {
   const tag = error._tag;
-  if (typeof tag === "string") {
+  if (P.isString(tag)) {
     return tag;
   }
   return undefined;
@@ -223,7 +228,7 @@ const failureTag = (error: Record<string, unknown>): string | undefined => {
 const failureBaseMessage = (error: unknown): string => {
   if (isRecord(error)) {
     const message = error.message;
-    if (typeof message === "string" && message.length > 0) {
+    if (P.isString(message) && Str.isNonEmpty(message)) {
       return message;
     }
     const tag = failureTag(error);
@@ -239,7 +244,7 @@ const failureBaseMessage = (error: unknown): string => {
     }
   }
   const text = String(error);
-  if (text.length > 0) {
+  if (Str.isNonEmpty(text)) {
     return text;
   }
   return "unknown error (no message)";
@@ -256,7 +261,7 @@ const failureBaseMessage = (error: unknown): string => {
 const failureMessage = (error: unknown): string => {
   const base = failureBaseMessage(error);
   const diagnosticLines = failureDiagnosticLines(error);
-  if (diagnosticLines.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(diagnosticLines)) {
     return base;
   }
   return `${base}\n${diagnosticLines.join("\n")}`;
@@ -424,7 +429,7 @@ export const beginPaywallEdit = (
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const target = yield* resolvePaywallTarget(scope, input);
         const editSessions = yield* PaywallEditSessionService;
         if (scope.agentSessionId === undefined) {
@@ -440,7 +445,7 @@ export const beginPaywallEdit = (
           source: "built_in",
           agentSessionId: scope.agentSessionId,
         });
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`begin_paywall_edit failed: ${result.message}`);
@@ -464,15 +469,15 @@ export const listPaywalls = (
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const ws = yield* PaywallWorkspaceService;
         return yield* ws.listPaywalls(scope.projectId);
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`list_paywalls failed: ${result.message}`);
     }
-    if (result.value.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(result.value)) {
       return okResult("No paywalls in this project.");
     }
     const lines = result.value.map(
@@ -496,11 +501,11 @@ export const runBash = (
   Effect.gen(function* () {
     const ws = yield* PaywallWorkspaceService;
     const context = yield* Effect.context<WorkspaceToolDeps>();
-    const runEffect = Effect.runPromiseWith(context);
+    const runEffect = runPromiseWith(context);
     // A rejected VFS read gets re-rendered by the shell (e.g. `ls` prints a
     // generic not-found), so the first service failure is recorded here and
     // wins over whatever the shell made of it.
-    let serviceFailure: string | undefined;
+    let serviceFailure: string | typeof Schema.Undefined.Type;
     const runSource = <A>(effect: Effect.Effect<A, unknown, WorkspaceToolDeps>): Promise<A> =>
       runEffect(runFolded(effect)).then((folded) => {
         if (folded.ok) {
@@ -509,7 +514,7 @@ export const runBash = (
         serviceFailure ??= folded.message;
         // The shell consumes a rejected promise, so the typed failure is
         // re-raised as a rejection carrying the same message.
-        return Effect.runPromise(Effect.fail(new WorkspaceToolError({ message: folded.message })));
+        return runPromise(Effect.fail(new WorkspaceToolError({ message: folded.message })));
       });
     const sources: WorkspaceVfsSources = {
       listPaywalls: () => runSource(ws.listPaywalls(scope.projectId)),
@@ -534,16 +539,16 @@ export const runBash = (
     }
     const { stdout, stderr } = truncateBashOutput(result.value);
     const sections: string[] = [];
-    if (stdout.length > 0) {
+    if (Str.isNonEmpty(stdout)) {
       sections.push(stdout);
     }
-    if (stderr.length > 0) {
+    if (Str.isNonEmpty(stderr)) {
       sections.push(`[stderr]\n${stderr}`);
     }
     if (result.value.exitCode !== 0) {
       sections.push(`[exit code ${result.value.exitCode}]`);
     }
-    if (sections.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(sections)) {
       return okResult("(no output)");
     }
     return okResult(sections.join("\n"));
@@ -619,7 +624,7 @@ export const getPaywall = (
  * (`library` node → `codeComponent` children), returning `{ path, source }`.
  */
 const localComponentsOf = (
-  root: SnapshotDocumentNode | null,
+  root: SnapshotDocumentNode | typeof Schema.Null.Type,
 ): ReadonlyArray<{ readonly path: string; readonly source: string }> => {
   if (root === null) {
     return [];
@@ -633,7 +638,7 @@ const localComponentsOf = (
       return [];
     }
     const data = node.data ?? {};
-    if (typeof data.path === "string" && typeof data.source === "string") {
+    if (P.isString(data.path) && P.isString(data.source)) {
       return [{ path: data.path, source: data.source }];
     }
     return [];
@@ -655,7 +660,7 @@ export const getComponents = (
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const deploy = yield* PaywallDeployService;
         const ws = yield* PaywallWorkspaceService;
         const manifestCache = yield* ComponentManifestCacheService;
@@ -674,17 +679,16 @@ export const getComponents = (
         return constant({
           catalog: catalog.map((component) => ({
             slug: component.slug,
-            title: component.title,
+            title: Option.getOrNull(component.title),
             version: component.latestVersion,
             manifest: component.latest.manifest,
             previewStates: component.latest.previewStates,
           })),
           locals: locals.map((local) => {
-            const row = cached.get(hashSource(local.source));
-            if (row?.status === "ready") {
-              return { path: local.path, manifest: row.manifest };
-            }
-            return { path: local.path, manifest: undefined };
+            const manifest = HashMap.get(cached, hashSource(local.source)).pipe(
+              Option.flatMap((row) => (row.status === "ready" ? row.manifest : Option.none())),
+            );
+            return { path: local.path, manifest: Option.getOrUndefined(manifest) };
           }),
           builtins: listBuiltinComponents()
             .filter((builtin) => builtin.manifest.slot !== true)
@@ -699,7 +703,7 @@ export const getComponents = (
               insertAs: { componentSource: "builtin", componentSlug: builtin.slug },
             })),
         });
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`get_components failed: ${result.message}`);
@@ -712,19 +716,19 @@ export const getComponents = (
       return `- ${local.path}: manifest unavailable (component not yet compiled in a session — read_component to see its source).`;
     };
     const sections: string[] = [];
-    if (catalog.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(catalog)) {
       sections.push("Catalog components: none.");
     } else {
       sections.push(`Catalog components (${catalog.length}):\n${toPrettyJsonText(catalog)}`);
     }
-    if (locals.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(locals)) {
       sections.push("Local code components: none.");
     } else {
       sections.push(
         `Local code components (${locals.length}):\n${locals.map(localLine).join("\n")}`,
       );
     }
-    if (builtins.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(builtins)) {
       sections.push("Builtin components: none.");
     } else {
       sections.push(`Builtin components (${builtins.length}):\n${toPrettyJsonText(builtins)}`);
@@ -734,7 +738,7 @@ export const getComponents = (
 
 /** ` Available: [...]` when the paywall has local components, otherwise nothing. */
 const availableComponentsNote = (available: ReadonlyArray<string>): string => {
-  if (available.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(available)) {
     return "";
   }
   return ` Available: [${available.join(", ")}].`;
@@ -765,7 +769,7 @@ export const readComponent = (
 
 /** The trailing `Minted ids (by op index): …` line, empty when nothing was minted. */
 const mintedIdsNote = (mintedEntries: ReadonlyArray<[string, ReadonlyArray<string>]>): string => {
-  if (mintedEntries.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(mintedEntries)) {
     return "";
   }
   const rendered = mintedEntries.map(([index, ids]) => `${index}=[${ids.join(", ")}]`).join("; ");
@@ -812,7 +816,7 @@ export const editPaywall = (
     }
 
     const applied = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("applied")(function* () {
         const ws = yield* PaywallWorkspaceService;
         const result = yield* ws.editConnectedDocument(
           scope.projectId,
@@ -821,13 +825,13 @@ export const editPaywall = (
         );
         yield* recordSessionMutation(scope, target, result);
         return result;
-      }),
+      })(),
     );
     if (!applied.ok) {
       return errResult(`edit_paywall rejected: ${applied.message}`);
     }
     const { version, commandCount, mintedIds } = applied.value;
-    const mintedNote = mintedIdsNote(Object.entries(mintedIds));
+    const mintedNote = mintedIdsNote(R.toEntries(mintedIds));
     return okResult(
       `Applied ${validation.edits.length} edit(s) to ${target.paywallId} (${target.slug}) at version ${version} (${commandCount} command${commandPlural(commandCount)}).${mintedNote}`,
     );
@@ -840,10 +844,10 @@ const isVisualNode = (node: SnapshotDocumentNode): boolean =>
 const cloneNodeInput = (node: SnapshotDocumentNode): NodeInput => {
   const children = (node.children ?? []).filter(isVisualNode).map(cloneNodeInput);
   const clone: NodeInput = { type: node.type };
-  for (const [field, value] of Object.entries(structuredClone(node.data ?? {}))) {
+  Arr.forEach(R.toEntries(structuredClone(node.data ?? {})), ([field, value]) => {
     clone[field] = value;
-  }
-  if (children.length > 0) {
+  });
+  if (Arr.isReadonlyArrayNonEmpty(children)) {
     clone.children = children;
   }
   return clone;
@@ -852,17 +856,15 @@ const cloneNodeInput = (node: SnapshotDocumentNode): NodeInput => {
 const findSnapshotNode = (
   root: SnapshotDocumentNode,
   nodeId: string,
-): SnapshotDocumentNode | null => {
+): SnapshotDocumentNode | typeof Schema.Null.Type => {
   if (root.id === nodeId) {
     return root;
   }
-  for (const child of root.children ?? []) {
-    const found = findSnapshotNode(child, nodeId);
-    if (found !== null) {
-      return found;
-    }
-  }
-  return null;
+  return Option.getOrNull(
+    Arr.findFirst(root.children ?? [], (child) => findSnapshotNode(child, nodeId) !== null).pipe(
+      Option.map((child) => findSnapshotNode(child, nodeId)),
+    ),
+  );
 };
 
 /** `duplicate_subtree` — clone a visual subtree and insert it with fresh ids. */
@@ -956,10 +958,10 @@ export const writeComponent = (
 
     // Build the single component first. A compile/runtime error commits nothing.
     const built = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("built")(function* () {
         const compiler = yield* ComponentCompiler;
         return yield* compiler.compileAndExtract(input.source);
-      }),
+      })(),
     );
     if (!built.ok) {
       return errResult(`write_component failed: ${built.message}`);
@@ -977,7 +979,7 @@ export const writeComponent = (
     // Commit the source (create-or-replace the codeComponent node), then record
     // the manifest extracted by the required headless compile.
     const committed = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("committed")(function* () {
         const ws = yield* PaywallWorkspaceService;
         const result = yield* ws.writeConnectedComponentSource(
           scope.projectId,
@@ -993,7 +995,7 @@ export const writeComponent = (
           manifest: build.manifest,
         });
         return result;
-      }),
+      })(),
     );
     if (!committed.ok) {
       return errResult(`write_component rejected: ${committed.message}`);
@@ -1019,7 +1021,7 @@ export const renameComponent = (
     }
     const target = resolved.value;
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const ws = yield* PaywallWorkspaceService;
         const result = yield* ws.moveConnectedComponentFile(
           scope.projectId,
@@ -1029,7 +1031,7 @@ export const renameComponent = (
         );
         yield* recordSessionMutation(scope, target, result);
         return result;
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`rename_component rejected: ${result.message}`);
@@ -1055,7 +1057,7 @@ export const deleteComponent = (
     }
     const target = resolved.value;
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const ws = yield* PaywallWorkspaceService;
         const result = yield* ws.deleteConnectedComponentFile(
           scope.projectId,
@@ -1064,7 +1066,7 @@ export const deleteComponent = (
         );
         yield* recordSessionMutation(scope, target, result);
         return result;
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`delete_component rejected: ${result.message}`);
@@ -1077,25 +1079,25 @@ export const deleteComponent = (
 const documentSignature = (root: unknown): string => `doc-${hashSource(toJsonText(root))}`;
 
 const deployedComponentPreviewStates = (
-  root: SnapshotDocumentNode | null,
+  root: SnapshotDocumentNode | typeof Schema.Null.Type,
 ): ReadonlyMap<string, ReadonlySet<string>> => {
-  const statesByHash = new Map<string, Set<string>>();
+  const statesByHash = new MutableMap<string, MutableSet<string>>();
   const visit = (node: SnapshotDocumentNode): void => {
     if (node.type === "component") {
       const data = node.data ?? {};
       const contentHash = data.contentHash;
-      if (data.componentSource !== "local" && typeof contentHash === "string" && contentHash) {
-        const states = statesByHash.get(contentHash) ?? new Set<string>();
+      if (data.componentSource !== "local" && P.isString(contentHash) && contentHash) {
+        const states = statesByHash.get(contentHash) ?? new MutableSet<string>();
         states.add("default");
-        if (typeof data.previewState === "string" && data.previewState) {
+        if (P.isString(data.previewState) && data.previewState) {
           states.add(data.previewState);
         }
         statesByHash.set(contentHash, states);
       }
     }
-    for (const child of node.children ?? []) {
+    Arr.forEach(node.children ?? [], (child) => {
       visit(child);
-    }
+    });
   };
   if (root !== null) {
     visit(root);
@@ -1103,45 +1105,56 @@ const deployedComponentPreviewStates = (
   return statesByHash;
 };
 
-const fetchPreviewComponentTrees = (root: SnapshotDocumentNode | null) =>
+const fetchPreviewComponentTrees = (root: SnapshotDocumentNode | typeof Schema.Null.Type) =>
   Effect.gen(function* () {
     const store = yield* PaywallArtifactStore;
     const trees: Record<string, Record<string, unknown>> = {};
-    for (const [contentHash, states] of deployedComponentPreviewStates(root)) {
-      for (const state of states) {
-        const object = yield* store.getObject(componentServingPreviewKey(contentHash, state));
-        if (object === null) {
-          continue;
-        }
-        const tree = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(
-          new TextDecoder().decode(object.body),
-        ).pipe(Effect.orElseSucceed(() => null));
-        if (tree !== null) {
-          (trees[contentHash] ??= {})[state] = tree;
-        }
-      }
-    }
+    yield* Effect.forEach(
+      deployedComponentPreviewStates(root),
+      ([contentHash, states]) =>
+        Effect.forEach(
+          states,
+          Effect.fn("fetchPreviewComponentTree")(function* (state) {
+            const object = yield* store.getObject(componentServingPreviewKey(contentHash, state));
+            if (Option.isNone(object)) {
+              return;
+            }
+            const tree = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(
+              new TextDecoder().decode(object.value.body),
+            ).pipe(Effect.orElseSucceed(() => null));
+            if (tree !== null) {
+              (trees[contentHash] ??= {})[state] = tree;
+            }
+          }),
+          { concurrency: 1 },
+        ),
+      { concurrency: 1 },
+    );
     return trees;
   });
 
-const compileLocalPreviewTrees = (root: SnapshotDocumentNode | null) =>
+const compileLocalPreviewTrees = (root: SnapshotDocumentNode | typeof Schema.Null.Type) =>
   Effect.gen(function* () {
     const compiler = yield* ComponentCompiler;
     const trees: Record<string, Record<string, unknown>> = {};
-    for (const local of localComponentsOf(root)) {
-      const result = yield* compiler.compileAndExtract(local.source);
-      if (result.status === "unavailable") {
-        return yield* new WorkspaceToolError({
-          message: `Headless compilation is unavailable for local component ${local.path}; preview was not rendered.`,
-        });
-      }
-      if (result.status === "error") {
-        return yield* new WorkspaceToolError({
-          message: `Local component ${local.path} cannot be previewed. ${formatExtractDiagnostics(result)}`,
-        });
-      }
-      trees[local.path] = { ...result.previewTrees };
-    }
+    yield* Effect.forEach(
+      localComponentsOf(root),
+      Effect.fn("compileLocalPreviewTree")(function* (local) {
+        const result = yield* compiler.compileAndExtract(local.source);
+        if (result.status === "unavailable") {
+          return yield* new WorkspaceToolError({
+            message: `Headless compilation is unavailable for local component ${local.path}; preview was not rendered.`,
+          });
+        }
+        if (result.status === "error") {
+          return yield* new WorkspaceToolError({
+            message: `Local component ${local.path} cannot be previewed. ${formatExtractDiagnostics(result)}`,
+          });
+        }
+        trees[local.path] = { ...result.previewTrees };
+      }),
+      { concurrency: 1 },
+    );
     return trees;
   });
 
@@ -1155,7 +1168,7 @@ export const getPaywallPreview = (
     const height = input.height ?? 812;
     const scale = input.scale ?? 1;
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const target = yield* resolveEditSession(scope, input);
         const editSessions = yield* PaywallEditSessionService;
         const workspace = yield* PaywallWorkspaceService;
@@ -1192,7 +1205,7 @@ export const getPaywallPreview = (
           documentVersion: before.version,
         });
         return { png, signature, version: before.version };
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`get_paywall_preview failed: ${result.message}`);
@@ -1220,13 +1233,13 @@ export const finishPaywallEdit = (
   input: FinishPaywallEditInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    if (input.unresolvedIssues.length > 0) {
+    if (Arr.isReadonlyArrayNonEmpty(input.unresolvedIssues)) {
       return errResult(
         `finish_paywall_edit rejected: unresolved issues remain: ${input.unresolvedIssues.join("; ")}. Correct them and render a new preview.`,
       );
     }
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const target = yield* resolveEditSession(scope, input);
         const workspace = yield* PaywallWorkspaceService;
         const document = yield* workspace.readConnectedDocumentTree(scope.projectId, {
@@ -1243,7 +1256,7 @@ export const finishPaywallEdit = (
           currentDocumentVersion: document.version,
           verdict: input.verdict,
         });
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`finish_paywall_edit rejected: ${result.message}`);
@@ -1260,7 +1273,7 @@ export const revertPaywallEdit = (
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
     const result = yield* runFolded(
-      Effect.gen(function* () {
+      Effect.fn("result")(function* () {
         const editSessions = yield* PaywallEditSessionService;
         if (scope.agentSessionId === undefined) {
           return yield* editSessions.revert(scope.projectId, input.editSessionId);
@@ -1270,7 +1283,7 @@ export const revertPaywallEdit = (
           input.editSessionId,
           scope.agentSessionId,
         );
-      }),
+      })(),
     );
     if (!result.ok) {
       return errResult(`revert_paywall_edit failed: ${result.message}`);

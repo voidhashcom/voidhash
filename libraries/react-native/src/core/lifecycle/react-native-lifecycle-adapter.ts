@@ -1,4 +1,8 @@
-import { Effect, Layer } from "effect";
+import * as P from "effect/Predicate";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as MutableRef from "effect/MutableRef";
+import * as Option from "effect/Option";
 import { AppState } from "react-native";
 
 import { LifecycleAdapter, type LifecycleSubscription } from "./lifecycle-adapter";
@@ -31,17 +35,17 @@ interface ReactNativeAppState {
 export const ReactNativeLifecycleAdapter = Layer.succeed(LifecycleAdapter, {
   subscribe: (listener) =>
     Effect.sync(() => {
-      const appState = AppState as ReactNativeAppState | null | undefined;
-      if (!appState || typeof appState.addEventListener !== "function") {
-        return null;
+      const appState: ReactNativeAppState = AppState;
+      if (!P.isFunction(appState.addEventListener)) {
+        return Option.none();
       }
 
-      let previousState: AppLifecycleState | null = appState.currentState ?? null;
+      const previousState = MutableRef.make(Option.fromNullishOr(appState.currentState));
 
-      return appState.addEventListener("change", (nextState) => {
-        const prior = previousState;
-        previousState = nextState;
+      return Option.some(appState.addEventListener("change", (nextState) => {
+        const prior = MutableRef.get(previousState);
+        MutableRef.set(previousState, Option.some(nextState));
         listener(nextState, prior);
-      });
+      }));
     }),
 });

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic analytics service error */
 export class ApiAnalyticsServiceError extends Schema.TaggedErrorClass<ApiAnalyticsServiceError>()(

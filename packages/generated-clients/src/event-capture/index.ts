@@ -8,6 +8,7 @@ import type {
   EventCaptureBatchRequest,
   EventCaptureCaptureRequest,
 } from "./generated";
+import type * as Schema from "effect/Schema";
 
 export * from "./generated";
 
@@ -21,17 +22,5 @@ export type CaptureErrorResponse =
   | CaptureUnauthorizedError;
 export type CaptureEvent = EventCaptureBatchRequest["events"][number];
 export type CaptureSingleRequest = EventCaptureCaptureRequest;
-export type EventContextField =
-  | string
-  | number
-  | boolean
-  | null
-  | ReadonlyArray<EventContextField>
-  | { readonly [key: string]: EventContextField };
-export type EventPropertiesField =
-  | string
-  | number
-  | boolean
-  | null
-  | ReadonlyArray<EventPropertiesField>
-  | { readonly [key: string]: EventPropertiesField };
+export type EventContextField = Schema.Json;
+export type EventPropertiesField = Schema.Json;

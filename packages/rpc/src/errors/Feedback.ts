@@ -2,7 +2,7 @@
  * Feedback errors — typed error returned by the feedback RPC. Class name and
  * `_tag` value are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all feedback service error. Wraps database/infrastructure failures at

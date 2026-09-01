@@ -1,9 +1,10 @@
 import * as Config from "effect/Config";
+import * as Option from "effect/Option";
 
-const optionalDomain = (name: string): Config.Config<string | undefined> =>
+const optionalDomain = (name: string): Config.Config<Option.Option<string>> =>
   Config.string(name).pipe(
-    Config.map((value) => value.trim() || undefined),
-    Config.withDefault(undefined),
+    Config.map((value) => Option.liftPredicate((domain: string) => domain !== "")(value.trim())),
+    Config.withDefault(Option.none()),
   );
 
 /** Custom hostname attached to the Community backend Worker for live deployments. */

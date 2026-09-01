@@ -13,7 +13,11 @@
  * authorized against the caller's project permissions.
  */
 import { constant, pick } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { captureProjectPolicies, Db, eq } from "@voidhash/db";
 
@@ -48,7 +52,7 @@ const makeEventAdmissionService = (edition: typeof AnalyticsEdition.Type) =>
 
     /** The project's stored overrides, or the empty policy when it has no row yet. */
     const loadPolicy = (projectId: string) =>
-      Effect.gen(function* () {
+      Effect.fn("loadPolicy")(function* () {
         const [row] = yield* db
           .select({
             builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
@@ -62,7 +66,7 @@ const makeEventAdmissionService = (edition: typeof AnalyticsEdition.Type) =>
           builtinEventOverrides: row.builtinEventOverrides,
           customEventBlocklist: row.customEventBlocklist,
         } satisfies typeof EventAdmissionPolicy.Type;
-      });
+      })();
 
     const resolve = (policy: typeof EventAdmissionPolicy.Type) =>
       ({
@@ -139,15 +143,18 @@ const makeEventAdmissionService = (edition: typeof AnalyticsEdition.Type) =>
       }) {
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
         yield* authorize(input.projectId, "update");
-        const eventName = normalizeCustomEventName(input.eventName);
-        if (!eventName) {
-          return yield* Effect.fail(
-            new EventAdmissionServiceError({
-              message:
-                "Only custom event names can be blocked; reserved ($-prefixed) events are toggled in the built-in list.",
-            }),
-          );
-        }
+        const eventName = yield* normalizeCustomEventName(input.eventName).pipe(
+          Option.match({
+            onNone: () =>
+              Effect.fail(
+                new EventAdmissionServiceError({
+                  message:
+                    "Only custom event names can be blocked; reserved ($-prefixed) events are toggled in the built-in list.",
+                }),
+              ),
+            onSome: Effect.succeed,
+          }),
+        );
         const policy = yield* loadPolicy(input.projectId);
         const withoutName = policy.customEventBlocklist.filter((name) => name !== eventName);
         const next = {

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/httpapi";
 
 import {
@@ -9,11 +9,7 @@ import {
 } from "../errors/index.ts";
 import { AuthMiddleware } from "../Middlewares.ts";
 import { paginated } from "../Pagination.ts";
-import {
-  CreatePersonRequestBody,
-  PersonListParams,
-  UpdatePersonBody,
-} from "../schemas/persons.ts";
+import { CreatePersonRequestBody, PersonListParams, UpdatePersonBody } from "../schemas/persons.ts";
 import { Person, PersonEntitlementsResponse } from "../Schema.ts";
 
 export const PersonsGroup = HttpApiGroup.make("persons")

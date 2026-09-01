@@ -2,7 +2,7 @@
  * API key errors — typed errors returned by api-key RPCs. Class names and
  * `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** API key row not found in the database. */
 export class RpcApiKeyNotFoundError extends Schema.TaggedErrorClass<RpcApiKeyNotFoundError>(

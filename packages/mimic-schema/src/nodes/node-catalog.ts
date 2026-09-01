@@ -1,3 +1,5 @@
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
 import { constant } from "@voidhash/lib/lang";
 
 export const NODE_TYPES = constant([
@@ -77,9 +79,12 @@ export function canBeChildOf(childType: string | NodeType, parentType: string | 
   return ALLOWED_CHILDREN_BY_NODE_TYPE[parentType].includes(childType);
 }
 
-// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: this accepts unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value.
-export function canHaveChildren(type: string | NodeType | null | undefined): boolean {
-  return type != null && isNodeType(type) && ALLOWED_CHILDREN_BY_NODE_TYPE[type].length > 0;
+export function canHaveChildren(type: Option.Option<string>): boolean {
+  return Option.exists(
+    type,
+    (value) =>
+      isNodeType(value) && Arr.isReadonlyArrayNonEmpty(ALLOWED_CHILDREN_BY_NODE_TYPE[value]),
+  );
 }
 
 /**
@@ -89,7 +94,10 @@ export function canHaveChildren(type: string | NodeType | null | undefined): boo
  * qualify at the type level only — actions must additionally gate on the
  * component manifest's `slot` flag.
  */
-// oxlint-disable-next-line typescript/no-redundant-type-constituents -- `string | NodeType` is deliberate: this accepts unvalidated strings from documents and the wire, and the NodeType arm documents the intended domain for callers passing an already-narrowed value.
-export function canCreateLayoutChildren(type: string | NodeType | null | undefined): boolean {
-  return type === "screen" || type === "view" || type === "scrollView" || type === "component";
+export function canCreateLayoutChildren(type: Option.Option<string>): boolean {
+  return Option.exists(
+    type,
+    (value) =>
+      value === "screen" || value === "view" || value === "scrollView" || value === "component",
+  );
 }

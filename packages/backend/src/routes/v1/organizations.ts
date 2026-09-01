@@ -1,3 +1,4 @@
+import * as Arr from "effect/Array";
 import {
   createdResponse,
   Organization,
@@ -13,7 +14,8 @@ import {
 import { OrganizationService, ProjectService } from "@voidhash/core/services";
 import { paginate } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Order from "effect/Order";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
@@ -43,14 +45,12 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
         )
         .handle("listOrganizations", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("OrganizationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, ["user"]);
               // Membership already rides on the session, so this needs no
               // database round trip — and cannot reach a foreign organization.
-              const organizations = [...authSession.organizations].sort((a, b) =>
-                a.id.localeCompare(b.id),
-              );
+              const organizations = Arr.sortWith([...authSession.organizations], (item) => item.id, Order.String);
               const page = yield* paginate(organizations, (org) => org.id, query);
               return {
                 data: page.data.map(
@@ -58,7 +58,7 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
                 ),
                 pageInfo: page.pageInfo,
               };
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -68,12 +68,12 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
         )
         .handle("getOrganization", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("OrganizationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, ["user"]);
               const org = yield* organizationService.getOrganizationById(params.organizationId);
               return new Organization({ id: org.id, name: org.name, slug: org.slug });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -91,7 +91,7 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
         )
         .handle("updateOrganization", ({ params, payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("OrganizationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, ["user"]);
               if (payload.name !== undefined) {
@@ -102,7 +102,7 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
               }
               const org = yield* organizationService.getOrganizationById(params.organizationId);
               return new Organization({ id: org.id, name: org.name, slug: org.slug });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -120,11 +120,11 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
         )
         .handle("listOrganizationProjects", ({ params, query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("OrganizationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, ["user"]);
               const projectsList = yield* projectService.getProjects(params.organizationId);
-              const sorted = [...projectsList].sort((a, b) => a.id.localeCompare(b.id));
+              const sorted = Arr.sortWith([...projectsList], (item) => item.id, Order.String);
               const page = yield* paginate(sorted, (project) => project.id, query);
               return {
                 data: page.data.map(
@@ -133,7 +133,7 @@ export const OrganizationsGroupLive = HttpApiBuilder.group(
                 ),
                 pageInfo: page.pageInfo,
               };
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>

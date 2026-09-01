@@ -4,7 +4,8 @@ import {
   type ProductTypeValue,
   type SubscriptionDurationValue,
 } from "@voidhash/lib";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 /**
  * Public-facing product type label used by `ProductService` outputs. Matches
@@ -14,7 +15,7 @@ import { Effect } from "effect";
 export type ProductTypeLabel = "subscription" | "one-time" | "one-time-consumable";
 
 export interface ProductView {
-  readonly duration: SubscriptionDurationValue | null;
+  readonly duration: Option.Option<SubscriptionDurationValue>;
   readonly id: string;
   readonly name: string;
   readonly projectId: string;
@@ -31,23 +32,15 @@ export type SubscriptionDurationLabel =
 
 /** Converts the stored subscription duration to its portable schema label. */
 export const dbSubscriptionDurationToLabel = (
-  duration: SubscriptionDurationValue | null,
-): SubscriptionDurationLabel | null => {
-  switch (duration) {
-    case null:
-      return null;
-    case SubscriptionDuration.Weekly:
-      return "weekly";
-    case SubscriptionDuration.Monthly:
-      return "monthly";
-    case SubscriptionDuration.Quarterly:
-      return "quarterly";
-    case SubscriptionDuration.SemiAnnual:
-      return "semi-annual";
-    case SubscriptionDuration.Annual:
-      return "annual";
-  }
-};
+  duration: Option.Option<SubscriptionDurationValue>,
+): Option.Option<SubscriptionDurationLabel> =>
+  Option.map(duration, (value) => {
+    if (value === SubscriptionDuration.Weekly) return "weekly";
+    if (value === SubscriptionDuration.Monthly) return "monthly";
+    if (value === SubscriptionDuration.Quarterly) return "quarterly";
+    if (value === SubscriptionDuration.SemiAnnual) return "semi-annual";
+    return "annual";
+  });
 
 /**
  * A value outside the `ProductType` union can only reach here from a corrupt DB
@@ -55,7 +48,7 @@ export const dbSubscriptionDurationToLabel = (
  * synchronously so this helper keeps its pure, synchronous signature.
  */
 const invalidProductType = (type: ProductTypeValue): never =>
-  Effect.runSync(Effect.die(new Error(`Invalid product type: ${type}`)));
+  runSync(Effect.die(unexpectedError(`Invalid product type: ${type}`)));
 
 export const dbProductTypeToLabel = (type: ProductTypeValue): ProductTypeLabel => {
   if (type === ProductType.Subscription) {
@@ -69,3 +62,4 @@ export const dbProductTypeToLabel = (type: ProductTypeValue): ProductTypeLabel =
   }
   return invalidProductType(type);
 };
+import { runSync, unexpectedError } from "../../effect-boundary.ts";

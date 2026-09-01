@@ -19,12 +19,15 @@
  * contains only explicit overrides. Absence means "use the default".
  */
 import { constant, pick } from "@voidhash/lib/lang";
-import { Schema } from "effect";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { RESERVED_REVENUE_EVENT_NAMES } from "../../domain/InternalAnalyticsEvents.ts";
 
 /** Which product edition an admission decision is being made for. */
 export const AnalyticsEdition = Schema.Literals(["cloud", "oss"]);
+export type AnalyticsEdition = typeof AnalyticsEdition.Type;
 
 /** Prefix marking the reserved (voidhash-defined) event namespace. */
 export const RESERVED_EVENT_NAME_PREFIX = "$";
@@ -133,7 +136,7 @@ export const BUILTIN_EVENT_ADMISSION_LIST: readonly BuiltinEventAdmissionEntry[]
 ]);
 
 /** Registry entries indexed by the event names they admit. */
-const entriesByEventName: ReadonlyMap<string, BuiltinEventAdmissionEntry> = new Map(
+const entriesByEventName: HashMap.HashMap<string, BuiltinEventAdmissionEntry> = HashMap.fromIterable(
   BUILTIN_EVENT_ADMISSION_LIST.flatMap((entry) =>
     entry.eventNames.map(
       (eventName) => [eventName, entry] satisfies [string, BuiltinEventAdmissionEntry],
@@ -141,10 +144,10 @@ const entriesByEventName: ReadonlyMap<string, BuiltinEventAdmissionEntry> = new 
   ),
 );
 
-/** The registry entry admitting `eventName`, or `undefined` when it is not built in. */
+/** The registry entry admitting `eventName`. */
 export const builtinEntryForEventName = (
   eventName: string,
-): BuiltinEventAdmissionEntry | undefined => entriesByEventName.get(eventName);
+): Option.Option<BuiltinEventAdmissionEntry> => HashMap.get(entriesByEventName, eventName);
 
 /** Whether a string is a known built-in admission key (i.e. a toggleable entry). */
 export const isBuiltinEventAdmissionKey = (key: string): boolean =>
@@ -165,6 +168,7 @@ export const EventAdmissionPolicy = Schema.Struct({
   /** Custom event names turned off after the fact. */
   customEventBlocklist: Schema.Array(Schema.String),
 });
+export type EventAdmissionPolicy = typeof EventAdmissionPolicy.Type;
 
 /** Admission policy for a project with no stored overrides: registry defaults only. */
 export const emptyEventAdmissionPolicy: typeof EventAdmissionPolicy.Type = constant({
@@ -213,12 +217,11 @@ export const admitEvent = ({
   readonly policy: typeof EventAdmissionPolicy.Type;
 }): EventAdmissionDecision => {
   const entry = builtinEntryForEventName(eventName);
-  if (entry) {
-    return pick(isBuiltinEntryEnabled({ edition, entry, policy }), ADMITTED, {
+  if (Option.isSome(entry))
+    return pick(isBuiltinEntryEnabled({ edition, entry: entry.value, policy }), ADMITTED, {
       admitted: false,
       reason: "builtin_disabled",
     });
-  }
   if (isReservedEventName(eventName)) {
     return { admitted: false, reason: "unknown_reserved_event" };
   }
@@ -238,11 +241,11 @@ export interface ResolvedBuiltinEventAdmission {
   readonly name: string;
   readonly description: string;
   readonly eventNames: readonly string[];
-  readonly warning: string | null;
+  readonly warning: Option.Option<string>;
   /** The edition's code default for this entry. */
   readonly defaultEnabled: boolean;
-  /** The project's explicit override, or `null` when falling back to the default. */
-  readonly override: boolean | null;
+  /** The project's explicit override. */
+  readonly override: Option.Option<boolean>;
   /** The effective state: `override ?? defaultEnabled`. */
   readonly enabled: boolean;
 }
@@ -259,18 +262,17 @@ export const resolveBuiltinEventAdmissionList = ({
   readonly policy: typeof EventAdmissionPolicy.Type;
 }): ResolvedBuiltinEventAdmission[] =>
   BUILTIN_EVENT_ADMISSION_LIST.map((entry) => {
-    const stored = policy.builtinEventOverrides[entry.key];
-    const override = stored ?? null;
+    const override = Option.fromNullishOr(policy.builtinEventOverrides[entry.key]);
     const defaultEnabled = entry.defaultEnabled[edition];
     return {
       key: entry.key,
       name: entry.name,
       description: entry.description,
       eventNames: entry.eventNames,
-      warning: entry.warning ?? null,
+      warning: Option.fromNullishOr(entry.warning),
       defaultEnabled,
       override,
-      enabled: override ?? defaultEnabled,
+      enabled: Option.getOrElse(override, () => defaultEnabled),
     };
   });
 
@@ -278,8 +280,8 @@ export const resolveBuiltinEventAdmissionList = ({
  * Normalize a custom event name supplied by the settings UI. Rejects reserved
  * names (they are governed by the registry, not the blocklist) and blanks.
  */
-export const normalizeCustomEventName = (eventName: string): string | undefined => {
+export const normalizeCustomEventName = (eventName: string): Option.Option<string> => {
   const trimmed = eventName.trim();
-  if (!trimmed || isReservedEventName(trimmed)) return undefined;
-  return trimmed;
+  if (!trimmed || isReservedEventName(trimmed)) return Option.none();
+  return Option.some(trimmed);
 };

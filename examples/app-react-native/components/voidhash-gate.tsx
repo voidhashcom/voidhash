@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Option from "effect/Option";
 
 import { hasPublishableKey, voidhash } from "../lib/voidhash";
 import { useTheme } from "../lib/theme";
@@ -22,6 +23,9 @@ interface VoidhashGateProps {
 export function VoidhashGate(props: VoidhashGateProps) {
   const { initError, retryInit, status } = voidhash.useVoidhash();
   const theme = useTheme();
+  const initErrorMessage = Option.map(initError, (error) => error.message).pipe(
+    Option.getOrElse(() => "Voidhash could not start."),
+  );
 
   if (status === "ready") {
     return <>{props.children}</>;
@@ -57,7 +61,7 @@ export function VoidhashGate(props: VoidhashGateProps) {
           />
         ) : (
           <Card
-            subtitle={initError?.message ?? "Voidhash could not start."}
+            subtitle={initErrorMessage}
             title="Could not reach Voidhash"
           >
             <Button onPress={retryInit} title="Try again" />

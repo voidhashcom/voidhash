@@ -1,4 +1,7 @@
-import { Cause, Effect } from "effect";
+import * as P from "effect/Predicate";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { VoidhashDestroyedError, VoidhashError, VoidhashNotInitializedError } from "./errors";
 import {
@@ -35,7 +38,7 @@ import type {
 type ClientState = "destroyed" | "idle" | "initializing" | "ready";
 
 const toErrorInstance = (cause: unknown): Error => {
-  if (cause instanceof Error) {
+  if (P.isError(cause)) {
     return cause;
   }
   return new VoidhashError(String(cause));
@@ -70,13 +73,13 @@ export class VoidhashWebClient {
   private readonly eventBus: EventBus;
   private readonly runtime: ReturnType<typeof CreateEffectRuntime>;
   private state: ClientState = "idle";
-  private initializePromise: Promise<void> | null = null;
+  private initializePromise = Option.none<Promise<void>>();
   private listeners: Array<() => void> = [];
-  private inFlightFlush: Promise<AnalyticsFlushResult | null> | null = null;
+  private inFlightFlush = Option.none<Promise<Option.Option<AnalyticsFlushResult>>>();
 
   // Service references for sync access (set during init)
-  private featureFlagService: FeatureFlagService["Service"] | null = null;
-  private identityManagerService: IdentityManager["Service"] | null = null;
+  private featureFlagService = Option.none<FeatureFlagService["Service"]>();
+  private identityManagerService = Option.none<IdentityManager["Service"]>();
 
   constructor(private readonly options: VoidhashClientOptions) {
     const config = resolveVoidhashConfig(options);
@@ -98,14 +101,14 @@ export class VoidhashWebClient {
       return this.runtime.runPromise(Effect.void);
     }
 
-    if (this.initializePromise) {
-      return this.initializePromise;
+    if (Option.isSome(this.initializePromise)) {
+      return this.initializePromise.value;
     }
 
     this.state = "initializing";
     const config = resolveVoidhashConfig(this.options);
 
-    this.initializePromise = this.runtime
+    const initializePromise = this.runtime
       .runPromise(
         Effect.gen({ self: this }, function* initializeClient() {
           const distinctId = yield* withErrorCode(
@@ -114,8 +117,8 @@ export class VoidhashWebClient {
           );
 
           // Grab service references for sync access
-          this.featureFlagService = yield* FeatureFlagService;
-          this.identityManagerService = yield* IdentityManager;
+          this.featureFlagService = Option.some(yield* FeatureFlagService);
+          this.identityManagerService = Option.some(yield* IdentityManager);
 
           if (config.analytics.enabled) {
             yield* withErrorCode(startAnalyticsEffect(), "FAILED_TO_START_ANALYTICS");
@@ -138,26 +141,31 @@ export class VoidhashWebClient {
             yield* withErrorCode(getFeatureFlagsEffect(), "FAILED_TO_PREFETCH_FLAGS");
           }
 
-          this.eventBus.emit("initialized", { distinctId });
+          const initializedDistinctId = yield* Option.match(distinctId, {
+            onNone: () => Effect.die("Identity manager did not produce a distinct id."),
+            onSome: Effect.succeed,
+          });
+          this.eventBus.emit("initialized", { distinctId: initializedDistinctId });
           this.state = "ready";
         }),
       )
       .finally(() => {
-        this.initializePromise = null;
+        this.initializePromise = Option.none();
       });
+    this.initializePromise = Option.some(initializePromise);
 
-    return this.initializePromise;
+    return initializePromise;
   }
 
   destroy(): Promise<void> {
-    return Effect.runPromise(
+    return this.runtime.runPromise(
       Effect.gen({ self: this }, function* destroyClient() {
         if (this.state === "destroyed") {
           return;
         }
 
-        if (this.state === "initializing" && this.initializePromise) {
-          const pending = this.initializePromise;
+        if (this.state === "initializing" && Option.isSome(this.initializePromise)) {
+          const pending = this.initializePromise.value;
           yield* fromPromise(() => pending);
         }
 
@@ -172,28 +180,35 @@ export class VoidhashWebClient {
           );
         }
 
-        yield* fromPromise(() => this.runtime.dispose());
         this.state = "destroyed";
       }),
-    );
+    ).then(() => this.runtime.dispose());
   }
 
   getDistinctId() {
     if (this.state !== "ready") {
-      return null;
+      return Option.none();
     }
-    return this.identityManagerService?.getDistinctId() ?? null;
+    return Option.flatMap(this.identityManagerService, (service) => service.getDistinctId());
   }
 
   isFeatureEnabled(key: string) {
-    return Effect.runSync(
-      Effect.map(this.ensureReady, () => this.featureFlagService!.isEnabled(key)),
+    return this.runtime.runSync(
+      Effect.flatMap(this.ensureReady, () =>
+        Option.isSome(this.featureFlagService)
+          ? Effect.succeed(this.featureFlagService.value.isEnabled(key))
+          : Effect.die("Feature flag service is unavailable after initialization."),
+      ),
     );
   }
 
   getFeatureVariant(key: string) {
-    return Effect.runSync(
-      Effect.map(this.ensureReady, () => this.featureFlagService!.getVariant(key)),
+    return this.runtime.runSync(
+      Effect.flatMap(this.ensureReady, () =>
+        Option.isSome(this.featureFlagService)
+          ? Effect.succeed(this.featureFlagService.value.getVariant(key))
+          : Effect.die("Feature flag service is unavailable after initialization."),
+      ),
     );
   }
 
@@ -256,7 +271,7 @@ export class VoidhashWebClient {
     );
   }
 
-  flushAnalytics(): Promise<AnalyticsFlushResult | null> {
+  flushAnalytics(): Promise<Option.Option<AnalyticsFlushResult>> {
     return this.whenReady(() => this.flushAnalyticsInternal());
   }
 
@@ -274,22 +289,23 @@ export class VoidhashWebClient {
     this.eventBus.off(eventName, handler);
   }
 
-  private flushAnalyticsInternal(): Promise<AnalyticsFlushResult | null> {
-    if (this.inFlightFlush) return this.inFlightFlush;
+  private flushAnalyticsInternal(): Promise<Option.Option<AnalyticsFlushResult>> {
+    if (Option.isSome(this.inFlightFlush)) return this.inFlightFlush.value;
 
-    this.inFlightFlush = this.runEffect(
+    const inFlightFlush = this.runEffect(
       flushAnalyticsEffect(),
       "FAILED_TO_FLUSH_ANALYTICS",
     ).finally(() => {
-      this.inFlightFlush = null;
+      this.inFlightFlush = Option.none();
     });
+    this.inFlightFlush = Option.some(inFlightFlush);
 
-    return this.inFlightFlush;
+    return inFlightFlush;
   }
 
   /** Runs `run` only once the client is ready, rejecting with the state error otherwise. */
   private whenReady<T>(run: () => Promise<T>): Promise<T> {
-    return Effect.runPromise(Effect.flatMap(this.ensureReady, () => fromPromise(run)));
+    return this.runtime.runPromise(Effect.flatMap(this.ensureReady, () => fromPromise(run)));
   }
 
   private get ensureReady(): Effect.Effect<void, VoidhashError> {
@@ -305,7 +321,7 @@ export class VoidhashWebClient {
   }
 
   private attachBrowserListeners(config: ReturnType<typeof resolveVoidhashConfig>) {
-    if (typeof window === "undefined") {
+    if (P.isUndefined(window)) {
       return;
     }
 
@@ -326,7 +342,7 @@ export class VoidhashWebClient {
     const visibilityHandler = () => {
       if (
         config.featureFlags.refreshOnVisibility &&
-        typeof document !== "undefined" &&
+        !P.isUndefined(document) &&
         document.visibilityState === "visible"
       ) {
         void this.runEffect(refreshTrackedKeySetsEffect(), "FAILED_TO_REFRESH_FLAGS").catch(
@@ -340,7 +356,7 @@ export class VoidhashWebClient {
     this.listeners.push(() => window.removeEventListener("online", onlineHandler));
     this.listeners.push(() => window.removeEventListener("pagehide", pageHideHandler));
 
-    if (typeof document !== "undefined") {
+    if (!P.isUndefined(document)) {
       document.addEventListener("visibilitychange", visibilityHandler);
       this.listeners.push(() =>
         document.removeEventListener("visibilitychange", visibilityHandler),
@@ -349,9 +365,7 @@ export class VoidhashWebClient {
   }
 
   private detachBrowserListeners() {
-    for (const cleanup of this.listeners.splice(0)) {
-      cleanup();
-    }
+    this.listeners.splice(0).forEach((cleanup) => cleanup());
   }
 }
 

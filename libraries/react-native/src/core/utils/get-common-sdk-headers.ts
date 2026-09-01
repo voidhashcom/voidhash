@@ -1,38 +1,33 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Arr from "effect/Array";
 
 import { SDK_VERSION } from "../constants";
 import type { IdentityManager } from "../identity/identity-manager";
 import { PlatformProvider } from "../platform/platform-provider";
 import { SdkConfiguration } from "../sdk-configuration";
 
-const generateFallbackNonce = () =>
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-
-const getNonce = () => {
-  const cryptoObject = globalThis.crypto as { randomUUID?: () => string } | undefined;
-  return cryptoObject?.randomUUID?.() ?? generateFallbackNonce();
-};
+const getNonce = () => globalThis.crypto.randomUUID();
 
 interface ReactNativeSdkHeaders {
   readonly "x-client-bundle-id": string;
-  readonly "x-client-locale"?: string | undefined;
-  readonly "x-client-version"?: string | undefined;
+  readonly "x-client-locale"?: string;
+  readonly "x-client-version"?: string;
   readonly "x-distinct-id": string;
-  readonly "x-is-backgrounded": "false" | "true";
+  readonly "x-is-backgrounded": "false";
   readonly "x-is-debug-build": "false" | "true";
   readonly "x-nonce": string;
   readonly "x-observer-mode": "false" | "true";
   readonly "x-platform": string;
-  readonly "x-platform-brand"?: string | undefined;
-  readonly "x-platform-device"?: string | undefined;
+  readonly "x-platform-brand"?: string;
+  readonly "x-platform-device"?: string;
   readonly "x-platform-flavor": "browser" | "native";
-  readonly "x-platform-flavor-version"?: string | undefined;
-  readonly "x-platform-version"?: string | undefined;
-  readonly "x-preferred-locales"?: string | undefined;
+  readonly "x-platform-flavor-version"?: string;
+  readonly "x-platform-version"?: string;
+  readonly "x-preferred-locales"?: string;
   readonly "x-publishable-key": string;
   readonly "x-sdk": "web" | "react-native";
   readonly "x-sdk-version": string;
-  readonly "x-storefront"?: string | undefined;
+  readonly "x-storefront"?: string;
   readonly "x-environment": "production" | "development";
 }
 
@@ -50,7 +45,9 @@ export const getCommonSdkHeaders = (): Effect.Effect<
 
     const { locales } = platformProvider;
     const preferredLocales =
-      locales.length > 0 ? locales.map((locale) => locale.languageTag).join(",") : undefined;
+      Arr.isReadonlyArrayNonEmpty(locales)
+        ? locales.map((locale) => locale.languageTag).join(",")
+        : undefined;
     const clientLocale = locales[0]?.languageTag ?? undefined;
 
     return {

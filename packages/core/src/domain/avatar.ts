@@ -1,4 +1,10 @@
-import { Effect, Encoding, Schema } from "effect";
+import { subtle } from "uncrypto";
+
+import { promiseOrDie } from "../effect-boundary.ts";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 /**
  * Raised when an uploaded avatar fails validation (unsupported type, too large,
@@ -31,20 +37,15 @@ const startsWith = (bytes: Uint8Array, signature: readonly number[], offset = 0)
 
 /** Magic-byte sniff: confirm the decoded bytes actually match the claimed type. */
 const matchesContentType = (bytes: Uint8Array, contentType: string): boolean => {
-  switch (contentType) {
-    case "image/png":
-      return startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    case "image/jpeg":
-      return startsWith(bytes, [0xff, 0xd8, 0xff]);
-    case "image/webp":
-      // "RIFF" <4-byte length> "WEBP"
-      return (
-        startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&
-        startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
-      );
-    default:
-      return false;
-  }
+  if (contentType === "image/png")
+    return startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (contentType === "image/jpeg") return startsWith(bytes, [0xff, 0xd8, 0xff]);
+  if (contentType === "image/webp")
+    return (
+      startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&
+      startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
+    );
+  return false;
 };
 
 /** Tolerate a `data:<type>;base64,` prefix even though the studio sends raw base64. */
@@ -104,7 +105,7 @@ export const validateAndDecodeAvatar = (input: {
       ),
     );
 
-    if (bytes.length === 0) {
+    if (bytes.byteLength === 0) {
       return yield* Effect.fail(new AvatarValidationError({ message: "Image is empty." }));
     }
     if (bytes.length > MAX_AVATAR_BYTES) {
@@ -125,8 +126,7 @@ export const validateAndDecodeAvatar = (input: {
 
 /** SHA-256 hex digest of the avatar bytes (WebCrypto; available in workerd). */
 export const avatarSha256Hex = (bytes: Uint8Array): Effect.Effect<string> =>
-  // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (Node/Browser/Bun only, none Workers-safe); requiring one would leak a Crypto dependency into every avatar caller. WebCrypto is available in workerd, per the jsdoc above.
-  Effect.promise(() => crypto.subtle.digest("SHA-256", toArrayBuffer(bytes))).pipe(
+  promiseOrDie(() => subtle.digest("SHA-256", toArrayBuffer(bytes))).pipe(
     Effect.map((digest) =>
       Array.from(new Uint8Array(digest))
         .map((b) => b.toString(16).padStart(2, "0"))
@@ -147,14 +147,16 @@ export const deriveAvatarKey = (
  * store (so it is safe to delete on replace/remove). Guards against deleting
  * historical/external URLs (e.g. a WorkOS-provided logo).
  */
-export const isOwnedAvatarUrl = (logo: string | null, publicBaseUrl: string): boolean =>
-  logo !== null && logo.startsWith(`${publicBaseUrl}/files/`);
+export const isOwnedAvatarUrl = (
+  logo: Option.Option<string>,
+  publicBaseUrl: string,
+): boolean => Option.exists(logo, (url) => url.startsWith(`${publicBaseUrl}/files/`));
 
-/** Extracts the object key from one of our public file URLs, or `null`. */
-export const avatarKeyFromUrl = (logo: string, publicBaseUrl: string): string | null => {
+/** Extracts the object key from one of our public file URLs. */
+export const avatarKeyFromUrl = (logo: string, publicBaseUrl: string): Option.Option<string> => {
   const prefix = `${publicBaseUrl}/files/`;
   if (!logo.startsWith(prefix)) {
-    return null;
+    return Option.none();
   }
-  return logo.slice(prefix.length);
+  return Option.some(logo.slice(prefix.length));
 };

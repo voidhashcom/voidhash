@@ -1,5 +1,11 @@
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { getRandomValues } from "uncrypto";
 
 import { ActionForbiddenError } from "../../domain/auth/Auth.ts";
@@ -70,33 +76,9 @@ const mapEndpointStatus = (status: number): WebhookEndpointStatusString =>
 const mapDeliveryStatus = (status: number): WebhookDeliveryStatusString =>
   DELIVERY_STATUS_TO_STRING[status] ?? "pending";
 
-interface WebhookEndpointRow {
-  readonly id: string;
-  readonly projectId: string;
-  readonly name: string;
-  readonly url: string;
-  readonly secret: string;
-  readonly status: number;
-  readonly events: unknown;
-  readonly description: string | null;
-  readonly consecutiveFailures: number;
-  readonly lastSuccessAt: Date | null;
-  readonly createdAt: Date | null;
-}
+type WebhookEndpointRow = typeof webhookEndpoints.$inferSelect;
 
-interface WebhookDeliveryRow {
-  readonly id: string;
-  readonly webhookEndpointId: string;
-  readonly projectId: string;
-  readonly eventType: string;
-  readonly payload: unknown;
-  readonly status: number;
-  readonly attemptCount: number;
-  readonly nextAttemptAt: Date | null;
-  readonly eventOccurredAt: Date;
-  readonly completedAt: Date | null;
-  readonly createdAt: Date | null;
-}
+type WebhookDeliveryRow = typeof webhookDeliveries.$inferSelect;
 
 const decodeStrings = Schema.decodeUnknownOption(Schema.Array(Schema.String));
 
@@ -162,15 +144,17 @@ const generateSecret = (): string => {
   return `whsec_${hex}`;
 };
 
-const validateUrl = (url: string): WebhookValidationError | null => {
+const validateUrl = (url: string): Option.Option<WebhookValidationError> => {
   if (!URL.canParse(url)) {
-    return new WebhookValidationError({ message: "Invalid URL format" });
+    return Option.some(new WebhookValidationError({ message: "Invalid URL format" }));
   }
   const parsed = new URL(url);
   if (!["http:", "https:"].includes(parsed.protocol)) {
-    return new WebhookValidationError({ message: "URL must use http or https protocol" });
+    return Option.some(
+      new WebhookValidationError({ message: "URL must use http or https protocol" }),
+    );
   }
-  return null;
+  return Option.none();
 };
 
 /** Delivery listing scope: one endpoint when given, otherwise the whole project. */
@@ -210,15 +194,19 @@ const authorizeProject = (projectId: string, action: string) =>
     `You are not authorized to ${action} webhooks for this project`,
   );
 
-const validateEvents = (events: ReadonlyArray<string>): WebhookValidationError | null => {
+const validateEvents = (events: ReadonlyArray<string>): Option.Option<WebhookValidationError> => {
   const invalid = events.filter((event) => !isValidWebhookEvent(event));
-  if (invalid.length > 0) {
-    return new WebhookValidationError({ message: `Invalid event types: ${invalid.join(", ")}` });
+  if (Arr.isReadonlyArrayNonEmpty(invalid)) {
+    return Option.some(
+      new WebhookValidationError({ message: `Invalid event types: ${invalid.join(", ")}` }),
+    );
   }
-  if (events.length === 0) {
-    return new WebhookValidationError({ message: "At least one event type must be specified" });
+  if (Arr.isReadonlyArrayEmpty(events)) {
+    return Option.some(
+      new WebhookValidationError({ message: "At least one event type must be specified" }),
+    );
   }
-  return null;
+  return Option.none();
 };
 
 /**
@@ -247,10 +235,10 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           yield* authorizeProject(input.projectId, "create");
 
           const urlError = validateUrl(input.url);
-          if (urlError) return yield* Effect.fail(urlError);
+          if (Option.isSome(urlError)) return yield* Effect.fail(urlError.value);
 
           const eventsError = validateEvents(input.events);
-          if (eventsError) return yield* Effect.fail(eventsError);
+          if (Option.isSome(eventsError)) return yield* Effect.fail(eventsError.value);
 
           const endpointId = generateId("webhookEndpoint");
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", endpointId);
@@ -318,7 +306,7 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
           readonly url?: string;
           readonly events?: ReadonlyArray<string>;
           readonly status?: "active" | "disabled";
-          readonly description?: string | null;
+          readonly description?: Option.Option<string>;
         }) {
           yield* Effect.annotateCurrentSpan("voidhash.webhook.endpoint.id", input.endpointId);
 
@@ -335,18 +323,20 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
           if (input.url) {
             const urlError = validateUrl(input.url);
-            if (urlError) return yield* Effect.fail(urlError);
+            if (Option.isSome(urlError)) return yield* Effect.fail(urlError.value);
           }
           if (input.events) {
             const eventsError = validateEvents(input.events);
-            if (eventsError) return yield* Effect.fail(eventsError);
+            if (Option.isSome(eventsError)) return yield* Effect.fail(eventsError.value);
           }
 
           const updates: Partial<typeof webhookEndpoints.$inferInsert> = {};
           if (input.name !== undefined) updates.name = input.name;
           if (input.url !== undefined) updates.url = input.url;
           if (input.events !== undefined) updates.events = [...input.events];
-          if (input.description !== undefined) updates.description = input.description;
+          if (input.description !== undefined) {
+            updates.description = Option.getOrNull(input.description);
+          }
           if (input.status !== undefined) {
             updates.status = WebhookEndpointStatus.Disabled;
             if (input.status === "active") {
@@ -579,9 +569,9 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
       const getDeliveriesPage = Effect.fn("webhookManager.getDeliveriesPage")(
         function* (input: {
           readonly projectId: string;
-          readonly endpointId?: string | undefined;
-          readonly after?: string | undefined;
-          readonly limit?: number | undefined;
+          readonly endpointId?: string;
+          readonly after?: string;
+          readonly limit?: number;
         }) {
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           if (input.endpointId)
@@ -633,11 +623,9 @@ export class WebhookManagerService extends Context.Service<WebhookManagerService
 
           const hasNextPage = rows.length > limit;
           const pageRows = rows.slice(0, limit);
-          const lastRow = pageRows[pageRows.length - 1];
-          let endCursorId: string | null = null;
-          if (hasNextPage && lastRow !== undefined) {
-            endCursorId = lastRow.id;
-          }
+          const endCursorId = Option.getOrNull(
+            hasNextPage ? Option.map(Arr.last(pageRows), (lastRow) => lastRow.id) : Option.none(),
+          );
           return { deliveries: pageRows.map(mapDeliveryToResponse), endCursorId, hasNextPage };
         },
         (effect) =>

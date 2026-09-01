@@ -1,5 +1,13 @@
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
+import * as Schema from "effect/Schema";
 
 import { Db, and, eq, inArray, internalFeatureFlagOverrides } from "@voidhash/db";
 import {
@@ -21,8 +29,8 @@ export interface ResolvedInternalFeatureFlag {
   readonly name: string;
   readonly description: string;
   readonly defaultEnabled: boolean;
-  /** The explicit per-org override, or `null` when falling back to the default. */
-  readonly override: boolean | null;
+  /** The explicit per-org override, or `None` when falling back to the default. */
+  readonly override: Option.Option<boolean>;
   /** The effective on/off state: `override ?? defaultEnabled`. */
   readonly enabled: boolean;
 }
@@ -32,26 +40,25 @@ export interface ResolvedInternalFeatureFlag {
  * map, returning only the enabled flag keys. Stale override rows whose key is
  * no longer in the registry are ignored.
  */
-export const enabledKeysFromOverrides = (overrides: ReadonlyMap<string, boolean>): string[] =>
-  INTERNAL_FEATURE_FLAG_LIST.filter((flag) => overrides.get(flag.key) ?? flag.defaultEnabled).map(
-    (flag) => flag.key,
-  );
+export const enabledKeysFromOverrides = (overrides: HashMap.HashMap<string, boolean>): string[] =>
+  INTERNAL_FEATURE_FLAG_LIST.filter((flag) =>
+    Option.getOrElse(HashMap.get(overrides, flag.key), () => flag.defaultEnabled),
+  ).map((flag) => flag.key);
 
 /**
  * Resolve the full catalog (every registry flag) against an org's override map,
- * exposing the code default, the explicit override (or `null`), and the
+ * exposing the code default, the explicit override (or `None`), and the
  * effective `enabled` state. Stale override keys not in the registry are
  * ignored.
  */
-/** Reads an override, distinguishing "absent" (`null`) from a stored `false`. */
-const overrideFor = (overrides: ReadonlyMap<string, boolean>, key: string): boolean | null => {
-  const value = overrides.get(key);
-  if (value === undefined) return null;
-  return value;
-};
+/** Reads an override, distinguishing absence from a stored `false`. */
+const overrideFor = (
+  overrides: HashMap.HashMap<string, boolean>,
+  key: string,
+): Option.Option<boolean> => HashMap.get(overrides, key);
 
 export const resolveInternalFeatureFlagList = (
-  overrides: ReadonlyMap<string, boolean>,
+  overrides: HashMap.HashMap<string, boolean>,
 ): ResolvedInternalFeatureFlag[] =>
   INTERNAL_FEATURE_FLAG_LIST.map((flag) => {
     const override = overrideFor(overrides, flag.key);
@@ -61,7 +68,7 @@ export const resolveInternalFeatureFlagList = (
       description: flag.description,
       defaultEnabled: flag.defaultEnabled,
       override,
-      enabled: override ?? flag.defaultEnabled,
+      enabled: Option.getOrElse(override, () => flag.defaultEnabled),
     };
   });
 
@@ -86,17 +93,18 @@ export class InternalFeatureFlagService extends Context.Service<InternalFeatureF
       const db = yield* Db;
 
       /** Load an organization's overrides as a `flagKey -> enabled` map. */
-      const loadOverrideMap = (organizationId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({
-              flagKey: internalFeatureFlagOverrides.flagKey,
-              enabled: internalFeatureFlagOverrides.enabled,
-            })
-            .from(internalFeatureFlagOverrides)
-            .where(eq(internalFeatureFlagOverrides.organizationId, organizationId));
-          return new Map(rows.map((row) => [row.flagKey, row.enabled]));
-        });
+      const loadOverrideMap = Effect.fn("InternalFeatureFlagService.loadOverrideMap")(function* (
+        organizationId: string,
+      ) {
+        const rows = yield* db
+          .select({
+            flagKey: internalFeatureFlagOverrides.flagKey,
+            enabled: internalFeatureFlagOverrides.enabled,
+          })
+          .from(internalFeatureFlagOverrides)
+          .where(eq(internalFeatureFlagOverrides.organizationId, organizationId));
+        return HashMap.fromIterable(rows.map((row) => constant([row.flagKey, row.enabled])));
+      });
 
       const resolveEnabledForOrganization = Effect.fn("resolveEnabledForOrganization")(
         function* (organizationId: string) {
@@ -109,7 +117,7 @@ export class InternalFeatureFlagService extends Context.Service<InternalFeatureF
       const resolveEnabledForOrganizations = Effect.fn("resolveEnabledForOrganizations")(
         function* (organizationIds: readonly string[]) {
           const result: Record<string, string[]> = {};
-          if (organizationIds.length === 0) {
+          if (Arr.isReadonlyArrayEmpty(organizationIds)) {
             return result;
           }
 
@@ -122,19 +130,31 @@ export class InternalFeatureFlagService extends Context.Service<InternalFeatureF
             .from(internalFeatureFlagOverrides)
             .where(inArray(internalFeatureFlagOverrides.organizationId, [...organizationIds]));
 
-          const byOrg = new Map<string, Map<string, boolean>>();
-          for (const row of rows) {
-            const map = byOrg.get(row.organizationId) ?? new Map<string, boolean>();
-            map.set(row.flagKey, row.enabled);
-            byOrg.set(row.organizationId, map);
-          }
+          const byOrg = Arr.reduce(
+            rows,
+            HashMap.empty<string, HashMap.HashMap<string, boolean>>(),
+            (grouped, row) =>
+              HashMap.modifyAt(grouped, row.organizationId, (current) =>
+                Option.some(
+                  HashMap.set(
+                    Option.getOrElse(current, () => HashMap.empty()),
+                    row.flagKey,
+                    row.enabled,
+                  ),
+                ),
+              ),
+          );
 
-          for (const organizationId of organizationIds) {
-            result[organizationId] = enabledKeysFromOverrides(
-              byOrg.get(organizationId) ?? new Map(),
-            );
-          }
-          return result;
+          return R.fromEntries(
+            organizationIds.map((organizationId) =>
+              constant([
+                organizationId,
+                enabledKeysFromOverrides(
+                  Option.getOrElse(HashMap.get(byOrg, organizationId), () => HashMap.empty()),
+                ),
+              ]),
+            ),
+          );
         },
         (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: mapDbError })),
       );

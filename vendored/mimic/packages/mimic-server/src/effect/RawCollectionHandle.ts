@@ -1,4 +1,9 @@
-import { Clock, Effect, Random } from "effect";
+import * as P from "effect/Predicate";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Random from "effect/Random";
+import * as Schema from "effect/Schema";
 
 import type { MimicSDK } from "./MimicSDK.ts";
 import type {
@@ -28,6 +33,11 @@ export interface RawTransactionResult {
   readonly reason?: string;
 }
 
+class DocumentUpdateRejectedError extends Schema.TaggedErrorClass<DocumentUpdateRejectedError>()(
+  "DocumentUpdateRejectedError",
+  { message: Schema.String },
+) {}
+
 export interface RawDocumentConnectionInput {
   readonly connectionId: string;
   readonly presence: unknown;
@@ -44,10 +54,11 @@ export interface RawConnectedTransactionInput extends RawTransactionInput {
  * runtime provides it and otherwise falls back to a clock + randomness pair,
  * which keeps the SDK usable on runtimes without WebCrypto.
  */
-const makeTransactionId = Effect.gen(function* () {
+const makeTransactionId = Effect.fn("makeTransactionId")(function* () {
   const cryptoApi = globalThis.crypto;
-  if (typeof cryptoApi?.randomUUID === "function") {
-    return cryptoApi.randomUUID();
+  const randomUUID = cryptoApi?.randomUUID.bind(cryptoApi);
+  if (P.isFunction(randomUUID)) {
+    return randomUUID();
   }
   const now = yield* Clock.currentTimeMillis;
   const random = yield* Random.next;
@@ -55,10 +66,8 @@ const makeTransactionId = Effect.gen(function* () {
 });
 
 /** Uses the caller-supplied transaction id when present, otherwise mints one. */
-const resolveTransactionId = (id: string | undefined): Effect.Effect<string> => {
-  if (id !== undefined) return Effect.succeed(id);
-  return makeTransactionId;
-};
+const resolveTransactionId = (id: Option.Option<string>): Effect.Effect<string> =>
+  Option.match(id, { onNone: makeTransactionId, onSome: (value) => Effect.succeed(value) });
 
 /**
  * "Raw" collection handle for callers that work with dynamic schemas at
@@ -130,7 +139,7 @@ export class RawCollectionHandle {
           documentId,
         });
 
-        const transactionId = yield* makeTransactionId;
+        const transactionId = yield* makeTransactionId();
 
         const result = yield* client.SubmitTransaction({
           collectionId,
@@ -148,8 +157,10 @@ export class RawCollectionHandle {
           },
         });
 
-        if (!result.accepted) {
-          return yield* Effect.die(new Error(result.reason ?? "Document update rejected"));
+        if (!result.isAccepted) {
+          return yield* new DocumentUpdateRejectedError({
+            message: result.reason ?? "Document update rejected",
+          });
         }
 
         return { id: documentId, version: result.version };
@@ -177,8 +188,8 @@ export class RawCollectionHandle {
     const collectionId = this.id;
     return this.sdk.runEffect((client) =>
       Effect.gen(function* () {
-        const transactionId = yield* resolveTransactionId(input.id);
-        return yield* client.SubmitTransaction({
+        const transactionId = yield* resolveTransactionId(Option.fromUndefinedOr(input.id));
+        const result = yield* client.SubmitTransaction({
           collectionId,
           documentId,
           transaction: {
@@ -187,6 +198,8 @@ export class RawCollectionHandle {
             commands: input.commands,
           },
         });
+        const { isAccepted, ...response } = result;
+        return { ...response, accepted: isAccepted };
       }),
     );
   }
@@ -258,8 +271,8 @@ export class RawCollectionHandle {
     const collectionId = this.id;
     return this.sdk.runEffect((client) =>
       Effect.gen(function* () {
-        const transactionId = yield* resolveTransactionId(input.id);
-        return yield* client.SubmitConnectedTransaction({
+        const transactionId = yield* resolveTransactionId(Option.fromUndefinedOr(input.id));
+        const result = yield* client.SubmitConnectedTransaction({
           collectionId,
           documentId,
           connectionId: input.connectionId,
@@ -270,6 +283,8 @@ export class RawCollectionHandle {
             commands: input.commands,
           },
         });
+        const { isAccepted, ...response } = result;
+        return { ...response, accepted: isAccepted };
       }),
     );
   }

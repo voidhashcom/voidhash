@@ -1,7 +1,9 @@
 import type * as Cloudflare from "alchemy/Cloudflare";
 import type { RuntimeContext } from "alchemy/RuntimeContext";
 import { Db } from "@voidhash/db";
-import { Effect, Layer, Redacted } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Redacted from "effect/Redacted";
 
 const isRuntimeHyperdriveHost = (host: string): boolean =>
   host.trim().toLowerCase().endsWith(".hyperdrive.local");

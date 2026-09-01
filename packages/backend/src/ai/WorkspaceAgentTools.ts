@@ -6,7 +6,9 @@ import {
   type TSchema,
 } from "@voidhash/agent";
 import { constant } from "@voidhash/lib/lang";
-import { Data, Effect, Option, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { MCP_TOOLS } from "../mcp/tool-manifest.ts";
 import type {
@@ -14,8 +16,12 @@ import type {
   WorkspaceToolResult,
   WorkspaceToolScope,
 } from "./workspace-tools.ts";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Str from "effect/String";
+import { MutableMap, MutableSet } from "../collection-boundary.ts";
 
-const EDIT_SESSION_TOOLS = new Set([
+const EDIT_SESSION_TOOLS = new MutableSet([
   "get_paywall",
   "get_components",
   "read_component",
@@ -30,22 +36,23 @@ const EDIT_SESSION_TOOLS = new Set([
 ]);
 
 /** Raised when an agent uses an edit-session handle it does not own. */
-class AgentEditSessionError extends Data.TaggedError("AgentEditSessionError")<{
-  readonly message: string;
-}> {}
+class AgentEditSessionError extends Schema.TaggedErrorClass<AgentEditSessionError>("AgentEditSessionError")(
+  "AgentEditSessionError",
+  { message: Schema.String },
+) {}
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   if (value === null || Array.isArray(value)) return false;
-  return typeof value === "object";
+  return P.isObject(value);
 };
 
-const inputRecord = (input: unknown): Record<string, unknown> | undefined => {
+const inputRecord = (input: unknown): Record<string, unknown> | typeof Schema.Undefined.Type => {
   if (isRecord(input)) return input;
   return undefined;
 };
 
-const stringOrUndefined = (value: unknown): string | undefined => {
-  if (typeof value === "string") return value;
+const stringOrUndefined = (value: unknown): string | typeof Schema.Undefined.Type => {
+  if (P.isString(value)) return value;
   return undefined;
 };
 
@@ -58,14 +65,14 @@ const decodeEditSessionOutput = Schema.decodeUnknownOption(
 
 const decodedEditSession = (
   result: WorkspaceToolResult,
-): { readonly editSessionId: string; readonly paywallId: string } | undefined => {
+): { readonly editSessionId: string; readonly paywallId: string } | typeof Schema.Undefined.Type => {
   if (result.isError) return undefined;
   return Option.getOrUndefined(decodeEditSessionOutput(result.output));
 };
 
 const decodedEditSessionFromOutput = (
   output: unknown,
-): { readonly editSessionId: string; readonly paywallId: string } | undefined => {
+): { readonly editSessionId: string; readonly paywallId: string } | typeof Schema.Undefined.Type => {
   const text = stringOrUndefined(output);
   if (text === undefined) return undefined;
   return decodedEditSession({ output: text, isError: false });
@@ -73,20 +80,20 @@ const decodedEditSessionFromOutput = (
 
 /** Tracks the server-managed edit capability used by an internal agent session. */
 export class AgentEditSessionTracker {
-  readonly #activeByPaywallId = new Map<string, string>();
+  readonly #activeByPaywallId = new MutableMap<string, string>();
 
   /** Returns the active edit-session id for a paywall, when one has been opened. */
-  readonly get = (paywallId: string): string | undefined => this.#activeByPaywallId.get(paywallId);
+  readonly get = (paywallId: string): string | typeof Schema.Undefined.Type => this.#activeByPaywallId.get(paywallId);
 
   /** Returns the paywall owned by an active edit-session handle. */
-  readonly paywallIdFor = (editSessionId: string): string | undefined =>
+  readonly paywallIdFor = (editSessionId: string): string | typeof Schema.Undefined.Type =>
     [...this.#activeByPaywallId].find(([, activeId]) => activeId === editSessionId)?.[0];
 
   /** Rebuilds active capabilities from persisted Pi tool-result messages. */
   readonly rehydrate = (messages: ReadonlyArray<AgentMessage>): void => {
     this.#activeByPaywallId.clear();
-    for (const message of messages) {
-      if (message.role !== "toolResult") continue;
+    Arr.forEach(messages, (message) => {
+      if (message.role !== "toolResult") return;
       const details = inputRecord(message.details);
       const toolName = stringOrUndefined(details?.toolName) ?? message.toolName;
       const decoded = decodedEditSessionFromOutput(details?.output);
@@ -95,17 +102,17 @@ export class AgentEditSessionTracker {
       if (editSessionId !== undefined && paywallId !== undefined) {
         this.#activeByPaywallId.set(paywallId, editSessionId);
       }
-      if (message.isError) continue;
+      if (message.isError) return;
       if (toolName === "finish_paywall_edit" && editSessionId !== undefined) {
-        for (const [activePaywallId, activeId] of this.#activeByPaywallId) {
+        Arr.forEach(this.#activeByPaywallId, ([activePaywallId, activeId]) => {
           if (activeId === editSessionId) this.#activeByPaywallId.delete(activePaywallId);
-        }
+        });
       } else if (toolName === "revert_paywall_edit" && editSessionId !== undefined) {
-        for (const [activePaywallId, activeId] of this.#activeByPaywallId) {
+        Arr.forEach(this.#activeByPaywallId, ([activePaywallId, activeId]) => {
           if (activeId === editSessionId) this.#activeByPaywallId.delete(activePaywallId);
-        }
+        });
       }
-    }
+    });
   };
 
   /**
@@ -117,7 +124,7 @@ export class AgentEditSessionTracker {
       return Effect.succeed(input);
     }
     const editSessionId = record.editSessionId;
-    if (typeof editSessionId !== "string" || editSessionId.length === 0) {
+    if (!P.isString(editSessionId) || Str.isEmpty(editSessionId)) {
       return Effect.fail(
         new AgentEditSessionError({ message: `Call begin_paywall_edit before ${toolName}.` }),
       );
@@ -143,16 +150,16 @@ export class AgentEditSessionTracker {
       return;
     }
     const record = inputRecord(input);
-    if (toolName === "finish_paywall_edit" && typeof record?.editSessionId === "string") {
-      for (const [paywallId, editSessionId] of this.#activeByPaywallId) {
+    if (toolName === "finish_paywall_edit" && P.isString(record?.editSessionId)) {
+      Arr.forEach(this.#activeByPaywallId, ([paywallId, editSessionId]) => {
         if (editSessionId === record.editSessionId) this.#activeByPaywallId.delete(paywallId);
-      }
+      });
       return;
     }
-    if (toolName === "revert_paywall_edit" && typeof record?.editSessionId === "string") {
-      for (const [paywallId, editSessionId] of this.#activeByPaywallId) {
+    if (toolName === "revert_paywall_edit" && P.isString(record?.editSessionId)) {
+      Arr.forEach(this.#activeByPaywallId, ([paywallId, editSessionId]) => {
         if (editSessionId === record.editSessionId) this.#activeByPaywallId.delete(paywallId);
-      }
+      });
     }
   };
 }
@@ -184,8 +191,8 @@ const contentOf = (result: WorkspaceToolResult) => {
 
 const trackedPaywallId = (
   tracker: AgentEditSessionTracker,
-  editSessionId: string | undefined,
-): string | undefined => {
+  editSessionId: string | typeof Schema.Undefined.Type,
+): string | typeof Schema.Undefined.Type => {
   if (editSessionId === undefined) return undefined;
   return tracker.paywallIdFor(editSessionId);
 };

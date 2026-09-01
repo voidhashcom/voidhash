@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "5.9.3",
     "vite-plus": "catalog:",

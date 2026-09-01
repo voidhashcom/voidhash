@@ -1,5 +1,6 @@
-import type { Option, Schema } from "effect";
-import { Effect } from "effect";
+import type * as Option from "effect/Option";
+import type * as Schema from "effect/Schema";
+import * as Effect from "effect/Effect";
 
 import type { PlatformRuntime } from "./PlatformRuntime.ts";
 import {
@@ -65,8 +66,11 @@ export const durableOperationName = (name: string): Effect.Effect<string> => {
   const encoded = new TextEncoder().encode(name);
   if (encoded.byteLength <= MAX_DURABLE_OPERATION_NAME_BYTES) return Effect.succeed(name);
 
-  // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (Node/Browser/Bun only, none Workers-safe); requiring one here would leak a Crypto dependency into every workflow caller. WebCrypto is available on all targets this package supports.
-  return Effect.promise(() => crypto.subtle.digest("SHA-256", encoded)).pipe(
+  return Effect.tryPromise({
+    try: () => crypto.subtle.digest("SHA-256", encoded),
+    catch: (cause) => cause,
+  }).pipe(
+    Effect.orDie,
     Effect.map((buffer) => {
       const hash = Array.from(new Uint8Array(buffer), (byte) =>
         byte.toString(16).padStart(2, "0"),

@@ -38,7 +38,11 @@ export const createWebhookRoute = (options: WebhookRouteOptions): RouteHandler =
     let event: VoidhashWebhookEvent;
 
     try {
-      event = constructWebhookEvent({ headers: request.headers, payload: rawBody, secret });
+      const headers: Record<string, string | string[]> = {};
+      for (const [name, value] of Object.entries(request.headers)) {
+        if (value !== undefined) headers[name] = value;
+      }
+      event = constructWebhookEvent({ headers, payload: rawBody, secret });
     } catch (error) {
       if (error instanceof VoidhashWebhookVerificationError) {
         console.warn(`[webhook] rejected delivery: ${error.reason}`);

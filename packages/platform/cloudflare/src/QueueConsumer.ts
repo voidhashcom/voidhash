@@ -1,5 +1,11 @@
+import * as Arr from "effect/Array";
 import * as Cloudflare from "alchemy/Cloudflare";
-import { Effect, Layer, Schema, SchemaParser, Stream } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as SchemaParser from "effect/SchemaParser";
+import * as Stream from "effect/Stream";
 
 /**
  * Catch-all queue-consumer error. Wraps Schema decode failures and handler
@@ -37,8 +43,7 @@ export interface QueueConsumerTelemetryOptions {
  * callers don't reach into `alchemy/Cloudflare` directly), plus the optional
  * {@link QueueConsumerTelemetryOptions} consumed by this module itself.
  */
-export type QueueConsumerOptions = Cloudflare.Queues.MessagesProps &
-  QueueConsumerTelemetryOptions;
+export type QueueConsumerOptions = Cloudflare.Queues.MessagesProps & QueueConsumerTelemetryOptions;
 
 /**
  * Wraps one batch invocation in its `queue.consume <LogicalQueueName>` root
@@ -47,7 +52,7 @@ export type QueueConsumerOptions = Cloudflare.Queues.MessagesProps &
  */
 const withBatchTelemetry = <A, E, R>(
   queueName: string,
-  telemetry: Layer.Layer<never> | undefined,
+  telemetry: Option.Option<Layer.Layer<never>>,
   batchSize: () => number,
   batch: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>
@@ -59,7 +64,7 @@ const withBatchTelemetry = <A, E, R>(
       attributes: { "voidhash.queue.name": queueName },
       kind: "consumer",
     }),
-    Effect.provide(telemetry ?? Layer.empty),
+    Effect.provide(Option.getOrElse(telemetry, () => Layer.empty)),
   );
 
 /**
@@ -94,7 +99,7 @@ export const consumeQueue = <A, I, R>(
     let received = 0;
     return withBatchTelemetry(
       queueName,
-      telemetry,
+      Option.fromUndefinedOr(telemetry),
       () => received,
       Stream.runForEach(stream, (raw) => {
         received += 1;
@@ -140,7 +145,7 @@ export const consumeQueueBatch = <A, I, R>(
     let received = 0;
     return withBatchTelemetry(
       queueName,
-      telemetry,
+      Option.fromUndefinedOr(telemetry),
       () => received,
       Effect.gen(function* () {
         const decoded: Array<A> = [];
@@ -161,7 +166,7 @@ export const consumeQueueBatch = <A, I, R>(
             }),
           );
         });
-        if (decoded.length > 0) {
+        if (Arr.isReadonlyArrayNonEmpty(decoded)) {
           yield* handleBatch(decoded);
         }
       }),

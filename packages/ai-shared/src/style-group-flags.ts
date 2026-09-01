@@ -2,6 +2,10 @@ import { isNodeType } from "@voidhash/mimic-schema";
 
 import { nodeStyleFields } from "./mimic-introspection.ts";
 import type { NodeInput } from "./surfaces.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as HashSet from "effect/HashSet";
 
 /**
  * Maps each RENDERER-GATED style field to the `*Enabled` flag that gates its
@@ -50,7 +54,7 @@ export const STYLE_GROUP_FLAG_BY_FIELD: Readonly<Record<string, string>> = {
 
 /** A non-null, non-array object (a mimic `style` / update `set` shape). */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  return value !== null && P.isObject(value) && !Array.isArray(value);
 }
 
 /**
@@ -70,18 +74,15 @@ export function withDerivedEnabledFlags(
 ): Record<string, unknown> {
   if (!isNodeType(type)) return style;
   const legalFields = nodeStyleFields(type);
-  const flagsToAdd = new Set<string>();
-  for (const key of Object.keys(style)) {
+  const flagsToAdd = Arr.reduce(R.keys(style), HashSet.empty<string>(), (flags, key) => {
     const flag = STYLE_GROUP_FLAG_BY_FIELD[key];
-    if (flag === undefined) continue;
-    if (Object.prototype.hasOwnProperty.call(style, flag)) continue; // explicit wins
-    if (!legalFields.includes(flag)) continue;
-    flagsToAdd.add(flag);
-  }
-  if (flagsToAdd.size === 0) return style;
-  const next = { ...style };
-  for (const flag of flagsToAdd) next[flag] = true;
-  return next;
+    if (flag === undefined) return flags;
+    if (Object.prototype.hasOwnProperty.call(style, flag)) return flags;
+    if (!legalFields.includes(flag)) return flags;
+    return HashSet.add(flags, flag);
+  });
+  if (HashSet.size(flagsToAdd) === 0) return style;
+  return HashSet.reduce(flagsToAdd, { ...style }, (next, flag) => ({ ...next, [flag]: true }));
 }
 
 /**

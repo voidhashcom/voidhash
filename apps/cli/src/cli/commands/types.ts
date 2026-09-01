@@ -1,5 +1,5 @@
 import { Command } from "effect/unstable/cli";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 import { typesCheckCommand } from "./types-check";
 import { typesGenerateCommand } from "./types-generate";

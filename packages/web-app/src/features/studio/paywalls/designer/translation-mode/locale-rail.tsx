@@ -21,6 +21,7 @@ import {
   ScrollArea,
   useConfirmDialog,
 } from "@voidhash/ui";
+import * as Option from "effect/Option";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -99,14 +100,17 @@ export function LocaleRail({
     [enabledSet],
   );
 
-  const canonicalDraft = draftTag.trim() === "" ? null : canonicalizeLocaleTag(draftTag.trim());
+  const canonicalDraft =
+    draftTag.trim() === ""
+      ? null
+      : Option.getOrNull(canonicalizeLocaleTag(draftTag.trim()));
   const draftIsAddable =
     canonicalDraft !== null &&
     canonicalDraft !== info.defaultLocale &&
     !info.locales.includes(canonicalDraft);
 
   const handleAdd = (tag: string) => {
-    const canonical = canonicalizeLocaleTag(tag.trim());
+    const canonical = Option.getOrNull(canonicalizeLocaleTag(tag.trim()));
     if (canonical === null || canonical === info.defaultLocale || info.locales.includes(canonical)) {
       return;
     }

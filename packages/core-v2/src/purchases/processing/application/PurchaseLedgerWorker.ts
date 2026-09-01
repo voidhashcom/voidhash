@@ -1,8 +1,14 @@
-import { Cause, Context, Effect, Layer, Schedule, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Cause from "effect/Cause";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 
 import { PurchaseLedgerStore } from "../../application/ports/PurchaseLedgerStore.ts";
 import { RevenueEventSink } from "../../application/ports/RevenueEventSink.ts";
-import { RevenueEventSchema } from "../../contract/RevenueEvents.ts";
+import { RevenueEvent } from "../../contract/RevenueEvents.ts";
 import {
   PurchaseLedgerWorkerServiceError,
   PurchaseLedgerWorkerPollOptions,
@@ -11,7 +17,7 @@ import {
   type PurchaseLedgerWorkerPollResult,
 } from "../domain/PurchaseLedger.ts";
 
-const LedgerRevenueEvents = Schema.toCodecJson(Schema.Array(RevenueEventSchema));
+const LedgerRevenueEvents = Schema.toCodecJson(Schema.Array(RevenueEvent));
 
 export const DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS: typeof PurchaseLedgerWorkerRunOptions.Type = {
   batchSize: 100,
@@ -28,7 +34,7 @@ type DeliveryResult =
   | { readonly error: string; readonly ok: false }
   | { readonly deadLettered: number; readonly ok: true; readonly stored: number };
 
-const makePurchaseLedgerWorker = Effect.gen(function* () {
+const makePurchaseLedgerWorker = Effect.fn("makePurchaseLedgerWorker")(function* () {
   const sink = yield* RevenueEventSink;
   const store = yield* PurchaseLedgerStore;
 
@@ -55,7 +61,7 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
       ),
     );
     if (decoded === null) return DEAD_LETTERED;
-    if (decoded.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(decoded)) {
       yield* store.publish({ claimedBy: row.claimedBy, id: row.id });
       return PUBLISHED;
     }
@@ -100,29 +106,33 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
   });
 
   const poll = (
-    options: typeof PurchaseLedgerWorkerPollOptions.Type = DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS,
+    options: unknown = DEFAULT_PURCHASE_LEDGER_RUN_OPTIONS,
   ) =>
     Effect.gen(function* () {
       const decodedOptions = yield* Schema.decodeUnknownEffect(PurchaseLedgerWorkerPollOptions)(
         options,
       );
       const claimed = yield* store.claim(decodedOptions);
-      let publishedCount = 0;
-      let retriedCount = 0;
-      let deadLetteredCount = 0;
-
-      for (const row of claimed.rows) {
-        const outcome = yield* processRow(row, decodedOptions.maxAttempts);
-        if (outcome === PUBLISHED) publishedCount++;
-        else if (outcome === RETRIED) retriedCount++;
-        else deadLetteredCount++;
-      }
+      const outcomes = yield* Effect.forEach(
+        claimed.rows,
+        (row) => processRow(row, decodedOptions.maxAttempts),
+        { concurrency: 1 },
+      );
+      const counts = Arr.reduce(
+        outcomes,
+        { deadLetteredCount: 0, publishedCount: 0, retriedCount: 0 },
+        (current, outcome) => {
+          if (outcome === PUBLISHED)
+            return { ...current, publishedCount: current.publishedCount + 1 };
+          if (outcome === RETRIED)
+            return { ...current, retriedCount: current.retriedCount + 1 };
+          return { ...current, deadLetteredCount: current.deadLetteredCount + 1 };
+        },
+      );
 
       const result: PurchaseLedgerWorkerPollResult = {
         claimedCount: claimed.rows.length,
-        deadLetteredCount,
-        publishedCount,
-        retriedCount,
+        ...counts,
         staleClaimsReleased: claimed.staleClaimsReleased,
       };
       yield* Effect.annotateCurrentSpan({
@@ -153,7 +163,7 @@ const makePurchaseLedgerWorker = Effect.gen(function* () {
     );
 
   return { poll, run };
-});
+})();
 
 export type PurchaseLedgerWorkerShape = Effect.Success<typeof makePurchaseLedgerWorker>;
 

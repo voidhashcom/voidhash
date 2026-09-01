@@ -12,7 +12,10 @@ import {
 } from "@voidhash/rpc";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import { Effect, Layer, Option, pipe } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import { pipe } from "effect/Function";
 
 import { mapAuthenticationDbError, resolveUserSession } from "./AuthSessionResolver.ts";
 import { withIdentity } from "./Telemetry.ts";
@@ -36,11 +39,11 @@ export const makeRpcSessionResolver = (authTokenVerifier: AuthTokenVerifier["Ser
     const db = yield* Db;
 
     const authenticateApiKey = (rawApiKey: string) =>
-      Effect.gen(function* () {
+      Effect.fn("authenticateApiKey")(function* () {
         const record = yield* apiKeyService.validateUserApiKey(rawApiKey);
         const access = yield* localUserSessions.loadUserAccess(record.user.id);
-        return localUserSessions.toUserSession(record.user, access, null, null);
-      }).pipe(
+        return localUserSessions.toUserSession(record.user, access, Option.none(), Option.none());
+      })().pipe(
         Effect.catchTags({
           ApiKeyNotFoundError: () =>
             Effect.fail(new RpcNotAuthenticatedError({ message: "You are not authenticated" })),

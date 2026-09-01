@@ -1,4 +1,6 @@
-import { Encoding, Layer } from "effect";
+import * as Encoding from "effect/Encoding";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { RpcClient, RpcSerialization } from "effect/unstable/rpc";
 
@@ -25,14 +27,12 @@ const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/, "")
  * `FetchHttpClient.Fetch` reference overridden when the caller supplied a
  * custom `fetch` implementation.
  */
-const makeHttpClientLayer = (customFetch: typeof globalThis.fetch | undefined) => {
-  if (customFetch) {
-    return FetchHttpClient.layer.pipe(
-      Layer.provide(Layer.succeed(FetchHttpClient.Fetch)(customFetch)),
-    );
-  }
-  return FetchHttpClient.layer;
-};
+const makeHttpClientLayer = (customFetch: Option.Option<typeof globalThis.fetch>) =>
+  Option.match(customFetch, {
+    onNone: () => FetchHttpClient.layer,
+    onSome: (fetch) =>
+      FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch)(fetch))),
+  });
 
 /**
  * Build the Effect Layer that satisfies `RpcClient.Protocol`. This is what
@@ -53,7 +53,7 @@ export const makeMimicProtocolLayer = (config: MimicClientConfig) => {
   const baseUrl = `${trimTrailingSlashes(config.url)}/rpc/v1`;
   const authorization = encodeBasicAuth(config.username, config.password);
 
-  const httpClientLayer = makeHttpClientLayer(config.fetch);
+  const httpClientLayer = makeHttpClientLayer(Option.fromUndefinedOr(config.fetch));
 
   return RpcClient.layerProtocolHttp({
     url: baseUrl,

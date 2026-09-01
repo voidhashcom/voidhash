@@ -7,12 +7,7 @@ It defines the Mimic primitives for document nodes, styles, variables, states, i
 ## Usage
 
 ```typescript
-import {
-  PaywallDesignerDocument,
-  ScreenNode,
-  TextNode,
-  reconcile,
-} from "@voidhash/mimic-schema";
+import { PaywallDesignerDocument, ScreenNode, TextNode, reconcile } from "@voidhash/mimic-schema";
 ```
 
 The package is runtime-agnostic and depends only on `@voidhash/mimic-core`.

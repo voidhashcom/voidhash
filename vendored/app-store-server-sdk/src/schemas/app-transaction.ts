@@ -1,11 +1,11 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { EnvironmentSchema, PurchasePlatformSchema } from "./enums.ts";
 
 /**
  * Decoded payload of a signed App Transaction.
  * @see https://developer.apple.com/documentation/storekit/apptransaction
  */
-export const AppTransactionSchema = Schema.Struct({
+export const AppTransactionCodec = Schema.Struct({
   /** The environment in which the transaction was generated. */
   receiptType: Schema.OptionFromOptionalKey(Schema.Union([EnvironmentSchema, Schema.String])),
 
@@ -47,10 +47,20 @@ export const AppTransactionSchema = Schema.Struct({
     Schema.Union([PurchasePlatformSchema, Schema.String]),
   ),
 });
+export type AppTransactionCodec = typeof AppTransactionCodec.Type;
 
-export type AppTransaction = Schema.Schema.Type<typeof AppTransactionSchema>;
+export type AppTransaction = Schema.Schema.Type<typeof AppTransactionCodec>;
 
 /**
  * Decode an AppTransaction payload from an unknown value.
  */
-export const decodeAppTransaction = Schema.decodeUnknownEffect(AppTransactionSchema);
+const decodeAppTransactionEffect = Schema.decodeUnknownEffect(AppTransactionCodec);
+
+/** Decode an AppTransaction payload from an unknown value. */
+export function decodeAppTransaction(
+  ...args: Parameters<typeof decodeAppTransactionEffect>
+): ReturnType<typeof decodeAppTransactionEffect> {
+  return decodeAppTransactionEffect(...args);
+}
+
+export { AppTransactionCodec as AppTransactionSchema };

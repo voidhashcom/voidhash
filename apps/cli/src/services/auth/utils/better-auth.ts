@@ -1,15 +1,18 @@
 import { apiKeyClient } from "@better-auth/api-key/client";
 import { createAuthClient } from "better-auth/client";
-import { Context, Data, Effect, Layer } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import { CliConfig } from "../../../domain/services/cli-config";
+import * as Schema from "effect/Schema";
 
-export class BetterAuthClientError extends Data.TaggedError("BetterAuthClientError")<{
-  readonly cause?: unknown;
-  readonly message: string;
-}> {}
+export class BetterAuthClientError extends Schema.TaggedErrorClass<BetterAuthClientError>("BetterAuthClientError")(
+  "BetterAuthClientError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("make")(function* effect() {
   const cliConfig = yield* CliConfig;
   const config = yield* cliConfig.readConfig();
   const authClient: ReturnType<typeof createAuthClient> = createAuthClient({
@@ -24,7 +27,7 @@ const make = Effect.gen(function* effect() {
         client: typeof authClient,
       ) => Promise<{ error: E; data?: null } | { error?: null; data: D }>,
     ) =>
-      Effect.gen(function* use() {
+      Effect.fn("use")(function* use() {
         const res = yield* Effect.tryPromise({
           catch: (error) =>
             new BetterAuthClientError({
@@ -40,9 +43,9 @@ const make = Effect.gen(function* effect() {
           });
         }
         return res.data;
-      }),
+      })(),
   };
-});
+})();
 
 type BetterAuthClientShape = Effect.Success<typeof make>;
 

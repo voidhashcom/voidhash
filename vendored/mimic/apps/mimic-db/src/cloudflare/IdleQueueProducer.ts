@@ -1,9 +1,12 @@
+import * as P from "effect/Predicate";
 import {
   MimicDocumentIdleMessage,
   type MimicDocumentIdleMessageType,
 } from "./MimicDocumentIdleQueue.ts";
 import { causeMessage } from "@voidhash/lib/lang";
-import { Data, Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 /**
  * The raw Cloudflare Queue producer binding as surfaced on the Worker env. The
@@ -16,15 +19,17 @@ interface RawQueueBinding {
 }
 
 /** A queue send that failed inside the Durable Object. */
-export class IdleQueueSendError extends Data.TaggedError("IdleQueueSendError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class IdleQueueSendError extends Schema.TaggedErrorClass<IdleQueueSendError>(
+  "IdleQueueSendError",
+)("IdleQueueSendError", {
+  cause: Schema.optional(Schema.Unknown),
+  message: Schema.String,
+}) {}
 
 const isRawQueueBinding = (value: unknown): value is RawQueueBinding => {
-  if (typeof value !== "object" || value === null) return false;
+  if (!P.isObject(value) || value === null) return false;
   if (!("send" in value)) return false;
-  return typeof value.send === "function";
+  return P.isFunction(value.send);
 };
 
 /**
@@ -36,10 +41,10 @@ const isRawQueueBinding = (value: unknown): value is RawQueueBinding => {
  * Returns `undefined` when no queue binding is present (e.g. dev runtimes without
  * the binding), so callers can skip publishing rather than crash.
  */
-export const findIdleQueue = (env: Record<string, unknown>): RawQueueBinding | undefined => {
+export const findIdleQueue = (env: Record<string, unknown>): Option.Option<RawQueueBinding> => {
   const candidate = env["MimicDocumentIdleQueue"];
-  if (isRawQueueBinding(candidate)) return candidate;
-  return undefined;
+  if (isRawQueueBinding(candidate)) return Option.some(candidate);
+  return Option.none();
 };
 
 const encodeMessage = Schema.encodeUnknownSync(MimicDocumentIdleMessage);
@@ -57,14 +62,14 @@ export const publishIdleMessage = (
 ): Effect.Effect<void, IdleQueueSendError> =>
   Effect.gen(function* () {
     const queue = findIdleQueue(env);
-    if (!queue) {
+    if (Option.isNone(queue)) {
       return yield* Effect.fail(
         new IdleQueueSendError({ message: "idle-notification queue binding not found" }),
       );
     }
     const body = encodeMessage(message);
     yield* Effect.tryPromise({
-      try: () => queue.send(body, { contentType: "json" }),
+      try: () => queue.value.send(body, { contentType: "json" }),
       catch: (cause) =>
         new IdleQueueSendError({
           message: causeMessage(cause),

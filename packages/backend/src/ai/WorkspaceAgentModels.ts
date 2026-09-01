@@ -1,12 +1,15 @@
 import { getCatalogModel, type Model } from "@voidhash/agent";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import { runSync } from "../runtime-boundary.ts";
+import * as Option from "effect/Option";
+import { runtimeError } from "../runtime-boundary.ts";
 
 const requiredModel = (provider: string, modelId: string): Model<string> => {
   const model = getCatalogModel(provider, modelId);
-  if (model === undefined) {
-    return Effect.runSync(Effect.die(new Error(`Missing workspace model: ${provider}/${modelId}`)));
+  if (Option.isNone(model)) {
+    return runSync(Effect.die(runtimeError(`Missing workspace model: ${provider}/${modelId}`)));
   }
-  return model;
+  return model.value;
 };
 
 /** Default production model for text-only workspace turns. */

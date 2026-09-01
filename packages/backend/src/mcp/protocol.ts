@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 /**
  * Minimal, hand-rolled MCP JSON-RPC 2.0 handler for the STATELESS streamable-HTTP
  * transport. Editing state lives behind `editSessionId`; the transport itself
@@ -18,7 +19,7 @@
  * errors are `isError: true` content, never JSON-RPC errors (per MCP).
  */
 import { constant } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 import { mcpToolDescriptors } from "./tool-manifest.ts";
 import * as WorkspaceTools from "../ai/workspace-tools.ts";
@@ -28,6 +29,9 @@ import {
   skillFromResourceUri,
   skillResourceUri,
 } from "../ai/skills/registry.ts";
+import * as P from "effect/Predicate";
+import * as Str from "effect/String";
+import * as Match from "effect/Match";
 
 /** Protocol versions we speak, newest first (used to pick the negotiated version). */
 export const SUPPORTED_PROTOCOL_VERSIONS = constant(["2025-06-18", "2025-03-26"]);
@@ -51,7 +55,7 @@ export const JsonRpcErrorCode = constant({
 });
 
 /** A JSON-RPC id (string or number, or null on a pre-id parse error). */
-export type JsonRpcId = string | number | null;
+export type JsonRpcId = string | number | typeof Schema.Null.Type;
 
 /** A parsed JSON-RPC request/notification (validated by {@link parseJsonRpcMessage}). */
 export interface JsonRpcMessage {
@@ -92,24 +96,24 @@ const failure = (
 
 /**
  * Narrows an unknown value to an index-signature record. Mirrors the legacy
- * `typeof value === "object" && value !== null` check, so arrays pass too.
+ * `P.isObject(value) && value !== null` check, so arrays pass too.
  */
 const isObjectValue = (value: unknown): value is Record<string, unknown> => {
   if (value === null) return false;
-  return typeof value === "object";
+  return P.isObject(value);
 };
 
 /** Validates the optional JSON-RPC `id` field, preserving "absent" as `undefined`. */
 const parseJsonRpcId = (
   value: unknown,
-): { ok: true; id: JsonRpcId | undefined } | { ok: false } => {
+): { ok: true; id: JsonRpcId | typeof Schema.Undefined.Type } | { ok: false } => {
   if (value === undefined) return { ok: true, id: undefined };
   if (value === null) return { ok: true, id: null };
-  if (typeof value === "string" || typeof value === "number") return { ok: true, id: value };
+  if (P.isString(value) || P.isNumber(value)) return { ok: true, id: value };
   return { ok: false };
 };
 
-const messageParams = (value: unknown): Record<string, unknown> | undefined => {
+const messageParams = (value: unknown): Record<string, unknown> | typeof Schema.Undefined.Type => {
   if (isObjectValue(value)) return value;
   return undefined;
 };
@@ -130,7 +134,7 @@ export const parseJsonRpcMessage = (
   if (record.jsonrpc !== "2.0") {
     return { ok: false, reason: 'Missing or invalid "jsonrpc": expected "2.0"' };
   }
-  if (typeof record.method !== "string") {
+  if (!P.isString(record.method)) {
     return { ok: false, reason: 'Missing or invalid "method"' };
   }
   const parsedId = parseJsonRpcId(record.id);
@@ -150,14 +154,14 @@ export const parseJsonRpcMessage = (
 
 /** Negotiate a protocol version: echo a supported one, else offer our latest. */
 const negotiateProtocolVersion = (requested: unknown): string => {
-  if (typeof requested === "string" && SUPPORTED_PROTOCOL_VERSION_LIST.includes(requested)) {
+  if (P.isString(requested) && SUPPORTED_PROTOCOL_VERSION_LIST.includes(requested)) {
     return requested;
   }
   return LATEST_PROTOCOL_VERSION;
 };
 
 /** The `initialize` result: negotiated version, tool capability, server identity. */
-const initializeResult = (params: Record<string, unknown> | undefined) => ({
+const initializeResult = (params: Record<string, unknown> | typeof Schema.Undefined.Type) => ({
   protocolVersion: negotiateProtocolVersion(params?.protocolVersion),
   capabilities: { tools: {}, resources: {}, prompts: {} },
   serverInfo: SERVER_INFO,
@@ -201,7 +205,7 @@ const promptsListResult = () => ({
 /** Resolves the skill behind a `resources/read` URI (legacy alias included). */
 const resolveSkillResource = (requestedUri: unknown) => {
   if (requestedUri === AUTHORING_RESOURCE_URI) return findSkill("paywall-authoring");
-  if (typeof requestedUri === "string") return skillFromResourceUri(requestedUri);
+  if (P.isString(requestedUri)) return skillFromResourceUri(requestedUri);
   return undefined;
 };
 
@@ -211,7 +215,7 @@ const promptArguments = (value: unknown): Record<string, unknown> => {
 };
 
 const requestedOutcome = (value: unknown): string => {
-  if (typeof value === "string" && value.length > 0) return `\nRequested outcome: ${value}`;
+  if (P.isString(value) && Str.isNonEmpty(value)) return `\nRequested outcome: ${value}`;
   return "";
 };
 
@@ -224,11 +228,11 @@ const requestedOutcome = (value: unknown): string => {
  */
 const handleToolsCall = (
   id: JsonRpcId,
-  params: Record<string, unknown> | undefined,
+  params: Record<string, unknown> | typeof Schema.Undefined.Type,
   callTool: CallTool,
 ): Effect.Effect<JsonRpcResponse, never, WorkspaceTools.WorkspaceToolDeps> => {
   const name = params?.name;
-  if (typeof name !== "string" || name.length === 0) {
+  if (!P.isString(name) || Str.isEmpty(name)) {
     return Effect.succeed(
       failure(id, JsonRpcErrorCode.InvalidParams, 'tools/call requires a string "name"'),
     );
@@ -255,34 +259,20 @@ const handleToolsCall = (
 export const handleMcpMessage = (
   message: JsonRpcMessage,
   callTool: CallTool,
-): Effect.Effect<JsonRpcResponse | null, never, WorkspaceTools.WorkspaceToolDeps> => {
+): Effect.Effect<JsonRpcResponse | typeof Schema.Null.Type, never, WorkspaceTools.WorkspaceToolDeps> => {
   const id: JsonRpcId = message.id ?? null;
 
-  switch (message.method) {
-    case "initialize":
-      return Effect.succeed(success(id, initializeResult(message.params)));
-
-    case "notifications/initialized":
-      // Accepted notification: no response body (the route sends 202).
-      return Effect.succeed(null);
-
-    case "ping":
-      // MCP ping → empty result.
-      return Effect.succeed(success(id, {}));
-
-    case "tools/list":
-      return Effect.succeed(success(id, toolsListResult()));
-
-    case "tools/call":
-      return handleToolsCall(id, message.params, callTool);
-
-    case "resources/list":
-      return Effect.succeed(success(id, resourcesListResult()));
-
-    case "resources/read": {
-      const requestedUri = message.params?.uri;
+  return Match.value(message.method).pipe(
+      Match.when("initialize", () => Effect.succeed(success(id, initializeResult(message.params)))),
+      Match.when("notifications/initialized", () => Effect.succeed(null)),
+      Match.when("ping", () => Effect.succeed(success(id, {}))),
+      Match.when("tools/list", () => Effect.succeed(success(id, toolsListResult()))),
+      Match.when("tools/call", () => handleToolsCall(id, message.params, callTool)),
+      Match.when("resources/list", () => Effect.succeed(success(id, resourcesListResult()))),
+      Match.when("resources/read", () => {
+const requestedUri = message.params?.uri;
       const skill = resolveSkillResource(requestedUri);
-      if (skill === undefined || typeof requestedUri !== "string") {
+      if (skill === undefined || !P.isString(requestedUri)) {
         return Effect.succeed(
           failure(id, JsonRpcErrorCode.InvalidParams, "Unknown skill resource URI"),
         );
@@ -298,20 +288,17 @@ export const handleMcpMessage = (
           ],
         }),
       );
-    }
-
-    case "prompts/list":
-      return Effect.succeed(success(id, promptsListResult()));
-
-    case "prompts/get": {
-      if (message.params?.name !== DESIGN_PROMPT_NAME) {
+      }),
+      Match.when("prompts/list", () => Effect.succeed(success(id, promptsListResult()))),
+      Match.when("prompts/get", () => {
+if (message.params?.name !== DESIGN_PROMPT_NAME) {
         return Effect.succeed(
           failure(id, JsonRpcErrorCode.InvalidParams, "Unknown paywall authoring prompt"),
         );
       }
       const args = promptArguments(message.params.arguments);
       const paywallId = args.paywallId;
-      if (typeof paywallId !== "string" || paywallId.length === 0) {
+      if (!P.isString(paywallId) || Str.isEmpty(paywallId)) {
         return Effect.succeed(
           failure(
             id,
@@ -335,16 +322,15 @@ export const handleMcpMessage = (
           ],
         }),
       );
-    }
-
-    default: {
-      // Any other `notifications/*` is an id-less message we accept silently.
+      }),
+      Match.orElse(() => {
+// Any other `notifications/*` is an id-less message we accept silently.
       if (message.method.startsWith("notifications/") && message.id === undefined) {
         return Effect.succeed(null);
       }
       return Effect.succeed(
         failure(id, JsonRpcErrorCode.MethodNotFound, `Method not found: ${message.method}`),
       );
-    }
-  }
+      }),
+    );
 };

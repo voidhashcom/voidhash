@@ -1,4 +1,7 @@
-import { Data, Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
 
 import { VoidhashNodeConfigurationError } from "./errors";
 import type { GroupedVoidhashNodeEffectClient } from "./generated/grouped-client";
@@ -35,9 +38,15 @@ const PERSON_NOT_FOUND_TAG = "ApiPersonNotFoundErrorJsonEncoding";
  * generated client's decoded-404 wrapper so callers that branch on either one
  * keep working.
  */
-export class VoidhashPersonNotFoundError extends Data.TaggedError(PERSON_NOT_FOUND_TAG)<{
-  readonly data: { readonly _tag: "Api/PersonNotFoundError"; readonly id: string };
-}> {}
+export class VoidhashPersonNotFoundError extends Schema.TaggedErrorClass<VoidhashPersonNotFoundError>()(
+  PERSON_NOT_FOUND_TAG,
+  {
+    data: Schema.Struct({
+      _tag: Schema.Literal("Api/PersonNotFoundError"),
+      id: Schema.String,
+    }),
+  },
+) {}
 
 type GetGrantsError =
   | EffectError<ListPersonsEffect>
@@ -63,8 +72,8 @@ export type GetGrantsByDistinctIdRequest = {
  */
 export type HasActivePerkRequest = {
   readonly distinctId: string;
-  readonly perkId?: string | undefined;
-  readonly perkSlug?: string | undefined;
+  readonly perkId?: string;
+  readonly perkSlug?: string;
 };
 
 export interface VoidhashEntitlementsEffectNamespace {
@@ -96,14 +105,14 @@ export interface VoidhashEntitlementsEffectNamespace {
   ) => Effect.Effect<boolean, HasActivePerkError>;
 }
 
-const trimmed = (value: string | undefined): string | undefined => {
+const trimmed = (value?: string): Option.Option<string> => {
   const trimmedValue = value?.trim();
 
-  if (trimmedValue === undefined || trimmedValue.length === 0) {
-    return undefined;
+  if (trimmedValue === undefined || Str.isEmpty(trimmedValue)) {
+    return Option.none();
   }
 
-  return trimmedValue;
+  return Option.some(trimmedValue);
 };
 
 /**
@@ -113,12 +122,12 @@ const trimmed = (value: string | undefined): string | undefined => {
 const findPerkIdBySlug = (
   client: EntitlementsSource,
   perkSlug: string,
-  cursor: string | undefined,
-): Effect.Effect<string | undefined, ListPerksError> =>
+  cursor: Option.Option<string>,
+): Effect.Effect<Option.Option<string>, ListPerksError> =>
   Effect.gen(function* () {
     const page = yield* client.perks.listPerks({
       params: {
-        cursor,
+        cursor: Option.getOrUndefined(cursor),
         limit: undefined,
         projectId: undefined,
       },
@@ -126,14 +135,18 @@ const findPerkIdBySlug = (
     const match = page.data.find((perk) => perk.slug === perkSlug);
 
     if (match !== undefined) {
-      return match.id;
+      return Option.some(match.id);
     }
 
     if (!page.pageInfo.hasNextPage || page.pageInfo.endCursor === null) {
-      return undefined;
+      return Option.none();
     }
 
-    return yield* findPerkIdBySlug(client, perkSlug, page.pageInfo.endCursor);
+    return yield* findPerkIdBySlug(
+      client,
+      perkSlug,
+      Option.fromNullishOr(page.pageInfo.endCursor),
+    );
   });
 
 /**
@@ -144,11 +157,11 @@ const findPerkIdBySlug = (
 const resolvePerkId = (
   client: EntitlementsSource,
   request: HasActivePerkRequest,
-): Effect.Effect<string | undefined, VoidhashNodeConfigurationError | ListPerksError> => {
+): Effect.Effect<Option.Option<string>, VoidhashNodeConfigurationError | ListPerksError> => {
   const perkId = trimmed(request.perkId);
   const perkSlug = trimmed(request.perkSlug);
 
-  if ((perkId === undefined) === (perkSlug === undefined)) {
+  if (Option.isNone(perkId) === Option.isNone(perkSlug)) {
     return Effect.fail(
       new VoidhashNodeConfigurationError(
         "hasActivePerk requires exactly one of perkId or perkSlug.",
@@ -156,8 +169,8 @@ const resolvePerkId = (
     );
   }
 
-  if (perkSlug !== undefined) {
-    return findPerkIdBySlug(client, perkSlug, undefined);
+  if (Option.isSome(perkSlug)) {
+    return findPerkIdBySlug(client, perkSlug.value, Option.none());
   }
 
   return Effect.succeed(perkId);
@@ -205,13 +218,15 @@ export const makeEntitlements = (
       Effect.gen(function* () {
         const perkId = yield* resolvePerkId(client, request);
 
-        if (perkId === undefined) {
+        if (Option.isNone(perkId)) {
           return false;
         }
 
         const grants = yield* getGrants(request.distinctId);
 
-        return grants.some((grant) => grant.perkId === perkId && grant.status === "active");
+        return grants.some(
+          (grant) => grant.perkId === perkId.value && grant.status === "active",
+        );
       }).pipe(Effect.catchTag(PERSON_NOT_FOUND_TAG, () => Effect.succeed(false))),
   };
 };

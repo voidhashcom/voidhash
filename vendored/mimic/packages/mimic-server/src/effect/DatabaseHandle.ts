@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { Primitive, serializeSchema } from "@voidhash/mimic-core";
 
 import { CollectionHandle } from "./CollectionHandle.ts";

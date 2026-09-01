@@ -63,7 +63,7 @@ export function ProjectEventsPage({ projectId }: { projectId: string }) {
             <SettingsRow
               control={
                 <Switch
-                  checked={event.enabled}
+                  checked={event.isEnabled}
                   disabled={isTogglePending}
                   onCheckedChange={(enabled) =>
                     setBuiltinEnabled({ enabled: enabled === true, key: event.key, projectId })

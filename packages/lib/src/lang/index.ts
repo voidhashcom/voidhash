@@ -1,3 +1,4 @@
+import * as P from "effect/Predicate";
 /**
  * Small language-level helpers that let ordinary TypeScript satisfy the
  * `oxlint-plugin-effect` recommended preset without losing type precision.
@@ -27,7 +28,7 @@ export const constant = <const T>(value: T): T => value;
  * that appears at most error-mapping boundaries.
  */
 export const causeMessage = (cause: unknown): string => {
-  if (cause instanceof Error) return cause.message;
+  if (P.isError(cause)) return cause.message;
   return String(cause);
 };
 
@@ -38,7 +39,7 @@ export const causeMessage = (cause: unknown): string => {
  * environment or JSON boundaries.
  */
 export const stringOr = (value: unknown, fallback: string): string => {
-  if (typeof value === "string") return value;
+  if (P.isString(value)) return value;
   return fallback;
 };
 
@@ -48,7 +49,7 @@ export const stringOr = (value: unknown, fallback: string): string => {
  * Replaces `typeof value === "number" ? value : fallback`.
  */
 export const numberOr = (value: unknown, fallback: number): number => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (P.isNumber(value) && Number.isFinite(value)) return value;
   return fallback;
 };
 

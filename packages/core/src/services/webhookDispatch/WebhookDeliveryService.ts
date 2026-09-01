@@ -1,4 +1,12 @@
-import { Clock, Context, DateTime, Duration, Effect, Layer, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 
 import {
@@ -22,15 +30,15 @@ export type { DeliverWebhookInput } from "@voidhash/core-v2";
  * as a non-succeeded result so the workflow can decide to retry. */
 export interface SendWebhookResult {
   readonly durationMs: number;
-  readonly errorMessage: string | null;
-  readonly responseBody: string | null;
+  readonly errorMessage: Option.Option<string>;
+  readonly responseBody: Option.Option<string>;
   /**
    * Set when nothing was sent because the endpoint no longer exists or is no
    * longer `Active`. The workflow terminates the delivery instead of recording
    * an attempt or scheduling another retry.
    */
   readonly skipped?: boolean;
-  readonly statusCode: number | null;
+  readonly statusCode: Option.Option<number>;
   readonly succeeded: boolean;
 }
 
@@ -58,16 +66,17 @@ const REQUEST_TIMEOUT = Duration.seconds(30);
 const encodeJsonBody = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
- * Retry time for `attemptNumber`, or `null` once the backoff schedule is
+ * Retry time for `attemptNumber`, or `None` once the backoff schedule is
  * exhausted.
  */
-export const nextWebhookDeliveryRetryTime = (attemptNumber: number): Effect.Effect<Date | null> =>
-  Effect.gen(function* () {
-    const delaySeconds = RETRY_DELAYS_SECONDS[attemptNumber - 1];
-    if (delaySeconds === undefined) return null;
-    const now = yield* DateTime.now;
-    return DateTime.toDateUtc(DateTime.addDuration(now, Duration.seconds(delaySeconds)));
-  });
+export const nextWebhookDeliveryRetryTime = Effect.fn("webhookDelivery.nextRetryTime")(function* (
+  attemptNumber: number,
+) {
+  const delaySeconds = RETRY_DELAYS_SECONDS[attemptNumber - 1];
+  if (delaySeconds === undefined) return Option.none();
+  const now = yield* DateTime.now;
+  return Option.some(DateTime.toDateUtc(DateTime.addDuration(now, Duration.seconds(delaySeconds))));
+});
 
 const bytesToHex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -76,7 +85,7 @@ const bytesToHex = (bytes: Uint8Array) =>
  * scheme version so receivers can roll the algorithm forward. */
 const generateSignature = (payload: string, timestamp: string, secret: string) =>
   Effect.gen(function* () {
-    const key = yield* Effect.promise(() =>
+    const key = yield* promiseOrDie(() =>
       crypto.subtle.importKey(
         "raw",
         new TextEncoder().encode(secret),
@@ -85,7 +94,7 @@ const generateSignature = (payload: string, timestamp: string, secret: string) =
         ["sign"],
       ),
     );
-    const signature = yield* Effect.promise(() =>
+    const signature = yield* promiseOrDie(() =>
       crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${payload}`)),
     );
     return `${SIGNATURE_VERSION}=${bytesToHex(new Uint8Array(signature))}`;
@@ -139,10 +148,10 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
           });
           return {
             durationMs: 0,
-            errorMessage: null,
-            responseBody: null,
+            errorMessage: Option.none(),
+            responseBody: Option.none(),
             skipped: true,
-            statusCode: null,
+            statusCode: Option.none(),
             succeeded: false,
           } satisfies SendWebhookResult;
         }
@@ -155,7 +164,7 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
 
         const elapsed = Effect.map(Clock.currentTimeMillis, (end) => end - startTime);
 
-        const post = Effect.gen(function* () {
+        const post = Effect.fn("webhookDelivery.post")(function* () {
           const response = yield* httpClient.post(input.url, {
             body: HttpBody.text(payloadString, "application/json"),
             headers: {
@@ -168,34 +177,34 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
 
           return {
             durationMs: yield* elapsed,
-            errorMessage: null,
-            responseBody: responseBody?.slice(0, 2048) ?? null,
-            statusCode: response.status,
+            errorMessage: Option.none(),
+            responseBody: Option.fromNullishOr(responseBody?.slice(0, 2048)),
+            statusCode: Option.some(response.status),
             succeeded: response.status >= 200 && response.status < 300,
           };
         });
 
         // A transport failure (or the 30s cap) is not a defect: it is captured
         // as a non-succeeded result so the workflow can decide to retry.
-        const result: SendWebhookResult = yield* post.pipe(
+        const result: SendWebhookResult = yield* post().pipe(
           Effect.timeout(REQUEST_TIMEOUT),
           Effect.catch((error) =>
-            Effect.gen(function* () {
-              return {
-                durationMs: yield* elapsed,
-                errorMessage: causeMessage(error).slice(0, 500),
-                responseBody: null,
-                statusCode: null,
+            elapsed.pipe(
+              Effect.map((durationMs) => ({
+                durationMs,
+                errorMessage: Option.some(causeMessage(error).slice(0, 500)),
+                responseBody: Option.none(),
+                statusCode: Option.none(),
                 succeeded: false,
-              };
-            }),
+              })),
+            ),
           ),
         );
 
-        if (result.statusCode !== null) {
+        if (Option.isSome(result.statusCode)) {
           yield* Effect.annotateCurrentSpan(
             "voidhash.webhook.delivery.status_code",
-            result.statusCode,
+            result.statusCode.value,
           );
         }
         yield* Effect.annotateCurrentSpan(
@@ -207,44 +216,47 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
       });
 
       /** Persist the result of a single attempt against the delivery. */
-      const recordAttempt = (input: DeliverWebhookInput, result: SendWebhookResult) =>
-        Effect.gen(function* () {
-          const createdAt = yield* DateTime.nowAsDate;
-          yield* db.insert(webhookDeliveryAttempts).values({
-            attemptNumber: input.attemptNumber,
-            createdAt,
-            durationMs: result.durationMs,
-            errorMessage: result.errorMessage,
-            id: generateId("webhookDeliveryAttempt"),
-            responseBody: result.responseBody,
-            statusCode: result.statusCode,
-            succeeded: result.succeeded,
-            webhookDeliveryId: input.deliveryId,
-          });
+      const recordAttempt = Effect.fn("webhookDelivery.recordAttempt")(function* (
+        input: DeliverWebhookInput,
+        result: SendWebhookResult,
+      ) {
+        const createdAt = yield* DateTime.nowAsDate;
+        yield* db.insert(webhookDeliveryAttempts).values({
+          attemptNumber: input.attemptNumber,
+          createdAt,
+          durationMs: result.durationMs,
+          errorMessage: Option.getOrNull(result.errorMessage),
+          id: generateId("webhookDeliveryAttempt"),
+          responseBody: Option.getOrNull(result.responseBody),
+          statusCode: Option.getOrNull(result.statusCode),
+          succeeded: result.succeeded,
+          webhookDeliveryId: input.deliveryId,
         });
+      });
 
       /** Mark the delivery succeeded and reset the endpoint's failure counter. */
-      const markSucceeded = (input: DeliverWebhookInput) =>
-        Effect.gen(function* () {
-          const completedAt = yield* DateTime.nowAsDate;
-          yield* db
-            .update(webhookDeliveries)
-            .set({
-              attemptCount: input.attemptNumber,
-              completedAt,
-              nextAttemptAt: null,
-              status: WebhookDeliveryStatus.Succeeded,
-            })
-            .where(eq(webhookDeliveries.id, input.deliveryId));
+      const markSucceeded = Effect.fn("webhookDelivery.markSucceeded")(function* (
+        input: DeliverWebhookInput,
+      ) {
+        const completedAt = yield* DateTime.nowAsDate;
+        yield* db
+          .update(webhookDeliveries)
+          .set({
+            attemptCount: input.attemptNumber,
+            completedAt,
+            nextAttemptAt: null,
+            status: WebhookDeliveryStatus.Succeeded,
+          })
+          .where(eq(webhookDeliveries.id, input.deliveryId));
 
-          yield* db
-            .update(webhookEndpoints)
-            .set({
-              consecutiveFailures: 0,
-              lastSuccessAt: completedAt,
-            })
-            .where(eq(webhookEndpoints.id, input.endpointId));
-        });
+        yield* db
+          .update(webhookEndpoints)
+          .set({
+            consecutiveFailures: 0,
+            lastSuccessAt: completedAt,
+          })
+          .where(eq(webhookEndpoints.id, input.endpointId));
+      });
 
       /**
        * Atomically bump the endpoint's consecutive-failure counter (assigning
@@ -252,47 +264,50 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
        * concurrently) and flip the endpoint to `Failed` once the counter
        * crosses the auto-disable threshold.
        */
-      const recordEndpointFailure = (endpointId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .update(webhookEndpoints)
-            .set({ consecutiveFailures: sql`${webhookEndpoints.consecutiveFailures} + 1` })
-            .where(eq(webhookEndpoints.id, endpointId))
-            .returning({ consecutiveFailures: webhookEndpoints.consecutiveFailures });
-          const consecutiveFailures = rows[0]?.consecutiveFailures ?? 0;
-          if (consecutiveFailures < AUTO_DISABLE_CONSECUTIVE_FAILURES) return;
-          const disabled = yield* db
-            .update(webhookEndpoints)
-            .set({ status: WebhookEndpointStatus.Failed })
-            .where(
-              and(
-                eq(webhookEndpoints.id, endpointId),
-                eq(webhookEndpoints.status, WebhookEndpointStatus.Active),
-              ),
-            )
-            .returning({ id: webhookEndpoints.id });
-          if (disabled.length > 0) {
-            yield* Effect.logWarning("webhook endpoint auto-disabled after consecutive failures", {
-              consecutiveFailures,
-              endpointId,
-            });
-          }
-        });
+      const recordEndpointFailure = Effect.fn("webhookDelivery.recordEndpointFailure")(function* (
+        endpointId: string,
+      ) {
+        const rows = yield* db
+          .update(webhookEndpoints)
+          .set({ consecutiveFailures: sql`${webhookEndpoints.consecutiveFailures} + 1` })
+          .where(eq(webhookEndpoints.id, endpointId))
+          .returning({ consecutiveFailures: webhookEndpoints.consecutiveFailures });
+        const consecutiveFailures = rows[0]?.consecutiveFailures ?? 0;
+        if (consecutiveFailures < AUTO_DISABLE_CONSECUTIVE_FAILURES) return;
+        const disabled = yield* db
+          .update(webhookEndpoints)
+          .set({ status: WebhookEndpointStatus.Failed })
+          .where(
+            and(
+              eq(webhookEndpoints.id, endpointId),
+              eq(webhookEndpoints.status, WebhookEndpointStatus.Active),
+            ),
+          )
+          .returning({ id: webhookEndpoints.id });
+        if (Arr.isReadonlyArrayNonEmpty(disabled)) {
+          yield* Effect.logWarning("webhook endpoint auto-disabled after consecutive failures", {
+            consecutiveFailures,
+            endpointId,
+          });
+        }
+      });
 
       /** Record a failed attempt and schedule the next retry at `nextRetryTime`. */
-      const markFailed = (input: DeliverWebhookInput, nextRetryTime: Date) =>
-        Effect.gen(function* () {
-          yield* db
-            .update(webhookDeliveries)
-            .set({
-              attemptCount: input.attemptNumber,
-              nextAttemptAt: nextRetryTime,
-              status: WebhookDeliveryStatus.Failed,
-            })
-            .where(eq(webhookDeliveries.id, input.deliveryId));
+      const markFailed = Effect.fn("webhookDelivery.markFailed")(function* (
+        input: DeliverWebhookInput,
+        nextRetryTime: Date,
+      ) {
+        yield* db
+          .update(webhookDeliveries)
+          .set({
+            attemptCount: input.attemptNumber,
+            nextAttemptAt: nextRetryTime,
+            status: WebhookDeliveryStatus.Failed,
+          })
+          .where(eq(webhookDeliveries.id, input.deliveryId));
 
-          yield* recordEndpointFailure(input.endpointId);
-        });
+        yield* recordEndpointFailure(input.endpointId);
+      });
 
       /** Mark the delivery exhausted once the retry schedule is depleted. */
       const markExhausted = Effect.fn("webhookDelivery.exhausted")(function* (
@@ -326,7 +341,7 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
       });
 
       /**
-       * Retry time for `attemptNumber`, or `null` once the backoff schedule is
+       * Retry time for `attemptNumber`, or `None` once the backoff schedule is
        * exhausted (signalling the delivery should be marked exhausted).
        */
       return constant({
@@ -348,3 +363,4 @@ export class WebhookDeliveryService extends Context.Service<WebhookDeliveryServi
     Layer.provide(FetchHttpClient.layer),
   );
 }
+import { promiseOrDie } from "../../effect-boundary.ts";

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 export class User extends Schema.Class<User>("User")({
   createdAt: Schema.Date,

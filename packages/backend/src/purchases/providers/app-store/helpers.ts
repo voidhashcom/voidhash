@@ -19,13 +19,15 @@ import {
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
 import { parseISO4217CurrencyCode } from "@voidhash/lib/constants";
 import { pick } from "@voidhash/lib/lang";
-import { Effect, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { PurchaseProcessingResult } from "@voidhash/core-v2";
 import {
   AppStorePaymentProviderNotEnabledForFollowingBundleIdError,
   AppStorePurchaseProcessingIdempotencyKeyDerivationError,
 } from "./errors.ts";
+import * as Match from "effect/Match";
 
 /**
  * Picks the (single) enabled App Store payment provider configuration for the
@@ -252,50 +254,56 @@ export const getAppStorePurchaseProcessingIdempotencyKey = (input: {
         providerTransactionId: Option.getOrUndefined(transactionIdOp),
       });
 
-    switch (input.eventType) {
-      case "purchase":
-      case "renewal": {
-        if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+    return yield* Match.value(input.eventType).pipe(
+      Match.whenOr("purchase", "renewal", () =>
+        Effect.gen(function* () {
+if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
         if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
         return `apple:${transactionIdOp.value}:${input.eventType}:${transaction.purchaseDate.value}`;
-      }
-      case "expired":
-      case "canceled": {
-        if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+        })),
+      Match.whenOr("expired", "canceled", () =>
+        Effect.gen(function* () {
+if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
         if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
         return `apple:${originalTransactionIdOp.value}:${input.eventType}:${transaction.expiresDate.value}`;
-      }
-      case "refund": {
-        if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+        })),
+      Match.when("refund", () =>
+        Effect.gen(function* () {
+if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
         if (Option.isNone(transaction.revocationDate)) return yield* fail("revocationDate");
         const percentage = Option.getOrElse(
           transaction.revocationPercentage,
           () => REFUND_FULL_PERCENTAGE_MILLIUNITS,
         );
         return `apple:${transactionIdOp.value}:refund:${transaction.revocationDate.value}:${percentage}`;
-      }
-      case "revoke": {
-        if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+        })),
+      Match.when("revoke", () =>
+        Effect.gen(function* () {
+if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
         if (Option.isNone(transaction.revocationDate)) return yield* fail("revocationDate");
         return `apple:${transactionIdOp.value}:revoke:${transaction.revocationDate.value}`;
-      }
-      case "refund_reversed": {
-        if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+        })),
+      Match.when("refund_reversed", () =>
+        Effect.gen(function* () {
+if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
         if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
         return `apple:${transactionIdOp.value}:refund_reversed:${transaction.purchaseDate.value}`;
-      }
-      case "billing_retry": {
-        if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+        })),
+      Match.when("billing_retry", () =>
+        Effect.gen(function* () {
+if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
         if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
         return `apple:${originalTransactionIdOp.value}:billing_retry:${transaction.expiresDate.value}`;
-      }
-      case "extended": {
-        if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+        })),
+      Match.when("extended", () =>
+        Effect.gen(function* () {
+if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
         if (Option.isNone(transaction.expiresDate)) return yield* fail("expiresDate");
         return `apple:${originalTransactionIdOp.value}:extended:${transaction.expiresDate.value}`;
-      }
-      case "renewal_pref_change": {
-        if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+        })),
+      Match.when("renewal_pref_change", () =>
+        Effect.gen(function* () {
+if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
         if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
         const productId = Option.firstSomeOf([
           renewalInfo?.autoRenewProductId ?? Option.none<string>(),
@@ -303,9 +311,10 @@ export const getAppStorePurchaseProcessingIdempotencyKey = (input: {
         ]);
         if (Option.isNone(productId)) return yield* fail("productId");
         return `apple:${originalTransactionIdOp.value}:renewal_pref_change:${renewalOrExpiryDate.value}:${productId.value}`;
-      }
-      case "offer_redeemed": {
-        if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
+        })),
+      Match.when("offer_redeemed", () =>
+        Effect.gen(function* () {
+if (Option.isNone(transactionIdOp)) return yield* fail("transactionId");
         if (Option.isNone(transaction.purchaseDate)) return yield* fail("purchaseDate");
         const offer = Option.getOrElse(
           Option.firstSomeOf([
@@ -315,9 +324,10 @@ export const getAppStorePurchaseProcessingIdempotencyKey = (input: {
           () => "",
         );
         return `apple:${transactionIdOp.value}:offer_redeemed:${transaction.purchaseDate.value}:${offer}`;
-      }
-      case "price_increase": {
-        if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+        })),
+      Match.when("price_increase", () =>
+        Effect.gen(function* () {
+if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
         if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
         const price = Option.getOrElse(
           Option.firstSomeOf([
@@ -334,11 +344,13 @@ export const getAppStorePurchaseProcessingIdempotencyKey = (input: {
           () => "",
         );
         return `apple:${originalTransactionIdOp.value}:price_increase:${renewalOrExpiryDate.value}:${price}:${currency}`;
-      }
-      case "auto_renew_resumed": {
-        if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
+        })),
+      Match.when("auto_renew_resumed", () =>
+        Effect.gen(function* () {
+if (Option.isNone(originalTransactionIdOp)) return yield* fail("originalTransactionId");
         if (Option.isNone(renewalOrExpiryDate)) return yield* fail("renewalDate");
         return `apple:${originalTransactionIdOp.value}:auto_renew_resumed:${renewalOrExpiryDate.value}`;
-      }
-    }
+        })),
+      Match.exhaustive,
+    );
   });

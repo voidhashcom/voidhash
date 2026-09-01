@@ -1,9 +1,12 @@
-import { Context, Schema, type Effect } from "effect";
+import * as Context from "effect/Context";
+import * as Schema from "effect/Schema";
+import type * as Effect from "effect/Effect";
 
 import type { PurchasePortError } from "./PurchasePortError.ts";
 
 const Id = Schema.NonEmptyString;
 const NullableDate = Schema.NullOr(Schema.Date);
+type StoredNull = typeof Schema.Null.Type;
 
 /** Product mapping data needed by provider-neutral purchase processing. */
 export const PurchaseProductContext = Schema.Struct({
@@ -53,9 +56,9 @@ export const PurchaseTransactionRecord = Schema.Struct({
 });
 
 /** Persistence-neutral subscription projection. */
-export const PurchaseSubscriptionRecord = Schema.Struct({
+const PurchaseSubscriptionRecordValue = Schema.Struct({
   billingRetryAt: NullableDate,
-  cancelAtPeriodEnd: Schema.Boolean,
+  isCancelAtPeriodEnd: Schema.Boolean,
   canceledAt: NullableDate,
   cancellationReason: Schema.NullOr(Schema.String),
   expiresAt: NullableDate,
@@ -80,6 +83,9 @@ export const PurchaseSubscriptionRecord = Schema.Struct({
   status: Schema.Int,
   storeSubscriptionId: Id,
 });
+export const PurchaseSubscriptionRecord = PurchaseSubscriptionRecordValue.pipe(
+  Schema.encodeKeys({ isCancelAtPeriodEnd: "cancelAtPeriodEnd" }),
+);
 
 /** Persistence-neutral one-time purchase projection. */
 export const PurchaseRecord = Schema.Struct({
@@ -110,10 +116,10 @@ export interface PurchaseTransactionInsert extends Omit<
   PurchaseTransactionRecord,
   "refundedAt" | "refundReason" | "revokedAt" | "revocationReason" | "storeTransactionId"
 > {
-  readonly refundedAt?: Date | null;
-  readonly refundReason?: string | null;
-  readonly revokedAt?: Date | null;
-  readonly revocationReason?: string | null;
+  readonly refundedAt?: Date | StoredNull;
+  readonly refundReason?: string | StoredNull;
+  readonly revokedAt?: Date | StoredNull;
+  readonly revocationReason?: string | StoredNull;
   readonly storeTransactionId: string;
 }
 
@@ -136,18 +142,18 @@ export type PurchaseUpdate = Partial<Omit<PurchaseRecord, "id" | "lastEventOccur
 export interface PurchaseStateRepositoryShape {
   readonly resolveConfigurationProduct: (
     id: string,
-  ) => Effect.Effect<PurchaseProductContext | undefined, PurchasePortError>;
+  ) => Effect.Effect<PurchaseProductContext | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly findPerson: (
     id: string,
-  ) => Effect.Effect<PurchasePersonContext | undefined, PurchasePortError>;
+  ) => Effect.Effect<PurchasePersonContext | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly resolveDistinctId: (personId: string) => Effect.Effect<string, PurchasePortError>;
   readonly findPublicApiToken: (
     projectId: string,
-  ) => Effect.Effect<string | undefined, PurchasePortError>;
+  ) => Effect.Effect<string | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly findTransactionByProviderTransactionId: (input: {
     readonly paymentProviderConfigurationProductId: string;
     readonly storeTransactionId: string;
-  }) => Effect.Effect<PurchaseTransactionRecord | undefined, PurchasePortError>;
+  }) => Effect.Effect<PurchaseTransactionRecord | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly insertTransactionIfAbsent: (
     input: PurchaseTransactionInsert,
   ) => Effect.Effect<
@@ -157,11 +163,11 @@ export interface PurchaseStateRepositoryShape {
   readonly findSubscriptionByStoreSubscriptionId: (input: {
     readonly paymentProviderConfigurationProductId: string;
     readonly storeSubscriptionId: string;
-  }) => Effect.Effect<PurchaseSubscriptionRecord | undefined, PurchasePortError>;
+  }) => Effect.Effect<PurchaseSubscriptionRecord | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly findSubscriptionForRenewal: (input: {
     readonly paymentProviderConfigurationProductId: string;
     readonly storeSubscriptionId: string;
-  }) => Effect.Effect<PurchaseSubscriptionRecord | undefined, PurchasePortError>;
+  }) => Effect.Effect<PurchaseSubscriptionRecord | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly insertSubscriptionIfAbsent: (
     input: PurchaseSubscriptionInsert,
   ) => Effect.Effect<
@@ -174,7 +180,7 @@ export interface PurchaseStateRepositoryShape {
   readonly findPurchaseByProviderKey: (input: {
     readonly paymentProviderConfigurationProductId: string;
     readonly providerKey: string;
-  }) => Effect.Effect<PurchaseRecord | undefined, PurchasePortError>;
+  }) => Effect.Effect<PurchaseRecord | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly insertPurchaseIfAbsent: (
     input: PurchaseInsert,
   ) => Effect.Effect<
@@ -189,10 +195,10 @@ export interface PurchaseStateRepositoryShape {
   ) => Effect.Effect<PurchaseRepositoryUpdateResult, PurchasePortError>;
   readonly lockSubscriptionForUpdate: (
     id: string,
-  ) => Effect.Effect<PurchaseSubscriptionRecord | undefined, PurchasePortError>;
+  ) => Effect.Effect<PurchaseSubscriptionRecord | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly lockPurchaseForUpdate: (
     id: string,
-  ) => Effect.Effect<PurchaseRecord | undefined, PurchasePortError>;
+  ) => Effect.Effect<PurchaseRecord | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly countActiveSubscriptions: (personId: string) => Effect.Effect<number, PurchasePortError>;
   readonly countActivePurchases: (personId: string) => Effect.Effect<number, PurchasePortError>;
 }

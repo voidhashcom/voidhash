@@ -14,7 +14,10 @@
  * deployed over a table that still holds plaintext rows: reads keep working,
  * and rows become ciphertext as they are next written (or by a backfill).
  */
-import { Effect, Encoding, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Schema from "effect/Schema";
+import { getRandomValues, subtle } from "uncrypto";
 
 const VERSION_PREFIX = "v1.aesgcm:";
 const IV_BYTES = 12;
@@ -44,7 +47,7 @@ const bufferSource = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
 const importKey = (rawKey: Uint8Array, usage: "encrypt" | "decrypt") =>
   Effect.tryPromise({
     try: () =>
-      crypto.subtle.importKey("raw", bufferSource(rawKey), { name: "AES-GCM" }, false, [usage]),
+      subtle.importKey("raw", bufferSource(rawKey), { name: "AES-GCM" }, false, [usage]),
     catch: (cause) =>
       new SecretKeyError({ message: `Failed to import AES-GCM key: ${String(cause)}` }),
   });
@@ -78,11 +81,10 @@ export const encryptSecret = (
 ): Effect.Effect<string, SecretKeyError> =>
   Effect.gen(function* () {
     const key = yield* importKey(rawKey, "encrypt");
-    // oxlint-disable-next-line effect/noGlobals -- WebCrypto by design (see module header: no Node crypto, so this runs unchanged on Cloudflare Workers); Effect v4's Crypto service ships no platform-neutral layer, only Node/Browser/Bun ones.
-    const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+    const iv = getRandomValues(new Uint8Array(IV_BYTES));
     const ciphertext = yield* Effect.tryPromise({
       try: () =>
-        crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext)),
+        subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext)),
       catch: (cause) =>
         new SecretKeyError({ message: `AES-GCM encryption failed: ${String(cause)}` }),
     });
@@ -119,7 +121,7 @@ export const decryptSecret = (
     const ciphertext = combined.slice(IV_BYTES);
     const key = yield* importKey(rawKey, "decrypt");
     const plaintext = yield* Effect.tryPromise({
-      try: () => crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, bufferSource(ciphertext)),
+      try: () => subtle.decrypt({ name: "AES-GCM", iv }, key, bufferSource(ciphertext)),
       catch: (cause) =>
         new SecretDecryptionError({
           message: `AES-GCM decryption failed (wrong key or tampered value): ${String(cause)}`,

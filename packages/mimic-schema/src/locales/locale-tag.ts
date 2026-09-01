@@ -1,18 +1,14 @@
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 
 /**
  * Canonicalizes a BCP-47 locale tag via `Intl.getCanonicalLocales`, normalizing
  * casing and structure (e.g. `pt-br` → `pt-BR`). Returns `null` for input the
  * platform rejects as a structurally invalid tag (a thrown `RangeError`).
  */
-export function canonicalizeLocaleTag(tag: string): string | null {
-  return Effect.runSync(
-    Effect.try(() => {
-      const [canonical] = Intl.getCanonicalLocales(tag);
-      return canonical ?? null;
-    }).pipe(Effect.orElseSucceed(() => null)),
-  );
-}
+export const canonicalizeLocaleTag = (tag: string): Option.Option<string> =>
+  Result.try(() => Intl.getCanonicalLocales(tag)).pipe(Result.getSuccess, Option.flatMap(Arr.head));
 
 /**
  * The primary language subtag of a locale tag (`de-AT` → `de`). Used for

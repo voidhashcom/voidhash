@@ -1,3 +1,5 @@
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
 /**
  * The VoidQL function registry — a **default-deny** map of VoidQL function
  * name → ClickHouse function with arity and result type. A function is callable
@@ -191,8 +193,9 @@ const REGISTRY: Readonly<Record<string, FnSpec>> = {
   },
 };
 
-/** Resolve a VoidQL function name (case-insensitive) to its spec, or `undefined`. */
-export const lookupFunction = (name: string): FnSpec | undefined => REGISTRY[name.toLowerCase()];
+/** Resolve a VoidQL function name (case-insensitive) to its spec. */
+export const lookupFunction = (name: string): Option.Option<FnSpec> =>
+  Option.fromNullishOr(REGISTRY[name.toLowerCase()]);
 
 /** All registered VoidQL function names (for agent/editor schema context). */
-export const registeredFunctionNames = (): readonly string[] => Object.keys(REGISTRY);
+export const registeredFunctionNames = (): readonly string[] => R.keys(REGISTRY);

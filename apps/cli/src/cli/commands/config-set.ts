@@ -1,5 +1,6 @@
 import { Argument, Command } from "effect/unstable/cli";
-import { Console, Effect } from "effect";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
 import { userError } from "../../utils/error-formatter";

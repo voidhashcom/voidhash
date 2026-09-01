@@ -1,16 +1,11 @@
+import * as P from "effect/Predicate";
 import type { Primitive } from "@voidhash/mimic-core";
 
 import type { MaybeEntry } from "./types.ts";
 
 /** Narrows a possibly-wrapped array element to its CRDT ordered-entry envelope. */
 function isArrayEntry<T>(entry: MaybeEntry<T>): entry is Primitive.ArrayEntrySnapshot<T> {
-  return (
-    entry !== null &&
-    typeof entry === "object" &&
-    "id" in entry &&
-    "pos" in entry &&
-    "value" in entry
-  );
+  return entry !== null && P.isObject(entry) && "id" in entry && "pos" in entry && "value" in entry;
 }
 
 /**

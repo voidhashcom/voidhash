@@ -1,4 +1,4 @@
-import { Context } from "effect";
+import * as Context from "effect/Context";
 
 /**
  * Public endpoints used to build URLs for paywall release HTML stored in

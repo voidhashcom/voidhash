@@ -2,21 +2,22 @@ import {
   make as makeCoreClient,
   type VoidhashCoreClient,
   type EvaluateFeatureFlagsBody,
-  type SdkEvaluateFeatureFlagsParams,
+  type SdkDevelopmentPurchaseBodyJsonEncoding,
   type SdkFeatureFlagsResponse,
-  type SdkGetPersonParams,
   type SdkGetSdkSchemaParams,
-  type SdkIdentifyPersonParams,
   type SdkIdentifyBody,
   type SdkResolvePaywallBody,
   type SdkSyncPersonAttributesBody,
-  type SdkSyncPersonAttributesParams,
   type SdkSyncTransactionRequest,
 } from "@voidhash/generated-clients";
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
-import type { RuntimeSchema } from "../schema/runtime";
+import { RuntimeSchemaValue } from "../schema/runtime";
 import { SdkConfiguration } from "../sdk-configuration";
 import { withHttpDebugLogging } from "./http-debug-client";
 
@@ -25,51 +26,13 @@ export interface ReactNativeFeatureFlagsResponse {
     readonly enabled: boolean;
     readonly key: string;
     readonly payload: unknown;
-    readonly variantKey: string | null;
+    readonly variantKey: Option.Option<string>;
   }>;
 }
 
-export interface ReactNativeSyncTransactionRequest {
-  readonly appAccountToken?: string | undefined;
-  readonly platform: "android" | "ios";
-  readonly providerProductId?: string | undefined;
-  readonly productSlug: string;
-  readonly purchaseDate: number;
-  readonly quantity: number;
-  readonly receipt?: string | undefined;
-  readonly purchaseToken?: string | undefined;
-  readonly transactionId: string;
-}
-
-export interface ReactNativeSdkHeaders {
-  readonly "x-client-bundle-id": string;
-  readonly "x-client-locale"?: string | undefined;
-  readonly "x-client-version"?: string | undefined;
-  readonly "x-distinct-id": string;
-  readonly "x-is-backgrounded": "false" | "true";
-  readonly "x-is-debug-build": "false" | "true";
-  readonly "x-nonce": string;
-  readonly "x-observer-mode": "false" | "true";
-  readonly "x-platform": string;
-  readonly "x-platform-brand"?: string | undefined;
-  readonly "x-platform-device"?: string | undefined;
-  readonly "x-platform-flavor": "browser" | "native";
-  readonly "x-platform-flavor-version"?: string | undefined;
-  readonly "x-platform-version"?: string | undefined;
-  readonly "x-preferred-locales"?: string | undefined;
-  readonly "x-publishable-key": string;
-  readonly "x-sdk": "web" | "react-native";
-  readonly "x-sdk-version": string;
-  readonly "x-storefront"?: string | undefined;
-  readonly "x-environment": "production" | "development";
-}
-
-export interface ReactNativeDevelopmentPurchaseRequest {
-  readonly devTransactionId: string;
-  readonly productSlug: string;
-  readonly purchaseDate: number;
-  readonly quantity?: number;
-}
+export type ReactNativeSyncTransactionRequest = SdkSyncTransactionRequest;
+export type ReactNativeSdkHeaders = SdkGetSdkSchemaParams;
+export type ReactNativeDevelopmentPurchaseRequest = SdkDevelopmentPurchaseBodyJsonEncoding;
 
 const normalizeFeatureFlagsResponse = (
   response: SdkFeatureFlagsResponse,
@@ -78,7 +41,7 @@ const normalizeFeatureFlagsResponse = (
     enabled: flag.enabled,
     key: flag.key,
     payload: null,
-    variantKey: flag.variantKey,
+    variantKey: Option.fromNullishOr(flag.variantKey),
   })),
 });
 
@@ -97,9 +60,9 @@ export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
      * `RuntimeSchema`.
      */
     getSchema: (request: { headers: ReactNativeSdkHeaders }) =>
-      Effect.map(
-        client.sdkGetSdkSchema(request.headers as SdkGetSdkSchemaParams),
-        (response): RuntimeSchema => response as unknown as RuntimeSchema,
+      Effect.flatMap(
+        client.sdkGetSdkSchema(request.headers),
+        Schema.decodeUnknownEffect(RuntimeSchemaValue),
       ),
     evaluateFeatureFlags: (request: {
       headers: ReactNativeSdkHeaders;
@@ -107,21 +70,21 @@ export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
     }) =>
       Effect.map(
         client.sdkEvaluateFeatureFlags({
-          params: request.headers as SdkEvaluateFeatureFlagsParams,
+          params: request.headers,
           payload: request.payload,
         }),
         normalizeFeatureFlagsResponse,
       ),
     getPerson: (request: { headers: ReactNativeSdkHeaders }) =>
-      client.sdkGetPerson(request.headers as SdkGetPersonParams),
+      client.sdkGetPerson(request.headers),
     identify: (request: { headers: ReactNativeSdkHeaders; payload: SdkIdentifyBody }) =>
       client.sdkIdentifyPerson({
-        params: request.headers as SdkIdentifyPersonParams,
+        params: request.headers,
         payload: request.payload,
       }),
     resolvePaywall: (request: { headers: ReactNativeSdkHeaders; payload: SdkResolvePaywallBody }) =>
       client.sdkResolvePaywall({
-        params: request.headers as Parameters<typeof client.sdkResolvePaywall>[0]["params"],
+        params: request.headers,
         payload: request.payload,
       }),
     syncPersonAttributes: (request: {
@@ -129,7 +92,7 @@ export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
       payload: SdkSyncPersonAttributesBody;
     }) =>
       client.sdkSyncPersonAttributes({
-        params: request.headers as SdkSyncPersonAttributesParams,
+        params: request.headers,
         payload: request.payload,
       }),
     syncTransaction: (request: {
@@ -137,21 +100,21 @@ export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
       payload: ReactNativeSyncTransactionRequest;
     }) =>
       client.sdkSyncTransaction({
-        params: request.headers as Parameters<typeof client.sdkSyncTransaction>[0]["params"],
-        payload: request.payload as SdkSyncTransactionRequest,
+        params: request.headers,
+        payload: request.payload,
       }),
     developmentPurchase: (request: {
       headers: ReactNativeSdkHeaders;
       payload: ReactNativeDevelopmentPurchaseRequest;
     }) =>
       client.sdkDevelopmentPurchase({
-        params: request.headers as Parameters<typeof client.sdkDevelopmentPurchase>[0]["params"],
+        params: request.headers,
         payload: request.payload,
       }),
   },
 });
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("makeApiClient")(function* effect() {
   const sdkConfiguration = yield* SdkConfiguration;
   const httpClient = yield* HttpClient.HttpClient;
   const configuredHttpClient = (
@@ -164,14 +127,15 @@ const make = Effect.gen(function* effect() {
     ),
   );
   return bindReactNativeSdkClient(
-    makeCoreClient(httpClient as VoidhashCoreClient["httpClient"], {
+    makeCoreClient(httpClient, {
       transformClient: () => Effect.succeed(configuredHttpClient),
     }),
   );
 });
 
-export class ApiClient extends Context.Service<ApiClient, Effect.Success<typeof make>>()(
-  "rn-voidhash/ApiClient",
-) {
-  static Default = Layer.effect(ApiClient, make);
+export class ApiClient extends Context.Service<
+  ApiClient,
+  Effect.Success<ReturnType<typeof make>>
+>()("rn-voidhash/ApiClient") {
+  static Default = Layer.effect(ApiClient, make());
 }

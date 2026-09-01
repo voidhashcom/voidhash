@@ -1,5 +1,6 @@
 import { Prompt } from "effect/unstable/cli";
-import { Console, Effect } from "effect";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
 
 import { ApiClient } from "../api-client";
 
@@ -17,7 +18,7 @@ export const createOrganization = () =>
   Effect.gen(function* createOrganization() {
     const client = yield* ApiClient;
 
-    const attemptToCreateOrganization = Effect.gen(function* attemptToCreateOrganization() {
+    const attemptToCreateOrganization = Effect.fn("attemptToCreateOrganization")(function* attemptToCreateOrganization() {
       const name = yield* Prompt.run(
         Prompt.text({
           message: "Enter a name for the organization",
@@ -32,7 +33,7 @@ export const createOrganization = () =>
       yield* Console.log(`Successfully created organization ${organization.name}`);
 
       return organization;
-    });
+    })();
 
     return yield* attemptToCreateOrganization;
   });

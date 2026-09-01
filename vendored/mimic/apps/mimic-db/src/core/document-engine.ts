@@ -1,3 +1,4 @@
+import * as Arr from "effect/Array";
 import {
   applyBatch,
   cloneValue,
@@ -12,7 +13,10 @@ import {
   type MigrationRegistry,
 } from "@voidhash/mimic-server/migrate";
 import { causeMessage } from "@voidhash/lib/lang";
-import { Clock, Effect, Result } from "effect";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 
 import { sanitizeValueForSchema } from "../document/schema.ts";
 import type { SubmitTransactionResponse, TransactionEnvelope } from "../document/transaction.ts";
@@ -32,7 +36,7 @@ export interface LoadedDocument {
   readonly currentSeq: number;
   readonly snapshotSeq: number;
   readonly schemaVersion: number;
-  readonly migrationVersion: number | null;
+  readonly migrationVersion: Option.Option<number>;
   readonly collectionId: string;
 }
 
@@ -41,7 +45,7 @@ export interface DocumentEngineApi {
     collectionId: string,
     value: Value,
     schemaVersion: number,
-    migrationVersion: number | null,
+    migrationVersion: Option.Option<number>,
   ) => Effect.Effect<void>;
   readonly load: () => Effect.Effect<LoadedDocument, NotFoundError | MigrationFailedError>;
   readonly submit: (
@@ -81,39 +85,41 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
     fromVersion: number,
     ctx: CollectionContext,
   ): Effect.Effect<Value, MigrationFailedError> =>
-    Effect.gen(function* () {
-      let current = value;
-      for (let version = fromVersion + 1; version <= ctx.schemaVersion; version++) {
-        const target = ctx.versions.find((entry) => entry.version === version);
-        if (!target) {
-          return yield* Effect.fail(
-            migrationFailed(`Missing schema version ${version} for collection ${ctx.collectionId}`),
-          );
-        }
-        if (target.dataMigrationSource !== null) {
-          return yield* Effect.fail(
-            migrationFailed(
-              `Legacy schema version ${version} requires executable source, which is no longer supported`,
-            ),
-          );
-        }
-        const previous = ctx.versions.find((entry) => entry.version === version - 1);
-        const result = reconcileMigrationValue({
-          oldSchema: parseSchema(previous?.schemaJson ?? target.schemaJson),
-          newSchema: parseSchema(target.schemaJson),
-          value: current,
-        });
-        if (!result.ok) {
-          return yield* Effect.fail(migrationFailed(result.error.message));
-        }
-        if (result.value === undefined) {
-          return yield* Effect.fail(migrationFailed("Migration produced an empty value"));
-        }
-        current = result.value;
-        current = yield* sanitize(target.schemaJson, current);
-      }
-      return current;
-    });
+    Effect.reduce(
+      Arr.range(fromVersion + 1, ctx.schemaVersion),
+      () => value,
+      (current, version) =>
+        Effect.gen(function* () {
+          const target = ctx.versions.find((entry) => entry.version === version);
+          if (!target) {
+            return yield* Effect.fail(
+              migrationFailed(
+                `Missing schema version ${version} for collection ${ctx.collectionId}`,
+              ),
+            );
+          }
+          if (Option.isSome(target.dataMigrationSource)) {
+            return yield* Effect.fail(
+              migrationFailed(
+                `Legacy schema version ${version} requires executable source, which is no longer supported`,
+              ),
+            );
+          }
+          const previous = ctx.versions.find((entry) => entry.version === version - 1);
+          const result = reconcileMigrationValue({
+            oldSchema: parseSchema(previous?.schemaJson ?? target.schemaJson),
+            newSchema: parseSchema(target.schemaJson),
+            value: current,
+          });
+          if (!result.ok) {
+            return yield* Effect.fail(migrationFailed(result.error.message));
+          }
+          if (Option.isNone(result.value)) {
+            return yield* Effect.fail(migrationFailed("Migration produced an empty value"));
+          }
+          return yield* sanitize(target.schemaJson, result.value.value);
+        }),
+    );
 
   const sanitize = (
     schemaJson: SchemaObject,
@@ -126,17 +132,19 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
 
   const load: DocumentEngineApi["load"] = () =>
     Effect.gen(function* () {
-      const meta = yield* store.readMeta();
-      if (!meta || meta.deletedAt !== null) {
+      const metaOption = yield* store.readMeta();
+      if (Option.isNone(metaOption) || Option.isSome(metaOption.value.deletedAt)) {
         return yield* Effect.fail(notFound("Document not found"));
       }
-      const snapshot = yield* store.loadLatestSnapshot();
-      if (!snapshot) {
+      const meta = metaOption.value;
+      const snapshotOption = yield* store.loadLatestSnapshot();
+      if (Option.isNone(snapshotOption)) {
         return yield* Effect.fail(notFound("Document not found"));
       }
+      const snapshot = snapshotOption.value;
       let value = cloneValue(snapshot.value);
       const commands = yield* store.listCommandsAfter(snapshot.seq);
-      if (commands.length > 0) {
+      if (Arr.isReadonlyArrayNonEmpty(commands)) {
         value = applyBatch(
           value,
           commands.map((row) => row.command),
@@ -148,17 +156,17 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
       let changed = false;
 
       const ctx = yield* schema.getCollectionContext(meta.collectionId);
-      if (ctx && schemaVersion < ctx.schemaVersion) {
-        value = yield* migrateUp(value, schemaVersion, ctx);
-        schemaVersion = ctx.schemaVersion;
+      if (Option.isSome(ctx) && schemaVersion < ctx.value.schemaVersion) {
+        value = yield* migrateUp(value, schemaVersion, ctx.value);
+        schemaVersion = ctx.value.schemaVersion;
         changed = true;
       }
 
-      if (ctx) {
-        const definition = migrations.find(ctx.databaseName, ctx.collectionName);
-        if (definition) {
-          const currentMigrationVersion = migrationVersion ?? 0;
-          const latestMigrationVersion = definition.migrations.length;
+      if (Option.isSome(ctx)) {
+        const definition = migrations.find(ctx.value.databaseName, ctx.value.collectionName);
+        if (Option.isSome(definition)) {
+          const currentMigrationVersion = Option.getOrElse(migrationVersion, () => 0);
+          const latestMigrationVersion = definition.value.migrations.length;
           if (currentMigrationVersion > latestMigrationVersion) {
             return yield* Effect.fail(
               migrationFailed(
@@ -166,16 +174,24 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
               ),
             );
           }
-          for (const migration of definition.migrations.slice(currentMigrationVersion)) {
-            value = yield* Effect.try({
-              try: () => runDirectMigration(migration, value),
-              catch: (error) => migrationFailed(causeMessage(error)),
-            });
-            migrationVersion = migration.version;
-            changed = true;
-          }
-          if (migrationVersion === null) {
-            migrationVersion = 0;
+          value = yield* Effect.reduce(
+            definition.value.migrations.slice(currentMigrationVersion),
+            () => value,
+            (current, migration) =>
+              Effect.try({
+                try: () => runDirectMigration(migration, current),
+                catch: (error) => migrationFailed(causeMessage(error)),
+              }).pipe(
+                Effect.tap(() =>
+                  Effect.sync(() => {
+                    migrationVersion = Option.some(migration.version);
+                    changed = true;
+                  }),
+                ),
+              ),
+          );
+          if (Option.isNone(migrationVersion)) {
+            migrationVersion = Option.some(0);
             changed = true;
           }
         }
@@ -216,15 +232,15 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
       }
 
       const ctx = yield* deps.schema.getCollectionContext(loaded.collectionId);
-      const schemaJson = ctx?.schemaJson;
+      const schemaJson = Option.map(ctx, (context) => context.schemaJson);
       const commands = envelope.commands;
 
       const applied = yield* Effect.result(
         Effect.try({
           try: () => {
             const next = applyBatch(loaded.value, commands);
-            if (!schemaJson) return next;
-            return sanitizeValueForSchema(schemaJson, next);
+            if (Option.isNone(schemaJson)) return next;
+            return sanitizeValueForSchema(schemaJson.value, next);
           },
           catch: causeMessage,
         }),
@@ -255,9 +271,9 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
   const remove: DocumentEngineApi["remove"] = () =>
     Effect.gen(function* () {
       const meta = yield* store.readMeta();
-      if (meta) {
+      if (Option.isSome(meta)) {
         const deletedAt = yield* Clock.currentTimeMillis;
-        yield* store.setMeta({ deletedAt });
+        yield* store.setMeta({ deletedAt: Option.some(deletedAt) });
       }
     });
 

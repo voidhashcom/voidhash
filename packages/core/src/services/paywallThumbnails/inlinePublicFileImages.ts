@@ -1,4 +1,8 @@
-import { Effect, Encoding } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
 
 import type { PublicFileStoreError, PublicFileStoreShape } from "../storage/PublicFileStore.ts";
 
@@ -12,17 +16,22 @@ const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\
 
 const toBase64 = (bytes: Uint8Array): string => Encoding.encodeBase64(bytes);
 
-const keyFromUrl = (url: string, prefix: string): Effect.Effect<string | null> => {
+const keyFromUrl = (url: string, prefix: string): Effect.Effect<Option.Option<string>> => {
   const raw = url.slice(prefix.length).split(/[?#]/, 1)[0] ?? "";
   if (raw === "") {
-    return Effect.succeed(null);
+    return Effect.succeed(Option.none());
   }
   // The renderer emits `encodeURI(url)`; recover the raw object key. A malformed
   // percent-escape is treated as "not one of ours" and left untouched.
-  return Effect.try({ try: () => decodeURIComponent(raw), catch: () => null }).pipe(
-    Effect.catch(() => Effect.succeed(null)),
-  );
+  return Effect.try(() => decodeURIComponent(raw)).pipe(Effect.option);
 };
+
+interface InlineState {
+  readonly cursor: number;
+  readonly dataUris: HashMap.HashMap<string, Option.Option<string>>;
+  readonly out: string;
+  readonly projectedBytes: number;
+}
 
 /**
  * Rewrites every public-file-store URL (`${publicBaseUrl}/files/<key>`) inside
@@ -46,54 +55,78 @@ export const inlinePublicFileImages = (
   store: Pick<PublicFileStoreShape, "publicBaseUrl" | "getObject">,
   options?: { readonly maxHtmlBytes?: number },
 ): Effect.Effect<string, PublicFileStoreError> =>
-  Effect.gen(function* () {
+  Effect.fn("inlinePublicFileImages")(function* () {
     const prefix = `${store.publicBaseUrl}/files/`;
     const maxHtmlBytes = options?.maxHtmlBytes ?? DEFAULT_MAX_HTML_BYTES;
     const pattern = new RegExp(`${escapeRegExp(prefix)}[^"'()<>\\s&\\\\]*`, "g");
 
-    const dataUris = new Map<string, string | null>();
-    let out = "";
-    let cursor = 0;
-    let projectedBytes = html.length;
+    const finalState = yield* Effect.reduce(
+      Arr.fromIterable(html.matchAll(pattern)),
+      (): InlineState => ({
+        cursor: 0,
+        dataUris: HashMap.empty(),
+        out: "",
+        projectedBytes: html.length,
+      }),
+      Effect.fn("inlinePublicFileImages.match")(function* (
+        state: InlineState,
+        match: RegExpExecArray,
+      ) {
+        const url = match[0];
+        const start = match.index;
+        const end = start + url.length;
+        const next: InlineState = {
+          ...state,
+          cursor: start,
+          out: state.out + html.slice(state.cursor, start),
+        };
 
-    for (const match of html.matchAll(pattern)) {
-      const url = match[0];
-      const start = match.index;
-      const end = start + url.length;
-      out += html.slice(cursor, start);
-      cursor = start;
+        if (html.startsWith("&amp;", end)) return next;
 
-      if (html.startsWith("&amp;", end)) {
-        continue;
-      }
-
-      let dataUri = dataUris.get(url);
-      if (dataUri === undefined) {
-        const key = yield* keyFromUrl(url, prefix);
-        const object = yield* Effect.suspend(() => {
-          if (key === null) return Effect.succeed(null);
-          return store.getObject(key);
+        const cached = HashMap.get(state.dataUris, url);
+        const dataUri = yield* Option.match(cached, {
+          onSome: (value) => Effect.succeed(value),
+          onNone: () =>
+            keyFromUrl(url, prefix).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.succeed(Option.none<string>()),
+                  onSome: (key) =>
+                    store
+                      .getObject(key)
+                      .pipe(
+                        Effect.map((object) =>
+                          Option.map(
+                            object,
+                            (object) =>
+                              `data:${Option.getOrElse(object.contentType, () => "image/png")};base64,${toBase64(object.body)}`,
+                          ),
+                        ),
+                      ),
+                }),
+              ),
+            ),
         });
-        dataUri = null;
-        if (object !== null) {
-          dataUri = `data:${object.contentType ?? "image/png"};base64,${toBase64(object.body)}`;
+        const nextWithCache = {
+          ...next,
+          dataUris: HashMap.set(next.dataUris, url, dataUri),
+        };
+        if (Option.isNone(dataUri)) return nextWithCache;
+        if (next.projectedBytes + dataUri.value.length - url.length > maxHtmlBytes) {
+          yield* Effect.logWarning(
+            `Skipping thumbnail image inline for ${url}: document would exceed ${maxHtmlBytes} bytes`,
+          );
+          return nextWithCache;
         }
-        dataUris.set(url, dataUri);
-      }
-      if (dataUri === null) {
-        continue;
-      }
-      if (projectedBytes + dataUri.length - url.length > maxHtmlBytes) {
-        yield* Effect.logWarning(
-          `Skipping thumbnail image inline for ${url}: document would exceed ${maxHtmlBytes} bytes`,
-        );
-        continue;
-      }
 
-      projectedBytes += dataUri.length - url.length;
-      out += dataUri;
-      cursor = end;
-    }
+        return {
+          ...nextWithCache,
+          cursor: end,
+          out: next.out + dataUri.value,
+          projectedBytes: next.projectedBytes + dataUri.value.length - url.length,
+        };
+      }),
+    );
 
-    return out + html.slice(cursor);
-  });
+    return finalState.out + html.slice(finalState.cursor);
+  })();

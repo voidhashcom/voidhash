@@ -1,79 +1,95 @@
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+
+/** Product durations accepted by the runtime schema. */
+export const RuntimeProductDuration = Schema.Literals([
+  "weekly",
+  "monthly",
+  "quarterly",
+  "semi-annual",
+  "annual",
+]);
+export type RuntimeProductDuration = typeof RuntimeProductDuration.Type;
+
+export const RuntimeAppleAppStoreProductConfiguration = Schema.Struct({
+  productId: Schema.String,
+});
+export type RuntimeAppleAppStoreProductConfiguration =
+  typeof RuntimeAppleAppStoreProductConfiguration.Type;
+
+export const RuntimeGooglePlayProductConfiguration = Schema.Struct({
+  basePlanId: Schema.optional(Schema.String),
+  productId: Schema.String,
+});
+export type RuntimeGooglePlayProductConfiguration =
+  typeof RuntimeGooglePlayProductConfiguration.Type;
+
+export const RuntimeDevelopmentProductConfiguration = Schema.Struct({
+  currencyCode: Schema.Literal("USD"),
+  duration: Schema.OptionFromNullOr(RuntimeProductDuration),
+  period: Schema.Literals(["week", "month", "year", "lifetime"]),
+  periodCount: Schema.Number,
+  price: Schema.Number,
+  priceInMinorUnits: Schema.Number,
+  productId: Schema.String,
+  warning: Schema.OptionFromNullOr(Schema.String),
+});
+export type RuntimeDevelopmentProductConfiguration =
+  typeof RuntimeDevelopmentProductConfiguration.Type;
+
+export const RuntimeProductProviders = Schema.Struct({
+  appleAppStore: Schema.optional(RuntimeAppleAppStoreProductConfiguration),
+  development: Schema.optional(RuntimeDevelopmentProductConfiguration),
+  googlePlay: Schema.optional(RuntimeGooglePlayProductConfiguration),
+});
+export type RuntimeProductProviders = typeof RuntimeProductProviders.Type;
+
+export const RuntimeProductDefinition = Schema.Struct({
+  configuration: Schema.Struct({
+    perks: Schema.Record(Schema.String, Schema.Literal(true)),
+    providers: RuntimeProductProviders,
+  }),
+  duration: Schema.optional(Schema.OptionFromNullOr(RuntimeProductDuration)),
+  id: Schema.optional(Schema.String),
+  properties: Schema.Struct({ name: Schema.String }),
+  slug: Schema.String,
+  type: Schema.Literals(["subscription", "one-time", "one-time-consumable"]),
+});
+export type RuntimeProductDefinition = typeof RuntimeProductDefinition.Type;
+
+export const RuntimePaywallLocationDefinition = Schema.Struct({
+  description: Schema.OptionFromNullOr(Schema.String).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed(Option.none())),
+  ),
+  name: Schema.String,
+  slug: Schema.String,
+});
+export type RuntimePaywallLocationDefinition = typeof RuntimePaywallLocationDefinition.Type;
+
+export const RuntimePerkDefinition = Schema.Struct({
+  name: Schema.String,
+  slug: Schema.String,
+});
+export type RuntimePerkDefinition = typeof RuntimePerkDefinition.Type;
+
 /**
- * Plain-data shapes representing the schema as fetched from the server at
- * runtime. After the server-first redesign, these replace the old DSL-built
- * `ProductDefinition` / `PaywallLocationDefinition` / `PerkDefinition` classes.
- *
- * The SDK fetches a `RuntimeSchema` on `Provider` mount and uses it for things
- * like resolving product slugs to native store productIds when calling
- * StoreKit / Google Play.
+ * The full schema fetched from the server, decoded so nullable wire fields
+ * are represented as `Option` inside the SDK.
  */
-
-export interface RuntimeAppleAppStoreProductConfiguration {
-  readonly productId: string;
-}
-
-export interface RuntimeGooglePlayProductConfiguration {
-  readonly productId: string;
-  readonly basePlanId?: string;
-}
-
-export interface RuntimeDevelopmentProductConfiguration {
-  readonly currencyCode: "USD";
-  readonly duration: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
-  readonly period: "week" | "month" | "year" | "lifetime";
-  readonly periodCount: number;
-  readonly price: number;
-  readonly priceInMinorUnits: number;
-  readonly productId: string;
-  readonly warning: string | null;
-}
-
-export interface RuntimeProductProviders {
-  readonly appleAppStore?: RuntimeAppleAppStoreProductConfiguration;
-  readonly development?: RuntimeDevelopmentProductConfiguration;
-  readonly googlePlay?: RuntimeGooglePlayProductConfiguration;
-}
-
-export interface RuntimeProductDefinition {
-  readonly id?: string;
-  readonly duration?: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
-  readonly slug: string;
-  readonly type: "subscription" | "one-time" | "one-time-consumable";
-  readonly properties: { readonly name: string };
-  readonly configuration: {
-    readonly providers: RuntimeProductProviders;
-    readonly perks: Readonly<Record<string, true>>;
-  };
-}
-
-export interface RuntimePaywallLocationDefinition {
-  readonly slug: string;
-  readonly name: string;
-  readonly description: string | null;
-}
-
-export interface RuntimePerkDefinition {
-  readonly slug: string;
-  readonly name: string;
-}
-
-/**
- * The full schema as fetched from the server. Keyed by slug.
- *
- * The `version` is a sha256 hash of the schema state on the server and is
- * what `voidhash-cli types check` and the dev-mode runtime warning compare
- * against the generated `.d.ts` header.
- */
-export interface RuntimeSchema {
-  readonly version: string;
-  readonly products: Readonly<Record<string, RuntimeProductDefinition>>;
-  readonly locations: Readonly<Record<string, RuntimePaywallLocationDefinition>>;
-  readonly perks: Readonly<Record<string, RuntimePerkDefinition>>;
-}
+export const RuntimeSchemaValue = Schema.Struct({
+  locations: Schema.Record(Schema.String, RuntimePaywallLocationDefinition),
+  perks: Schema.Record(Schema.String, RuntimePerkDefinition),
+  products: Schema.Record(Schema.String, RuntimeProductDefinition),
+  version: Schema.String,
+});
+export type RuntimeSchemaValue = typeof RuntimeSchemaValue.Type;
+export type RuntimeSchema = RuntimeSchemaValue;
+export type RuntimeSchemaEncoded = typeof RuntimeSchemaValue.Encoded;
 
 export const createEmptyRuntimeSchema = (): RuntimeSchema => ({
-  version: "",
-  products: {},
   locations: {},
   perks: {},
+  products: {},
+  version: "",
 });

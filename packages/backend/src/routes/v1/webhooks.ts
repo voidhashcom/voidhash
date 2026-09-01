@@ -1,3 +1,5 @@
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
 import {
   createdResponse,
   VoidhashV1Api,
@@ -15,9 +17,16 @@ import {
   ApiWebhookValidationError,
 } from "@voidhash/api-contracts/errors";
 import { WebhookManagerService } from "@voidhash/core/services/webhookManager/WebhookManagerService";
-import { decodeCursor, encodeCursor, paginate, resolveRequestProjectId } from "@voidhash/core/utils";
+import {
+  decodeCursor,
+  encodeCursor,
+  paginate,
+  resolveRequestProjectId,
+} from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -34,7 +43,7 @@ import {
 const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
 
 /** Resolves an optional opaque cursor to the delivery id it points at. */
-const toAfterDeliveryId = (cursor: string | undefined) => {
+const toAfterDeliveryId = (cursor: string | typeof Schema.Undefined.Type) => {
   if (cursor === undefined) return Effect.succeed(undefined);
   return decodeCursor(cursor);
 };
@@ -68,7 +77,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
     return handlers
       .handle("createWebhookEndpoint", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -87,7 +96,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               created,
               `/webhooks/endpoints/${created.id}?projectId=${projectId}`,
             );
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -100,20 +109,20 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("listWebhookEndpoints", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const endpoints = yield* webhookManagerService.getEndpoints({ projectId });
             // The service returns rows in database order; cursors only mean
             // something over a stable one.
-            const sorted = [...endpoints].sort((a, b) => a.id.localeCompare(b.id));
+            const sorted = Arr.sortWith([...endpoints], (item) => item.id, Order.String);
             const page = yield* paginate(sorted, (endpoint) => endpoint.id, query);
             return {
               data: page.data.map(toEndpointResponse),
               pageInfo: page.pageInfo,
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -124,7 +133,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("getWebhookEndpoint", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -133,7 +142,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               projectId,
             });
             return toEndpointResponse(endpoint);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -146,17 +155,21 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("updateWebhookEndpoint", ({ params, payload, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
+            const { description, ...endpointUpdates } = payload;
             const endpoint = yield* webhookManagerService.updateEndpoint({
-              ...payload,
+              ...endpointUpdates,
+              ...(description === undefined
+                ? {}
+                : { description: Option.fromNullishOr(description) }),
               endpointId: params.endpointId,
               projectId,
             });
             return toEndpointResponse(endpoint);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -171,7 +184,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("deleteWebhookEndpoint", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -179,7 +192,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               endpointId: params.endpointId,
               projectId,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -192,7 +205,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("rotateWebhookSecret", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -201,7 +214,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               projectId,
             });
             return new WebhookEndpointWithSecret(endpoint);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -214,7 +227,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("testWebhookEndpoint", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -223,7 +236,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               projectId,
             });
             return new WebhookDelivery(delivery);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -236,7 +249,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("listWebhookDeliveries", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -247,7 +260,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               limit: query.limit,
               projectId,
             });
-            let endCursor: string | null = null;
+            let endCursor: string | typeof Schema.Null.Type = null;
             if (page.hasNextPage && page.endCursorId !== null) {
               endCursor = encodeCursor(page.endCursorId);
             }
@@ -255,7 +268,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               data: page.deliveries.map((delivery) => new WebhookDelivery(delivery)),
               pageInfo: { endCursor, hasNextPage: page.hasNextPage },
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -266,7 +279,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("getWebhookDelivery", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -278,7 +291,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               ...delivery,
               attempts: delivery.attempts.map((attempt) => new WebhookDeliveryAttempt(attempt)),
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -291,7 +304,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
       )
       .handle("retryWebhookDelivery", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("WebhooksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -300,7 +313,7 @@ export const WebhooksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "webhooks",
               projectId,
             });
             return new WebhookDelivery(delivery);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

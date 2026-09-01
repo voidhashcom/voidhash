@@ -1,4 +1,4 @@
-import type { PackageJsonSchema } from "../domain/schema/package-json";
+import type { PackageJson } from "../domain/schema/package-json";
 
 /**
  * Returns a relative path prefix based on the given directory depth.
@@ -17,5 +17,5 @@ export const relativePathPrefixFromDepth = (depth: number) => {
  * @param packageJson - The package.json contents.
  * @returns True if the project is an Expo project, false otherwise.
  */
-export const checkIsExpoProject = (packageJson: typeof PackageJsonSchema.Type) =>
+export const checkIsExpoProject = (packageJson: typeof PackageJson.Type) =>
   packageJson.dependencies?.expo !== undefined;

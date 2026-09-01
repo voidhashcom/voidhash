@@ -1,4 +1,7 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 /** Stable error exposed by organization lifecycle extensions to the core organization service. */
 export class OrganizationLifecyclePortError extends Schema.TaggedErrorClass<OrganizationLifecyclePortError>(

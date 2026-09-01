@@ -1,3 +1,5 @@
+import * as Arr from "effect/Array";
+import * as P from "effect/Predicate";
 import { constant } from "@voidhash/lib/lang";
 
 /**
@@ -14,31 +16,31 @@ export const HelperValidationUtils = constant({
 
   validateDescription(description: unknown): boolean {
     return (
-      typeof description === "string" &&
+      P.isString(description) &&
       description.length <= HelperValidationUtils.MAXIMUM_DESCRIPTION_LENGTH
     );
   },
 
   validateDisplayName(displayName: unknown): boolean {
     return (
-      typeof displayName === "string" &&
+      P.isString(displayName) &&
       displayName.length <= HelperValidationUtils.MAXIMUM_DISPLAY_NAME_LENGTH
     );
   },
 
   validateSku(sku: unknown): boolean {
-    return typeof sku === "string" && sku.length <= HelperValidationUtils.MAXIMUM_SKU_LENGTH;
+    return P.isString(sku) && sku.length <= HelperValidationUtils.MAXIMUM_SKU_LENGTH;
   },
 
   validatePeriodCount(periodCount: unknown): boolean {
     return (
-      typeof periodCount === "number" &&
+      P.isNumber(periodCount) &&
       periodCount >= HelperValidationUtils.MIN_PERIOD &&
       periodCount <= HelperValidationUtils.MAX_PERIOD
     );
   },
 
   validateItems(list: unknown): boolean {
-    return Array.isArray(list) && list.length > 0 && list.every((item) => item != null);
+    return Array.isArray(list) && Arr.isReadonlyArrayNonEmpty(list) && list.every((item) => item != null);
   },
 });

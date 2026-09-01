@@ -1,4 +1,7 @@
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 
 import { AUTOMATIC_EVENTS } from "../analytics/constants";
 import { LifecycleAdapter, type LifecycleSubscription } from "./lifecycle-adapter";
@@ -17,14 +20,21 @@ export class LifecycleService extends Context.Service<LifecycleService>()(
 
       const setupAutomaticLifecycleEvents = (
         captureEvent: (eventName: string) => void,
-      ): Effect.Effect<LifecycleSubscription | null> =>
+      ): Effect.Effect<Option.Option<LifecycleSubscription>> =>
         adapter.subscribe((nextState, previousState) => {
-          if (nextState === "background" && previousState !== "background") {
+          if (
+            nextState === "background" &&
+            (Option.isNone(previousState) || previousState.value !== "background")
+          ) {
             captureEvent(AUTOMATIC_EVENTS.APP_BACKGROUNDED);
             return;
           }
 
-          if (nextState === "active" && previousState !== null && previousState !== "active") {
+          if (
+            nextState === "active" &&
+            Option.isSome(previousState) &&
+            previousState.value !== "active"
+          ) {
             captureEvent(AUTOMATIC_EVENTS.APP_BECAME_ACTIVE);
           }
         });

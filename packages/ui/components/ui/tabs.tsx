@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import * as Option from "effect/Option";
 
 import { Tabs as TabsPrimitive } from "radix-ui";
 
@@ -31,12 +32,12 @@ function TabsList({
   indicatorClassName?: string;
 }) {
   const listRef = React.useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = React.useState<{
+  const [indicator, setIndicator] = React.useState<Option.Option<{
     height: number;
     left: number;
     top: number;
     width: number;
-  } | null>(null);
+  }>>(Option.none());
 
   const updateIndicator = React.useCallback(() => {
     const list = listRef.current;
@@ -44,7 +45,7 @@ function TabsList({
 
     const activeTrigger = list.querySelector<HTMLElement>('[data-state="active"]');
     if (!activeTrigger) {
-      setIndicator(null);
+      setIndicator(Option.none());
       return;
     }
 
@@ -52,12 +53,12 @@ function TabsList({
     const triggerRect = activeTrigger.getBoundingClientRect();
     const listStyle = getComputedStyle(list);
 
-    setIndicator({
+    setIndicator(Option.some({
       height: triggerRect.height,
       left: triggerRect.left - listRect.left - (parseFloat(listStyle.borderLeftWidth) || 0),
       top: triggerRect.top - listRect.top - (parseFloat(listStyle.borderTopWidth) || 0),
       width: triggerRect.width,
-    });
+    }));
   }, []);
 
   React.useEffect(() => {
@@ -93,17 +94,17 @@ function TabsList({
       ref={listRef}
       {...props}
     >
-      {indicator && (
+      {Option.isSome(indicator) && (
         <div
           className={cn(
             "pointer-events-none absolute rounded-md bg-surface shadow-sm transition-all duration-200 ease-out dark:border dark:border-border",
             indicatorClassName,
           )}
           style={{
-            height: indicator.height,
-            left: indicator.left,
-            top: indicator.top,
-            width: indicator.width,
+            height: indicator.value.height,
+            left: indicator.value.left,
+            top: indicator.value.top,
+            width: indicator.value.width,
           }}
         />
       )}

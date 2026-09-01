@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
+import type * as Option from "effect/Option";
 
 import type {
   PaywallWebViewBaseEvent,
@@ -132,5 +133,9 @@ export interface PaywallWebViewProps {
 
   startInLoadingState?: boolean;
   renderLoading?: () => ReactElement;
-  renderError?: (domain: string | undefined, code: number, description: string) => ReactElement;
+  renderError?: (
+    domain: Option.Option<string>,
+    code: number,
+    description: string,
+  ) => ReactElement;
 }

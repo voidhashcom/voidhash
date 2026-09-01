@@ -28,7 +28,13 @@ export const updatePaymentProviderConfigurationOptions = () =>
       enabled: boolean;
       name: string;
       configuration: Record<string, unknown>;
-    }) => VoidhashRpc.request((rpc) => rpc.UpdatePaymentProviderConfiguration(variables)),
+    }) =>
+      VoidhashRpc.request((rpc) =>
+        rpc.UpdatePaymentProviderConfiguration({
+          ...variables,
+          isEnabled: variables.enabled,
+        }),
+      ),
     mutationKey: ["updatePaymentProviderConfiguration"],
   });
 

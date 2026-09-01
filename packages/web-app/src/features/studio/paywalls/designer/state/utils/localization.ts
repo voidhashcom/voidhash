@@ -18,6 +18,7 @@ import type {
   TextSnapshotNode,
   ViewSnapshotNode,
 } from "@voidhash/paywall-renderer-web-core";
+import * as Option from "effect/Option";
 
 import type { DesignerStoreState } from "../designer-store-state";
 import { selectDocumentRoot } from "./document-root";
@@ -90,7 +91,7 @@ export function localizedBackgroundImage(
   if (activeLocale === null || activeLocale === defaultLocale) {
     return null;
   }
-  const resolved = resolveBackgroundImage(data, activeLocale, defaultLocale);
+  const resolved = resolveBackgroundImage(data, Option.fromNullishOr(activeLocale), defaultLocale);
   return resolved === data.style.backgroundImage ? null : resolved;
 }
 
@@ -140,14 +141,17 @@ export function computeLocaleCoverage(
     if (node.type === "text") {
       total += 1;
       const data = (node as TextSnapshotNode).data;
-      if (resolveText(data, locale, defaultLocale) !== data.text) {
+      if (resolveText(data, Option.fromNullishOr(locale), defaultLocale) !== data.text) {
         translated += 1;
       }
     } else if (node.type === "view" || node.type === "scrollView" || node.type === "screen") {
       const data = (node as ViewSnapshotNode).data;
       if (data.style.backgroundImage.url.length > 0) {
         total += 1;
-        if (resolveBackgroundImage(data, locale, defaultLocale) !== data.style.backgroundImage) {
+        if (
+          resolveBackgroundImage(data, Option.fromNullishOr(locale), defaultLocale) !==
+          data.style.backgroundImage
+        ) {
           translated += 1;
         }
       }
@@ -159,7 +163,10 @@ export function computeLocaleCoverage(
           continue;
         }
         total += 1;
-        if (resolveComponentPropValue(prop, locale, defaultLocale) !== prop.value) {
+        if (
+          resolveComponentPropValue(prop, Option.fromNullishOr(locale), defaultLocale) !==
+          prop.value
+        ) {
           translated += 1;
         }
       }

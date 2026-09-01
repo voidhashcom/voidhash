@@ -1,3 +1,7 @@
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as HashSet from "effect/HashSet";
+import * as MutableHashMap from "effect/MutableHashMap";
 import { sandboxDts } from "@voidhash/paywalls/sandbox-dts";
 import ts from "typescript";
 import type { BuildDiagnostic } from "./diagnostics.ts";
@@ -73,32 +77,29 @@ export function typecheck(
   options: TypecheckOptions,
 ): readonly BuildDiagnostic[] {
   // The virtual file map the whole program is resolved against.
-  const files = new Map<string, string>();
-  files.set(entryPath, entrySource);
-  for (const component of components) {
-    files.set(component.absPath, component.source);
-  }
-  files.set(SDK_DTS_PATH, sandboxDts);
+  const files = R.fromEntries([
+    [entryPath, entrySource],
+    ...components.map((component) => [component.absPath, component.source] as const),
+    [SDK_DTS_PATH, sandboxDts],
+  ]);
 
   // Lib assets: built-in set, then the ambient SDK dts, then caller overrides.
-  const libFiles = new Map<string, string>();
-  for (const [name, contents] of Object.entries(LIB_ASSETS)) {
-    libFiles.set(`${LIB_DIR}/${name}`, contents);
-  }
-  for (const [name, contents] of Object.entries(options.libs ?? {})) {
-    libFiles.set(libPathFor(name), contents);
-  }
+  const libFiles = R.fromEntries([
+    ...R.toEntries(LIB_ASSETS).map(([name, contents]) => [`${LIB_DIR}/${name}`, contents] as const),
+    ...R.toEntries(options.libs ?? {}).map(([name, contents]) =>
+      [libPathFor(name), contents] as const,
+    ),
+  ]);
 
-  const readVirtual = (path: string): string | undefined =>
-    files.get(path) ?? libFiles.get(path);
+  const readVirtual = (path: string) => files[path] ?? libFiles[path];
 
-  const sourceFileCache = new Map<string, ts.SourceFile>();
+  const sourceFileCache = MutableHashMap.empty<string, ts.SourceFile>();
   const host: ts.CompilerHost = {
     fileExists: (path) => readVirtual(path) !== undefined,
     readFile: (path) => readVirtual(path),
     getSourceFile: (fileName, languageVersion) => {
-      const cached = sourceFileCache.get(fileName);
-      if (cached) return cached;
+      const cached = MutableHashMap.get(sourceFileCache, fileName);
+      if (cached.valueOrUndefined) return cached.valueOrUndefined;
       const contents = readVirtual(fileName);
       if (contents === undefined) return undefined;
       const sourceFile = ts.createSourceFile(
@@ -108,7 +109,7 @@ export function typecheck(
         /* setParentNodes */ true,
         scriptKindOf(fileName),
       );
-      sourceFileCache.set(fileName, sourceFile);
+      MutableHashMap.set(sourceFileCache, fileName, sourceFile);
       return sourceFile;
     },
     // The lib the program requests resolves through our virtual lib dir.
@@ -125,9 +126,12 @@ export function typecheck(
     // any of these to the real FS silently breaks relative resolution.
     directoryExists: (dir) => {
       const prefix = withTrailingSlash(dir);
-      for (const path of files.keys()) if (path.startsWith(prefix)) return true;
-      for (const path of libFiles.keys()) if (path.startsWith(prefix)) return true;
-      return dir === "/" || dir === LIB_DIR;
+      return (
+        R.keys(files).some((path) => path.startsWith(prefix)) ||
+        R.keys(libFiles).some((path) => path.startsWith(prefix)) ||
+        dir === "/" ||
+        dir === LIB_DIR
+      );
     },
     getDirectories: () => [],
     readDirectory: () => [],
@@ -147,19 +151,18 @@ export function typecheck(
     ...program.getGlobalDiagnostics(),
   ];
 
-  const forkPaths = new Set<string>(forkNames);
-  const out: BuildDiagnostic[] = [];
-  for (const diagnostic of rawDiagnostics) {
+  const forkPaths = HashSet.fromIterable(forkNames);
+  return rawDiagnostics.flatMap((diagnostic) => {
     const file = diagnostic.file;
     // Only surface diagnostics attributed to a fork file (never lib/SDK-internal).
-    if (!file || !forkPaths.has(file.fileName)) continue;
+    if (!file || !HashSet.has(forkPaths, file.fileName)) return [];
     const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-    let position: { line: number; column: number } | undefined;
-    if (typeof diagnostic.start === "number") {
-      const { line, character } = file.getLineAndCharacterOfPosition(diagnostic.start);
-      position = { line: line + 1, column: character + 1 };
-    }
-    out.push(error(file.fileName, "types", message, position));
-  }
-  return out;
+    const position = P.isNumber(diagnostic.start)
+      ? (() => {
+          const { line, character } = file.getLineAndCharacterOfPosition(diagnostic.start);
+          return { line: line + 1, column: character + 1 };
+        })()
+      : undefined;
+    return [error(file.fileName, "types", message, position)];
+  });
 }

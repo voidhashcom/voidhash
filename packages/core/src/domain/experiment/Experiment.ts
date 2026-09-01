@@ -5,7 +5,7 @@
  * An experiment compiles down to a backing customer feature flag (the runtime
  * assignment artifact); see `ExperimentService`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Experiment row not found. */
 export class ExperimentNotFoundError extends Schema.TaggedErrorClass<ExperimentNotFoundError>(

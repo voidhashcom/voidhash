@@ -1,3 +1,4 @@
+import * as P from "effect/Predicate";
 /**
  * Client-side entry point for paywall rendering.
  *
@@ -8,7 +9,7 @@
  * The resulting bundle is inlined into the paywall HTML output.
  */
 
-import { Effect } from "effect";
+import * as Option from "effect/Option";
 import { render } from "preact";
 
 import { Paywall } from "../components/paywall";
@@ -16,11 +17,20 @@ import { resolveRuntimeLocale } from "./runtime-locale";
 
 import type { ComponentArtifacts } from "../component-artifacts";
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import * as Schema from "effect/Schema";
 
 interface HydrationPayload {
   snapshot: SnapshotNode;
-  componentArtifacts: ComponentArtifacts | undefined;
-  locale: string | undefined;
+  componentArtifacts?: ComponentArtifacts;
+  locale?: string;
+}
+
+function isSnapshotNode(value: object): value is SnapshotNode {
+  return "type" in value;
+}
+
+function isHydrationPayload(value: object): value is HydrationPayload {
+  return "snapshot" in value && P.isObject(value.snapshot) && isSnapshotNode(value.snapshot);
 }
 
 /**
@@ -31,28 +41,23 @@ interface HydrationPayload {
  * for both the current nested node shape (`{type, data, children}`) and
  * legacy flat payloads, since `type` stays at the node's top level in both.
  */
-function parsePaywallData(raw: string): HydrationPayload | undefined {
+function parsePaywallData(raw: string) {
   // Malformed paywall data falls through as `undefined` — leaving the SSR'd
   // HTML in place.
-  const parsed = Effect.runSync(
-    Effect.try((): unknown => JSON.parse(raw)).pipe(Effect.orElseSucceed(() => undefined)),
+  const parsed = Option.getOrUndefined(
+    Schema.decodeUnknownOption(Schema.UnknownFromJsonString)(raw),
   );
-  if (typeof parsed !== "object" || parsed === null) {
+  if (!P.isObject(parsed) || parsed === null) {
     return undefined;
   }
-  if ("type" in parsed) {
-    return { componentArtifacts: undefined, locale: undefined, snapshot: parsed as SnapshotNode };
+  if (isSnapshotNode(parsed)) {
+    return { componentArtifacts: undefined, locale: undefined, snapshot: parsed };
   }
-  if ("snapshot" in parsed) {
-    const wrapper = parsed as {
-      snapshot: SnapshotNode;
-      componentArtifacts?: ComponentArtifacts;
-      locale?: string;
-    };
+  if (isHydrationPayload(parsed)) {
     return {
-      componentArtifacts: wrapper.componentArtifacts,
-      locale: wrapper.locale,
-      snapshot: wrapper.snapshot,
+      componentArtifacts: parsed.componentArtifacts,
+      locale: parsed.locale,
+      snapshot: parsed.snapshot,
     };
   }
   return undefined;

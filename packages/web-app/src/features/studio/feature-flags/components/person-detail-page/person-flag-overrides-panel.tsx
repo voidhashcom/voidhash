@@ -76,7 +76,7 @@ export function PersonFlagOverridesPanel({
 
   const overriddenFlagIds = new Set(overrides.map((o) => o.featureFlagId));
   const availableFlags = flags.filter(
-    (f) => !overriddenFlagIds.has(f.id) && !f.internal && !f.archivedAt,
+    (f) => !overriddenFlagIds.has(f.id) && !f.isInternal && !f.archivedAt,
   );
 
   return (

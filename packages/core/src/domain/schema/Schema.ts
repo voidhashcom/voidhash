@@ -8,7 +8,7 @@
  * in `apps/cli/src/utils/schema/version.ts`, since the CLI's
  * `voidhash types check` compares the two hashes byte-for-byte.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Provider IDs the CLI / SDK currently understand. Other DB providers (today:

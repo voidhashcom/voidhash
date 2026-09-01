@@ -1,4 +1,11 @@
-import { Context, DateTime, Effect, Layer } from "effect";
+import * as Str from "effect/String";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 import {
   and,
@@ -27,20 +34,14 @@ import { DEFAULT_ORIGIN, IdentityMutationService } from "./IdentityMutationServi
 
 export type { PersonIdentityEventV1, PersonSnapshotEventV1 } from "../../domain/person/Person.ts";
 
-/** Wraps an optional value into a (possibly empty) single-element list. */
-const optionalList = <A>(value: A | null | undefined): ReadonlyArray<A> => {
-  if (value === null || value === undefined) return [];
-  return [value];
-};
-
 /**
  * Dedup key for an appended identity assertion: the originating event id when
  * present, otherwise a freshly minted id (so the write still lands exactly once).
  */
-const assertionDedupKey = (eventId: string | undefined): string => {
-  if (eventId && eventId.length > 0) return eventId;
-  return generateId("identityAssertion");
-};
+const assertionDedupKey = (eventId: Option.Option<string>): string =>
+  Option.filter(eventId, Str.isNonEmpty).pipe(
+    Option.getOrElse(() => generateId("identityAssertion")),
+  );
 
 export interface ResolvedAnalyticsIdentity {
   readonly personId?: string;
@@ -118,8 +119,8 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
             input.origin ?? DEFAULT_ORIGIN,
           );
 
-          return yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+          return yield* db.transaction(
+            Effect.fn("PersonIdentityService.resolveDistinctId.transaction")(function* (tx) {
               const context = {
                 eventId: input.eventId ?? "",
                 eventTimestamp: input.eventTimestamp,
@@ -132,17 +133,17 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                   distinctId: input.distinctId,
                   projectId: input.projectId,
                 });
-                if (existingMapping) {
+                if (Option.isSome(existingMapping)) {
                   yield* Effect.annotateCurrentSpan("voidhash.identity.mode", "full");
                   yield* Effect.annotateCurrentSpan(
                     "voidhash.person.id",
-                    existingMapping.canonicalPerson.id,
+                    existingMapping.value.canonicalPerson.id,
                   );
 
                   return {
                     personEvents: [],
                     identity: {
-                      personId: existingMapping.canonicalPerson.id,
+                      personId: existingMapping.value.canonicalPerson.id,
                       distinctId: input.distinctId,
                       mode: constant("full"),
                     },
@@ -177,27 +178,24 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 setAttributes: input.setAttributes,
                 setOnceAttributes: input.setOnceAttributes,
               });
-              let person = resolved.person;
-              if (resolved.wasCreated) {
-                // Only on creation: existing persons already have their binding
-                // (or get it via identify), keeping the hot lookup path at zero
-                // extra writes.
-                yield* identityMutations.upsertAccountTokenBinding(tx, {
-                  distinctId: input.distinctId,
-                  personId: person.id,
-                  projectId: input.projectId,
-                });
-              } else {
-                person = yield* identityMutations.updatePersonProfile(tx, {
-                  person: resolved.person,
-                  email: input.email,
-                  eventId: input.eventId ?? "",
-                  eventTimestamp: input.eventTimestamp,
-                  name: input.name,
-                  setAttributes: input.setAttributes,
-                  setOnceAttributes: input.setOnceAttributes,
-                });
-              }
+              const person = resolved.wasCreated
+                ? yield* identityMutations
+                    .upsertAccountTokenBinding(tx, {
+                      distinctId: input.distinctId,
+                      personId: resolved.person.id,
+                      projectId: input.projectId,
+                    })
+                    .pipe(Effect.as(resolved.person))
+                : yield* identityMutations.updatePersonProfile(tx, {
+                    person: resolved.person,
+                    email: Option.fromNullishOr(input.email),
+                    eventId: input.eventId ?? "",
+                    eventTimestamp: input.eventTimestamp,
+                    mergeTraitsFrom: Option.none(),
+                    name: Option.fromNullishOr(input.name),
+                    setAttributes: input.setAttributes,
+                    setOnceAttributes: input.setOnceAttributes,
+                  });
 
               yield* Effect.annotateCurrentSpan("voidhash.identity.mode", "full");
               yield* Effect.annotateCurrentSpan(
@@ -213,7 +211,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                   distinctId: input.distinctId,
                   mode: constant("full"),
                 },
-                mappingEvents: optionalList(resolved.mappingEvent),
+                mappingEvents: Arr.fromOption(resolved.mappingEvent),
                 warnings: [],
               } satisfies PersonIdentityResult;
             }),
@@ -243,8 +241,8 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
             input.origin ?? DEFAULT_ORIGIN,
           );
 
-          const syncResult = yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+          const syncResult = yield* db.transaction(
+            Effect.fn("PersonIdentityService.identifyDistinctId.transaction")(function* (tx) {
               const warnings: string[] = [];
               const personEvents: PersonSnapshotEventV1[] = [];
               const mappingEvents: PersonIdentityEventV1[] = [];
@@ -280,9 +278,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                   setOnceAttributes: {},
                 },
               );
-              if (targetResolved.mappingEvent) {
-                mappingEvents.push(targetResolved.mappingEvent);
-              }
+              mappingEvents.push(...Arr.fromOption(targetResolved.mappingEvent));
 
               yield* Effect.annotateCurrentSpan(
                 "voidhash.person.target_id",
@@ -293,10 +289,10 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 distinctId: input.previousDistinctId,
                 projectId: input.projectId,
               });
-              if (sourceMapping) {
+              if (Option.isSome(sourceMapping)) {
                 yield* Effect.annotateCurrentSpan(
                   "voidhash.person.source_id",
-                  sourceMapping.canonicalPerson.id,
+                  sourceMapping.value.canonicalPerson.id,
                 );
               }
               const sourcePersonless = yield* identityMutations.findPersonlessIdentity(tx, {
@@ -307,7 +303,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
               yield* identityMutations.lockPersonRows(tx, {
                 personIds: [
                   targetResolved.person.id,
-                  ...optionalList(sourceMapping?.rawPerson.id),
+                  ...Arr.fromOption(Option.map(sourceMapping, (mapping) => mapping.rawPerson.id)),
                 ],
               });
 
@@ -315,10 +311,12 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 warnings.push("self-identify is a no-op");
               }
 
-              const sourceIsConflictingIdentified =
-                sourceMapping &&
-                sourceMapping.canonicalPerson.id !== targetResolved.person.id &&
-                sourceMapping.mapping.kind === PersonIdentityKind.Identified;
+              const sourceIsConflictingIdentified = Option.exists(
+                sourceMapping,
+                (mapping) =>
+                  mapping.canonicalPerson.id !== targetResolved.person.id &&
+                  mapping.mapping.kind === PersonIdentityKind.Identified,
+              );
 
               yield* Effect.annotateCurrentSpan(
                 "voidhash.identity.source_conflict",
@@ -335,147 +333,188 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
               // order-independent decision, so a reversed identify chain
               // converges on the same surviving person. The full merge runs
               // synchronously in this transaction (no async completion workflow).
-              const sourcePerson = sourceMapping?.canonicalPerson;
+              const sourcePerson = Option.map(sourceMapping, (mapping) => mapping.canonicalPerson);
               const isRealMerge =
                 !sourceIsConflictingIdentified &&
                 input.previousDistinctId !== input.distinctId &&
-                sourcePerson !== undefined &&
-                sourcePerson.id !== targetResolved.person.id;
+                Option.exists(sourcePerson, (person) => person.id !== targetResolved.person.id);
 
-              let canonicalPerson: DbPerson;
               // True for any genuine identity stitch (person merge OR a
               // personless/absent source bound to the target) — i.e. anything
               // that asserts the two distinct ids are the same person and so
               // must be appended to the assertion log.
-              let didStitch = false;
-
-              if (isRealMerge && sourcePerson) {
-                const sourceWins = comparePersonForMerge(sourcePerson, targetResolved.person) <= 0;
-                const mergeRoles = () => {
-                  if (sourceWins) {
+              const mergePeople = Effect.fn("PersonIdentityService.identifyDistinctId.merge")(
+                function* (source: DbPerson) {
+                  const sourceWins =
+                    comparePersonForMerge(
+                      {
+                        createdAt: Option.fromNullishOr(source.createdAt),
+                        firstSeenAt: Option.fromNullishOr(source.firstSeenAt),
+                        id: source.id,
+                      },
+                      {
+                        createdAt: Option.fromNullishOr(targetResolved.person.createdAt),
+                        firstSeenAt: Option.fromNullishOr(targetResolved.person.firstSeenAt),
+                        id: targetResolved.person.id,
+                      },
+                    ) <= 0;
+                  const mergeRoles = () => {
+                    if (sourceWins) {
+                      return {
+                        loser: targetResolved.person,
+                        loserDistinctId: input.distinctId,
+                        loserMapping: targetResolved.rawMapping,
+                        winner: source,
+                      };
+                    }
                     return {
-                      loser: targetResolved.person,
-                      loserDistinctId: input.distinctId,
-                      loserMapping: targetResolved.rawMapping,
-                      winner: sourcePerson,
+                      loser: source,
+                      loserDistinctId: input.previousDistinctId,
+                      loserMapping: Option.map(sourceMapping, (mapping) => mapping.mapping),
+                      winner: targetResolved.person,
                     };
-                  }
-                  return {
-                    loser: sourcePerson,
-                    loserDistinctId: input.previousDistinctId,
-                    loserMapping: sourceMapping?.mapping,
-                    winner: targetResolved.person,
                   };
-                };
-                const { loser, loserDistinctId, loserMapping, winner } = mergeRoles();
+                  const { loser, loserDistinctId, loserMapping, winner } = mergeRoles();
 
-                yield* Effect.annotateCurrentSpan("voidhash.person.merge_winner_id", winner.id);
-                yield* Effect.annotateCurrentSpan("voidhash.person.merge_loser_id", loser.id);
+                  yield* Effect.annotateCurrentSpan("voidhash.person.merge_winner_id", winner.id);
+                  yield* Effect.annotateCurrentSpan("voidhash.person.merge_loser_id", loser.id);
 
-                const updatedWinner = yield* identityMutations.updatePersonProfile(tx, {
-                  person: winner,
-                  email: firstDefinedString(winner.email, loser.email, input.email),
-                  eventId: input.eventId ?? "",
-                  eventTimestamp: input.eventTimestamp,
-                  // Fold the loser's traits into the survivor via per-key LWW.
-                  mergeTraitsFrom: loser,
-                  name: firstDefinedString(winner.name, loser.name, input.name),
-                  setAttributes: input.setAttributes,
-                  setOnceAttributes: input.setOnceAttributes,
-                });
-                const archivedLoser = yield* identityMutations.archivePerson(tx, {
-                  eventTimestamp: input.eventTimestamp,
-                  mergedIntoPersonId: updatedWinner.id,
-                  person: loser,
-                });
-
-                // Repoint the ENTIRE loser cluster onto the survivor as explicit
-                // overrides, so every distinct id that resolved to the loser
-                // re-attributes to the survivor — not just the one named by this
-                // identify. Keeping the overrides canonical this way is what makes
-                // the analytics squash transitively convergent in a single pass
-                // (no person-merge chain-following needed downstream).
-                const loserMappings = yield* identityMutations.listMappedDistinctIds(tx, {
-                  personId: loser.id,
-                  projectId: input.projectId,
-                });
-                const repointed = new Map<string, { id?: string; version?: number }>();
-                for (const mapping of loserMappings) {
-                  repointed.set(mapping.distinctId, { id: mapping.id, version: mapping.version });
-                }
-                // The involved loser distinct id was usually just created by
-                // ensureCanonical (so it is already listed) — include it defensively.
-                if (!repointed.has(loserDistinctId)) {
-                  repointed.set(loserDistinctId, {
-                    id: loserMapping?.id,
-                    version: loserMapping?.version,
-                  });
-                }
-                for (const [distinctId, existing] of repointed) {
-                  mappingEvents.push(
-                    yield* identityMutations.upsertPersonIdentity(tx, {
-                      changedAt: input.eventTimestamp,
-                      distinctId,
-                      identityId: existing.id ?? generateId("personDistinctId"),
-                      personId: updatedWinner.id,
-                      previousDistinctId: distinctId,
-                      projectId: input.projectId,
-                      version: nextMappingVersion({
-                        existingVersion: existing.version,
-                        hadHistoricalEvents: true,
-                      }),
-                    }),
-                  );
-                }
-
-                // Re-point the loser's push device-token links to the survivor in
-                // the SAME merge transaction, exactly like personIdentities — so a
-                // merged-away person's devices stay reachable. The NOT EXISTS guard
-                // skips links whose device the survivor ALREADY owns: the
-                // (person_id, push_device_token_id) unique index is global (ignores
-                // deleted_at), so a bare re-point would raise a unique violation and
-                // abort the whole merge. A skipped colliding loser link stays under
-                // the loser and remains reachable via the send-time merged-loser
-                // expansion (belt-and-suspenders). See
-                // PersonNotificationTokenService.repointLinksToSurvivor.
-                yield* tx
-                  .update(pushPersonDeviceTokens)
-                  .set({ personId: updatedWinner.id, updatedAt: yield* DateTime.nowAsDate })
-                  .where(
-                    and(
-                      eq(pushPersonDeviceTokens.projectId, input.projectId),
-                      eq(pushPersonDeviceTokens.personId, loser.id),
-                      sql`not exists (select 1 from push_person_device_token s where s.person_id = ${updatedWinner.id} and s.push_device_token_id = push_person_device_token.push_device_token_id)`,
+                  const updatedWinner = yield* identityMutations.updatePersonProfile(tx, {
+                    person: winner,
+                    eventId: input.eventId ?? "",
+                    eventTimestamp: input.eventTimestamp,
+                    // Fold the loser's traits into the survivor via per-key LWW.
+                    mergeTraitsFrom: Option.some(loser),
+                    name: firstDefinedString(
+                      Option.fromNullishOr(winner.name),
+                      Option.fromNullishOr(loser.name),
+                      Option.fromNullishOr(input.name),
                     ),
-                  );
+                    email: firstDefinedString(
+                      Option.fromNullishOr(winner.email),
+                      Option.fromNullishOr(loser.email),
+                      Option.fromNullishOr(input.email),
+                    ),
+                    setAttributes: input.setAttributes,
+                    setOnceAttributes: input.setOnceAttributes,
+                  });
+                  const archivedLoser = yield* identityMutations.archivePerson(tx, {
+                    eventTimestamp: input.eventTimestamp,
+                    mergedIntoPersonId: updatedWinner.id,
+                    person: loser,
+                  });
 
-                if (sourcePersonless && !sourcePersonless.isMerged) {
-                  yield* identityMutations.markPersonlessIdentityMerged(tx, {
-                    distinctId: input.previousDistinctId,
+                  // Repoint the ENTIRE loser cluster onto the survivor as explicit
+                  // overrides, so every distinct id that resolved to the loser
+                  // re-attributes to the survivor — not just the one named by this
+                  // identify. Keeping the overrides canonical this way is what makes
+                  // the analytics squash transitively convergent in a single pass
+                  // (no person-merge chain-following needed downstream).
+                  const loserMappings = yield* identityMutations.listMappedDistinctIds(tx, {
+                    personId: loser.id,
                     projectId: input.projectId,
                   });
-                }
+                  const mappedRepoints = HashMap.fromIterable(
+                    Arr.map(
+                      loserMappings,
+                      (mapping) =>
+                        [
+                          mapping.distinctId,
+                          {
+                            id: Option.some(mapping.id),
+                            version: Option.some(mapping.version),
+                          },
+                        ] as const,
+                    ),
+                  );
+                  // The involved loser distinct id was usually just created by
+                  // ensureCanonical (so it is already listed) — include it defensively.
+                  const repointed = HashMap.has(mappedRepoints, loserDistinctId)
+                    ? mappedRepoints
+                    : HashMap.set(mappedRepoints, loserDistinctId, {
+                        id: Option.map(loserMapping, (mapping) => mapping.id),
+                        version: Option.map(loserMapping, (mapping) => mapping.version),
+                      });
+                  const repointedEvents = yield* Effect.forEach(
+                    Arr.fromIterable(repointed),
+                    ([distinctId, existing]) =>
+                      identityMutations.upsertPersonIdentity(tx, {
+                        changedAt: input.eventTimestamp,
+                        distinctId,
+                        identityId: Option.getOrElse(existing.id, () =>
+                          generateId("personDistinctId"),
+                        ),
+                        personId: updatedWinner.id,
+                        previousDistinctId: distinctId,
+                        projectId: input.projectId,
+                        version: nextMappingVersion({
+                          existingVersion: Option.getOrUndefined(existing.version),
+                          hadHistoricalEvents: true,
+                        }),
+                      }),
+                    { concurrency: 1 },
+                  );
+                  mappingEvents.push(...repointedEvents);
 
-                personEvents.push(
-                  yield* identityMutations.toPersonEvent(tx, { person: updatedWinner }),
-                );
-                personEvents.push(
-                  yield* identityMutations.toPersonEvent(tx, { person: archivedLoser }),
-                );
+                  // Re-point the loser's push device-token links to the survivor in
+                  // the SAME merge transaction, exactly like personIdentities — so a
+                  // merged-away person's devices stay reachable. The NOT EXISTS guard
+                  // skips links whose device the survivor ALREADY owns: the
+                  // (person_id, push_device_token_id) unique index is global (ignores
+                  // deleted_at), so a bare re-point would raise a unique violation and
+                  // abort the whole merge. A skipped colliding loser link stays under
+                  // the loser and remains reachable via the send-time merged-loser
+                  // expansion (belt-and-suspenders). See
+                  // PersonNotificationTokenService.repointLinksToSurvivor.
+                  yield* tx
+                    .update(pushPersonDeviceTokens)
+                    .set({ personId: updatedWinner.id, updatedAt: yield* DateTime.nowAsDate })
+                    .where(
+                      and(
+                        eq(pushPersonDeviceTokens.projectId, input.projectId),
+                        eq(pushPersonDeviceTokens.personId, loser.id),
+                        sql`not exists (select 1 from push_person_device_token s where s.person_id = ${updatedWinner.id} and s.push_device_token_id = push_person_device_token.push_device_token_id)`,
+                      ),
+                    );
 
-                canonicalPerson = updatedWinner;
-                didStitch = true;
-              } else {
+                  if (Option.exists(sourcePersonless, (identity) => !identity.isMerged)) {
+                    yield* identityMutations.markPersonlessIdentityMerged(tx, {
+                      distinctId: input.previousDistinctId,
+                      projectId: input.projectId,
+                    });
+                  }
+
+                  personEvents.push(
+                    yield* identityMutations.toPersonEvent(tx, { person: updatedWinner }),
+                  );
+                  personEvents.push(
+                    yield* identityMutations.toPersonEvent(tx, { person: archivedLoser }),
+                  );
+
+                  return { canonicalPerson: updatedWinner, didStitch: true };
+                },
+              );
+
+              const updateTarget = Effect.fn(
+                "PersonIdentityService.identifyDistinctId.updateTarget",
+              )(function* () {
                 // No real merge (self / conflicting / same person / personless
                 // source). Apply this event's writes to the target; for a
                 // personless-or-absent source being stitched, point its distinct
                 // id at the target.
                 const updatedTarget = yield* identityMutations.updatePersonProfile(tx, {
                   person: targetResolved.person,
-                  email: firstDefinedString(targetResolved.person.email, input.email),
+                  email: firstDefinedString(
+                    Option.fromNullishOr(targetResolved.person.email),
+                    Option.fromNullishOr(input.email),
+                  ),
                   eventId: input.eventId ?? "",
                   eventTimestamp: input.eventTimestamp,
-                  name: firstDefinedString(targetResolved.person.name, input.name),
+                  mergeTraitsFrom: Option.none(),
+                  name: firstDefinedString(
+                    Option.fromNullishOr(targetResolved.person.name),
+                    Option.fromNullishOr(input.name),
+                  ),
                   setAttributes: input.setAttributes,
                   setOnceAttributes: input.setOnceAttributes,
                 });
@@ -483,11 +522,11 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                   yield* identityMutations.toPersonEvent(tx, { person: updatedTarget }),
                 );
 
-                if (
+                const shouldStitch =
                   !sourceIsConflictingIdentified &&
                   input.previousDistinctId !== input.distinctId &&
-                  sourcePerson === undefined
-                ) {
+                  Option.isNone(sourcePerson);
+                if (shouldStitch) {
                   mappingEvents.push(
                     yield* identityMutations.upsertPersonIdentity(tx, {
                       changedAt: input.eventTimestamp,
@@ -499,22 +538,26 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                       version: nextMappingVersion({
                         existingVersion: undefined,
                         hadHistoricalEvents: Boolean(
-                          sourcePersonless && !sourcePersonless.isMerged,
+                          Option.exists(sourcePersonless, (identity) => !identity.isMerged),
                         ),
                       }),
                     }),
                   );
-                  if (sourcePersonless && !sourcePersonless.isMerged) {
+                  if (Option.exists(sourcePersonless, (identity) => !identity.isMerged)) {
                     yield* identityMutations.markPersonlessIdentityMerged(tx, {
                       distinctId: input.previousDistinctId,
                       projectId: input.projectId,
                     });
                   }
-                  didStitch = true;
                 }
 
-                canonicalPerson = updatedTarget;
-              }
+                return { canonicalPerson: updatedTarget, didStitch: shouldStitch };
+              });
+
+              const { canonicalPerson, didStitch } =
+                isRealMerge && Option.isSome(sourcePerson)
+                  ? yield* mergePeople(sourcePerson.value)
+                  : yield* updateTarget();
 
               // Account-token bindings: both distinct ids bind to the surviving
               // canonical person so provider webhooks (which carry the derived
@@ -541,7 +584,7 @@ export class PersonIdentityService extends Context.Service<PersonIdentityService
                 // any genuine stitch. Idempotent on (project, dedupKey); the
                 // ingest path's capture id makes a retried identify log once.
                 yield* identityMutations.appendAssertion(tx, {
-                  dedupKey: assertionDedupKey(input.eventId),
+                  dedupKey: assertionDedupKey(Option.fromNullishOr(input.eventId)),
                   distinctId: input.distinctId,
                   eventTimestamp: input.eventTimestamp,
                   previousDistinctId: input.previousDistinctId,

@@ -123,7 +123,7 @@ export function FcmNotificationProviderDetailPage({
   };
 
   const onSubmit = form.handleSubmit((values) => {
-    save(values, pushNotificationConfiguration.enabled);
+    save(values, pushNotificationConfiguration.isEnabled);
   });
 
   const toggleEnabled = async (nextEnabled: boolean) => {
@@ -189,14 +189,14 @@ export function FcmNotificationProviderDetailPage({
                 <SettingsRow
                   control={
                     <Switch
-                      checked={pushNotificationConfiguration.enabled}
+                      checked={pushNotificationConfiguration.isEnabled}
                       disabled={isSaving}
                       onCheckedChange={(checked) => void toggleEnabled(checked)}
                     />
                   }
                   description="Enable delivery through this provider. A service account is required."
                   status={
-                    pushNotificationConfiguration.enabled ? (
+                    pushNotificationConfiguration.isEnabled ? (
                       <Badge className="text-[11px]">Enabled</Badge>
                     ) : (
                       <Badge className="text-[11px]" variant="outline">

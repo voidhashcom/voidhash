@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic project service error */
 export class ApiProjectServiceError extends Schema.TaggedErrorClass<ApiProjectServiceError>()(

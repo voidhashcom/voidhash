@@ -1,3 +1,8 @@
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+import type * as Schema from "effect/Schema";
 /*
  * Recursive-descent parsers use exceptions as their non-local exit: a bad token
  * anywhere in the descent must unwind straight out of the nested `parse*`
@@ -7,7 +12,6 @@
  * through Effect here would surface every compile error as an opaque defect and
  * force each of the ~60 mutually recursive methods to become an Effect.
  */
-// oxlint-disable effect/noThrowStatement -- throw IS the parser's control flow (see block comment above); compile.ts is the single Effect boundary that converts it.
 /**
  * The VoidQL parser — hand-written recursive descent with a Pratt
  * (precedence-climbing) expression core with no `eval` or platform dependencies.
@@ -48,6 +52,13 @@ import type {
 import { VoidQlComplexityError, VoidQlSyntaxError, VoidQlUnsupportedError } from "./errors.ts";
 import { isForbiddenKeyword, lex, type Token } from "./lexer.ts";
 
+const FALLBACK_EOF_TOKEN: Token = {
+  end: { col: 1, line: 1, offset: 0 },
+  kind: "eof",
+  start: { col: 1, line: 1, offset: 0 },
+  text: "",
+};
+
 const LIMITS = constant({
   maxDepth: 50,
   maxNodes: 20_000,
@@ -70,11 +81,11 @@ class Cursor {
   // ── token access ──────────────────────────────────────────────────────────
 
   private peek(ahead = 0): Token {
-    return this.tokens[Math.min(this.index + ahead, this.tokens.length - 1)]!;
+    return this.tokens[Math.min(this.index + ahead, this.tokens.length - 1)] ?? FALLBACK_EOF_TOKEN;
   }
 
   private prev(): Token {
-    return this.tokens[Math.max(this.index - 1, 0)]!;
+    return this.tokens[Math.max(this.index - 1, 0)] ?? FALLBACK_EOF_TOKEN;
   }
 
   private next(): Token {
@@ -172,7 +183,7 @@ class Cursor {
    * Runs `production` when `keyword` is the next token, otherwise yields
    * `undefined` — the optional-clause shape shared by FROM/WHERE/HAVING/….
    */
-  private after<A>(keyword: string, production: () => A): A | undefined {
+  private after<A>(keyword: string, production: () => A): A | typeof Schema.Undefined.Type {
     if (this.eatKw(keyword)) {
       return production();
     }
@@ -228,14 +239,17 @@ class Cursor {
     // Operator/select pairs, so the non-empty tuple shapes SetQuery requires fall
     // out of the parse instead of needing an assertion.
     const tail: Array<{ readonly operator: SetOperator; readonly select: Select }> = [];
-    while (this.isKw("union") || this.isKw("intersect") || this.isKw("except")) {
+    const parseTail = (): void => {
+      if (!this.isKw("union") && !this.isKw("intersect") && !this.isKw("except")) return;
       const operator = this.parseSetOperator();
       tail.push({ operator, select: this.parseSelect() });
-    }
+      parseTail();
+    };
+    parseTail();
     const [head, ...rest] = tail;
     if (head === undefined) return first;
     const operators = [head.operator, ...rest.map((entry) => entry.operator)];
-    if (new Set(operators).size > 1) {
+    if (HashSet.size(HashSet.fromIterable(operators)) > 1) {
       // VoidQL type-checks a left fold, but ClickHouse binds INTERSECT/EXCEPT
       // tighter than UNION; emitting the arms unparenthesized would execute a
       // different tree than the one that was checked. Mixed chains are rejected
@@ -251,7 +265,10 @@ class Cursor {
       _tag: "SetQuery",
       selects: [first, head.select, ...rest.map((entry) => entry.select)],
       operators: [firstOperator, ...remainingOperators],
-      span: { start: first.span.start, end: tail[tail.length - 1]!.select.span.end },
+      span: {
+        start: first.span.start,
+        end: Option.getOrElse(Arr.last(tail), () => head).select.span.end,
+      },
     };
   }
 
@@ -261,7 +278,7 @@ class Cursor {
 
     const ctes: Cte[] = [];
     if (this.eatKw("with")) {
-      do {
+      const parseCte = (): void => {
         const cteStart = this.peek().start;
         const name = this.expectIdent("a CTE name");
         this.expectKw("as");
@@ -270,7 +287,9 @@ class Cursor {
         this.expectOp(")");
         this.count();
         ctes.push({ _tag: "Cte", name, query, span: this.span(cteStart) });
-      } while (this.eatOp(","));
+        if (this.eatOp(",")) parseCte();
+      };
+      parseCte();
     }
 
     this.guardForbidden(); // a leading denied keyword (DROP/INSERT/…) → teachable error
@@ -280,7 +299,12 @@ class Cursor {
     if (distinct && this.eatKw("on")) {
       this.expectOp("(");
       distinctOn.push(this.parseExpr(0));
-      while (this.eatOp(",")) distinctOn.push(this.parseExpr(0));
+      const parseDistinctOn = (): void => {
+        if (!this.eatOp(",")) return;
+        distinctOn.push(this.parseExpr(0));
+        parseDistinctOn();
+      };
+      parseDistinctOn();
       this.expectOp(")");
     } else if (!distinct) {
       this.eatKw("all");
@@ -288,20 +312,27 @@ class Cursor {
     this.guardForbidden();
 
     const columns: [SelectItem, ...SelectItem[]] = [this.parseSelectItem()];
-    while (this.eatOp(",")) columns.push(this.parseSelectItem());
+    const parseColumns = (): void => {
+      if (!this.eatOp(",")) return;
+      columns.push(this.parseSelectItem());
+      parseColumns();
+    };
+    parseColumns();
 
     const from = this.after("from", () => this.parseTableSource());
 
     const joins: Join[] = [];
     if (from) {
-      for (;;) {
+      const parseJoins = (): void => {
         const join = this.tryParseJoin();
-        if (!join) break;
+        if (!join) return;
         if (joins.length >= LIMITS.maxJoins) {
           throw new VoidQlComplexityError({ message: "Query has too many joins." });
         }
         joins.push(join);
-      }
+        parseJoins();
+      };
+      parseJoins();
     }
 
     const prewhere = this.after("prewhere", () => this.parseExpr(0));
@@ -311,17 +342,25 @@ class Cursor {
     if (this.eatKw("group")) {
       this.expectKw("by");
       groupBy.push(this.parseExpr(0));
-      while (this.eatOp(",")) groupBy.push(this.parseExpr(0));
+      const parseGroupBy = (): void => {
+        if (!this.eatOp(",")) return;
+        groupBy.push(this.parseExpr(0));
+        parseGroupBy();
+      };
+      parseGroupBy();
     }
     let groupByModifier: Select["groupByModifier"];
     let withTotals = false;
-    if (groupBy.length > 0) {
-      while (this.eatKw("with")) {
+    if (Arr.isReadonlyArrayNonEmpty(groupBy)) {
+      const parseGroupModifier = (): void => {
+        if (!this.eatKw("with")) return;
         if (this.eatKw("rollup")) groupByModifier = "rollup";
         else if (this.eatKw("cube")) groupByModifier = "cube";
         else if (this.eatKw("totals")) withTotals = true;
         else this.fail(this.peek(), "Expected ROLLUP, CUBE, or TOTALS after WITH.");
-      }
+        parseGroupModifier();
+      };
+      parseGroupModifier();
     }
 
     const having = this.after("having", () => this.parseExpr(0));
@@ -331,22 +370,32 @@ class Cursor {
     if (this.eatKw("order")) {
       this.expectKw("by");
       orderBy.push(this.parseOrderItem());
-      while (this.eatOp(",")) orderBy.push(this.parseOrderItem());
+      const parseOrderBy = (): void => {
+        if (!this.eatOp(",")) return;
+        orderBy.push(this.parseOrderItem());
+        parseOrderBy();
+      };
+      parseOrderBy();
     }
 
     let limitBy: Select["limitBy"];
-    let limit: number | undefined;
-    let offset: number | undefined;
+    let limit: number | typeof Schema.Undefined.Type;
+    let offset: number | typeof Schema.Undefined.Type;
     let withTies = false;
     if (this.eatKw("limit")) {
       const first = this.parseUintLiteral("a LIMIT count");
-      let second: number | undefined;
+      let second: number | typeof Schema.Undefined.Type;
       if (this.eatOp(",")) second = this.parseUintLiteral("a LIMIT count after the offset");
       if (this.eatKw("by")) {
         const by: [Expr, ...Expr[]] = [this.parseExpr(0)];
-        while (this.eatOp(",")) by.push(this.parseExpr(0));
+        const parseLimitBy = (): void => {
+          if (!this.eatOp(",")) return;
+          by.push(this.parseExpr(0));
+          parseLimitBy();
+        };
+        parseLimitBy();
         // `LIMIT n, m BY …` puts the offset first; `LIMIT n BY …` has none.
-        let byOffset: number | undefined;
+        let byOffset: number | typeof Schema.Undefined.Type;
         if (second !== undefined) byOffset = first;
         limitBy = {
           limit: second ?? first,
@@ -405,7 +454,7 @@ class Cursor {
   private parseUintLiteral(what: string): number {
     const t = this.peek();
     const value = t.value;
-    if (t.kind !== "number" || t.numType !== "Int64" || typeof value !== "number" || value < 0) {
+    if (t.kind !== "number" || t.numType !== "Int64" || !P.isNumber(value) || value < 0) {
       this.fail(t, `Expected ${what} (a non-negative integer).`);
     }
     this.index += 1;
@@ -415,7 +464,7 @@ class Cursor {
   private parseSelectItem(): SelectItem {
     const start = this.peek().start;
     const expr = this.parseExpr(0);
-    let alias: string | undefined;
+    let alias: string | typeof Schema.Undefined.Type;
     if (this.eatKw("as")) {
       alias = this.expectIdent("a column alias");
     } else if (this.peek().kind === "ident") {
@@ -441,7 +490,7 @@ class Cursor {
     return { _tag: "OrderItem", expr, dir, nulls, span: this.span(start) };
   }
 
-  private tryParseJoin(): Join | undefined {
+  private tryParseJoin(): Join | typeof Schema.Undefined.Type {
     let kind: Join["kind"];
     if (this.isKw("inner")) {
       this.next();
@@ -474,15 +523,20 @@ class Cursor {
     }
     const start = this.prev().start;
     const source = this.parseTableSource();
-    let on: Expr | undefined;
-    let using: [string, ...string[]] | undefined;
+    let on: Expr | typeof Schema.Undefined.Type;
+    let using: [string, ...string[]] | typeof Schema.Undefined.Type;
     if (kind !== "cross") {
       if (this.eatKw("on")) {
         on = this.parseExpr(0);
       } else if (this.eatKw("using")) {
         const parenthesized = this.eatOp("(");
         using = [this.expectIdent("a column name in USING")];
-        while (this.eatOp(",")) using.push(this.expectIdent("a column name in USING"));
+        const parseUsingTail = (): void => {
+          if (!this.eatOp(",")) return;
+          using?.push(this.expectIdent("a column name in USING"));
+          parseUsingTail();
+        };
+        parseUsingTail();
         if (parenthesized) this.expectOp(")");
       } else {
         this.fail(this.peek(), "Expected 'ON' or 'USING' after JOIN source.");
@@ -517,7 +571,7 @@ class Cursor {
     }
     this.guardForbidden(); // a forbidden keyword in FROM position (e.g. a table fn name shaped like a kw)
     const name = this.expectIdent("a table name");
-    let alias: string | undefined;
+    let alias: string | typeof Schema.Undefined.Type;
     if (this.eatKw("as")) alias = this.expectIdent("a table alias");
     else if (this.peek().kind === "ident") alias = this.next().text;
     this.count();
@@ -528,12 +582,11 @@ class Cursor {
 
   parseExpr(minPrec: number): Expr {
     this.enter();
-    let left = this.parsePrefix();
-    for (;;) {
+    const parseTail = (left: Expr): Expr => {
       const next = this.parseInfix(left, minPrec);
-      if (next === undefined) break;
-      left = next;
-    }
+      return next === undefined ? left : parseTail(next);
+    };
+    const left = parseTail(this.parsePrefix());
     this.leave();
     return left;
   }
@@ -544,7 +597,7 @@ class Cursor {
   }
 
   /** One infix step; returns `undefined` to stop the precedence loop. */
-  private parseInfix(left: Expr, minPrec: number): Expr | undefined {
+  private parseInfix(left: Expr, minPrec: number): Expr | typeof Schema.Undefined.Type {
     const t = this.peek();
     const start = left.span.start;
 
@@ -616,9 +669,10 @@ class Cursor {
         ">": "gt",
         ">=": "gte",
       };
-      if (cmp[t.text] && 3 > minPrec) {
+      const comparison = cmp[t.text];
+      if (comparison && 3 > minPrec) {
         this.next();
-        return this.mkBinary(cmp[t.text]!, left, this.parseExpr(3), start);
+        return this.mkBinary(comparison, left, this.parseExpr(3), start);
       }
       if (t.text === "+" && 4 > minPrec) {
         this.next();
@@ -654,7 +708,12 @@ class Cursor {
       return { _tag: "InExpr", expr: left, query, negated, span: this.span(start) };
     }
     const list: [Expr, ...Expr[]] = [this.parseExpr(0)];
-    while (this.eatOp(",")) list.push(this.parseExpr(0));
+    const parseListTail = (): void => {
+      if (!this.eatOp(",")) return;
+      list.push(this.parseExpr(0));
+      parseListTail();
+    };
+    parseListTail();
     this.expectOp(")");
     this.count();
     return {
@@ -680,36 +739,34 @@ class Cursor {
     const start = t.start;
 
     if (t.kind === "kw") {
-      switch (t.text) {
-        case "not":
-          this.next();
-          this.count();
-          return { _tag: "Unary", op: "not", expr: this.parseExpr(2), span: this.span(start) };
-        case "true":
-        case "false":
-          this.next();
-          this.count();
-          return { _tag: "BoolLit", value: t.text === "true", span: this.span(start) };
-        case "null":
-          this.next();
-          this.count();
-          return { _tag: "NullLit", span: this.span(start) };
-        case "case":
-          return this.parseCase();
-        case "exists": {
-          this.next();
-          this.expectOp("(");
-          if (!this.isKw("select") && !this.isKw("with")) {
-            this.fail(this.peek(), "EXISTS requires a SELECT subquery.");
-          }
-          const query = this.parseQuery();
-          this.expectOp(")");
-          this.count();
-          return { _tag: "ExistsExpr", query, span: this.span(start) };
-        }
-        default:
-          this.fail(t, `Unexpected keyword '${t.text.toUpperCase()}'.`);
+      if (t.text === "not") {
+        this.next();
+        this.count();
+        return { _tag: "Unary", op: "not", expr: this.parseExpr(2), span: this.span(start) };
       }
+      if (t.text === "true" || t.text === "false") {
+        this.next();
+        this.count();
+        return { _tag: "BoolLit", value: t.text === "true", span: this.span(start) };
+      }
+      if (t.text === "null") {
+        this.next();
+        this.count();
+        return { _tag: "NullLit", span: this.span(start) };
+      }
+      if (t.text === "case") return this.parseCase();
+      if (t.text === "exists") {
+        this.next();
+        this.expectOp("(");
+        if (!this.isKw("select") && !this.isKw("with")) {
+          this.fail(this.peek(), "EXISTS requires a SELECT subquery.");
+        }
+        const query = this.parseQuery();
+        this.expectOp(")");
+        this.count();
+        return { _tag: "ExistsExpr", query, span: this.span(start) };
+      }
+      this.fail(t, `Unexpected keyword '${t.text.toUpperCase()}'.`);
     }
 
     if (t.kind === "op") {
@@ -781,7 +838,12 @@ class Cursor {
     const args: Expr[] = [];
     if (!this.isOp(")")) {
       args.push(this.parseExpr(0));
-      while (this.eatOp(",")) args.push(this.parseExpr(0));
+      const parseArgsTail = (): void => {
+        if (!this.eatOp(",")) return;
+        args.push(this.parseExpr(0));
+        parseArgsTail();
+      };
+      parseArgsTail();
     }
     this.expectOp(")");
     this.count();
@@ -793,15 +855,25 @@ class Cursor {
     if (this.eatKw("partition")) {
       this.expectKw("by");
       partitionBy.push(this.parseExpr(0));
-      while (this.eatOp(",")) partitionBy.push(this.parseExpr(0));
+      const parsePartitionTail = (): void => {
+        if (!this.eatOp(",")) return;
+        partitionBy.push(this.parseExpr(0));
+        parsePartitionTail();
+      };
+      parsePartitionTail();
     }
     const orderBy: OrderItem[] = [];
     if (this.eatKw("order")) {
       this.expectKw("by");
       orderBy.push(this.parseOrderItem());
-      while (this.eatOp(",")) orderBy.push(this.parseOrderItem());
+      const parseOrderTail = (): void => {
+        if (!this.eatOp(",")) return;
+        orderBy.push(this.parseOrderItem());
+        parseOrderTail();
+      };
+      parseOrderTail();
     }
-    let frame: WindowFrame | undefined;
+    let frame: WindowFrame | typeof Schema.Undefined.Type;
     const unit = this.tryParseWindowUnit();
     if (unit !== undefined) {
       if (this.eatKw("between")) {
@@ -824,7 +896,7 @@ class Cursor {
     };
   }
 
-  private tryParseWindowUnit(): WindowFrame["unit"] | undefined {
+  private tryParseWindowUnit(): WindowFrame["unit"] | typeof Schema.Undefined.Type {
     if (this.eatKw("rows")) return "rows";
     if (this.eatKw("range")) return "range";
     return undefined;
@@ -848,7 +920,8 @@ class Cursor {
   private parseColumnRef(): Expr {
     const start = this.peek().start;
     const chain: [string, ...string[]] = [this.next().text];
-    while (this.isOp(".")) {
+    const parseChainTail = (): Expr | typeof Schema.Undefined.Type => {
+      if (!this.isOp(".")) return undefined;
       this.next();
       if (this.eatOp("*")) {
         this.count();
@@ -858,7 +931,10 @@ class Cursor {
       if (seg.kind !== "ident") this.fail(seg, "Expected a column or property name after '.'.");
       this.index += 1;
       chain.push(seg.text);
-    }
+      return parseChainTail();
+    };
+    const star = parseChainTail();
+    if (star !== undefined) return star;
     this.count();
     return { _tag: "ColumnRef", chain, span: this.span(start) };
   }
@@ -874,11 +950,16 @@ class Cursor {
   private parseCase(): Expr {
     const start = this.peek().start;
     this.expectKw("case");
-    let operand: Expr | undefined;
+    let operand: Expr | typeof Schema.Undefined.Type;
     if (!this.isKw("when")) operand = this.parseExpr(0);
     if (!this.eatKw("when")) this.fail(this.peek(), "CASE requires at least one WHEN branch.");
     const whens: [CaseWhen, ...CaseWhen[]] = [this.parseCaseWhenBranch()];
-    while (this.eatKw("when")) whens.push(this.parseCaseWhenBranch());
+    const parseWhenTail = (): void => {
+      if (!this.eatKw("when")) return;
+      whens.push(this.parseCaseWhenBranch());
+      parseWhenTail();
+    };
+    parseWhenTail();
     const elseExpr = this.after("else", () => this.parseExpr(0));
     this.expectKw("end");
     this.count();

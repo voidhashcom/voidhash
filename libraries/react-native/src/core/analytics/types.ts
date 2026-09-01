@@ -1,4 +1,4 @@
-import { Data } from "effect";
+import * as Schema from "effect/Schema";
 
 export interface QueuedAnalyticsEvent {
   readonly attempts: number;
@@ -30,10 +30,13 @@ export interface AnalyticsIngestEvent {
  * `retryable` indicates whether the failure is worth re-attempting; `retryAfterMs`
  * communicates a server-suggested backoff (from `Retry-After` header or body).
  */
-export class AnalyticsSendFailure extends Data.TaggedError("AnalyticsSendFailure")<{
-  readonly message: string;
-  readonly retryable: boolean;
-  readonly retryAfterMs?: number | undefined;
-  readonly status?: number | undefined;
-  readonly cause?: unknown;
-}> {}
+export class AnalyticsSendFailure extends Schema.TaggedErrorClass<AnalyticsSendFailure>()(
+  "AnalyticsSendFailure",
+  {
+    cause: Schema.optional(Schema.Unknown),
+    message: Schema.String,
+    retryable: Schema.Boolean,
+    retryAfterMs: Schema.optional(Schema.Number),
+    status: Schema.optional(Schema.Number),
+  },
+) {}

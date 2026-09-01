@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -17,6 +17,7 @@ export const Person = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   type: Schema.Number,
 });
+export type Person = typeof Person.Type;
 
 export class PersonRpcsDef extends RpcGroup.make(
   Rpc.make("CreatePerson", {

@@ -1,4 +1,5 @@
-import { Context, Layer } from "effect";
+import * as Context from "effect/Context";
+import * as Layer from "effect/Layer";
 
 import { makeMemoryDocumentStore } from "./memory-store.ts";
 import type { DocumentStoreApi } from "./store.ts";

@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError, RpcAvatarValidationError } from "../errors/common.ts";
 import {
@@ -13,6 +13,7 @@ export const Organization = Schema.Struct({
   name: Schema.String,
   slug: Schema.String,
 });
+export type Organization = typeof Organization.Type;
 
 export class OrganizationRpcsDef extends RpcGroup.make(
   Rpc.make("CreateOrganization", {

@@ -5,7 +5,7 @@ import {
   RpcApiKeyNotFoundError,
   RpcApiKeyServiceError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 export const ApiKeyRpcsLive = ApiKeyRpcsDef.toLayer(
   Effect.gen(function* ApiKeyRpcsLive() {

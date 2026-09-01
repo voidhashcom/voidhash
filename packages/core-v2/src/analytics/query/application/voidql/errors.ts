@@ -1,3 +1,6 @@
+import * as P from "effect/Predicate";
+import * as HashSet from "effect/HashSet";
+import * as Match from "effect/Match";
 /**
  * VoidQL compile/run domain errors and the structured {@link Diagnostic} the
  * agent repair-loop and the editor caret both consume.
@@ -6,7 +9,7 @@
  * each `_tag` through `Effect.catchTags`. Messages are path-precise but carry no
  * ClickHouse internals, keeping client-facing execution failures opaque.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * A typed compile diagnostic. Returned as data by validation and mirrored by
@@ -89,7 +92,7 @@ export type VoidQlCompileError =
   | VoidQlComplexityError
   | VoidQlIsolationError;
 
-const COMPILE_TAGS = new Set([
+const COMPILE_TAGS = HashSet.make(
   "VoidQlSyntaxError",
   "VoidQlUnsupportedError",
   "VoidQlSchemaError",
@@ -97,44 +100,62 @@ const COMPILE_TAGS = new Set([
   "VoidQlPiiError",
   "VoidQlComplexityError",
   "VoidQlIsolationError",
-]);
+);
 
 /** Narrow an unknown thrown value to a VoidQL compile error instance. */
 export const isVoidQlCompileError = (u: unknown): u is VoidQlCompileError => {
-  if (typeof u !== "object" || u === null) return false;
+  if (!P.isObject(u) || u === null) return false;
   if (!("_tag" in u)) return false;
   const tag = u._tag;
-  return typeof tag === "string" && COMPILE_TAGS.has(tag);
+  return P.isString(tag) && HashSet.has(COMPILE_TAGS, tag);
 };
 
 /** Renders the "did you mean" hint, or nothing when there is no suggestion. */
-const suggestionHint = (suggestion: string | undefined) => {
-  if (suggestion) return `Did you mean '${suggestion}'?`;
-  return undefined;
-};
+const suggestionHint = (suggestion: string) => `Did you mean '${suggestion}'?`;
 
 /** Map a compile error to a public {@link Diagnostic} (used by `validateQuery`). */
 export const toDiagnostic = (error: VoidQlCompileError): Diagnostic => {
-  switch (error._tag) {
-    case "VoidQlSyntaxError":
-      return { stage: "parse", code: "syntax", message: error.message, hint: error.hint };
-    case "VoidQlUnsupportedError":
-      return { stage: "parse", code: "unsupported", message: error.message, hint: error.hint };
-    case "VoidQlSchemaError":
-      return { stage: "resolve", code: "unknown_relation", message: error.message };
-    case "VoidQlUnknownFieldError":
-      return {
+  return Match.value(error).pipe(
+    Match.when({ _tag: "VoidQlSyntaxError" }, (value) => ({
+      stage: "parse" as const,
+      code: "syntax",
+      message: value.message,
+      hint: value.hint,
+    })),
+    Match.when({ _tag: "VoidQlUnsupportedError" }, (value) => ({
+      stage: "parse" as const,
+      code: "unsupported",
+      message: value.message,
+      hint: value.hint,
+    })),
+    Match.when({ _tag: "VoidQlSchemaError" }, (value) => ({
+      stage: "resolve" as const,
+      code: "unknown_relation",
+      message: value.message,
+    })),
+    Match.when({ _tag: "VoidQlUnknownFieldError" }, (value) =>
+      ({
         stage: "resolve",
         code: "unknown_field",
-        message: error.message,
-        hint: suggestionHint(error.suggestion),
-      };
-    case "VoidQlPiiError":
-      return { stage: "resolve", code: "pii", message: error.message };
-    case "VoidQlComplexityError":
-      return { stage: "parse", code: "complexity", message: error.message };
-    case "VoidQlIsolationError":
+        message: value.message,
+        hint: suggestionHint(value.suggestion),
+      }) satisfies Diagnostic),
+    Match.when({ _tag: "VoidQlPiiError" }, (value) => ({
+      stage: "resolve" as const,
+      code: "pii",
+      message: value.message,
+    })),
+    Match.when({ _tag: "VoidQlComplexityError" }, (value) => ({
+      stage: "parse" as const,
+      code: "complexity",
+      message: value.message,
+    })),
+    Match.when({ _tag: "VoidQlIsolationError" }, () => ({
       // Never leak the internal reason; the diagnostic is generic.
-      return { stage: "verify", code: "internal", message: "Query could not be compiled." };
-  }
+      stage: "verify" as const,
+      code: "internal",
+      message: "Query could not be compiled.",
+    })),
+    Match.exhaustive,
+  );
 };

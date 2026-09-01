@@ -1,13 +1,16 @@
 import { causeMessage } from "@voidhash/lib/lang";
-import { Effect, Option, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { decodeJwt, importPKCS8, SignJWT } from "jose";
 import { JwtCreationError } from "../errors/index.ts";
 import { bytesToBase64, utf8ToBytes } from "../internal/bytes.ts";
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+function asOption<T>(value: Option.Option<T>): Option.Option<T>;
+function asOption(value: unknown): Option.Option<unknown> {
   if (Option.isOption(value)) return value;
   return Option.fromNullishOr(value);
-};
+}
 
 const ES256_ALG = "ES256";
 

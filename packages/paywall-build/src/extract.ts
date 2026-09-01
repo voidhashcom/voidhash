@@ -1,5 +1,9 @@
-import { Effect } from "effect";
-import { causeMessage, pick } from "@voidhash/lib/lang";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+import { causeMessage } from "@voidhash/lib/lang";
 import { parseComponentManifest } from "@voidhash/paywalls/schema";
 import type { ComponentManifest } from "@voidhash/paywalls/schema";
 import type { CompiledComponent } from "./compile.ts";
@@ -21,7 +25,7 @@ export interface ExtractedComponent {
   readonly path: string;
   readonly source: string;
   readonly sourceHash: string;
-  readonly manifest: ComponentManifest | null;
+  readonly manifest: Option.Option<ComponentManifest>;
   readonly status: ComponentStatus;
 }
 
@@ -52,11 +56,11 @@ function fromCapability(path: string, diagnostic: BuildDiagnosticInput): BuildDi
 
 /** Batch cache lookup by source hash — an absent cache resolves to no hits. */
 function cacheLookup(
-  cache: ManifestCache | undefined,
+  cache: Option.Option<ManifestCache>,
   hashes: readonly string[],
-): Effect.Effect<Map<string, CachedManifest>> {
-  if (!cache) return Effect.succeed(new Map());
-  return Effect.promise(() => cache.get([...new Set(hashes)]));
+): Effect.Effect<HashMap.HashMap<string, CachedManifest>> {
+  if (Option.isNone(cache)) return Effect.succeed(HashMap.empty());
+  return Effect.tryPromise(() => cache.value.get(Array.from(HashSet.fromIterable(hashes))));
 }
 
 /**
@@ -93,7 +97,7 @@ export function extractManifests(
   compiled: readonly CompiledComponent[],
   caps: BuildCapabilities,
 ): Promise<ExtractResult> {
-  return Effect.runPromise(extractManifestsEffect(compiled, caps));
+  return EffectRuntime.runPromise(extractManifestsEffect(compiled, caps));
 }
 
 /** The extract stage as an Effect; {@link extractManifests} runs it. */
@@ -108,26 +112,25 @@ function extractManifestsEffect(
 
     // Batch cache lookup by source hash (misses simply absent from the map).
     const hashByComponent = compiled.map((c) => hashSource(c.component.source));
-    const cacheHits = yield* cacheLookup(cache, hashByComponent);
+    const cacheHits = yield* cacheLookup(Option.fromUndefinedOr(cache), hashByComponent);
 
-    const extracted: ExtractedComponent[] = [];
-    for (let i = 0; i < compiled.length; i += 1) {
-      const { component, code } = compiled[i]!;
-      const sourceHash = hashByComponent[i]!;
+    const extracted = yield* Effect.forEach(
+      compiled,
+      ({ component, code }) => Effect.gen(function* () {
+      const sourceHash = hashSource(component.source);
       const base = { path: component.path, source: component.source, sourceHash };
 
       // 1. Cache hit — trust the cached manifest (may be null ⇒ known-unknown).
-      const cached = cacheHits.get(sourceHash);
-      if (cached) {
-        extracted.push({
+      const cached = HashMap.get(cacheHits, sourceHash);
+      if (Option.isSome(cached)) {
+        return {
           ...base,
-          manifest: cached.manifest,
-          status: pick(cached.manifest !== null, "ready", "unknown"),
-        });
-        continue;
+          manifest: cached.value.manifest,
+          status: Option.isSome(cached.value.manifest) ? "ready" : "unknown",
+        } satisfies ExtractedComponent;
       }
 
-      let manifest: ComponentManifest | null = null;
+      let manifest = Option.none<ComponentManifest>();
       // Runtime diagnostics deferred until the static outcome is known: on a
       // static success they downgrade to non-blocking warnings (the build
       // proceeds on the static manifest, but a module that crashes at eval must
@@ -136,16 +139,16 @@ function extractManifestsEffect(
       const deferred: BuildDiagnostic[] = [];
 
       // 2. Runtime extract + validate (ground truth), when possible.
-      if (extractManifest && code !== null) {
+      if (extractManifest && Option.isSome(code)) {
         manifest = yield* Effect.tryPromise({
-          try: () => extractManifest(code),
+          try: () => extractManifest(code.value),
           catch: (cause) => cause,
         }).pipe(
           Effect.match({
             onSuccess: (outcome) => validateOutcome(component.path, outcome, deferred),
             onFailure: (cause) => {
               deferred.push(error(component.path, "runtime", causeMessage(cause)));
-              return null;
+              return Option.none<ComponentManifest>();
             },
           }),
         );
@@ -154,22 +157,22 @@ function extractManifestsEffect(
       // 3. Static AST fallback — the only manifest source on a degraded runtime.
       //    Runs whenever the runtime path did not resolve a manifest (including
       //    the `code === null` short-circuit workerd hits).
-      if (!manifest) {
+      if (Option.isNone(manifest)) {
         const staticDiagnostics: BuildDiagnostic[] = [];
         const staticManifest = validateOutcome(
           component.path,
           staticExtractManifest(component.source, component.path),
           staticDiagnostics,
         );
-        if (staticManifest) {
+        if (Option.isSome(staticManifest)) {
           manifest = staticManifest;
-          for (const diagnostic of deferred) {
+          deferred.forEach((diagnostic) => {
             diagnostics.push({
               ...diagnostic,
               severity: "warning",
               message: `Manifest resolved statically, but the runtime extractor failed: ${diagnostic.message}`,
             });
-          }
+          });
         } else {
           // Both paths failed: surface the runtime's diagnostics (if any) AND the
           // static extractor's, so the author sees why the manifest is unavailable.
@@ -178,21 +181,22 @@ function extractManifestsEffect(
       }
 
       // 4. Record fresh valid manifests best-effort (cache errors never fail).
-      const fresh = manifest;
-      if (fresh && cache) {
+      if (Option.isSome(manifest) && cache) {
         // Intentionally ignored — the cache is an optimization, not a gate.
         yield* Effect.tryPromise({
-          try: () => cache.record({ sourceHash, manifest: fresh }),
+          try: () => cache.record({ sourceHash, manifest: manifest.value }),
           catch: (cause) => cause,
         }).pipe(Effect.ignore);
       }
 
-      extracted.push({
+      return {
         ...base,
         manifest,
-        status: pick(manifest !== null, "ready", "unknown"),
-      });
-    }
+        status: Option.isSome(manifest) ? "ready" : "unknown",
+      } satisfies ExtractedComponent;
+      }),
+      { concurrency: 1 },
+    );
 
     return { extracted, diagnostics };
   });
@@ -208,15 +212,15 @@ function validateOutcome(
   path: string,
   outcome: ExtractOutcome,
   sink: BuildDiagnostic[],
-): ComponentManifest | null {
+): Option.Option<ComponentManifest> {
   if ("diagnostics" in outcome) {
-    for (const diagnostic of outcome.diagnostics) {
+    outcome.diagnostics.forEach((diagnostic) => {
       sink.push(fromCapability(path, diagnostic));
-    }
-    return null;
+    });
+    return Option.none();
   }
   const parsed = parseComponentManifest(outcome.manifest);
-  if (parsed.ok) return parsed.value;
+  if (parsed.ok) return Option.some(parsed.value);
   sink.push(error(path, "runtime", `Invalid component manifest: ${parsed.errors.join("; ")}`));
-  return null;
+  return Option.none();
 }

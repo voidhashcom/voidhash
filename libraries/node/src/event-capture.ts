@@ -1,12 +1,13 @@
-// oxlint-disable effect/noNodeBuiltinImport -- generating the per-event dedup uuid is the one place this Node adapter needs platform cryptography, and Effect's `Crypto` service ships no layer in `effect` itself: satisfying the rule would mean either taking a platform package as a runtime dependency or leaking a `Crypto` requirement into every `capture`/`batch` signature this SDK publishes. `node:crypto` randomUUID is the platform primitive for exactly this, and the rest of the module stays Effect-native.
-
 import type {
   CaptureEvent,
   EventCaptureCaptureRequest,
   VoidhashEventCaptureClient,
 } from "@voidhash/generated-clients/event-capture";
-import { DateTime, Effect } from "effect";
-import { randomUUID } from "node:crypto";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 
 type EffectError<TEffect> =
   TEffect extends Effect.Effect<infer _Success, infer Error, infer _Requirements> ? Error : never;
@@ -27,17 +28,17 @@ export type VoidhashCaptureEvent = {
    * Deduplication key. A UUIDv4 is generated when omitted; set it explicitly —
    * and reuse it — to make retries of the same event idempotent.
    */
-  readonly uuid?: string | undefined;
+  readonly uuid?: string;
   /** Event name, for example `"paywall_viewed"`. */
   readonly event: string;
   /** Identifies the person the event belongs to. */
   readonly distinctId: string;
   /** The event's own attributes. Sent as `{}` when omitted. */
-  readonly properties?: Record<string, unknown> | undefined;
+  readonly properties?: Record<string, unknown>;
   /** Ambient attributes (app version, platform, locale). Sent as `{}` when omitted. */
-  readonly context?: Record<string, unknown> | undefined;
+  readonly context?: Record<string, unknown>;
   /** Groups events into a session. Omitted from the request when unset. */
-  readonly sessionId?: string | undefined;
+  readonly sessionId?: string;
   /** ISO 8601 time the event occurred. */
   readonly timestamp: string;
 };
@@ -68,14 +69,14 @@ const prepareEvent = (event: VoidhashCaptureEvent): CaptureEvent => ({
   properties: event.properties ?? {},
   session_id: event.sessionId,
   timestamp: event.timestamp,
-  uuid: event.uuid ?? randomUUID(),
+  uuid: event.uuid ?? globalThis.crypto.randomUUID(),
 });
 
 /** Normalizes a configured key, treating a blank string as "not configured". */
-const presentedToken = (publishableKey: string | undefined): string | undefined => {
+const presentedToken = (publishableKey?: string): Option.Option<string> => {
   const token = publishableKey?.trim();
-  if (token === undefined || token.length === 0) return undefined;
-  return token;
+  if (token === undefined || Str.isEmpty(token)) return Option.none();
+  return Option.some(token);
 };
 
 /**
@@ -90,13 +91,13 @@ export const makeEventCapture = (
   publishableKey?: string,
 ): VoidhashEventCaptureEffectNamespace => {
   const tokenPatch: Pick<EventCaptureCaptureRequest, "token"> = {
-    token: presentedToken(publishableKey),
+    token: Option.getOrUndefined(presentedToken(publishableKey)),
   };
 
   return {
     batch: (events) =>
       Effect.gen(function* () {
-        if (events.length === 0) {
+        if (Arr.isReadonlyArrayEmpty(events)) {
           return { accepted: 0, rejected: 0 };
         }
 

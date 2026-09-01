@@ -1,21 +1,20 @@
 import { sha1 } from "@noble/hashes/legacy.js";
 import { utf8ToBytes } from "@noble/hashes/utils.js";
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Schema from "effect/Schema";
 
 /** Shared UUIDv5 namespace for StoreKit and Google Play account identifiers. */
 export const VOIDHASH_ACCOUNT_TOKEN_NAMESPACE = "3919eb4e-3466-593c-8c1e-84554e13a0a6";
 
 const uuidToBytes = (uuid: string): Uint8Array => {
-  const hex = uuid.replaceAll("-", "");
-  if (!/^[0-9a-fA-F]{32}$/.test(hex)) {
-    return Effect.runSync(Effect.die(new TypeError(`Invalid UUID namespace: ${uuid}`)));
-  }
-
-  const bytes = new Uint8Array(16);
-  for (let index = 0; index < bytes.length; index += 1) {
-    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
-  }
-  return bytes;
+  const hex = Schema.decodeUnknownSync(Schema.String.check(Schema.isUUID()))(uuid).replaceAll(
+    "-",
+    "",
+  );
+  return Uint8Array.from(
+    Arr.range(0, 15),
+    (index) => Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16),
+  );
 };
 
 const bytesToUuid = (bytes: Uint8Array): string => {
@@ -32,8 +31,8 @@ export const uuidV5 = (namespaceUuid: string, name: string): string => {
   input.set(nameBytes, namespaceBytes.length);
 
   const bytes = sha1(input).slice(0, 16);
-  bytes[6] = ((bytes[6] as number) & 0x0f) | 0x50;
-  bytes[8] = ((bytes[8] as number) & 0x3f) | 0x80;
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x50;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
   return bytesToUuid(bytes);
 };
 

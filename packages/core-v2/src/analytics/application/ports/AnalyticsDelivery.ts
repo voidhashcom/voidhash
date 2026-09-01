@@ -1,4 +1,6 @@
-import { Context, Schema, type Effect } from "effect";
+import * as Context from "effect/Context";
+import * as Schema from "effect/Schema";
+import type * as Effect from "effect/Effect";
 
 import type { CapturedEventV1 } from "../../ingest/domain/Ingest.ts";
 
@@ -9,6 +11,7 @@ export const AnalyticsDeliveryOutcome = Schema.Struct({
   /** Envelopes processed and stored. */
   stored: Schema.Int,
 });
+export type AnalyticsDeliveryOutcome = typeof AnalyticsDeliveryOutcome.Type;
 
 /** Delivery failure carrying the number of envelopes confirmed before failure. */
 export class AnalyticsDeliveryError extends Schema.TaggedErrorClass<AnalyticsDeliveryError>()(

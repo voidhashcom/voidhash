@@ -20,7 +20,11 @@ import {
   ProviderEnvironment,
 } from "@voidhash/db";
 import { PurchaseType } from "@voidhash/lib/constants";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { constant } from "@voidhash/lib/lang";
 import {
@@ -43,9 +47,9 @@ import type { PaymentProvider } from "../PaymentProviderAdapter.ts";
 import {
   type GooglePlayGlobalConfiguration,
   type GooglePlayProductConfiguration,
-  globalConfigurationSchema,
+  globalConfiguration as globalConfigurationSchema,
   makeGooglePlayConfigProvider,
-  productConfigurationSchema,
+  productConfiguration as productConfigurationSchema,
 } from "./config-provider.ts";
 import {
   GooglePlayPaymentProviderProductNotMappedError,
@@ -117,7 +121,7 @@ export type GooglePlayRecordInput = GooglePlayRecordInputBase &
     | { readonly source: "webhook" | "reconciliation"; readonly distinctId?: never }
   );
 
-const optionAttr = <A>(value: Option.Option<A>): A | undefined => Option.getOrUndefined(value);
+const optionAttr = <A>(value: Option.Option<A>): A | typeof Schema.Undefined.Type => Option.getOrUndefined(value);
 
 const crossOwnerTransferOutcome = (transferred: boolean): string => {
   if (transferred) return "cross_owner_transfer";
@@ -125,7 +129,7 @@ const crossOwnerTransferOutcome = (transferred: boolean): string => {
 };
 
 /** Only the SDK path carries a caller-supplied distinct id. */
-const sdkDistinctId = (input: GooglePlayRecordInput): string | undefined => {
+const sdkDistinctId = (input: GooglePlayRecordInput): string | typeof Schema.Undefined.Type => {
   if (input.source === "sdk") return input.distinctId;
   return undefined;
 };
@@ -140,7 +144,7 @@ const purchaseEventType = (isSubscription: boolean): GooglePlayPurchaseProcessin
   return "one_time_purchase";
 };
 
-const make = Effect.gen(function* () {
+const make = Effect.fn("make")(function* () {
   const queries = yield* GooglePlayPaymentProviderServiceQueries;
   const personIdentityService = yield* PersonIdentityService;
   const purchaseProcessingService = yield* PurchaseProcessor;
@@ -355,7 +359,7 @@ const make = Effect.gen(function* () {
             // Cross-owner restore between two real persons: transfer the
             // entitlement FIRST and rebind LAST so a crash between is
             // self-healing.
-            const transferred = yield* Effect.gen(function* () {
+            const transferred = yield* Effect.fn("transferred")(function* () {
               const subscription = yield* queries.findSubscriptionByStoreSubscriptionId({
                 storeSubscriptionId: input.providerSubscriptionId ?? input.personIdentifier,
               });
@@ -394,7 +398,7 @@ const make = Effect.gen(function* () {
                 });
               }
               return true;
-            }).pipe(
+            })().pipe(
               Effect.catch((error: unknown) =>
                 Effect.logWarning(
                   "Google Play cross-owner transfer failed; skipping identifier rebind so a later delivery retries",
@@ -532,7 +536,7 @@ const make = Effect.gen(function* () {
     input: GooglePlayRecordInput,
     providerEventType: GooglePlayPurchaseProcessingEventType,
   ) =>
-    Effect.gen(function* () {
+    Effect.fn("_resolveContext")(function* () {
       const purchase = input.purchase;
       yield* Effect.annotateCurrentSpan("voidhash.payment_provider.event_type", providerEventType);
       yield* Effect.annotateCurrentSpan(
@@ -587,13 +591,13 @@ const make = Effect.gen(function* () {
           paymentProviderConfigurationId: input.configuration.id,
           providerProductKey: fullKey,
         })) ??
-        (yield* Effect.gen(function* () {
+        (yield* Effect.fn("providerProduct")(function* () {
           if (fullKey === purchase.productId) return undefined;
           return yield* queries.findPaymentProviderConfigurationProductByPrimaryKey({
             paymentProviderConfigurationId: input.configuration.id,
             providerProductKey: purchase.productId,
           });
-        }));
+        })());
       if (!providerProduct) {
         return yield* new GooglePlayPaymentProviderProductNotMappedError({
           paymentProviderConfigurationId: input.configuration.id,
@@ -630,7 +634,7 @@ const make = Effect.gen(function* () {
       };
 
       return { base, kind: constant("resolved"), money, occurredAt, purchase };
-    });
+    })();
 
   /**
    * Ends the superseded subscription series when Play reports the new purchase
@@ -904,7 +908,7 @@ const make = Effect.gen(function* () {
     recordSubscriptionExtended,
     recordSubscriptionRenewed,
   });
-});
+})();
 
 export type { GooglePlaySdkContext };
 

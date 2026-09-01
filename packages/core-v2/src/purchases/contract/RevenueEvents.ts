@@ -1,14 +1,15 @@
 /** Purchase-owned contract for server-trusted revenue events. */
 import { constant } from "@voidhash/lib/lang";
-import { Schema } from "effect";
+import * as HashSet from "effect/HashSet";
+import * as Schema from "effect/Schema";
 
-const SubscriptionTransferModeSchema = Schema.Literals([
+const SubscriptionTransferMode = Schema.Literals([
   "transfer_to_new_owner",
   "keep_with_previous_owner",
   "transfer_if_no_active_on_target",
 ]);
 
-export const RevenueAnalyticsEventNameSchema = Schema.Literals([
+export const RevenueAnalyticsEventName = Schema.Literals([
   "$purchase.completed",
   "$purchase.refunded",
   "$purchase.revoked",
@@ -28,64 +29,48 @@ export const RevenueAnalyticsEventNameSchema = Schema.Literals([
   "$subscription.transferred_out",
   "$subscription.transferred_in",
 ]);
+export type RevenueAnalyticsEventName = typeof RevenueAnalyticsEventName.Type;
 
 /**
  * Server-emitted analytics event names are prefixed with `$` (mirroring the
  * PostHog convention for auto-captured / reserved system events) so they can
  * never collide with the customer's own event names sent via the SDK.
  */
-export const RESERVED_REVENUE_EVENT_NAMES: ReadonlySet<
-  typeof RevenueAnalyticsEventNameSchema.Type
-> = new Set<typeof RevenueAnalyticsEventNameSchema.Type>([
-  "$purchase.completed",
-  "$purchase.refunded",
-  "$purchase.revoked",
-  "$purchase.transferred_out",
-  "$purchase.transferred_in",
-  "$subscription.created",
-  "$subscription.renewed",
-  "$subscription.canceled",
-  "$subscription.expired",
-  "$subscription.refund_reversed",
-  "$subscription.billing_retry",
-  "$subscription.extended",
-  "$subscription.product_changed",
-  "$subscription.offer_redeemed",
-  "$subscription.price_increase_pending",
-  "$subscription.auto_renew_resumed",
-  "$subscription.transferred_out",
-  "$subscription.transferred_in",
-]);
+export const RESERVED_REVENUE_EVENT_NAMES: HashSet.HashSet<
+  typeof RevenueAnalyticsEventName.Type
+> = HashSet.fromIterable(RevenueAnalyticsEventName.literals);
 
 /**
  * Revenue events whose money fields represent realized signed deltas. Lifecycle
  * events such as `$subscription.created` may carry pricing data for MRR, but
  * must not be summed into realized revenue alongside `$purchase.completed`.
  */
-export const REVENUE_MONEY_EVENT_NAMES: ReadonlySet<typeof RevenueAnalyticsEventNameSchema.Type> =
-  new Set<typeof RevenueAnalyticsEventNameSchema.Type>([
+export const REVENUE_MONEY_EVENT_NAME_LIST: ReadonlyArray<typeof RevenueAnalyticsEventName.Type> = [
     "$purchase.completed",
     "$purchase.refunded",
     "$purchase.revoked",
     "$subscription.renewed",
     "$subscription.canceled",
     "$subscription.refund_reversed",
-  ]);
+];
 
-const revenueMoneyEventNames: ReadonlySet<string> = REVENUE_MONEY_EVENT_NAMES;
+export const REVENUE_MONEY_EVENT_NAMES: HashSet.HashSet<typeof RevenueAnalyticsEventName.Type> =
+  HashSet.fromIterable(REVENUE_MONEY_EVENT_NAME_LIST);
+
+const revenueMoneyEventNames: HashSet.HashSet<string> = REVENUE_MONEY_EVENT_NAMES;
 
 /** Narrows arbitrary event names to the realized-money revenue subset. */
 export const isRevenueMoneyEventName = (
   name: string,
-): name is typeof RevenueAnalyticsEventNameSchema.Type => revenueMoneyEventNames.has(name);
+): name is typeof RevenueAnalyticsEventName.Type => HashSet.has(revenueMoneyEventNames, name);
 
 /** Widened view of {@link RESERVED_REVENUE_EVENT_NAMES} for arbitrary-string membership checks. */
-const reservedRevenueEventNames: ReadonlySet<string> = RESERVED_REVENUE_EVENT_NAMES;
+const reservedRevenueEventNames: HashSet.HashSet<string> = RESERVED_REVENUE_EVENT_NAMES;
 
 /** Narrows arbitrary event names to the complete reserved revenue-event set. */
 export const isReservedRevenueEventName = (
   name: string,
-): name is typeof RevenueAnalyticsEventNameSchema.Type => reservedRevenueEventNames.has(name);
+): name is typeof RevenueAnalyticsEventName.Type => HashSet.has(reservedRevenueEventNames, name);
 
 /**
  * The `sourceTopic` value stamped onto every server-emitted revenue
@@ -156,7 +141,7 @@ const moneyPropertiesFields = {
   exchangeRate: Schema.optional(Schema.NullOr(Schema.Number)),
 };
 
-export const RevenuePurchaseCompletedSchema = Schema.Struct({
+export const RevenuePurchaseCompleted = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$purchase.completed"),
   properties: Schema.Struct({
@@ -166,13 +151,14 @@ export const RevenuePurchaseCompletedSchema = Schema.Struct({
     purchaseType: Schema.optional(Schema.Literals(["one-time", "consumable"])),
   }),
 });
+export type RevenuePurchaseCompleted = typeof RevenuePurchaseCompleted.Type;
 
 /**
  * Refunds carry the same money breakdown as the originating purchase, but
  * with each amount negated. Summing `grossAmountUsd` across `$purchase.*`
  * events therefore yields net revenue without per-event-type branching.
  */
-export const RevenuePurchaseRefundedSchema = Schema.Struct({
+export const RevenuePurchaseRefunded = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$purchase.refunded"),
   properties: Schema.Struct({
@@ -181,13 +167,14 @@ export const RevenuePurchaseRefundedSchema = Schema.Struct({
     refundReason: Schema.NullOr(Schema.String),
   }),
 });
+export type RevenuePurchaseRefunded = typeof RevenuePurchaseRefunded.Type;
 
 /**
  * Non-subscription entitlement revocations carry the same money breakdown as
  * the originating purchase, but with each amount negated. Unlike a refund,
  * this represents access loss rather than money returned to the purchaser.
  */
-export const RevenuePurchaseRevokedSchema = Schema.Struct({
+export const RevenuePurchaseRevoked = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$purchase.revoked"),
   properties: Schema.Struct({
@@ -196,8 +183,9 @@ export const RevenuePurchaseRevokedSchema = Schema.Struct({
     revocationReason: Schema.NullOr(Schema.String),
   }),
 });
+export type RevenuePurchaseRevoked = typeof RevenuePurchaseRevoked.Type;
 
-export const RevenueSubscriptionCreatedSchema = Schema.Struct({
+export const RevenueSubscriptionCreated = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.created"),
   properties: Schema.Struct({
@@ -206,8 +194,9 @@ export const RevenueSubscriptionCreatedSchema = Schema.Struct({
     isTrial: Schema.Boolean,
   }),
 });
+export type RevenueSubscriptionCreated = typeof RevenueSubscriptionCreated.Type;
 
-export const RevenueSubscriptionRenewedSchema = Schema.Struct({
+export const RevenueSubscriptionRenewed = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.renewed"),
   properties: Schema.Struct({
@@ -216,6 +205,7 @@ export const RevenueSubscriptionRenewedSchema = Schema.Struct({
     isTrial: Schema.Boolean,
   }),
 });
+export type RevenueSubscriptionRenewed = typeof RevenueSubscriptionRenewed.Type;
 
 /**
  * `$subscription.canceled` covers both user-initiated cancellations and
@@ -226,7 +216,7 @@ export const RevenueSubscriptionRenewedSchema = Schema.Struct({
  * transactions don't earn revenue) so the gross-entitlement sum reflects
  * the loss of the granted entitlement.
  */
-export const RevenueSubscriptionCanceledSchema = Schema.Struct({
+export const RevenueSubscriptionCanceled = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.canceled"),
   properties: Schema.Struct({
@@ -237,12 +227,14 @@ export const RevenueSubscriptionCanceledSchema = Schema.Struct({
     revocationReason: Schema.optional(Schema.NullOr(Schema.String)),
   }),
 });
+export type RevenueSubscriptionCanceled = typeof RevenueSubscriptionCanceled.Type;
 
-export const RevenueSubscriptionExpiredSchema = Schema.Struct({
+export const RevenueSubscriptionExpired = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.expired"),
   properties: Schema.Struct({ ...revenuePropertiesBase }),
 });
+export type RevenueSubscriptionExpired = typeof RevenueSubscriptionExpired.Type;
 
 /**
  * Emitted when the provider reverses a prior refund (Apple's `REFUND_REVERSED`
@@ -251,7 +243,7 @@ export const RevenueSubscriptionExpiredSchema = Schema.Struct({
  * emitting the original purchase's money breakdown with the positive sign
  * (mirror of the negative emission from `$purchase.refunded`).
  */
-export const RevenueSubscriptionRefundReversedSchema = Schema.Struct({
+export const RevenueSubscriptionRefundReversed = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.refund_reversed"),
   properties: Schema.Struct({
@@ -259,9 +251,10 @@ export const RevenueSubscriptionRefundReversedSchema = Schema.Struct({
     ...moneyPropertiesFields,
   }),
 });
+export type RevenueSubscriptionRefundReversed = typeof RevenueSubscriptionRefundReversed.Type;
 
 /** `DID_FAIL_TO_RENEW` — subscription entered the billing-retry loop. */
-export const RevenueSubscriptionBillingRetrySchema = Schema.Struct({
+export const RevenueSubscriptionBillingRetry = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.billing_retry"),
   properties: Schema.Struct({
@@ -269,9 +262,10 @@ export const RevenueSubscriptionBillingRetrySchema = Schema.Struct({
     gracePeriodExpiresAt: Schema.NullOr(Schema.Date),
   }),
 });
+export type RevenueSubscriptionBillingRetry = typeof RevenueSubscriptionBillingRetry.Type;
 
 /** `RENEWAL_EXTENDED` / `RENEWAL_EXTENSION` — service-issued period extension. */
-export const RevenueSubscriptionExtendedSchema = Schema.Struct({
+export const RevenueSubscriptionExtended = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.extended"),
   properties: Schema.Struct({
@@ -279,13 +273,14 @@ export const RevenueSubscriptionExtendedSchema = Schema.Struct({
     extendedTo: Schema.Date,
   }),
 });
+export type RevenueSubscriptionExtended = typeof RevenueSubscriptionExtended.Type;
 
 /**
  * `DID_CHANGE_RENEWAL_PREF` — customer selected a different product for the
  * next renewal. Apple's semantics: takes effect at next billing cycle, NOT
  * immediately. The current subscription stays on the existing product mapping.
  */
-export const RevenueSubscriptionProductChangedSchema = Schema.Struct({
+export const RevenueSubscriptionProductChanged = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.product_changed"),
   properties: Schema.Struct({
@@ -293,9 +288,10 @@ export const RevenueSubscriptionProductChangedSchema = Schema.Struct({
     newProviderProductKey: Schema.String,
   }),
 });
+export type RevenueSubscriptionProductChanged = typeof RevenueSubscriptionProductChanged.Type;
 
 /** `OFFER_REDEEMED` — promotional / introductory / win-back offer applied. */
-export const RevenueSubscriptionOfferRedeemedSchema = Schema.Struct({
+export const RevenueSubscriptionOfferRedeemed = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.offer_redeemed"),
   properties: Schema.Struct({
@@ -303,9 +299,10 @@ export const RevenueSubscriptionOfferRedeemedSchema = Schema.Struct({
     offerId: Schema.NullOr(Schema.String),
   }),
 });
+export type RevenueSubscriptionOfferRedeemed = typeof RevenueSubscriptionOfferRedeemed.Type;
 
 /** `PRICE_INCREASE` — Apple has scheduled a price change for the next renewal. */
-export const RevenueSubscriptionPriceIncreasePendingSchema = Schema.Struct({
+export const RevenueSubscriptionPriceIncreasePending = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.price_increase_pending"),
   properties: Schema.Struct({
@@ -314,13 +311,16 @@ export const RevenueSubscriptionPriceIncreasePendingSchema = Schema.Struct({
     effectiveAt: Schema.NullOr(Schema.Date),
   }),
 });
+export type RevenueSubscriptionPriceIncreasePending =
+  typeof RevenueSubscriptionPriceIncreasePending.Type;
 
 /** `DID_CHANGE_RENEWAL_STATUS=AUTO_RENEW_ENABLED` — customer un-canceled. */
-export const RevenueSubscriptionAutoRenewResumedSchema = Schema.Struct({
+export const RevenueSubscriptionAutoRenewResumed = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.auto_renew_resumed"),
   properties: Schema.Struct({ ...revenuePropertiesBase }),
 });
+export type RevenueSubscriptionAutoRenewResumed = typeof RevenueSubscriptionAutoRenewResumed.Type;
 
 /**
  * Shared `properties` for the four cross-owner transfer events. The same
@@ -350,7 +350,7 @@ const transferPropertiesBase = {
   fromPersonId: Schema.String,
   toDistinctId: Schema.String,
   toPersonId: Schema.String,
-  transferMode: SubscriptionTransferModeSchema,
+  transferMode: SubscriptionTransferMode,
   transferReason: Schema.String,
   transferredAt: Schema.Date,
 };
@@ -359,53 +359,76 @@ const transferPropertiesBase = {
  * Emitted on the SOURCE person when a subscription's ownership is transferred
  * away — e.g. a different identified user restored it on a shared device.
  */
-export const RevenueSubscriptionTransferredOutSchema = Schema.Struct({
+export const RevenueSubscriptionTransferredOut = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.transferred_out"),
   properties: Schema.Struct({ ...transferPropertiesBase }),
 });
+export type RevenueSubscriptionTransferredOut = typeof RevenueSubscriptionTransferredOut.Type;
 
 /** Emitted on the TARGET person — the mirror of `$subscription.transferred_out`. */
-export const RevenueSubscriptionTransferredInSchema = Schema.Struct({
+export const RevenueSubscriptionTransferredIn = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$subscription.transferred_in"),
   properties: Schema.Struct({ ...transferPropertiesBase }),
 });
+export type RevenueSubscriptionTransferredIn = typeof RevenueSubscriptionTransferredIn.Type;
 
 /** `$subscription.transferred_out` analogue for non-consumable one-time purchases. */
-export const RevenuePurchaseTransferredOutSchema = Schema.Struct({
+export const RevenuePurchaseTransferredOut = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$purchase.transferred_out"),
   properties: Schema.Struct({ ...transferPropertiesBase }),
 });
+export type RevenuePurchaseTransferredOut = typeof RevenuePurchaseTransferredOut.Type;
 
 /** Emitted on the TARGET person — the mirror of `$purchase.transferred_out`. */
-export const RevenuePurchaseTransferredInSchema = Schema.Struct({
+export const RevenuePurchaseTransferredIn = Schema.Struct({
   ...baseEventFields,
   eventName: Schema.Literal("$purchase.transferred_in"),
   properties: Schema.Struct({ ...transferPropertiesBase }),
 });
+export type RevenuePurchaseTransferredIn = typeof RevenuePurchaseTransferredIn.Type;
 
 /** All server-trusted revenue event variants accepted by the purchase outbox. */
-export const RevenueEventSchema = Schema.Union([
-  RevenuePurchaseCompletedSchema,
-  RevenuePurchaseRefundedSchema,
-  RevenuePurchaseRevokedSchema,
-  RevenueSubscriptionCreatedSchema,
-  RevenueSubscriptionRenewedSchema,
-  RevenueSubscriptionCanceledSchema,
-  RevenueSubscriptionExpiredSchema,
-  RevenueSubscriptionRefundReversedSchema,
-  RevenueSubscriptionBillingRetrySchema,
-  RevenueSubscriptionExtendedSchema,
-  RevenueSubscriptionProductChangedSchema,
-  RevenueSubscriptionOfferRedeemedSchema,
-  RevenueSubscriptionPriceIncreasePendingSchema,
-  RevenueSubscriptionAutoRenewResumedSchema,
-  RevenueSubscriptionTransferredOutSchema,
-  RevenueSubscriptionTransferredInSchema,
-  RevenuePurchaseTransferredOutSchema,
-  RevenuePurchaseTransferredInSchema,
+export const RevenueEvent = Schema.Union([
+  RevenuePurchaseCompleted,
+  RevenuePurchaseRefunded,
+  RevenuePurchaseRevoked,
+  RevenueSubscriptionCreated,
+  RevenueSubscriptionRenewed,
+  RevenueSubscriptionCanceled,
+  RevenueSubscriptionExpired,
+  RevenueSubscriptionRefundReversed,
+  RevenueSubscriptionBillingRetry,
+  RevenueSubscriptionExtended,
+  RevenueSubscriptionProductChanged,
+  RevenueSubscriptionOfferRedeemed,
+  RevenueSubscriptionPriceIncreasePending,
+  RevenueSubscriptionAutoRenewResumed,
+  RevenueSubscriptionTransferredOut,
+  RevenueSubscriptionTransferredIn,
+  RevenuePurchaseTransferredOut,
+  RevenuePurchaseTransferredIn,
 ]);
+export type RevenueEvent = typeof RevenueEvent.Type;
 
-export type RevenueEvent = typeof RevenueEventSchema.Type;
+export { RevenueAnalyticsEventName as RevenueAnalyticsEventNameSchema };
+export { RevenuePurchaseCompleted as RevenuePurchaseCompletedSchema };
+export { RevenuePurchaseRefunded as RevenuePurchaseRefundedSchema };
+export { RevenuePurchaseRevoked as RevenuePurchaseRevokedSchema };
+export { RevenueSubscriptionCreated as RevenueSubscriptionCreatedSchema };
+export { RevenueSubscriptionRenewed as RevenueSubscriptionRenewedSchema };
+export { RevenueSubscriptionCanceled as RevenueSubscriptionCanceledSchema };
+export { RevenueSubscriptionExpired as RevenueSubscriptionExpiredSchema };
+export { RevenueSubscriptionRefundReversed as RevenueSubscriptionRefundReversedSchema };
+export { RevenueSubscriptionBillingRetry as RevenueSubscriptionBillingRetrySchema };
+export { RevenueSubscriptionExtended as RevenueSubscriptionExtendedSchema };
+export { RevenueSubscriptionProductChanged as RevenueSubscriptionProductChangedSchema };
+export { RevenueSubscriptionOfferRedeemed as RevenueSubscriptionOfferRedeemedSchema };
+export { RevenueSubscriptionPriceIncreasePending as RevenueSubscriptionPriceIncreasePendingSchema };
+export { RevenueSubscriptionAutoRenewResumed as RevenueSubscriptionAutoRenewResumedSchema };
+export { RevenueSubscriptionTransferredOut as RevenueSubscriptionTransferredOutSchema };
+export { RevenueSubscriptionTransferredIn as RevenueSubscriptionTransferredInSchema };
+export { RevenuePurchaseTransferredOut as RevenuePurchaseTransferredOutSchema };
+export { RevenuePurchaseTransferredIn as RevenuePurchaseTransferredInSchema };

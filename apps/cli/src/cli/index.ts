@@ -1,5 +1,7 @@
 import { NodeRuntime, NodeServices } from "@effect/platform-node";
-import { Effect, Layer, References } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as References from "effect/References";
 import { Command } from "effect/unstable/cli";
 import { FetchHttpClient } from "effect/unstable/http";
 

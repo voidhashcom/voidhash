@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 import {
   createdResponse,
   FeatureFlag,
@@ -26,10 +27,15 @@ import type {
 } from "@voidhash/db";
 import { Db } from "@voidhash/db";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
-import { type ApiCredentialMethod, bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
+import {
+  type ApiCredentialMethod,
+  bridgeAuthSession,
+  requireCredential,
+} from "../../ApiMiddlewares.ts";
 
 /** Credentials allowed on every feature-flag management endpoint. */
 const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
@@ -74,9 +80,9 @@ const toApiTarget = (target: FeatureFlagTargetRow) =>
   });
 
 const toApiFeatureFlag = (flag: {
-  readonly archivedAt: Date | null;
-  readonly createdAt: Date | null;
-  readonly description: string | null;
+  readonly archivedAt: Date | typeof Schema.Null.Type;
+  readonly createdAt: Date | typeof Schema.Null.Type;
+  readonly description: string | typeof Schema.Null.Type;
   readonly enabled: boolean;
   readonly id: string;
   readonly key: string;
@@ -85,7 +91,7 @@ const toApiFeatureFlag = (flag: {
   readonly rolloutBps: number;
   readonly targets: ReadonlyArray<FeatureFlagTargetRow>;
   readonly type: "boolean" | "string" | "number" | "json";
-  readonly updatedAt: Date | null;
+  readonly updatedAt: Date | typeof Schema.Null.Type;
   readonly variants: ReadonlyArray<FeatureFlagVariantRow>;
   readonly version: number;
 }) =>
@@ -121,7 +127,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("listFeatureFlags", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -151,7 +157,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
                 (item) => item.id,
                 query,
               );
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -163,7 +169,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
         )
         .handle("createFeatureFlag", ({ payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -183,7 +189,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
                 featureFlag,
                 `/feature-flags/${featureFlag.id}`,
               );
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -201,12 +207,12 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
         )
         .handle("getFeatureFlag", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const flag = yield* featureFlagService.getFlagById({ id: params.featureFlagId });
               return toApiFeatureFlag(flag);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -220,18 +226,20 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
         )
         .handle("updateFeatureFlag", ({ params, payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const flag = yield* featureFlagService.updateFlag({
-                description: payload.description,
+                ...(payload.description === undefined
+                  ? {}
+                  : { description: Option.fromNullishOr(payload.description) }),
                 enabled: payload.enabled,
                 id: params.featureFlagId,
                 key: payload.slug,
                 rolloutBps: payload.rolloutBps,
               });
               return toApiFeatureFlag(flag);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -249,11 +257,11 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
         )
         .handle("archiveFeatureFlag", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               return yield* featureFlagService.archiveFlag({ id: params.featureFlagId });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -269,13 +277,13 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
         )
         .handle("restoreFeatureFlag", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               yield* featureFlagService.restoreFlag({ id: params.featureFlagId });
               const flag = yield* featureFlagService.getFlagById({ id: params.featureFlagId });
               return toApiFeatureFlag(flag);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -291,7 +299,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
         )
         .handle("replaceFeatureFlagVariants", ({ params, payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               yield* featureFlagService.updateCustomerFlagVariants({
@@ -300,7 +308,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
               });
               const flag = yield* featureFlagService.getFlagById({ id: params.featureFlagId });
               return toApiFeatureFlag(flag);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -316,7 +324,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
         )
         .handle("evaluateProjectFeatureFlags", ({ payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -352,7 +360,7 @@ export const FeatureFlagsGroupLive = HttpApiBuilder.group(
                     }),
                 ),
               });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -381,13 +389,13 @@ export const FeatureFlagOverridesGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("listFeatureFlagOverrides", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagOverridesGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
 
               // The two supported read patterns map onto two different service
               // methods: by flag, or by subject identity across all flags.
-              const overrides = yield* Effect.gen(function* () {
+              const overrides = yield* Effect.fn("overrides")(function* () {
                 if (query.featureFlagId !== undefined) {
                   return yield* featureFlagService.listOverridesByFlag({
                     featureFlagId: query.featureFlagId,
@@ -407,11 +415,11 @@ export const FeatureFlagOverridesGroupLive = HttpApiBuilder.group(
                       "Provide either featureFlagId, or both identityType and identityValue.",
                   }),
                 );
-              });
+              })();
 
               const items = sortById(overrides.map(toApiOverride), (item) => item.id);
               return yield* paginate(items, (item) => item.id, query);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -425,13 +433,17 @@ export const FeatureFlagOverridesGroupLive = HttpApiBuilder.group(
         )
         .handle("upsertFeatureFlagOverride", ({ payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagOverridesGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const upserted = yield* featureFlagService.upsertOverride({
                 featureFlagId: payload.featureFlagId,
-                forcedEnabled: payload.forcedEnabled,
-                forcedVariantKey: payload.forcedVariantKey,
+                ...(payload.forcedEnabled === undefined
+                  ? {}
+                  : { forcedEnabled: Option.fromNullishOr(payload.forcedEnabled) }),
+                ...(payload.forcedVariantKey === undefined
+                  ? {}
+                  : { forcedVariantKey: Option.fromNullishOr(payload.forcedVariantKey) }),
                 identityType: payload.identityType,
                 identityValue: payload.identityValue,
                 note: payload.note,
@@ -448,7 +460,7 @@ export const FeatureFlagOverridesGroupLive = HttpApiBuilder.group(
                 );
               }
               return toApiOverride(override);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -464,11 +476,11 @@ export const FeatureFlagOverridesGroupLive = HttpApiBuilder.group(
         )
         .handle("archiveFeatureFlagOverride", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagOverridesGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               return yield* featureFlagService.archiveOverride({ id: params.overrideId });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -499,7 +511,7 @@ export const FeatureFlagTargetsGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("listFeatureFlagTargets", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagTargetsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               // Targets are only ever read through their owning flag, which is
@@ -510,7 +522,7 @@ export const FeatureFlagTargetsGroupLive = HttpApiBuilder.group(
               );
               const items = sortById(targets.map(toApiTarget), (item) => item.id);
               return yield* paginate(items, (item) => item.id, query);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -524,7 +536,7 @@ export const FeatureFlagTargetsGroupLive = HttpApiBuilder.group(
         )
         .handle("upsertFeatureFlagTarget", ({ payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagTargetsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const upserted = yield* featureFlagService.upsertTarget({
@@ -543,7 +555,7 @@ export const FeatureFlagTargetsGroupLive = HttpApiBuilder.group(
                 );
               }
               return toApiTarget(target);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -559,11 +571,11 @@ export const FeatureFlagTargetsGroupLive = HttpApiBuilder.group(
         )
         .handle("archiveFeatureFlagTarget", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("FeatureFlagTargetsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               return yield* featureFlagService.archiveTarget({ id: params.targetId });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>

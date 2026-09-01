@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 import { ExperimentService } from "@voidhash/core/services";
 import { AnalyticsQuery } from "@voidhash/core-v2";
 import {
@@ -8,7 +9,10 @@ import {
   RpcExperimentValidationError,
   RpcExperimentVariantNotFoundError,
 } from "@voidhash/rpc";
-import { DateTime, Duration, Effect } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 interface BackingFeatureFlag {
   readonly id: string;
@@ -17,11 +21,11 @@ interface BackingFeatureFlag {
   readonly rolloutBps: number;
 }
 
-const toBackingFlag = (featureFlag: BackingFeatureFlag | null) => {
+const toBackingFlag = (featureFlag: BackingFeatureFlag | typeof Schema.Null.Type) => {
   if (featureFlag === null) return null;
   return {
-    enabled: featureFlag.enabled,
     id: featureFlag.id,
+    isEnabled: featureFlag.enabled,
     key: featureFlag.key,
     rolloutBps: featureFlag.rolloutBps,
   };
@@ -29,50 +33,52 @@ const toBackingFlag = (featureFlag: BackingFeatureFlag | null) => {
 
 /** Map the service's experiment-with-relations to the RPC wire shape. */
 const toRpcExperiment = (e: {
-  readonly archivedAt: Date | null;
-  readonly createdAt: Date | null;
-  readonly createdByUserId: string | null;
-  readonly description: string | null;
-  readonly endedAt: Date | null;
+  readonly archivedAt: Date | typeof Schema.Null.Type;
+  readonly createdAt: Date | typeof Schema.Null.Type;
+  readonly createdByUserId: string | typeof Schema.Null.Type;
+  readonly description: string | typeof Schema.Null.Type;
+  readonly endedAt: Date | typeof Schema.Null.Type;
   readonly featureFlagId: string;
-  readonly hypothesis: string | null;
+  readonly hypothesis: string | typeof Schema.Null.Type;
   readonly id: string;
   readonly name: string;
-  readonly primaryMetricEventName: string | null;
+  readonly primaryMetricEventName: string | typeof Schema.Null.Type;
   readonly projectId: string;
-  readonly secondaryMetricEventNames: readonly string[] | null;
-  readonly startedAt: Date | null;
+  readonly secondaryMetricEventNames: readonly string[] | typeof Schema.Null.Type;
+  readonly startedAt: Date | typeof Schema.Null.Type;
   readonly status: number;
-  readonly updatedAt: Date | null;
-  readonly updatedByUserId: string | null;
+  readonly updatedAt: Date | typeof Schema.Null.Type;
+  readonly updatedByUserId: string | typeof Schema.Null.Type;
   readonly version: number;
-  readonly winningVariantId: string | null;
+  readonly winningVariantId: string | typeof Schema.Null.Type;
   readonly variants: ReadonlyArray<{
-    readonly archivedAt: Date | null;
-    readonly createdAt: Date | null;
+    readonly archivedAt: Date | typeof Schema.Null.Type;
+    readonly createdAt: Date | typeof Schema.Null.Type;
     readonly experimentId: string;
     readonly id: string;
     readonly isControl: boolean;
     readonly name: string;
-    readonly updatedAt: Date | null;
+    readonly updatedAt: Date | typeof Schema.Null.Type;
     readonly weightBps: number;
   }>;
   readonly treatments: ReadonlyArray<{
-    readonly archivedAt: Date | null;
+    readonly archivedAt: Date | typeof Schema.Null.Type;
     readonly config: unknown;
-    readonly createdAt: Date | null;
+    readonly createdAt: Date | typeof Schema.Null.Type;
     readonly experimentId: string;
     readonly id: string;
     readonly treatmentType: string;
-    readonly updatedAt: Date | null;
+    readonly updatedAt: Date | typeof Schema.Null.Type;
     readonly variantId: string;
   }>;
-  readonly featureFlag: {
-    readonly id: string;
-    readonly key: string;
-    readonly enabled: boolean;
-    readonly rolloutBps: number;
-  } | null;
+  readonly featureFlag:
+    | {
+        readonly id: string;
+        readonly key: string;
+        readonly enabled: boolean;
+        readonly rolloutBps: number;
+      }
+    | typeof Schema.Null.Type;
 }) => ({
   archivedAt: e.archivedAt,
   backingFlag: toBackingFlag(e.featureFlag),
@@ -153,7 +159,7 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
           }),
         ),
       GetExperimentResults: (input) =>
-        Effect.gen(function* () {
+        Effect.fn("GetExperimentResults")(function* () {
           const experiment = yield* service.getExperiment({ id: input.experimentId });
           const now = yield* DateTime.now;
           return yield* analytics.getExperimentResults({
@@ -165,7 +171,7 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
               experiment.startedAt ??
               DateTime.toDateUtc(DateTime.subtractDuration(now, Duration.days(input.days ?? 90))),
           });
-        }).pipe(
+        })().pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
             AnalyticsAuthorizationDeniedError: forbidden,
@@ -209,17 +215,39 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
             ExperimentValidationError: validation,
           }),
         ),
-      SaveExperimentSetup: (input) =>
-        service.saveSetup(input).pipe(
-          Effect.map(toRpcExperiment),
-          Effect.catchTags({
-            ActionForbiddenError: forbidden,
-            ExperimentNotFoundError: notFound,
-            ExperimentServiceError: serviceError,
-            ExperimentValidationError: validation,
-            ExperimentVariantNotFoundError: variantNotFound,
-          }),
-        ),
+      SaveExperimentSetup: (input) => {
+        const {
+          description,
+          hypothesis,
+          primaryMetricEventName,
+          secondaryMetricEventNames,
+          ...setup
+        } = input;
+        return service
+          .saveSetup({
+            ...setup,
+            ...(description === undefined
+              ? {}
+              : { description: Option.fromNullishOr(description) }),
+            ...(hypothesis === undefined ? {} : { hypothesis: Option.fromNullishOr(hypothesis) }),
+            ...(primaryMetricEventName === undefined
+              ? {}
+              : { primaryMetricEventName: Option.fromNullishOr(primaryMetricEventName) }),
+            ...(secondaryMetricEventNames === undefined
+              ? {}
+              : { secondaryMetricEventNames: Option.fromNullishOr(secondaryMetricEventNames) }),
+          })
+          .pipe(
+            Effect.map(toRpcExperiment),
+            Effect.catchTags({
+              ActionForbiddenError: forbidden,
+              ExperimentNotFoundError: notFound,
+              ExperimentServiceError: serviceError,
+              ExperimentValidationError: validation,
+              ExperimentVariantNotFoundError: variantNotFound,
+            }),
+          );
+      },
     };
   }),
 );

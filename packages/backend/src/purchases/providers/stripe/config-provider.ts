@@ -4,7 +4,10 @@
  * account id, and encrypts API/webhook secrets before persistence.
  */
 import { stringOr } from "@voidhash/lib/lang";
-import { Effect, Layer, Predicate, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 
 import {
   PaymentProviderConfigurationValidationError,
@@ -16,7 +19,7 @@ import { isEncrypted } from "@voidhash/core/utils/crypto/SecretBox";
 
 /** Reads a property off an unknown configuration blob without an `as` assertion. */
 const readProperty = <P extends string>(value: unknown, property: P): unknown => {
-  if (Predicate.hasProperty(value, property)) return value[property];
+  if (P.hasProperty(value, property)) return value[property];
   return undefined;
 };
 
@@ -25,25 +28,29 @@ const WEBHOOK_SECRET_PATTERN = /^whsec_[A-Za-z0-9]+$/;
 const STRIPE_PRODUCT_ID_PATTERN = /^prod_[A-Za-z0-9]+$/;
 const STRIPE_PRICE_ID_PATTERN = /^price_[A-Za-z0-9]+$/;
 
-export const credentialsSchema = Schema.Struct({
+export const credentials = Schema.Struct({
   secretKey: Schema.String.check(Schema.isMinLength(1)),
   webhookSecret: Schema.String.check(Schema.isMinLength(1)),
 });
 
-export const globalConfigurationSchema = Schema.Struct({
+export const globalConfiguration = Schema.Struct({
   accountId: Schema.String.check(Schema.isPattern(ACCOUNT_ID_PATTERN)),
-  live: credentialsSchema,
-  test: credentialsSchema,
+  live: credentials,
+  test: credentials,
 });
 
-export const productConfigurationSchema = Schema.Struct({
+export const productConfiguration = Schema.Struct({
   priceId: Schema.String.check(Schema.isPattern(STRIPE_PRICE_ID_PATTERN)),
   productId: Schema.String.check(Schema.isPattern(STRIPE_PRODUCT_ID_PATTERN)),
 });
 
-export type StripeGlobalConfiguration = Schema.Schema.Type<typeof globalConfigurationSchema>;
-export type StripeCredentialsConfiguration = Schema.Schema.Type<typeof credentialsSchema>;
-export type StripeProductConfiguration = Schema.Schema.Type<typeof productConfigurationSchema>;
+export type credentials = typeof credentials.Type;
+export type globalConfiguration = typeof globalConfiguration.Type;
+export type productConfiguration = typeof productConfiguration.Type;
+
+export type StripeGlobalConfiguration = Schema.Schema.Type<typeof globalConfiguration>;
+export type StripeCredentialsConfiguration = Schema.Schema.Type<typeof credentials>;
+export type StripeProductConfiguration = Schema.Schema.Type<typeof productConfiguration>;
 
 export interface StripeConfigProvider {
   readonly id: "stripe";
@@ -119,7 +126,7 @@ const validateCredentials = (credentials: StripeCredentialsConfiguration, mode: 
       validateSecretKey({ mode, secretKey: credentials.secretKey }),
       validateWebhookSecret(credentials.webhookSecret),
     ],
-    { discard: true },
+    { concurrency: 1, discard: true },
   );
 
 const encryptCredentials = (
@@ -129,7 +136,7 @@ const encryptCredentials = (
   Effect.all({
     secretKey: secretCrypto.encrypt(credentials.secretKey),
     webhookSecret: secretCrypto.encrypt(credentials.webhookSecret),
-  }).pipe(Effect.orDie);
+  }, { concurrency: 1 }).pipe(Effect.orDie);
 
 /** Build the Stripe config-write provider over a resolved secret crypto. */
 export const makeStripeConfigProvider = (
@@ -162,7 +169,7 @@ export const makeStripeConfigProvider = (
   title: "Stripe",
   type: "web-checkout",
   validateGlobalConfiguration: (configuration) =>
-    Schema.decodeUnknownEffect(globalConfigurationSchema)(configuration).pipe(
+    Schema.decodeUnknownEffect(globalConfiguration)(configuration).pipe(
       Effect.mapError(
         (error) =>
           new PaymentProviderConfigurationValidationError({
@@ -175,13 +182,13 @@ export const makeStripeConfigProvider = (
             validateCredentials(parsedConfiguration.live, "live"),
             validateCredentials(parsedConfiguration.test, "test"),
           ],
-          { discard: true },
+          { concurrency: 1, discard: true },
         ).pipe(
           Effect.flatMap(() =>
             Effect.all({
               live: encryptCredentials(parsedConfiguration.live, secretCrypto),
               test: encryptCredentials(parsedConfiguration.test, secretCrypto),
-            }).pipe(
+            }, { concurrency: 1 }).pipe(
               Effect.map(({ live, test }) => ({
                 parsedConfiguration: {
                   ...parsedConfiguration,
@@ -196,7 +203,7 @@ export const makeStripeConfigProvider = (
       ),
     ),
   validateProductConfiguration: (configuration) =>
-    Schema.decodeUnknownEffect(productConfigurationSchema)(configuration).pipe(
+    Schema.decodeUnknownEffect(productConfiguration)(configuration).pipe(
       Effect.mapError(
         (error) => new PaymentProviderProductValidationError({ message: error.message }),
       ),

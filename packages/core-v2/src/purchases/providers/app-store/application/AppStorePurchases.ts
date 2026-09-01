@@ -1,4 +1,6 @@
-import { Context, type Effect } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Schema from "effect/Schema";
 
 import { AppStorePaymentProviderServiceError } from "../domain/AppStoreErrors.ts";
 
@@ -24,9 +26,9 @@ export type AppStoreSdkTransactionResult =
 export interface AppStoreAcceptServerNotificationResult {
   readonly accepted: true;
   readonly handled: boolean;
-  readonly notificationType: string | undefined;
-  readonly notificationUUID: string | undefined;
-  readonly subtype: string | undefined;
+  readonly notificationType: string | typeof Schema.Undefined.Type;
+  readonly notificationUUID: string | typeof Schema.Undefined.Type;
+  readonly subtype: string | typeof Schema.Undefined.Type;
 }
 
 export interface AppStorePaymentProviderServiceShape {

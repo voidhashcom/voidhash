@@ -1,6 +1,9 @@
+import * as P from "effect/Predicate";
 import * as Workflow from "@voidhash/platform/Workflow";
 import { AuthSession } from "@voidhash/rpc";
-import { DateTime, Effect, Layer } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import {
   PaymentProviderProductOperations,
@@ -28,7 +31,7 @@ import {
 } from "../../runtime/workflows/definitions.ts";
 
 const portErrorMessage = (error: PurchasePortError | { readonly _tag: unknown }) => {
-  if ("message" in error && typeof error.message === "string") return error.message;
+  if ("message" in error && P.isString(error.message)) return error.message;
   return "Purchase persistence operation failed";
 };
 
@@ -37,7 +40,8 @@ const annotateUser = (session: typeof AuthSession.Service) => {
   return Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
 };
 
-const makePaymentProviderProductOperations = Effect.gen(function* () {
+const makePaymentProviderProductOperations = Effect.fn("makePaymentProviderProductOperations")(
+  function* () {
   const repository = yield* PurchaseManagementRepository;
   const audit = yield* PurchaseAuditLog;
   const permission = yield* ProjectPermissionCheck;
@@ -148,10 +152,13 @@ const makePaymentProviderProductOperations = Effect.gen(function* () {
             "voidhash.product.id": input.productId,
           });
           yield* annotateUser(session);
-          const [product, configuration] = yield* Effect.all([
-            repository.findProduct(input.productId),
-            repository.findConfiguration(input.paymentProviderConfigurationId),
-          ]);
+          const [product, configuration] = yield* Effect.all(
+            [
+              repository.findProduct(input.productId),
+              repository.findConfiguration(input.paymentProviderConfigurationId),
+            ],
+            { concurrency: 1 },
+          );
           if (product === undefined) {
             return yield* new PaymentProviderProductValidationError({
               message: `Product ${input.productId} not found`,
@@ -224,10 +231,13 @@ const makePaymentProviderProductOperations = Effect.gen(function* () {
             "voidhash.payment_provider.configuration_id": mapping.paymentProviderConfigurationId,
             "voidhash.product.id": mapping.productId,
           });
-          const [configuration, product] = yield* Effect.all([
-            repository.findConfiguration(mapping.paymentProviderConfigurationId),
-            repository.findProduct(mapping.productId),
-          ]);
+          const [configuration, product] = yield* Effect.all(
+            [
+              repository.findConfiguration(mapping.paymentProviderConfigurationId),
+              repository.findProduct(mapping.productId),
+            ],
+            { concurrency: 1 },
+          );
           if (
             configuration === undefined ||
             configuration.providerId === "development" ||
@@ -279,10 +289,13 @@ const makePaymentProviderProductOperations = Effect.gen(function* () {
             "voidhash.payment_provider.configuration_id": mapping.paymentProviderConfigurationId,
             "voidhash.product.id": mapping.productId,
           });
-          const [configuration, product] = yield* Effect.all([
-            repository.findConfiguration(mapping.paymentProviderConfigurationId),
-            repository.findProduct(mapping.productId),
-          ]);
+          const [configuration, product] = yield* Effect.all(
+            [
+              repository.findConfiguration(mapping.paymentProviderConfigurationId),
+              repository.findProduct(mapping.productId),
+            ],
+            { concurrency: 1 },
+          );
           if (configuration === undefined || configuration.providerId === "development") {
             return yield* new PaymentProviderProductNotFoundError({
               message: "Provider product not found",
@@ -347,10 +360,13 @@ const makePaymentProviderProductOperations = Effect.gen(function* () {
             "voidhash.product.id": input.productId,
           });
           yield* annotateUser(session);
-          const [product, configuration] = yield* Effect.all([
-            repository.findProduct(input.productId),
-            repository.findConfiguration(input.paymentProviderConfigurationId),
-          ]);
+          const [product, configuration] = yield* Effect.all(
+            [
+              repository.findProduct(input.productId),
+              repository.findConfiguration(input.paymentProviderConfigurationId),
+            ],
+            { concurrency: 1 },
+          );
           if (product === undefined) {
             return yield* new PaymentProviderProductValidationError({
               message: `Product ${input.productId} not found`,
@@ -421,10 +437,13 @@ const makePaymentProviderProductOperations = Effect.gen(function* () {
             "voidhash.payment_provider.configuration_id": mapping.paymentProviderConfigurationId,
             "voidhash.product.id": mapping.productId,
           });
-          const [product, configuration] = yield* Effect.all([
-            repository.findProduct(mapping.productId),
-            repository.findConfiguration(mapping.paymentProviderConfigurationId),
-          ]);
+          const [product, configuration] = yield* Effect.all(
+            [
+              repository.findProduct(mapping.productId),
+              repository.findConfiguration(mapping.paymentProviderConfigurationId),
+            ],
+            { concurrency: 1 },
+          );
           if (product === undefined) {
             return yield* new PaymentProviderProductValidationError({
               message: `Product ${mapping.productId} not found`,
@@ -478,7 +497,8 @@ const makePaymentProviderProductOperations = Effect.gen(function* () {
         }),
       ),
   });
-});
+  },
+)();
 
 /** Core provider-product orchestration over infrastructure-neutral management ports. */
 export const PaymentProviderProductOperationsLive = Layer.effect(

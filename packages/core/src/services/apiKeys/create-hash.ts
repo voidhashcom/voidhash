@@ -1,4 +1,11 @@
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
 import { subtle } from "uncrypto";
+
+import { runSync, unexpectedError } from "../../effect-boundary.ts";
 
 export type TypedArray =
   | Uint8Array
@@ -21,59 +28,65 @@ const getAlphabet = (urlSafe: boolean): string => {
 };
 
 const base64Encode = (data: Uint8Array, alphabet: string, padding: boolean): string => {
-  let result = "";
-  let buffer = 0;
-  let shift = 0;
+  const encoded = Arr.reduce(
+    Arr.fromIterable(data),
+    { buffer: 0, result: "", shift: 0 },
+    (state, byte) => {
+      const buffer = (state.buffer << 8) | byte;
+      const availableBits = state.shift + 8;
+      const emissionCount = Math.floor(availableBits / 6);
+      const emitted = Arr.reduce(
+        Arr.range(1, emissionCount),
+        { result: state.result, shift: availableBits },
+        (current) => {
+          const shift = current.shift - 6;
+          return {
+            result: current.result + alphabet.charAt((buffer >> shift) & 0x3f),
+            shift,
+          };
+        },
+      );
+      return { buffer, result: emitted.result, shift: emitted.shift };
+    },
+  );
 
-  for (const byte of data) {
-    buffer = (buffer << 8) | byte;
-    shift += 8;
-    while (shift >= 6) {
-      shift -= 6;
-      result += alphabet[(buffer >> shift) & 0x3f];
-    }
-  }
-
-  if (shift > 0) {
-    result += alphabet[(buffer << (6 - shift)) & 0x3f];
-  }
-
-  if (padding) {
-    const padCount = (4 - (result.length % 4)) % 4;
-    result += "=".repeat(padCount);
-  }
-
-  return result;
+  const result =
+    encoded.shift > 0
+      ? encoded.result + alphabet.charAt((encoded.buffer << (6 - encoded.shift)) & 0x3f)
+      : encoded.result;
+  if (!padding) return result;
+  const padCount = (4 - (result.length % 4)) % 4;
+  return result + "=".repeat(padCount);
 };
 
+const invalidBase64Character = (char: string): never =>
+  runSync(Effect.die(unexpectedError(`Invalid Base64 character: ${char}`)));
+
 const base64Decode = (data: string, alphabet: string): Uint8Array => {
-  const decodeMap = new Map<string, number>();
-  for (let i = 0; i < alphabet.length; i++) {
-    decodeMap.set(alphabet[i]!, i);
-  }
-  const result: number[] = [];
-  let buffer = 0;
-  let bitsCollected = 0;
+  const decodeMap = Arr.reduce(
+    Arr.fromIterable(alphabet),
+    HashMap.empty<string, number>(),
+    (map, char, index) => HashMap.set(map, char, index),
+  );
+  const decoded = Arr.reduce(
+    Arr.takeWhile(Arr.fromIterable(data), (char) => char !== "="),
+    { bitsCollected: 0, buffer: 0, result: Arr.empty<number>() },
+    (state, char) => {
+      const value = HashMap.get(decodeMap, char);
+      if (Option.isNone(value)) return invalidBase64Character(char);
+      const buffer = (state.buffer << 6) | value.value;
+      const bitsCollected = state.bitsCollected + 6;
+      if (bitsCollected < 8) return { bitsCollected, buffer, result: state.result };
+      const remainingBits = bitsCollected - 8;
+      return {
+        bitsCollected: remainingBits,
+        buffer,
+        result: Arr.append(state.result, (buffer >> remainingBits) & 0xff),
+      };
+    },
+  );
 
-  for (const char of data) {
-    if (char === "=") {
-      break;
-    }
-    const value = decodeMap.get(char);
-    if (value === undefined) {
-      // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- pure synchronous base64 decoder used from synchronous call sites (including hashing on the Workers request path); throw is the control flow here and the Effect boundary is the caller that wraps this decoder.
-      throw new Error(`Invalid Base64 character: ${char}`);
-    }
-    buffer = (buffer << 6) | value;
-    bitsCollected += 6;
-
-    if (bitsCollected >= 8) {
-      bitsCollected -= 8;
-      result.push((buffer >> bitsCollected) & 0xff);
-    }
-  }
-
-  return Uint8Array.from(result);
+  return Uint8Array.from(decoded.result);
 };
 
 const toUint8Array = (data: ArrayBuffer | TypedArray): Uint8Array => {
@@ -87,13 +100,13 @@ const toUint8Array = (data: ArrayBuffer | TypedArray): Uint8Array => {
 };
 
 const toBytes = (data: ArrayBuffer | TypedArray | string): Uint8Array => {
-  if (typeof data === "string") return new TextEncoder().encode(data);
+  if (P.isString(data)) return new TextEncoder().encode(data);
   return toUint8Array(data);
 };
 
 const base64 = {
   decode(data: string | ArrayBuffer | TypedArray) {
-    if (typeof data !== "string") {
+    if (!P.isString(data)) {
       data = new TextDecoder().decode(toUint8Array(data));
     }
     const urlSafe = data.includes("-") || data.includes("_");

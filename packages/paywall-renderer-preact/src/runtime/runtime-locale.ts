@@ -9,6 +9,6 @@ import { readInjectedConfig } from "@voidhash/paywalls";
  * SDK with zero server work; the SSR body stays default-locale and hydration
  * re-renders with the resolved locale.
  */
-export function resolveRuntimeLocale(payloadLocale: string | undefined): string | undefined {
+export function resolveRuntimeLocale(payloadLocale?: string) {
   return readInjectedConfig().locale ?? payloadLocale;
 }

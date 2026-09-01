@@ -1,4 +1,8 @@
-import { Cause, Context, Effect, Layer, Option } from "effect";
+import * as Cause from "effect/Cause";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import { WorkflowRunner } from "@voidhash/platform/WorkflowRunner";
 

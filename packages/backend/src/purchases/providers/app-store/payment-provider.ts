@@ -13,7 +13,12 @@ import {
 import { generateId } from "@voidhash/core/utils";
 import { PurchaseType } from "@voidhash/lib/constants";
 import { constant, pick } from "@voidhash/lib/lang";
-import { DateTime, Effect, Layer, Option, Schema, Context } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
 
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import type { PurchaseProcessingResult } from "@voidhash/core-v2";
@@ -35,9 +40,10 @@ import type { PaymentProvider } from "../PaymentProviderAdapter.ts";
 import {
   type AppStoreGlobalConfiguration,
   type AppStoreProductConfiguration,
-  globalConfigurationSchema,
+  type AppStoreStoredGlobalConfiguration,
+  globalConfiguration as globalConfigurationSchema,
   makeAppStoreConfigProvider,
-  productConfigurationSchema,
+  productConfiguration as productConfigurationSchema,
 } from "./config-provider.ts";
 import {
   AppStorePaymentProviderProductNotMappedError,
@@ -62,24 +68,26 @@ import {
   type AppStoreSdkContext,
   type AppStoreSignedDataVerifierFactory,
 } from "./sdk-context.ts";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
 
 /** Optional verifier-only environment override for hermetic runtime composition. */
 export const AppStoreVerifierEnvironmentOverride = Context.Reference<
-  import("./sdk-context.ts").AppStoreEnvironment | undefined
+  import("./sdk-context.ts").AppStoreEnvironment | typeof Schema.Undefined.Type
 >("@voidhash/backend/purchases/AppStoreVerifierEnvironmentOverride", {
   defaultValue: () => undefined,
 });
 
 /** Optional signed-data verifier factory override for runtime composition. */
 export const AppStoreSignedDataVerifierFactoryOverride = Context.Reference<
-  AppStoreSignedDataVerifierFactory | undefined
+  AppStoreSignedDataVerifierFactory | typeof Schema.Undefined.Type
 >("@voidhash/backend/purchases/AppStoreSignedDataVerifierFactoryOverride", {
   defaultValue: () => undefined,
 });
 
 /** Optional App Store Server API client factory override for runtime composition. */
 export const AppStoreServerApiClientFactoryOverride = Context.Reference<
-  AppStoreServerApiClientFactory | undefined
+  AppStoreServerApiClientFactory | typeof Schema.Undefined.Type
 >("@voidhash/backend/purchases/AppStoreServerApiClientFactoryOverride", {
   defaultValue: () => undefined,
 });
@@ -102,7 +110,7 @@ export { globalConfigurationSchema, productConfigurationSchema };
 
 export interface AppStorePaymentProviderShape extends PaymentProvider<
   "apple-app-store",
-  AppStoreGlobalConfiguration,
+  AppStoreStoredGlobalConfiguration,
   AppStoreProductConfiguration
 > {
   readonly globalConfigurationSchema: typeof globalConfigurationSchema;
@@ -155,7 +163,7 @@ const dateFromMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.mak
  * The StoreKit transaction id the SDK client observed, present only on the
  * `"sdk"` arm of {@link RecordTransactionInput}.
  */
-const sdkTransactionIdOf = (input: RecordTransactionInput): string | undefined => {
+const sdkTransactionIdOf = (input: RecordTransactionInput): string | typeof Schema.Undefined.Type => {
   if (input.source === "sdk") {
     return input.sdkTransactionId;
   }
@@ -163,7 +171,7 @@ const sdkTransactionIdOf = (input: RecordTransactionInput): string | undefined =
 };
 
 /** The caller-supplied distinct id, present only on the `"sdk"` arm. */
-const sdkDistinctIdOf = (input: RecordTransactionInput): string | undefined => {
+const sdkDistinctIdOf = (input: RecordTransactionInput): string | typeof Schema.Undefined.Type => {
   if (input.source === "sdk") {
     return input.distinctId;
   }
@@ -212,7 +220,7 @@ const purchaseProcessingResultKind = (result: PurchaseProcessingResult) => {
     return "idempotent";
   }
   if (
-    result.analyticsEventIds.length === 0 &&
+    Arr.isReadonlyArrayEmpty(result.analyticsEventIds) &&
     Option.isNone(result.purchaseId) &&
     Option.isNone(result.subscriptionId) &&
     Option.isNone(result.transactionId)
@@ -227,7 +235,7 @@ const purchaseProcessingResultSpanAttributes = (result: PurchaseProcessingResult
 });
 
 const isPurchaseProcessingResultLike = (value: unknown): value is PurchaseProcessingResult =>
-  typeof value === "object" &&
+  P.isObject(value) &&
   value !== null &&
   "analyticsEventIds" in value &&
   "changedGrantIds" in value &&
@@ -252,7 +260,7 @@ const annotatePurchaseProcessingResult = (result: unknown) =>
     }
   });
 
-const make = Effect.gen(function* () {
+const make = Effect.fn("make")(function* () {
   const queries = yield* AppStorePaymentProviderServiceQueries;
   const personIdentityService = yield* PersonIdentityService;
   const purchaseProcessingService = yield* PurchaseProcessor;
@@ -277,12 +285,12 @@ const make = Effect.gen(function* () {
     effect: Effect.Effect<A, E, R>,
     input: I,
   ) =>
-    Effect.gen(function* () {
+    Effect.fn("_withRecordTransactionObservability")(function* () {
       yield* annotateRecordTransaction(input);
       const result = yield* effect;
       yield* annotatePurchaseProcessingResult(result);
       return result;
-    });
+    })();
 
   // The config-write surface (schema validation, key derivation, default
   // configuration blobs, and encrypt-on-write of the secret Apple PKCS8 key) is
@@ -487,7 +495,7 @@ const make = Effect.gen(function* () {
                * and the rebind completes. On transfer failure the rebind is
                * skipped so a later delivery retries the whole sequence.
                */
-              const transferred = yield* Effect.gen(function* () {
+              const transferred = yield* Effect.fn("transferred")(function* () {
                 // Look the entitlement up by its real store keys, NOT by
                 // `personIdentifier`: with account tokens the identifier is the
                 // derived UUID (never a store key), so keying the lookups on it
@@ -537,7 +545,7 @@ const make = Effect.gen(function* () {
                 // Nothing found → first-seen; the identifier rebind alone
                 // suffices.
                 return true;
-              }).pipe(
+              })().pipe(
                 Effect.catch((error: unknown) =>
                   Effect.logWarning(
                     "App Store cross-owner transfer failed; skipping identifier rebind so a later delivery retries",
@@ -725,7 +733,7 @@ const make = Effect.gen(function* () {
     readonly receivedAt: Date;
     readonly source: "sdk" | "webhook" | "reconciliation";
   }) =>
-    Effect.gen(function* () {
+    Effect.fn("_buildPurchaseActionBase")(function* () {
       const transaction = input.decodedTransaction;
       const idempotencyKey = yield* getAppStorePurchaseProcessingIdempotencyKey({
         decodedTransaction: transaction,
@@ -756,7 +764,7 @@ const make = Effect.gen(function* () {
         source: input.source,
       };
       return base;
-    });
+    })();
 
   /**
    * Builds the platform-neutral money record (gross / commission / tax /
@@ -822,7 +830,7 @@ const make = Effect.gen(function* () {
     input: RecordTransactionInput,
     providerEventType: AppStorePurchaseProcessingEventType,
   ) =>
-    Effect.gen(function* () {
+    Effect.fn("_resolveAppStorePurchaseContext")(function* () {
       yield* Effect.annotateCurrentSpan("voidhash.payment_provider.event_type", providerEventType);
       const providerTransactionIdOp = getAppStoreProviderTransactionId({
         decodedTransaction: input.decodedTransaction,
@@ -917,7 +925,7 @@ const make = Effect.gen(function* () {
         occurredAt,
         subtype: input.subtype,
       };
-    });
+    })();
 
   /**
    * Records a new App Store purchase. Used for both auto-renewable subscription
@@ -1313,7 +1321,7 @@ const make = Effect.gen(function* () {
     recordSubscriptionExtended,
     recordSubscriptionRenewed,
   });
-});
+})();
 
 export type { AppStoreSdkContext };
 

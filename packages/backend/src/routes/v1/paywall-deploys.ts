@@ -22,7 +22,8 @@ import {
 import { PaywallDeployService, type PaywallDeployListItem } from "@voidhash/core/services";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
@@ -31,11 +32,19 @@ import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
 const toDeploy = (item: PaywallDeployListItem) =>
   new PaywallDeploy({
     cliVersion: item.cliVersion,
-    components: item.components,
+    components: item.components.map((component) => ({
+      ...component,
+      componentId: Option.getOrNull(component.componentId),
+      version: Option.getOrNull(component.version),
+    })),
     createdAt: item.createdAt,
     createdByName: item.createdByName,
     id: item.id,
-    paywalls: item.paywalls,
+    paywalls: item.paywalls.map((paywall) => ({
+      ...paywall,
+      releaseId: Option.getOrNull(paywall.releaseId),
+      version: Option.getOrNull(paywall.version),
+    })),
     runtimeVersion: item.runtimeVersion,
     schemaVersion: item.schemaVersion,
     status: item.status,
@@ -58,7 +67,7 @@ export const PaywallDeploysGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("listDeploys", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaywallDeploysGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, ["user", "secret-key"]);
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -67,7 +76,7 @@ export const PaywallDeploysGroupLive = HttpApiBuilder.group(
                 (deploy) => query.status === undefined || deploy.status === query.status,
               );
               return yield* paginate(filtered.map(toDeploy), (deploy) => deploy.id, query);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -79,7 +88,7 @@ export const PaywallDeploysGroupLive = HttpApiBuilder.group(
         )
         .handle("getDeploy", ({ params, query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaywallDeploysGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, ["user", "secret-key"]);
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -95,7 +104,7 @@ export const PaywallDeploysGroupLive = HttpApiBuilder.group(
                 );
               }
               return toDeploy(deploy);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>

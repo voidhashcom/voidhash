@@ -6,6 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
+import * as Schema from "effect/Schema";
 
 import { DatabaseHyperdrive } from "./infrastructure/Hyperdrive.ts";
 import { PaywallArtifactsBucket } from "./r2/PaywallArtifactsBucket.ts";
@@ -14,12 +15,15 @@ import { CommunityWebsite } from "./workers/WwwWorker.ts";
 import CommunityBackend from "./workers/BackendWorker.ts";
 import MimicDbWorker, { MIMIC_DB_DEV_PORT } from "./workers/MimicDbWorker.ts";
 
-const dieOnBlankWwwOrigin = (): never =>
-  Effect.runSync(
-    Effect.die(
-      new Error("www origin resolved empty — refusing to bind a blank CORS_ORIGINS on mimic-db"),
-    ),
-  );
+class CommunityStackConfigurationError extends Schema.TaggedErrorClass<CommunityStackConfigurationError>(
+  "CommunityStackConfigurationError",
+)("CommunityStackConfigurationError", { message: Schema.String }) {}
+
+const dieOnBlankWwwOrigin = (): never => {
+  throw new CommunityStackConfigurationError({
+    message: "www origin resolved empty — refusing to bind a blank CORS_ORIGINS on mimic-db",
+  });
+};
 
 /** Resolved Community Cloudflare deployment outputs. */
 export interface CommunityStackOutput {
@@ -85,7 +89,9 @@ export default Alchemy.Stack(
         if (Redacted.value(password) !== "") return Effect.succeed(password);
         if (isEphemeral) return Effect.succeed(Redacted.make("password"));
         return Effect.die(
-          new Error("MIMIC_ROOT_PASSWORD must be set for production/preview deploys"),
+          new CommunityStackConfigurationError({
+            message: "MIMIC_ROOT_PASSWORD must be set for production/preview deploys",
+          }),
         );
       }),
     );

@@ -1,5 +1,8 @@
 import { type SchemaObject, type Value } from "@voidhash/mimic-core";
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import type { DocumentSnapshotResponse } from "../document/snapshot.ts";
 import type { SubmitTransactionResponse, TransactionEnvelope } from "../document/transaction.ts";
@@ -33,7 +36,7 @@ export interface HostService {
     token: string,
     collectionId: string,
     documentId: string,
-    origin: string | null,
+    origin: Option.Option<string>,
   ) => Effect.Effect<{ readonly tokenId: string; readonly permission: DocumentPermission }, any>;
   readonly createDatabase: (
     name: string,
@@ -58,7 +61,7 @@ export interface HostService {
       readonly name: string;
       readonly schema: SchemaObject;
       readonly schemaVersion: number;
-      readonly migrationVersion: number | null;
+      readonly migrationVersion: Option.Option<number>;
     },
     any
   >;
@@ -69,7 +72,7 @@ export interface HostService {
       readonly name: string;
       readonly schema: SchemaObject;
       readonly schemaVersion: number;
-      readonly migrationVersion: number | null;
+      readonly migrationVersion: Option.Option<number>;
     }[],
     any
   >;
@@ -92,7 +95,7 @@ export interface HostService {
     permission: DatabasePermission,
   ) => Effect.Effect<void, any>;
   readonly revokePermission: (userId: string, databaseId: string) => Effect.Effect<void, any>;
-  readonly listGrants: (userId?: string) => Effect.Effect<
+  readonly listGrants: (userId: Option.Option<string>) => Effect.Effect<
     readonly {
       readonly id: string;
       readonly userId: string;
@@ -106,11 +109,11 @@ export interface HostService {
     documentId: string,
     permission: DocumentPermission,
     origins: readonly string[],
-    expiresInSeconds?: number,
+    expiresInSeconds: Option.Option<number>,
   ) => Effect.Effect<{ readonly token: string }, any>;
   readonly createDocument: (
     collectionId: string,
-    id: string | undefined,
+    id: Option.Option<string>,
     value: unknown,
   ) => Effect.Effect<DocumentSnapshotResponse, any>;
   readonly getDocument: (
@@ -194,13 +197,18 @@ export class HostServiceTag extends Context.Service<HostServiceTag, HostService>
   "@voidhash/mimic-db/HostService",
 ) {}
 
-export const DatabasePermissionSchema = Schema.Union([
+export const DatabasePermissionCodec = Schema.Union([
   Schema.Literal("read"),
   Schema.Literal("write"),
   Schema.Literal("admin"),
 ]);
+export type DatabasePermissionCodec = typeof DatabasePermissionCodec.Type;
 
-export const DocumentPermissionSchema = Schema.Union([
+export const DocumentPermissionCodec = Schema.Union([
   Schema.Literal("read"),
   Schema.Literal("write"),
 ]);
+export type DocumentPermissionCodec = typeof DocumentPermissionCodec.Type;
+
+export { DatabasePermissionCodec as DatabasePermissionSchema };
+export { DocumentPermissionCodec as DocumentPermissionSchema };

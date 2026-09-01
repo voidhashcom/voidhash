@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Stable RPC failure for durable session metadata or attachment storage. */
 export class RpcAgentSessionServiceError extends Schema.TaggedErrorClass<RpcAgentSessionServiceError>(

@@ -21,7 +21,7 @@ import {
   verifyStandaloneAuthToken,
   type StandaloneAuthTokenClaims,
 } from "@voidhash/core/utils/crypto/standalone-auth-token";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 export interface StandaloneSessionUser {
   readonly email: string;
@@ -65,7 +65,8 @@ export const mintStandaloneSessionToken = (): Promise<string> => {
   return Effect.runPromise(
     signStandaloneAuthToken({
       email: config.rootEmail,
-      name: config.rootUsername,
+      image: Option.none(),
+      name: Option.some(config.rootUsername),
       secret: config.secret,
     }),
   );
@@ -75,17 +76,20 @@ export const mintStandaloneSessionToken = (): Promise<string> => {
 export const readStandaloneSession = async (
   request: Request,
 ): Promise<{ token: string; user: StandaloneSessionUser } | null> => {
-  const token = readCookieValue(request.headers.get("cookie"), STANDALONE_AUTH_COOKIE_NAME);
-  if (!token) return null;
+  const token = readCookieValue(
+    Option.fromNullishOr(request.headers.get("cookie")),
+    STANDALONE_AUTH_COOKIE_NAME,
+  );
+  if (Option.isNone(token)) return null;
 
   const claims = await Effect.runPromise(
-    verifyStandaloneAuthToken(token, resolveStandaloneAuthConfig().secret).pipe(
+    verifyStandaloneAuthToken(token.value, resolveStandaloneAuthConfig().secret).pipe(
       Effect.map((value): StandaloneAuthTokenClaims | null => value),
       Effect.catch(() => Effect.succeed(null)),
     ),
   );
 
-  return claims === null ? null : { token, user: toUser(claims) };
+  return claims === null ? null : { token: token.value, user: toUser(claims) };
 };
 
 /**

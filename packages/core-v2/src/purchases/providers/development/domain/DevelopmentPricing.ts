@@ -4,7 +4,11 @@ import {
   type ProductTypeValue,
   type SubscriptionDurationValue,
 } from "@voidhash/lib";
-import { Brand, DateTime, Option } from "effect";
+import * as Brand from "effect/Brand";
+import * as DateTime from "effect/DateTime";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import type * as Schema from "effect/Schema";
 
 import {
   PurchaseProcessingMoney,
@@ -29,71 +33,96 @@ export const DEVELOPMENT_PRICES = {
 export interface DevelopmentPrice {
   readonly amount: number;
   readonly currencyCode: "USD";
-  readonly duration: "weekly" | "monthly" | "quarterly" | "semi-annual" | "annual" | null;
+  readonly duration:
+    | "weekly"
+    | "monthly"
+    | "quarterly"
+    | "semi-annual"
+    | "annual"
+    | typeof Schema.Null.Type;
   readonly period: "week" | "month" | "year" | "lifetime";
   readonly periodCount: number;
-  readonly warning: string | null;
+  readonly warning: string | typeof Schema.Null.Type;
 }
 
 const durationPrice = (
-  duration: SubscriptionDurationValue | null,
+  duration: SubscriptionDurationValue | typeof Schema.Null.Type,
 ): Omit<DevelopmentPrice, "currencyCode"> => {
-  switch (duration) {
-    case SubscriptionDuration.Weekly:
-      return {
-        amount: DEVELOPMENT_PRICES.weekly,
-        duration: "weekly",
-        period: "week",
-        periodCount: 1,
-        warning: null,
-      };
-    case SubscriptionDuration.Quarterly:
-      return {
-        amount: DEVELOPMENT_PRICES.quarterly,
-        duration: "quarterly",
-        period: "month",
-        periodCount: 3,
-        warning: null,
-      };
-    case SubscriptionDuration.SemiAnnual:
-      return {
-        amount: DEVELOPMENT_PRICES.semiAnnual,
-        duration: "semi-annual",
-        period: "month",
-        periodCount: 6,
-        warning: null,
-      };
-    case SubscriptionDuration.Annual:
-      return {
-        amount: DEVELOPMENT_PRICES.annual,
-        duration: "annual",
-        period: "year",
-        periodCount: 1,
-        warning: null,
-      };
-    case SubscriptionDuration.Monthly:
-      return {
-        amount: DEVELOPMENT_PRICES.monthly,
-        duration: "monthly",
-        period: "month",
-        periodCount: 1,
-        warning: null,
-      };
-    case null:
-      return {
-        amount: DEVELOPMENT_PRICES.monthly,
-        duration: "monthly",
-        period: "month",
-        periodCount: 1,
-        warning: "This legacy subscription has no duration and is simulated as monthly.",
-      };
-  }
+  return Match.value(duration).pipe(
+    Match.when(
+      SubscriptionDuration.Weekly,
+      () =>
+        ({
+          amount: DEVELOPMENT_PRICES.weekly,
+          duration: "weekly",
+          period: "week",
+          periodCount: 1,
+          warning: null,
+        }) as const,
+    ),
+    Match.when(
+      SubscriptionDuration.Quarterly,
+      () =>
+        ({
+          amount: DEVELOPMENT_PRICES.quarterly,
+          duration: "quarterly",
+          period: "month",
+          periodCount: 3,
+          warning: null,
+        }) as const,
+    ),
+    Match.when(
+      SubscriptionDuration.SemiAnnual,
+      () =>
+        ({
+          amount: DEVELOPMENT_PRICES.semiAnnual,
+          duration: "semi-annual",
+          period: "month",
+          periodCount: 6,
+          warning: null,
+        }) as const,
+    ),
+    Match.when(
+      SubscriptionDuration.Annual,
+      () =>
+        ({
+          amount: DEVELOPMENT_PRICES.annual,
+          duration: "annual",
+          period: "year",
+          periodCount: 1,
+          warning: null,
+        }) as const,
+    ),
+    Match.when(
+      SubscriptionDuration.Monthly,
+      () =>
+        ({
+          amount: DEVELOPMENT_PRICES.monthly,
+          duration: "monthly",
+          period: "month",
+          periodCount: 1,
+          warning: null,
+        }) as const,
+    ),
+    Match.when(
+      null,
+      () =>
+        ({
+          amount: DEVELOPMENT_PRICES.monthly,
+          duration: "monthly",
+          period: "month",
+          periodCount: 1,
+          warning: "This legacy subscription has no duration and is simulated as monthly.",
+        }) as const,
+    ),
+    Match.exhaustive,
+  );
 };
 
 /** Returns the deterministic development price and billing period for a product. */
 export const getDevelopmentPrice = (
   type: ProductTypeValue,
-  duration: SubscriptionDurationValue | null,
+  duration: SubscriptionDurationValue | typeof Schema.Null.Type,
 ): DevelopmentPrice => {
   if (type === ProductType.Subscription) {
     return { ...durationPrice(duration), currencyCode: "USD" };

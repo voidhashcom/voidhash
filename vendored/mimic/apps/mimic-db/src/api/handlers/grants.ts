@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { CurrentUser, ForbiddenError, GrantsRpcs } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag } from "../../app/hostService.ts";
@@ -33,7 +34,7 @@ export const GrantsHandlersLive = GrantsRpcs.toLayer(
         Effect.gen(function* () {
           const user = yield* CurrentUser;
           yield* requireSuperuser(user, "list grants");
-          return yield* host.listGrants(userId);
+          return yield* host.listGrants(Option.fromUndefinedOr(userId));
         }),
     };
   }),

@@ -1,14 +1,18 @@
 import { make as makeCoreClient } from "@voidhash/generated-clients";
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import * as Option from "effect/Option";
 
 import { CliConfig } from "../domain/services/cli-config";
 
 /** Builds the API key header set, empty when no key is configured. */
-const apiKeyHeaders = (apiKey: string | null | undefined): Record<string, string> => {
-  if (apiKey) return { "x-api-key": apiKey };
-  return {};
-};
+const apiKeyHeaders = (apiKey: Option.Option<string>): Record<string, string> =>
+  Option.match(apiKey, {
+    onNone: () => ({}),
+    onSome: (value) => ({ "x-api-key": value }),
+  });
 
 const make = Effect.gen(function* effect() {
   yield* Effect.logDebug("Initializing API client");
@@ -19,7 +23,7 @@ const make = Effect.gen(function* effect() {
       Effect.succeed(
         client.pipe(
           HttpClient.mapRequestEffect((request) =>
-            Effect.gen(function* transformClient() {
+            Effect.fn("transformClient")(function* transformClient() {
               const config = yield* cliConfig
                 .readConfig()
                 .pipe(Effect.catch(() => Effect.die("Failed to read config")));
@@ -28,9 +32,9 @@ const make = Effect.gen(function* effect() {
 
               return HttpClientRequest.setHeaders(
                 HttpClientRequest.prependUrl(request, config.api_url),
-                apiKeyHeaders(config.api_key),
+                apiKeyHeaders(Option.fromNullishOr(config.api_key)),
               );
-            }).pipe(Effect.withSpan("ApiClient.transformRequest")),
+            })().pipe(Effect.withSpan("ApiClient.transformRequest")),
           ),
         ),
       ),

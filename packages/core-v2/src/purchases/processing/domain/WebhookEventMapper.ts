@@ -25,7 +25,8 @@ import {
   WebhookSubscriptionRenewedPayload,
 } from "@voidhash/api-contracts";
 import { SubscriptionStatus } from "@voidhash/lib";
-import { Option, Schema } from "effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import type { ProviderEnvironment } from "../../domain/PurchaseAction.ts";
 import type { PurchaseProcessingMoney } from "../../domain/PurchaseProcessing.ts";
@@ -65,7 +66,7 @@ export interface WebhookLifecycleEvent {
 export interface WebhookEventMapperContext {
   readonly distinctId: string;
   readonly productId: string;
-  readonly productSlug: string | null;
+  readonly productSlug: string | typeof Schema.Null.Type;
   readonly providerProductId: string;
 }
 
@@ -94,7 +95,8 @@ const purchaseKindLabel = (purchaseType: string): WebhookPurchaseKind => {
   return "one_time";
 };
 
-const isoOrNull = (date: Date | null | undefined) => date?.toISOString() ?? null;
+const isoOrNull = (date: Option.Option<Date>) =>
+  Option.match(date, { onNone: () => null, onSome: (value) => value.toISOString() });
 
 /**
  * Gross charge for the payload. Absent money stays `null` rather than being
@@ -154,7 +156,7 @@ export const toSubscriptionCreatedWebhookEvent = (
         cfg,
       ),
       amount: toMoney(input.money),
-      expiresAt: isoOrNull(Option.getOrNull(input.expiresAt)),
+      expiresAt: isoOrNull(input.expiresAt),
       isTrial: input.isTrial,
       purchasedAt: subject.purchasedAt.toISOString(),
       startsAt: input.startsAt.toISOString(),
@@ -178,7 +180,7 @@ export const toSubscriptionRenewedWebhookEvent = (
         cfg,
       ),
       amount: toMoney(input.money),
-      expiresAt: isoOrNull(Option.getOrNull(input.expiresAt)),
+      expiresAt: isoOrNull(input.expiresAt),
       isTrial: input.isTrial,
       renewedAt: input.renewedAt.toISOString(),
       startsAt: input.startsAt.toISOString(),
@@ -193,7 +195,7 @@ export const toSubscriptionCancelledWebhookEvent = (
   subject: {
     readonly subscriptionId: string;
     readonly status: number;
-    readonly expiresAt: Date | null;
+    readonly expiresAt: Date | typeof Schema.Null.Type;
   },
   cfg: WebhookEventMapperContext,
 ): WebhookLifecycleEvent => ({
@@ -205,10 +207,10 @@ export const toSubscriptionCancelledWebhookEvent = (
         { status: subject.status, subscriptionId: subject.subscriptionId },
         cfg,
       ),
-      cancelAtPeriodEnd: input.cancelAtPeriodEnd,
+      cancelAtPeriodEnd: input.isCancelAtPeriodEnd,
       canceledAt: input.canceledAt.toISOString(),
       cancellationReason: Option.getOrNull(input.cancellationReason),
-      expiresAt: isoOrNull(subject.expiresAt),
+      expiresAt: isoOrNull(Option.fromNullishOr(subject.expiresAt)),
       type: "subscription.cancelled",
     }),
   ),
@@ -263,7 +265,7 @@ export const toPurchaseCompletedWebhookEvent = (
 export const toPurchaseRefundedWebhookEvent = (
   input: typeof RefundPurchaseInput.Type,
   subject: {
-    readonly purchaseId: string | null;
+    readonly purchaseId: string | typeof Schema.Null.Type;
     readonly money: Option.Option<PurchaseProcessingMoney>;
   },
   cfg: WebhookEventMapperContext,

@@ -4,7 +4,13 @@ import type {
   DurableEntityContext,
   DurableEntityHostShape,
 } from "@voidhash/platform/DurableEntity";
-import { Clock, Effect, Schema } from "effect";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import { runtimeError, runSync } from "./RuntimeBoundary.ts";
+import * as Schema from "effect/Schema";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
 
 const LOG_META_KEY = "agent-session/log/meta";
 const LOG_ENTRY_PREFIX = "agent-session/log/entry/";
@@ -13,18 +19,19 @@ const OWNER_KEY = "agent-session/owner";
 /** Maximum UTF-8 payload stored in one durable key-value value. */
 export const SESSION_LOG_CHUNK_BYTES = 120 * 1024;
 
-interface SessionLogMeta {
+type SessionLogMeta = {
   readonly count: number;
-  readonly headId?: string;
-}
+} & Readonly<Partial<{ headId: string }>>;
 
 interface StoredEntryMeta {
   readonly chunks: number;
 }
 
+const NullableString = Schema.NullOr(Schema.String);
+
 interface SessionLogEntryBase {
   readonly id: string;
-  readonly parentId: string | null;
+  readonly parentId: typeof NullableString.Type;
   readonly timestamp: number;
 }
 
@@ -78,14 +85,14 @@ export interface SessionLogOptions {
 
 const defaultOptions: SessionLogOptions = {
   id: () => globalThis.crypto.randomUUID(),
-  now: () => Effect.runSync(Clock.currentTimeMillis),
+  now: () => runSync(Clock.currentTimeMillis),
 };
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 const decodeJson = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 /**
  * Entity key-value storage is untyped, so a stored value is recognised as the
@@ -94,7 +101,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isStoredValue = <Value>(value: unknown): value is Value => value !== undefined;
 
 const isSessionLogEntry = (value: unknown): value is SessionLogEntry =>
-  isRecord(value) && typeof value.id === "string" && typeof value.type === "string";
+  isRecord(value) && P.isString(value.id) && P.isString(value.type);
 
 const entryPrefix = (index: number): string =>
   `${LOG_ENTRY_PREFIX}${index.toString().padStart(12, "0")}/`;
@@ -107,17 +114,17 @@ const entryChunkKey = (index: number, chunk: number): string =>
 const parseMeta = (value: unknown): SessionLogMeta => {
   if (!isRecord(value)) return { count: 0 };
   const count = value.count;
-  if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) return { count: 0 };
+  if (!P.isNumber(count) || !Number.isSafeInteger(count) || count < 0) return { count: 0 };
   const headId = value.headId;
-  if (typeof headId === "string") return { count, headId };
+  if (P.isString(headId)) return { count, headId };
   return { count };
 };
 
-const parseEntryMeta = (value: unknown): StoredEntryMeta | undefined => {
-  if (!isRecord(value)) return undefined;
+const parseEntryMeta = (value: unknown): Option.Option<StoredEntryMeta> => {
+  if (!isRecord(value)) return Option.none();
   const chunks = value.chunks;
-  if (typeof chunks !== "number" || !Number.isSafeInteger(chunks) || chunks <= 0) return undefined;
-  return { chunks };
+  if (!P.isNumber(chunks) || !Number.isSafeInteger(chunks) || chunks <= 0) return Option.none();
+  return Option.some({ chunks });
 };
 
 const makeEntry = <Input extends SessionLogEntryInput>(
@@ -128,43 +135,48 @@ const makeEntry = <Input extends SessionLogEntryInput>(
 const serializeEntry = (entry: SessionLogEntry): ReadonlyArray<string> => {
   const bytes = new TextEncoder().encode(encodeJson(entry));
   const decoder = new TextDecoder();
-  const chunks: string[] = [];
-  let offset = 0;
-  while (offset < bytes.length) {
-    let end = Math.min(offset + SESSION_LOG_CHUNK_BYTES, bytes.length);
-    while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end -= 1;
-    chunks.push(decoder.decode(bytes.subarray(offset, end)));
-    offset = end;
-  }
-  return chunks;
+  const findChunkEnd = (end: number): number =>
+    end < bytes.length && (bytes[end] & 0xc0) === 0x80 ? findChunkEnd(end - 1) : end;
+  const readChunks = (offset: number, chunks: ReadonlyArray<string>): ReadonlyArray<string> => {
+    if (offset >= bytes.length) return chunks;
+    const end = findChunkEnd(Math.min(offset + SESSION_LOG_CHUNK_BYTES, bytes.length));
+    return readChunks(end, [...chunks, decoder.decode(bytes.subarray(offset, end))]);
+  };
+  return readChunks(0, []);
 };
 
 const readEntry = (entity: DurableEntityContext, index: number) =>
   Effect.gen(function* () {
-    const meta = parseEntryMeta(yield* entity.keyValue.get(entryMetaKey(index)));
-    if (meta === undefined) {
-      return yield* Effect.die(new Error(`Agent session log entry ${index} has invalid metadata`));
+    const metaOption = parseEntryMeta(
+      Option.getOrUndefined(yield* entity.keyValue.get(entryMetaKey(index))),
+    );
+    if (Option.isNone(metaOption)) {
+      return yield* Effect.die(runtimeError(`Agent session log entry ${index} has invalid metadata`));
     }
+    const meta = metaOption.value;
     const chunks = yield* Effect.forEach(
       Array.from({ length: meta.chunks }, (_, chunk) => chunk),
-      (chunk) => entity.keyValue.get(entryChunkKey(index, chunk)),
+      (chunk) =>
+        entity.keyValue
+          .get(entryChunkKey(index, chunk))
+          .pipe(Effect.map(Option.getOrUndefined)),
       { concurrency: 16 },
     );
-    if (!chunks.every((chunk): chunk is string => typeof chunk === "string")) {
+    if (!chunks.every((chunk): chunk is string => P.isString(chunk))) {
       return yield* Effect.die(
-        new Error(`Agent session log entry ${index} is missing a storage chunk`),
+        runtimeError(`Agent session log entry ${index} is missing a storage chunk`),
       );
     }
     const parsed = decodeJson(chunks.join(""));
     if (!isSessionLogEntry(parsed)) {
-      return yield* Effect.die(new Error(`Agent session log entry ${index} is malformed`));
+      return yield* Effect.die(runtimeError(`Agent session log entry ${index} is malformed`));
     }
     return parsed;
   });
 
 const readEntries = (entity: DurableEntityContext) =>
   Effect.gen(function* () {
-    const meta = parseMeta(yield* entity.keyValue.get(LOG_META_KEY));
+    const meta = parseMeta(Option.getOrUndefined(yield* entity.keyValue.get(LOG_META_KEY)));
     return yield* Effect.forEach(
       Array.from({ length: meta.count }, (_, index) => index),
       (index) => readEntry(entity, index),
@@ -184,7 +196,9 @@ export const readSessionLogCount = (
   address: DurableEntityAddress,
 ): Effect.Effect<number> =>
   host.run(address, (entity) =>
-    entity.keyValue.get(LOG_META_KEY).pipe(Effect.map((value) => parseMeta(value).count)),
+    entity.keyValue.get(LOG_META_KEY).pipe(
+      Effect.map((value) => parseMeta(Option.getOrUndefined(value)).count),
+    ),
   );
 
 /**
@@ -197,13 +211,15 @@ export const appendSessionLog = (
   inputs: ReadonlyArray<SessionLogEntryInput>,
   options: SessionLogOptions = defaultOptions,
 ): Effect.Effect<ReadonlyArray<SessionLogEntry>> => {
-  if (inputs.length === 0) return Effect.succeed([]);
+  if (Arr.isReadonlyArrayEmpty(inputs)) return Effect.succeed([]);
   return host.run(address, (entity) =>
         Effect.gen(function* () {
-          let meta = parseMeta(yield* entity.keyValue.get(LOG_META_KEY));
+          let meta = parseMeta(
+            Option.getOrUndefined(yield* entity.keyValue.get(LOG_META_KEY)),
+          );
           const appended: SessionLogEntry[] = [];
 
-          for (const input of inputs) {
+          yield* Effect.forEach(inputs, Effect.fn("iterate")(function* (input) {
             const entry = makeEntry(input, {
               id: options.id(),
               parentId: meta.headId ?? null,
@@ -215,7 +231,7 @@ export const appendSessionLog = (
               chunks,
               (chunk, chunkIndex) =>
                 entity.keyValue.put(entryChunkKey(entryIndex, chunkIndex), chunk),
-              { discard: true },
+              { concurrency: 1, discard: true },
             );
             yield* entity.keyValue.put(entryMetaKey(entryIndex), { chunks: chunks.length });
             appended.push(entry);
@@ -223,7 +239,7 @@ export const appendSessionLog = (
               count: meta.count + 1,
               headId: entry.id,
             };
-          }
+          }), { concurrency: 1 });
 
           yield* entity.keyValue.put(LOG_META_KEY, meta);
           return appended;
@@ -235,12 +251,14 @@ export const appendSessionLog = (
 export const readSessionOwner = <Owner>(
   host: DurableEntityHostShape,
   address: DurableEntityAddress,
-): Effect.Effect<Owner | undefined> =>
+): Effect.Effect<Option.Option<Owner>> =>
   host.run(address, (entity) =>
     entity.keyValue.get(OWNER_KEY).pipe(
       Effect.map((value) => {
-        if (isStoredValue<Owner>(value)) return value;
-        return undefined;
+        if (Option.isSome(value) && isStoredValue<Owner>(value.value)) {
+          return Option.some(value.value);
+        }
+        return Option.none();
       }),
     ),
   );
@@ -255,7 +273,9 @@ export const ensureSessionOwner = <Owner>(
   host.run(address, (entity) =>
     Effect.gen(function* () {
       const existing = yield* entity.keyValue.get(OWNER_KEY);
-      if (isStoredValue<Owner>(existing)) return equals(existing, owner);
+      if (Option.isSome(existing) && isStoredValue<Owner>(existing.value)) {
+        return equals(existing.value, owner);
+      }
       yield* entity.keyValue.put(OWNER_KEY, owner);
       return true;
     }),

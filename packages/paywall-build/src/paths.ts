@@ -9,7 +9,9 @@
  * the source's `import X from "./components/x"` specifiers.
  */
 
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as Option from "effect/Option";
 
 /** The POSIX directory of an absolute file path (no trailing slash). */
 export function dirname(absPath: string): string {
@@ -43,18 +45,18 @@ export function comparePaths(a: string, b: string): number {
  * specifier climbs above the root — the non-throwing form callers use when an
  * escaping specifier is an expected, recoverable outcome.
  */
-export function tryJoinPath(baseDir: string, specifier: string): string | null {
-  const base = segmentsOf(baseDir);
-  for (const part of specifier.split("/")) {
-    if (part === "" || part === ".") continue;
-    if (part === "..") {
-      if (base.length === 0) return null;
-      base.pop();
-      continue;
-    }
-    base.push(part);
-  }
-  return `/${base.join("/")}`;
+export function tryJoinPath(baseDir: string, specifier: string): Option.Option<string> {
+  return Option.map(
+    specifier.split("/").reduce<Option.Option<readonly string[]>>((current, part) => {
+      if (part === "" || part === ".") return current;
+      return Option.flatMap(current, (segments) => {
+        if (part !== "..") return Option.some([...segments, part]);
+        const [, ...reversedRest] = [...segments].reverse();
+        return segments[0] === undefined ? Option.none() : Option.some(reversedRest.reverse());
+      });
+    }, Option.some(segmentsOf(baseDir))),
+    (segments) => `/${segments.join("/")}`,
+  );
 }
 
 /** The path segments of a base directory (`/` ⇒ no segments). */
@@ -66,10 +68,10 @@ function segmentsOf(baseDir: string): string[] {
 /** Join a base directory and a POSIX-relative specifier into an absolute path. */
 export function joinPath(baseDir: string, specifier: string): string {
   const joined = tryJoinPath(baseDir, specifier);
-  if (joined === null) {
-    return Effect.runSync(Effect.die(new Error(`Path "${specifier}" escapes the root.`)));
+  if (Option.isNone(joined)) {
+    return EffectRuntime.runSync(Effect.die(new TypeError(`Path "${specifier}" escapes the root.`)));
   }
-  return joined;
+  return joined.value;
 }
 
 /**

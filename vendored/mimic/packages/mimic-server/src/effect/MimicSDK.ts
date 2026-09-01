@@ -1,4 +1,6 @@
-import { Effect, Layer, ManagedRuntime } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
 import { RpcClient, type RpcClientError, type RpcGroup } from "effect/unstable/rpc";
 import {
   type DatabasePermission,

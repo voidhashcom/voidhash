@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -23,14 +23,15 @@ export const PushNotificationConfiguration = Schema.Struct({
   configuration: Schema.ObjectKeyword,
   createdAt: Schema.NullOr(Schema.Date),
   deletedAt: Schema.NullOr(Schema.Date),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.String,
   name: Schema.String,
   providerId: Schema.String,
   projectId: Schema.String,
   pushProviderKey: Schema.String,
   updatedAt: Schema.NullOr(Schema.Date),
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled" }));
+export type PushNotificationConfiguration = typeof PushNotificationConfiguration.Type;
 
 export class PushNotificationConfigurationRpcsDef extends RpcGroup.make(
   Rpc.make("ListPushNotificationConfigurations", {
@@ -76,10 +77,10 @@ export class PushNotificationConfigurationRpcsDef extends RpcGroup.make(
     ]),
     payload: Schema.Struct({
       configuration: Schema.Record(Schema.String, Schema.Unknown),
-      enabled: Schema.Boolean,
+      isEnabled: Schema.Boolean,
       id: Schema.String,
       name: Schema.String,
-    }),
+    }).pipe(Schema.encodeKeys({ isEnabled: "enabled" })),
     success: Schema.Struct({
       id: Schema.String,
     }),

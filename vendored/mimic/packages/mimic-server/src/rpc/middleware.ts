@@ -1,4 +1,4 @@
-import { Context } from "effect";
+import * as Context from "effect/Context";
 import { RpcMiddleware } from "effect/unstable/rpc";
 
 import { UnauthorizedError } from "./errors.ts";

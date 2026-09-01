@@ -1,6 +1,13 @@
 import { isNodeType } from "@voidhash/mimic-schema";
 
 import { nodeDefaultData, unwrapEntries } from "./mimic-introspection.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as Schema from "effect/Schema";
+import * as Option from "effect/Option";
+
+type Nullable<A> = A | typeof Schema.Null.Type;
 
 /**
  * A decoded mimic snapshot node, as materialized by the designer store /
@@ -72,7 +79,7 @@ export interface SerializeOptions {
 export function serializeDocument(
   nodes: readonly SnapshotDocumentNode[],
   options: SerializeOptions = {},
-): CleanedDocumentNode | CleanedDocumentStub | null {
+): Nullable<CleanedDocumentNode | CleanedDocumentStub> {
   const root = locateRoot(nodes, options.nodeId);
   if (!root) return null;
   return cleanNode(root, 0, options.depth);
@@ -81,8 +88,8 @@ export function serializeDocument(
 /** The serialization root: the named subtree when `nodeId` is given, else the first node. */
 function locateRoot(
   nodes: readonly SnapshotDocumentNode[],
-  nodeId: string | undefined,
-): SnapshotDocumentNode | null {
+  nodeId: string | void,
+): Nullable<SnapshotDocumentNode> {
   if (!nodeId) return nodes[0] ?? null;
   return findNode(nodes, nodeId);
 }
@@ -98,17 +105,17 @@ interface CleanedNodeDraft {
 
 /** A non-null, non-array object. */
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  return value !== null && P.isObject(value) && !Array.isArray(value);
 }
 
 /** Depth-first search for a node by id across a decoded forest. */
-function findNode(nodes: readonly SnapshotDocumentNode[], id: string): SnapshotDocumentNode | null {
-  for (const node of nodes) {
-    if (node.id === id) return node;
-    const found = findNode(node.children ?? [], id);
-    if (found) return found;
-  }
-  return null;
+function findNode(nodes: readonly SnapshotDocumentNode[], id: string): Nullable<SnapshotDocumentNode> {
+  return Option.getOrNull(
+    Arr.findFirst(nodes, (node) => {
+      if (node.id === id) return Option.some(node);
+      return Option.fromNullishOr(findNode(node.children ?? [], id));
+    }),
+  );
 }
 
 /** Structural equality on two already-unwrapped values (order-sensitive for arrays). */
@@ -119,8 +126,8 @@ function deepEqual(a: unknown, b: unknown): boolean {
     return a.every((item, index) => deepEqual(item, b[index]));
   }
   if (isPlainRecord(a) && isPlainRecord(b)) {
-    const keys = Object.keys(a);
-    if (keys.length !== Object.keys(b).length) return false;
+    const keys = R.keys(a);
+    if (keys.length !== R.keys(b).length) return false;
     return keys.every((key) => key in b && deepEqual(a[key], b[key]));
   }
   return false;
@@ -136,14 +143,13 @@ function deepEqual(a: unknown, b: unknown): boolean {
  */
 function stripDefaults(value: unknown, defaultValue: unknown): unknown {
   if (!isPlainRecord(value) || !isPlainRecord(defaultValue)) return value;
-  const out: Record<string, unknown> = {};
-  for (const [key, sub] of Object.entries(value)) {
-    if (key in defaultValue && deepEqual(sub, defaultValue[key])) continue;
+  const empty: Record<string, unknown> = {};
+  return Arr.reduce(R.toEntries(value), empty, (out, [key, sub]) => {
+    if (key in defaultValue && deepEqual(sub, defaultValue[key])) return out;
     const stripped = strippedAgainstDefault(sub, defaultValue, key);
-    if (isEmptyStructural(stripped)) continue;
-    out[key] = stripped;
-  }
-  return out;
+    if (isEmptyStructural(stripped)) return out;
+    return { ...out, [key]: stripped };
+  });
 }
 
 /** {@link stripDefaults} against `defaults[key]`, or the value verbatim when it has no default. */
@@ -159,7 +165,7 @@ function strippedAgainstDefault(
 function cleanNode(
   node: SnapshotDocumentNode,
   currentDepth: number,
-  maxDepth: number | undefined,
+  maxDepth: number | void,
 ): CleanedDocumentNode | CleanedDocumentStub {
   const children = node.children ?? [];
 
@@ -172,7 +178,7 @@ function cleanNode(
   const defaults = defaultDataOf(node.type);
 
   const name = data["name"];
-  if (typeof name === "string") cleaned["name"] = name;
+  if (P.isString(name)) cleaned["name"] = name;
 
   // A `codeComponent` node's `source` is the full TSX — never inline it (a whole
   // document read would dump every component's source, a token blowout). Emit its
@@ -180,28 +186,28 @@ function cleanNode(
   // source read is `read_component`.
   if (node.type === "codeComponent") {
     const path = unwrapEntries(data["path"]);
-    if (typeof path === "string") cleaned["path"] = path;
+    if (P.isString(path)) cleaned["path"] = path;
     const source = unwrapEntries(data["source"]);
     cleaned["sourceLength"] = stringLength(source);
-    if (children.length > 0) {
+    if (Arr.isReadonlyArrayNonEmpty(children)) {
       cleaned["children"] = children.map((child) => cleanNode(child, currentDepth + 1, maxDepth));
     }
     return cleaned;
   }
 
-  for (const [key, rawValue] of Object.entries(data)) {
-    if (key === "name") continue;
+  Arr.forEach(R.toEntries(data), ([key, rawValue]) => {
+    if (key === "name") return;
     const value = unwrapEntries(rawValue);
     // Drop fields equal to their schema default; recurse into nested objects
     // (e.g. `style`) so a single deviation doesn't drag every default sibling
     // along. The model then sees only what was actually authored.
-    if (key in defaults && deepEqual(value, defaults[key])) continue;
+    if (key in defaults && deepEqual(value, defaults[key])) return;
     const stripped = strippedAgainstDefault(value, defaults, key);
-    if (isEmptyStructural(stripped)) continue;
+    if (isEmptyStructural(stripped)) return;
     cleaned[key] = stripped;
-  }
+  });
 
-  if (children.length > 0) {
+  if (Arr.isReadonlyArrayNonEmpty(children)) {
     cleaned["children"] = children.map((child) => cleanNode(child, currentDepth + 1, maxDepth));
   }
 
@@ -216,7 +222,7 @@ function defaultDataOf(type: string): Record<string, unknown> {
 
 /** The length of a value that is a string, else `0`. */
 function stringLength(value: unknown): number {
-  if (typeof value === "string") return value.length;
+  if (P.isString(value)) return value.length;
   return 0;
 }
 
@@ -224,13 +230,13 @@ function stringLength(value: unknown): number {
 function stubNode(node: SnapshotDocumentNode, childCount: number): CleanedDocumentStub {
   const name = node.data?.["name"];
   const stub: CleanedDocumentStub = { id: node.id, type: node.type, childCount };
-  if (typeof name === "string") return { ...stub, name };
+  if (P.isString(name)) return { ...stub, name };
   return stub;
 }
 
 /** Whether a value is an empty array or empty object (nothing authored to show). */
 function isEmptyStructural(value: unknown): boolean {
-  if (Array.isArray(value)) return value.length === 0;
-  if (value !== null && typeof value === "object") return Object.keys(value).length === 0;
+  if (Array.isArray(value)) return Arr.isReadonlyArrayEmpty(value);
+  if (value !== null && P.isObject(value)) return Arr.isReadonlyArrayEmpty(R.keys(value));
   return false;
 }

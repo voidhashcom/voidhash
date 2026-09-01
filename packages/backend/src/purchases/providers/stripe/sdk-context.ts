@@ -15,7 +15,11 @@
  * in here, so the REST requirement never leaks into each `record*` method's
  * `R` channel (mirrors how `appStore/sdk-context.ts` + FX capture work).
  */
-import { Clock, Effect, Layer, Redacted, Schema } from "effect";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Redacted from "effect/Redacted";
+import * as Schema from "effect/Schema";
 import type { HttpClient } from "effect/unstable/http/HttpClient";
 import { HttpClient as HttpClientTag } from "effect/unstable/http/HttpClient";
 import { Credentials, DEFAULT_API_BASE_URL } from "@distilled.cloud/stripe/Credentials";
@@ -30,6 +34,10 @@ import { constant } from "@voidhash/lib/lang";
 
 import { StripePaymentProviderServiceError, StripeWebhookSignatureError } from "./errors.ts";
 import { decodeStripeEvent, StripeBalanceTransaction } from "./events.ts";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import { recoverAll } from "../../../runtime-boundary.ts";
 
 /** Stripe's default replay-protection window for webhook timestamps (seconds). */
 const SIGNATURE_TOLERANCE_SECONDS = 300;
@@ -45,7 +53,7 @@ export interface StripeContextConfig {
   readonly apiBaseUrl?: string;
 }
 
-const PriceRefSchema = Schema.Struct({
+const PriceRef = Schema.Struct({
   id: Schema.optional(Schema.String),
   product: Schema.optional(Schema.NullOr(Schema.String)),
 });
@@ -53,29 +61,33 @@ const PriceRefSchema = Schema.Struct({
 /** Parses an already signature-verified webhook body as arbitrary JSON. */
 const decodeJsonBody = Schema.decodeEffect(Schema.fromJsonString(Schema.Unknown));
 
+const initialSignatureParts: {
+  readonly timestamp: string | typeof Schema.Undefined.Type;
+  readonly signatures: ReadonlyArray<string>;
+} = { signatures: [], timestamp: undefined };
+
 const parseSignatureHeader = (
   header: string,
-): { readonly timestamp: string | undefined; readonly signatures: ReadonlyArray<string> } => {
-  let timestamp: string | undefined;
-  const signatures: string[] = [];
-  for (const part of header.split(",")) {
+): { readonly timestamp: string | typeof Schema.Undefined.Type; readonly signatures: ReadonlyArray<string> } => {
+  return Arr.reduce(header.split(","), initialSignatureParts, (result, part) => {
     const idx = part.indexOf("=");
-    if (idx === -1) continue;
+    if (idx === -1) return result;
     const key = part.slice(0, idx).trim();
     const value = part.slice(idx + 1).trim();
-    if (key === "t") timestamp = value;
-    else if (key === "v1") signatures.push(value);
-  }
-  return { signatures, timestamp };
+    if (key === "t") return { ...result, timestamp: value };
+    if (key === "v1") return { ...result, signatures: Arr.append(result.signatures, value) };
+    return result;
+  });
 };
 
 /** Length-checked constant-time hex-string comparison. */
 const timingSafeEqual = (a: string, b: string): boolean => {
   if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i++) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
+  const mismatch = Arr.reduce(
+    Arr.range(0, a.length - 1),
+    0,
+    (result, index) => result | (a.charCodeAt(index) ^ b.charCodeAt(index)),
+  );
   return mismatch === 0;
 };
 
@@ -148,7 +160,7 @@ export const buildStripeContext = (config: StripeContextConfig) => {
   }) =>
     Effect.gen(function* () {
       const { signatures, timestamp } = parseSignatureHeader(input.signatureHeader);
-      if (!timestamp || signatures.length === 0) {
+      if (!timestamp || Arr.isReadonlyArrayEmpty(signatures)) {
         return yield* new StripeWebhookSignatureError({
           reason: "Stripe-Signature header missing t/v1 components",
         });
@@ -174,15 +186,23 @@ export const buildStripeContext = (config: StripeContextConfig) => {
         { mode: "test", secret: config.testWebhookSecret },
       ];
 
-      let verifiedMode: StripeMode | undefined;
-      for (const candidate of candidates) {
-        if (!candidate.secret) continue;
-        const expected = yield* computeHmacHex(candidate.secret, signedPayload);
-        if (signatures.some((signature) => timingSafeEqual(signature, expected))) {
-          verifiedMode = candidate.mode;
-          break;
-        }
-      }
+      const verifiedModes = yield* Effect.forEach(
+        candidates,
+        (candidate) =>
+          candidate.secret
+            ? computeHmacHex(candidate.secret, signedPayload).pipe(
+                Effect.map((expected) =>
+                  signatures.some((signature) => timingSafeEqual(signature, expected))
+                    ? Option.some(candidate.mode)
+                    : Option.none<StripeMode>(),
+                ),
+              )
+            : Effect.succeed(Option.none<StripeMode>()),
+        { concurrency: 1 },
+      );
+      const verifiedMode = Option.getOrUndefined(
+        Option.flatten(Arr.findFirst(verifiedModes, Option.isSome)),
+      );
       if (!verifiedMode) {
         return yield* new StripeWebhookSignatureError({
           reason: "no signature matched the configured signing secrets",
@@ -204,17 +224,17 @@ export const buildStripeContext = (config: StripeContextConfig) => {
     });
 
   const toPriceRef = (ref: {
-    readonly id?: string | undefined;
-    readonly product?: string | null | undefined;
+    readonly id?: string | typeof Schema.Undefined.Type;
+    readonly product?: string | typeof Schema.Null.Type | typeof Schema.Undefined.Type;
   }) => {
     if (!ref.id) return undefined;
     return { priceId: ref.id, productId: ref.product ?? undefined };
   };
 
   const decodePriceRef = (price: unknown) =>
-    Schema.decodeUnknownEffect(PriceRefSchema)(price).pipe(
+    Schema.decodeUnknownEffect(PriceRef)(price).pipe(
       Effect.map(toPriceRef),
-      Effect.catch(() => Effect.succeed(undefined)),
+      recoverAll(() => undefined),
     );
 
   /**
@@ -226,23 +246,23 @@ export const buildStripeContext = (config: StripeContextConfig) => {
     runOp(GetChargesCharge({ charge: input.chargeId }), input.mode).pipe(
       Effect.flatMap((charge) => {
         const balanceTransaction = charge.balance_transaction;
-        if (typeof balanceTransaction === "string") {
+        if (P.isString(balanceTransaction)) {
           return runOp(GetBalanceTransactionsId({ id: balanceTransaction }), input.mode).pipe(
             Effect.map((tx) => tx.fee),
           );
         }
-        if (balanceTransaction && typeof balanceTransaction === "object") {
+        if (balanceTransaction && P.isObject(balanceTransaction)) {
           return Schema.decodeUnknownEffect(StripeBalanceTransaction)(balanceTransaction).pipe(
             Effect.map((tx) => tx.fee),
           );
         }
-        return Effect.succeed<number | undefined>(undefined);
+        return Effect.succeed<number | typeof Schema.Undefined.Type>(undefined);
       }),
       Effect.catch((error) =>
         Effect.logWarning("Stripe charge fee fetch failed; recording without commission", {
           chargeId: input.chargeId,
           error: String(error),
-        }).pipe(Effect.as<number | undefined>(undefined)),
+        }).pipe(Effect.as<number | typeof Schema.Undefined.Type>(undefined)),
       ),
     );
 
@@ -253,10 +273,10 @@ export const buildStripeContext = (config: StripeContextConfig) => {
   }) =>
     runOp(GetPaymentIntentsIntent({ intent: input.paymentIntentId }), input.mode).pipe(
       Effect.map((intent) => {
-        if (typeof intent.latest_charge === "string") return intent.latest_charge;
+        if (P.isString(intent.latest_charge)) return intent.latest_charge;
         return undefined;
       }),
-      Effect.catch(() => Effect.succeed<string | undefined>(undefined)),
+      recoverAll((): string | typeof Schema.Undefined.Type => undefined),
     );
 
   /**
@@ -273,7 +293,7 @@ export const buildStripeContext = (config: StripeContextConfig) => {
     runOp(GetCheckoutSessionsSessionLineItems({ session: input.sessionId }), input.mode).pipe(
       Effect.flatMap((response) => {
         const line = response.data.find(
-          (entry) => typeof entry.price === "object" && entry.price !== null,
+          (entry) => P.isObject(entry.price) && entry.price !== null,
         );
         if (!line) return Effect.succeed(undefined);
         return decodePriceRef(line.price);

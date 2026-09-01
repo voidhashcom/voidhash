@@ -1,12 +1,20 @@
-import { PaywallAssetService } from "@voidhash/core/services";
+import { PaywallAssetService, type PaywallAssetRow } from "@voidhash/core/services";
 import {
+  type PaywallAsset,
   PaywallAssetRpcsDef,
   RpcActionForbiddenError,
   RpcPaywallAssetNotFoundError,
   RpcPaywallAssetServiceError,
   RpcPaywallAssetValidationError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+
+const toRpcPaywallAsset = (asset: PaywallAssetRow): PaywallAsset => ({
+  ...asset,
+  width: Option.getOrNull(asset.width),
+  height: Option.getOrNull(asset.height),
+});
 
 export const PaywallAssetRpcsLive = PaywallAssetRpcsDef.toLayer(
   Effect.gen(function* PaywallAssetRpcsLive() {
@@ -14,8 +22,16 @@ export const PaywallAssetRpcsLive = PaywallAssetRpcsDef.toLayer(
     return {
       UploadPaywallAsset: ({ organizationId, name, contentType, imageBase64, width, height }) =>
         paywallAssetService
-          .upload({ organizationId, name, contentType, imageBase64, width, height })
+          .upload({
+            organizationId,
+            name,
+            contentType,
+            imageBase64,
+            width: Option.fromNullishOr(width),
+            height: Option.fromNullishOr(height),
+          })
           .pipe(
+            Effect.map(toRpcPaywallAsset),
             Effect.catchTags({
               PaywallAssetForbiddenError: (error) =>
                 Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -27,6 +43,7 @@ export const PaywallAssetRpcsLive = PaywallAssetRpcsDef.toLayer(
           ),
       ListPaywallAssets: ({ organizationId }) =>
         paywallAssetService.list({ organizationId }).pipe(
+          Effect.map((assets) => assets.map(toRpcPaywallAsset)),
           Effect.catchTags({
             PaywallAssetForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -36,6 +53,7 @@ export const PaywallAssetRpcsLive = PaywallAssetRpcsDef.toLayer(
         ),
       RenamePaywallAsset: ({ assetId, name }) =>
         paywallAssetService.rename({ assetId, name }).pipe(
+          Effect.map(toRpcPaywallAsset),
           Effect.catchTags({
             PaywallAssetForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),

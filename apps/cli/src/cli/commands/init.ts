@@ -1,5 +1,7 @@
 import { Command, Prompt } from "effect/unstable/cli";
-import { Console, Effect, Path } from "effect";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
+import * as Path from "effect/Path";
 
 import { DEFAULT_TYPES_OUTPUT } from "../../domain/schema/voidhash-config";
 import { Auth } from "../../domain/services/auth";
@@ -65,7 +67,7 @@ export const initCommand = Command.make("init", {}, () =>
     const session = yield* auth.getSignedInSession
       .pipe(
         Effect.catchTag("NoSignedInUserError", () =>
-          Effect.gen(function* session() {
+          Effect.fn("session")(function* session() {
             const shouldContinue = yield* Prompt.run(
               Prompt.confirm({
                 message:
@@ -76,7 +78,7 @@ export const initCommand = Command.make("init", {}, () =>
               return yield* Effect.fail(userError("Login cancelled."));
             }
             return yield* auth.login.pipe(Effect.andThen(auth.getSignedInSession));
-          }),
+          })(),
         ),
       )
       .pipe(

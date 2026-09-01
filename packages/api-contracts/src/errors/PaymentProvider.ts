@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic payment provider configuration service error */
 export class ApiPaymentProviderConfigurationServiceError extends Schema.TaggedErrorClass<ApiPaymentProviderConfigurationServiceError>()(

@@ -1,63 +1,49 @@
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+
 export type VercelEnv = "production" | "preview" | "development";
 
 export type DomainConfig = {
-  appDomain?: string;
-  vercelEnv?: string;
+  readonly appDomain: Option.Option<string>;
+  readonly vercelEnv: Option.Option<string>;
 };
 
-const normalizeVercelEnv = (vercelEnv?: string): VercelEnv | undefined => {
-  if (vercelEnv === "production" || vercelEnv === "preview" || vercelEnv === "development") {
-    return vercelEnv;
-  }
+const isVercelEnv = (value: string): value is VercelEnv =>
+  value === "production" || value === "preview" || value === "development";
 
-  return undefined;
-};
+const normalizeVercelEnv = (vercelEnv: Option.Option<string>): Option.Option<VercelEnv> =>
+  Option.filter(vercelEnv, isVercelEnv);
 
 /** Resolves the browser-facing application origin for a deployment. */
 export const resolveFrontendOrigin = ({
   appDomain,
   vercelEnv,
-}: DomainConfig): string | undefined => {
+}: DomainConfig): Option.Option<string> => {
   const normalizedEnv = normalizeVercelEnv(vercelEnv);
 
-  if (normalizedEnv === "development") {
-    return "http://localhost:3000";
+  if (Option.contains(normalizedEnv, "development")) {
+    return Option.some("http://localhost:3000");
   }
 
-  if (!appDomain) {
-    return undefined;
-  }
-
-  return `https://${appDomain}`;
+  return Option.map(appDomain, (domain) => `https://${domain}`);
 };
 
 /** Resolves the API origin for a deployment. */
-export const resolveApiOrigin = ({ appDomain, vercelEnv }: DomainConfig): string | undefined => {
+export const resolveApiOrigin = ({ appDomain, vercelEnv }: DomainConfig): Option.Option<string> => {
   const normalizedEnv = normalizeVercelEnv(vercelEnv);
 
-  if (normalizedEnv === "development") {
-    return "http://localhost:8787";
+  if (Option.contains(normalizedEnv, "development")) {
+    return Option.some("http://localhost:8787");
   }
 
-  if (!appDomain) {
-    return undefined;
-  }
-
-  return `https://api.${appDomain}`;
+  return Option.map(appDomain, (domain) => `https://api.${domain}`);
 };
 
 /** Returns the application hostnames accepted for a deployment. */
-export const resolveAppHostnames = (config: DomainConfig): Set<string> => {
-  const hostnames = new Set(["localhost:3000", "localhost"]);
-  const frontendOrigin = resolveFrontendOrigin(config);
-
-  if (frontendOrigin) {
-    hostnames.add(new URL(frontendOrigin).host);
-  }
-
-  if (config.appDomain) {
-    hostnames.add(config.appDomain);
-  }
-
-  return hostnames;
-};
+export const resolveAppHostnames = (config: DomainConfig): HashSet.HashSet<string> =>
+  HashSet.fromIterable([
+    "localhost:3000",
+    "localhost",
+    ...Option.toArray(Option.map(resolveFrontendOrigin(config), (origin) => new URL(origin).host)),
+    ...Option.toArray(config.appDomain),
+  ]);

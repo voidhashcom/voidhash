@@ -1,4 +1,12 @@
-import { Context, Crypto, Effect, Layer, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
+import * as Context from "effect/Context";
+import * as Crypto from "effect/Crypto";
+import * as Effect from "effect/Effect";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import type { AuthSession } from "@voidhash/rpc";
 
 import { AnalyticsAuthorizer } from "../../application/ports.ts";
@@ -25,6 +33,7 @@ export const VoidQlPrincipal = Schema.Struct({
   id: Schema.String,
   kind: Schema.Literals(["agent", "user"]),
 });
+export type VoidQlPrincipal = typeof VoidQlPrincipal.Type;
 
 /** VoidQL execution capabilities supplied by a storage adapter. */
 export interface VoidQlExecutorShape {
@@ -50,6 +59,7 @@ export const SavedVoidQlInsight = Schema.Struct({
   text: Schema.String,
   updatedAt: Schema.Date,
 });
+export type SavedVoidQlInsight = typeof SavedVoidQlInsight.Type;
 
 /** Saved VoidQL insight repository capabilities. */
 export interface VoidQlInsightRepositoryShape {
@@ -63,7 +73,7 @@ export interface VoidQlInsightRepositoryShape {
   readonly delete: (id: string) => Effect.Effect<boolean, AnalyticsPortError>;
   readonly get: (
     id: string,
-  ) => Effect.Effect<typeof SavedVoidQlInsight.Type | undefined, AnalyticsPortError>;
+  ) => Effect.Effect<Option.Option<typeof SavedVoidQlInsight.Type>, AnalyticsPortError>;
   readonly list: (
     organizationId: string,
   ) => Effect.Effect<ReadonlyArray<typeof SavedVoidQlInsight.Type>, AnalyticsPortError>;
@@ -109,15 +119,15 @@ const schemaDescriptor = () =>
   ({
     dialect:
       "VoidQL is a read-only SQL subset over events, persons, and revenue; tenant scope is injected automatically.",
-    tables: Object.values(CATALOG).map((table) => ({
+    tables: R.values(CATALOG).map((table) => ({
       name: table.name,
-      columns: Object.values(table.columns).map((column) => ({
+      columns: R.values(table.columns).map((column) => ({
         name: column.name,
         type: column.type,
         pii: column.requires.includes("pii"),
         doc: column.doc,
       })),
-      namespaces: Object.values(table.namespaces).map((namespace) => ({
+      namespaces: R.values(table.namespaces).map((namespace) => ({
         name: namespace.name,
         pii: namespace.requires.includes("pii"),
         doc: namespace.doc,
@@ -169,7 +179,7 @@ export interface VoidQlQueryShape {
   >;
 }
 
-const makeVoidQlQuery = Effect.gen(function* () {
+const makeVoidQlQuery = Effect.fn("makeVoidQlQuery")(function* () {
   const authorizer = yield* AnalyticsAuthorizer;
   const executor = yield* VoidQlExecutor;
   const insights = yield* VoidQlInsightRepository;
@@ -193,17 +203,19 @@ const makeVoidQlQuery = Effect.gen(function* () {
     });
   const ensureScope = (organizationId: string) =>
     Effect.flatMap(scopeFor(organizationId), (scope) => {
-      if (scope.availableProjectIds.length === 0) return Effect.fail(emptyScopeError());
+      if (Arr.isReadonlyArrayEmpty(scope.availableProjectIds))
+        return Effect.fail(emptyScopeError());
       return Effect.succeed(scope);
     });
+  const piiCapability: Capability = "pii";
   const capabilitiesFor = (principal: typeof VoidQlPrincipal.Type) => {
-    if (principal.kind === "user") return new Set<Capability>(["pii"]);
-    return new Set<Capability>();
+    if (principal.kind === "user") return HashSet.make(piiCapability);
+    return HashSet.empty<Capability>();
   };
   const compile = (
     text: string,
     scope: ReturnType<typeof makeAuthorizedScope>,
-    capabilities: ReadonlySet<Capability>,
+    capabilities: HashSet.HashSet<Capability>,
   ) =>
     compileVoidQl(text, scope, capabilities).pipe(
       Effect.provideService(Crypto.Crypto, crypto),
@@ -243,15 +255,17 @@ const makeVoidQlQuery = Effect.gen(function* () {
   const load = (id: string) =>
     insights.get(id).pipe(
       Effect.mapError(executionError("The saved query could not be loaded.")),
-      Effect.flatMap((insight) => {
-        if (insight) return Effect.succeed(insight);
-        return Effect.fail(
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.fail(
           new VoidQlExecutionError({
             cause: "not_found",
             message: "The saved query was not found.",
           }),
-        );
-      }),
+          ),
+          onSome: Effect.succeed,
+        }),
+      ),
     );
 
   return {
@@ -287,7 +301,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
     saveInsight: (request) =>
       Effect.gen(function* () {
         const scope = yield* ensureScope(request.organizationId);
-        yield* compile(request.text, scope, new Set<Capability>(["pii"]));
+        yield* compile(request.text, scope, HashSet.make(piiCapability));
         return yield* insights
           .create({
             createdBy: request.createdBy,
@@ -312,7 +326,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
           Effect.catchIf(isVoidQlCompileError, (error) => {
             // Isolation failures surface as a typed (sanitized) failure, not a
             // defect and not internal details.
-            if (error._tag === "VoidQlIsolationError") {
+            if (error instanceof VoidQlIsolationError) {
               return Effect.fail(
                 new VoidQlIsolationError({ message: "The query failed isolation checks." }),
               );
@@ -322,7 +336,7 @@ const makeVoidQlQuery = Effect.gen(function* () {
         );
       }),
   } satisfies VoidQlQueryShape;
-});
+})();
 
 /** VoidQL use case whose implementation dependencies are supplied by layers. */
 export class VoidQlQuery extends Context.Service<VoidQlQuery, VoidQlQueryShape>()(

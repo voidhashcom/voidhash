@@ -1,8 +1,11 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
+import * as P from "effect/Predicate";
 import * as tsup from "tsup";
 
 const describeCause = (cause: unknown) => {
-  if (cause instanceof Error) {
+  if (P.isError(cause)) {
     return cause.stack ?? cause.message;
   }
 
@@ -41,13 +44,17 @@ const build = Effect.tryPromise({
 });
 
 // Build script should print the failure and exit non-zero.
-void Effect.runPromise(
-  build.pipe(
-    Effect.tapError((message) => Effect.logError(`Build failed: ${message}`)),
-    Effect.catch(() =>
-      Effect.sync(() => {
-        process.exitCode = 1;
-      }),
-    ),
-  ),
+const runtime = ManagedRuntime.make(Layer.empty);
+void runtime.runPromise(
+  Effect.matchEffect(build, {
+    onFailure: (message) =>
+      Effect.logError(`Build failed: ${message}`).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            process.exitCode = 1;
+          }),
+        ),
+      ),
+    onSuccess: () => Effect.void,
+  }),
 );

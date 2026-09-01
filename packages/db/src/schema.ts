@@ -15,7 +15,7 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
-import { DateTime } from "effect";
+import * as DateTime from "effect/DateTime";
 
 /**
  * Wall-clock timestamp for drizzle's synchronous `$onUpdate` callbacks.
@@ -809,7 +809,10 @@ export const purchases = pgTable(
      * mirrors `subscription_store_subscription_unique_idx`. A global unique
      * index would let one tenant's purchase collide with another's.
      */
-    uniqueIndex("provider_key_idx").on(table.paymentProviderConfigurationProductId, table.providerKey),
+    uniqueIndex("provider_key_idx").on(
+      table.paymentProviderConfigurationProductId,
+      table.providerKey,
+    ),
     index("purchase_person_active_idx").on(table.personId, table.refundedAt, table.revokedAt),
   ],
 );

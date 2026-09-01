@@ -1,5 +1,11 @@
 import { constant, pick } from "@voidhash/lib/lang";
-import { Cause, Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Cause from "effect/Cause";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -208,30 +214,31 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
 
         // Best-effort cleanup of the owned thumbnail object, scoped to keys we
         // own for this project + paywall (mirrors PaywallAssetService.delete).
+        const thumbnailUrl = Option.fromNullishOr(paywall.thumbnailUrl);
         if (
           isOwnedPaywallThumbnailUrl(
-            paywall.thumbnailUrl,
+            thumbnailUrl,
             paywall.projectId,
             paywall.id,
             publicFileStore.publicBaseUrl,
           )
         ) {
-          const thumbnailKey = paywallThumbnailKeyFromUrl(
-            paywall.thumbnailUrl!,
-            paywall.projectId,
-            paywall.id,
-            publicFileStore.publicBaseUrl,
+          const thumbnailKey = Option.flatMap(thumbnailUrl, (url) =>
+            paywallThumbnailKeyFromUrl(
+              url,
+              paywall.projectId,
+              paywall.id,
+              publicFileStore.publicBaseUrl,
+            ),
           );
-          if (thumbnailKey !== null) {
-            yield* publicFileStore
-              .deleteObject(thumbnailKey)
-              .pipe(
-                Effect.catchCause((cause) =>
-                  Effect.logWarning(
-                    `Failed to delete paywall thumbnail object ${thumbnailKey}: ${Cause.pretty(cause)}`,
-                  ),
+          if (Option.isSome(thumbnailKey)) {
+            yield* publicFileStore.deleteObject(thumbnailKey.value).pipe(
+              Effect.catchCause((cause) =>
+                Effect.logWarning(
+                  `Failed to delete paywall thumbnail object ${thumbnailKey.value}: ${Cause.pretty(cause)}`,
                 ),
-              );
+              ),
+            );
           }
         }
 
@@ -333,10 +340,7 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
         const paywall = yield* loadPaywallForWrite(input.paywallId, "archive");
 
         const archivedAt = yield* DateTime.nowAsDate;
-        yield* db
-          .update(paywalls)
-          .set({ archivedAt })
-          .where(eq(paywalls.id, input.paywallId));
+        yield* db.update(paywalls).set({ archivedAt }).where(eq(paywalls.id, input.paywallId));
 
         yield* auditLog.append({
           projectId: paywall.projectId,

@@ -1,4 +1,10 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Arr from "effect/Array";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Str from "effect/String";
 import React from "react";
 
 import { VoidhashFeatureFlagsError } from "../../errors";
@@ -6,10 +12,11 @@ import type { FeatureFlagEntry, FeatureFlagsResult } from "../../types";
 import { useVoidhash } from "./use-voidhash";
 
 const ALL_KEYS = "all";
+const runtime = ManagedRuntime.make(Layer.empty);
 
 const serializeKeys = (keys?: ReadonlyArray<string>) => {
-  if (keys && keys.length > 0) {
-    return [...keys].sort().join(",");
+  if (keys && Arr.isReadonlyArrayNonEmpty(keys)) {
+    return Arr.sort(keys, Str.Order).join(",");
   }
 
   return ALL_KEYS;
@@ -31,11 +38,7 @@ const areEntriesEqual = (left: FeatureFlagEntry, right: FeatureFlagEntry) =>
 
 /** Structural comparison used to keep the previous state object when nothing changed. */
 const areResultsEqual = (left: FeatureFlagsResult, right: FeatureFlagsResult) => {
-  if (left.flags.length !== right.flags.length) {
-    return false;
-  }
-
-  return left.flags.every((flag, index) => {
+  const leftMatches = left.flags.every((flag, index) => {
     const other = right.flags[index];
     if (!other) {
       return false;
@@ -43,10 +46,15 @@ const areResultsEqual = (left: FeatureFlagsResult, right: FeatureFlagsResult) =>
 
     return areEntriesEqual(flag, other);
   });
+  const rightMatches = right.flags.every((flag, index) => {
+    const other = left.flags[index];
+    return other ? areEntriesEqual(flag, other) : false;
+  });
+  return leftMatches && rightMatches;
 };
 
 const toFeatureFlagsError = (cause: unknown, fallbackMessage: string) => {
-  if (cause instanceof Error) {
+  if (P.isError(cause)) {
     return cause;
   }
 
@@ -56,7 +64,7 @@ const toFeatureFlagsError = (cause: unknown, fallbackMessage: string) => {
 export const useFeatureFlags = (keys?: string[]) => {
   const { client, distinctId, isInitialized } = useVoidhash();
   const [data, setData] = React.useState<FeatureFlagsResult>({ flags: [] });
-  const [error, setError] = React.useState<Error | null>(null);
+  const [error, setError] = React.useState<Option.Option<Error>>(Option.none());
   const [isLoading, setIsLoading] = React.useState(false);
   const serializedKeys = React.useMemo(() => serializeKeys(keys), [keys]);
   const resolvedKeys = React.useMemo(() => deserializeKeys(serializedKeys), [serializedKeys]);
@@ -73,15 +81,15 @@ export const useFeatureFlags = (keys?: string[]) => {
 
   const refetch = React.useCallback(() => {
     setIsLoading(true);
-    setError(null);
+    setError(Option.none());
 
-    return Effect.runPromise(
+    return runtime.runPromise(
       Effect.tryPromise({
         try: () => client.refreshFeatureFlags(resolvedKeys),
         catch: (cause) => toFeatureFlagsError(cause, "Failed to refresh flags."),
       }).pipe(
         Effect.tap((nextData) => Effect.sync(() => updateData(nextData))),
-        Effect.tapError((nextError) => Effect.sync(() => setError(nextError))),
+        Effect.tapError((nextError) => Effect.sync(() => setError(Option.some(nextError)))),
         Effect.ensuring(Effect.sync(() => setIsLoading(false))),
       ),
     );
@@ -94,7 +102,7 @@ export const useFeatureFlags = (keys?: string[]) => {
 
     let isMounted = true;
     setIsLoading(true);
-    setError(null);
+    setError(Option.none());
 
     void client
       .getFeatureFlags(resolvedKeys)
@@ -105,7 +113,7 @@ export const useFeatureFlags = (keys?: string[]) => {
       })
       .catch((cause) => {
         if (isMounted) {
-          setError(toFeatureFlagsError(cause, "Failed to load flags."));
+          setError(Option.some(toFeatureFlagsError(cause, "Failed to load flags.")));
         }
       })
       .finally(() => {

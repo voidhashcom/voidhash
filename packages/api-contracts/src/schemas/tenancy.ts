@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 
@@ -30,3 +30,4 @@ export const ApiKeyListParams = Schema.Struct({
   ...PageParams.fields,
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ApiKeyListParams" });
+export type ApiKeyListParams = typeof ApiKeyListParams.Type;

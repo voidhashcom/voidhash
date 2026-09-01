@@ -1,4 +1,6 @@
-import { type Effect, Context } from "effect";
+import type * as Effect from "effect/Effect";
+import * as Context from "effect/Context";
+import type * as Option from "effect/Option";
 
 export interface LifecycleSubscription {
   readonly remove: () => void;
@@ -18,7 +20,7 @@ export class LifecycleAdapter extends Context.Service<
   LifecycleAdapter,
   {
     readonly subscribe: (
-      listener: (nextState: string, previousState: string | null) => void,
-    ) => Effect.Effect<LifecycleSubscription | null>;
+      listener: (nextState: string, previousState: Option.Option<string>) => void,
+    ) => Effect.Effect<Option.Option<LifecycleSubscription>>;
   }
 >()("rn-voidhash/LifecycleAdapter") {}

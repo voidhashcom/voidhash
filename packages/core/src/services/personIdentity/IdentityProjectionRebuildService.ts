@@ -1,15 +1,14 @@
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
-import {
-  Db,
-  and,
-  eq,
-  personIdentities,
-  persons,
-  pushPersonDeviceTokens,
-  sql,
-} from "@voidhash/db";
+import { Db, and, eq, personIdentities, persons, pushPersonDeviceTokens, sql } from "@voidhash/db";
 
 import {
   type DistinctIdMapping,
@@ -46,112 +45,144 @@ export class IdentityProjectionRebuildService extends Context.Service<IdentityPr
         function* (input: { readonly projectId: string }) {
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
 
-          return yield* db.transaction((tx) =>
-            Effect.gen(function* () {
-              const mappingRows = yield* tx.query.personIdentities.findMany({
-                where: { projectId: input.projectId },
-              });
-              if (mappingRows.length === 0) {
-                return { mappingsRepointed: 0, personsMerged: 0 };
-              }
+          return yield* db.transaction(
+            Effect.fn("IdentityProjectionRebuildService.rebuildProject.transaction")(
+              function* (tx) {
+                const mappingRows = yield* tx.query.personIdentities.findMany({
+                  where: { projectId: input.projectId },
+                });
+                if (Arr.isReadonlyArrayEmpty(mappingRows)) {
+                  return { mappingsRepointed: 0, personsMerged: 0 };
+                }
 
-              const assertionRows = yield* tx.query.identityAssertions.findMany({
-                where: { projectId: input.projectId },
-              });
-              const personIds = [...new Set(mappingRows.map((row) => row.personId))];
-              const personRows = yield* tx.query.persons.findMany({
-                where: { id: { in: personIds } },
-              });
-              const personById = new Map(personRows.map((person) => [person.id, person]));
+                const assertionRows = yield* tx.query.identityAssertions.findMany({
+                  where: { projectId: input.projectId },
+                });
+                const personIds = Arr.fromIterable(
+                  HashSet.fromIterable(Arr.map(mappingRows, (row) => row.personId)),
+                );
+                const personRows = yield* tx.query.persons.findMany({
+                  where: { id: { in: personIds } },
+                });
+                const personById = HashMap.fromIterable(
+                  Arr.map(personRows, (person) => [person.id, person] as const),
+                );
 
-              const mappings: Array<DistinctIdMapping> = [];
-              for (const row of mappingRows) {
-                const person = personById.get(row.personId);
-                if (person) {
-                  mappings.push({
-                    distinctId: row.distinctId,
-                    person: {
-                      createdAt: person.createdAt,
-                      firstSeenAt: person.firstSeenAt,
-                      id: person.id,
+                const mappings = Arr.flatMap(mappingRows, (row) =>
+                  Arr.fromOption(
+                    Option.map(
+                      HashMap.get(personById, row.personId),
+                      (person) =>
+                        ({
+                          distinctId: row.distinctId,
+                          person: {
+                            createdAt: Option.fromNullishOr(person.createdAt),
+                            firstSeenAt: Option.fromNullishOr(person.firstSeenAt),
+                            id: person.id,
+                          },
+                        }) satisfies DistinctIdMapping,
+                    ),
+                  ),
+                );
+                const assertions: ReadonlyArray<IdentityAssertion> = Arr.map(
+                  assertionRows,
+                  (row) => ({
+                    distinctIdA: row.distinctIdA,
+                    distinctIdB: row.distinctIdB,
+                    eventTs: row.eventTs.getTime(),
+                  }),
+                );
+
+                const plan = planProjectionRebuild({ assertions, mappings });
+
+                const currentPersonByDistinct = HashMap.fromIterable(
+                  Arr.map(mappingRows, (row) => [row.distinctId, row.personId] as const),
+                );
+                const mappingUpdates = yield* Effect.forEach(
+                  Arr.fromIterable(plan.canonicalPersonOf),
+                  ([distinctId, canonicalPersonId]) =>
+                    Option.contains(
+                      HashMap.get(currentPersonByDistinct, distinctId),
+                      canonicalPersonId,
+                    )
+                      ? Effect.succeed(0)
+                      : tx
+                          .update(personIdentities)
+                          .set({ personId: canonicalPersonId })
+                          .where(
+                            and(
+                              eq(personIdentities.projectId, input.projectId),
+                              eq(personIdentities.distinctId, distinctId),
+                            ),
+                          )
+                          .pipe(Effect.as(1)),
+                  { concurrency: 1 },
+                );
+                const mappingsRepointed = Arr.reduce(
+                  mappingUpdates,
+                  0,
+                  (total, count) => total + count,
+                );
+
+                const now = yield* DateTime.nowAsDate;
+                const personUpdates = yield* Effect.forEach(
+                  Arr.fromIterable(plan.mergedInto),
+                  Effect.fn("IdentityProjectionRebuildService.rebuildProject.mergePerson")(
+                    function* ([personId, canonicalPersonId]) {
+                      const person = HashMap.get(personById, personId);
+                      if (
+                        Option.isNone(person) ||
+                        person.value.mergedIntoPersonId === canonicalPersonId
+                      ) {
+                        return 0;
+                      }
+
+                      yield* tx
+                        .update(persons)
+                        .set({
+                          archivedAt: person.value.archivedAt ?? now,
+                          mergedIntoPersonId: canonicalPersonId,
+                        })
+                        .where(eq(persons.id, personId));
+                      // Re-point push device-token links to the survivor in the same
+                      // rebuild transaction (belt) — mirrors the live merge re-point.
+                      // NOT EXISTS skips devices the survivor already owns (the
+                      // (person_id, push_device_token_id) unique index is global), else
+                      // a bare re-point would raise a unique violation and abort the
+                      // rebuild. Skipped loser links stay reachable via send-time
+                      // merged-loser expansion.
+                      yield* tx
+                        .update(pushPersonDeviceTokens)
+                        .set({ personId: canonicalPersonId, updatedAt: now })
+                        .where(
+                          and(
+                            eq(pushPersonDeviceTokens.projectId, input.projectId),
+                            eq(pushPersonDeviceTokens.personId, personId),
+                            sql`not exists (select 1 from push_person_device_token s where s.person_id = ${canonicalPersonId} and s.push_device_token_id = push_person_device_token.push_device_token_id)`,
+                          ),
+                        );
+                      return 1;
                     },
-                  });
-                }
-              }
-              const assertions: Array<IdentityAssertion> = assertionRows.map((row) => ({
-                distinctIdA: row.distinctIdA,
-                distinctIdB: row.distinctIdB,
-                eventTs: row.eventTs.getTime(),
-              }));
+                  ),
+                  { concurrency: 1 },
+                );
+                const personsMerged = Arr.reduce(personUpdates, 0, (total, count) => total + count);
 
-              const plan = planProjectionRebuild({ assertions, mappings });
+                yield* Effect.annotateCurrentSpan(
+                  "voidhash.identity_rebuild.mappings_repointed",
+                  mappingsRepointed,
+                );
+                yield* Effect.annotateCurrentSpan(
+                  "voidhash.identity_rebuild.persons_merged",
+                  personsMerged,
+                );
 
-              const currentPersonByDistinct = new Map(
-                mappingRows.map((row) => [row.distinctId, row.personId]),
-              );
-              let mappingsRepointed = 0;
-              for (const [distinctId, canonicalPersonId] of plan.canonicalPersonOf) {
-                if (currentPersonByDistinct.get(distinctId) !== canonicalPersonId) {
-                  yield* tx
-                    .update(personIdentities)
-                    .set({ personId: canonicalPersonId })
-                    .where(
-                      and(
-                        eq(personIdentities.projectId, input.projectId),
-                        eq(personIdentities.distinctId, distinctId),
-                      ),
-                    );
-                  mappingsRepointed += 1;
-                }
-              }
-
-              const now = yield* DateTime.nowAsDate;
-              let personsMerged = 0;
-              for (const [personId, canonicalPersonId] of plan.mergedInto) {
-                const person = personById.get(personId);
-                if (person && person.mergedIntoPersonId !== canonicalPersonId) {
-                  yield* tx
-                    .update(persons)
-                    .set({
-                      archivedAt: person.archivedAt ?? now,
-                      mergedIntoPersonId: canonicalPersonId,
-                    })
-                    .where(eq(persons.id, personId));
-                  // Re-point push device-token links to the survivor in the same
-                  // rebuild transaction (belt) — mirrors the live merge re-point.
-                  // NOT EXISTS skips devices the survivor already owns (the
-                  // (person_id, push_device_token_id) unique index is global), else
-                  // a bare re-point would raise a unique violation and abort the
-                  // rebuild. Skipped loser links stay reachable via send-time
-                  // merged-loser expansion.
-                  yield* tx
-                    .update(pushPersonDeviceTokens)
-                    .set({ personId: canonicalPersonId, updatedAt: now })
-                    .where(
-                      and(
-                        eq(pushPersonDeviceTokens.projectId, input.projectId),
-                        eq(pushPersonDeviceTokens.personId, personId),
-                        sql`not exists (select 1 from push_person_device_token s where s.person_id = ${canonicalPersonId} and s.push_device_token_id = push_person_device_token.push_device_token_id)`,
-                      ),
-                    );
-                  personsMerged += 1;
-                }
-              }
-
-              yield* Effect.annotateCurrentSpan(
-                "voidhash.identity_rebuild.mappings_repointed",
-                mappingsRepointed,
-              );
-              yield* Effect.annotateCurrentSpan(
-                "voidhash.identity_rebuild.persons_merged",
-                personsMerged,
-              );
-
-              return {
-                mappingsRepointed,
-                personsMerged,
-              } satisfies IdentityProjectionRebuildResult;
-            }),
+                return {
+                  mappingsRepointed,
+                  personsMerged,
+                } satisfies IdentityProjectionRebuildResult;
+              },
+            ),
           );
         },
         (effect) =>

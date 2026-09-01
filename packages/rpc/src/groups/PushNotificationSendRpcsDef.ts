@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -25,14 +25,15 @@ export const PushNotificationSend = Schema.Struct({
   id: Schema.String,
   idempotencyKey: Schema.NullOr(Schema.String),
   message: Schema.Record(Schema.String, Schema.Unknown),
-  messagePurged: Schema.Boolean,
+  isMessagePurged: Schema.Boolean,
   requestedDistinctIdCount: Schema.Number,
   requestedPersonCount: Schema.Number,
   skippedCount: Schema.Number,
   status: Schema.String,
   succeededCount: Schema.Number,
   unresolvedDistinctIds: Schema.Array(Schema.String),
-});
+}).pipe(Schema.encodeKeys({ isMessagePurged: "messagePurged" }));
+export type PushNotificationSend = typeof PushNotificationSend.Type;
 export type PushNotificationSendType = typeof PushNotificationSend.Type;
 
 /**
@@ -54,30 +55,37 @@ export const PushNotificationDelivery = Schema.Struct({
   providerMessageId: Schema.NullOr(Schema.String),
   status: Schema.String,
 });
+export type PushNotificationDelivery = typeof PushNotificationDelivery.Type;
 export type PushNotificationDeliveryType = typeof PushNotificationDelivery.Type;
 
 export const ListPushNotificationSendsRequest = Schema.Struct({
   limit: Schema.optional(Schema.Number),
   projectId: Schema.String,
 });
+export type ListPushNotificationSendsRequest = typeof ListPushNotificationSendsRequest.Type;
 export type ListPushNotificationSendsRequestType = typeof ListPushNotificationSendsRequest.Type;
 
 export const ListPushNotificationSendsResponse = Schema.Struct({
   hasMore: Schema.Boolean,
   sends: Schema.Array(PushNotificationSend),
 });
+export type ListPushNotificationSendsResponse = typeof ListPushNotificationSendsResponse.Type;
 export type ListPushNotificationSendsResponseType = typeof ListPushNotificationSendsResponse.Type;
 
 export const GetPushNotificationSendDeliveriesRequest = Schema.Struct({
   projectId: Schema.String,
   sendId: Schema.String,
 });
+export type GetPushNotificationSendDeliveriesRequest =
+  typeof GetPushNotificationSendDeliveriesRequest.Type;
 export type GetPushNotificationSendDeliveriesRequestType =
   typeof GetPushNotificationSendDeliveriesRequest.Type;
 
 export const GetPushNotificationSendDeliveriesResponse = Schema.Struct({
   deliveries: Schema.Array(PushNotificationDelivery),
 });
+export type GetPushNotificationSendDeliveriesResponse =
+  typeof GetPushNotificationSendDeliveriesResponse.Type;
 export type GetPushNotificationSendDeliveriesResponseType =
   typeof GetPushNotificationSendDeliveriesResponse.Type;
 

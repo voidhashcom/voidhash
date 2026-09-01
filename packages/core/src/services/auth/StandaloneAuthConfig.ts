@@ -12,9 +12,17 @@ import {
   STANDALONE_AUTH_DEFAULT_SECRET,
   normalizeEmail,
 } from "../../utils/crypto/standalone-auth-token.ts";
+import { processEnvironment as rawProcessEnvironment } from "../../effect-boundary.ts";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 
 /** Environment bag accepted by the resolvers — `process.env` in every runtime. */
-export type StandaloneAuthEnv = Record<string, string | undefined>;
+export interface StandaloneAuthEnv {
+  readonly VOIDHASH_AUTH_SECRET: Option.Option<string>;
+  readonly VOIDHASH_ROOT_EMAIL: Option.Option<string>;
+  readonly VOIDHASH_ROOT_PASSWORD: Option.Option<string>;
+  readonly VOIDHASH_ROOT_USERNAME: Option.Option<string>;
+}
 
 /** Root login name used when `VOIDHASH_ROOT_USERNAME` is unset. */
 export const DEFAULT_ROOT_USERNAME = "root";
@@ -33,17 +41,28 @@ export const DEFAULT_ROOT_EMAIL = "root@voidhash.local";
  * Values `.env.example` ships as placeholders. Shared with the self-host
  * security validator so both agree on what "not really configured" means.
  */
-export const isPlaceholderSecret = (value: string | undefined): boolean => {
-  const normalized = value?.trim().toLowerCase();
-  return (
-    !normalized ||
-    normalized === "password" ||
-    normalized.includes("not_configured") ||
-    normalized.includes("change-me") ||
-    normalized.includes("replace-me") ||
-    normalized.startsWith("replace-with-")
+export const isPlaceholderSecret = (value: Option.Option<string>): boolean =>
+  Option.match(value, {
+    onNone: () => true,
+    onSome: (secret) => {
+      const normalized = secret.trim().toLowerCase();
+      return (
+        !Str.isNonEmpty(normalized) ||
+        normalized === "password" ||
+        normalized.includes("not_configured") ||
+        normalized.includes("change-me") ||
+        normalized.includes("replace-me") ||
+        normalized.startsWith("replace-with-")
+      );
+    },
+  });
+
+const valueOrElse = (value: Option.Option<string>, fallback: string): string =>
+  value.pipe(
+    Option.map((entry) => entry.trim()),
+    Option.filter(Str.isNonEmpty),
+    Option.getOrElse(() => fallback),
   );
-};
 
 /** Resolved root identity and session signing key. */
 export interface StandaloneAuthConfig {
@@ -59,13 +78,12 @@ export interface StandaloneAuthConfig {
  * {@link standaloneAuthConfigIssues} first.
  */
 export const resolveStandaloneAuthConfig = (
-  // oxlint-disable-next-line effect/noGlobals -- synchronous config adapter: the env bag is the default argument read from synchronous call sites (self-host bootstrap and TanStack Start server routes) before any Effect runtime exists.
-  env: StandaloneAuthEnv = process.env,
+  env: StandaloneAuthEnv = currentProcessEnvironment(),
 ): StandaloneAuthConfig => ({
-  rootEmail: normalizeEmail(env.VOIDHASH_ROOT_EMAIL?.trim() || DEFAULT_ROOT_EMAIL),
-  rootPassword: env.VOIDHASH_ROOT_PASSWORD?.trim() || DEFAULT_ROOT_PASSWORD,
-  rootUsername: env.VOIDHASH_ROOT_USERNAME?.trim() || DEFAULT_ROOT_USERNAME,
-  secret: env.VOIDHASH_AUTH_SECRET?.trim() || STANDALONE_AUTH_DEFAULT_SECRET,
+  rootEmail: normalizeEmail(valueOrElse(env.VOIDHASH_ROOT_EMAIL, DEFAULT_ROOT_EMAIL)),
+  rootPassword: valueOrElse(env.VOIDHASH_ROOT_PASSWORD, DEFAULT_ROOT_PASSWORD),
+  rootUsername: valueOrElse(env.VOIDHASH_ROOT_USERNAME, DEFAULT_ROOT_USERNAME),
+  secret: valueOrElse(env.VOIDHASH_AUTH_SECRET, STANDALONE_AUTH_DEFAULT_SECRET),
 });
 
 /**
@@ -73,12 +91,26 @@ export const resolveStandaloneAuthConfig = (
  * default. Empty when the deployment is safe to expose beyond loopback.
  */
 export const standaloneAuthConfigIssues = (
-  // oxlint-disable-next-line effect/noGlobals -- synchronous config adapter: the env bag is the default argument read from synchronous call sites (self-host bootstrap and TanStack Start server routes) before any Effect runtime exists.
-  env: StandaloneAuthEnv = process.env,
+  env: StandaloneAuthEnv = currentProcessEnvironment(),
 ): ReadonlyArray<string> => {
   const issues: Array<string> = [];
-  if (!env.VOIDHASH_ROOT_USERNAME?.trim()) issues.push("VOIDHASH_ROOT_USERNAME");
+  if (
+    Option.isNone(
+      env.VOIDHASH_ROOT_USERNAME.pipe(
+        Option.map((value) => value.trim()),
+        Option.filter(Str.isNonEmpty),
+      ),
+    )
+  )
+    issues.push("VOIDHASH_ROOT_USERNAME");
   if (isPlaceholderSecret(env.VOIDHASH_ROOT_PASSWORD)) issues.push("VOIDHASH_ROOT_PASSWORD");
   if (isPlaceholderSecret(env.VOIDHASH_AUTH_SECRET)) issues.push("VOIDHASH_AUTH_SECRET");
   return issues;
 };
+
+const currentProcessEnvironment = (): StandaloneAuthEnv => ({
+  VOIDHASH_AUTH_SECRET: Option.fromNullishOr(rawProcessEnvironment.VOIDHASH_AUTH_SECRET),
+  VOIDHASH_ROOT_EMAIL: Option.fromNullishOr(rawProcessEnvironment.VOIDHASH_ROOT_EMAIL),
+  VOIDHASH_ROOT_PASSWORD: Option.fromNullishOr(rawProcessEnvironment.VOIDHASH_ROOT_PASSWORD),
+  VOIDHASH_ROOT_USERNAME: Option.fromNullishOr(rawProcessEnvironment.VOIDHASH_ROOT_USERNAME),
+});

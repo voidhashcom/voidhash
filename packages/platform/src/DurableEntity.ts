@@ -1,4 +1,6 @@
-import { Context, type Effect } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
 
 /** Stable identity of one durable entity instance. */
 export interface DurableEntityAddress {
@@ -11,15 +13,13 @@ export interface DurableEntitySession {
   readonly id: string;
   readonly send: (message: string | Uint8Array) => Effect.Effect<void>;
   readonly close: (code?: number, reason?: string) => Effect.Effect<void>;
-  // oxlint-disable-next-line typescript/no-redundant-type-constituents -- the `| undefined` documents that the attachment may be absent; this is the published platform port implemented by the Cloudflare and Node adapters, so its declared shape is not rewritten under a lint pass.
-  readonly getAttachment: Effect.Effect<unknown | undefined>;
+  readonly getAttachment: Effect.Effect<Option.Option<unknown>>;
   readonly setAttachment: (attachment: unknown) => Effect.Effect<void>;
 }
 
 /** Entity-local key-value storage. */
 export interface DurableEntityKeyValue {
-  // oxlint-disable-next-line typescript/no-redundant-type-constituents -- the `| undefined` documents that a key may be absent; this is the published platform port implemented by the Cloudflare and Node adapters, so its declared shape is not rewritten under a lint pass.
-  readonly get: (key: string) => Effect.Effect<unknown | undefined>;
+  readonly get: (key: string) => Effect.Effect<Option.Option<unknown>>;
   readonly put: (key: string, value: unknown) => Effect.Effect<void>;
   readonly delete: (key: string) => Effect.Effect<void>;
 }
@@ -34,7 +34,7 @@ export interface DurableEntitySql {
 
 /** One replaceable persisted alarm for an entity. */
 export interface DurableEntityAlarm {
-  readonly get: Effect.Effect<number | undefined>;
+  readonly get: Effect.Effect<Option.Option<number>>;
   readonly set: (scheduledTime: number) => Effect.Effect<void>;
   readonly delete: Effect.Effect<void>;
 }
@@ -67,7 +67,7 @@ export class DurableEntityAlarmControl extends Context.Service<
 
 /** Live sessions currently attached to an entity instance. */
 export interface DurableEntitySessions {
-  readonly get: (sessionId: string) => Effect.Effect<DurableEntitySession | undefined>;
+  readonly get: (sessionId: string) => Effect.Effect<Option.Option<DurableEntitySession>>;
   readonly list: Effect.Effect<ReadonlyArray<DurableEntitySession>>;
   readonly attach: (session: DurableEntitySession) => Effect.Effect<void>;
   readonly remove: (sessionId: string) => Effect.Effect<void>;
@@ -77,7 +77,7 @@ export interface DurableEntitySessions {
 export interface DurableEntityContext {
   readonly address: DurableEntityAddress;
   readonly keyValue: DurableEntityKeyValue;
-  readonly sql?: DurableEntitySql;
+  readonly sql: Option.Option<DurableEntitySql>;
   readonly alarm: DurableEntityAlarm;
   readonly sessions: DurableEntitySessions;
 }

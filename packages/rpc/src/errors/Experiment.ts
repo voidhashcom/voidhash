@@ -4,7 +4,7 @@
  * plus the catch-all service error. Class names and `_tag` values are
  * namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Experiment row not found. */
 export class RpcExperimentNotFoundError extends Schema.TaggedErrorClass<RpcExperimentNotFoundError>(

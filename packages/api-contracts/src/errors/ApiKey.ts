@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic API key service error */
 export class ApiApiKeyServiceError extends Schema.TaggedErrorClass<ApiApiKeyServiceError>()(

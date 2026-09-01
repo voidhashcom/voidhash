@@ -242,15 +242,15 @@ importers:
       '@electric-sql/pglite-socket':
         specifier: ^0.2.8
         version: 0.2.8(@electric-sql/pglite-age@0.0.6(@electric-sql/pglite@0.5.5))(@electric-sql/pglite-pg_hashids@0.0.6(@electric-sql/pglite@0.5.5))(@electric-sql/pglite-pg_ivm@0.0.6(@electric-sql/pglite@0.5.5))(@electric-sql/pglite-pg_textsearch@0.0.7(@electric-sql/pglite@0.5.5))(@electric-sql/pglite-pg_uuidv7@0.0.6(@electric-sql/pglite@0.5.5))(@electric-sql/pglite-pgtap@0.0.6(@electric-sql/pglite@0.5.5))(@electric-sql/pglite-pgvector@0.0.6(@electric-sql/pglite@0.5.5))(@electric-sql/pglite@0.5.5)
+      '@mpsuesser/oxlint-plugin-effect':
+        specifier: ^0.4.3
+        version: 0.4.3
       alchemy:
         specifier: 'catalog:'
         version: 2.0.0-beta.70(37a824057b78b66ca9a88caca025f81d)
       dotenv-cli:
         specifier: ^8.0.0
         version: 8.0.0
-      oxlint-plugin-effect:
-        specifier: ^0.6.0
-        version: 0.6.0(effect@4.0.0-beta.102)
       portless:
         specifier: 0.15.5
         version: 0.15.5
@@ -727,10 +727,16 @@ importers:
 
   libraries/node:
     dependencies:
+      '@noble/hashes':
+        specifier: ^2.2.0
+        version: 2.2.0
       effect:
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102
     devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.0-beta.102
+        version: 4.0.0-beta.102(effect@4.0.0-beta.102)(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.10.4)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
       '@voidhash/generated-clients':
         specifier: workspace:*
         version: link:../../packages/generated-clients
@@ -795,6 +801,9 @@ importers:
 
   libraries/react-native:
     dependencies:
+      '@expo/require-utils':
+        specifier: ^55.0.0
+        version: 55.0.7(supports-color@10.2.2)(typescript@5.9.3)
       '@noble/hashes':
         specifier: ^2.2.0
         version: 2.2.0
@@ -816,6 +825,9 @@ importers:
       effect:
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102
+      pathe:
+        specifier: ^2.0.3
+        version: 2.0.3
     devDependencies:
       '@effect/platform-node':
         specifier: 4.0.0-beta.102
@@ -875,6 +887,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/generated-clients
     devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.0-beta.102
+        version: 4.0.0-beta.102(effect@4.0.0-beta.102)(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.10.4)(jiti@2.7.0)(jsdom@20.0.3(supports-color@10.2.2))(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
       '@types/react':
         specifier: 'catalog:'
         version: 19.1.17
@@ -1230,6 +1245,9 @@ importers:
         specifier: ^8.13.0
         version: 8.22.0
     devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.0-beta.102
+        version: 4.0.0-beta.102(@voidzero-dev/vite-plus-test@0.1.24(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@24.10.4)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))(effect@4.0.0-beta.102)
       '@types/node':
         specifier: ^24.0.12
         version: 24.10.4
@@ -1603,6 +1621,9 @@ importers:
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102
     devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.0-beta.102
+        version: 4.0.0-beta.102(effect@4.0.0-beta.102)(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.10.4)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
       '@types/node':
         specifier: ^24.0.12
         version: 24.10.4
@@ -2105,6 +2126,9 @@ importers:
       '@effect/platform-node':
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102(effect@4.0.0-beta.102)(ioredis@5.9.1(supports-color@10.2.2))
+      '@effect/vitest':
+        specifier: 4.0.0-beta.102
+        version: 4.0.0-beta.102(effect@4.0.0-beta.102)(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.10.4)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
       '@voidhash/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -2251,6 +2275,9 @@ importers:
         specifier: 4.0.0-beta.102
         version: 4.0.0-beta.102
     devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.0-beta.102
+        version: 4.0.0-beta.102(@voidzero-dev/vite-plus-test@0.1.24(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@24.10.4)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))(effect@4.0.0-beta.102)
       '@types/bun':
         specifier: latest
         version: 1.4.0
@@ -5249,6 +5276,9 @@ packages:
     peerDependencies:
       three: '>= 0.159.0'
 
+  '@mpsuesser/oxlint-plugin-effect@0.4.3':
+    resolution: {integrity: sha512-zUuShvX0nIq7UYnjk1mz7YDQMb6A9cJ7vWnDUBwicmiI87rCfqieYAvQC40Mr9ifzXal07VArrOeZw3Ysikzeg==}
+
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
     engines: {node: '>=16'}
@@ -5775,6 +5805,10 @@ packages:
 
   '@oxlint/plugins@1.77.0':
     resolution: {integrity: sha512-6KtPXskPgpt+0Kyl2nNSxNnYXt7lbkxW1C7vi2L7xwtq/AisZlsmV+hnzOTEyM5tU1TxPv1GpTqpUBbZfPzBLg==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+
+  '@oxlint/plugins@1.80.0':
+    resolution: {integrity: sha512-QRgH1XqQEYNHa4f1vvPQ5fAdNdncHGIUG1ZWLlGIZHky3qwCEeAKYitZNbZMtaXtAQAAFFTOwqUfzESvimqZNA==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
   '@paper-design/shaders-react@0.0.71':
@@ -10652,6 +10686,11 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
+  effect-oxlint@0.3.4:
+    resolution: {integrity: sha512-VaI72NhDI+OBk8rkWBxR3D+k8iQN5KX4caiTRtWR/KDlif4KdxmjPelQqflwwprxkGldEpLry9fQvvzlBWY6bA==}
+    peerDependencies:
+      effect: 4.0.0-beta.102
+
   effect-query@1.0.0:
     resolution: {integrity: sha512-oaGyubCSC+RwMzh0gY9z7tEErFRArvUkiEsGqfx4jptDyuXewrh9PQeg7P8uTCR1Gxg8V+gW0g7jXBk/9fGzoA==}
     peerDependencies:
@@ -13807,11 +13846,6 @@ packages:
         optional: true
       vite-plus:
         optional: true
-
-  oxlint-plugin-effect@0.6.0:
-    resolution: {integrity: sha512-UgH4XsTsX8x82hpxchPb/foERB2jPA2m7ArRLyw1pteE0WEOK64fxKvceSzPOkiGd+rQuUcFgEykXX6h6HJ/eA==}
-    peerDependencies:
-      effect: 4.0.0-beta.102
 
   oxlint-tsgolint@0.23.0:
     resolution: {integrity: sha512-3mBv3CoPbh8dFbzfDGIWa2ytZjn2v+3EX4aKRXjIhsoGFzG8GCjfRirz3rwZf1wYbZzsNLTSgpw8VjQuWdp/jA==}
@@ -18459,6 +18493,11 @@ snapshots:
       effect: 4.0.0-beta.102
       vitest: '@voidzero-dev/vite-plus-test@0.1.24(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(@vitest/ui@4.1.0)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
+  '@effect/vitest@4.0.0-beta.102(effect@4.0.0-beta.102)(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.10.4)(jiti@2.7.0)(jsdom@20.0.3(supports-color@10.2.2))(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))':
+    dependencies:
+      effect: 4.0.0-beta.102
+      vitest: 3.2.7(@types/debug@4.1.12)(@types/node@24.10.4)(jiti@2.7.0)(jsdom@20.0.3(supports-color@10.2.2))(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
   '@effect/vitest@4.0.0-beta.102(effect@4.0.0-beta.102)(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.10.4)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(lightningcss@1.32.0)(supports-color@10.2.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
       effect: 4.0.0-beta.102
@@ -20366,6 +20405,12 @@ snapshots:
       promise-worker-transferable: 1.0.4
       three: 0.178.0
 
+  '@mpsuesser/oxlint-plugin-effect@0.4.3':
+    dependencies:
+      '@oxlint/plugins': 1.77.0
+      effect: 4.0.0-beta.102
+      effect-oxlint: 0.3.4(effect@4.0.0-beta.102)
+
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:
       chevrotain: 10.5.0
@@ -20713,6 +20758,8 @@ snapshots:
   '@oxlint/plugins@1.61.0': {}
 
   '@oxlint/plugins@1.77.0': {}
+
+  '@oxlint/plugins@1.80.0': {}
 
   '@paper-design/shaders-react@0.0.71(@types/react@19.1.17)(react@19.2.7)':
     dependencies:
@@ -27347,6 +27394,11 @@ snapshots:
 
   ee-first@1.1.1: {}
 
+  effect-oxlint@0.3.4(effect@4.0.0-beta.102):
+    dependencies:
+      '@oxlint/plugins': 1.80.0
+      effect: 4.0.0-beta.102
+
   effect-query@1.0.0(@tanstack/react-query@5.100.11(react@19.2.7))(effect@4.0.0-beta.102)(react@19.2.7):
     dependencies:
       '@tanstack/react-query': 5.100.11(react@19.2.7)
@@ -32311,11 +32363,6 @@ snapshots:
       '@oxfmt/binding-win32-ia32-msvc': 0.52.0
       '@oxfmt/binding-win32-x64-msvc': 0.52.0
       vite-plus: 0.1.24(@opentelemetry/api@1.9.0)(@types/node@24.10.4)(esbuild@0.28.1)(jiti@2.7.0)(jsdom@26.1.0(supports-color@10.2.2))(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@24.10.4)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
-
-  oxlint-plugin-effect@0.6.0(effect@4.0.0-beta.102):
-    dependencies:
-      '@oxlint/plugins': 1.77.0
-      effect: 4.0.0-beta.102
 
   oxlint-tsgolint@0.23.0:
     optionalDependencies:

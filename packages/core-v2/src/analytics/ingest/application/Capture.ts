@@ -1,9 +1,18 @@
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
 import {
   CaptureRateLimitedError,
   CaptureUnauthorizedError,
   CaptureEvent,
 } from "@voidhash/api-contracts/event-capture";
-import { Context, Crypto, Effect, Encoding, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Crypto from "effect/Crypto";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
 
 import {
   isReservedRevenueEventName,
@@ -41,12 +50,14 @@ export const CaptureRequest = Schema.Struct({
   }),
   events: Schema.Array(CaptureEvent),
 });
+export type CaptureRequest = typeof CaptureRequest.Type;
 
 /** Result returned after a capture batch has been admitted and delivered. */
 export const CaptureResult = Schema.Struct({
   accepted: Schema.Int,
   rejected: Schema.Int,
 });
+export type CaptureResult = typeof CaptureResult.Type;
 
 const PUBLISHABLE_TOKEN_FORMAT = /^vh_pk_\w+$/;
 const SECRET_TOKEN_FORMAT = /^vh_sk_\w+$/;
@@ -64,7 +75,7 @@ const makeCaptureEnvelope = (input: {
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto;
     let processPersonProfile = input.event.properties.$process_person_profile;
-    if (typeof processPersonProfile !== "boolean") {
+    if (!P.isBoolean(processPersonProfile)) {
       processPersonProfile = !input.event.distinct_id.startsWith("vh:anon:");
     }
     // Server-derived enrichment rides inside the user properties object so it
@@ -128,7 +139,7 @@ export interface AnalyticsCaptureShape {
   >;
 }
 
-const makeAnalyticsCapture = Effect.gen(function* () {
+const makeAnalyticsCapture = Effect.fn("makeAnalyticsCapture")(function* () {
   const config = yield* AnalyticsConfig;
   const credentials = yield* CaptureCredentialRepository;
   const counters = yield* PolicyCounter;
@@ -166,7 +177,7 @@ const makeAnalyticsCapture = Effect.gen(function* () {
             error: "invalid token",
           });
         }
-        if (!project.policy.ingestEnabled) {
+        if (!project.policy.isIngestEnabled) {
           return yield* new CaptureRateLimitedError({
             code: "rate_limited",
             error: "capture is disabled for this project",
@@ -195,12 +206,9 @@ const makeAnalyticsCapture = Effect.gen(function* () {
           });
         }
 
-        const admitted: Array<{
-          readonly envelope: typeof CapturedEventV1.Type;
-          readonly quotaExempt: boolean;
-        }> = [];
-        for (const event of request.events) {
-          if (isReservedRevenueEventName(event.event)) continue;
+        const admitted = Arr.getSomes(
+          yield* Effect.forEach(request.events, (event) => {
+          if (isReservedRevenueEventName(event.event)) return Effect.succeed(Option.none());
           if (
             !admitEvent({
               edition: config.edition,
@@ -208,23 +216,30 @@ const makeAnalyticsCapture = Effect.gen(function* () {
               policy: project.policy.admission,
             }).admitted
           ) {
-            continue;
+            return Effect.succeed(Option.none());
           }
-          admitted.push({
-            envelope: yield* makeCaptureEnvelope({
+          return makeCaptureEnvelope({
               event,
               organizationId: project.organizationId,
               projectId: project.projectId,
               receivedAt: request.request.receivedAt,
               request: request.request,
               token: credential.lookupKey,
-            }).pipe(Effect.provideService(Crypto.Crypto, crypto), Effect.mapError(captureError)),
-            quotaExempt: shouldBypassQuota({
-              eventName: event.event,
-              trustClass: "untrusted-sdk",
-            }),
-          });
-        }
+            }).pipe(
+              Effect.provideService(Crypto.Crypto, crypto),
+              Effect.mapError(captureError),
+              Effect.map((envelope) =>
+                Option.some({
+                  envelope,
+                  quotaExempt: shouldBypassQuota({
+                    eventName: event.event,
+                    trustClass: "untrusted-sdk",
+                  }),
+                }),
+              ),
+            );
+          }, { concurrency: 1 }),
+        );
         const reservation = yield* counters
           .reserveEvents({
             count: admitted.filter((candidate) => !candidate.quotaExempt).length,
@@ -241,23 +256,28 @@ const makeAnalyticsCapture = Effect.gen(function* () {
           return [candidate.envelope];
         });
         const deliveryResult = yield* Effect.result(delivery.deliver(envelopes));
-        if (deliveryResult._tag === "Failure") {
-          yield* reservation
-            .commit(Math.min(deliveryResult.failure.stored, reservation.reserved))
-            .pipe(Effect.catch(() => Effect.void));
-          return yield* Effect.fail(captureError(deliveryResult.failure));
-        }
-        const outcome = deliveryResult.success;
-        yield* reservation
-          .commit(Math.min(outcome.stored, reservation.reserved))
-          .pipe(Effect.mapError(captureError));
-        return {
-          accepted: outcome.stored,
-          rejected: request.events.length - outcome.stored,
-        };
+        return yield* Result.match(deliveryResult, {
+          onFailure: (failure) =>
+            reservation
+              .commit(Math.min(failure.stored, reservation.reserved))
+              .pipe(
+                Effect.catch(() => Effect.void),
+                Effect.flatMap(() => Effect.fail(captureError(failure))),
+              ),
+          onSuccess: (outcome) =>
+            reservation
+              .commit(Math.min(outcome.stored, reservation.reserved))
+              .pipe(
+                Effect.mapError(captureError),
+                Effect.as({
+                  accepted: outcome.stored,
+                  rejected: request.events.length - outcome.stored,
+                }),
+              ),
+        });
       }),
   } satisfies AnalyticsCaptureShape;
-});
+})();
 
 /** Capture use case whose implementation dependencies are supplied by layers. */
 export class AnalyticsCapture extends Context.Service<AnalyticsCapture, AnalyticsCaptureShape>()(

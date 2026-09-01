@@ -1,6 +1,8 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy/RuntimeContext";
-import { Effect, Schema, SchemaParser } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
+import * as SchemaParser from "effect/SchemaParser";
 
 import { QueueProducerError, type QueueProducer } from "@voidhash/platform/Queue";
 import type { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
@@ -61,16 +63,19 @@ export const makeQueueProducer = <A, I>(
       messages: ReadonlyArray<A>,
     ): Effect.Effect<void, QueueProducerError, PlatformRuntime> =>
       Effect.gen(function* () {
-        const encoded = yield* Effect.forEach(messages, (m) =>
-          encode(m).pipe(
-            Effect.mapError(
-              (cause) =>
-                new QueueProducerError({
-                  cause: `encode failed: ${String(cause)}`,
-                  queueName,
-                }),
+        const encoded = yield* Effect.forEach(
+          messages,
+          (m) =>
+            encode(m).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new QueueProducerError({
+                    cause: `encode failed: ${String(cause)}`,
+                    queueName,
+                  }),
+              ),
             ),
-          ),
+          { concurrency: 1 },
         );
         yield* requirePlatformRuntime(
           sender.sendBatch(encoded.map((body) => ({ body }))),

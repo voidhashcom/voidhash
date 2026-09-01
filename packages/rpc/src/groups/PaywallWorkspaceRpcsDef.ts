@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import { RpcPaywallNotFoundError } from "../errors/paywall.ts";
@@ -14,6 +14,7 @@ export const WorkspacePaywallDir = Schema.Struct({
   slug: Schema.String,
   paywallId: Schema.String,
 });
+export type WorkspacePaywallDir = typeof WorkspacePaywallDir.Type;
 
 /** One cached compile diagnostic (message + optional position/phase). */
 export const ComponentManifestDiagnostic = Schema.Struct({
@@ -22,6 +23,7 @@ export const ComponentManifestDiagnostic = Schema.Struct({
   line: Schema.optional(Schema.Number),
   column: Schema.optional(Schema.Number),
 });
+export type ComponentManifestDiagnostic = typeof ComponentManifestDiagnostic.Type;
 
 /**
  * Paywall workspace RPC surface. Read side: list a project's paywall directories

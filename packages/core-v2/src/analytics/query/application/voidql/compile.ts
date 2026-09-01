@@ -4,7 +4,10 @@
  * that the service executes. No ClickHouse, no Db, no Auth here — trivially
  * unit-testable and fuzzable.
  */
-import { Crypto, Effect, type PlatformError } from "effect";
+import * as Crypto from "effect/Crypto";
+import * as Effect from "effect/Effect";
+import type * as HashSet from "effect/HashSet";
+import type * as PlatformError from "effect/PlatformError";
 
 import type { Capability, ColumnSpec } from "./catalog/types.ts";
 import { type CompiledSelect, compileSelect } from "./compiler.ts";
@@ -32,10 +35,9 @@ export const MAX_SOURCE_LENGTH = 100_000;
 export const compileToIr = (
   text: string,
   scope: AuthorizedScope,
-  capabilities: ReadonlySet<Capability>,
+  capabilities: HashSet.HashSet<Capability>,
 ): CompiledSelect => {
   if (text.length > MAX_SOURCE_LENGTH) {
-    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous pure pipeline; compileVoidQl catches this typed error into the error channel, and the validate/repair loop expects a throw.
     throw new VoidQlComplexityError({
       message: `Query exceeds the maximum source length of ${MAX_SOURCE_LENGTH} characters.`,
     });
@@ -50,7 +52,7 @@ export const compileToIr = (
 export const compilePure = (
   text: string,
   scope: AuthorizedScope,
-  capabilities: ReadonlySet<Capability>,
+  capabilities: HashSet.HashSet<Capability>,
   queryId: string,
 ): CompiledQuery => {
   const compiled = compileToIr(text, scope, capabilities);
@@ -66,7 +68,7 @@ export const compilePure = (
 export const compileVoidQl = (
   text: string,
   scope: AuthorizedScope,
-  capabilities: ReadonlySet<Capability>,
+  capabilities: HashSet.HashSet<Capability>,
 ): Effect.Effect<CompiledQuery, VoidQlCompileError | PlatformError.PlatformError, Crypto.Crypto> =>
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto;

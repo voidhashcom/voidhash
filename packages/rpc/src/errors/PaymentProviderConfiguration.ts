@@ -3,7 +3,7 @@
  * payment-provider-configuration RPCs. Class names and `_tag` values are
  * namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Configuration row not found. */
 export class RpcPaymentProviderConfigurationNotFoundError extends Schema.TaggedErrorClass<RpcPaymentProviderConfigurationNotFoundError>(

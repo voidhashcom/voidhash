@@ -4,7 +4,7 @@ import {
   PaymentProviderProductOperationsLive,
   PaymentProviderProductService,
 } from "@voidhash/core-v2";
-import { Layer } from "effect";
+import * as Layer from "effect/Layer";
 
 import {
   DbPurchaseManagementRepositoryLive,

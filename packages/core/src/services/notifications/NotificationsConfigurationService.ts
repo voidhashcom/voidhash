@@ -1,4 +1,9 @@
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { constant } from "@voidhash/lib/lang";
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -6,13 +11,7 @@ import {
   NotificationConfigKeyUnavailableError,
   NotificationConfigNotFoundError,
 } from "../../domain/notifications/PushNotificationConfiguration.ts";
-import {
-  AuditLogAction,
-  AuditLogEntityType,
-  Db,
-  eq,
-  pushNotificationConfigs,
-} from "@voidhash/db";
+import { AuditLogAction, AuditLogEntityType, Db, eq, pushNotificationConfigs } from "@voidhash/db";
 import { generateId } from "../../utils/generate-id.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
 import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
@@ -82,10 +81,8 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
       return {};
     };
 
-    const namePatch = (name: string | undefined): { name?: string } => {
-      if (name === undefined) return {};
-      return { name };
-    };
+    const namePatch = (name: Option.Option<string>): { name?: string } =>
+      Option.match(name, { onNone: () => ({}), onSome: (value) => ({ name: value }) });
 
     /** Secret-OMITTING read DTO (DEVIATION 1). */
     const toReadDto = (row: typeof pushNotificationConfigs.$inferSelect) => {
@@ -282,7 +279,7 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
             .set({
               configuration: mergedConfiguration,
               enabled: false,
-              ...namePatch(input.name),
+              ...namePatch(Option.fromNullishOr(input.name)),
               updatedAt: yield* DateTime.nowAsDate,
             })
             .where(eq(pushNotificationConfigs.id, input.id));
@@ -338,7 +335,7 @@ const make = (config: { readonly requireEncryption: Effect.Effect<boolean> }) =>
           .set({
             configuration: validation.parsedConfiguration,
             enabled: input.enabled,
-            ...namePatch(input.name),
+            ...namePatch(Option.fromNullishOr(input.name)),
             pushProviderKey: validation.pushProviderKey,
             updatedAt: yield* DateTime.nowAsDate,
           })

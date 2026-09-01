@@ -1,3 +1,4 @@
+import * as R from "effect/Record";
 /**
  * Internal feature flags — our own (voidhash-internal) gates for unreleased
  * product features, rolled out per-organization to internal teams and select
@@ -107,7 +108,7 @@ export const INTERNAL_FEATURE_FLAGS = constant({
 
 /** All internal feature flag definitions as a list (e.g. for admin listings). */
 export const INTERNAL_FEATURE_FLAG_LIST: readonly InternalFeatureFlagDefinition[] =
-  Object.values(INTERNAL_FEATURE_FLAGS);
+  R.values(INTERNAL_FEATURE_FLAGS);
 
 /** The union of valid internal feature flag keys (for type-safe checks). */
 export type InternalFeatureFlagKey =

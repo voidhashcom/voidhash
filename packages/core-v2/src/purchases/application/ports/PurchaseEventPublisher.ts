@@ -1,4 +1,7 @@
-import { Context, Effect, Layer, type Effect as EffectType } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import type * as EffectType from "effect/Effect";
 
 import type { WebhookLifecycleEvent } from "../../processing/domain/WebhookEventMapper.ts";
 import type { PurchasePortError } from "./PurchasePortError.ts";

@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -10,7 +10,7 @@ import {
 import { AuthMiddleware } from "../middlewares.ts";
 
 /** One stored paywall asset as returned over the wire. */
-export const PaywallAssetSchema = Schema.Struct({
+export const PaywallAsset = Schema.Struct({
   id: Schema.String,
   organizationId: Schema.String,
   name: Schema.String,
@@ -21,6 +21,7 @@ export const PaywallAssetSchema = Schema.Struct({
   height: Schema.NullOr(Schema.Number),
   createdAt: Schema.Date,
 });
+export type PaywallAsset = typeof PaywallAsset.Type;
 
 /**
  * Organization-scoped paywall image asset library, gated by
@@ -44,14 +45,14 @@ export class PaywallAssetRpcsDef extends RpcGroup.make(
       width: Schema.optional(Schema.Number),
       height: Schema.optional(Schema.Number),
     },
-    success: PaywallAssetSchema,
+    success: PaywallAsset,
   }),
   Rpc.make("ListPaywallAssets", {
     error: Schema.Union([RpcPaywallAssetServiceError, RpcActionForbiddenError]),
     payload: {
       organizationId: Schema.String,
     },
-    success: Schema.Array(PaywallAssetSchema),
+    success: Schema.Array(PaywallAsset),
   }),
   Rpc.make("RenamePaywallAsset", {
     error: Schema.Union([
@@ -63,7 +64,7 @@ export class PaywallAssetRpcsDef extends RpcGroup.make(
       assetId: Schema.String,
       name: Schema.String,
     },
-    success: PaywallAssetSchema,
+    success: PaywallAsset,
   }),
   Rpc.make("DeletePaywallAsset", {
     error: Schema.Union([
@@ -77,3 +78,5 @@ export class PaywallAssetRpcsDef extends RpcGroup.make(
     success: Schema.Void,
   }),
 ).middleware(AuthMiddleware) {}
+
+export { PaywallAsset as PaywallAssetSchema };

@@ -1,3 +1,4 @@
+import { unsafeDefined } from "../../runtime-boundary.ts";
 import { ALLOWED_CHILDREN_BY_NODE_TYPE, NODE_TYPES, type NodeType } from "@voidhash/mimic-schema";
 import {
   acceptanceOf,
@@ -7,13 +8,17 @@ import {
   STYLE_GROUP_FLAG_BY_FIELD,
   type SerializedSchema,
 } from "@voidhash/ai-shared";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import { MutableSet } from "../../collection-boundary.ts";
 
 /** Renders a schema literal or default as JSON text for the generated prompt. */
 const jsonText = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 /**
  * Authoring guide appended to the designer-surface system prompt. The document
@@ -37,7 +42,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 function styleValueLabel(field: string, schema: SerializedSchema): string {
   const acc = acceptanceOf(schema);
-  if (acc.literals.length > 0 && !acc.acceptsNumber && !acc.acceptsString && !acc.acceptsBoolean) {
+  if (Arr.isReadonlyArrayNonEmpty(acc.literals) && !acc.acceptsNumber && !acc.acceptsString && !acc.acceptsBoolean) {
     return acc.literals.map((literal) => jsonText(literal)).join(" | ");
   }
   if (acc.isStructured) return "object";
@@ -56,8 +61,8 @@ function styleValueLabel(field: string, schema: SerializedSchema): string {
  * group-flag map, not hand-listed). Setting any field of a gated style group
  * (background / border / shadow / fill / stroke) turns its flag on automatically.
  */
-const AUTO_MANAGED_FLAG_FIELDS: ReadonlySet<string> = new Set(
-  Object.values(STYLE_GROUP_FLAG_BY_FIELD),
+const AUTO_MANAGED_FLAG_FIELDS: ReadonlySet<string> = new MutableSet(
+  R.values(STYLE_GROUP_FLAG_BY_FIELD),
 );
 
 /**
@@ -99,11 +104,11 @@ function autoManagedSuffix(field: string): string {
 function renderStyleReference(type: NodeType): string {
   const styleSchema = nodeStyleSchema(type);
   const fields = nodeStyleFields(type);
-  if (styleSchema === undefined || fields.length === 0) {
+  if (styleSchema === undefined || Arr.isReadonlyArrayEmpty(fields)) {
     return `\`${type}\` has no style fields.`;
   }
   const lines = fields.map((field) => {
-    const label = styleValueLabel(field, styleSchema.fields[field]!);
+    const label = styleValueLabel(field, unsafeDefined(styleSchema.fields[field]));
     const defaultValue = styleFieldDefault(type, field);
     const defaultText = styleFieldDefaultText(defaultValue);
     const annotation = autoManagedSuffix(field);
@@ -133,11 +138,11 @@ const AUTHORABLE_PARENT_TYPES: readonly NodeType[] = NODE_TYPES.filter(
 
 const CONTAINMENT_REFERENCE = AUTHORABLE_PARENT_TYPES.map((type) => {
   const children = ALLOWED_CHILDREN_BY_NODE_TYPE[type];
-  if (children.length === 0) return `- \`${type}\` is a leaf (no child nodes).`;
+  if (Arr.isReadonlyArrayEmpty(children)) return `- \`${type}\` is a leaf (no child nodes).`;
   return `- \`${type}\` may contain: ${children.map((child) => `\`${child}\``).join(", ")}`;
 }).join("\n");
 
-let cachedSkill: string | undefined;
+let cachedSkill: string | typeof Schema.Undefined.Type;
 
 /**
  * Assembled skill body — static prose interleaved with the generated references.
@@ -584,7 +589,7 @@ There is **NO \`id\`** — a component is identified by its FILE PATH
 (\`components/<name>.tsx\`), which is the path a \`component\` node references.
 
 - \`render: ({ props, actions }) => ReactNode\` — the template. \`props\` has
-  defaults filled and \`.optional()\` props typed \`T | undefined\`; \`actions\` are
+  defaults filled and \`.optional()\` props typed \`T | typeof Schema.Undefined.Type\`; \`actions\` are
   typed callbacks.
 - Preview-state \`data\` accepts \`products\`, \`variables\`, \`platform\`,
   \`safeAreaInsets\`, and \`dimensions\` for deterministic runtime-hook branches.

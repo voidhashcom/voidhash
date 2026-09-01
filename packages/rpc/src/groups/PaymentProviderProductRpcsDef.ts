@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -19,6 +19,7 @@ export const PaymentProviderProduct = Schema.Struct({
   providerProductKey: Schema.String,
   updatedAt: Schema.NullOr(Schema.Date),
 });
+export type PaymentProviderProduct = typeof PaymentProviderProduct.Type;
 
 export class PaymentProviderProductRpcsDef extends RpcGroup.make(
   Rpc.make("ListProviderProductsByProductId", {

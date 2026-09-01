@@ -1,5 +1,9 @@
 import { PurchaseType } from "@voidhash/lib";
-import { Context, Effect, Layer, Option } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
 
 import {
   EntitlementSync,
@@ -8,7 +12,7 @@ import {
   PurchaseStateRepository,
   PurchaseUnitOfWork,
   type PurchaseLedgerWriteStoreShape,
-  type PurchasePortError,
+  PurchasePortError,
   type PurchaseStateRepositoryShape,
 } from "../../application/ports.ts";
 import {
@@ -41,7 +45,8 @@ export interface PurchaseTransferStateMachineShape {
   ) => Effect.Effect<PurchaseProcessingResult, PurchaseProcessingError>;
 }
 
-const makePurchaseTransferStateMachine = Effect.gen(function* () {
+const makePurchaseTransferStateMachine = Effect.fn("makePurchaseTransferStateMachine")(
+  function* () {
   const ids = yield* PurchaseIdGenerator;
   const unitOfWork = yield* PurchaseUnitOfWork;
 
@@ -50,7 +55,7 @@ const makePurchaseTransferStateMachine = Effect.gen(function* () {
   ) =>
     effect.pipe(
       Effect.mapError((error): PurchaseProcessingError => {
-        if (error._tag === "PurchasePortError") {
+        if (error instanceof PurchasePortError) {
           return new PurchaseProcessingServiceError({ cause: describePurchaseErrorCause(error) });
         }
         return error;
@@ -81,10 +86,13 @@ const makePurchaseTransferStateMachine = Effect.gen(function* () {
           cause: `Revenue product mapping ${input.paymentProviderConfigurationProductId} is missing or outside project ${input.projectId}`,
         });
       }
-      const [token, distinctId] = yield* Effect.all([
-        repository.findPublicApiToken(input.projectId),
-        repository.resolveDistinctId(input.personId),
-      ]);
+      const [token, distinctId] = yield* Effect.all(
+        [
+          repository.findPublicApiToken(input.projectId),
+          repository.resolveDistinctId(input.personId),
+        ],
+        { concurrency: 1 },
+      );
       return {
         distinctId,
         idempotencyKey: input.idempotencyKey,
@@ -125,16 +133,23 @@ const makePurchaseTransferStateMachine = Effect.gen(function* () {
         rawProviderPayload: null,
         source: input.source,
       });
-      if (claim._tag === "duplicate") return claim.result;
-      const mapperContext = yield* revenueContext(repository, input);
-      const events = input.buildEvents(mapperContext);
-      const result = input.buildResult(events.map((event) => event.eventId));
-      yield* Effect.annotateCurrentSpan({
-        ...purchaseProcessingResultSpanAttributes(result),
-        "voidhash.analytics.event_count": events.length,
-      });
-      yield* ledger.stageEvents({ events, reservation: claim.reservation, result });
-      return result;
+      return yield* Match.value(claim).pipe(
+        Match.when({ _tag: "duplicate" }, ({ result }) => Effect.succeed(result)),
+        Match.when({ _tag: "reserved" }, ({ reservation }) =>
+          Effect.gen(function* () {
+            const mapperContext = yield* revenueContext(repository, input);
+            const events = input.buildEvents(mapperContext);
+            const result = input.buildResult(events.map((event) => event.eventId));
+            yield* Effect.annotateCurrentSpan({
+              ...purchaseProcessingResultSpanAttributes(result),
+              "voidhash.analytics.event_count": events.length,
+            });
+            yield* ledger.stageEvents({ events, reservation, result });
+            return result;
+          }),
+        ),
+        Match.exhaustive,
+      );
     });
 
   const transferSubscription = (input: typeof TransferSubscriptionInput.Type) =>
@@ -195,12 +210,15 @@ const makePurchaseTransferStateMachine = Effect.gen(function* () {
               );
               return keptResult;
             }
-            const [fromGrants, toGrants, fromDistinctId, toDistinctId] = yield* Effect.all([
-              entitlements.syncUnlockedPerks(input.fromPersonId),
-              entitlements.syncUnlockedPerks(input.toPersonId),
-              repository.resolveDistinctId(input.fromPersonId),
-              repository.resolveDistinctId(input.toPersonId),
-            ]);
+            const [fromGrants, toGrants, fromDistinctId, toDistinctId] = yield* Effect.all(
+              [
+                entitlements.syncUnlockedPerks(input.fromPersonId),
+                entitlements.syncUnlockedPerks(input.toPersonId),
+                repository.resolveDistinctId(input.fromPersonId),
+                repository.resolveDistinctId(input.toPersonId),
+              ],
+              { concurrency: 1 },
+            );
             yield* Effect.annotateCurrentSpan({
               "voidhash.person.from_distinct_id": fromDistinctId,
               "voidhash.person.to_distinct_id": toDistinctId,
@@ -329,12 +347,15 @@ const makePurchaseTransferStateMachine = Effect.gen(function* () {
               );
               return keptResult;
             }
-            const [fromGrants, toGrants, fromDistinctId, toDistinctId] = yield* Effect.all([
-              entitlements.syncUnlockedPerks(input.fromPersonId),
-              entitlements.syncUnlockedPerks(input.toPersonId),
-              repository.resolveDistinctId(input.fromPersonId),
-              repository.resolveDistinctId(input.toPersonId),
-            ]);
+            const [fromGrants, toGrants, fromDistinctId, toDistinctId] = yield* Effect.all(
+              [
+                entitlements.syncUnlockedPerks(input.fromPersonId),
+                entitlements.syncUnlockedPerks(input.toPersonId),
+                repository.resolveDistinctId(input.fromPersonId),
+                repository.resolveDistinctId(input.toPersonId),
+              ],
+              { concurrency: 1 },
+            );
             yield* Effect.annotateCurrentSpan({
               "voidhash.person.from_distinct_id": fromDistinctId,
               "voidhash.person.to_distinct_id": toDistinctId,
@@ -391,7 +412,8 @@ const makePurchaseTransferStateMachine = Effect.gen(function* () {
     );
 
   return { transferPurchase, transferSubscription } satisfies PurchaseTransferStateMachineShape;
-});
+  },
+)();
 
 /** Core state-machine slice for ownership transfers. */
 export class PurchaseTransferStateMachine extends Context.Service<

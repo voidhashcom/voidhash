@@ -1,5 +1,7 @@
-import type { Schema } from "effect";
-import { Context, Effect, Schema as EffectSchema } from "effect";
+import type * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as EffectSchema from "effect/Schema";
 
 import type { PlatformRuntime } from "./PlatformRuntime.ts";
 import type { PrimitiveDefinition } from "./Primitive.ts";
@@ -72,8 +74,10 @@ export class QueueDriver extends Context.Service<QueueDriver, QueueDriverShape>(
  * composition derives its physical resource name from `name`, so logical names
  * cannot drift between deployment targets.
  */
-export interface QueueDefinition<Name extends string, A, I>
-  extends PrimitiveDefinition<"queue", Name> {
+export interface QueueDefinition<Name extends string, A, I> extends PrimitiveDefinition<
+  "queue",
+  Name
+> {
   readonly schema: Schema.Codec<A, I>;
   /** Publishes one message through the installed queue runtime. */
   readonly publish: (
@@ -86,8 +90,10 @@ export interface QueueDefinition<Name extends string, A, I>
 }
 
 /** A queue consumer definition executed by the selected runtime. */
-export interface QueueConsumerDefinition<Name extends string, A, I, R>
-  extends PrimitiveDefinition<"queue-consumer", Name> {
+export interface QueueConsumerDefinition<Name extends string, A, I, R> extends PrimitiveDefinition<
+  "queue-consumer",
+  Name
+> {
   readonly queue: QueueDefinition<string, A, I>;
   readonly options?: QueueConsumerOptions;
   readonly handler: (messages: ReadonlyArray<A>) => Effect.Effect<void, unknown, R>;

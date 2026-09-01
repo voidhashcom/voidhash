@@ -7,7 +7,13 @@ import {
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
 import { causeMessage } from "@voidhash/lib/lang";
-import { Clock, Data, Effect, Semaphore } from "effect";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as MutableHashMap from "effect/MutableHashMap";
+import { runtimeError, runPromise, runSync } from "./RuntimeBoundary.ts";
+import * as Semaphore from "effect/Semaphore";
+import * as Schema from "effect/Schema";
 
 import {
   AGENT_PROTOCOL_VERSION,
@@ -28,90 +34,95 @@ import {
   type SessionLogEntry,
   type SessionLogEntryInput,
 } from "./SessionLog.ts";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
 
 /** Durable-entity type used for every agent session. */
 export const AGENT_SESSION_ENTITY_TYPE = "agent-session";
+const NullableString = Schema.NullOr(Schema.String);
 
 /** Creates the stable durable-entity address for one agent session. */
 export const agentSessionAddress = (sessionId: string): DurableEntityAddress =>
   makeDurableEntityAddress(AGENT_SESSION_ENTITY_TYPE, sessionId);
 
 /** Runtime input supplied by an authenticated host when a socket connects. */
-export interface AgentSessionConnection<ConnectionData = unknown> {
+export type AgentSessionConnection<ConnectionData = unknown> = {
   readonly sessionId: string;
   readonly owner: AgentSessionOwner;
   readonly session: DurableEntitySession;
   readonly data: ConnectionData;
-  readonly metadata?: AgentSessionMetadata;
-}
+} & Readonly<Partial<{ metadata: AgentSessionMetadata }>>;
 
 /** Searchable metadata maintained outside the durable transcript. */
-export interface AgentSessionMetadata {
+export type AgentSessionMetadata = {
   readonly surface: string;
-  readonly paywallId?: string | null;
-}
+} & Readonly<Partial<{ paywallId: typeof NullableString.Type }>>;
 
 /** Mutable references made available while the host constructs a Pi agent. */
-export interface AgentSessionFactoryInput<ConnectionData> {
+export type AgentSessionFactoryInput<ConnectionData> = {
   readonly sessionId: string;
   readonly owner: AgentSessionOwner;
   readonly connectionData: ConnectionData;
   readonly messages: ReadonlyArray<AgentMessage>;
   readonly dynamicContext: { current: AgentSessionDynamicContext };
-  readonly metadata?: AgentSessionMetadata;
-}
+} & Readonly<Partial<{ metadata: AgentSessionMetadata }>>;
 
 /** Host-specific Pi agent and model construction boundary. */
-export interface AgentSessionFactory<ConnectionData = unknown> {
+export type AgentSessionFactory<ConnectionData = unknown> = {
   readonly create: (input: AgentSessionFactoryInput<ConnectionData>) => Promise<Agent> | Agent;
-  readonly preparePrompt?: (input: {
-    readonly agent: Agent;
-    readonly message: AgentMessage;
-    readonly sessionId: string;
-    readonly owner: AgentSessionOwner;
-    readonly connectionData: ConnectionData;
-    readonly dynamicContext: { current: AgentSessionDynamicContext };
-  }) => Promise<void> | void;
   readonly resolveModel: (
     provider: string,
     modelId: string,
     connectionData: ConnectionData,
-  ) => Promise<Model<string> | undefined> | Model<string> | undefined;
-}
+  ) => Promise<Model<string> | void> | Model<string> | void;
+} & Readonly<
+  Partial<{
+    preparePrompt: (input: {
+      readonly agent: Agent;
+      readonly message: AgentMessage;
+      readonly sessionId: string;
+      readonly owner: AgentSessionOwner;
+      readonly connectionData: ConnectionData;
+      readonly dynamicContext: { current: AgentSessionDynamicContext };
+    }) => Promise<void> | void;
+  }>
+>;
 
 /** Optional persistence hook for the Postgres session index. */
 export interface AgentSessionIndex<ConnectionData = unknown> {
   readonly touch: (input: {
     readonly sessionId: string;
     readonly owner: AgentSessionOwner;
-    readonly title?: string;
-    readonly metadata?: AgentSessionMetadata;
     readonly connectionData: ConnectionData;
-  }) => Promise<void>;
+  } & Readonly<Partial<{ title: string; metadata: AgentSessionMetadata }>>) => Promise<void>;
 }
 
 /** Configuration for {@link AgentSessionCore}. */
-export interface AgentSessionCoreOptions<ConnectionData> {
+export type AgentSessionCoreOptions<ConnectionData> = {
   readonly host: DurableEntityHostShape;
   readonly factory: AgentSessionFactory<ConnectionData>;
-  readonly idleTimeoutMs?: number;
-  readonly now?: () => number;
-  readonly index?: AgentSessionIndex<ConnectionData>;
-}
+} & Readonly<
+  Partial<{
+    idleTimeoutMs: number;
+    now: () => number;
+    index: AgentSessionIndex<ConnectionData>;
+  }>
+>;
 
 interface LiveAgentSession<ConnectionData> {
   readonly agent: Agent;
   readonly owner: AgentSessionOwner;
   readonly connectionData: ConnectionData;
   readonly dynamicContext: { current: AgentSessionDynamicContext };
-  metadata: AgentSessionMetadata | undefined;
+  metadata: AgentSessionMetadata | void;
   readonly unsubscribe: () => void;
 }
 
 /** Raised when a WebSocket text frame is not a valid agent command. */
-class InvalidAgentCommandError extends Data.TaggedError("InvalidAgentCommandError")<{
-  readonly message: string;
-}> {}
+class InvalidAgentCommandError extends Schema.TaggedErrorClass<InvalidAgentCommandError>("InvalidAgentCommandError")(
+  "InvalidAgentCommandError",
+  { message: Schema.String },
+) {}
 
 const sameOwner = (left: AgentSessionOwner, right: AgentSessionOwner): boolean =>
   left.organizationId === right.organizationId &&
@@ -119,40 +130,40 @@ const sameOwner = (left: AgentSessionOwner, right: AgentSessionOwner): boolean =
   left.userId === right.userId;
 
 const isPromiseLike = <A>(value: Promise<A> | A): value is Promise<A> => {
-  if (typeof value !== "object" || value === null) return false;
+  if (!P.isObject(value) || value === null) return false;
   if (!("then" in value)) return false;
-  return typeof value.then === "function";
+  return P.isFunction(value.then);
 };
 
 /** Awaits a host callback that may answer either synchronously or with a promise. */
 const fromMaybePromise = <A>(thunk: () => Promise<A> | A): Effect.Effect<A> =>
   Effect.suspend(() => {
     const value = thunk();
-    if (isPromiseLike(value)) return Effect.promise(() => value);
+    if (isPromiseLike(value)) return Effect.tryPromise({ try: () => value, catch: (cause) => cause }).pipe(Effect.orDie);
     return Effect.succeed(value);
   });
 
 const touchIndex = <ConnectionData>(
-  index: AgentSessionIndex<ConnectionData> | undefined,
+  index: AgentSessionIndex<ConnectionData> | void,
   input: {
     readonly sessionId: string;
     readonly owner: AgentSessionOwner;
-    readonly title?: string;
-    readonly metadata?: AgentSessionMetadata;
     readonly connectionData: ConnectionData;
-  },
+  } & Readonly<Partial<{ title: string; metadata: AgentSessionMetadata }>>,
 ): Effect.Effect<void> => {
   if (index === undefined) return Effect.void;
-  return Effect.promise(() => index.touch(input));
+  return Effect.tryPromise({ try: () => index.touch(input), catch: (cause) => cause }).pipe(Effect.orDie);
 };
 
-const optionalPaywallId = (value: string | null | undefined): string | undefined => {
-  if (typeof value === "string") return value;
+const optionalPaywallId = (
+  value: typeof NullableString.Type | void,
+): string | void => {
+  if (P.isString(value)) return value;
   return undefined;
 };
 
 const dynamicSessionContext = (
-  paywallId: string | undefined,
+  paywallId: string | void,
   selectedNodeIds: ReadonlyArray<string>,
 ): AgentSessionDynamicContext => {
   if (paywallId === undefined) return { selectedNodeIds };
@@ -165,7 +176,7 @@ const userMessage = (
 ): Effect.Effect<AgentMessage> =>
   Effect.gen(function* () {
     const timestamp = yield* Clock.currentTimeMillis;
-    if (images.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(images)) {
       return { role: "user", content: text, timestamp } satisfies AgentMessage;
     }
     return {
@@ -175,7 +186,7 @@ const userMessage = (
     } satisfies AgentMessage;
   });
 
-const defaultNow = (): number => Effect.runSync(Clock.currentTimeMillis);
+const defaultNow = (): number => runSync(Clock.currentTimeMillis);
 
 const titleFromText = (text: string): string => {
   const title = text.trim() || "New chat";
@@ -193,10 +204,10 @@ export class AgentSessionCore<ConnectionData = unknown> {
   readonly #factory: AgentSessionFactory<ConnectionData>;
   readonly #idleTimeoutMs: number;
   readonly #now: () => number;
-  readonly #index: AgentSessionIndex<ConnectionData> | undefined;
-  readonly #sessions = new Map<string, LiveAgentSession<ConnectionData>>();
-  readonly #creating = new Map<string, Promise<LiveAgentSession<ConnectionData>>>();
-  readonly #commandLocks = new Map<string, Semaphore.Semaphore>();
+  readonly #index: AgentSessionIndex<ConnectionData> | void;
+  readonly #sessions = MutableHashMap.empty<string, LiveAgentSession<ConnectionData>>();
+  readonly #creating = MutableHashMap.empty<string, Promise<LiveAgentSession<ConnectionData>>>();
+  readonly #commandLocks = MutableHashMap.empty<string, Semaphore.Semaphore>();
 
   constructor(options: AgentSessionCoreOptions<ConnectionData>) {
     this.#host = options.host;
@@ -223,10 +234,10 @@ export class AgentSessionCore<ConnectionData = unknown> {
         connectionData: connection.data,
       });
       yield* host.run(address, (entity) =>
-        Effect.gen(function* () {
+        Effect.fn("connect")(function* () {
           yield* entity.sessions.attach(connection.session);
           yield* entity.alarm.delete;
-        }),
+        })(),
       );
       return true;
     });
@@ -241,7 +252,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
       Effect.gen(function* () {
         yield* entity.sessions.remove(connectionId);
         const remaining = yield* entity.sessions.list;
-        if (remaining.length === 0) {
+        if (Arr.isReadonlyArrayEmpty(remaining)) {
           yield* entity.alarm.set(now() + idleTimeoutMs);
         }
       }),
@@ -253,10 +264,10 @@ export class AgentSessionCore<ConnectionData = unknown> {
     connection: AgentSessionConnection<ConnectionData>,
     frame: string | Uint8Array,
   ): Effect.Effect<void> => {
-    let lock = this.#commandLocks.get(connection.sessionId);
+    let lock = Option.getOrUndefined(MutableHashMap.get(this.#commandLocks, connection.sessionId));
     if (lock === undefined) {
       lock = Semaphore.makeUnsafe(1);
-      this.#commandLocks.set(connection.sessionId, lock);
+      MutableHashMap.set(this.#commandLocks, connection.sessionId, lock);
     }
     return lock.withPermit(this.#handleMessageNow(connection, frame));
   };
@@ -275,7 +286,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
     const broadcastError = (requestId: string, message: string) =>
       this.#broadcastError(connection.sessionId, requestId, message);
     return Effect.gen(function* () {
-      if (typeof frame !== "string") {
+      if (!P.isString(frame)) {
         yield* send({
           v: AGENT_PROTOCOL_VERSION,
           type: "error",
@@ -297,8 +308,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
       );
       if (command === undefined) return;
 
-      switch (command.type) {
-        case "get_entries": {
+      if (command.type === "get_entries") {
           const entries = yield* readSessionLog(host, agentSessionAddress(connection.sessionId));
           yield* send({
             v: AGENT_PROTOCOL_VERSION,
@@ -308,7 +318,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
           });
           return;
         }
-        case "get_state": {
+      if (command.type === "get_state") {
           const live = yield* getOrCreate();
           const entryCount = yield* readSessionLogCount(
             host,
@@ -331,7 +341,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
           });
           return;
         }
-        case "set_context": {
+      if (command.type === "set_context") {
           const live = yield* getOrCreate();
           live.dynamicContext.current = dynamicSessionContext(
             command.paywallId,
@@ -350,7 +360,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
           yield* ack(command);
           return;
         }
-        case "set_model": {
+      if (command.type === "set_model") {
           const live = yield* getOrCreate();
           const model = yield* fromMaybePromise(() =>
             factory.resolveModel(command.provider, command.modelId, live.connectionData),
@@ -371,14 +381,16 @@ export class AgentSessionCore<ConnectionData = unknown> {
           yield* ack(command);
           return;
         }
-        case "abort": {
-          sessions.get(connection.sessionId)?.agent.abort();
+      if (command.type === "abort") {
+          Option.getOrUndefined(MutableHashMap.get(sessions, connection.sessionId))?.agent.abort();
           yield* ack(command);
           return;
         }
-        case "prompt":
-        case "steer":
-        case "follow_up": {
+      if (
+        command.type === "prompt" ||
+        command.type === "steer" ||
+        command.type === "follow_up"
+      ) {
           const live = yield* getOrCreate();
           const images = promptImages(command);
           const message = yield* userMessage(command.text, images);
@@ -405,13 +417,13 @@ export class AgentSessionCore<ConnectionData = unknown> {
             void live.agent
               .prompt(message)
               .catch((cause) =>
-                Effect.runPromise(broadcastError(command.requestId, causeMessage(cause))),
+                runPromise(broadcastError(command.requestId, causeMessage(cause))),
               );
             yield* touchIndex(index, {
               sessionId: connection.sessionId,
               owner: connection.owner,
               title: titleFromText(command.text),
-              metadata: live.metadata,
+              ...(live.metadata === undefined ? {} : { metadata: live.metadata }),
               connectionData: live.connectionData,
             });
           } else if (command.type === "steer") {
@@ -420,7 +432,6 @@ export class AgentSessionCore<ConnectionData = unknown> {
             live.agent.followUp(message);
           }
           yield* ack(command);
-        }
       }
     });
   };
@@ -436,48 +447,53 @@ export class AgentSessionCore<ConnectionData = unknown> {
     return host.run(address, (entity) =>
       Effect.gen(function* () {
         const scheduledTime = yield* entity.alarm.get;
-        if (scheduledTime === undefined || scheduledTime > now()) return false;
+        if (Option.isNone(scheduledTime) || scheduledTime.value > now()) return false;
         const sessions = yield* entity.sessions.list;
-        if (sessions.length > 0) {
+        if (Arr.isReadonlyArrayNonEmpty(sessions)) {
           yield* entity.alarm.delete;
           return false;
         }
-        const live = liveSessions.get(sessionId);
+        const live = Option.getOrUndefined(MutableHashMap.get(liveSessions, sessionId));
         if (live?.agent.state.isStreaming) {
           yield* entity.alarm.set(now() + idleTimeoutMs);
           return false;
         }
         yield* entity.alarm.delete;
         live?.unsubscribe();
-        liveSessions.delete(sessionId);
-        commandLocks.delete(sessionId);
+        MutableHashMap.remove(liveSessions, sessionId);
+        MutableHashMap.remove(commandLocks, sessionId);
         return true;
       }),
     );
   };
 
   /** Returns whether this process currently holds a live Pi agent for the session. */
-  readonly hasLiveSession = (sessionId: string): boolean => this.#sessions.has(sessionId);
+  readonly hasLiveSession = (sessionId: string): boolean =>
+    MutableHashMap.has(this.#sessions, sessionId);
 
   #getOrCreate(
     connection: AgentSessionConnection<ConnectionData>,
   ): Effect.Effect<LiveAgentSession<ConnectionData>> {
     return Effect.suspend(() => {
-      const existing = this.#sessions.get(connection.sessionId);
+      const existing = Option.getOrUndefined(
+        MutableHashMap.get(this.#sessions, connection.sessionId),
+      );
       if (existing !== undefined) {
         if (!sameOwner(existing.owner, connection.owner)) {
-          return Effect.die(new Error("Session access denied"));
+          return Effect.die(runtimeError("Session access denied"));
         }
         return Effect.succeed(existing);
       }
-      const pending = this.#creating.get(connection.sessionId);
-      if (pending !== undefined) return Effect.promise(() => pending);
+      const pending = Option.getOrUndefined(
+        MutableHashMap.get(this.#creating, connection.sessionId),
+      );
+      if (pending !== undefined) return Effect.tryPromise({ try: () => pending, catch: (cause) => cause }).pipe(Effect.orDie);
 
       const creating = this.#create(connection).finally(() =>
-        this.#creating.delete(connection.sessionId),
+        MutableHashMap.remove(this.#creating, connection.sessionId),
       );
-      this.#creating.set(connection.sessionId, creating);
-      return Effect.promise(() => creating);
+      MutableHashMap.set(this.#creating, connection.sessionId, creating);
+      return Effect.tryPromise({ try: () => creating, catch: (cause) => cause }).pipe(Effect.orDie);
     });
   }
 
@@ -489,7 +505,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
     const sessions = this.#sessions;
     const onAgentEvent = (event: AgentEvent): Promise<void> =>
       this.#onAgentEvent(connection.sessionId, event);
-    return Effect.runPromise(
+    return runPromise(
       Effect.gen(function* () {
         const entries = yield* readSessionLog(host, agentSessionAddress(connection.sessionId));
         const dynamicContext: { current: AgentSessionDynamicContext } = {
@@ -524,7 +540,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
           metadata: connection.metadata,
           unsubscribe,
         };
-        sessions.set(connection.sessionId, live);
+        MutableHashMap.set(sessions, connection.sessionId, live);
         return live;
       }),
     );
@@ -539,7 +555,7 @@ export class AgentSessionCore<ConnectionData = unknown> {
       type: "event",
       event,
     });
-    return Effect.runPromise(
+    return runPromise(
       Effect.gen(function* () {
         yield* broadcast;
         const inputs: SessionLogEntryInput[] = [];
@@ -554,16 +570,16 @@ export class AgentSessionCore<ConnectionData = unknown> {
             ),
           );
         }
-        if (inputs.length > 0) {
+        if (Arr.isReadonlyArrayNonEmpty(inputs)) {
           yield* appendSessionLog(host, agentSessionAddress(sessionId), inputs);
         }
         if (event.type === "turn_end") {
-          const live = sessions.get(sessionId);
+          const live = Option.getOrUndefined(MutableHashMap.get(sessions, sessionId));
           if (live !== undefined) {
             yield* touchIndex(index, {
               sessionId,
               owner: live.owner,
-              metadata: live.metadata,
+              ...(live.metadata === undefined ? {} : { metadata: live.metadata }),
               connectionData: live.connectionData,
             });
           }

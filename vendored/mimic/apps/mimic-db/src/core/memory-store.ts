@@ -1,5 +1,10 @@
+import * as Arr from "effect/Array";
 import { cloneValue, type Command } from "@voidhash/mimic-core";
-import { Effect, Layer } from "effect";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
 
 import {
   ControlStore,
@@ -21,105 +26,135 @@ const sync = Effect.sync;
 
 /** In-memory `ControlStore`, backing dev + tests. */
 export const makeMemoryControlStore = (): ControlStoreApi => {
-  const databases = new Map<string, DatabaseRecord>();
-  const collections = new Map<string, CollectionRecord>();
-  const schemaVersions = new Map<string, SchemaVersionRecord>(); // key `${collectionId}:${version}`
-  const users = new Map<string, UserRecord>();
-  const grants = new Map<string, GrantRecord>(); // key `${userId}:${databaseId}`
-  const tokens = new Map<string, TokenRecord>();
-  const documents = new Map<string, DocumentIndexRecord>();
+  let databases = HashMap.empty<string, DatabaseRecord>();
+  let collections = HashMap.empty<string, CollectionRecord>();
+  let schemaVersions = HashMap.empty<string, SchemaVersionRecord>();
+  let users = HashMap.empty<string, UserRecord>();
+  let grants = HashMap.empty<string, GrantRecord>();
+  let tokens = HashMap.empty<string, TokenRecord>();
+  let documents = HashMap.empty<string, DocumentIndexRecord>();
 
   return {
-    createDatabase: (record) => sync(() => void databases.set(record.id, record)),
-    findDatabaseById: (id) => sync(() => databases.get(id)),
+    createDatabase: (record) =>
+      sync(() => void (databases = HashMap.set(databases, record.id, record))),
+    findDatabaseById: (id) => sync(() => HashMap.get(databases, id)),
     findDatabaseByName: (name) =>
-      sync(() => [...databases.values()].find((row) => row.name === name)),
-    listDatabases: () => sync(() => [...databases.values()]),
-    deleteDatabase: (id) => sync(() => void databases.delete(id)),
+      sync(() => Arr.findFirst(HashMap.values(databases), (row) => row.name === name)),
+    listDatabases: () => sync(() => Array.from(HashMap.values(databases))),
+    deleteDatabase: (id) => sync(() => void (databases = HashMap.remove(databases, id))),
 
-    createCollection: (record) => sync(() => void collections.set(record.id, record)),
-    findCollectionById: (id) => sync(() => collections.get(id)),
+    createCollection: (record) =>
+      sync(() => void (collections = HashMap.set(collections, record.id, record))),
+    findCollectionById: (id) => sync(() => HashMap.get(collections, id)),
     findCollectionByName: (databaseId, name) =>
       sync(() =>
-        [...collections.values()].find((row) => row.databaseId === databaseId && row.name === name),
+        Arr.findFirst(
+          HashMap.values(collections),
+          (row) => row.databaseId === databaseId && row.name === name,
+        ),
       ),
     listCollectionsByDatabase: (databaseId) =>
-      sync(() => [...collections.values()].filter((row) => row.databaseId === databaseId)),
+      sync(() =>
+        Array.from(HashMap.values(collections)).filter((row) => row.databaseId === databaseId),
+      ),
     updateCollectionSchema: (collectionId, schemaJson, version) =>
       sync(() => {
-        const existing = collections.get(collectionId);
-        if (existing) {
-          collections.set(collectionId, { ...existing, schemaJson, schemaVersion: version });
-        }
+        collections = HashMap.modify(collections, collectionId, (existing) => ({
+          ...existing,
+          schemaJson,
+          schemaVersion: version,
+        }));
       }),
     updateCollectionMigration: (collectionId, schemaJson, migrationVersion) =>
       sync(() => {
-        const existing = collections.get(collectionId);
-        if (existing) {
-          collections.set(collectionId, { ...existing, schemaJson, migrationVersion });
-        }
+        collections = HashMap.modify(collections, collectionId, (existing) => ({
+          ...existing,
+          schemaJson,
+          migrationVersion: Option.some(migrationVersion),
+        }));
       }),
     deleteCollection: (id) =>
       sync(() => {
-        collections.delete(id);
-        for (const key of schemaVersions.keys()) {
-          if (key.startsWith(`${id}:`)) schemaVersions.delete(key);
-        }
+        collections = HashMap.remove(collections, id);
+        schemaVersions = HashMap.filter(schemaVersions, (_value, key) => !key.startsWith(`${id}:`));
       }),
 
     addSchemaVersion: (record) =>
-      sync(() => void schemaVersions.set(`${record.collectionId}:${record.version}`, record)),
+      sync(
+        () =>
+          void (schemaVersions = HashMap.set(
+            schemaVersions,
+            `${record.collectionId}:${record.version}`,
+            record,
+          )),
+      ),
     findSchemaVersion: (collectionId, version) =>
-      sync(() => schemaVersions.get(`${collectionId}:${version}`)),
+      sync(() => HashMap.get(schemaVersions, `${collectionId}:${version}`)),
     listSchemaVersions: (collectionId) =>
       sync(() =>
-        [...schemaVersions.values()]
-          .filter((row) => row.collectionId === collectionId)
-          .sort((a, b) => a.version - b.version),
+        Arr.sort(
+          Array.from(HashMap.values(schemaVersions)).filter(
+            (row) => row.collectionId === collectionId,
+          ),
+          Order.mapInput<number, SchemaVersionRecord>(Order.Number, (row) => row.version),
+        ),
       ),
 
-    createUser: (record) => sync(() => void users.set(record.id, record)),
-    findUserById: (id) => sync(() => users.get(id)),
+    createUser: (record) => sync(() => void (users = HashMap.set(users, record.id, record))),
+    findUserById: (id) => sync(() => HashMap.get(users, id)),
     findUserByUsername: (username) =>
-      sync(() => [...users.values()].find((row) => row.username === username)),
-    listUsers: () => sync(() => [...users.values()]),
-    deleteUser: (id) => sync(() => void users.delete(id)),
+      sync(() => Arr.findFirst(HashMap.values(users), (row) => row.username === username)),
+    listUsers: () => sync(() => Array.from(HashMap.values(users))),
+    deleteUser: (id) => sync(() => void (users = HashMap.remove(users, id))),
     updateUserPasswordHash: (id, passwordHash) =>
       sync(() => {
-        const existing = users.get(id);
-        if (existing) users.set(id, { ...existing, passwordHash });
+        users = HashMap.modify(users, id, (existing) => ({ ...existing, passwordHash }));
       }),
 
     createGrant: (record) =>
-      sync(() => void grants.set(`${record.userId}:${record.databaseId}`, record)),
-    findGrant: (userId, databaseId) => sync(() => grants.get(`${userId}:${databaseId}`)),
-    removeGrant: (userId, databaseId) => sync(() => void grants.delete(`${userId}:${databaseId}`)),
-    listGrants: () => sync(() => [...grants.values()]),
+      sync(
+        () => void (grants = HashMap.set(grants, `${record.userId}:${record.databaseId}`, record)),
+      ),
+    findGrant: (userId, databaseId) => sync(() => HashMap.get(grants, `${userId}:${databaseId}`)),
+    removeGrant: (userId, databaseId) =>
+      sync(() => void (grants = HashMap.remove(grants, `${userId}:${databaseId}`))),
+    listGrants: () => sync(() => Array.from(HashMap.values(grants))),
     listGrantsByUser: (userId) =>
-      sync(() => [...grants.values()].filter((row) => row.userId === userId)),
+      sync(() => Array.from(HashMap.values(grants)).filter((row) => row.userId === userId)),
 
-    createToken: (record) => sync(() => void tokens.set(record.id, record)),
+    createToken: (record) => sync(() => void (tokens = HashMap.set(tokens, record.id, record))),
     findTokenByHash: (tokenHash) =>
-      sync(() => [...tokens.values()].find((row) => row.tokenHash === tokenHash)),
+      sync(() => Arr.findFirst(HashMap.values(tokens), (row) => row.tokenHash === tokenHash)),
     markTokenUsed: (id, usedAt) =>
       sync(() => {
-        const existing = tokens.get(id);
-        if (existing) tokens.set(id, { ...existing, usedAt });
+        tokens = HashMap.modify(tokens, id, (existing) => ({
+          ...existing,
+          usedAt: Option.some(usedAt),
+        }));
       }),
 
     registerDocument: (documentId, collectionId) =>
-      sync(() => void documents.set(documentId, { documentId, collectionId, deletedAt: null })),
-    findDocumentIndex: (documentId) => sync(() => documents.get(documentId)),
+      sync(
+        () =>
+          void (documents = HashMap.set(documents, documentId, {
+            documentId,
+            collectionId,
+            deletedAt: Option.none(),
+          })),
+      ),
+    findDocumentIndex: (documentId) => sync(() => HashMap.get(documents, documentId)),
     listDocumentsByCollection: (collectionId) =>
       sync(() =>
-        [...documents.values()].filter(
-          (row) => row.collectionId === collectionId && row.deletedAt === null,
+        Array.from(HashMap.values(documents)).filter(
+          (row) => row.collectionId === collectionId && Option.isNone(row.deletedAt),
         ),
       ),
     markDocumentDeleted: (documentId, deletedAt) =>
       sync(() => {
-        const existing = documents.get(documentId);
-        if (existing) documents.set(documentId, { ...existing, deletedAt });
+        documents = HashMap.modify(documents, documentId, (existing) => ({
+          ...existing,
+          deletedAt: Option.some(deletedAt),
+        }));
       }),
   };
 };
@@ -128,7 +163,7 @@ export const MemoryControlStoreLive = Layer.sync(ControlStore, makeMemoryControl
 
 /** In-memory `DocumentStore` for a single document, backing dev + tests. */
 export const makeMemoryDocumentStore = (): DocumentStoreApi => {
-  let meta: DocumentMeta | undefined;
+  let meta = Option.none<DocumentMeta>();
   const snapshots: SnapshotRow[] = [];
   const commands: CommandRow[] = [];
 
@@ -136,28 +171,35 @@ export const makeMemoryDocumentStore = (): DocumentStoreApi => {
     readMeta: () => sync(() => meta),
     initialize: (collectionId, value, schemaVersion, migrationVersion) =>
       sync(() => {
-        meta = {
+        meta = Option.some({
           collectionId,
           schemaVersion,
           migrationVersion,
           currentSeq: 0,
           snapshotSeq: 0,
-          deletedAt: null,
-        };
+          deletedAt: Option.none(),
+        });
         snapshots.length = 0;
         commands.length = 0;
         snapshots.push({ seq: 0, value: cloneValue(value), schemaVersion });
       }),
     loadLatestSnapshot: () =>
       sync(() => {
-        if (snapshots.length === 0) return undefined;
-        return snapshots.reduce((best, row) => {
-          if (row.seq >= best.seq) return row;
-          return best;
-        });
+        if (!Arr.isReadonlyArrayNonEmpty(snapshots)) return Option.none();
+        return Option.some(
+          snapshots.reduce((best, row) => {
+            if (row.seq >= best.seq) return row;
+            return best;
+          }),
+        );
       }),
     listCommandsAfter: (seq) =>
-      sync(() => commands.filter((row) => row.seq > seq).sort((a, b) => a.seq - b.seq)),
+      sync(() =>
+        Arr.sort(
+          commands.filter((row) => row.seq > seq),
+          Order.mapInput<number, CommandRow>(Order.Number, (row) => row.seq),
+        ),
+      ),
     appendCommands: (fromSeq, cmds: readonly Command[], txId) =>
       sync(() => {
         cmds.forEach((command, index) => {
@@ -172,18 +214,18 @@ export const makeMemoryDocumentStore = (): DocumentStoreApi => {
         const snapshot = { seq, value: cloneValue(value), schemaVersion };
         if (index === -1) snapshots.push(snapshot);
         else snapshots[index] = snapshot;
-        if (meta) {
-          meta = {
-            ...meta,
+        if (Option.isSome(meta)) {
+          meta = Option.some({
+            ...meta.value,
             schemaVersion,
             migrationVersion,
             snapshotSeq: seq,
-          };
+          });
         }
       }),
     setMeta: (patch) =>
       sync(() => {
-        if (meta) meta = { ...meta, ...patch };
+        if (Option.isSome(meta)) meta = Option.some({ ...meta.value, ...patch });
       }),
   };
 };

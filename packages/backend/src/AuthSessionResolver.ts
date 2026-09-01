@@ -10,40 +10,33 @@ import {
   type IdentityProviderError,
 } from "@voidhash/core/services/auth/IdentityProvider";
 import { LocalUserSessionService } from "@voidhash/core/services/auth/LocalUserSessionService";
-import {
-  RpcAuthenticationError,
-  RpcNotAuthenticatedError,
-  type UserSession,
-} from "@voidhash/rpc";
+import { RpcAuthenticationError, RpcNotAuthenticatedError, type UserSession } from "@voidhash/rpc";
 import type { Db } from "@voidhash/db";
 import * as HttpHeaders from "effect/unstable/http/Headers";
-import { Effect, Inspectable, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Inspectable from "effect/Inspectable";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
 
 /** Union of the terminal failures session resolution can raise. */
 export type RpcAuthFailure = RpcAuthenticationError | RpcNotAuthenticatedError;
 
 const toWebHeaders = (headers: HttpHeaders.Headers): Headers =>
   new Headers(
-    Object.entries(headers).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string",
-    ),
+    R.toEntries(headers).filter((entry): entry is [string, string] => P.isString(entry[1])),
   );
 
 /** True when the request carries the active provider's session cookie. */
-export const hasSessionCookieHeader = (
-  headers: HttpHeaders.Headers,
-  cookieName: string,
-): boolean =>
-  Option.exists(HttpHeaders.get(headers, "cookie"), (cookie) =>
-    cookie.includes(`${cookieName}=`),
-  );
+export const hasSessionCookieHeader = (headers: HttpHeaders.Headers, cookieName: string): boolean =>
+  Option.exists(HttpHeaders.get(headers, "cookie"), (cookie) => cookie.includes(`${cookieName}=`));
 
 const formatUnknownCause = (cause: unknown): string => {
-  if (cause instanceof Error) {
+  if (P.isError(cause)) {
     return cause.message;
   }
 
-  if (typeof cause === "string") {
+  if (P.isString(cause)) {
     return cause;
   }
 
@@ -132,28 +125,28 @@ export const resolveUserSession = (
      */
     const toSessionForIdentity = (
       identity: LocalUserIdentity,
-      cookie: string | null,
+      cookie: Option.Option<string>,
     ): Effect.Effect<UserSession, DbError | IdentityProviderError, Db> =>
-      Effect.gen(function* () {
+      Effect.fn("toSessionForIdentity")(function* () {
         const localUser = yield* localUserSessions.resolveLocalUser(identity);
 
-        if (!identity.externalId) {
+        if (Option.isNone(identity.externalId)) {
           yield* identityProvider
             .linkExternalId(identity.id, localUser.id)
             .pipe(Effect.catch(() => Effect.void));
         }
 
         const access = yield* localUserSessions.loadUserAccess(localUser.id);
-        return localUserSessions.toUserSession(localUser, access, cookie, identity.id);
-      });
+        return localUserSessions.toUserSession(localUser, access, cookie, Option.some(identity.id));
+      })();
 
     const authenticateBearerToken = (
       requestHeaders: HttpHeaders.Headers,
     ): Effect.Effect<UserSession, RpcAuthFailure, Db> =>
       mapAuthenticationErrors(
-        Effect.gen(function* () {
+        Effect.fn("authenticateBearerToken")(function* () {
           const token = yield* extractBearerToken(
-            Option.getOrUndefined(HttpHeaders.get(requestHeaders, "authorization")),
+            HttpHeaders.get(requestHeaders, "authorization"),
           );
           const validated = yield* authTokenVerifier.validateToken(token);
 
@@ -166,19 +159,19 @@ export const resolveUserSession = (
           }
 
           const identity = yield* identityProvider.resolveIdentity(validated);
-          return yield* toSessionForIdentity(identity, null);
-        }),
+          return yield* toSessionForIdentity(identity, Option.none());
+        })(),
       );
 
     const authenticateSessionCookie = (
       requestHeaders: HttpHeaders.Headers,
     ): Effect.Effect<UserSession, RpcAuthFailure, Db> =>
       mapAuthenticationErrors(
-        Effect.gen(function* () {
+        Effect.fn("authenticateSessionCookie")(function* () {
           const webHeaders = toWebHeaders(requestHeaders);
           const identity = yield* identityProvider.authenticateSessionCookie(webHeaders);
 
-          if (!identity) {
+          if (Option.isNone(identity)) {
             return yield* Effect.fail(
               new RpcNotAuthenticatedError({
                 message: "You are not authenticated",
@@ -186,8 +179,11 @@ export const resolveUserSession = (
             );
           }
 
-          return yield* toSessionForIdentity(identity, webHeaders.get("cookie"));
-        }),
+          return yield* toSessionForIdentity(
+            identity.value,
+            Option.fromNullishOr(webHeaders.get("cookie")),
+          );
+        })(),
       );
 
     const authorization = Option.getOrUndefined(HttpHeaders.get(headers, "authorization"));

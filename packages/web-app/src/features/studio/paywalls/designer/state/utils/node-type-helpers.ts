@@ -1,6 +1,7 @@
 import { canHaveChildren as canHaveChildrenFromCatalog } from "@voidhash/mimic-schema";
 import type { AlignItems } from "@voidhash/mimic-schema";
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import * as Option from "effect/Option";
 
 /**
  * Node types that can act as flex parents (have flexDirection, can contain flex children).
@@ -35,7 +36,7 @@ export function isFlexChild(node: { type: string } | null | undefined): boolean 
  * Use this for drag-drop, tree building, etc.
  */
 export function canHaveChildren(node: { type: string } | null | undefined): boolean {
-  return node != null && canHaveChildrenFromCatalog(node.type);
+  return node != null && canHaveChildrenFromCatalog(Option.some(node.type));
 }
 
 /**
@@ -56,7 +57,7 @@ export function isFlexChildType(type: string | null | undefined): boolean {
  * Check if a node type string can have children.
  */
 export function canHaveChildrenType(type: string | null | undefined): boolean {
-  return canHaveChildrenFromCatalog(type);
+  return canHaveChildrenFromCatalog(Option.fromNullishOr(type));
 }
 
 /**

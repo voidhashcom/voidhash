@@ -1,4 +1,9 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
 import ts from "typescript";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error } from "./diagnostics.ts";
@@ -6,7 +11,6 @@ import type { BuildReadFs } from "./fs.ts";
 import {
   basename,
   canonicalPathFor,
-  comparePaths,
   dirname,
   joinPath,
   tryJoinPath,
@@ -50,14 +54,15 @@ function positionOf(source: ts.SourceFile, node: ts.Node): { line: number; colum
  * Resolve a relative specifier against the FS, probing `.tsx` then `.ts` then
  * the bare path. Returns the absolute path of the first hit, or `null`.
  */
-function resolveRelative(fs: BuildReadFs, fromDir: string, specifier: string): string | null {
+function resolveRelative(
+  fs: BuildReadFs,
+  fromDir: string,
+  specifier: string,
+): Option.Option<string> {
   // A specifier that escapes the root simply does not resolve.
-  const base = tryJoinPath(fromDir, specifier);
-  if (base === null) return null;
-  for (const candidate of candidatesFor(base)) {
-    if (fs.exists(candidate)) return candidate;
-  }
-  return null;
+  return Option.flatMap(tryJoinPath(fromDir, specifier), (base) =>
+    Option.fromUndefinedOr(candidatesFor(base).find((candidate) => fs.exists(candidate))),
+  );
 }
 
 /** The probe order for a joined specifier: an explicit extension wins outright. */
@@ -102,16 +107,16 @@ export function resolveImports(fs: BuildReadFs, entryPath: string): ResolveImpor
   );
 
   // absPath → resolved component (dedup across the entry + component scans).
-  const components = new Map<string, ResolvedComponent>();
+  let components = HashMap.empty<string, ResolvedComponent>();
 
-  for (const statement of entryFile.statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
+  entryFile.statements.forEach((statement) => {
+    if (!ts.isImportDeclaration(statement)) return;
     const specNode = statement.moduleSpecifier;
-    if (!ts.isStringLiteral(specNode)) continue;
+    if (!ts.isStringLiteral(specNode)) return;
     const specifier = specNode.text;
     const pos = positionOf(entryFile, specNode);
 
-    if (specifier === ROOT_SPECIFIER) continue;
+    if (specifier === ROOT_SPECIFIER) return;
     if (specifier.startsWith(`${ROOT_SPECIFIER}/`)) {
       diagnostics.push(
         error(
@@ -121,12 +126,12 @@ export function resolveImports(fs: BuildReadFs, entryPath: string): ResolveImpor
           pos,
         ),
       );
-      continue;
+      return;
     }
-    if (specifier.startsWith(CATALOG_PREFIX)) continue;
+    if (specifier.startsWith(CATALOG_PREFIX)) return;
     if (specifier.startsWith("./") || specifier.startsWith("../")) {
       const absPath = resolveRelative(fs, entryDir, specifier);
-      if (absPath === null) {
+      if (Option.isNone(absPath)) {
         diagnostics.push(
           error(
             entryPath,
@@ -135,17 +140,17 @@ export function resolveImports(fs: BuildReadFs, entryPath: string): ResolveImpor
             pos,
           ),
         );
-        continue;
+        return;
       }
-      if (!components.has(absPath)) {
-        components.set(absPath, {
-          absPath,
-          path: canonicalPathFor(entryDir, absPath),
-          source: fs.read(absPath),
+      if (!HashMap.has(components, absPath.value)) {
+        components = HashMap.set(components, absPath.value, {
+          absPath: absPath.value,
+          path: canonicalPathFor(entryDir, absPath.value),
+          source: fs.read(absPath.value),
           imported: true,
         });
       }
-      continue;
+      return;
     }
     diagnostics.push(
       error(
@@ -155,31 +160,34 @@ export function resolveImports(fs: BuildReadFs, entryPath: string): ResolveImpor
         pos,
       ),
     );
-  }
+  });
 
   // Component-file imports: only @voidhash/paywalls is legal in v1.
-  for (const component of components.values()) {
-    validateComponentImports(component, diagnostics);
-  }
+  Array.from(HashMap.values(components)).forEach((component) =>
+    validateComponentImports(component, diagnostics),
+  );
 
   // Library files: unimported *.tsx directly under <entryDir>/components/.
   const componentsDir = joinPath(entryDir, "components");
   if (dirExists(fs, componentsDir)) {
-    for (const absPath of fs.list(componentsDir)) {
-      if (!absPath.endsWith(".tsx")) continue;
-      if (components.has(absPath)) continue;
+    fs.list(componentsDir).forEach((absPath) => {
+      if (!absPath.endsWith(".tsx")) return;
+      if (HashMap.has(components, absPath)) return;
       const component: ResolvedComponent = {
         absPath,
         path: canonicalPathFor(entryDir, absPath),
         source: fs.read(absPath),
         imported: false,
       };
-      components.set(absPath, component);
+      components = HashMap.set(components, absPath, component);
       validateComponentImports(component, diagnostics);
-    }
+    });
   }
 
-  const ordered = [...components.values()].sort((a, b) => comparePaths(a.path, b.path));
+  const ordered = Arr.sort(
+    Array.from(HashMap.values(components)),
+    Order.mapInput(Order.String, (component: ResolvedComponent) => component.path),
+  );
 
   return { entrySource, entryDir, components: ordered, diagnostics };
 }
@@ -200,12 +208,12 @@ function validateComponentImports(
     true,
     ts.ScriptKind.TSX,
   );
-  for (const statement of file.statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
+  file.statements.forEach((statement) => {
+    if (!ts.isImportDeclaration(statement)) return;
     const specNode = statement.moduleSpecifier;
-    if (!ts.isStringLiteral(specNode)) continue;
+    if (!ts.isStringLiteral(specNode)) return;
     const specifier = specNode.text;
-    if (specifier === ROOT_SPECIFIER) continue;
+    if (specifier === ROOT_SPECIFIER) return;
     if (specifier.startsWith("./") || specifier.startsWith("../")) {
       const { line, character } = file.getLineAndCharacterOfPosition(specNode.getStart(file));
       diagnostics.push(
@@ -216,7 +224,7 @@ function validateComponentImports(
           { line: line + 1, column: character + 1 },
         ),
       );
-      continue;
+      return;
     }
     const { line, character } = file.getLineAndCharacterOfPosition(specNode.getStart(file));
     diagnostics.push(
@@ -227,15 +235,15 @@ function validateComponentImports(
         { line: line + 1, column: character + 1 },
       ),
     );
-  }
+  });
 }
 
 /** Whether a directory has any listed files (the flat FS has no real dir nodes). */
 function dirExists(fs: BuildReadFs, dir: string): boolean {
   // A host FS may reject an unknown directory outright; that reads as "absent".
-  return Effect.runSync(
+  return EffectRuntime.runSync(
     Effect.try({
-      try: () => fs.list(dir).length > 0,
+      try: () => Arr.match(fs.list(dir), { onEmpty: () => false, onNonEmpty: () => true }),
       catch: (cause) => cause,
     }).pipe(Effect.orElseSucceed(() => false)),
   );

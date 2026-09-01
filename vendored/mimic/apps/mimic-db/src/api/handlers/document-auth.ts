@@ -1,25 +1,35 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { HttpServerRequest } from "effect/unstable/http";
 import { CurrentUser, DocumentAuthRpcs } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag } from "../../app/hostService.ts";
 import { getConfig } from "../../config.ts";
 
-const getHeader = (headers: Record<string, string | undefined>, name: string) =>
-  headers[name] ?? headers[name.toLowerCase()] ?? headers[name.toUpperCase()];
+const getHeader = (
+  headers: Readonly<Record<string, string>>,
+  name: string,
+): Option.Option<string> =>
+  Option.fromUndefinedOr(
+    headers[name] ?? headers[name.toLowerCase()] ?? headers[name.toUpperCase()],
+  );
 
 const ABSOLUTE_URL_PATTERN = /^([a-z][a-z0-9+.-]*):\/\/([^/?#]+)(?:[/?#].*)?$/i;
 
 const parseAbsoluteUrl = (value: string) => {
   const match = value.match(ABSOLUTE_URL_PATTERN);
-  if (!match) {
-    return null;
-  }
-  return {
-    protocol: match[1]!.toLowerCase(),
-    host: match[2]!,
-  };
+  const protocol = Option.fromUndefinedOr(match?.[1]);
+  const host = Option.fromUndefinedOr(match?.[2]);
+  return Option.all({ protocol, host }).pipe(
+    Option.map(({ protocol, host }) => ({ protocol: protocol.toLowerCase(), host })),
+  );
 };
+
+class DocumentConnectionUrlError extends Schema.TaggedErrorClass<DocumentConnectionUrlError>()(
+  "DocumentConnectionUrlError",
+  { message: Schema.String },
+) {}
 
 const websocketProtocol = (protocol: string): string => {
   if (protocol === "https") return "wss";
@@ -39,31 +49,37 @@ const websocketProtocol = (protocol: string): string => {
  * request exactly as before, so local clients keep receiving `ws://`.
  */
 export const buildDocumentConnectionUrl = (
-  publicBaseUrl: string | undefined,
-  request: { readonly url: string; readonly headers: Record<string, string | undefined> },
+  publicBaseUrl: Option.Option<string>,
+  request: { readonly url: string; readonly headers: Readonly<Record<string, string>> },
   databaseId: string,
   collectionId: string,
   documentId: string,
-): string | undefined => {
+): Option.Option<string> => {
   const path = `/ws/v1/databases/${encodeURIComponent(
     databaseId,
   )}/collections/${encodeURIComponent(collectionId)}/documents/${encodeURIComponent(documentId)}`;
-  if (publicBaseUrl) {
-    const base = parseAbsoluteUrl(publicBaseUrl);
-    if (base) {
-      return `${websocketProtocol(base.protocol)}://${base.host}${path}`;
+  if (Option.isSome(publicBaseUrl)) {
+    const base = parseAbsoluteUrl(publicBaseUrl.value);
+    if (Option.isSome(base)) {
+      return Option.some(`${websocketProtocol(base.value.protocol)}://${base.value.host}${path}`);
     }
   }
   const forwardedProto = getHeader(request.headers, "x-forwarded-proto");
   const forwardedHost = getHeader(request.headers, "x-forwarded-host");
-  const host = forwardedHost ?? getHeader(request.headers, "host");
+  const host = Option.orElse(forwardedHost, () => getHeader(request.headers, "host"));
   const absoluteUrl = parseAbsoluteUrl(request.url);
-  const protocol = absoluteUrl?.protocol ?? forwardedProto ?? "http";
-  const authority = absoluteUrl?.host ?? host;
-  if (!authority) {
-    return undefined;
-  }
-  return `${websocketProtocol(protocol)}://${authority}${path}`;
+  const protocol = Option.getOrElse(
+    Option.orElse(
+      Option.map(absoluteUrl, (url) => url.protocol),
+      () => forwardedProto,
+    ),
+    () => "http",
+  );
+  const authority = Option.orElse(
+    Option.map(absoluteUrl, (url) => url.host),
+    () => host,
+  );
+  return Option.map(authority, (value) => `${websocketProtocol(protocol)}://${value}${path}`);
 };
 
 export const DocumentAuthHandlersLive = DocumentAuthRpcs.toLayer(
@@ -87,7 +103,7 @@ export const DocumentAuthHandlersLive = DocumentAuthRpcs.toLayer(
             documentId,
             permission,
             origins,
-            expiresInSeconds,
+            Option.fromUndefinedOr(expiresInSeconds),
           );
           const url = buildDocumentConnectionUrl(
             getConfig().publicBaseUrl,
@@ -96,12 +112,14 @@ export const DocumentAuthHandlersLive = DocumentAuthRpcs.toLayer(
             collectionId,
             documentId,
           );
-          if (url === undefined) {
+          if (Option.isNone(url)) {
             return yield* Effect.die(
-              new Error("Failed to determine request host for document connection URL"),
+              new DocumentConnectionUrlError({
+                message: "Failed to determine request host for document connection URL",
+              }),
             );
           }
-          return { token: result.token, url };
+          return { token: result.token, url: url.value };
         }),
     };
   }),

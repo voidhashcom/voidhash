@@ -6,7 +6,7 @@ import {
   RpcOrganizationNotFoundError,
   RpcOrganizationServiceError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 export const OrganizationRpcsLive = OrganizationRpcsDef.toLayer(
   Effect.gen(function* OrganizationRpcsLive() {

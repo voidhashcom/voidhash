@@ -3,7 +3,7 @@
  * / slug conflicts) plus the catch-all paywall and paywall-release service
  * errors. Class names and `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Paywall row not found in the database. */
 export class RpcPaywallNotFoundError extends Schema.TaggedErrorClass<RpcPaywallNotFoundError>(

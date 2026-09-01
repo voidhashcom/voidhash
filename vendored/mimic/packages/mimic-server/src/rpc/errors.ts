@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { causeMessage, constant } from "@voidhash/lib/lang";
 
 const detailsField = constant({

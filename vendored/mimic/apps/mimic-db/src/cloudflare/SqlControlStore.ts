@@ -13,7 +13,10 @@ import { pick } from "@voidhash/lib/lang";
 import { DatabasePermissionSchema, DocumentPermissionSchema } from "@voidhash/mimic-server/rpc";
 import type * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy/RuntimeContext";
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 
 /**
  * JSON codec for the `schema_json` text columns. A `SchemaObject` is mimic-core's
@@ -82,13 +85,13 @@ interface CollectionRow extends Record<string, Cloudflare.SqlStorageValue> {
   name: string;
   schema_json: string;
   schema_version: number;
-  migration_version: number | null;
+  migration_version: Cloudflare.SqlStorageValue;
 }
 interface SchemaVersionRow extends Record<string, Cloudflare.SqlStorageValue> {
   collection_id: string;
   version: number;
   schema_json: string;
-  data_migration_source: string | null;
+  data_migration_source: Cloudflare.SqlStorageValue;
 }
 interface UserRow extends Record<string, Cloudflare.SqlStorageValue> {
   id: string;
@@ -110,13 +113,17 @@ interface TokenRow extends Record<string, Cloudflare.SqlStorageValue> {
   permission: string;
   origins_json: string;
   expires_at_ms: number;
-  used_at: number | null;
+  used_at: Cloudflare.SqlStorageValue;
 }
 interface DocumentIndexRow extends Record<string, Cloudflare.SqlStorageValue> {
   document_id: string;
   collection_id: string;
-  deleted_at: number | null;
+  deleted_at: Cloudflare.SqlStorageValue;
 }
+const optionNumber = (value: Cloudflare.SqlStorageValue): Option.Option<number> =>
+  P.isNumber(value) ? Option.some(value) : Option.none();
+const optionString = (value: Cloudflare.SqlStorageValue): Option.Option<string> =>
+  P.isString(value) ? Option.some(value) : Option.none();
 const toDatabase = (row: DatabaseRow): DatabaseRecord => ({
   id: row.id,
   name: row.name,
@@ -128,13 +135,13 @@ const toCollection = (row: CollectionRow): CollectionRecord => ({
   name: row.name,
   schemaJson: decodeSchemaObject(row.schema_json),
   schemaVersion: row.schema_version,
-  migrationVersion: row.migration_version,
+  migrationVersion: optionNumber(row.migration_version),
 });
 const toSchemaVersion = (row: SchemaVersionRow): SchemaVersionRecord => ({
   collectionId: row.collection_id,
   version: row.version,
   schemaJson: decodeSchemaObject(row.schema_json),
-  dataMigrationSource: row.data_migration_source,
+  dataMigrationSource: optionString(row.data_migration_source),
 });
 const toUser = (row: UserRow): UserRecord => ({
   id: row.id,
@@ -156,14 +163,14 @@ const toToken = (row: TokenRow): TokenRecord => ({
   permission: decodeDocumentPermission(row.permission),
   origins: decodeOrigins(row.origins_json),
   expiresAtMs: row.expires_at_ms,
-  usedAt: row.used_at,
+  usedAt: optionNumber(row.used_at),
 });
 const toDocumentIndex = (row: DocumentIndexRow): DocumentIndexRecord => ({
   documentId: row.document_id,
   collectionId: row.collection_id,
-  deletedAt: row.deleted_at,
+  deletedAt: optionNumber(row.deleted_at),
 });
-const first = <T>(rows: readonly T[]): T | undefined => rows[0];
+const first = <T>(rows: readonly T[]): Option.Option<T> => Option.fromUndefinedOr(rows[0]);
 
 /** SQLite-backed `ControlStore`, run inside `MimicHostObject`. */
 export const makeSqlControlStore = (
@@ -218,7 +225,7 @@ export const makeSqlControlStore = (
           record.name,
           encodeSchemaObject(record.schemaJson),
           record.schemaVersion,
-          record.migrationVersion,
+          Option.getOrNull(record.migrationVersion),
         ).pipe(Effect.asVoid),
       findCollectionById: (id) =>
         query<CollectionRow>(`SELECT * FROM collections WHERE id = ?`, id).pipe(
@@ -260,7 +267,7 @@ export const makeSqlControlStore = (
           record.collectionId,
           record.version,
           encodeSchemaObject(record.schemaJson),
-          record.dataMigrationSource,
+          Option.getOrNull(record.dataMigrationSource),
         ).pipe(Effect.asVoid),
       findSchemaVersion: (collectionId, version) =>
         query<SchemaVersionRow>(
@@ -335,7 +342,7 @@ export const makeSqlControlStore = (
           record.permission,
           encodeOrigins(record.origins),
           record.expiresAtMs,
-          record.usedAt,
+          Option.getOrNull(record.usedAt),
         ).pipe(Effect.asVoid),
       findTokenByHash: (tokenHash) =>
         query<TokenRow>(`SELECT * FROM tokens WHERE token_hash = ?`, tokenHash).pipe(

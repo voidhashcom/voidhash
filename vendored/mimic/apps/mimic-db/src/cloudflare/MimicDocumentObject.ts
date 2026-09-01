@@ -1,3 +1,7 @@
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
 import type { Value } from "@voidhash/mimic-core";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import { getConfig } from "../config.ts";
@@ -7,6 +11,7 @@ import { makeDocumentEngine, type DocumentEngineApi } from "../core/document-eng
 import { ensureDocumentTables, makePgDocumentStore } from "../core/pg-store.ts";
 import { makeControlStoreSchemaProvider } from "../core/schema-provider.ts";
 import type { ControlStoreApi } from "../core/store.ts";
+import { makeControlStoreRpcClient } from "./ControlStoreRpc.ts";
 import type { TransactionEnvelope } from "../document/transaction.ts";
 import {
   AUTH_DEADLINE_MS,
@@ -31,7 +36,11 @@ import { makeSessionRegistry } from "../ws/session-registry.ts";
 import { constant, stringOr } from "@voidhash/lib/lang";
 import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext } from "alchemy/RuntimeContext";
-import { Clock, Effect, Layer } from "effect";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { HttpServerRequest } from "effect/unstable/http";
 
 import { makeCloudflareDurableEntityStorage } from "@voidhash/platform-cloudflare/DurableEntity";
@@ -52,6 +61,12 @@ interface HeadlessConnection {
   readonly expiresAt: number;
 }
 
+class DocumentIdentityMismatchError extends Schema.TaggedErrorClass<DocumentIdentityMismatchError>(
+  "DocumentIdentityMismatchError",
+)("DocumentIdentityMismatchError", {
+  message: Schema.String,
+}) {}
+
 export interface MimicDocumentObjectOptions {
   readonly hostObject: ReturnType<typeof makeMimicHostObject>;
   readonly migrations: MigrationRegistry;
@@ -67,19 +82,20 @@ export interface MimicDocumentObjectOptions {
  * name, falling back to the identity persisted on a previous boot when the name
  * carries no separator.
  */
-const identityFromName = (name: string, stored: DocumentIdentity | undefined): DocumentIdentity => {
+const identityFromName = (name: string, stored: Option.Option<DocumentIdentity>): DocumentIdentity => {
   const separator = name.indexOf(":");
   if (separator >= 0) {
     return { collectionId: name.slice(0, separator), documentId: name.slice(separator + 1) };
   }
-  return { collectionId: stored?.collectionId ?? "", documentId: stored?.documentId ?? name };
+  return Option.match(stored, {
+    onNone: () => ({ collectionId: "", documentId: name }),
+    onSome: (identity) => identity,
+  });
 };
 
 /** Read a stored idle-notify sequence number, ignoring any non-numeric value. */
-const optionalNumber = (value: unknown): number | undefined => {
-  if (typeof value === "number") return value;
-  return undefined;
-};
+const optionalNumber = (value: unknown): Option.Option<number> =>
+  P.isNumber(value) ? Option.some(value) : Option.none();
 
 /** Spreadable actor identity — omits `userId` entirely when the entry has none. */
 const actorUserId = (userId: PresenceEntry["userId"]) => {
@@ -92,8 +108,6 @@ const actorUserId = (userId: PresenceEntry["userId"]) => {
  * APIs take. `Clock` is a `Context.Reference` with a live default, so running it
  * needs no layer.
  */
-const nowMillis = () => Effect.runSync(Clock.currentTimeMillis);
-
 /**
  * Per-document Durable Object — the unit that replaces an Effect-Cluster entity.
  * Keyed by `"${collectionId}:${documentId}"`, it serializes the document's
@@ -123,15 +137,19 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
           effect: Effect.Effect<A, E, RuntimeContext>,
         ): Effect.Effect<A, E> =>
           effect.pipe(Effect.provideService(RuntimeContext, runtimeContext));
-        const hostStub = hosts.getByName(HOST_INSTANCE);
-        const controlStore: ControlStoreApi = hostStub;
+        const controlStore: ControlStoreApi = makeControlStoreRpcClient(
+          () => hosts.getByName(HOST_INSTANCE),
+          provideRuntimeContext,
+        );
         const control = makeControlEngine(controlStore, options.migrations);
         const schema = makeControlStoreSchemaProvider(controlStore);
         const snapshotEveryCommands = getConfig().snapshotEveryCommands;
 
         // The DO is addressed `${collectionId}:${documentId}`; the documentId is
         // this DO's Postgres row key.
-        const storedIdentity = yield* state.storage.get<DocumentIdentity>(DOCUMENT_IDENTITY_KEY);
+        const storedIdentity = Option.fromUndefinedOr(
+          yield* state.storage.get<DocumentIdentity>(DOCUMENT_IDENTITY_KEY),
+        );
         const name = state.id.name ?? "";
         let { collectionId, documentId } = identityFromName(name, storedIdentity);
 
@@ -171,9 +189,9 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
               (documentId !== "" && documentId !== identity.documentId)
             ) {
               return yield* Effect.die(
-                new Error(
-                  `Durable Object identity mismatch: expected ${collectionId}:${documentId}, received ${identity.collectionId}:${identity.documentId}`,
-                ),
+                new DocumentIdentityMismatchError({
+                  message: `Durable Object identity mismatch: expected ${collectionId}:${documentId}, received ${identity.collectionId}:${identity.documentId}`,
+                }),
               );
             }
             collectionId = identity.collectionId;
@@ -210,47 +228,60 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
             socket.deserializeAttachment<SessionAttachment>()?.authenticated === true,
           close: (socket) => socket.ws.close(1008, "Authentication deadline exceeded"),
         });
-        const presence = new Map<string, PresenceEntry>();
-        const headlessConnections = new Map<string, HeadlessConnection>();
-        for (const socket of yield* state.getWebSockets()) {
-          const attachment = socket.deserializeAttachment<SessionAttachment>();
-          if (attachment) {
-            registry.restore(
-              attachment.connectionId,
-              socket,
-              attachment.authenticated,
-              attachment.connectedAt,
+        let presence = HashMap.empty<string, PresenceEntry>();
+        let headlessConnections = HashMap.empty<string, HeadlessConnection>();
+        yield* Effect.forEach(
+          yield* state.getWebSockets(),
+          (socket) => Effect.sync(() => {
+            const attachment = Option.fromNullishOr(
+              socket.deserializeAttachment<SessionAttachment>(),
             );
-            if (attachment.authenticated && attachment.presence !== undefined) {
-              presence.set(attachment.connectionId, attachment.presence);
+            if (Option.isSome(attachment)) {
+              registry.restore(
+                attachment.value.connectionId,
+                socket,
+                attachment.value.authenticated,
+                Option.fromUndefinedOr(attachment.value.connectedAt),
+              );
+              if (attachment.value.authenticated && attachment.value.presence !== undefined) {
+                presence = HashMap.set(
+                  presence,
+                  attachment.value.connectionId,
+                  attachment.value.presence,
+                );
+              }
             }
-          }
-        }
+          }),
+          { discard: true, concurrency: 1 },
+        );
         const storedHeadless = yield* state.storage.list<HeadlessConnection>({
           prefix: HEADLESS_CONNECTION_PREFIX,
         });
         const bootTime = yield* Clock.currentTimeMillis;
-        for (const [key, connection] of storedHeadless) {
-          const connectionId = key.slice(HEADLESS_CONNECTION_PREFIX.length);
-          if (connection.expiresAt <= bootTime) {
-            yield* state.storage.delete(key);
-            continue;
-          }
-          headlessConnections.set(connectionId, connection);
-          presence.set(connectionId, connection.entry);
-        }
+        yield* Effect.forEach(
+          storedHeadless,
+          ([key, connection]) =>
+            connection.expiresAt <= bootTime
+              ? state.storage.delete(key)
+              : Effect.sync(() => {
+                  const connectionId = key.slice(HEADLESS_CONNECTION_PREFIX.length);
+                  headlessConnections = HashMap.set(headlessConnections, connectionId, connection);
+                  presence = HashMap.set(presence, connectionId, connection.entry);
+                }),
+          { discard: true, concurrency: 1 },
+        );
 
         const broadcast = (message: ServerMessage) =>
           Effect.forEach(
             registry.authenticated(),
             (socket) => socket.send(encodeServerMessage(message)).pipe(Effect.ignore),
-            { discard: true },
+            { discard: true, concurrency: 1 },
           );
 
         const scheduleHeadlessExpiry = (expiresAt: number) =>
           Effect.gen(function* () {
-            const scheduled = yield* state.storage.getAlarm();
-            if (scheduled === null || expiresAt < scheduled) {
+            const scheduled = Option.fromNullishOr(yield* state.storage.getAlarm());
+            if (Option.isNone(scheduled) || expiresAt < scheduled.value) {
               yield* state.storage.setAlarm(expiresAt);
             }
           });
@@ -270,8 +301,8 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
             documentId,
             storage: idleStorage,
             debounceMs: getConfig().idleNotifyDebounceMs,
-            now: nowMillis,
-            authenticatedCount: () => registry.authenticated().length + headlessConnections.size,
+            now: () => Clock.Clock.defaultValue().currentTimeMillisUnsafe(),
+            authenticatedCount: () => registry.authenticated().length + HashMap.size(headlessConnections),
             publish: (message) => options.publishIdleMessage?.(env, message) ?? Effect.void,
           });
 
@@ -285,19 +316,25 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
 
         const pruneHeadlessConnectionsWithContext = Effect.fnUntraced(function* () {
           const now = yield* Clock.currentTimeMillis;
-          let removedAny = false;
-          for (const [connectionId, connection] of headlessConnections) {
-            if (connection.expiresAt > now) continue;
-            removedAny = true;
-            headlessConnections.delete(connectionId);
-            presence.delete(connectionId);
-            yield* state.storage.delete(`${HEADLESS_CONNECTION_PREFIX}${connectionId}`);
-            yield* broadcast(presenceRemoveMessage(connectionId));
-          }
+          const removed = yield* Effect.forEach(
+            headlessConnections,
+            ([connectionId, connection]) =>
+              connection.expiresAt > now
+                ? Effect.succeed(false)
+                : Effect.gen(function* () {
+                    headlessConnections = HashMap.remove(headlessConnections, connectionId);
+                    presence = HashMap.remove(presence, connectionId);
+                    yield* state.storage.delete(`${HEADLESS_CONNECTION_PREFIX}${connectionId}`);
+                    yield* broadcast(presenceRemoveMessage(connectionId));
+                    return true;
+                  }),
+            { concurrency: 1 },
+          );
+          const removedAny = Arr.some(removed, (entry) => entry);
           if (
             removedAny &&
-            registry.authenticated().length === 0 &&
-            headlessConnections.size === 0
+            Arr.isReadonlyArrayNonEmpty(registry.authenticated()) &&
+            HashMap.size(headlessConnections) === 0
           ) {
             yield* isolateSessionHook(
               idleNotifier().onLastAuthenticatedClose(),
@@ -312,25 +349,31 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
         const touchHeadlessConnection = (
           connectionId: string,
           leaseMs: number,
-        ): Effect.Effect<HeadlessConnection | undefined> =>
+        ): Effect.Effect<Option.Option<HeadlessConnection>> =>
           Effect.gen(function* () {
             yield* pruneHeadlessConnections();
-            const current = headlessConnections.get(connectionId);
-            if (current === undefined) return undefined;
+            const current = HashMap.get(headlessConnections, connectionId);
+            if (Option.isNone(current)) return Option.none();
             const now = yield* Clock.currentTimeMillis;
-            const next = { ...current, expiresAt: now + leaseMs };
-            headlessConnections.set(connectionId, next);
+            const next = { ...current.value, expiresAt: now + leaseMs };
+            headlessConnections = HashMap.set(headlessConnections, connectionId, next);
             yield* state.storage.put(`${HEADLESS_CONNECTION_PREFIX}${connectionId}`, next);
             yield* scheduleHeadlessExpiry(next.expiresAt);
-            return next;
+            return Option.some(next);
           }).pipe(provideRuntimeContext);
 
         const sessionContext: DocumentSessionContext<Cloudflare.WebSocket> = {
           registry,
           presence: {
-            snapshot: () => Effect.sync(() => Object.fromEntries(presence)),
-            set: (connectionId, entry) => Effect.sync(() => void presence.set(connectionId, entry)),
-            remove: (connectionId) => Effect.sync(() => presence.delete(connectionId)),
+            snapshot: () => Effect.sync(() => R.fromEntries(presence)),
+            set: (connectionId, entry) => Effect.sync(() => {
+              presence = HashMap.set(presence, connectionId, entry);
+            }),
+            remove: (connectionId) => Effect.sync(() => {
+              const existed = HashMap.has(presence, connectionId);
+              presence = HashMap.remove(presence, connectionId);
+              return existed;
+            }),
             prune: () => pruneHeadlessConnections().pipe(Effect.asVoid),
           },
           onAccepted: (seq) =>
@@ -340,7 +383,8 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
               idleNotifier().onLastAuthenticatedClose(),
               hookLabel("onLastAuthenticatedClose"),
             ),
-          getAttachment: (socket) => socket.deserializeAttachment<SessionAttachment>(),
+          getAttachment: (socket) =>
+            Option.fromNullishOr(socket.deserializeAttachment<SessionAttachment>()),
           setAttachment: (socket, attachment) => socket.serializeAttachment(attachment),
           send: (socket, message) => socket.send(encodeServerMessage(message)).pipe(Effect.ignore),
           close: (socket, code, reason) => socket.close(code, reason).pipe(Effect.ignore),
@@ -370,12 +414,17 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
             identity: DocumentIdentity,
             value: Value,
             schemaVersion: number,
-            migrationVersion: number | null,
+            migrationVersion: number | typeof Schema.Null.Type,
           ) =>
             ensureIdentity(identity).pipe(
               Effect.andThen(
                 withEngine((engine) =>
-                  engine.create(identity.collectionId, value, schemaVersion, migrationVersion),
+                  engine.create(
+                    identity.collectionId,
+                    value,
+                    schemaVersion,
+                    Option.fromNullishOr(migrationVersion),
+                  ),
                 ),
               ),
             ),
@@ -427,20 +476,21 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
               yield* ensureIdentity(identity);
               yield* pruneHeadlessConnections();
               const loaded = yield* withEngine((engine) => engine.load()).pipe(
-                Effect.catchTag("NotFoundError", () => Effect.succeed(undefined)),
+                Effect.map(Option.some),
+                Effect.catchTag("NotFoundError", () => Effect.succeed(Option.none())),
               );
-              if (loaded === undefined) return { notFound: constant(true) };
+              if (Option.isNone(loaded)) return { notFound: constant(true) };
               const now = yield* Clock.currentTimeMillis;
               const connection = { entry, expiresAt: now + leaseMs };
-              headlessConnections.set(connectionId, connection);
-              presence.set(connectionId, entry);
+              headlessConnections = HashMap.set(headlessConnections, connectionId, connection);
+              presence = HashMap.set(presence, connectionId, entry);
               yield* state.storage.put(`${HEADLESS_CONNECTION_PREFIX}${connectionId}`, connection);
               yield* scheduleHeadlessExpiry(connection.expiresAt);
               yield* broadcast(presenceUpdateMessage(connectionId, entry.data, entry.userId));
               return {
                 found: constant(true),
-                value: loaded.value,
-                version: loaded.version,
+                value: loaded.value.value,
+                version: loaded.value.version,
               };
             }),
 
@@ -452,12 +502,17 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
             Effect.gen(function* () {
               yield* ensureIdentity(identity);
               const connection = yield* touchHeadlessConnection(connectionId, leaseMs);
-              if (connection === undefined) return { notFound: constant(true) };
+              if (Option.isNone(connection)) return { notFound: constant(true) };
               const loaded = yield* withEngine((engine) => engine.load()).pipe(
-                Effect.catchTag("NotFoundError", () => Effect.succeed(undefined)),
+                Effect.map(Option.some),
+                Effect.catchTag("NotFoundError", () => Effect.succeed(Option.none())),
               );
-              if (loaded === undefined) return { notFound: constant(true) };
-              return { found: constant(true), value: loaded.value, version: loaded.version };
+              if (Option.isNone(loaded)) return { notFound: constant(true) };
+              return {
+                found: constant(true),
+                value: loaded.value.value,
+                version: loaded.value.version,
+              };
             }),
 
           heartbeatConnection: (
@@ -467,18 +522,22 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
           ) =>
             ensureIdentity(identity).pipe(
               Effect.andThen(touchHeadlessConnection(connectionId, leaseMs)),
-              Effect.map((connection) => connection !== undefined),
+              Effect.map(Option.isSome),
             ),
 
           closeConnection: (identity: DocumentIdentity, connectionId: string) =>
             Effect.gen(function* () {
               yield* ensureIdentity(identity);
-              const existed = headlessConnections.delete(connectionId);
-              presence.delete(connectionId);
+              const existed = HashMap.has(headlessConnections, connectionId);
+              headlessConnections = HashMap.remove(headlessConnections, connectionId);
+              presence = HashMap.remove(presence, connectionId);
               yield* state.storage.delete(`${HEADLESS_CONNECTION_PREFIX}${connectionId}`);
               if (existed) {
                 yield* broadcast(presenceRemoveMessage(connectionId));
-                if (registry.authenticated().length === 0 && headlessConnections.size === 0) {
+                if (
+                  Arr.isReadonlyArrayNonEmpty(registry.authenticated()) &&
+                  HashMap.size(headlessConnections) === 0
+                ) {
                   yield* isolateSessionHook(
                     idleNotifier().onLastAuthenticatedClose(),
                     hookLabel("onLastAuthenticatedClose"),
@@ -497,26 +556,27 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
             Effect.gen(function* () {
               yield* ensureIdentity(identity);
               const connection = yield* touchHeadlessConnection(connectionId, leaseMs);
-              if (connection === undefined) return { notFound: constant(true) };
+              if (Option.isNone(connection)) return { notFound: constant(true) };
               const transaction: TransactionEnvelope = {
                 ...envelope,
                 actor: {
                   connectionId,
-                  ...actorUserId(connection.entry.userId),
+                  ...actorUserId(connection.value.entry.userId),
                 },
               };
               const result = yield* withEngine((engine) => engine.submit(transaction)).pipe(
-                Effect.catchTag("NotFoundError", () => Effect.succeed(undefined)),
+                Effect.map(Option.some),
+                Effect.catchTag("NotFoundError", () => Effect.succeed(Option.none())),
               );
-              if (result === undefined) return { notFound: constant(true) };
-              if (result.accepted) {
+              if (Option.isNone(result)) return { notFound: constant(true) };
+              if (result.value.accepted) {
                 yield* isolateSessionHook(
-                  idleNotifier().recordDirty(result.version - 1),
+                  idleNotifier().recordDirty(result.value.version - 1),
                   hookLabel("recordDirty"),
                 );
-                yield* broadcast(transactionMessage(transaction, result.version));
+                yield* broadcast(transactionMessage(transaction, result.value.version));
               }
-              return result;
+              return result.value;
             }),
 
           remove: (identity: DocumentIdentity) =>
@@ -532,7 +592,7 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
               const collectionId = decodeURIComponent(parts[5] ?? "");
               const documentIdFromUrl = decodeURIComponent(parts[7] ?? "");
               yield* ensureIdentity({ collectionId, documentId: documentIdFromUrl });
-              const origin = request.headers["origin"] ?? null;
+              const origin = Option.fromUndefinedOr(request.headers["origin"]);
               const [response, socket] = yield* Cloudflare.upgrade();
               const connectedAt = yield* Clock.currentTimeMillis;
               const attachment: SessionAttachment = {
@@ -587,7 +647,12 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
               "do.alarm MimicDocumentObject",
               Effect.gen(function* () {
                 const pruned = yield* pruneHeadlessConnections();
-                if (!(pruned && registry.authenticated().length + headlessConnections.size === 0)) {
+                if (
+                  !(
+                    pruned &&
+                    registry.authenticated().length + HashMap.size(headlessConnections) === 0
+                  )
+                ) {
                   yield* idleNotifier()
                     .onAlarm()
                     .pipe(
@@ -601,10 +666,13 @@ export const makeMimicDocumentObject = (options: MimicDocumentObjectOptions) => 
                       ),
                     );
                 }
-                if (headlessConnections.size > 0) {
+                if (HashMap.size(headlessConnections) > 0) {
                   yield* idleStorage.setAlarm(
                     Math.min(
-                      ...[...headlessConnections.values()].map(({ expiresAt }) => expiresAt),
+                      ...Arr.map(
+                        Arr.fromIterable(HashMap.values(headlessConnections)),
+                        ({ expiresAt }) => expiresAt,
+                      ),
                     ),
                   );
                 }

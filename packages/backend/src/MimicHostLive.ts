@@ -1,3 +1,6 @@
+import * as Arr from "effect/Array";
+import { orderFromCompare } from "./order-boundary.ts";
+import { unsafeDefined } from "./runtime-boundary.ts";
 import {
   MimicHost,
   MimicHostError,
@@ -17,8 +20,12 @@ import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Predicate from "effect/Predicate";
+import * as P from "effect/Predicate";
 import * as Schema from "effect/Schema";
+import * as R from "effect/Record";
+import * as Str from "effect/String";
+import { hasTag } from "./runtime-boundary.ts";
+import { nativeFetch } from "./runtime-boundary.ts";
 
 /** Logical mimic database every paywall designer document lives in. */
 export const MIMIC_DATABASE_NAME = REGISTRY_DATABASE_NAME;
@@ -40,10 +47,12 @@ const canonicalize = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     return value.map(canonicalize);
   }
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) => compareKeys(left, right))
+  if (P.isObject(value) && value !== null) {
+    return R.fromEntries(
+      Arr.sort(
+        R.toEntries(value),
+        orderFromCompare<[string, unknown]>(([left], [right]) => compareKeys(left, right)),
+      )
         .map(([key, entry]) => [key, canonicalize(entry)]),
     );
   }
@@ -63,10 +72,10 @@ export const stableJsonStringify = (value: unknown): string => encodeJson(canoni
 export const schemaJsonEquals = (left: unknown, right: unknown): boolean =>
   stableJsonStringify(left) === stableJsonStringify(right);
 
-const stringProp = (value: unknown, key: string): string | undefined => {
-  if (Predicate.hasProperty(value, key)) {
+const stringProp = (value: unknown, key: string): string | typeof Schema.Undefined.Type => {
+  if (P.hasProperty(value, key)) {
     const property = value[key];
-    if (typeof property === "string") {
+    if (P.isString(property)) {
       return property;
     }
   }
@@ -134,7 +143,7 @@ export const classifyPostProvisioningError =
   };
 
 const unwrapStale = (error: MimicHostError | StaleProvisioningIdsError): MimicHostError => {
-  if (error._tag === "StaleProvisioningIdsError") return error.hostError;
+  if (hasTag(error, "StaleProvisioningIdsError")) return error.hostError;
   return error;
 };
 
@@ -151,7 +160,7 @@ export const retryOnceOnStaleIds = <A>(
 ): Effect.Effect<A, MimicHostError> =>
   op.pipe(
     Effect.catch((error) => {
-      if (error._tag === "StaleProvisioningIdsError") {
+      if (hasTag(error, "StaleProvisioningIdsError")) {
         return Effect.suspend(() => {
           invalidate();
           return op.pipe(Effect.mapError(unwrapStale));
@@ -167,7 +176,7 @@ export const retryOnceOnStaleIds = <A>(
  * narrowing between the transport and the schema decoder.
  */
 const isMimicValue = (value: unknown): value is MimicValue =>
-  Predicate.hasProperty(value, "kind") && typeof value.kind === "string";
+  P.hasProperty(value, "kind") && P.isString(value.kind);
 
 /**
  * Decodes a raw document value into the designer snapshot. Anything that is not
@@ -325,14 +334,14 @@ interface ServiceBindingFetcher {
 }
 
 const isServiceBindingFetcher = (value: unknown): value is ServiceBindingFetcher =>
-  Predicate.hasProperty(value, "fetch") && typeof value.fetch === "function";
+  P.hasProperty(value, "fetch") && P.isFunction(value.fetch);
 
 const readEnvString = (
-  env: Record<string, unknown> | undefined,
+  env: Record<string, unknown> | typeof Schema.Undefined.Type,
   name: string,
-): string | undefined => {
+): string | typeof Schema.Undefined.Type => {
   const value = env?.[name];
-  if (typeof value === "string" && value.length > 0) return value;
+  if (P.isString(value) && Str.isNonEmpty(value)) return value;
   return undefined;
 };
 
@@ -371,7 +380,7 @@ export const resolveMimicFetch = (
     if (isLoopbackUrl(url)) {
       return Effect.succeed(
         (input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
-          globalThis.fetch(input, init),
+          nativeFetch(input, init),
       );
     }
     if (isServiceBindingFetcher(host)) {
@@ -409,10 +418,10 @@ export const resolveMimicFetch = (
  * layer rebuilds stay cheap.
  */
 export const makeMimicHostLive = (
-  env: Record<string, unknown> | undefined,
+  env: Record<string, unknown> | typeof Schema.Undefined.Type,
 ): Layer.Layer<MimicHost> => {
-  let sdkCache: MimicSDK | undefined;
-  let idsCache: MimicProvisioningIds | undefined;
+  let sdkCache: MimicSDK | typeof Schema.Undefined.Type;
+  let idsCache: MimicProvisioningIds | typeof Schema.Undefined.Type;
 
   const resolveSdk = Effect.suspend(() => {
     if (sdkCache !== undefined) {
@@ -452,7 +461,7 @@ export const makeMimicHostLive = (
     listDatabases: () => sdk.listDatabases(),
   });
 
-  const resolveCollection = Effect.gen(function* () {
+  const resolveCollection = Effect.fn("resolveCollection")(function* () {
     const sdk = yield* resolveSdk;
     if (idsCache === undefined) {
       idsCache = yield* ensureProvisioned(provisioningOps(sdk));
@@ -460,13 +469,13 @@ export const makeMimicHostLive = (
     return sdk
       .database(idsCache.databaseId)
       .collection(idsCache.collectionId, PaywallDesignerDocument);
-  });
+  })();
 
-  const resolveRawCollection = Effect.gen(function* () {
+  const resolveRawCollection = Effect.fn("resolveRawCollection")(function* () {
     const sdk = yield* resolveSdk;
     yield* resolveCollection;
-    return sdk.database(idsCache!.databaseId).collectionRaw(idsCache!.collectionId);
-  });
+    return sdk.database(unsafeDefined(idsCache).databaseId).collectionRaw(unsafeDefined(idsCache).collectionId);
+  })();
 
   const paywallDocumentFromRaw = (document: {
     readonly value: unknown;
@@ -570,8 +579,8 @@ export const makeMimicHostLive = (
             // set it — so read it back for the raw handle.
             Effect.flatMap(() =>
               sdk
-                .database(idsCache!.databaseId)
-                .collectionRaw(idsCache!.collectionId)
+                .database(unsafeDefined(idsCache).databaseId)
+                .collectionRaw(unsafeDefined(idsCache).collectionId)
                 .submitTransaction(paywallId, { baseVersion, commands })
                 .pipe(
                   Effect.mapError(

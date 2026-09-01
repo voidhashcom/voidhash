@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import {
   AdvancedCommerceRenewalInfoSchema,
   RenewalCommitmentInfoSchema,
@@ -17,7 +17,7 @@ import {
  * A decoded payload containing subscription renewal information for an auto-renewable subscription.
  * @see https://developer.apple.com/documentation/appstoreserverapi/jwsrenewalinfodecodedpayload
  */
-export const JWSRenewalInfoDecodedPayloadSchema = Schema.Struct({
+export const JWSRenewalInfoDecodedPayloadCodec = Schema.Struct({
   /** The reason the subscription expired. */
   expirationIntent: Schema.OptionFromOptionalKey(
     Schema.Union([ExpirationIntentSchema, Schema.Number]),
@@ -100,14 +100,24 @@ export const JWSRenewalInfoDecodedPayloadSchema = Schema.Struct({
     Schema.Union([RenewalBillingPlanTypeSchema, Schema.String]),
   ),
 });
+export type JWSRenewalInfoDecodedPayloadCodec = typeof JWSRenewalInfoDecodedPayloadCodec.Type;
 
 export type JWSRenewalInfoDecodedPayload = Schema.Schema.Type<
-  typeof JWSRenewalInfoDecodedPayloadSchema
+  typeof JWSRenewalInfoDecodedPayloadCodec
 >;
 
 /**
  * Decode a JWSRenewalInfoDecodedPayload from an unknown value.
  */
-export const decodeJWSRenewalInfoDecodedPayload = Schema.decodeUnknownEffect(
-  JWSRenewalInfoDecodedPayloadSchema,
+const decodeJWSRenewalInfoDecodedPayloadEffect = Schema.decodeUnknownEffect(
+  JWSRenewalInfoDecodedPayloadCodec,
 );
+
+/** Decode a JWSRenewalInfoDecodedPayload from an unknown value. */
+export function decodeJWSRenewalInfoDecodedPayload(
+  ...args: Parameters<typeof decodeJWSRenewalInfoDecodedPayloadEffect>
+): ReturnType<typeof decodeJWSRenewalInfoDecodedPayloadEffect> {
+  return decodeJWSRenewalInfoDecodedPayloadEffect(...args);
+}
+
+export { JWSRenewalInfoDecodedPayloadCodec as JWSRenewalInfoDecodedPayloadSchema };

@@ -16,8 +16,12 @@
 import { PaywallArtifactStore } from "@voidhash/core/services";
 import { SHA256_HEX_PATTERN } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
 import { constant } from "@voidhash/lib/lang";
-import { Cause, Effect, Layer } from "effect";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
+import * as Str from "effect/String";
 
 const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
@@ -65,19 +69,19 @@ const handleServe = (prefix: "p" | "c") =>
       contentHash === undefined ||
       !SHA256_HEX_PATTERN.test(contentHash) ||
       rest === undefined ||
-      rest.length === 0 ||
-      rest.split("/").some((segment) => segment.length === 0 || segment === "..")
+      Str.isEmpty(rest) ||
+      rest.split("/").some((segment) => Str.isEmpty(segment) || segment === "..")
     ) {
       return yield* notFound;
     }
 
     const object = yield* store.getObject(`${prefix}/${contentHash}/${rest}`);
-    if (object === null) {
+    if (Option.isNone(object)) {
       return yield* notFound;
     }
 
-    return HttpServerResponse.uint8Array(object.body, {
-      contentType: object.contentType ?? "application/octet-stream",
+    return HttpServerResponse.uint8Array(object.value.body, {
+      contentType: Option.getOrElse(object.value.contentType, () => "application/octet-stream"),
       headers: {
         ...SECURITY_HEADERS,
         "access-control-allow-origin": "*",
@@ -86,28 +90,28 @@ const handleServe = (prefix: "p" | "c") =>
     });
   });
 
-const registerPaywallServingRoutes = Effect.gen(function* () {
+const registerPaywallServingRoutes = Effect.fn("registerPaywallServingRoutes")(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
-  for (const prefix of constant(["p", "c"])) {
-    yield* router.add(
+  yield* Effect.forEach(constant(["p", "c"]), Effect.fn("iterate")(function* (prefix) {
+yield* router.add(
       "GET",
       `/${prefix}/:contentHash/*`,
       handleServe(prefix).pipe(
         // catchCause so store defects are logged with their full cause instead
         // of escaping the worker as an opaque exception.
         Effect.catchCause((cause) =>
-          Effect.gen(function* () {
+          Effect.fn("registerPaywallServingRoutes")(function* () {
             yield* Effect.logError(`Paywall artifact serving error: ${Cause.pretty(cause)}`);
             return yield* HttpServerResponse.json(
               { error: "Failed to load paywall artifact" },
               { headers: ERROR_HEADERS, status: 502 },
             );
-          }),
+          })(),
         ),
       ),
     );
-  }
-});
+}), { concurrency: 1 });
+})();
 
 export const PaywallServingRouteLayer = Layer.effectDiscard(registerPaywallServingRoutes);

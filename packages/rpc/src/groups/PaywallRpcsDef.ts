@@ -1,5 +1,10 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { DateTime, Effect, Option, Schema, SchemaIssue, SchemaTransformation } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as SchemaIssue from "effect/SchemaIssue";
+import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -42,6 +47,7 @@ export const Paywall = Schema.Struct({
   slug: Schema.String,
   thumbnailUrl: Schema.NullOr(Schema.String),
 });
+export type Paywall = typeof Paywall.Type;
 
 export class PaywallRpcsDef extends RpcGroup.make(
   Rpc.make("ListPaywalls", {

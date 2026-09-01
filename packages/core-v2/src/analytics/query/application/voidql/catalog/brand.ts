@@ -5,9 +5,13 @@
  * constructor — is fed exclusively from frozen catalog/keyword constants and
  * already-validated identifiers, never from user text.
  */
-import { Brand, Schema } from "effect";
+import * as Brand from "effect/Brand";
+import * as Schema from "effect/Schema";
 
-export const CatalogSqlSchema = Schema.String.pipe(Schema.brand("CatalogSql"));
+export const CatalogSql = Schema.String.pipe(Schema.brand("CatalogSql"));
+export type CatalogSql = typeof CatalogSql.Type;
 
 /** Brand a compiler-controlled SQL fragment. NEVER call with user-derived text. */
-export const catalog = Brand.nominal<typeof CatalogSqlSchema.Type>();
+export const catalog = Brand.nominal<typeof CatalogSql.Type>();
+
+export { CatalogSql as CatalogSqlSchema };

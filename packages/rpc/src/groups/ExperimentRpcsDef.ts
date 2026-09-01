@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -20,6 +20,7 @@ export const RpcExperimentVariant = Schema.Struct({
   updatedAt: Schema.NullOr(Schema.Date),
   weightBps: Schema.Number,
 });
+export type RpcExperimentVariant = typeof RpcExperimentVariant.Type;
 
 export const RpcExperimentTreatment = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.Date),
@@ -31,14 +32,16 @@ export const RpcExperimentTreatment = Schema.Struct({
   updatedAt: Schema.NullOr(Schema.Date),
   variantId: Schema.String,
 });
+export type RpcExperimentTreatment = typeof RpcExperimentTreatment.Type;
 
 /** Summary of the backing feature flag (runtime assignment artifact). */
 export const RpcExperimentBackingFlag = Schema.Struct({
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.String,
   key: Schema.String,
   rolloutBps: Schema.Number,
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled" }));
+export type RpcExperimentBackingFlag = typeof RpcExperimentBackingFlag.Type;
 
 const experimentScalarFields = {
   archivedAt: Schema.NullOr(Schema.Date),
@@ -67,6 +70,7 @@ export const RpcExperiment = Schema.Struct({
   treatments: Schema.Array(RpcExperimentTreatment),
   variants: Schema.Array(RpcExperimentVariant),
 });
+export type RpcExperiment = typeof RpcExperiment.Type;
 
 export const RpcExperimentListItem = Schema.Struct({
   ...experimentScalarFields,
@@ -78,6 +82,7 @@ export const RpcExperimentListItem = Schema.Struct({
   paywallLocationIds: Schema.Array(Schema.String),
   variantCount: Schema.Number,
 });
+export type RpcExperimentListItem = typeof RpcExperimentListItem.Type;
 
 export const RpcExperimentVariantResult = Schema.Struct({
   conversionRate: Schema.Number,
@@ -86,10 +91,12 @@ export const RpcExperimentVariantResult = Schema.Struct({
   revenueUsd: Schema.Number,
   variantKey: Schema.String,
 });
+export type RpcExperimentVariantResult = typeof RpcExperimentVariantResult.Type;
 
 export const RpcExperimentResults = Schema.Struct({
   variants: Schema.Array(RpcExperimentVariantResult),
 });
+export type RpcExperimentResults = typeof RpcExperimentResults.Type;
 
 /**
  * One paywall-location treatment for a variant: what to show where. Only the

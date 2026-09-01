@@ -18,31 +18,30 @@ export function resolveComponentInstanceProps(
   props: ComponentInstancePropEntries,
   variables: VariableReader,
 ): Record<string, unknown> {
-  const resolved: Record<string, unknown> = {};
-  for (const entry of props) {
+  return props.reduce<Record<string, unknown>>((resolved, entry) => {
     const prop = entry.value;
     if (!prop?.name) {
-      continue;
+      return resolved;
     }
     const binding = prop.value;
     if (!binding?.type) {
-      continue;
+      return resolved;
     }
     if (binding.type === "literal") {
       if (binding.value) {
         resolved[prop.name] = binding.value.value;
       }
-      continue;
+      return resolved;
     }
     if (binding.type === "variable-reference") {
       if (!binding.value || !("id" in binding.value) || !binding.value.id) {
-        continue;
+        return resolved;
       }
       const variable = variables.get(binding.value.id);
       if (variable !== undefined) {
         resolved[prop.name] = variable.value;
       }
     }
-  }
-  return resolved;
+    return resolved;
+  }, {});
 }

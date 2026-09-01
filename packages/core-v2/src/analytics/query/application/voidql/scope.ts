@@ -4,7 +4,7 @@
  * nominally branded so it can only be minted by {@link makeAuthorizedScope}
  * after authorization succeeds.
  */
-import { Brand } from "effect";
+import * as Brand from "effect/Brand";
 
 /** The structural payload an {@link AuthorizedScope} carries. */
 export interface AuthorizedScopeFields {

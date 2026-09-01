@@ -1,4 +1,7 @@
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all error for {@link PublicFileStore} operations. Adapters wrap any
@@ -14,7 +17,7 @@ export class PublicFileStoreError extends Schema.TaggedErrorClass<PublicFileStor
 
 export interface PublicFileObject {
   readonly body: Uint8Array;
-  readonly contentType: string | null;
+  readonly contentType: Option.Option<string>;
 }
 
 export interface PublicFileStoreShape {
@@ -33,11 +36,13 @@ export interface PublicFileStoreShape {
   readonly putObject: (input: {
     readonly key: string;
     readonly body: Uint8Array;
-    readonly contentType: string | undefined;
+    readonly contentType: Option.Option<string>;
   }) => Effect.Effect<void, PublicFileStoreError>;
 
-  /** Reads the object at `key`; `null` when it does not exist. */
-  readonly getObject: (key: string) => Effect.Effect<PublicFileObject | null, PublicFileStoreError>;
+  /** Reads the object at `key`; returns `None` when it does not exist. */
+  readonly getObject: (
+    key: string,
+  ) => Effect.Effect<Option.Option<PublicFileObject>, PublicFileStoreError>;
 
   /** Deletes the object at `key`; a no-op when it does not exist. */
   readonly deleteObject: (key: string) => Effect.Effect<void, PublicFileStoreError>;

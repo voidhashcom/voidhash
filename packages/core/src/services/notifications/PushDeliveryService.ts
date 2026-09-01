@@ -1,5 +1,17 @@
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
 import { constant, pick, stringOr } from "@voidhash/lib/lang";
-import { Clock, Context, DateTime, Duration, Effect, Layer, Schema } from "effect";
+import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
 
 import {
   and,
@@ -69,8 +81,8 @@ export const nextPushDeliveryDelaySeconds = (
  * (the inverse of how `NotificationSendingService` persists it) without
  * asserting over the untyped record.
  */
-const toPushMessage = (raw: Record<string, unknown> | undefined): PushMessage => {
-  const source = raw ?? {};
+const toPushMessage = (raw: Option.Option<Record<string, unknown>>): PushMessage => {
+  const source = Option.getOrElse(raw, () => R.empty<string, unknown>());
   const message: {
     title: string;
     body: string;
@@ -86,16 +98,16 @@ const toPushMessage = (raw: Record<string, unknown> | undefined): PushMessage =>
     body: stringOr(source.body, ""),
   };
   const data = source.data;
-  if (typeof data === "object" && data !== null && !Array.isArray(data)) {
-    message.data = Object.fromEntries(Object.entries(data));
+  if (P.isObject(data) && data !== null && !Array.isArray(data)) {
+    message.data = R.fromEntries(R.toEntries(data));
   }
-  if (typeof source.sound === "string") message.sound = source.sound;
-  if (typeof source.badge === "number") message.badge = source.badge;
+  if (P.isString(source.sound)) message.sound = source.sound;
+  if (P.isNumber(source.badge)) message.badge = source.badge;
   if (source.priority === "default" || source.priority === "high")
     message.priority = source.priority;
-  if (typeof source.ttl === "number") message.ttl = source.ttl;
-  if (typeof source.channelId === "string") message.channelId = source.channelId;
-  if (typeof source.collapseId === "string") message.collapseId = source.collapseId;
+  if (P.isNumber(source.ttl)) message.ttl = source.ttl;
+  if (P.isString(source.channelId)) message.channelId = source.channelId;
+  if (P.isString(source.collapseId)) message.collapseId = source.collapseId;
   return message;
 };
 
@@ -139,31 +151,34 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
         readonly deliveryId: string;
         readonly attemptNumber: number;
         readonly succeeded: boolean;
-        readonly statusCode: number | null;
-        readonly providerErrorCode: string | null;
-        readonly durationMs: number | null;
-        readonly errorMessage: string | null;
+        readonly statusCode: Option.Option<number>;
+        readonly providerErrorCode: Option.Option<string>;
+        readonly durationMs: Option.Option<number>;
+        readonly errorMessage: Option.Option<string>;
       }) =>
         db.insert(pushNotificationDeliveryAttempts).values({
           id: generateId("pushNotificationDeliveryAttempt"),
           pushNotificationDeliveryId: input.deliveryId,
           attemptNumber: input.attemptNumber,
-          statusCode: input.statusCode,
-          providerErrorCode: input.providerErrorCode?.slice(0, 100) ?? null,
+          statusCode: Option.getOrNull(input.statusCode),
+          providerErrorCode: Option.getOrNull(
+            Option.map(input.providerErrorCode, (code) => code.slice(0, 100)),
+          ),
           responseBody: null,
-          errorMessage: input.errorMessage?.slice(0, 500) ?? null,
-          durationMs: input.durationMs,
+          errorMessage: Option.getOrNull(
+            Option.map(input.errorMessage, (message) => message.slice(0, 500)),
+          ),
+          durationMs: Option.getOrNull(input.durationMs),
           succeeded: input.succeeded,
         });
 
       /** Terminal transition (Succeeded/Failed/Exhausted): stamps `completedAt`. */
-      const finalizeDelivery = (input: {
+      const finalizeDelivery = Effect.fn("PushDeliveryService.finalizeDelivery")(function* (input: {
         readonly deliveryId: string;
         readonly status: number;
         readonly providerMessageId?: string;
         readonly lastError?: string;
-      }) =>
-        Effect.gen(function* () {
+      }) {
           const completedAt = yield* DateTime.nowAsDate;
           return yield* db
             .update(pushNotificationDeliveries)
@@ -178,12 +193,11 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
         });
 
       /** Non-terminal retry transition: status Failed, `completedAt` stays null (re-claimable). */
-      const scheduleRetry = (input: {
+      const scheduleRetry = Effect.fn("PushDeliveryService.scheduleRetry")(function* (input: {
         readonly deliveryId: string;
         readonly delaySeconds: number;
         readonly lastError: string;
-      }) =>
-        Effect.gen(function* () {
+      }) {
           const now = yield* DateTime.now;
           const nextAttemptAt = DateTime.toDateUtc(
             DateTime.addDuration(now, Duration.seconds(input.delaySeconds)),
@@ -204,27 +218,24 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
        * `completedAt` (terminal-device Failed); a Failed row awaiting retry is
        * still in flight.
        */
-      const rollupParentSend = (sendId: string) =>
-        Effect.gen(function* () {
+      const rollupParentSend = Effect.fn("PushDeliveryService.rollupParentSend")(function* (sendId: string) {
           const rows = yield* db.query.pushNotificationDeliveries.findMany({
             where: { pushNotificationSendId: sendId },
           });
           const total = rows.length;
-          let succeeded = 0;
-          let settledFailed = 0;
-          let inFlight = 0;
-          for (const row of rows) {
+          const tallies = Arr.reduce(rows, { inFlight: 0, settledFailed: 0, succeeded: 0 }, (state, row) => {
             if (row.status === PushNotificationDeliveryStatus.Succeeded) {
-              succeeded += 1;
-            } else if (
+              return { ...state, succeeded: state.succeeded + 1 };
+            }
+            if (
               row.status === PushNotificationDeliveryStatus.Exhausted ||
               (row.status === PushNotificationDeliveryStatus.Failed && row.completedAt !== null)
             ) {
-              settledFailed += 1;
-            } else {
-              inFlight += 1;
+              return { ...state, settledFailed: state.settledFailed + 1 };
             }
-          }
+            return { ...state, inFlight: state.inFlight + 1 };
+          });
+          const { inFlight, settledFailed, succeeded } = tallies;
           const status = rollupSendStatus({ inFlight, succeeded, total });
           const completedAt = yield* DateTime.nowAsDate;
           yield* db
@@ -299,20 +310,19 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           yield* Effect.annotateCurrentSpan("voidhash.push.provider", row.provider);
           const attemptNumber = row.attemptCount;
 
-          const settleTerminal = (input: {
+          const settleTerminal = Effect.fn("PushDeliveryService.settleTerminal")(function* (input: {
             readonly providerErrorCode: string;
             readonly errorMessage: string;
             readonly status: number;
-          }) =>
-            Effect.gen(function* () {
+          }) {
               yield* recordAttempt({
                 deliveryId,
                 attemptNumber,
                 succeeded: false,
-                statusCode: null,
-                providerErrorCode: input.providerErrorCode,
-                durationMs: null,
-                errorMessage: input.errorMessage,
+                statusCode: Option.none(),
+                providerErrorCode: Option.some(input.providerErrorCode),
+                durationMs: Option.none(),
+                errorMessage: Option.some(input.errorMessage),
               });
               yield* finalizeDelivery({
                 deliveryId,
@@ -329,8 +339,11 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
               projectId: row.projectId,
               pushDeviceTokenId: row.pushDeviceTokenId,
             })
-            .pipe(Effect.catchTag("PushDeviceTokenNotFoundError", () => Effect.succeed(null)));
-          if (!device) {
+            .pipe(
+              Effect.map(Option.some),
+              Effect.catchTag("PushDeviceTokenNotFoundError", () => Effect.succeed(Option.none())),
+            );
+          if (Option.isNone(device)) {
             yield* settleTerminal({
               providerErrorCode: "DeviceNotFound",
               errorMessage: "device token not found or invalidated",
@@ -361,14 +374,14 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           const parent = yield* db.query.pushNotificationSends.findFirst({
             where: { id: row.pushNotificationSendId },
           });
-          const message: PushMessage = toPushMessage(parent?.message);
+          const message: PushMessage = toPushMessage(Option.fromNullishOr(parent?.message));
 
           const provider: AnyPushDeliveryProviderShape = pick(row.provider === "apns", apns, fcm);
           const deviceToken: DeviceToken = {
-            platform: device.platform,
-            platformToken: device.platformToken,
-            bundleId: device.bundleId,
-            environment: device.environment,
+            platform: device.value.platform,
+            platformToken: device.value.platformToken,
+            bundleId: device.value.bundleId,
+            environment: device.value.environment,
           };
 
           const start = yield* Clock.currentTimeMillis;
@@ -381,16 +394,16 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           );
           const durationMs = (yield* Clock.currentTimeMillis) - start;
 
-          if (outcome._tag === "Success") {
+          if (Result.isSuccess(outcome)) {
             const success: PushDeliverySuccess = outcome.success;
             yield* recordAttempt({
               deliveryId,
               attemptNumber,
               succeeded: true,
-              statusCode: success.statusCode,
-              providerErrorCode: null,
-              durationMs,
-              errorMessage: null,
+              statusCode: Option.some(success.statusCode),
+              providerErrorCode: Option.none(),
+              durationMs: Option.some(durationMs),
+              errorMessage: Option.none(),
             });
             yield* finalizeDelivery({
               deliveryId,
@@ -406,74 +419,134 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
             deliveryId,
             attemptNumber,
             succeeded: false,
-            statusCode: error.statusCode ?? null,
-            providerErrorCode: error._tag,
-            durationMs,
-            errorMessage: error._tag,
+            statusCode: Option.fromNullishOr(error.statusCode),
+            providerErrorCode: Option.some(error._tag),
+            durationMs: Option.some(durationMs),
+            errorMessage: Option.some(error._tag),
           });
 
-          switch (error._tag) {
-            case "PushUnregisteredError":
-            case "PushBadTokenError": {
-              // Terminal-device: Failed + completedAt, then freshness-gated
-              // invalidate so a stale 404/410 can't kill a re-registered device.
-              yield* finalizeDelivery({
-                deliveryId,
-                status: PushNotificationDeliveryStatus.Failed,
-                lastError: error._tag,
-              });
-              yield* notificationTokens.invalidate({
-                projectId: row.projectId,
-                pushDeviceTokenId: row.pushDeviceTokenId,
-                reason: error._tag,
-                observedAt,
-              });
-              yield* rollupParentSend(row.pushNotificationSendId);
-              return;
-            }
-            case "PushPayloadTooLargeError": {
-              yield* finalizeDelivery({
-                deliveryId,
-                status: PushNotificationDeliveryStatus.Exhausted,
-                lastError: "payload too large",
-              });
-              yield* rollupParentSend(row.pushNotificationSendId);
-              return;
-            }
-            case "PushInvalidCredentialsError":
-            case "PushNotImplementedError": {
-              // Terminal-config / unroutable: Failed, never device-deleted.
-              yield* finalizeDelivery({
-                deliveryId,
-                status: PushNotificationDeliveryStatus.Failed,
-                lastError: error._tag,
-              });
-              yield* rollupParentSend(row.pushNotificationSendId);
-              return;
-            }
-            case "PushRateExceededError":
-            case "PushTransientError": {
-              // Retryable: exhaust or schedule + fail-to-retry.
-              if (attemptNumber >= row.maxAttempts) {
-                yield* finalizeDelivery({
-                  deliveryId,
-                  status: PushNotificationDeliveryStatus.Exhausted,
-                  lastError: `retryable error exhausted: ${error._tag}`,
-                });
-                yield* rollupParentSend(row.pushNotificationSendId);
-                return;
-              }
-              const delaySeconds = nextPushDeliveryDelaySeconds(
-                attemptNumber,
-                error.retryAfterSeconds,
-              );
-              yield* scheduleRetry({ deliveryId, delaySeconds, lastError: error._tag });
-              yield* rollupParentSend(row.pushNotificationSendId);
-              return yield* Effect.fail(
-                new PushDeliveryRetryableError({ message: error._tag, delaySeconds }),
-              );
-            }
-          }
+          yield* Match.value(error).pipe(
+            Match.tags({
+              PushUnregisteredError: (deliveryError) =>
+                Effect.fn("PushDeliveryService.handleUnregistered")(function* () {
+                  // Terminal-device: Failed + completedAt, then freshness-gated
+                  // invalidate so a stale 404/410 can't kill a re-registered device.
+                  yield* finalizeDelivery({
+                    deliveryId,
+                    status: PushNotificationDeliveryStatus.Failed,
+                    lastError: deliveryError._tag,
+                  });
+                  yield* notificationTokens.invalidate({
+                    projectId: row.projectId,
+                    pushDeviceTokenId: row.pushDeviceTokenId,
+                    reason: deliveryError._tag,
+                    observedAt,
+                  });
+                  yield* rollupParentSend(row.pushNotificationSendId);
+                })(),
+              PushBadTokenError: (deliveryError) =>
+                Effect.fn("PushDeliveryService.handleBadToken")(function* () {
+                  yield* finalizeDelivery({
+                    deliveryId,
+                    status: PushNotificationDeliveryStatus.Failed,
+                    lastError: deliveryError._tag,
+                  });
+                  yield* notificationTokens.invalidate({
+                    projectId: row.projectId,
+                    pushDeviceTokenId: row.pushDeviceTokenId,
+                    reason: deliveryError._tag,
+                    observedAt,
+                  });
+                  yield* rollupParentSend(row.pushNotificationSendId);
+                })(),
+              PushPayloadTooLargeError: () =>
+                Effect.fn("PushDeliveryService.handlePayloadTooLarge")(function* () {
+                  yield* finalizeDelivery({
+                    deliveryId,
+                    status: PushNotificationDeliveryStatus.Exhausted,
+                    lastError: "payload too large",
+                  });
+                  yield* rollupParentSend(row.pushNotificationSendId);
+                })(),
+              PushInvalidCredentialsError: (deliveryError) =>
+                Effect.fn("PushDeliveryService.handleInvalidCredentials")(function* () {
+                  // Terminal-config / unroutable: Failed, never device-deleted.
+                  yield* finalizeDelivery({
+                    deliveryId,
+                    status: PushNotificationDeliveryStatus.Failed,
+                    lastError: deliveryError._tag,
+                  });
+                  yield* rollupParentSend(row.pushNotificationSendId);
+                })(),
+              PushNotImplementedError: (deliveryError) =>
+                Effect.fn("PushDeliveryService.handleNotImplemented")(function* () {
+                  yield* finalizeDelivery({
+                    deliveryId,
+                    status: PushNotificationDeliveryStatus.Failed,
+                    lastError: deliveryError._tag,
+                  });
+                  yield* rollupParentSend(row.pushNotificationSendId);
+                })(),
+              PushRateExceededError: (deliveryError) =>
+                Effect.fn("PushDeliveryService.handleRateExceeded")(function* () {
+                  // Retryable: exhaust or schedule + fail-to-retry.
+                  if (attemptNumber >= row.maxAttempts) {
+                    yield* finalizeDelivery({
+                      deliveryId,
+                      status: PushNotificationDeliveryStatus.Exhausted,
+                      lastError: `retryable error exhausted: ${deliveryError._tag}`,
+                    });
+                    yield* rollupParentSend(row.pushNotificationSendId);
+                    return;
+                  }
+                  const delaySeconds = nextPushDeliveryDelaySeconds(
+                    attemptNumber,
+                    deliveryError.retryAfterSeconds,
+                  );
+                  yield* scheduleRetry({
+                    deliveryId,
+                    delaySeconds,
+                    lastError: deliveryError._tag,
+                  });
+                  yield* rollupParentSend(row.pushNotificationSendId);
+                  return yield* Effect.fail(
+                    new PushDeliveryRetryableError({
+                      message: deliveryError._tag,
+                      delaySeconds,
+                    }),
+                  );
+                })(),
+              PushTransientError: (deliveryError) =>
+                Effect.fn("PushDeliveryService.handleTransient")(function* () {
+                  if (attemptNumber >= row.maxAttempts) {
+                    yield* finalizeDelivery({
+                      deliveryId,
+                      status: PushNotificationDeliveryStatus.Exhausted,
+                      lastError: `retryable error exhausted: ${deliveryError._tag}`,
+                    });
+                    yield* rollupParentSend(row.pushNotificationSendId);
+                    return;
+                  }
+                  const delaySeconds = nextPushDeliveryDelaySeconds(
+                    attemptNumber,
+                    deliveryError.retryAfterSeconds,
+                  );
+                  yield* scheduleRetry({
+                    deliveryId,
+                    delaySeconds,
+                    lastError: deliveryError._tag,
+                  });
+                  yield* rollupParentSend(row.pushNotificationSendId);
+                  return yield* Effect.fail(
+                    new PushDeliveryRetryableError({
+                      message: deliveryError._tag,
+                      delaySeconds,
+                    }),
+                  );
+                })(),
+            }),
+            Match.exhaustive,
+          );
         },
         (effect) =>
           effect.pipe(
@@ -490,8 +563,7 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
        * DLQ backstop: mark a delivery Exhausted after the queue drained its
        * retries. Idempotent — only settles a still-open row.
        */
-      const markExhausted = (deliveryId: string) =>
-        Effect.gen(function* () {
+      const markExhausted = Effect.fn("PushDeliveryService.markExhausted")(function* (deliveryId: string) {
           const completedAt = yield* DateTime.nowAsDate;
           const rows = yield* db
             .update(pushNotificationDeliveries)
@@ -507,12 +579,12 @@ export class PushDeliveryService extends Context.Service<PushDeliveryService>()(
           if (sendId) {
             yield* rollupParentSend(sendId);
           }
-        }).pipe(
+        }, (effect) => effect.pipe(
           Effect.catchTags({
             EffectDrizzleQueryError: (error) =>
               Effect.fail(new PushDeliveryServiceError({ cause: String(error.cause) })),
           }),
-        );
+        ));
 
       return constant({ processDelivery, markExhausted });
     }),

@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 /**
  * Pure data-shape helpers for the Stripe payment-provider engine. None touch
  * the DB or the Stripe API — they operate on already-decoded event objects.
@@ -6,7 +7,7 @@
 import { type ProviderEnvironmentValue, ProviderEnvironment } from "@voidhash/db";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
 import { pick } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 import { StripePurchaseProcessingIdempotencyKeyDerivationError } from "./errors.ts";
 import type {
@@ -15,6 +16,8 @@ import type {
   StripeInvoice,
   StripeSubscription,
 } from "./events.ts";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
 
 /** Metadata key (on a checkout session / subscription / invoice) carrying the voidhash distinctId. */
 export const STRIPE_DISTINCT_ID_METADATA_KEY = "voidhash_distinct_id";
@@ -50,7 +53,7 @@ export type StripePurchaseProcessingEventType =
  */
 export const getStripeIdempotencyKey = (input: {
   readonly eventType: StripePurchaseProcessingEventType;
-  readonly anchorId: string | null | undefined;
+  readonly anchorId: string | typeof Schema.Null.Type | typeof Schema.Undefined.Type;
   readonly anchorField: string;
   readonly extra?: ReadonlyArray<string | number>;
 }): Effect.Effect<string, StripePurchaseProcessingIdempotencyKeyDerivationError> => {
@@ -68,13 +71,13 @@ export const getStripeIdempotencyKey = (input: {
 
 /** Maps Stripe's `livemode` boolean to the provider-environment enum value. */
 export const stripeProviderEnvironment = (
-  livemode: boolean | undefined,
+  livemode: boolean | typeof Schema.Undefined.Type,
 ): ProviderEnvironmentValue =>
   pick(livemode === false, ProviderEnvironment.Sandbox, ProviderEnvironment.Production);
 
 const metadataDistinctId = (
-  metadata: Readonly<Record<string, string>> | null | undefined,
-): string | undefined => metadata?.[STRIPE_DISTINCT_ID_METADATA_KEY];
+  metadata: Readonly<Record<string, string>> | typeof Schema.Null.Type | typeof Schema.Undefined.Type,
+): string | typeof Schema.Undefined.Type => metadata?.[STRIPE_DISTINCT_ID_METADATA_KEY];
 
 /**
  * Extracts the voidhash distinctId stamped at checkout, if any. Checks
@@ -84,12 +87,12 @@ const metadataDistinctId = (
  * back to the Stripe customer id).
  */
 export const extractStripeDistinctId = (object: {
-  readonly client_reference_id?: string | null;
-  readonly metadata?: Readonly<Record<string, string>> | null;
+  readonly client_reference_id?: string | typeof Schema.Null.Type;
+  readonly metadata?: Readonly<Record<string, string>> | typeof Schema.Null.Type;
   readonly subscription_details?: {
-    readonly metadata?: Readonly<Record<string, string>> | null;
-  } | null;
-}): string | undefined =>
+    readonly metadata?: Readonly<Record<string, string>> | typeof Schema.Null.Type;
+  } | typeof Schema.Null.Type;
+}): string | typeof Schema.Undefined.Type =>
   object.client_reference_id ??
   metadataDistinctId(object.metadata) ??
   metadataDistinctId(object.subscription_details?.metadata);
@@ -116,7 +119,7 @@ export const buildStripeWebhookAnonymousDistinctId = (input: {
 /** First non-empty Stripe price id + product id from an invoice's primary line. */
 export const invoicePrimaryPriceProduct = (
   invoice: typeof StripeInvoice.Type,
-): { readonly priceId?: string; readonly productId?: string } | undefined => {
+): { readonly priceId?: string; readonly productId?: string } | typeof Schema.Undefined.Type => {
   const line = invoice.lines?.data?.find((entry) => entry.price?.id);
   if (!line?.price) return undefined;
   return { priceId: line.price.id, productId: line.price.product ?? undefined };
@@ -125,7 +128,7 @@ export const invoicePrimaryPriceProduct = (
 /** First non-empty Stripe price id + product id from a subscription's primary item. */
 export const subscriptionPrimaryPriceProduct = (
   subscription: typeof StripeSubscription.Type,
-): { readonly priceId?: string; readonly productId?: string } | undefined => {
+): { readonly priceId?: string; readonly productId?: string } | typeof Schema.Undefined.Type => {
   const item = subscription.items?.data?.find((entry) => entry.price?.id);
   if (!item?.price) return undefined;
   return { priceId: item.price.id, productId: item.price.product ?? undefined };
@@ -135,7 +138,7 @@ export const subscriptionPrimaryPriceProduct = (
 export const stripeProviderProductKey = (input: {
   readonly priceId?: string;
   readonly productId?: string;
-}): string | undefined => {
+}): string | typeof Schema.Undefined.Type => {
   if (input.productId && input.priceId) return `${input.productId}:${input.priceId}`;
   return undefined;
 };
@@ -147,16 +150,16 @@ export const stripeProviderProductKey = (input: {
  * charges, and checkout sessions), falling back to the charge id.
  */
 export const resolveChargeKey = (object: {
-  readonly payment_intent?: string | null;
-  readonly charge?: string | null;
+  readonly payment_intent?: string | typeof Schema.Null.Type;
+  readonly charge?: string | typeof Schema.Null.Type;
   readonly id?: string;
-}): string | undefined => object.payment_intent ?? object.charge ?? object.id ?? undefined;
+}): string | typeof Schema.Undefined.Type => object.payment_intent ?? object.charge ?? object.id ?? undefined;
 
 /** Total tax (minor units) from an invoice — legacy `tax` or summed `total_taxes`. */
 export const invoiceTaxMinor = (invoice: typeof StripeInvoice.Type): number => {
-  if (typeof invoice.tax === "number") return invoice.tax;
+  if (P.isNumber(invoice.tax)) return invoice.tax;
   const taxes = invoice.total_taxes;
-  if (taxes && taxes.length > 0) {
+  if (taxes && Arr.isReadonlyArrayNonEmpty(taxes)) {
     return taxes.reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
   }
   return 0;
@@ -167,5 +170,5 @@ export const isPaidOneTimeCheckout = (session: typeof StripeCheckoutSession.Type
   session.mode === "payment" && session.payment_status === "paid";
 
 /** Storefront ISO-3166 alpha-2 country from a charge's billing details, if present. */
-export const chargeStorefront = (charge: typeof StripeCharge.Type): string | undefined =>
+export const chargeStorefront = (charge: typeof StripeCharge.Type): string | typeof Schema.Undefined.Type =>
   charge.billing_details?.address?.country ?? undefined;

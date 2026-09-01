@@ -94,7 +94,7 @@ export function AppleAppStorePaymentProviderDetailPage({
     event?.preventDefault();
 
     const isValid = await form.trigger();
-    const isCurrentlyEnabled = paymentProviderConfiguration.enabled;
+    const isCurrentlyEnabled = paymentProviderConfiguration.isEnabled;
 
     if (!isValid && isCurrentlyEnabled) {
       const shouldContinue = await openDialog({

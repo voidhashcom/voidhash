@@ -1,18 +1,20 @@
-import { Effect, Layer } from "effect";
+import * as P from "effect/Predicate";
+import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import Constants from "expo-constants";
 import * as Localization from "expo-localization";
 import { Platform as RNPlatform } from "react-native";
 
 import { PlatformProvider } from "./platform-provider";
 
-function getBundleId(): string | null {
+function getBundleId() {
   const bundleId =
     Constants.expoConfig?.android?.package ||
     Constants.expoConfig?.ios?.bundleIdentifier ||
     undefined;
 
   if (!bundleId) {
-    return null;
+    return undefined;
   }
 
   return bundleId;
@@ -34,36 +36,34 @@ function getDeviceBrand(): string {
   return Constants.deviceBrand || "unknown";
 }
 
-function getAppVersion(): string | undefined {
+function getAppVersion() {
   return Constants.expoConfig?.version;
 }
 
-function getAppBuild(): string | undefined {
+function getAppBuild() {
   const iosBuild = Constants.expoConfig?.ios?.buildNumber;
   if (iosBuild) {
     return iosBuild;
   }
 
   const androidBuildNumber = Constants.expoConfig?.android?.versionCode;
-  if (typeof androidBuildNumber === "number") {
+  if (P.isNumber(androidBuildNumber)) {
     return String(androidBuildNumber);
   }
 
   return undefined;
 }
 
-function getAppName(): string | undefined {
+function getAppName() {
   return Constants.expoConfig?.name;
 }
 
 function isDebugBuild(): boolean {
-  return Effect.runSync(
-    Effect.try({
-      // __DEV__ is defined by Expo
-      try: () => typeof __DEV__ !== "undefined" && __DEV__,
-      catch: () => false,
-    }).pipe(Effect.orElseSucceed(() => false)),
-  );
+  return Result.try({
+    // __DEV__ is defined by Expo
+    try: () => !P.isUndefined(__DEV__) && __DEV__,
+    catch: (error) => error,
+  }).pipe(Result.getOrElse(() => false));
 }
 
 function getPlatform(): "ios" | "android" | "unknown" {

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Default output path for the generated `.d.ts` when `typesOutput` is omitted
@@ -6,7 +6,7 @@ import { Schema } from "effect";
  */
 export const DEFAULT_TYPES_OUTPUT = "voidhash.gen.d.ts";
 
-export const VoidhashConfigSchema = Schema.Struct({
+export const VoidhashConfig = Schema.Struct({
   project: Schema.String,
   team: Schema.String,
   /**
@@ -15,10 +15,11 @@ export const VoidhashConfigSchema = Schema.Struct({
    */
   typesOutput: Schema.optional(Schema.String),
 });
+export type VoidhashConfig = typeof VoidhashConfig.Type;
 
 /**
  * Resolve `typesOutput` from a loaded config, applying the default.
  */
-export function resolveTypesOutput(config: typeof VoidhashConfigSchema.Type): string {
+export function resolveTypesOutput(config: typeof VoidhashConfig.Type): string {
   return config.typesOutput ?? DEFAULT_TYPES_OUTPUT;
 }

@@ -5,6 +5,8 @@
  * or the query is rejected. The raw `events_v2`/`persons_v1` tables, the JSON blobs,
  * and `organization_id`/`token`/`processed_ts` are simply absent → unresolvable.
  */
+import * as Match from "effect/Match";
+
 import type { SqlPiece } from "../ir.ts";
 import type { AuthorizedScope } from "../scope.ts";
 
@@ -73,20 +75,14 @@ export interface CatalogTable {
 }
 
 /** Map a logical type to the explicit ClickHouse `ch.param` type string. */
-export const chParamType = (type: VoidQLType): string => {
-  switch (type) {
-    case "String":
-    case "UUID":
-      return "String";
-    case "Int64":
-      return "Int64";
-    case "UInt64":
-      return "UInt64";
-    case "Float64":
-      return "Float64";
-    case "Bool":
-      return "Bool";
-    case "DateTime":
-      return "DateTime";
-  }
-};
+export const chParamType = (type: VoidQLType): string =>
+  Match.value(type).pipe(
+    Match.when("String", () => "String"),
+    Match.when("UUID", () => "String"),
+    Match.when("Int64", () => "Int64"),
+    Match.when("UInt64", () => "UInt64"),
+    Match.when("Float64", () => "Float64"),
+    Match.when("Bool", () => "Bool"),
+    Match.when("DateTime", () => "DateTime"),
+    Match.exhaustive,
+  );

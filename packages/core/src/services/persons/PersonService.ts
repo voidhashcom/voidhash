@@ -1,5 +1,13 @@
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as Schema from "effect/Schema";
 
 import { ActionForbiddenError, type AnyAuthSession, AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -14,6 +22,7 @@ import {
   type Person as DbPerson,
   type PersonIdentity as DbPersonIdentity,
   Db,
+  type DbError,
   type PersonOriginValue,
   and,
   desc,
@@ -24,6 +33,7 @@ import {
 } from "@voidhash/db";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../../utils/pagination.ts";
 import { checkProjectPermission } from "../../utils/permissions.ts";
+import { unexpectedError } from "../../effect-boundary.ts";
 import { PersonIdentityService } from "../personIdentity/PersonIdentityService.ts";
 
 /**
@@ -52,7 +62,8 @@ const buildPerson = (row: DbPerson, identities: ReadonlyArray<DbPersonIdentity>)
     archivedAt: row.archivedAt ?? null,
     createdAt: row.createdAt ?? null,
     mergedIntoPersonId: row.mergedIntoPersonId ?? null,
-    identities: identities.map(
+    identities: Arr.map(
+      identities,
       (identity) =>
         new PersonIdentity({
           id: identity.id,
@@ -79,79 +90,89 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
     const personIdentityService = yield* PersonIdentityService;
     const db = yield* Db;
 
-    const findCanonicalPersonById = (personId: string) =>
-      Effect.gen(function* () {
-        let current = yield* db.query.persons.findFirst({
+    const findCanonicalPersonById = Effect.fn("findCanonicalPersonById")(function* (
+      personId: string,
+    ) {
+      const initial = Option.fromNullishOr(
+        yield* db.query.persons.findFirst({
           where: { id: personId },
+        }),
+      );
+      const followMerge = (current: DbPerson): Effect.Effect<Option.Option<DbPerson>, DbError> =>
+        Option.match(Option.fromNullishOr(current.mergedIntoPersonId), {
+          onNone: () => Effect.succeed(Option.some(current)),
+          onSome: (id) =>
+            db.query.persons.findFirst({ where: { id } }).pipe(
+              Effect.flatMap((person) =>
+                Option.match(Option.fromNullishOr(person), {
+                  onNone: () => Effect.succeed(Option.some(current)),
+                  onSome: followMerge,
+                }),
+              ),
+            ),
         });
-        while (current?.mergedIntoPersonId) {
-          const mergedInto = yield* db.query.persons.findFirst({
-            where: { id: current.mergedIntoPersonId },
-          });
-          if (!mergedInto) {
-            return current;
-          }
-          current = mergedInto;
-        }
-        return current;
+      return yield* Option.match(initial, {
+        onNone: () => Effect.succeed(Option.none<DbPerson>()),
+        onSome: followMerge,
       });
+    });
 
     /**
      * Resolves a raw person row to its public {@link PersonProfile}. Returns
-     * `undefined` when the person has no identities to surface.
+     * `None` when the person has no identities to surface.
      */
     const loadProfileRaw = Effect.fn("loadProfileRaw")(function* (personId: string) {
       yield* Effect.annotateCurrentSpan("voidhash.person.id", personId);
       const dbPerson = yield* findCanonicalPersonById(personId);
-      if (!dbPerson) {
-        return undefined;
+      if (Option.isNone(dbPerson)) {
+        return Option.none<PersonProfile>();
       }
-      yield* Effect.annotateCurrentSpan("voidhash.project.id", dbPerson.projectId);
-      if (dbPerson.mergedIntoPersonId) {
+      yield* Effect.annotateCurrentSpan("voidhash.project.id", dbPerson.value.projectId);
+      if (dbPerson.value.mergedIntoPersonId) {
         yield* Effect.annotateCurrentSpan(
           "voidhash.person.merged_into_id",
-          dbPerson.mergedIntoPersonId,
+          dbPerson.value.mergedIntoPersonId,
         );
       }
       const identities = yield* db.query.personIdentities.findMany({
-        where: { personId: dbPerson.id, projectId: dbPerson.projectId },
+        where: { personId: dbPerson.value.id, projectId: dbPerson.value.projectId },
       });
       yield* Effect.annotateCurrentSpan("voidhash.person.identity_count", identities.length);
-      return buildPerson(dbPerson, identities).toProfile();
+      return buildPerson(dbPerson.value, identities).toProfile();
     });
 
     const getPersonById = Effect.fn("getPersonById")(
       function* (personId: string) {
         yield* Effect.annotateCurrentSpan("voidhash.person.id", personId);
         const session = yield* AuthSession;
-        yield* annotateSessionIdentity(session);
+        yield* annotateSessionIdentity(Option.fromNullishOr(session));
         const dbPerson = yield* findCanonicalPersonById(personId);
-        if (!dbPerson) {
+        if (Option.isNone(dbPerson)) {
           return yield* Effect.fail(new PersonNotFoundError({ id: personId }));
         }
-        yield* Effect.annotateCurrentSpan("voidhash.project.id", dbPerson.projectId);
-        if (dbPerson.mergedIntoPersonId) {
+        yield* Effect.annotateCurrentSpan("voidhash.project.id", dbPerson.value.projectId);
+        if (dbPerson.value.mergedIntoPersonId) {
           yield* Effect.annotateCurrentSpan(
             "voidhash.person.merged_into_id",
-            dbPerson.mergedIntoPersonId,
+            dbPerson.value.mergedIntoPersonId,
           );
         }
 
         yield* checkProjectPermission(
-          dbPerson.projectId,
+          dbPerson.value.projectId,
           "project:all",
-          `User ${session?.user?.id} is not authorized to access person ${personId} for project ${dbPerson.projectId}`,
+          `User ${session?.user?.id} is not authorized to access person ${personId} for project ${dbPerson.value.projectId}`,
         );
 
         const identities = yield* db.query.personIdentities.findMany({
-          where: { personId: dbPerson.id, projectId: dbPerson.projectId },
+          where: { personId: dbPerson.value.id, projectId: dbPerson.value.projectId },
         });
         yield* Effect.annotateCurrentSpan("voidhash.person.identity_count", identities.length);
-        const profile = buildPerson(dbPerson, identities).toProfile();
-        if (!profile) {
+        const profile = buildPerson(dbPerson.value, identities).toProfile();
+        if (Option.isNone(profile)) {
           return yield* Effect.fail(new PersonNotFoundError({ id: personId }));
         }
-        return profile;
+        return profile.value;
       },
       (effect) =>
         effect.pipe(
@@ -167,7 +188,7 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         yield* Effect.annotateCurrentSpan("voidhash.person.distinct_id", distinctId);
         yield* Effect.annotateCurrentSpan("voidhash.project.id", projectId);
         const session = yield* AuthSession;
-        yield* annotateSessionIdentity(session);
+        yield* annotateSessionIdentity(Option.fromNullishOr(session));
         const mapping = yield* db.query.personIdentities.findFirst({
           where: { distinctId, projectId },
         });
@@ -176,32 +197,32 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         }
 
         const dbPerson = yield* findCanonicalPersonById(mapping.personId);
-        if (!dbPerson) {
+        if (Option.isNone(dbPerson)) {
           return yield* Effect.fail(new PersonNotFoundError({ id: distinctId }));
         }
-        yield* Effect.annotateCurrentSpan("voidhash.person.id", dbPerson.id);
-        if (dbPerson.mergedIntoPersonId) {
+        yield* Effect.annotateCurrentSpan("voidhash.person.id", dbPerson.value.id);
+        if (dbPerson.value.mergedIntoPersonId) {
           yield* Effect.annotateCurrentSpan(
             "voidhash.person.merged_into_id",
-            dbPerson.mergedIntoPersonId,
+            dbPerson.value.mergedIntoPersonId,
           );
         }
 
         yield* checkProjectPermission(
-          dbPerson.projectId,
+          dbPerson.value.projectId,
           "project:all",
-          `User ${session?.user?.id} is not authorized to access person ${distinctId} for project ${dbPerson.projectId}`,
+          `User ${session?.user?.id} is not authorized to access person ${distinctId} for project ${dbPerson.value.projectId}`,
         );
 
         const identities = yield* db.query.personIdentities.findMany({
-          where: { personId: dbPerson.id, projectId: dbPerson.projectId },
+          where: { personId: dbPerson.value.id, projectId: dbPerson.value.projectId },
         });
         yield* Effect.annotateCurrentSpan("voidhash.person.identity_count", identities.length);
-        const profile = buildPerson(dbPerson, identities).toProfile();
-        if (!profile) {
+        const profile = buildPerson(dbPerson.value, identities).toProfile();
+        if (Option.isNone(profile)) {
           return yield* Effect.fail(new PersonNotFoundError({ id: distinctId }));
         }
-        return profile;
+        return profile.value;
       },
       (effect) =>
         effect.pipe(
@@ -216,7 +237,7 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
       function* (input: { readonly projectId: string }) {
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
         const session = yield* AuthSession;
-        yield* annotateSessionIdentity(session);
+        yield* annotateSessionIdentity(Option.fromNullishOr(session));
         yield* checkProjectPermission(
           input.projectId,
           "project:all",
@@ -232,18 +253,25 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
           },
           orderBy: { createdAt: "desc" },
         });
-        const profiles = yield* Effect.all(personRows.map((person) => loadProfileRaw(person.id)));
-        const activeProfiles = profiles.filter(
-          (profile): profile is PersonProfile => typeof profile !== "undefined",
+        const profiles = yield* Effect.all(
+          personRows.map((person) => loadProfileRaw(person.id)),
+          { concurrency: 1 },
         );
-        const result = Array.from(
-          activeProfiles
-            .reduce((deduped, profile) => {
-              deduped.set(profile.personId, profile);
-              return deduped;
-            }, new Map<string, PersonProfile>())
-            .values(),
-        ).sort((left, right) => getCreatedAtTime(right) - getCreatedAtTime(left));
+        const activeProfiles = Arr.flatMap(profiles, Arr.fromOption);
+        const deduped = Arr.reduce(
+          activeProfiles,
+          HashMap.empty<string, PersonProfile>(),
+          (profilesById, profile) => HashMap.set(profilesById, profile.personId, profile),
+        );
+        const result = Arr.sort(
+          Arr.fromIterable(HashMap.values(deduped)),
+          Order.make((left: PersonProfile, right: PersonProfile) => {
+            const leftCreatedAt = getCreatedAtTime(left);
+            const rightCreatedAt = getCreatedAtTime(right);
+            if (leftCreatedAt === rightCreatedAt) return 0;
+            return leftCreatedAt > rightCreatedAt ? -1 : 1;
+          }),
+        );
         yield* Effect.annotateCurrentSpan("voidhash.person.result_count", result.length);
         return result;
       },
@@ -260,34 +288,36 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
      * Loads the identities for one page of person rows in a single query,
      * grouped by person id, so paging does not fan out into per-row reads.
      */
-    const loadIdentitiesFor = (projectId: string, rows: ReadonlyArray<DbPerson>) =>
-      Effect.gen(function* () {
-        const grouped = new Map<string, Array<DbPersonIdentity>>();
-        if (rows.length === 0) return grouped;
-        const identities = yield* db.query.personIdentities.findMany({
-          where: { projectId, personId: { in: rows.map((row) => row.id) } },
-        });
-        for (const identity of identities) {
-          const existing = grouped.get(identity.personId);
-          if (existing === undefined) {
-            grouped.set(identity.personId, [identity]);
-            continue;
-          }
-          existing.push(identity);
-        }
-        return grouped;
+    const loadIdentitiesFor = Effect.fn("loadIdentitiesFor")(function* (
+      projectId: string,
+      rows: ReadonlyArray<DbPerson>,
+    ) {
+      if (Arr.isReadonlyArrayEmpty(rows)) {
+        return HashMap.empty<string, ReadonlyArray<DbPersonIdentity>>();
+      }
+      const identities = yield* db.query.personIdentities.findMany({
+        where: { projectId, personId: { in: Arr.map(rows, (row) => row.id) } },
       });
+      return Arr.reduce(
+        identities,
+        HashMap.empty<string, ReadonlyArray<DbPersonIdentity>>(),
+        (grouped, identity) =>
+          HashMap.modifyAt(grouped, identity.personId, (existing) =>
+            Option.some([...Option.getOrElse(existing, () => []), identity]),
+          ),
+      );
+    });
 
     const getPersonsPage = Effect.fn("getPersonsPage")(
       function* (input: {
         readonly projectId: string;
-        readonly after?: string | undefined;
-        readonly email?: string | undefined;
-        readonly limit?: number | undefined;
+        readonly after?: string;
+        readonly email?: string;
+        readonly limit?: number;
       }) {
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
         const session = yield* AuthSession;
-        yield* annotateSessionIdentity(session);
+        yield* annotateSessionIdentity(Option.fromNullishOr(session));
         yield* checkProjectPermission(
           input.projectId,
           "project:all",
@@ -339,19 +369,20 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         const hasNextPage = rows.length > limit;
         const pageRows = rows.slice(0, limit);
         const identitiesByPerson = yield* loadIdentitiesFor(input.projectId, pageRows);
-        const profiles = pageRows.flatMap((row) => {
-          const profile = buildPerson(row, identitiesByPerson.get(row.id) ?? []).toProfile();
-          if (!profile) return [];
-          return [profile];
-        });
+        const profiles = Arr.flatMap(pageRows, (row) =>
+          Arr.fromOption(
+            buildPerson(
+              row,
+              Option.getOrElse(HashMap.get(identitiesByPerson, row.id), () => []),
+            ).toProfile(),
+          ),
+        );
 
         // The cursor is the last *row* of the page, not the last profile: a row
         // whose identities were filtered out is still a valid keyset anchor.
-        const lastRow = pageRows[pageRows.length - 1];
-        let endCursorId: string | null = null;
-        if (hasNextPage && lastRow !== undefined) {
-          endCursorId = lastRow.id;
-        }
+        const endCursorId = hasNextPage
+          ? Option.map(Arr.last(pageRows), (row) => row.id)
+          : Option.none<string>();
 
         yield* Effect.annotateCurrentSpan("voidhash.person.result_count", profiles.length);
         return { endCursorId, hasNextPage, profiles };
@@ -369,8 +400,8 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
       function* (input: {
         readonly projectId: string;
         readonly distinctId: string;
-        readonly name: string | null;
-        readonly email: string | null;
+        readonly name: Option.Option<string>;
+        readonly email: Option.Option<string>;
         readonly origin: PersonOriginValue;
       }) {
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
@@ -379,9 +410,9 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
         const eventTimestamp = yield* DateTime.nowAsDate;
         const result = yield* personIdentityService.resolveDistinctId({
           distinctId: input.distinctId,
-          email: input.email ?? undefined,
+          email: Option.getOrUndefined(input.email),
           eventTimestamp,
-          name: input.name ?? undefined,
+          name: Option.getOrUndefined(input.name),
           origin: input.origin,
           projectId: input.projectId,
           setAttributes: {},
@@ -391,35 +422,38 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
 
         if (!result.identity.personId) {
           return yield* Effect.die(
-            new Error("resolveDistinctId created a person without a personId"),
+            unexpectedError("resolveDistinctId created a person without a personId"),
           );
         }
 
         const dbPerson = yield* findCanonicalPersonById(result.identity.personId);
-        if (!dbPerson) {
-          return yield* Effect.die(new Error("Created person could not be loaded by id"));
+        if (Option.isNone(dbPerson)) {
+          return yield* Effect.die(unexpectedError("Created person could not be loaded by id"));
         }
-        yield* Effect.annotateCurrentSpan("voidhash.person.id", dbPerson.id);
-        if (dbPerson.mergedIntoPersonId) {
+        yield* Effect.annotateCurrentSpan("voidhash.person.id", dbPerson.value.id);
+        if (dbPerson.value.mergedIntoPersonId) {
           yield* Effect.annotateCurrentSpan(
             "voidhash.person.merged_into_id",
-            dbPerson.mergedIntoPersonId,
+            dbPerson.value.mergedIntoPersonId,
           );
         }
 
         const identities = yield* db.query.personIdentities.findMany({
-          where: { personId: dbPerson.id, projectId: dbPerson.projectId },
+          where: { personId: dbPerson.value.id, projectId: dbPerson.value.projectId },
         });
         yield* Effect.annotateCurrentSpan("voidhash.person.identity_count", identities.length);
-        const profile = buildPerson(dbPerson, identities).toProfile();
-        if (!profile) {
-          return yield* Effect.die(new Error("Created person could not be resolved to a profile"));
+        const profile = buildPerson(dbPerson.value, identities).toProfile();
+        if (Option.isNone(profile)) {
+          return yield* Effect.die(
+            unexpectedError("Created person could not be resolved to a profile"),
+          );
         }
+        const resolvedProfile = profile.value;
 
         yield* Effect.log(
-          `Created person ${profile.personId} for distinct id ${profile.distinctId}`,
+          `Created person ${resolvedProfile.personId} for distinct id ${resolvedProfile.distinctId}`,
         );
-        return profile;
+        return resolvedProfile;
       },
       (effect) =>
         effect.pipe(
@@ -436,10 +470,10 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
       function* (input: {
         readonly projectId: string;
         readonly distinctId: string;
-        readonly name?: string | undefined;
-        readonly email?: string | undefined;
-        readonly traits?: Record<string, string | number | boolean | null> | undefined;
-        readonly setOnce?: Record<string, string | number | boolean | null> | undefined;
+        readonly name?: string;
+        readonly email?: string;
+        readonly traits?: Readonly<Record<string, Schema.Json>>;
+        readonly setOnce?: Readonly<Record<string, Schema.Json>>;
         readonly origin: PersonOriginValue;
       }) {
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
@@ -464,17 +498,17 @@ export class PersonService extends Context.Service<PersonService>()("PersonServi
 
         if (!result.identity.personId) {
           return yield* Effect.die(
-            new Error("resolveDistinctId resolved without a personId"),
+            unexpectedError("resolveDistinctId resolved without a personId"),
           );
         }
 
         const profile = yield* loadProfileRaw(result.identity.personId);
-        if (!profile) {
+        if (Option.isNone(profile)) {
           return yield* Effect.die(
-            new Error("Person could not be resolved to a profile after an attribute write"),
+            unexpectedError("Person could not be resolved to a profile after an attribute write"),
           );
         }
-        return profile;
+        return profile.value;
       },
       (effect) =>
         effect.pipe(
@@ -537,16 +571,16 @@ const EPOCH = sql`'epoch'::timestamptz`;
  * Nullable fields are guarded so no `"null"` strings are emitted; no PII (email
  * / name) or cookie material is ever attached.
  */
-const annotateSessionIdentity = (session: AnyAuthSession | null | undefined) =>
+const annotateSessionIdentity = (session: Option.Option<AnyAuthSession>) =>
   Effect.gen(function* () {
-    if (!session) {
+    if (Option.isNone(session)) {
       return;
     }
-    yield* Effect.annotateCurrentSpan("voidhash.auth.method", session.method);
-    if (session.user?.id) {
-      yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
+    yield* Effect.annotateCurrentSpan("voidhash.auth.method", session.value.method);
+    if (session.value.user?.id) {
+      yield* Effect.annotateCurrentSpan("voidhash.user.id", session.value.user.id);
     }
-    const organizationId = session.organizations[0]?.id;
+    const organizationId = session.value.organizations[0]?.id;
     if (organizationId) {
       yield* Effect.annotateCurrentSpan("voidhash.organization.id", organizationId);
     }

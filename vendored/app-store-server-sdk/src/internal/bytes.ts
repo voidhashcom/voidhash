@@ -6,7 +6,9 @@
  * `TextEncoder`/`TextDecoder`, and `Uint8Array`, which are available on both
  * Node 18+ and workerd.
  */
-import { Encoding, Result } from "effect";
+import * as Encoding from "effect/Encoding";
+import * as Arr from "effect/Array";
+import * as Schema from "effect/Schema";
 
 /**
  * Decode a standard (non-url) base64 string into raw bytes.
@@ -16,7 +18,7 @@ import { Encoding, Result } from "effect";
  * parse error.
  */
 export const base64ToBytes = (base64: string): Uint8Array =>
-  Result.getOrThrow(Encoding.decodeBase64(base64));
+  Schema.decodeSync(Schema.Uint8ArrayFromBase64)(base64);
 
 /** Encode raw bytes as a standard (non-url) base64 string. */
 export const bytesToBase64 = (bytes: Uint8Array): string => Encoding.encodeBase64(bytes);
@@ -25,20 +27,18 @@ const HEX_ALPHABET = "0123456789abcdef";
 
 /** Encode raw bytes as a lowercase hex string. */
 export const bytesToHex = (bytes: Uint8Array): string => {
-  let hex = "";
-  for (const byte of bytes) {
-    hex += HEX_ALPHABET.charAt(byte >> 4) + HEX_ALPHABET.charAt(byte & 0x0f);
-  }
-  return hex;
+  return Arr.fromIterable(bytes)
+    .map((byte) => HEX_ALPHABET.charAt(byte >> 4) + HEX_ALPHABET.charAt(byte & 0x0f))
+    .join("");
 };
 
 /** Decode a hex string into raw bytes. Trailing odd nibble is ignored. */
 export const hexToBytes = (hex: string): Uint8Array => {
-  const bytes = new Uint8Array(hex.length >> 1);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
+  return Uint8Array.from(
+    Arr.range(0, (hex.length >> 1) - 1).map((index) =>
+      Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16),
+    ),
+  );
 };
 
 /** UTF-8 encode a string to bytes. */
@@ -75,10 +75,11 @@ export const rawEcdsaSignatureToDer = (raw: Uint8Array): Uint8Array => {
   const halfLength = raw.length / 2;
   const toDerInteger = (bytes: Uint8Array): Uint8Array => {
     // Strip leading zero bytes (but keep at least one byte).
-    let start = 0;
-    while (start < bytes.length - 1 && bytes[start] === 0) {
-      start++;
-    }
+    const firstNonZero = (index: number): number => {
+      if (index >= bytes.length - 1 || bytes[index] !== 0) return index;
+      return firstNonZero(index + 1);
+    };
+    const start = firstNonZero(0);
     let trimmed = bytes.slice(start);
     // DER INTEGERs are signed: prepend 0x00 when the high bit is set so the
     // value isn't misread as negative.

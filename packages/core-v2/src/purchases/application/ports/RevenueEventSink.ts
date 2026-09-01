@@ -1,12 +1,15 @@
-import { Context, Schema, type Effect } from "effect";
+import * as Context from "effect/Context";
+import * as Schema from "effect/Schema";
+import type * as Effect from "effect/Effect";
 
-import type { RevenueEventSchema } from "../../contract/RevenueEvents.ts";
+import type { RevenueEvent } from "../../contract/RevenueEvents.ts";
 
 /** Per-event outcomes confirmed by a revenue delivery adapter. */
 export const RevenueEventDeliveryOutcome = Schema.Struct({
   deadLettered: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   stored: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 });
+export type RevenueEventDeliveryOutcome = typeof RevenueEventDeliveryOutcome.Type;
 
 /** Failure reported by the infrastructure responsible for revenue delivery. */
 export class RevenueEventSinkError extends Schema.TaggedErrorClass<RevenueEventSinkError>(
@@ -23,7 +26,7 @@ export interface RevenueEventSinkShape {
    * report the processor's final stored/dead-lettered result.
    */
   readonly deliver: (
-    events: ReadonlyArray<typeof RevenueEventSchema.Type>,
+    events: ReadonlyArray<RevenueEvent>,
   ) => Effect.Effect<typeof RevenueEventDeliveryOutcome.Type, RevenueEventSinkError>;
 }
 

@@ -5,7 +5,7 @@ import {
   PaywallService,
   PaywallWorkspaceService,
 } from "@voidhash/core/services";
-import { Layer } from "effect";
+import * as Layer from "effect/Layer";
 
 const PaywallServiceLive = PaywallService.layer;
 const ComponentManifestCacheServiceLive = ComponentManifestCacheService.layer;

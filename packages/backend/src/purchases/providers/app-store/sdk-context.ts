@@ -17,9 +17,11 @@ import {
   type GetTransactionHistoryVersion,
   type Status,
 } from "@voidhash/app-store-server-sdk";
-import { Effect, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { APPLE_ROOT_CERTIFICATES_PEM } from "./constants.ts";
+import * as Schema from "effect/Schema";
 
 export type AppStoreEnvironment = (typeof Environment)[keyof typeof Environment];
 
@@ -49,7 +51,7 @@ export type AppStoreServerApiClientFactoryInput = {
 /** Supplies an App Store API client for a requested environment when overridden. */
 export type AppStoreServerApiClientFactory = (
   input: AppStoreServerApiClientFactoryInput,
-) => AppStoreServerApiClient | undefined;
+) => AppStoreServerApiClient | typeof Schema.Undefined.Type;
 
 export type AppStoreSdkContextConfig = {
   readonly appAppleId: string;

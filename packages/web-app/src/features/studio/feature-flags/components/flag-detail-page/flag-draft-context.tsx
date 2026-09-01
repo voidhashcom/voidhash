@@ -37,7 +37,7 @@ interface SavedOverride {
 /** The slice of a feature flag the detail screen edits. */
 export interface FeatureFlagDetail {
   description: string | null;
-  enabled: boolean;
+  isEnabled: boolean;
   id: string;
   overrides: readonly SavedOverride[];
   rolloutBps: number;
@@ -140,7 +140,7 @@ const overrideKey = (
 
 const toDraft = (flag: FeatureFlagDetail): FlagDraft => ({
   description: flag.description ?? "",
-  enabled: flag.enabled,
+  enabled: flag.isEnabled,
   overrides: flag.overrides.map((override) => ({
     forcedEnabled: override.forcedEnabled,
     id: override.id,
@@ -246,7 +246,7 @@ export function FlagDraftProvider({
       ...(description === (flag.description ?? "")
         ? {}
         : { description: description.length > 0 ? description : null }),
-      ...(draft.enabled === flag.enabled ? {} : { enabled: draft.enabled }),
+      ...(draft.enabled === flag.isEnabled ? {} : { enabled: draft.enabled }),
       ...(draft.rolloutBps === flag.rolloutBps ? {} : { rolloutBps: draft.rolloutBps }),
     };
 

@@ -3,7 +3,7 @@
  * webhook endpoint or delivery row. Row data and the `WebhookEndpointStatus`
  * enum live with the schema in `@voidhash/db/schema`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Webhook endpoint row not found. */
 export class WebhookEndpointNotFoundError extends Schema.TaggedErrorClass<WebhookEndpointNotFoundError>(

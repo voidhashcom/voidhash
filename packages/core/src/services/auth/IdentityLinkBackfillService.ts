@@ -1,6 +1,10 @@
 import { Db, type User as DbUser } from "@voidhash/db";
 import { causeMessage, constant } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import type { LocalUserIdentity } from "../../domain/auth/LocalUserSession.ts";
 import { OrganizationMembershipSyncPort } from "../organizations/OrganizationMembershipSyncPort.ts";
@@ -40,12 +44,13 @@ export class IdentityLinkBackfillService extends Context.Service<
 
     const syncAuthenticatedUser = Effect.fn("IdentityLinkBackfillService.syncAuthenticatedUser")(
       function* (identity: LocalUserIdentity) {
-        if (identity.id) yield* Effect.annotateCurrentSpan("voidhash.user.external_id", identity.id);
+        if (identity.id)
+          yield* Effect.annotateCurrentSpan("voidhash.user.external_id", identity.id);
 
         const localUser = yield* localUserSessions.resolveLocalUser(identity);
         if (localUser.id) yield* Effect.annotateCurrentSpan("voidhash.user.id", localUser.id);
 
-        if (!identity.externalId) {
+        if (Option.isNone(identity.externalId)) {
           yield* identityProvider
             .linkExternalId(identity.id, localUser.id)
             .pipe(Effect.catch(() => Effect.void));
@@ -63,7 +68,9 @@ export class IdentityLinkBackfillService extends Context.Service<
           Effect.catchTags({
             EffectDrizzleQueryError: (error) =>
               Effect.fail(
-                new IdentityLinkBackfillError({ cause: causeMessage(error.cause ?? error.message) }),
+                new IdentityLinkBackfillError({
+                  cause: causeMessage(error.cause ?? error.message),
+                }),
               ),
             OrganizationMembershipSyncPortError: (error) =>
               Effect.fail(new IdentityLinkBackfillError({ cause: error.cause })),

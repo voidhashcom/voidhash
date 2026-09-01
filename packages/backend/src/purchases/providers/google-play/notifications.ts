@@ -16,7 +16,9 @@ import {
   GooglePlayNotificationVerificationError,
   type SubscriptionNotificationTypeValue,
 } from "@voidhash/google-play-server-sdk";
-import { Effect, Encoding, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Schema from "effect/Schema";
 
 /** Subscription notification type code → name (RTDN `subscriptionNotification.notificationType`). */
 export const SUBSCRIPTION_NOTIFICATION_TYPES: Record<SubscriptionNotificationTypeValue, string> = {
@@ -96,6 +98,7 @@ export const PubSubMessage = Schema.Struct({
   }),
   subscription: Schema.optional(Schema.String),
 });
+export type PubSubMessage = typeof PubSubMessage.Type;
 
 /**
  * Decodes a base64-encoded RTDN `message.data` payload into a validated

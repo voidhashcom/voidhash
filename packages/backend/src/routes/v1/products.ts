@@ -1,3 +1,5 @@
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
 import {
   createdResponse,
   Product,
@@ -16,11 +18,13 @@ import {
   ApiProductSlugAlreadyExistsError,
   ApiProductValidationError,
 } from "@voidhash/api-contracts/errors";
-import { ProductPerkService, ProductService } from "@voidhash/core/services";
+import { ProductPerkService, ProductService, type ProductView } from "@voidhash/core/services";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { ProductType, type ProductTypeValue } from "@voidhash/lib";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -28,11 +32,16 @@ import {
   bridgeAuthSession,
   requireCredential,
 } from "../../ApiMiddlewares.ts";
+import * as Match from "effect/Match";
 
 /** Credentials allowed to manage the catalog; publishable keys are public. */
 const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
 
 type ProductTypeLabel = typeof ProductTypeSchema.Type;
+
+/** Converts the domain's explicit duration absence to the nullable HTTP schema. */
+const toApiProduct = (product: ProductView): Product =>
+  new Product({ ...product, duration: Option.getOrNull(product.duration) });
 
 /**
  * The public contract speaks in product-type labels while the column stores the
@@ -40,18 +49,19 @@ type ProductTypeLabel = typeof ProductTypeSchema.Type;
  * literal union, hence no fallback branch.
  */
 const productTypeFromLabel = (label: ProductTypeLabel): ProductTypeValue => {
-  switch (label) {
-    case "subscription":
-      return ProductType.Subscription;
-    case "one-time":
-      return ProductType.OneTime;
-    case "one-time-consumable":
-      return ProductType.OneTimeConsumable;
-  }
+  return Match.value(label).pipe(
+    Match.when("subscription", () => ProductType.Subscription),
+    Match.when("one-time", () => ProductType.OneTime),
+    Match.when("one-time-consumable", () => ProductType.OneTimeConsumable),
+    Match.exhaustive,
+  );
 };
 
 /** Mirrors the service: a duration is only stored for subscriptions. */
-const storedDuration = (type: ProductTypeValue, duration: number | undefined): number | null => {
+const storedDuration = (
+  type: ProductTypeValue,
+  duration: number | typeof Schema.Undefined.Type,
+): number | typeof Schema.Null.Type => {
   if (type !== ProductType.Subscription) return null;
   return duration ?? null;
 };
@@ -64,7 +74,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
     return handlers
       .handle("listProducts", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -74,13 +84,13 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
             );
             // The service returns rows in database order; pagination cursors
             // only make sense over a stable one.
-            const sorted = [...matching].sort((a, b) => a.id.localeCompare(b.id));
+            const sorted = Arr.sortWith([...matching], (item) => item.id, Order.String);
             const page = yield* paginate(sorted, (product) => product.id, query);
             return {
-              data: page.data.map((product) => new Product(product)),
+              data: page.data.map(toApiProduct),
               pageInfo: page.pageInfo,
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -91,7 +101,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
       )
       .handle("createProduct", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -112,7 +122,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
               type: payload.type,
             });
             return yield* createdResponse(Product, product, `/products/${product.id}`);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -127,12 +137,12 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
       )
       .handle("getProduct", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const product = yield* productService.getProductById(params.productId);
-            return new Product(product);
-          }),
+            return toApiProduct(product);
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -145,7 +155,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
       )
       .handle("updateProduct", ({ params, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             // The service takes a full name/slug pair, so absent fields are
@@ -154,8 +164,8 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
             const name = payload.name ?? existing.name;
             const slug = payload.slug ?? existing.slug;
             yield* productService.updateProduct({ id: params.productId, name, slug });
-            return new Product({ ...existing, name, slug });
-          }),
+            return toApiProduct({ ...existing, name, slug });
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -170,11 +180,11 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
       )
       .handle("deleteProduct", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* productService.deleteProduct({ id: params.productId });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -189,7 +199,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
       )
       .handle("listProductPerks", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             // Resolving the product first turns an unknown id into a 404 on the
@@ -208,7 +218,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
               ),
               pageInfo: page.pageInfo,
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -225,7 +235,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
       )
       .handle("attachProductPerk", ({ params, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* productService.getProductById(params.productId);
@@ -247,7 +257,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
               perkId: payload.perkId,
               productId: params.productId,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -264,7 +274,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
       )
       .handle("detachProductPerk", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProductsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* productService.getProductById(params.productId);
@@ -280,7 +290,7 @@ export const ProductsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "products",
               );
             }
             yield* productPerkService.deleteProductPerk({ id: link.id });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

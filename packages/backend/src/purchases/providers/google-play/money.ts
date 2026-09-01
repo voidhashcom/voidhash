@@ -19,7 +19,8 @@
  */
 import type { MoneyType } from "@voidhash/google-play-server-sdk";
 import { getCurrencyMinorUnitExponent, parseISO4217CurrencyCode } from "@voidhash/lib/constants";
-import { Effect, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { PurchaseProcessingMoney, PurchaseProcessingMoneyUsd } from "@voidhash/core-v2";
 import { CurrencyCode, ExchangeRate, FX_RATE_PRECISION, MinorAmount } from "@voidhash/core-v2";

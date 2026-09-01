@@ -1,4 +1,6 @@
-import { Effect, Option, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { compactVerify, decodeJwt, decodeProtectedHeader } from "jose";
 import { CertificateError, VerificationError, VerificationStatus } from "../errors/index.ts";
 import { AppStoreServerSdk } from "../sdk.ts";
@@ -101,10 +103,11 @@ const environmentFromExternalPurchaseId = (externalPurchaseId: string): string =
 const makeVerificationError = (status: VerificationStatus): VerificationError =>
   new VerificationError({ status, cause: Option.none() });
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+function asOption<T>(value: Option.Option<T>): Option.Option<T>;
+function asOption(value: unknown): Option.Option<unknown> {
   if (Option.isOption(value)) return value;
   return Option.fromNullishOr(value);
-};
+}
 
 export const SignedDataVerifier = {
   /**

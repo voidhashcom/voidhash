@@ -1,3 +1,9 @@
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Match from "effect/Match";
+import * as R from "effect/Record";
 /*
  * This module is the VoidQL resolve-and-print pass: a single recursive walk over the
  * AST where `throw` IS the control flow. Every one of the ~32 throw sites aborts the
@@ -9,7 +15,6 @@
  * Effect through the printer instead would surface those typed compile errors as
  * opaque defects and rewrite the whole pass.
  */
-// oxlint-disable effect/noThrowStatement -- throw is the deliberate control flow of this pure printer; compile.ts is the single Effect boundary that converts these typed compile errors (see block comment above).
 /**
  * The VoidQL resolve-and-print pass — stages ③–⑤ of the VM.
  *
@@ -26,7 +31,9 @@
  * re-assertions the dropped decode boundary used to do (a non-empty `chain`, a valid
  * `numType`) live here.
  */
-import { DateTime, Option } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Option from "effect/Option";
+import type * as Schema from "effect/Schema";
 
 import { toClickhouseDateTime } from "./dialect.ts";
 import type {
@@ -78,14 +85,14 @@ const PHYSICAL_SHAPED_RE = /_v\d+$/i;
 // reference print an unqualified `organization_id = …` occurrence the verifier
 // cannot distinguish from an injected predicate. Inferred column names (a plain
 // `SELECT project_id`) are unaffected.
-const TENANT_SCOPED_ALIASES = new Set(["organization_id", "project_id"]);
+const TENANT_SCOPED_ALIASES = HashSet.make("organization_id", "project_id");
 
 type ResolvedRelation =
   | { readonly kind: "view"; readonly alias: string; readonly table: CatalogTable }
   | {
       readonly kind: "derived";
       readonly alias: string;
-      readonly columns: ReadonlyMap<string, VoidQLType>;
+      readonly columns: HashMap.HashMap<string, VoidQLType>;
     };
 
 interface CteShape {
@@ -96,8 +103,8 @@ interface CteShape {
 
 interface Frame {
   readonly relations: ResolvedRelation[];
-  readonly cteShapes: Map<string, CteShape>;
-  readonly aliases: Map<string, VoidQLType>;
+  cteShapes: HashMap.HashMap<string, CteShape>;
+  aliases: HashMap.HashMap<string, VoidQLType>;
   readonly parent?: Frame;
 }
 
@@ -114,24 +121,25 @@ interface PrintedExpr {
   readonly type: VoidQLType;
 }
 
-const substitutionCost = (left: string | undefined, right: string | undefined) => {
+const substitutionCost = (left: string, right: string) => {
   if (left === right) return 0;
   return 1;
 };
 
 const levenshtein = (a: string, b: string) => {
-  const m = a.length;
-  const n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => Array.from({ length: n + 1 }, () => 0));
-  for (let i = 0; i <= m; i++) dp[i]![0] = i;
-  for (let j = 0; j <= n; j++) dp[0]![j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      const cost = substitutionCost(a[i - 1], b[j - 1]);
-      dp[i]![j] = Math.min(dp[i - 1]![j]! + 1, dp[i]![j - 1]! + 1, dp[i - 1]![j - 1]! + cost);
-    }
-  }
-  return dp[m]![n]!;
+  const right = Arr.fromIterable(b);
+  const initial: number[] = Arr.range(0, b.length);
+  const finalRow = Arr.reduce(Arr.fromIterable(a), initial, (previous, leftCharacter, leftIndex) =>
+    Arr.reduce(right, [leftIndex + 1], (current, rightCharacter, rightIndex) => {
+      const insertion = (current[rightIndex] ?? 0) + 1;
+      const deletion = (previous[rightIndex + 1] ?? 0) + 1;
+      const substitution =
+        (previous[rightIndex] ?? 0) + substitutionCost(leftCharacter, rightCharacter);
+      current.push(Math.min(insertion, deletion, substitution));
+      return current;
+    }),
+  );
+  return finalRow[b.length] ?? a.length;
 };
 
 /** `ASC`/`DESC` for an ORDER BY item — shared by plain and window ORDER BY printing. */
@@ -155,7 +163,10 @@ const joinKindSql = (kind: Join["kind"]) => {
 };
 
 /** A numeric literal adopts the expected column width when one is propagated. */
-const numberLitType = (expected: VoidQLType | undefined, declared: VoidQLType) => {
+const numberLitType = (
+  expected: VoidQLType | typeof Schema.Undefined.Type,
+  declared: VoidQLType,
+) => {
   if (expected === "Int64" || expected === "UInt64" || expected === "Float64") return expected;
   return declared;
 };
@@ -163,15 +174,15 @@ const numberLitType = (expected: VoidQLType | undefined, declared: VoidQLType) =
 export type { ColumnSpec };
 
 const nearest = (target: string, candidates: readonly string[]) => {
-  let best = "";
-  let bestDist = Infinity;
-  for (const c of candidates) {
-    const d = levenshtein(target.toLowerCase(), c.toLowerCase());
-    if (d < bestDist) {
-      bestDist = d;
-      best = c;
-    }
-  }
+  const { best, bestDist } = Arr.reduce(
+    candidates,
+    { best: "", bestDist: Infinity },
+    (current, candidate) => {
+      const distance = levenshtein(target.toLowerCase(), candidate.toLowerCase());
+      if (distance >= current.bestDist) return current;
+      return { best: candidate, bestDist: distance };
+    },
+  );
   if (bestDist <= Math.max(2, Math.ceil(target.length / 2))) return best;
   return "";
 };
@@ -181,9 +192,9 @@ export class Compiler {
   private relationCounter = 0;
 
   private readonly scope: AuthorizedScope;
-  private readonly capabilities: ReadonlySet<Capability>;
+  private readonly capabilities: HashSet.HashSet<Capability>;
 
-  constructor(scope: AuthorizedScope, capabilities: ReadonlySet<Capability>) {
+  constructor(scope: AuthorizedScope, capabilities: HashSet.HashSet<Capability>) {
     this.scope = scope;
     this.capabilities = capabilities;
   }
@@ -194,13 +205,13 @@ export class Compiler {
     if (!IDENT_RE.test(alias) || PHYSICAL_SHAPED_RE.test(alias)) {
       throw new VoidQlUnsupportedError({ message: `Invalid alias '${alias}'.`, hint: "" });
     }
-    if (RESERVED_INTERNAL_ALIASES.has(alias.toLowerCase())) {
+    if (HashSet.has(RESERVED_INTERNAL_ALIASES, alias.toLowerCase())) {
       throw new VoidQlUnsupportedError({
         message: `'${alias}' is a reserved alias and cannot be used.`,
         hint: "Pick a different alias.",
       });
     }
-    if (TENANT_SCOPED_ALIASES.has(alias.toLowerCase())) {
+    if (HashSet.has(TENANT_SCOPED_ALIASES, alias.toLowerCase())) {
       throw new VoidQlUnsupportedError({
         message: `'${alias}' is a reserved tenant alias and cannot be used.`,
         hint: "Pick a different alias.",
@@ -208,20 +219,20 @@ export class Compiler {
     }
   }
 
-  private viewShape(table: CatalogTable): ReadonlyMap<string, VoidQLType> {
-    return new Map(Object.values(table.columns).map((c) => [c.name, c.type]));
+  private viewShape(table: CatalogTable): HashMap.HashMap<string, VoidQLType> {
+    return HashMap.fromIterable(R.values(table.columns).map((c) => [c.name, c.type] as const));
   }
 
   /** Resolve a FROM/JOIN source, push it onto `frame`, and return its SQL pieces. */
   private resolveSource(source: TableSource, frame: Frame): readonly SqlPiece[] {
-    if (source._tag === "SubquerySource") {
+    if ("query" in source) {
       this.assertBindableAlias(source.alias);
       this.assertUniqueAlias(frame, source.alias);
       const sub = this.printQuery(source.query, frame, true);
       frame.relations.push({
         kind: "derived",
         alias: source.alias,
-        columns: new Map(sub.shape.map((c) => [c.name, c.type])),
+        columns: HashMap.fromIterable(sub.shape.map((c) => [c.name, c.type] as const)),
       });
       return [lit("( "), ...sub.pieces, lit(` ) AS ${source.alias}`)];
     }
@@ -235,7 +246,7 @@ export class Compiler {
       frame.relations.push({
         kind: "derived",
         alias,
-        columns: new Map(cteShape.columns.map((c) => [c.name, c.type])),
+        columns: HashMap.fromIterable(cteShape.columns.map((c) => [c.name, c.type] as const)),
       });
       let tail = "";
       if (source.alias) tail = ` AS ${this.id(source.alias)}`;
@@ -246,7 +257,7 @@ export class Compiler {
 
     const table = CATALOG[nameLower];
     if (!table) {
-      const suggestion = nearest(source.name, Object.keys(CATALOG));
+      const suggestion = nearest(source.name, R.keys(CATALOG));
       let didYouMean = "";
       if (suggestion) didYouMean = ` Did you mean '${suggestion}'?`;
       throw new VoidQlSchemaError({
@@ -271,27 +282,35 @@ export class Compiler {
     }
   }
 
-  private findRelation(frame: Frame, aliasLower: string): ResolvedRelation | undefined {
+  private findRelation(
+    frame: Frame,
+    aliasLower: string,
+  ): ResolvedRelation | typeof Schema.Undefined.Type {
     return frame.relations.find((relation) => relation.alias.toLowerCase() === aliasLower);
   }
 
-  private findExpressionAlias(frame: Frame, aliasLower: string): VoidQLType | undefined {
-    return frame.aliases.get(aliasLower);
+  private findExpressionAlias(
+    frame: Frame,
+    aliasLower: string,
+  ): VoidQLType | typeof Schema.Undefined.Type {
+    return Option.getOrUndefined(HashMap.get(frame.aliases, aliasLower));
   }
 
-  private findCteShape(frame: Frame | undefined, nameLower: string): CteShape | undefined {
-    for (let f = frame; f; f = f.parent) {
-      const match = f.cteShapes.get(nameLower);
-      if (match) return match;
-    }
-    return undefined;
+  private findCteShape(
+    frame: Frame | typeof Schema.Undefined.Type,
+    nameLower: string,
+  ): CteShape | typeof Schema.Undefined.Type {
+    if (frame === undefined) return undefined;
+    return Option.getOrElse(HashMap.get(frame.cteShapes, nameLower), () =>
+      this.findCteShape(frame.parent, nameLower),
+    );
   }
 
   // ── columns / properties ────────────────────────────────────────────────
 
   private relationColumnNames(rel: ResolvedRelation): readonly string[] {
-    if (rel.kind === "view") return Object.keys(rel.table.columns);
-    return [...rel.columns.keys()];
+    if (rel.kind === "view") return R.keys(rel.table.columns);
+    return Arr.fromIterable(HashMap.keys(rel.columns));
   }
 
   /**
@@ -314,7 +333,7 @@ export class Compiler {
   }
 
   private piiGate(requires: readonly Capability[], what: string): void {
-    if (requires.includes("pii") && !this.capabilities.has("pii")) {
+    if (requires.includes("pii") && !HashSet.has(this.capabilities, "pii")) {
       throw new VoidQlPiiError({
         message: `${what} is PII and requires elevated access; the query was rejected.`,
       });
@@ -333,14 +352,14 @@ export class Compiler {
     };
   }
 
-  private columnOf(rel: ResolvedRelation, name: string): VoidQLType | undefined {
+  private columnOf(rel: ResolvedRelation, name: string): VoidQLType | typeof Schema.Undefined.Type {
     if (rel.kind === "view") {
       const col = rel.table.columns[name];
       if (!col) return undefined;
       this.piiGate(col.requires, `Column '${name}'`);
       return col.type;
     }
-    return rel.columns.get(name);
+    return Option.getOrUndefined(HashMap.get(rel.columns, name));
   }
 
   private resolveColumn(ref: ColumnRef, frame: Frame): PrintedExpr {
@@ -367,7 +386,7 @@ export class Compiler {
         throw new VoidQlUnknownFieldError({
           field: `${chain[0]}.${chain[1]}`,
           message: `'${chain[1]}' is not a property namespace on '${rel.table.name}'.`,
-          suggestion: nearest(chain[1], Object.keys(rel.table.namespaces)),
+          suggestion: nearest(chain[1], R.keys(rel.table.namespaces)),
         });
       }
       this.piiGate(ns.requires, `Property namespace '${ns.name}'`);
@@ -397,7 +416,14 @@ export class Compiler {
       // unqualified namespace access: <namespace>.<key>
       const nsRel = this.findNamespaceRelation(frame, a);
       if (nsRel) {
-        const ns = nsRel.table.namespaces[a]!;
+        const ns = nsRel.table.namespaces[a];
+        if (ns === undefined) {
+          throw new VoidQlUnknownFieldError({
+            field: `${a}.${b}`,
+            message: `Unknown reference '${a}.${b}'.`,
+            suggestion: "",
+          });
+        }
         this.piiGate(ns.requires, `Property namespace '${ns.name}'`);
         return this.property(nsRel.alias, ns.sourceColumn, b);
       }
@@ -414,8 +440,9 @@ export class Compiler {
       this.relationColumnNames(r).includes(name),
     );
     if (matches.length === 1) {
-      const type = this.columnOf(matches[0]!, name)!;
-      return { pieces: [lit(this.qualified(matches[0]!.alias, name))], type };
+      const match = matches[0];
+      const type = match && this.columnOf(match, name);
+      if (match && type) return { pieces: [lit(this.qualified(match.alias, name))], type };
     }
     if (matches.length > 1) {
       throw new VoidQlUnknownFieldError({
@@ -450,20 +477,23 @@ export class Compiler {
   private findNamespaceRelation(
     frame: Frame,
     name: string,
-  ): { readonly alias: string; readonly table: CatalogTable } | undefined {
+  ): { readonly alias: string; readonly table: CatalogTable } | typeof Schema.Undefined.Type {
     const hits = frame.relations.filter(
       (r): r is Extract<ResolvedRelation, { kind: "view" }> =>
         r.kind === "view" && name in r.table.namespaces,
     );
     if (hits.length !== 1) return undefined;
-    return { alias: hits[0]!.alias, table: hits[0]!.table };
+    const hit = hits[0];
+    if (hit === undefined) return undefined;
+    return { alias: hit.alias, table: hit.table };
   }
 
   // ── expressions ────────────────────────────────────────────────────────────
 
   private printExpr(expr: Expr, frame: Frame, expected?: VoidQLType): PrintedExpr {
-    switch (expr._tag) {
-      case "StringLit": {
+    return Match.value(expr).pipe(
+      Match.withReturnType<PrintedExpr>(),
+      Match.when({ _tag: "StringLit" }, (expr) => {
         if (expected !== "DateTime") {
           return { pieces: [par("String", expr.value)], type: "String" };
         }
@@ -478,7 +508,7 @@ export class Compiler {
         const hasZone = /(?:[Zz]|[+-]\d{2}:?\d{2})$/.test(value);
         let normalized = value;
         if (!isDateOnly && !hasZone) normalized = `${value.replace(" ", "T")}Z`;
-        const parsed = DateTime.make(Date.parse(normalized));
+        const parsed = DateTime.make(normalized);
         if (Option.isNone(parsed)) {
           throw new VoidQlSyntaxError({
             message: `'${expr.value}' is not a valid date/time literal.`,
@@ -489,44 +519,46 @@ export class Compiler {
           pieces: [par("DateTime", toClickhouseDateTime(DateTime.toDateUtc(parsed.value)))],
           type: "DateTime",
         };
-      }
-      case "NumberLit": {
+      }),
+      Match.when({ _tag: "NumberLit" }, (expr) => {
         const type = numberLitType(expected, expr.numType);
         return { pieces: [par(chParamType(type), expr.value)], type };
-      }
-      case "BoolLit":
-        return { pieces: [par("Bool", expr.value)], type: "Bool" };
-      case "NullLit":
-        return { pieces: [lit("NULL")], type: expected ?? "String" };
-      case "ColumnRef":
-        return this.resolveColumn(expr, frame);
-      case "StarRef":
+      }),
+      Match.when({ _tag: "BoolLit" }, (expr) => ({
+        pieces: [par("Bool", expr.value)],
+        type: "Bool",
+      })),
+      Match.when({ _tag: "NullLit" }, () => ({
+        pieces: [lit("NULL")],
+        type: expected ?? "String",
+      })),
+      Match.when({ _tag: "ColumnRef" }, (expr) => this.resolveColumn(expr, frame)),
+      Match.when({ _tag: "StarRef" }, () => {
         throw new VoidQlUnsupportedError({
           message: "'*' is only allowed as a SELECT item or as count(*).",
           hint: "",
         });
-      case "Paren": {
+      }),
+      Match.when({ _tag: "Paren" }, (expr) => {
         const inner = this.printExpr(expr.expr, frame, expected);
         return { pieces: [lit("("), ...inner.pieces, lit(")")], type: inner.type };
-      }
-      case "Unary": {
-        let innerExpected: VoidQLType | undefined = undefined;
+      }),
+      Match.when({ _tag: "Unary" }, (expr) => {
+        let innerExpected: VoidQLType | typeof Schema.Undefined.Type = undefined;
         if (expr.op === "neg") innerExpected = expected;
         const inner = this.printExpr(expr.expr, frame, innerExpected);
         if (expr.op === "not") {
           return { pieces: [lit("(NOT "), ...inner.pieces, lit(")")], type: "Bool" };
         }
         return { pieces: [lit("(-"), ...inner.pieces, lit(")")], type: inner.type };
-      }
-      case "Binary":
-        return this.printBinary(expr, frame);
-      case "InExpr":
-        return this.printIn(expr, frame);
-      case "ExistsExpr": {
+      }),
+      Match.when({ _tag: "Binary" }, (expr) => this.printBinary(expr, frame)),
+      Match.when({ _tag: "InExpr" }, (expr) => this.printIn(expr, frame)),
+      Match.when({ _tag: "ExistsExpr" }, (expr) => {
         const query = this.printQuery(expr.query, frame, true);
         return { pieces: [lit("EXISTS ( "), ...query.pieces, lit(" )")], type: "Bool" };
-      }
-      case "SubqueryExpr": {
+      }),
+      Match.when({ _tag: "SubqueryExpr" }, (expr) => {
         const query = this.printQuery(expr.query, frame, true);
         if (query.shape.length !== 1) {
           throw new VoidQlUnsupportedError({
@@ -536,10 +568,13 @@ export class Compiler {
         }
         return {
           pieces: [lit("( "), ...query.pieces, lit(" )")],
-          type: query.shape[0]!.type,
+          type: Option.match(Arr.head(query.shape), {
+            onNone: () => "String" as const,
+            onSome: (column) => column.type,
+          }),
         };
-      }
-      case "Between": {
+      }),
+      Match.when({ _tag: "Between" }, (expr) => {
         const target = this.printExpr(expr.expr, frame);
         const low = this.printExpr(expr.low, frame, target.type);
         const high = this.printExpr(expr.high, frame, target.type);
@@ -557,8 +592,8 @@ export class Compiler {
           ],
           type: "Bool",
         };
-      }
-      case "IsNull": {
+      }),
+      Match.when({ _tag: "IsNull" }, (expr) => {
         const target = this.printExpr(expr.expr, frame);
         let nullTest = " IS NULL)";
         if (expr.negated) nullTest = " IS NOT NULL)";
@@ -566,23 +601,21 @@ export class Compiler {
           pieces: [lit("("), ...target.pieces, lit(nullTest)],
           type: "Bool",
         };
-      }
-      case "CaseExpr":
-        return this.printCase(expr, frame);
-      case "FnCall":
-        return this.printFnCall(expr, frame);
-      case "WindowExpr": {
+      }),
+      Match.when({ _tag: "CaseExpr" }, (expr) => this.printCase(expr, frame)),
+      Match.when({ _tag: "FnCall" }, (expr) => this.printFnCall(expr, frame)),
+      Match.when({ _tag: "WindowExpr" }, (expr) => {
         const fn = this.printFnCall(expr.fn, frame, true);
         const pieces: SqlPiece[] = [...fn.pieces, lit(" OVER (")];
-        if (expr.partitionBy.length > 0) {
+        if (Arr.isReadonlyArrayNonEmpty(expr.partitionBy)) {
           pieces.push(lit("PARTITION BY "));
           expr.partitionBy.forEach((partition, index) => {
             if (index > 0) pieces.push(lit(", "));
             pieces.push(...this.printExpr(partition, frame).pieces);
           });
         }
-        if (expr.orderBy.length > 0) {
-          if (expr.partitionBy.length > 0) pieces.push(lit(" "));
+        if (Arr.isReadonlyArrayNonEmpty(expr.orderBy)) {
+          if (Arr.isReadonlyArrayNonEmpty(expr.partitionBy)) pieces.push(lit(" "));
           pieces.push(lit("ORDER BY "));
           expr.orderBy.forEach((order, index) => {
             if (index > 0) pieces.push(lit(", "));
@@ -596,7 +629,11 @@ export class Compiler {
           });
         }
         if (expr.frame) {
-          if (expr.partitionBy.length > 0 || expr.orderBy.length > 0) pieces.push(lit(" "));
+          if (
+            Arr.isReadonlyArrayNonEmpty(expr.partitionBy) ||
+            Arr.isReadonlyArrayNonEmpty(expr.orderBy)
+          )
+            pieces.push(lit(" "));
           const bound = (value: typeof expr.frame.start) => {
             if (value === "unboundedPreceding") return "UNBOUNDED PRECEDING";
             if (value === "unboundedFollowing") return "UNBOUNDED FOLLOWING";
@@ -613,8 +650,9 @@ export class Compiler {
         }
         pieces.push(lit(")"));
         return { pieces, type: fn.type };
-      }
-    }
+      }),
+      Match.exhaustive,
+    );
   }
 
   private printBinary(expr: Binary, frame: Frame): PrintedExpr {
@@ -643,13 +681,17 @@ export class Compiler {
     const isPattern =
       expr.op === "like" || expr.op === "notLike" || expr.op === "ilike" || expr.op === "notIlike";
 
-    if (isComparison && expr.left._tag === "StringLit") {
+    const isLeftStringLiteral = Match.value(expr.left).pipe(
+      Match.when({ _tag: "StringLit" }, () => true),
+      Match.orElse(() => false),
+    );
+    if (isComparison && isLeftStringLiteral) {
       // A string literal on the LEFT of a comparison must also coerce to DateTime
       // when the other operand is DateTime-typed. The right side prints first only
       // to learn its type; the pieces are assembled in source order so the bind
       // order still matches the parameter order in the SQL text.
       const right = this.printExpr(expr.right, frame);
-      let leftExpected: VoidQLType | undefined = undefined;
+      let leftExpected: VoidQLType | typeof Schema.Undefined.Type = undefined;
       if (right.type === "DateTime") leftExpected = "DateTime";
       const left = this.printExpr(expr.left, frame, leftExpected);
       return {
@@ -661,7 +703,7 @@ export class Compiler {
     const left = this.printExpr(expr.left, frame);
     // Propagate the left operand's type to a comparison RHS so a string literal
     // compared to a DateTime column binds as DateTime.
-    let rhsExpected: VoidQLType | undefined = undefined;
+    let rhsExpected: VoidQLType | typeof Schema.Undefined.Type = undefined;
     if (isComparison) rhsExpected = left.type;
     else if (isPattern) rhsExpected = "String";
     const right = this.printExpr(expr.right, frame, rhsExpected);
@@ -718,13 +760,15 @@ export class Compiler {
   }
 
   private printFnCall(expr: FnCall, frame: Frame, inWindow = false): PrintedExpr {
-    const spec = lookupFunction(expr.name);
-    if (!spec) {
-      throw new VoidQlUnsupportedError({
-        message: `Unknown or unsupported function '${expr.name}'.`,
-        hint: "Only the curated VoidQL function set is available.",
-      });
-    }
+    const spec = Option.match(lookupFunction(expr.name), {
+      onNone: () => {
+        throw new VoidQlUnsupportedError({
+          message: `Unknown or unsupported function '${expr.name}'.`,
+          hint: "Only the curated VoidQL function set is available.",
+        });
+      },
+      onSome: (value) => value,
+    });
     if (expr.args.length < spec.minArgs || expr.args.length > spec.maxArgs) {
       throw new VoidQlUnsupportedError({
         message: `Function '${expr.name}' expects ${spec.minArgs}..${spec.maxArgs} arguments, got ${expr.args.length}.`,
@@ -739,18 +783,28 @@ export class Compiler {
     }
 
     // count(*) is the only place a bare star is admissible.
-    if (spec.allowStar && expr.args.length === 1 && expr.args[0]!._tag === "StarRef") {
+    const onlyArgumentIsStar = Option.match(Arr.head(expr.args), {
+      onNone: () => false,
+      onSome: (argument) =>
+        Match.value(argument).pipe(
+          Match.when({ _tag: "StarRef" }, () => true),
+          Match.orElse(() => false),
+        ),
+    });
+    if (spec.allowStar && expr.args.length === 1 && onlyArgumentIsStar) {
       return { pieces: [lit(`${spec.chName}(*)`)], type: this.fnReturnType(spec, []) };
     }
 
     const argResults = expr.args.map((arg) => {
-      if (arg._tag === "StarRef") {
-        throw new VoidQlUnsupportedError({
-          message: `'*' is not a valid argument to '${expr.name}'.`,
-          hint: "",
-        });
-      }
-      return this.printExpr(arg, frame);
+      return Match.value(arg).pipe(
+        Match.when({ _tag: "StarRef" }, () => {
+          throw new VoidQlUnsupportedError({
+            message: `'*' is not a valid argument to '${expr.name}'.`,
+            hint: "",
+          });
+        }),
+        Match.orElse((value) => this.printExpr(value, frame)),
+      );
     });
 
     const pieces: SqlPiece[] = [lit(`${spec.chName}(`)];
@@ -769,7 +823,7 @@ export class Compiler {
   }
 
   private fnReturnType(spec: FnSpec, argTypes: readonly VoidQLType[]): VoidQLType {
-    if (typeof spec.returns === "object") {
+    if (P.isObject(spec.returns)) {
       return argTypes[spec.returns.arg] ?? "String";
     }
     return spec.returns;
@@ -783,21 +837,24 @@ export class Compiler {
    * clamped, so inner semantics are never silently truncated.
    */
   printQuery(query: Query, parent?: Frame, isInner = false): CompiledSelect {
-    if (query._tag === "Select") return this.printSelect(query, parent, isInner);
+    if (!("selects" in query)) return this.printSelect(query, parent, isInner);
 
     const compiled = query.selects.map((select) => this.printSelect(select, parent, isInner));
-    const shape = compiled[0]!.shape;
-    for (const arm of compiled.slice(1)) {
+    const shape: readonly ColumnSpec[] = Option.match(Arr.head(compiled), {
+      onNone: () => [],
+      onSome: (first) => first.shape,
+    });
+    compiled.slice(1).forEach((arm) => {
       const compatible =
         arm.shape.length === shape.length &&
-        arm.shape.every((column, index) => column.type === shape[index]!.type);
+        arm.shape.every((column, index) => column.type === shape[index]?.type);
       if (!compatible) {
         throw new VoidQlUnsupportedError({
           message: "Set-query arms must return the same number of columns with matching types.",
           hint: "Align each SELECT projection before combining them.",
         });
       }
-    }
+    });
     const unionPieces: SqlPiece[] = [];
     compiled.forEach((arm, index) => {
       if (index > 0) unionPieces.push(lit(` ${query.operators[index - 1]} `));
@@ -814,7 +871,12 @@ export class Compiler {
   }
 
   printSelect(select: Select, parent?: Frame, isInner = false): CompiledSelect {
-    const frame: Frame = { relations: [], cteShapes: new Map(), aliases: new Map(), parent };
+    const frame: Frame = {
+      relations: [],
+      cteShapes: HashMap.empty(),
+      aliases: HashMap.empty(),
+      parent,
+    };
 
     const ctePieces: SqlPiece[] = [];
     select.with.forEach((cte, i) => {
@@ -822,41 +884,44 @@ export class Compiler {
       if (
         !IDENT_RE.test(cte.name) ||
         PHYSICAL_SHAPED_RE.test(cte.name) ||
-        RESERVED_INTERNAL_ALIASES.has(nameLower) ||
-        TENANT_SCOPED_ALIASES.has(nameLower)
+        HashSet.has(RESERVED_INTERNAL_ALIASES, nameLower) ||
+        HashSet.has(TENANT_SCOPED_ALIASES, nameLower)
       ) {
         throw new VoidQlUnsupportedError({ message: `Invalid CTE name '${cte.name}'.`, hint: "" });
       }
-      if (frame.cteShapes.has(nameLower)) {
+      if (HashMap.has(frame.cteShapes, nameLower)) {
         throw new VoidQlUnsupportedError({ message: `Duplicate CTE '${cte.name}'.`, hint: "" });
       }
       const compiled = this.printQuery(cte.query, frame, true);
-      frame.cteShapes.set(nameLower, { name: cte.name, columns: compiled.shape });
+      frame.cteShapes = HashMap.set(frame.cteShapes, nameLower, {
+        name: cte.name,
+        columns: compiled.shape,
+      });
       let cteLead = ", ";
       if (i === 0) cteLead = "WITH ";
       ctePieces.push(lit(cteLead), lit(`${cte.name} AS ( `), ...compiled.pieces, lit(" )"));
     });
-    if (ctePieces.length > 0) ctePieces.push(lit(" "));
+    if (Arr.isReadonlyArrayNonEmpty(ctePieces)) ctePieces.push(lit(" "));
 
     // FROM + JOINs build the relation frame before any expression is resolved.
     let fromPieces: readonly SqlPiece[] = [];
     if (select.from) fromPieces = this.resolveSource(select.from, frame);
     const joinPieces: SqlPiece[] = [];
-    for (const join of select.joins) {
+    select.joins.forEach((join) => {
       const relationCountBeforeJoin = frame.relations.length;
       const sourcePieces = this.resolveSource(join.source, frame);
       joinPieces.push(lit(joinKindSql(join.kind)), ...sourcePieces);
       if (join.on) {
         joinPieces.push(lit(" ON "), ...this.printExpr(join.on, frame, "Bool").pieces);
       } else if (join.using) {
-        for (const column of join.using) {
+        join.using.forEach((column) => {
           const leftMatches = frame.relations
             .slice(0, relationCountBeforeJoin)
             .filter((relation) => this.relationColumnNames(relation).includes(column));
           const rightMatches = frame.relations
             .slice(relationCountBeforeJoin)
             .filter((relation) => this.relationColumnNames(relation).includes(column));
-          if (leftMatches.length === 0 || rightMatches.length === 0) {
+          if (Arr.isReadonlyArrayEmpty(leftMatches) || Arr.isReadonlyArrayEmpty(rightMatches)) {
             throw new VoidQlUnknownFieldError({
               field: column,
               message: `USING column '${column}' must exist on both sides of the join.`,
@@ -864,17 +929,17 @@ export class Compiler {
             });
           }
           [...leftMatches, ...rightMatches].forEach((relation) => this.columnOf(relation, column));
-        }
+        });
         joinPieces.push(lit(` USING (${join.using.map((column) => this.id(column)).join(", ")})`));
       }
-    }
+    });
 
     const { columnPieces, shape } = this.printColumns(select.columns, frame);
 
     let selectKeyword = "SELECT";
     if (select.distinct) selectKeyword = "SELECT DISTINCT";
     const pieces: SqlPiece[] = [...ctePieces, lit(selectKeyword)];
-    if (select.distinctOn.length > 0) {
+    if (Arr.isReadonlyArrayNonEmpty(select.distinctOn)) {
       pieces.push(lit(" ON ("));
       select.distinctOn.forEach((expr, index) => {
         if (index > 0) pieces.push(lit(", "));
@@ -894,7 +959,7 @@ export class Compiler {
       if (select.prewhere && select.where) pieces.push(lit(" AND "));
       if (select.where) pieces.push(...this.printExpr(select.where, frame, "Bool").pieces);
     }
-    if (select.groupBy.length > 0) {
+    if (Arr.isReadonlyArrayNonEmpty(select.groupBy)) {
       pieces.push(lit(" GROUP BY "));
       select.groupBy.forEach((g, i) => {
         if (i > 0) pieces.push(lit(", "));
@@ -913,7 +978,7 @@ export class Compiler {
     if (select.qualify) {
       pieces.push(lit(" QUALIFY "), ...this.printExpr(select.qualify, frame, "Bool").pieces);
     }
-    if (select.orderBy.length > 0) {
+    if (Arr.isReadonlyArrayNonEmpty(select.orderBy)) {
       pieces.push(lit(" ORDER BY "));
       select.orderBy.forEach((o: OrderItem, i) => {
         if (i > 0) pieces.push(lit(", "));
@@ -944,7 +1009,7 @@ export class Compiler {
       if (select.offset && select.offset > 0) pieces.push(lit(` OFFSET ${select.offset}`));
     }
     if (select.withTies) {
-      if (select.orderBy.length === 0) {
+      if (Arr.isReadonlyArrayEmpty(select.orderBy)) {
         throw new VoidQlUnsupportedError({
           message: "LIMIT WITH TIES requires ORDER BY.",
           hint: "Add ORDER BY before LIMIT WITH TIES.",
@@ -962,7 +1027,7 @@ export class Compiler {
   ): { readonly columnPieces: readonly SqlPiece[]; readonly shape: readonly ColumnSpec[] } {
     const columnPieces: SqlPiece[] = [];
     const shape: ColumnSpec[] = [];
-    const outputNames = new Set<string>();
+    let outputNames = HashSet.empty<string>();
     let emitted = 0;
 
     const emitSep = () => {
@@ -971,15 +1036,19 @@ export class Compiler {
     };
 
     columns.forEach((item, index) => {
-      if (item.expr._tag === "StarRef") {
-        this.expandStar(item.expr.qualifier, frame).forEach((entry) => {
-          if (outputNames.has(entry.col.toLowerCase())) {
+      const star = Match.value(item.expr).pipe(
+        Match.when({ _tag: "StarRef" }, (value) => Option.some(value)),
+        Match.orElse(() => Option.none()),
+      );
+      if (Option.isSome(star)) {
+        this.expandStar(star.value.qualifier, frame).forEach((entry) => {
+          if (HashSet.has(outputNames, entry.col.toLowerCase())) {
             throw new VoidQlUnsupportedError({
               message: `Duplicate output column '${entry.col}'.`,
               hint: "Select and alias columns explicitly when relations share names.",
             });
           }
-          outputNames.add(entry.col.toLowerCase());
+          outputNames = HashSet.add(outputNames, entry.col.toLowerCase());
           emitSep();
           columnPieces.push(lit(this.qualified(entry.alias, entry.col)));
           shape.push({ name: entry.col, type: entry.type });
@@ -998,46 +1067,47 @@ export class Compiler {
       if (
         !IDENT_RE.test(name) ||
         PHYSICAL_SHAPED_RE.test(name) ||
-        RESERVED_INTERNAL_ALIASES.has(name.toLowerCase())
+        HashSet.has(RESERVED_INTERNAL_ALIASES, name.toLowerCase())
       ) {
         throw new VoidQlUnsupportedError({ message: `Invalid column alias '${name}'.`, hint: "" });
       }
       // Only an *explicit* user alias is reserved — an inferred column name such as
       // a plain `SELECT project_id` is a legitimate qualified reference.
-      if (item.alias && TENANT_SCOPED_ALIASES.has(name.toLowerCase())) {
+      if (item.alias && HashSet.has(TENANT_SCOPED_ALIASES, name.toLowerCase())) {
         throw new VoidQlUnsupportedError({
           message: `'${name}' is a reserved tenant alias and cannot be used.`,
           hint: "Pick a different alias.",
         });
       }
-      if (outputNames.has(name.toLowerCase())) {
+      if (HashSet.has(outputNames, name.toLowerCase())) {
         throw new VoidQlUnsupportedError({
           message: `Duplicate output column '${name}'.`,
           hint: "Give every selected expression a unique alias.",
         });
       }
-      outputNames.add(name.toLowerCase());
+      outputNames = HashSet.add(outputNames, name.toLowerCase());
       columnPieces.push(lit(` AS ${name}`));
       shape.push({ name, type: printed.type });
-      frame.aliases.set(name.toLowerCase(), printed.type);
+      frame.aliases = HashMap.set(frame.aliases, name.toLowerCase(), printed.type);
     });
 
     return { columnPieces, shape };
   }
 
   private inferColumnName(item: SelectItem, index: number): string {
-    if (item.expr._tag === "ColumnRef") {
-      const last = item.expr.chain[item.expr.chain.length - 1]!;
-      return last;
-    }
-    return `expr_${index}`;
+    return Match.value(item.expr).pipe(
+      Match.when({ _tag: "ColumnRef" }, (column) =>
+        Option.getOrElse(Arr.last(column.chain), () => `expr_${index}`),
+      ),
+      Match.orElse(() => `expr_${index}`),
+    );
   }
 
   private expandStar(
-    qualifier: string | undefined,
+    qualifier: string | typeof Schema.Undefined.Type,
     frame: Frame,
   ): readonly { readonly alias: string; readonly col: string; readonly type: VoidQLType }[] {
-    if (frame.relations.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(frame.relations)) {
       throw new VoidQlUnsupportedError({
         message: "SELECT * requires a FROM clause.",
         hint: "Add a FROM clause naming the relation to expand.",
@@ -1049,7 +1119,7 @@ export class Compiler {
         (r): r is ResolvedRelation => r !== undefined,
       );
     }
-    if (qualifier && relations.length === 0) {
+    if (qualifier && Arr.isReadonlyArrayEmpty(relations)) {
       throw new VoidQlUnknownFieldError({
         field: `${qualifier}.*`,
         message: `Unknown table '${qualifier}' in '${qualifier}.*'.`,
@@ -1058,11 +1128,11 @@ export class Compiler {
     }
     return relations.flatMap((rel) => {
       if (rel.kind === "view") {
-        return Object.values(rel.table.columns)
+        return R.values(rel.table.columns)
           .filter((c) => c.inStar)
           .map((c) => ({ alias: rel.alias, col: c.name, type: c.type }));
       }
-      return [...rel.columns.entries()].map(([col, type]) => ({ alias: rel.alias, col, type }));
+      return Arr.fromIterable(rel.columns).map(([col, type]) => ({ alias: rel.alias, col, type }));
     });
   }
 }
@@ -1075,7 +1145,7 @@ export class Compiler {
 export const compileSelect = (
   select: Query,
   scope: AuthorizedScope,
-  capabilities: ReadonlySet<Capability>,
+  capabilities: HashSet.HashSet<Capability>,
 ): CompiledSelect => {
   const compiler = new Compiler(scope, capabilities);
   const result = compiler.printQuery(select);

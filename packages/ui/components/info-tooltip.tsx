@@ -2,11 +2,11 @@
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@voidhash/ui";
 import { InfoIcon } from "lucide-react";
-import { useState } from "react";
+import * as React from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 export function InfoTooltip({ info }: { info: string }) {
-  const [showAppUserIdTooltip, setShowAppUserIdTooltip] = useState(false);
+  const [showAppUserIdTooltip, setShowAppUserIdTooltip] = React.useState(false);
   const debouncedShowAppUserIdTooltip = useDebouncedCallback(
     // function
     (value: boolean) => {

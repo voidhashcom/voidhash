@@ -1,4 +1,10 @@
-import { Effect, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Order from "effect/Order";
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { Primitive, serializeSchema } from "@voidhash/mimic-core";
 
 /** JSON codec used to derive a stable structural key from a serialized schema. */
@@ -8,7 +14,14 @@ const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
  * Rejects an invalid registry definition. Registry construction is a
  * synchronous, build-time invariant, so a violation is raised as a defect.
  */
-const dieWith = (message: string): never => Effect.runSync(Effect.die(new Error(message)));
+class InvalidMigrationRegistryError extends Schema.TaggedErrorClass<InvalidMigrationRegistryError>()(
+  "InvalidMigrationRegistryError",
+  { message: Schema.String },
+) {}
+
+const dieWith = (message: string): never => {
+  throw new InvalidMigrationRegistryError({ message });
+};
 
 export interface DirectMigrationContext<TTo extends Primitive.AnyPrimitive> {
   readonly root: Primitive.InferProxy<TTo>;
@@ -47,7 +60,7 @@ export interface MigrationRegistry {
   readonly find: (
     database: string,
     collection: string,
-  ) => MigrationCollectionDefinition | undefined;
+  ) => Option.Option<MigrationCollectionDefinition>;
 }
 
 /** Defines one synchronous, directly invoked document migration. */
@@ -60,11 +73,15 @@ export const defineMigration = <
 
 const canonicalize = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(canonicalize);
-  if (typeof value !== "object" || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => [key, canonicalize(entry)]),
+  if (!P.isObject(value) || value === null) return value;
+  return R.fromEntries(
+    Arr.map(
+      Arr.sort(
+        R.toEntries(value),
+        Order.mapInput<string, [string, unknown]>(Order.String, ([key]) => key),
+      ),
+      ([key, entry]) => [key, canonicalize(entry)],
+    ),
   );
 };
 
@@ -79,38 +96,36 @@ const schemaKey = (primitive: Primitive.AnyPrimitive): string =>
 export const defineMigrationRegistry = (
   collections: readonly MigrationCollectionDefinition[],
 ): MigrationRegistry => {
-  const byAddress = new Map<string, MigrationCollectionDefinition>();
+  let byAddress = HashMap.empty<string, MigrationCollectionDefinition>();
 
-  for (const definition of collections) {
+  collections.forEach((definition) => {
     const address = `${definition.database}\u0000${definition.collection}`;
-    if (byAddress.has(address)) {
-      return dieWith(
-        `Duplicate migration collection ${definition.database}/${definition.collection}`,
-      );
+    if (HashMap.has(byAddress, address)) {
+      dieWith(`Duplicate migration collection ${definition.database}/${definition.collection}`);
     }
 
     let previous = definition.baseline;
-    for (const [index, migration] of definition.migrations.entries()) {
+    definition.migrations.forEach((migration, index) => {
       const expectedVersion = index + 1;
       if (!Number.isSafeInteger(migration.version) || migration.version !== expectedVersion) {
-        return dieWith(
+        dieWith(
           `Expected migration version ${expectedVersion} for ${definition.database}/${definition.collection}, received ${migration.version}`,
         );
       }
       if (schemaKey(previous) !== schemaKey(migration.from)) {
-        return dieWith(
+        dieWith(
           `Migration ${migration.version} (${migration.name}) does not start from the previous schema`,
         );
       }
       previous = migration.to;
-    }
+    });
 
-    byAddress.set(address, definition);
-  }
+    byAddress = HashMap.set(byAddress, address, definition);
+  });
 
   return {
     collections: [...collections],
-    find: (database, collection) => byAddress.get(`${database}\u0000${collection}`),
+    find: (database, collection) => HashMap.get(byAddress, `${database}\u0000${collection}`),
   };
 };
 
@@ -118,4 +133,7 @@ export const defineMigrationRegistry = (
 export const latestMigrationPrimitive = (
   definition: MigrationCollectionDefinition,
 ): Primitive.AnyPrimitive =>
-  definition.migrations[definition.migrations.length - 1]?.to ?? definition.baseline;
+  Arr.last(definition.migrations).pipe(
+    Option.map((migration) => migration.to),
+    Option.getOrElse(() => definition.baseline),
+  );

@@ -1,9 +1,11 @@
+import * as Schema from "effect/Schema";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Headers from "effect/unstable/http/Headers";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as R from "effect/Record";
 
 /**
  * Request-context OpenTelemetry helpers for the backend HTTP/RPC handler.
@@ -63,14 +65,14 @@ export interface IdentitySource {
   readonly method: string;
   readonly user: {
     readonly id: string;
-    readonly workosUserId?: string | null;
-    readonly role?: string | null;
-  } | null;
-  readonly person: { readonly distinctId: string } | null;
+    readonly workosUserId?: string | typeof Schema.Null.Type;
+    readonly role?: string | typeof Schema.Null.Type;
+  } | typeof Schema.Null.Type;
+  readonly person: { readonly distinctId: string } | typeof Schema.Null.Type;
   readonly organizations: ReadonlyArray<{
     readonly id: string;
     readonly slug: string;
-    readonly workosOrganizationId?: string | null;
+    readonly workosOrganizationId?: string | typeof Schema.Null.Type;
   }>;
   readonly projects: ReadonlyArray<{
     readonly id: string;
@@ -140,9 +142,9 @@ export const withIdentity = <A, E, R>(
   const annotateSpan = Effect.forEach(
     attrs,
     ([key, value]) => Effect.annotateCurrentSpan(key, value),
-    {
+    { concurrency: 1,
       discard: true,
     },
   );
-  return annotateSpan.pipe(Effect.andThen(Effect.annotateLogs(effect, Object.fromEntries(attrs))));
+  return annotateSpan.pipe(Effect.andThen(Effect.annotateLogs(effect, R.fromEntries(attrs))));
 };

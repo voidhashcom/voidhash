@@ -8,6 +8,7 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import type { RuntimeContext } from "alchemy/RuntimeContext";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 export type CloudflareR2Bucket = Effect.Success<Cloudflare.R2.ReadWriteBucketClient["raw"]>;
 
@@ -26,30 +27,33 @@ export const makePaywallArtifactStore = (
         }),
     });
 
-  const putOptions = (contentType: string | undefined) => {
-    if (contentType === undefined) return undefined;
-    return { httpMetadata: { contentType } };
-  };
+  const putOptions = (contentType: Option.Option<string>) =>
+    Option.match(contentType, {
+      onNone: () => undefined,
+      onSome: (value) => ({ httpMetadata: { contentType: value } }),
+    });
 
   return {
     bucketName,
     putObject: ({ key, body, contentType }) =>
-      tryR2("put", () => raw.put(key, body, putOptions(contentType))).pipe(Effect.asVoid),
+      tryR2("put", () => raw.put(key, body, putOptions(contentType))).pipe(
+        Effect.asVoid,
+      ),
     getObject: (key) =>
       Effect.gen(function* () {
         const object = yield* tryR2("get", () => raw.get(key));
-        if (object === null) return null;
+        if (object === null) return Option.none();
         const buffer = yield* tryR2("get", () => object.arrayBuffer());
-        return {
+        return Option.some({
           body: new Uint8Array(buffer),
-          contentType: object.httpMetadata?.contentType ?? null,
-        };
+          contentType: Option.fromNullishOr(object.httpMetadata?.contentType),
+        });
       }),
     head: (key) =>
       Effect.gen(function* () {
         const object = yield* tryR2("head", () => raw.head(key));
-        if (object === null) return null;
-        return { size: object.size };
+        if (object === null) return Option.none();
+        return Option.some({ size: object.size });
       }),
   };
 };
@@ -94,7 +98,7 @@ export const makePaywallArtifactStoreLive = (
 
     return Layer.effect(
       PaywallArtifactStore,
-      Effect.gen(function* () {
+      Effect.fn("makePaywallArtifactStoreLive")(function* () {
         // The native `R2Bucket` runtime object rather than the Effect wrapper:
         // its R2Object properties (`httpMetadata`, `size`) live on workerd
         // prototypes, which the wrapper's object spread would lose.
@@ -102,6 +106,6 @@ export const makePaywallArtifactStoreLive = (
         const name = yield* bucketName;
 
         return makePaywallArtifactStore(raw, name);
-      }),
+      })(),
     );
   });

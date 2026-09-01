@@ -5,7 +5,7 @@
  * `organizationId`-scoped filter or `SETTINGS` field for a caller to influence
  * tenant scope. Guarded by {@link AuthMiddleware}.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
 
 import { constant } from "@voidhash/lib/lang";
@@ -35,9 +35,11 @@ export const VoidQlColumn = Schema.Struct({
   name: Schema.String,
   type: Schema.String,
 });
+export type VoidQlColumn = typeof VoidQlColumn.Type;
 
 /** One result row — arbitrary JSON keyed by the projected column names. */
 export const VoidQlRow = Schema.Record(Schema.String, Schema.Unknown);
+export type VoidQlRow = typeof VoidQlRow.Type;
 
 /** A span-precise compile diagnostic (the agent repair-loop / editor caret currency). */
 export const VoidQlDiagnostic = Schema.Struct({
@@ -46,23 +48,27 @@ export const VoidQlDiagnostic = Schema.Struct({
   message: Schema.String,
   hint: Schema.optional(Schema.String),
 });
+export type VoidQlDiagnostic = typeof VoidQlDiagnostic.Type;
 
 export const RunVoidQlQueryRequest = Schema.Struct({
   organizationId: Schema.String,
   text: VoidQlQueryText,
 });
+export type RunVoidQlQueryRequest = typeof RunVoidQlQueryRequest.Type;
 export type RunVoidQlQueryRequestType = typeof RunVoidQlQueryRequest.Type;
 
 export const RunVoidQlQueryResponse = Schema.Struct({
   columns: Schema.Array(VoidQlColumn),
   rows: Schema.Array(VoidQlRow),
 });
+export type RunVoidQlQueryResponse = typeof RunVoidQlQueryResponse.Type;
 
 export const ValidateVoidQlQueryResponse = Schema.Struct({
-  valid: Schema.Boolean,
+  isValid: Schema.Boolean,
   columns: Schema.optional(Schema.Array(VoidQlColumn)),
   diagnostic: Schema.optional(VoidQlDiagnostic),
-});
+}).pipe(Schema.encodeKeys({ isValid: "valid" }));
+export type ValidateVoidQlQueryResponse = typeof ValidateVoidQlQueryResponse.Type;
 
 export const GetVoidQlSchemaResponse = Schema.Struct({
   dialect: Schema.String,
@@ -73,25 +79,30 @@ export const GetVoidQlSchemaResponse = Schema.Struct({
         Schema.Struct({
           name: Schema.String,
           type: Schema.String,
-          pii: Schema.Boolean,
+          isPii: Schema.Boolean,
           doc: Schema.String,
-        }),
+        }).pipe(Schema.encodeKeys({ isPii: "pii" })),
       ),
       namespaces: Schema.Array(
-        Schema.Struct({ name: Schema.String, pii: Schema.Boolean, doc: Schema.String }),
+        Schema.Struct({ name: Schema.String, isPii: Schema.Boolean, doc: Schema.String }).pipe(
+          Schema.encodeKeys({ isPii: "pii" }),
+        ),
       ),
     }),
   ),
   functions: Schema.Array(Schema.String),
 });
+export type GetVoidQlSchemaResponse = typeof GetVoidQlSchemaResponse.Type;
 
 export const SaveVoidQlInsightRequest = Schema.Struct({
   organizationId: Schema.String,
   name: Schema.String.check(Schema.isMaxLength(255)),
   text: VoidQlQueryText,
 });
+export type SaveVoidQlInsightRequest = typeof SaveVoidQlInsightRequest.Type;
 
 export const SaveVoidQlInsightResponse = Schema.Struct({ id: Schema.String });
+export type SaveVoidQlInsightResponse = typeof SaveVoidQlInsightResponse.Type;
 
 export const SavedVoidQlInsight = Schema.Struct({
   createdAt: Schema.Date,
@@ -103,11 +114,13 @@ export const SavedVoidQlInsight = Schema.Struct({
   text: VoidQlQueryText,
   updatedAt: Schema.Date,
 });
+export type SavedVoidQlInsight = typeof SavedVoidQlInsight.Type;
 export type SavedVoidQlInsightType = typeof SavedVoidQlInsight.Type;
 
 export const ListVoidQlInsightsResponse = Schema.Struct({
   insights: Schema.Array(SavedVoidQlInsight),
 });
+export type ListVoidQlInsightsResponse = typeof ListVoidQlInsightsResponse.Type;
 
 /** The compile-error union shared by the run + save surfaces. */
 const COMPILE_ERRORS = constant([
@@ -155,6 +168,8 @@ export class VoidQlRpcsDef extends RpcGroup.make(
   Rpc.make("DeleteVoidQlInsight", {
     error: Schema.Union([RpcActionForbiddenError, RpcVoidQlExecutionError]),
     payload: Schema.Struct({ id: Schema.String }),
-    success: Schema.Struct({ deleted: Schema.Boolean }),
+    success: Schema.Struct({ isDeleted: Schema.Boolean }).pipe(
+      Schema.encodeKeys({ isDeleted: "deleted" }),
+    ),
   }),
 ).middleware(AuthMiddleware) {}

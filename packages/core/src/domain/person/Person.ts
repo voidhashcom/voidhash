@@ -1,5 +1,10 @@
 import { constant } from "@voidhash/lib/lang";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
 
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
 
@@ -15,10 +20,11 @@ export const PersonIdentityKind = constant({
 
 export type PersonIdentityKindValue = (typeof PersonIdentityKind)[keyof typeof PersonIdentityKind];
 
-export const PersonIdentityKindSchema = Schema.Literals([
+export const PersonIdentityKindDefinition = Schema.Literals([
   PersonIdentityKind.Anonymous,
   PersonIdentityKind.Identified,
 ]);
+export type PersonIdentityKindDefinition = typeof PersonIdentityKindDefinition.Type;
 
 /**
  * Identity of a person — one of the `(distinctId, kind)` pairs that point at
@@ -31,7 +37,7 @@ export class PersonIdentity extends Schema.TaggedClass<PersonIdentity>()("Person
   distinctId: Schema.String,
   personId: Schema.String,
   projectId: Schema.String,
-  kind: PersonIdentityKindSchema,
+  kind: PersonIdentityKindDefinition,
   version: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   createdAt: Schema.NullOr(Schema.Date),
   updatedAt: Schema.NullOr(Schema.Date),
@@ -74,7 +80,7 @@ export class PersonProfile extends Schema.TaggedClass<PersonProfile>()("PersonPr
   personId: Schema.String,
   distinctId: Schema.String,
   email: Schema.NullOr(Schema.String),
-  kind: PersonIdentityKindSchema,
+  kind: PersonIdentityKindDefinition,
   mergedIntoPersonId: Schema.NullOr(Schema.String),
   name: Schema.NullOr(Schema.String),
   projectId: Schema.String,
@@ -106,39 +112,44 @@ export class Person extends Schema.TaggedClass<Person>()("Person", {
 
   /**
    * Picks the primary identity using {@link PersonIdentity.compareForPrimary}.
-   * Returns `undefined` if the person has no identities yet.
+   * Returns `None` if the person has no identities yet.
    */
-  primaryIdentity(): PersonIdentity | undefined {
-    if (this.identities.length === 0) {
-      return undefined;
-    }
-    return [...this.identities].sort((left, right) =>
-      PersonIdentity.compareForPrimary(left, right),
-    )[0];
+  primaryIdentity(): Option.Option<PersonIdentity> {
+    return Arr.head(
+      Arr.sort(
+        this.identities,
+        Order.make<PersonIdentity>((left, right) => {
+          const comparison = PersonIdentity.compareForPrimary(left, right);
+          if (comparison < 0) return -1;
+          if (comparison > 0) return 1;
+          return 0;
+        }),
+      ),
+    );
   }
 
   /**
    * Projects the person + primary identity into the public
-   * {@link PersonProfile} shape. Returns `undefined` when the person has no
+   * {@link PersonProfile} shape. Returns `None` when the person has no
    * identities (which means there is no `distinctId` we can surface to the
    * caller).
    */
-  toProfile(): PersonProfile | undefined {
-    const primary = this.primaryIdentity();
-    if (!primary) {
-      return undefined;
-    }
-    return new PersonProfile({
-      archivedAt: this.archivedAt,
-      createdAt: this.createdAt,
-      personId: this.id,
-      distinctId: primary.distinctId,
-      email: this.email,
-      kind: primary.kind,
-      mergedIntoPersonId: this.mergedIntoPersonId,
-      name: this.name,
-      projectId: this.projectId,
-    });
+  toProfile(): Option.Option<PersonProfile> {
+    return Option.map(
+      this.primaryIdentity(),
+      (primary) =>
+        new PersonProfile({
+          archivedAt: this.archivedAt,
+          createdAt: this.createdAt,
+          personId: this.id,
+          distinctId: primary.distinctId,
+          email: this.email,
+          kind: primary.kind,
+          mergedIntoPersonId: this.mergedIntoPersonId,
+          name: this.name,
+          projectId: this.projectId,
+        }),
+    );
   }
 }
 
@@ -216,19 +227,13 @@ export const mergeTraits = ({
   readonly setAttributes: Record<string, unknown>;
   readonly setOnceAttributes: Record<string, unknown>;
 }): Record<string, unknown> => {
-  const next = { ...current };
-
-  for (const [key, value] of Object.entries(setOnceAttributes)) {
-    if (typeof next[key] === "undefined") {
-      next[key] = value;
-    }
-  }
-
-  for (const [key, value] of Object.entries(setAttributes)) {
-    next[key] = value;
-  }
-
-  return next;
+  const withSetOnce = Arr.reduce(
+    R.toEntries(setOnceAttributes),
+    current,
+    (attributes, [key, value]) =>
+      P.isUndefined(attributes[key]) ? { ...attributes, [key]: value } : attributes,
+  );
+  return { ...withSetOnce, ...setAttributes };
 };
 
 /**

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
@@ -11,7 +11,7 @@ const DevelopmentModeError = Schema.Union([
 ]);
 
 const DevelopmentState = Schema.Struct({
-  developmentPurchasesEnabled: Schema.Boolean,
+  isDevelopmentPurchasesEnabled: Schema.Boolean,
   grants: Schema.Array(
     Schema.Struct({
       expiresAt: Schema.NullOr(Schema.Date),
@@ -44,13 +44,17 @@ const DevelopmentState = Schema.Struct({
       status: Schema.Number,
     }),
   ),
-});
+}).pipe(
+  Schema.encodeKeys({ isDevelopmentPurchasesEnabled: "developmentPurchasesEnabled" }),
+);
 
 export class DevelopmentModeRpcsDef extends RpcGroup.make(
   Rpc.make("GetDevelopmentModeSettings", {
     error: DevelopmentModeError,
     payload: Schema.Struct({ projectId: Schema.String }),
-    success: Schema.Struct({ developmentPurchasesEnabled: Schema.Boolean }),
+    success: Schema.Struct({ isDevelopmentPurchasesEnabled: Schema.Boolean }).pipe(
+      Schema.encodeKeys({ isDevelopmentPurchasesEnabled: "developmentPurchasesEnabled" }),
+    ),
   }),
   Rpc.make("GetDevelopmentModeState", {
     error: DevelopmentModeError,
@@ -70,7 +74,9 @@ export class DevelopmentModeRpcsDef extends RpcGroup.make(
   }),
   Rpc.make("SetDevelopmentPurchasesEnabled", {
     error: DevelopmentModeError,
-    payload: Schema.Struct({ enabled: Schema.Boolean, projectId: Schema.String }),
+    payload: Schema.Struct({ isEnabled: Schema.Boolean, projectId: Schema.String }).pipe(
+      Schema.encodeKeys({ isEnabled: "enabled" }),
+    ),
     success: Schema.Void,
   }),
   Rpc.make("ResetDevelopmentData", {

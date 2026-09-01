@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import * as Layer from "effect/Layer";
 
 import { DatabasesHandlersLive } from "./databases.ts";
 import { CollectionsHandlersLive } from "./collections.ts";

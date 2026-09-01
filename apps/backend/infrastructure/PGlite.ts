@@ -20,7 +20,7 @@ const migrationsMemo = {
  * Runs the persistent Community development database and applies migrations
  * before exposing its connection settings to dependent resources.
  */
-export const PGliteDatabase = Effect.gen(function* () {
+export const PGliteDatabase = Effect.fn("PGliteDatabase")(function* () {
   const server = yield* Command.Dev("PGliteDatabase", {
     command: "node scripts/pglite-dev-server.mjs",
     env: {
@@ -60,9 +60,9 @@ export const PGliteDatabase = Effect.gen(function* () {
         sslmode: "disable",
       }) satisfies Cloudflare.Hyperdrive.DevOrigin,
   );
-});
+})();
 
-const PostgresDatabase = Effect.gen(function* () {
+const PostgresDatabase = Effect.fn("PostgresDatabase")(function* () {
   const host = yield* Config.string("DATABASE_HOST").pipe(Config.withDefault("127.0.0.1"));
   const port = yield* Config.port("DATABASE_PORT").pipe(Config.withDefault(5432));
   const database = yield* Config.string("DATABASE_NAME").pipe(Config.withDefault("voidhash"));
@@ -101,7 +101,7 @@ const PostgresDatabase = Effect.gen(function* () {
         sslmode,
       }) satisfies Cloudflare.Hyperdrive.DevOrigin,
   );
-});
+})();
 
 /**
  * Selects and migrates the Community development database. PGlite is the

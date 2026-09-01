@@ -7,9 +7,7 @@
   "paths": {
     "/i/v1/capture": {
       "post": {
-        "tags": [
-          "event_capture"
-        ],
+        "tags": ["event_capture"],
         "operationId": "event_capture.capture",
         "parameters": [
           {
@@ -160,9 +158,7 @@
     },
     "/i/v1/batch": {
       "post": {
-        "tags": [
-          "event_capture"
-        ],
+        "tags": ["event_capture"],
         "operationId": "event_capture.batch",
         "parameters": [
           {
@@ -312,10 +308,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "events",
-                  "sent_at"
-                ],
+                "required": ["events", "sent_at"],
                 "additionalProperties": false
               }
             }
@@ -337,10 +330,7 @@
             "type": "integer"
           }
         },
-        "required": [
-          "accepted",
-          "rejected"
-        ],
+        "required": ["accepted", "rejected"],
         "additionalProperties": false
       },
       "CaptureInvalidRequestError": {
@@ -348,9 +338,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CaptureInvalidRequestError"
-            ]
+            "enum": ["CaptureInvalidRequestError"]
           },
           "error": {
             "type": "string",
@@ -358,16 +346,10 @@
           },
           "code": {
             "type": "string",
-            "enum": [
-              "invalid_request"
-            ]
+            "enum": ["invalid_request"]
           }
         },
-        "required": [
-          "_tag",
-          "error",
-          "code"
-        ],
+        "required": ["_tag", "error", "code"],
         "additionalProperties": false
       },
       "CaptureUnauthorizedError": {
@@ -375,9 +357,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CaptureUnauthorizedError"
-            ]
+            "enum": ["CaptureUnauthorizedError"]
           },
           "error": {
             "type": "string",
@@ -385,16 +365,10 @@
           },
           "code": {
             "type": "string",
-            "enum": [
-              "unauthorized"
-            ]
+            "enum": ["unauthorized"]
           }
         },
-        "required": [
-          "_tag",
-          "error",
-          "code"
-        ],
+        "required": ["_tag", "error", "code"],
         "additionalProperties": false
       },
       "CapturePayloadTooLargeError": {
@@ -402,9 +376,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CapturePayloadTooLargeError"
-            ]
+            "enum": ["CapturePayloadTooLargeError"]
           },
           "error": {
             "type": "string",
@@ -412,16 +384,10 @@
           },
           "code": {
             "type": "string",
-            "enum": [
-              "payload_too_large"
-            ]
+            "enum": ["payload_too_large"]
           }
         },
-        "required": [
-          "_tag",
-          "error",
-          "code"
-        ],
+        "required": ["_tag", "error", "code"],
         "additionalProperties": false
       },
       "CaptureRateLimitedError": {
@@ -429,9 +395,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CaptureRateLimitedError"
-            ]
+            "enum": ["CaptureRateLimitedError"]
           },
           "error": {
             "type": "string",
@@ -439,20 +403,14 @@
           },
           "code": {
             "type": "string",
-            "enum": [
-              "rate_limited"
-            ]
+            "enum": ["rate_limited"]
           },
           "retry_after_ms": {
             "nullable": true,
             "type": "integer"
           }
         },
-        "required": [
-          "_tag",
-          "error",
-          "code"
-        ],
+        "required": ["_tag", "error", "code"],
         "additionalProperties": false
       },
       "CaptureDependencyUnavailableError": {
@@ -460,9 +418,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CaptureDependencyUnavailableError"
-            ]
+            "enum": ["CaptureDependencyUnavailableError"]
           },
           "error": {
             "type": "string",
@@ -470,16 +426,10 @@
           },
           "code": {
             "type": "string",
-            "enum": [
-              "dependency_unavailable"
-            ]
+            "enum": ["dependency_unavailable"]
           }
         },
-        "required": [
-          "_tag",
-          "error",
-          "code"
-        ],
+        "required": ["_tag", "error", "code"],
         "additionalProperties": false
       },
       "CaptureInternalServerError": {
@@ -487,9 +437,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CaptureInternalServerError"
-            ]
+            "enum": ["CaptureInternalServerError"]
           },
           "error": {
             "type": "string",
@@ -497,16 +445,10 @@
           },
           "code": {
             "type": "string",
-            "enum": [
-              "internal_error"
-            ]
+            "enum": ["internal_error"]
           }
         },
-        "required": [
-          "_tag",
-          "error",
-          "code"
-        ],
+        "required": ["_tag", "error", "code"],
         "additionalProperties": false
       },
       "CaptureEventValue": {

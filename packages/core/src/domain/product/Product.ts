@@ -3,7 +3,7 @@
  * Row data lives in the `products` Drizzle table; the `ProductType` enum
  * lives with the schema in `@voidhash/db/schema`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Product row not found in the database. */
 export class ProductNotFoundError extends Schema.TaggedErrorClass<ProductNotFoundError>(

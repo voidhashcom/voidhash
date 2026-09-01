@@ -4,14 +4,12 @@ import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
-import { fileURLToPath } from "node:url";
+import * as Path from "effect/Path";
 
 import {
   CommunityWorkersDevEnabled,
   CommunityWwwDomain,
 } from "../infrastructure/DeploymentConfig.ts";
-
-const wwwRootDir = fileURLToPath(new URL("../../../apps/www", import.meta.url));
 
 export interface CommunityWebsiteConfig {
   readonly apiUrl: Alchemy.Input<string>;
@@ -19,15 +17,17 @@ export interface CommunityWebsiteConfig {
 
 /** Deploys the Community TanStack application as an Alchemy-managed Worker. */
 export const CommunityWebsite = Effect.fnUntraced(function* (config: CommunityWebsiteConfig) {
+  const path = yield* Path.Path;
+  const wwwRootDir = path.fromFileUrl(new URL("../../../apps/www", import.meta.url));
   const { stage } = yield* Alchemy.Stack;
   const dev = Option.match(yield* Effect.serviceOption(Alchemy.AlchemyContext), {
     onNone: () => false,
     onSome: (context) => context.dev,
   });
   const configuredDomain = yield* CommunityWwwDomain;
-  const domain: string | undefined = Match.value(dev).pipe(
+  const domain = Match.value(dev).pipe(
     Match.when(true, () => undefined),
-    Match.orElse(() => configuredDomain),
+    Match.orElse(() => Option.getOrUndefined(configuredDomain)),
   );
   const apiUrl = Match.value(dev).pipe(
     Match.when(true, () => "http://localhost:8787"),

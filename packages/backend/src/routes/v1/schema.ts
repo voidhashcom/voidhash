@@ -20,12 +20,14 @@ import { SchemaService } from "@voidhash/core/services";
 import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { constant } from "@voidhash/lib/lang";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession } from "../../ApiMiddlewares.ts";
+import * as Schema from "effect/Schema";
 
 const SCHEMA_CACHE_HEADERS = constant({
   "cache-control": "no-cache, must-revalidate",
@@ -37,9 +39,9 @@ const SCHEMA_CACHE_HEADERS = constant({
  * caller can serve the body.
  */
 export const schemaNotModifiedResponse = (
-  ifNoneMatch: string | undefined,
+  ifNoneMatch: string | typeof Schema.Undefined.Type,
   version: string,
-): HttpServerResponse.HttpServerResponse | undefined => {
+): HttpServerResponse.HttpServerResponse | typeof Schema.Undefined.Type => {
   if (!ifNoneMatch) {
     return undefined;
   }
@@ -64,12 +66,12 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
 
     return handlers
       .handle("getSchema", ({ query }) =>
-        Effect.gen(function* () {
+        Effect.fn("SchemaGroupLive")(function* () {
           const req = yield* HttpServerRequest.HttpServerRequest;
           const ifNoneMatch = HttpHeaders.get(req.headers, "if-none-match");
 
           return yield* bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("SchemaGroupLive")(function* () {
               const authSession = yield* AuthSession;
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
               const schema = yield* schemaService.getProjectSchema(projectId);
@@ -104,9 +106,9 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
                 }),
                 { headers: schemaResponseHeaders(schema.version) },
               ).pipe(Effect.orDie);
-            }),
+            })(),
           );
-        }).pipe(
+        })().pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
               Effect.fail(new ApiActionForbiddenError({ message: e.message })),
@@ -115,12 +117,12 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
         ),
       )
       .handle("getSchemaVersion", ({ query }) =>
-        Effect.gen(function* () {
+        Effect.fn("SchemaGroupLive")(function* () {
           const req = yield* HttpServerRequest.HttpServerRequest;
           const ifNoneMatch = HttpHeaders.get(req.headers, "if-none-match");
 
           return yield* bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("SchemaGroupLive")(function* () {
               const authSession = yield* AuthSession;
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
               const { version } = yield* schemaService.computeProjectSchemaVersion(projectId);
@@ -137,9 +139,9 @@ export const SchemaGroupLive = HttpApiBuilder.group(VoidhashV1Api, "schema", (ha
                 new SchemaVersion({ version }),
                 { headers: schemaResponseHeaders(version) },
               ).pipe(Effect.orDie);
-            }),
+            })(),
           );
-        }).pipe(
+        })().pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
               Effect.fail(new ApiActionForbiddenError({ message: e.message })),

@@ -3,7 +3,7 @@
  * (server-side paywall filesystem projection + component-manifest cache).
  * Class names and `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all workspace service error. Wraps DB, mimic-host, and manifest-cache

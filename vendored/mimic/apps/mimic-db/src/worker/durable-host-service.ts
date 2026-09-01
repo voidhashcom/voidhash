@@ -1,7 +1,11 @@
 import type { Value } from "@voidhash/mimic-core";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import { NotFoundError } from "@voidhash/mimic-server/rpc";
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { type HostService } from "../app/hostService.ts";
 import type { DocumentSnapshotResponse } from "../document/snapshot.ts";
@@ -20,7 +24,7 @@ export interface DocumentStub {
     collectionId: string,
     value: Value,
     schemaVersion: number,
-    migrationVersion: number | null,
+    migrationVersion: number | typeof Schema.Null.Type,
   ) => Effect.Effect<void, any>;
   readonly getSnapshot: () => Effect.Effect<
     { found: true; value: Value; version: number } | { found: false; error?: string },
@@ -73,10 +77,10 @@ const notFound = (message: string): NotFoundError =>
 /** Builds the presence entry for a headless connection, omitting an absent `userId`. */
 const presenceEntry = (
   data: Value,
-  userId: string | undefined,
+  userId: Option.Option<string>,
 ): { readonly data: Value; readonly userId?: string } => {
-  if (userId === undefined) return { data };
-  return { data, userId };
+  if (Option.isNone(userId)) return { data };
+  return { data, userId: userId.value };
 };
 
 const isSubmitResponse = (
@@ -95,7 +99,8 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
   const { docStub } = deps;
   const control = makeControlEngine(deps.controlStore, deps.migrations);
 
-  const connectionLeaseMs = (leaseMs?: number) => leaseMs ?? getConfig().presenceTtlMs;
+  const connectionLeaseMs = (leaseMs: Option.Option<number>) =>
+    Option.getOrElse(leaseMs, () => getConfig().presenceTtlMs);
 
   return {
     authenticateBasic: control.authenticateBasic,
@@ -127,21 +132,23 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
           collectionId,
           id,
           value,
-          (documentId): Effect.Effect<boolean> =>
+          Option.some((documentId): Effect.Effect<boolean> =>
             docStub(collectionId, documentId)
               .getSnapshot()
               .pipe(
-                Effect.map((snapshot) => snapshot.found || snapshot.error !== undefined),
-                // A probe failure (stub unreachable) is inconclusive; treat the
-                // document as materialized so a live paywall is never re-seeded.
-                Effect.catchCause(() => Effect.succeed(true)),
-              ),
+                Effect.exit,
+                Effect.map((result) =>
+                  Exit.isFailure(result)
+                    ? true
+                    : result.value.found || result.value.error !== undefined,
+                ),
+              )),
         );
         yield* docStub(collectionId, prepared.documentId).create(
           collectionId,
           prepared.value,
           prepared.schemaVersion,
-          prepared.migrationVersion,
+          Option.getOrNull(prepared.migrationVersion),
         );
         return { id: prepared.documentId, collectionId, value: prepared.value, version: 1 };
       }),
@@ -171,17 +178,17 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
             .getSnapshot()
             .pipe(
               Effect.map((snapshot) => {
-                if (!snapshot.found) return undefined;
-                return {
+                if (!snapshot.found) return Option.none<DocumentSnapshotResponse>();
+                return Option.some({
                   id: documentId,
                   collectionId,
                   value: snapshot.value,
                   version: snapshot.version,
-                } satisfies DocumentSnapshotResponse;
+                } satisfies DocumentSnapshotResponse);
               }),
             ),
-        );
-        return snapshots.filter((entry): entry is DocumentSnapshotResponse => entry !== undefined);
+         { concurrency: 1 });
+        return Arr.getSomes(snapshots);
       }),
 
     deleteDocument: (collectionId, documentId) =>
@@ -217,8 +224,8 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
         }
         const snapshot = yield* docStub(collectionId, documentId).openConnection(
           connectionId,
-          presenceEntry(presence, userId),
-          connectionLeaseMs(leaseMs),
+          presenceEntry(presence, Option.fromUndefinedOr(userId)),
+          connectionLeaseMs(Option.fromUndefinedOr(leaseMs)),
         );
         if (!("found" in snapshot)) {
           return yield* Effect.fail(notFound(`Document not found: ${documentId}`));
@@ -227,7 +234,7 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
       }),
     heartbeatConnection: (collectionId, documentId, connectionId, leaseMs) =>
       docStub(collectionId, documentId)
-        .heartbeatConnection(connectionId, connectionLeaseMs(leaseMs))
+        .heartbeatConnection(connectionId, connectionLeaseMs(Option.fromUndefinedOr(leaseMs)))
         .pipe(
           Effect.flatMap((found) => {
             if (found) return Effect.void;
@@ -236,7 +243,7 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
         ),
     getConnectionDocument: (collectionId, documentId, connectionId, leaseMs) =>
       docStub(collectionId, documentId)
-        .getConnectionSnapshot(connectionId, connectionLeaseMs(leaseMs))
+        .getConnectionSnapshot(connectionId, connectionLeaseMs(Option.fromUndefinedOr(leaseMs)))
         .pipe(
           Effect.flatMap((snapshot) => {
             if (!("found" in snapshot)) {
@@ -252,7 +259,11 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
         ),
     submitConnectionTransaction: (collectionId, documentId, connectionId, transaction, leaseMs) =>
       docStub(collectionId, documentId)
-        .submitConnection(connectionId, connectionLeaseMs(leaseMs), transaction)
+        .submitConnection(
+          connectionId,
+          connectionLeaseMs(Option.fromUndefinedOr(leaseMs)),
+          transaction,
+        )
         .pipe(
           Effect.flatMap((result) => {
             if ("notFound" in result) {

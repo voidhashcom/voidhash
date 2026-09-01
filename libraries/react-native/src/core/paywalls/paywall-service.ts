@@ -1,5 +1,7 @@
 import type { SdkResolvedPaywall } from "@voidhash/generated-clients";
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
 
 import { IdentityManager } from "../identity/identity-manager";
 import { ApiClient } from "../networking/api-client";
@@ -32,8 +34,9 @@ export class PaywallService extends Context.Service<PaywallService>()(
       const apiClient = yield* ApiClient;
       const identityManager = yield* IdentityManager;
 
-      const getPaywallForLocation = (locationSlug: LocationSlug) =>
-        Effect.gen(function* () {
+      const getPaywallForLocation = Effect.fn("PaywallService.getPaywallForLocation")(function* (
+        locationSlug: LocationSlug,
+      ) {
           const commonHeaders = yield* getCommonSdkHeaders();
           const distinctId = yield* identityManager.getDistinctId();
           return yield* apiClient.sdk.resolvePaywall({

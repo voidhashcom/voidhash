@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo } from "react";
+import React from "react";
+import * as Option from "effect/Option";
 
 import type { VoidhashClient } from "../../client";
 import { findActiveGrant } from "../../core/entitlements/find-grant";
@@ -19,18 +20,18 @@ export interface UseHasPerkResult {
    * snapshot. Pair with `error` to decide whether to fail open or closed.
    */
   isStale: boolean;
-  error: VoidhashError | null;
+  error: Option.Option<VoidhashError>;
   refetch: () => Promise<void>;
 }
 
 export function hasPerkHookFactory(
   client: VoidhashClient,
-  vhContext: React.Context<VoidhashContext | null>,
+  vhContext: React.Context<Option.Option<VoidhashContext>>,
 ) {
   function useHasPerk(perkSlug: PerkSlug): UseHasPerkResult {
-    const voidhashContext = React.useContext(vhContext);
+    const voidhashContext = React.useContext(vhContext).valueOrUndefined;
 
-    const getPersonCallback = useCallback(() => client.getCurrentPerson(), []);
+    const getPersonCallback = React.useCallback(() => client.getCurrentPerson(), []);
 
     const {
       isLoading,
@@ -39,20 +40,21 @@ export function hasPerkHookFactory(
     } = useAsyncFunction(getPersonCallback, {
       enabled: voidhashContext?.isInitialized,
     });
-    const error = fetchError ?? null;
+    const error = Option.fromUndefinedOr(fetchError);
 
     const person = useAtomValue(client.internal.getAtomRegistry(), currentPersonAtom);
 
-    const grant = useMemo(() => findActiveGrant(person, perkSlug), [person, perkSlug]);
+    const grant = React.useMemo(() => findActiveGrant(person, perkSlug), [person, perkSlug]);
 
     // A failed refresh must not be read as "no access": when a cached snapshot
     // exists the answer is served stale instead of denied.
-    const isStale = !isLoading && error !== null && person !== null && grant !== null;
+    const isStale =
+      !isLoading && Option.isSome(error) && Option.isSome(person) && Option.isSome(grant);
 
     return {
       error,
       grant,
-      hasAccess: grant !== null,
+      hasAccess: Option.isSome(grant),
       isLoading,
       isStale,
       refetch,

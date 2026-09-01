@@ -1,5 +1,8 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { DateTime, Effect, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { APP_STORE_PARKED_SDK_TTL_DAYS } from "../providers/app-store/payment-provider.ts";
 import { AppStorePaymentProviderServiceQueries } from "../providers/app-store/payment-provider-service-queries.ts";
@@ -18,8 +21,9 @@ export const AppStoreExpireParkedNotificationsRegistration = WorkflowRegistratio
     },
     run: (input, ctx) =>
       Effect.gen(function* () {
-        const triggeredAt = Date.parse(input.triggeredAt);
-        if (Number.isNaN(triggeredAt)) return { expired: 0 };
+        const parsedTriggeredAt = DateTime.make(input.triggeredAt);
+        if (Option.isNone(parsedTriggeredAt)) return { expired: 0 };
+        const triggeredAt = DateTime.toEpochMillis(parsedTriggeredAt.value);
 
         const olderThan = DateTime.toDateUtc(
           DateTime.makeUnsafe(triggeredAt - APP_STORE_PARKED_SDK_TTL_DAYS * dayMillis),
@@ -27,10 +31,10 @@ export const AppStoreExpireParkedNotificationsRegistration = WorkflowRegistratio
         const expired = yield* ctx.step({
           name: `app-store-expire-parked:${input.triggeredAt}`,
           success: Schema.Struct({ expired: Schema.Number }),
-          execute: Effect.gen(function* () {
+          execute: Effect.fn("execute")(function* () {
             const queries = yield* AppStorePaymentProviderServiceQueries;
             return yield* queries.expireStaleParkedSdkConfirmationRows({ olderThan });
-          }),
+          })(),
         });
         return expired;
       }),

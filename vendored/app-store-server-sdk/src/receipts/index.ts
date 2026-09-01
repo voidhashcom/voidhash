@@ -1,4 +1,7 @@
-import { Effect, Option, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { causeMessage } from "@voidhash/lib/lang";
 import { base64ToBytes, bytesToHex, bytesToUtf8, hexToBytes } from "../internal/bytes.ts";
 
@@ -42,16 +45,16 @@ const parseAsn1 = (hex: string, offset: number): Option.Option<Asn1Parsed> => {
 
   if (firstLenByte === 0x80) {
     const contentStart = cursor;
-    let scan = cursor;
-    while (scan + 4 <= hex.length) {
+    const scanIndefinite = (scan: number): Option.Option<Asn1Parsed> => {
+      if (scan + 4 > hex.length) return Option.none();
       if (hex.slice(scan, scan + 4) === "0000") {
         return Option.some({ tag, value: hex.slice(contentStart, scan), end: scan + 4 });
       }
       const inner = parseAsn1(hex, scan);
       if (Option.isNone(inner)) return Option.none();
-      scan = inner.value.end;
-    }
-    return Option.none();
+      return scanIndefinite(inner.value.end);
+    };
+    return scanIndefinite(cursor);
   }
 
   let length: number;
@@ -78,21 +81,22 @@ const parseAsn1 = (hex: string, offset: number): Option.Option<Asn1Parsed> => {
 const navigateToPath = (hex: string, path: readonly number[]): Option.Option<string> => {
   const outer = parseAsn1(hex, 0);
   if (Option.isNone(outer)) return Option.none();
-  let current = outer.value.value;
-  for (const targetIndex of path) {
-    let offset = 0;
-    let count = 0;
-    while (count < targetIndex) {
-      const parsed = parseAsn1(current, offset);
-      if (Option.isNone(parsed)) return Option.none();
-      offset = parsed.value.end;
-      count++;
-    }
-    const node = parseAsn1(current, offset);
-    if (Option.isNone(node)) return Option.none();
-    current = node.value.value;
-  }
-  return Option.some(current);
+  const childAt = (current: string, targetIndex: number): Option.Option<string> => {
+    const findOffset = (offset: number, count: number): Option.Option<number> => {
+      if (count >= targetIndex) return Option.some(offset);
+      return Option.flatMap(parseAsn1(current, offset), (parsed) =>
+        findOffset(parsed.end, count + 1),
+      );
+    };
+    return Option.flatMap(findOffset(0, 0), (offset) =>
+      Option.map(parseAsn1(current, offset), (node) => node.value),
+    );
+  };
+  return Arr.reduce(
+    path,
+    Option.some(outer.value.value),
+    (current, targetIndex) => Option.flatMap(current, (value) => childAt(value, targetIndex)),
+  );
 };
 
 /**
@@ -114,12 +118,12 @@ const readUtf8FromOctet = (octetValue: string): Option.Option<string> => {
  * with the given type id. Returns the OCTET STRING value (still hex-encoded).
  */
 const findAttribute = (setHex: string, typeId: number): Option.Option<string> => {
-  let offset = 0;
-  while (offset < setHex.length) {
+  const findFrom = (offset: number): Option.Option<string> => {
+    if (offset >= setHex.length) return Option.none();
     const seq = parseAsn1(setHex, offset);
-    if (Option.isNone(seq)) break;
+    if (Option.isNone(seq)) return Option.none();
     const typeNode = parseAsn1(seq.value.value, 0);
-    if (Option.isNone(typeNode)) break;
+    if (Option.isNone(typeNode)) return Option.none();
     if (readInteger(typeNode.value.value) === typeId) {
       // attribute is { type, version, value }
       const versionNode = parseAsn1(seq.value.value, typeNode.value.end);
@@ -128,9 +132,9 @@ const findAttribute = (setHex: string, typeId: number): Option.Option<string> =>
       if (Option.isNone(valueNode)) return Option.none();
       return Option.some(valueNode.value.value);
     }
-    offset = seq.value.end;
-  }
-  return Option.none();
+    return findFrom(seq.value.end);
+  };
+  return findFrom(0);
 };
 
 /**
@@ -142,10 +146,10 @@ const forEachAttribute = <T>(
   typeId: number,
   fn: (valueHex: string) => Option.Option<T>,
 ): Option.Option<T> => {
-  let offset = 0;
-  while (offset < setHex.length) {
+  const findFrom = (offset: number): Option.Option<T> => {
+    if (offset >= setHex.length) return Option.none();
     const seq = parseAsn1(setHex, offset);
-    if (Option.isNone(seq)) break;
+    if (Option.isNone(seq)) return Option.none();
     const typeNode = parseAsn1(seq.value.value, 0);
     if (Option.isSome(typeNode) && readInteger(typeNode.value.value) === typeId) {
       const versionNode = parseAsn1(seq.value.value, typeNode.value.end);
@@ -157,9 +161,9 @@ const forEachAttribute = <T>(
         }
       }
     }
-    offset = seq.value.end;
-  }
-  return Option.none();
+    return findFrom(seq.value.end);
+  };
+  return findFrom(0);
 };
 
 /**
@@ -270,12 +274,18 @@ export const extractTransactionIdFromReceipt = (
 ): Effect.Effect<Option.Option<string>, ReceiptParseError> =>
   Effect.gen(function* () {
     const fromApp = yield* extractTransactionIdFromAppReceipt(encodedReceipt).pipe(
-      Effect.catch(() => Effect.succeed(Option.none())),
+      Effect.matchEffect({
+        onFailure: () => Effect.succeed(Option.none()),
+        onSuccess: Effect.succeed,
+      }),
     );
     if (Option.isSome(fromApp)) return fromApp;
 
     const fromTxn = yield* extractTransactionIdFromTransactionReceipt(encodedReceipt).pipe(
-      Effect.catch(() => Effect.succeed(Option.none())),
+      Effect.matchEffect({
+        onFailure: () => Effect.succeed(Option.none()),
+        onSuccess: Effect.succeed,
+      }),
     );
     return fromTxn;
   });
@@ -292,10 +302,10 @@ export const extractAllTransactionIdsFromReceipt = (
     const ids: string[] = [];
     const receiptInfo = loadReceiptInfo(encodedReceipt);
     if (Option.isSome(receiptInfo)) {
-      let offset = 0;
-      while (offset < receiptInfo.value.length) {
+      const collectIds = (offset: number): void => {
+        if (offset >= receiptInfo.value.length) return;
         const seq = parseAsn1(receiptInfo.value, offset);
-        if (Option.isNone(seq)) break;
+        if (Option.isNone(seq)) return;
         const typeNode = parseAsn1(seq.value.value, 0);
         if (Option.isSome(typeNode) && readInteger(typeNode.value.value) === IN_APP_TYPE_ID) {
           const versionNode = parseAsn1(seq.value.value, typeNode.value.end);
@@ -314,14 +324,18 @@ export const extractAllTransactionIdsFromReceipt = (
             }
           }
         }
-        offset = seq.value.end;
-      }
-      if (ids.length > 0) return ids;
+        collectIds(seq.value.end);
+      };
+      collectIds(0);
+      if (Arr.isReadonlyArrayNonEmpty(ids)) return ids;
     }
 
     // Fallback to legacy transactional receipt format.
     const legacy = yield* extractTransactionIdFromTransactionReceipt(encodedReceipt).pipe(
-      Effect.catch(() => Effect.succeed(Option.none())),
+      Effect.matchEffect({
+        onFailure: () => Effect.succeed(Option.none()),
+        onSuccess: Effect.succeed,
+      }),
     );
     if (Option.isSome(legacy)) ids.push(legacy.value);
     return ids;

@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcFeedbackServiceError } from "../errors/Feedback.ts";
 import { AuthMiddleware } from "../middlewares.ts";
@@ -8,6 +8,7 @@ import { AuthMiddleware } from "../middlewares.ts";
 export const SubmitFeedbackResult = Schema.Struct({
   id: Schema.String,
 });
+export type SubmitFeedbackResult = typeof SubmitFeedbackResult.Type;
 
 /**
  * Customer-facing feedback RPC, gated by {@link AuthMiddleware} (any

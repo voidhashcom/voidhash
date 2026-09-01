@@ -1,17 +1,18 @@
-import { Effect } from "effect";
-import React, {
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { ActivityIndicator, Linking, Platform, Text, View } from "react-native";
+import * as P from "effect/Predicate";
+import * as Option from "effect/Option";
+import React, { forwardRef } from "react";
+import { ActivityIndicator, Linking, Platform, StyleSheet, Text, View } from "react-native";
 
 import type {
   PaywallWebViewErrorEvent,
+  PaywallWebViewBaseEvent,
+  PaywallWebViewFileDownloadEvent,
+  PaywallWebViewHttpErrorEvent,
   PaywallWebViewNavigationEvent,
+  PaywallWebViewMessageEvent,
+  PaywallWebViewOpenWindowEvent,
+  PaywallWebViewProgressEvent,
+  PaywallWebViewRenderProcessGoneEvent,
   PaywallWebViewShouldStartLoadRequest,
 } from "../../specs/PaywallWebView.nitro";
 import { PaywallWebViewHost, type PaywallWebViewHostRef } from "./PaywallWebViewHost";
@@ -21,7 +22,7 @@ import { createNativeEvent, normalizeSource, wrapNitroCallback } from "./utils";
 import { compileWhitelist, passesWhitelist } from "./whitelist";
 
 const defaultOriginWhitelist = ["http://*", "https://*"];
-const PaywallWebViewNativeComponent = PaywallWebViewHost as React.ComponentType<any>;
+const PaywallWebViewNativeComponent = PaywallWebViewHost;
 
 type ViewState = "IDLE" | "LOADING" | "ERROR";
 
@@ -33,11 +34,15 @@ function defaultRenderLoading() {
   );
 }
 
-function defaultRenderError(domain: string | undefined, code: number, description: string) {
+function defaultRenderError(
+  domain: Option.Option<string>,
+  code: number,
+  description: string,
+) {
   return (
     <View style={styles.loadingOrErrorView}>
       <Text style={styles.errorTextTitle}>Error loading page</Text>
-      <Text style={styles.errorText}>{`Domain: ${domain ?? "N/A"}`}</Text>
+      <Text style={styles.errorText}>{`Domain: ${Option.getOrElse(domain, () => "N/A")}`}</Text>
       <Text style={styles.errorText}>{`Error Code: ${code}`}</Text>
       <Text style={styles.errorText}>{`Description: ${description}`}</Text>
     </View>
@@ -99,28 +104,23 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
     ref,
   ) => {
     // Nitro Views rely on Fabric/New Architecture.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((globalThis as any).nativeFabricUIManager == null) {
-      return Effect.runSync(
-        Effect.die(
-          new Error("PaywallWebView requires React Native New Architecture (Fabric) enabled."),
-        ),
-      );
+    if (!("nativeFabricUIManager" in globalThis)) {
+      throw new TypeError("PaywallWebView requires React Native New Architecture (Fabric) enabled.");
     }
 
-    const hybridViewRef = useRef<PaywallWebViewHostRef | null>(null);
-    const [viewState, setViewState] = useState<ViewState>(startInLoadingState ? "LOADING" : "IDLE");
-    const [lastErrorEvent, setLastErrorEvent] = useState<PaywallWebViewErrorEvent | null>(null);
-    const startUrl = useRef<string | null>(null);
+    const hybridViewRef = React.useRef<PaywallWebViewHostRef>(undefined);
+    const [viewState, setViewState] = React.useState<ViewState>(startInLoadingState ? "LOADING" : "IDLE");
+    const [lastErrorEvent, setLastErrorEvent] = React.useState<Option.Option<PaywallWebViewErrorEvent>>(Option.none());
+    const startUrl = React.useRef<string>(undefined);
 
-    const sourceNormalized = useMemo(() => normalizeSource(source), [source]);
-    const compiledWhitelist = useMemo(() => compileWhitelist(originWhitelist), [originWhitelist]);
+    const sourceNormalized = React.useMemo(() => normalizeSource(source), [source]);
+    const compiledWhitelist = React.useMemo(() => compileWhitelist(originWhitelist), [originWhitelist]);
 
-    const onHybridRef = useCallback((hybridRef: PaywallWebViewHostRef) => {
+    const onHybridRef = React.useCallback((hybridRef: PaywallWebViewHostRef) => {
       hybridViewRef.current = hybridRef;
     }, []);
 
-    const onLoadingStart = useCallback(
+    const onLoadingStart = React.useCallback(
       (event: PaywallWebViewNavigationEvent) => {
         startUrl.current = event.url;
         onLoadStart?.(createNativeEvent(event));
@@ -128,7 +128,7 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
       [onLoadStart],
     );
 
-    const onLoadingFinish = useCallback(
+    const onLoadingFinish = React.useCallback(
       (event: PaywallWebViewNavigationEvent) => {
         onLoad?.(createNativeEvent(event));
         onLoadEnd?.(createNativeEvent(event));
@@ -140,17 +140,17 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
       [onLoad, onLoadEnd],
     );
 
-    const onLoadingError = useCallback(
+    const onLoadingError = React.useCallback(
       (event: PaywallWebViewErrorEvent) => {
         onError?.(createNativeEvent(event));
         setViewState("ERROR");
-        setLastErrorEvent(event);
+        setLastErrorEvent(Option.some(event));
       },
       [onError],
     );
 
-    const onLoadingProgress = useCallback(
-      (event: { progress: number } & PaywallWebViewNavigationEvent) => {
+    const onLoadingProgress = React.useCallback(
+      (event: PaywallWebViewProgressEvent) => {
         if (Platform.OS === "android" && event.progress === 1) {
           setViewState((prev) => (prev === "LOADING" ? "IDLE" : prev));
         }
@@ -159,7 +159,7 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
       [onLoadProgress],
     );
 
-    const onShouldStartLoad = useCallback(
+    const onShouldStartLoad = React.useCallback(
       (event: PaywallWebViewShouldStartLoadRequest) => {
         const { url } = event;
 
@@ -186,7 +186,7 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
       [compiledWhitelist, onShouldStartLoadWithRequest],
     );
 
-    useImperativeHandle(
+    React.useImperativeHandle(
       ref,
       (): PaywallWebViewImperativeRef => ({
         clearCache(includeDiskFiles: boolean) {
@@ -227,21 +227,22 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
       [],
     );
 
-    let otherView: React.ReactElement | null = null;
-    if (viewState === "LOADING") {
-      otherView = (renderLoading ?? defaultRenderLoading)();
-    } else if (viewState === "ERROR" && lastErrorEvent != null) {
-      otherView = (renderError ?? defaultRenderError)(
-        lastErrorEvent.domain,
-        lastErrorEvent.code,
-        lastErrorEvent.description,
-      );
-    }
+    const otherView =
+      viewState === "LOADING"
+        ? (renderLoading ?? defaultRenderLoading)()
+        : viewState === "ERROR" && Option.isSome(lastErrorEvent)
+          ? (renderError ?? defaultRenderError)(
+              Option.fromUndefinedOr(lastErrorEvent.value.domain),
+              lastErrorEvent.value.code,
+              lastErrorEvent.value.description,
+            )
+          : undefined;
 
     return (
       <View style={[styles.container, containerStyle]}>
+        <View style={StyleSheet.flatten([styles.webView, style])}>
         <PaywallWebViewNativeComponent
-          style={[styles.webView, style] as any}
+          style={styles.webView}
           allowFileAccess={allowFileAccess}
           allowFileAccessFromFileURLs={allowFileAccessFromFileURLs}
           allowUniversalAccessFromFileURLs={allowUniversalAccessFromFileURLs}
@@ -266,56 +267,56 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
           injectedJavaScriptForMainFrameOnly={injectedJavaScriptForMainFrameOnly}
           javaScriptEnabled={javaScriptEnabled}
           mediaPlaybackRequiresUserAction={mediaPlaybackRequiresUserAction}
-          messagingEnabled={typeof onMessage === "function"}
+          messagingEnabled={P.isFunction(onMessage)}
           mixedContentMode="never"
           nestedScrollEnabled={nestedScrollEnabled}
           onContentProcessDidTerminate={wrapNitroCallback(
             onContentProcessDidTerminate
-              ? (event: any) => {
+              ? (event: PaywallWebViewBaseEvent) => {
                   onContentProcessDidTerminate(createNativeEvent(event));
                 }
               : undefined,
           )}
           onFileDownload={wrapNitroCallback(
             onFileDownload
-              ? (event: any) => {
+              ? (event: PaywallWebViewFileDownloadEvent) => {
                   onFileDownload(createNativeEvent(event));
                 }
               : undefined,
           )}
           onHttpError={wrapNitroCallback(
             onHttpError
-              ? (event: any) => {
+              ? (event: PaywallWebViewHttpErrorEvent) => {
                   onHttpError(createNativeEvent(event));
                 }
               : undefined,
           )}
           onLoadingError={wrapNitroCallback(onLoadingError)}
           onLoadingFinish={wrapNitroCallback(onLoadingFinish)}
-          onLoadingProgress={wrapNitroCallback(onLoadingProgress as any)}
+          onLoadingProgress={wrapNitroCallback(onLoadingProgress)}
           onLoadingStart={wrapNitroCallback(onLoadingStart)}
           onMessage={wrapNitroCallback(
             onMessage
-              ? (event: any) => {
+              ? (event: PaywallWebViewMessageEvent) => {
                   onMessage(createNativeEvent(event));
                 }
               : undefined,
           )}
           onOpenWindow={wrapNitroCallback(
             onOpenWindow
-              ? (event: any) => {
+              ? (event: PaywallWebViewOpenWindowEvent) => {
                   onOpenWindow(createNativeEvent(event));
                 }
               : undefined,
           )}
           onRenderProcessGone={wrapNitroCallback(
             onRenderProcessGone
-              ? (event: any) => {
+              ? (event: PaywallWebViewRenderProcessGoneEvent) => {
                   onRenderProcessGone(createNativeEvent(event));
                 }
               : undefined,
           )}
-          onShouldStartLoadWithRequest={wrapNitroCallback(onShouldStartLoad as any)}
+          onShouldStartLoadWithRequest={wrapNitroCallback(onShouldStartLoad)}
           originWhitelist={originWhitelist}
           overScrollMode="always"
           pullToRefreshEnabled={pullToRefreshEnabled}
@@ -329,6 +330,7 @@ export const PaywallWebView = forwardRef<PaywallWebViewImperativeRef, PaywallWeb
           thirdPartyCookiesEnabled={thirdPartyCookiesEnabled}
           userAgent={userAgent}
         />
+        </View>
         {otherView}
       </View>
     );

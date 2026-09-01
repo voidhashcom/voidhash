@@ -30,9 +30,13 @@
 
 declare const require: (id: string) => unknown;
 declare const process: {
-  env: Record<string, string | undefined>;
   on(event: string, listener: () => void): void;
+  emitWarning(message: string): void;
 };
+
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Result from "effect/Result";
 
 interface ChildProcessLike {
   killed: boolean;
@@ -46,11 +50,13 @@ interface ChildProcessModule {
     command: string,
     args: ReadonlyArray<string>,
     options: {
-      env: Record<string, string | undefined>;
       stdio: "inherit";
     },
   ): ChildProcessLike;
 }
+
+const isChildProcessModule = (value: unknown): value is ChildProcessModule =>
+  P.isObject(value) && "spawn" in value && P.isFunction(value.spawn);
 
 // Metro config has a deep, framework-specific type. We treat it as opaque
 // here and return it unchanged so we don't have to depend on `metro-config`.
@@ -65,7 +71,7 @@ export interface WithVoidhashOptions {
   extraArgs?: ReadonlyArray<string>;
 }
 
-let activeChildProcess: ChildProcessLike | null = null;
+let activeChildProcess = Option.none<ChildProcessLike>();
 let teardownInstalled = false;
 
 function ensureTeardownHandlers() {
@@ -73,9 +79,9 @@ function ensureTeardownHandlers() {
   teardownInstalled = true;
 
   const teardown = () => {
-    if (activeChildProcess && !activeChildProcess.killed) {
-      activeChildProcess.kill("SIGTERM");
-      activeChildProcess = null;
+    if (Option.isSome(activeChildProcess) && !activeChildProcess.value.killed) {
+      activeChildProcess.value.kill("SIGTERM");
+      activeChildProcess = Option.none();
     }
   };
 
@@ -85,7 +91,7 @@ function ensureTeardownHandlers() {
 }
 
 function startWatcher(options: WithVoidhashOptions) {
-  if (activeChildProcess) {
+  if (Option.isSome(activeChildProcess)) {
     return;
   }
 
@@ -99,36 +105,35 @@ function startWatcher(options: WithVoidhashOptions) {
     ...(options.extraArgs ?? []),
   ];
 
-  // oxlint-disable-next-line effect/noTryCatch -- Metro config hook: this runs inside Metro's synchronous config evaluation, with no Effect runtime available to run an Effect.try.
-  try {
-    // oxlint-disable-next-line effect/noDynamicImports -- node:child_process is loaded lazily so the Metro config stays importable in non-Node bundling targets that never start the type-generation watcher.
-    const childProcessModule = require("node:child_process") as ChildProcessModule;
-    activeChildProcess = childProcessModule.spawn(binary, args, {
-      env: process.env,
-      stdio: "inherit",
-    });
-
-    activeChildProcess.on("error", (error) => {
-      console.warn(
-        `[voidhash/metro] Failed to spawn '${binary} ${args.join(" ")}': ${error.message}. ` +
-          "Ensure voidhash-cli is installed in this project.",
-      );
-      activeChildProcess = null;
-    });
-
-    activeChildProcess.on("exit", () => {
-      activeChildProcess = null;
-    });
-
-    ensureTeardownHandlers();
-  } catch (error) {
-    console.warn(
-      `[voidhash/metro] Could not start types watcher: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    activeChildProcess = null;
+  const childProcessModule = require("node:child_process");
+  if (!isChildProcessModule(childProcessModule)) {
+    process.emitWarning("[voidhash/metro] node:child_process did not expose spawn().");
+    return;
   }
+
+  const spawned = Result.try(() => childProcessModule.spawn(binary, args, { stdio: "inherit" }));
+  Result.match(spawned, {
+    onFailure: (error) => {
+      process.emitWarning(`[voidhash/metro] Could not start types watcher: ${String(error)}`);
+      activeChildProcess = Option.none();
+    },
+    onSuccess: (childProcess: ChildProcessLike) => {
+      activeChildProcess = Option.some(childProcess);
+      childProcess.on("error", (error) => {
+        process.emitWarning(
+          `[voidhash/metro] Failed to spawn '${binary} ${args.join(" ")}': ${error.message}. ` +
+            "Ensure voidhash-cli is installed in this project.",
+        );
+        activeChildProcess = Option.none();
+      });
+
+      childProcess.on("exit", () => {
+        activeChildProcess = Option.none();
+      });
+
+      ensureTeardownHandlers();
+    },
+  });
 }
 
 /**

@@ -9,7 +9,7 @@
  * `Schema.TaggedClass`es, no `Effect`, no DB knowledge. Construction belongs
  * in `services/sdk/internal/snapshot-builder.ts`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 // =============================================================================
 // Status enums (Schema.Literal so they participate in the TaggedClass schema)

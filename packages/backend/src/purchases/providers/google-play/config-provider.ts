@@ -4,7 +4,9 @@
  * derivation, default blobs, and encryption of the service-account JSON before
  * persistence.
  */
-import { Effect, Layer, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import { stringOr } from "@voidhash/lib/lang";
 
@@ -15,11 +17,12 @@ import {
 } from "@voidhash/core-v2";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { isEncrypted } from "@voidhash/core/utils/crypto/SecretBox";
+import * as Str from "effect/String";
 
 const PACKAGE_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/;
 const RTDN_TOPIC_PATTERN = /^projects\/[^/]+\/topics\/[^/]+$/;
 
-const serviceAccountKeySchema = Schema.Struct({
+const ServiceAccountKey = Schema.Struct({
   client_email: Schema.String.check(Schema.isMinLength(1)),
   client_id: Schema.String.check(Schema.isMinLength(1)),
   private_key: Schema.String.check(Schema.isMinLength(1)),
@@ -28,20 +31,23 @@ const serviceAccountKeySchema = Schema.Struct({
   type: Schema.Literal("service_account"),
 });
 
-export const globalConfigurationSchema = Schema.Struct({
+export const globalConfiguration = Schema.Struct({
   googleRealTimeDeveloperNotificationForwardingUrl: Schema.String,
   googleRealTimeDeveloperNotificationTopicName: Schema.String,
   packageName: Schema.String.check(Schema.isPattern(PACKAGE_NAME_PATTERN)),
   serviceAccountKey: Schema.String.check(Schema.isMinLength(1)),
 });
 
-export const productConfigurationSchema = Schema.Struct({
+export const productConfiguration = Schema.Struct({
   basePlanId: Schema.optional(Schema.String),
   productId: Schema.String.check(Schema.isMinLength(1)),
 });
 
-export type GooglePlayGlobalConfiguration = Schema.Schema.Type<typeof globalConfigurationSchema>;
-export type GooglePlayProductConfiguration = Schema.Schema.Type<typeof productConfigurationSchema>;
+export type globalConfiguration = typeof globalConfiguration.Type;
+export type productConfiguration = typeof productConfiguration.Type;
+
+export type GooglePlayGlobalConfiguration = Schema.Schema.Type<typeof globalConfiguration>;
+export type GooglePlayProductConfiguration = Schema.Schema.Type<typeof productConfiguration>;
 
 export interface GooglePlayConfigProvider {
   readonly id: "google-play";
@@ -80,7 +86,7 @@ const validatePlainServiceAccountKey = (serviceAccountKey: string) => {
         }),
     ),
     Effect.flatMap((parsedJson) =>
-      Schema.decodeUnknownEffect(serviceAccountKeySchema)(parsedJson).pipe(
+      Schema.decodeUnknownEffect(ServiceAccountKey)(parsedJson).pipe(
         Effect.mapError(
           (error) =>
             new PaymentProviderConfigurationValidationError({
@@ -94,7 +100,7 @@ const validatePlainServiceAccountKey = (serviceAccountKey: string) => {
 };
 
 const validateOptionalUrl = (url: string) => {
-  if (url.length === 0) {
+  if (Str.isEmpty(url)) {
     return Effect.void;
   }
 
@@ -117,7 +123,7 @@ const validateOptionalUrl = (url: string) => {
 };
 
 const validateOptionalRtdnTopicName = (topicName: string) => {
-  if (topicName.length === 0) {
+  if (Str.isEmpty(topicName)) {
     return Effect.void;
   }
 
@@ -140,7 +146,7 @@ const validateOptionalRtdnTopicName = (topicName: string) => {
 const productKeyFrom = (productId: unknown, basePlanId: unknown): string => {
   const product = stringOr(productId, "");
   const basePlan = stringOr(basePlanId, "");
-  if (basePlan.length === 0) {
+  if (Str.isEmpty(basePlan)) {
     return product;
   }
   return `${product}:${basePlan}`;
@@ -168,7 +174,7 @@ export const makeGooglePlayConfigProvider = (
   title: "Google Play",
   type: "native",
   validateGlobalConfiguration: (configuration) =>
-    Schema.decodeUnknownEffect(globalConfigurationSchema)(configuration).pipe(
+    Schema.decodeUnknownEffect(globalConfiguration)(configuration).pipe(
       Effect.mapError(
         (error) => new PaymentProviderConfigurationValidationError({ cause: error.message }),
       ),
@@ -183,7 +189,7 @@ export const makeGooglePlayConfigProvider = (
               parsedConfiguration.googleRealTimeDeveloperNotificationTopicName,
             ),
           ],
-          { discard: true },
+          { concurrency: 1, discard: true },
         ).pipe(
           Effect.flatMap(() =>
             secretCrypto.encrypt(parsedConfiguration.serviceAccountKey).pipe(
@@ -198,7 +204,7 @@ export const makeGooglePlayConfigProvider = (
       ),
     ),
   validateProductConfiguration: (configuration) =>
-    Schema.decodeUnknownEffect(productConfigurationSchema)(configuration).pipe(
+    Schema.decodeUnknownEffect(productConfiguration)(configuration).pipe(
       Effect.mapError(
         (error) => new PaymentProviderProductValidationError({ message: error.message }),
       ),

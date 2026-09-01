@@ -5,7 +5,9 @@
  * the `voidhash` custom command. Custom commands register in
  * {@link workspaceCustomCommands}.
  */
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as P from "effect/Predicate";
+import { runPromise } from "../../runtime-boundary.ts";
 import { Bash, defineCommand, type CustomCommand, type ExecResult } from "just-bash/browser";
 
 import {
@@ -13,6 +15,8 @@ import {
   WORKSPACE_VFS_README,
   type WorkspaceVfsSources,
 } from "./workspace-vfs.ts";
+import * as Arr from "effect/Array";
+import * as Schema from "effect/Schema";
 
 /** stdout cap for one bash result (~10k tokens). */
 export const MAX_BASH_STDOUT = 40_000;
@@ -20,7 +24,7 @@ export const MAX_BASH_STDOUT = 40_000;
 export const MAX_BASH_STDERR = 8_000;
 
 const paywallListing = (lines: ReadonlyArray<string>): string => {
-  if (lines.length === 0) return "";
+  if (Arr.isReadonlyArrayEmpty(lines)) return "";
   return `${lines.join("\n")}\n`;
 };
 
@@ -49,7 +53,7 @@ const voidhashResult = (
   });
 
 const voidhashCommand = (sources: WorkspaceVfsSources): CustomCommand =>
-  defineCommand("voidhash", (args) => Effect.runPromise(voidhashResult(sources, args)));
+  defineCommand("voidhash", (args) => runPromise(voidhashResult(sources, args)));
 
 const workspaceCustomCommands = (sources: WorkspaceVfsSources): CustomCommand[] => [
   voidhashCommand(sources),
@@ -59,9 +63,9 @@ const workspaceCustomCommands = (sources: WorkspaceVfsSources): CustomCommand[] 
 // the interpreter as throws instead of becoming command stderr; a Node-shaped
 // `E<CODE>:` message is an answered question, not an infrastructure failure.
 const isFsError = (error: unknown): error is Error =>
-  error instanceof Error && /^E[A-Z]+: /.test(error.message);
+  P.isError(error) && /^E[A-Z]+: /.test(error.message);
 
-const execOptions = (signal: AbortSignal | undefined): { signal?: AbortSignal } => {
+const execOptions = (signal: AbortSignal | typeof Schema.Undefined.Type): { signal?: AbortSignal } => {
   if (signal === undefined) return {};
   return { signal };
 };
@@ -69,7 +73,7 @@ const execOptions = (signal: AbortSignal | undefined): { signal?: AbortSignal } 
 const workspaceBashResult = (
   sources: WorkspaceVfsSources,
   command: string,
-  signal: AbortSignal | undefined,
+  signal: AbortSignal | typeof Schema.Undefined.Type,
 ): Effect.Effect<ExecResult, unknown> =>
   Effect.gen(function* () {
     const fs = yield* Effect.tryPromise({
@@ -105,7 +109,7 @@ export const runWorkspaceBash = (
   command: string,
   options: { readonly signal?: AbortSignal } = {},
 ): Promise<ExecResult> =>
-  Effect.runPromise(workspaceBashResult(sources, command, options.signal));
+  runPromise(workspaceBashResult(sources, command, options.signal));
 
 const truncate = (text: string, max: number, label: string): string => {
   if (text.length <= max) return text;

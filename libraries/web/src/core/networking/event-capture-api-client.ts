@@ -1,10 +1,12 @@
 import { make as makeEventCaptureClient } from "@voidhash/generated-clients/event-capture";
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { SdkConfiguration } from "../sdk-configuration";
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("makeEventCaptureApiClient")(function* effect() {
   const config = yield* SdkConfiguration;
   const httpClient = yield* HttpClient.HttpClient;
   return makeEventCaptureClient(httpClient, {
@@ -21,7 +23,7 @@ const make = Effect.gen(function* effect() {
 
 export class EventCaptureApiClient extends Context.Service<
   EventCaptureApiClient,
-  Effect.Success<typeof make>
+  Effect.Success<ReturnType<typeof make>>
 >()("web-voidhash/EventCaptureApiClient") {
-  static Default = Layer.effect(EventCaptureApiClient, make);
+  static Default = Layer.effect(EventCaptureApiClient, make());
 }

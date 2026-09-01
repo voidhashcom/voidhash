@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import { RpcPaywallDeployServiceError } from "../errors/PaywallDeploy.ts";
@@ -22,6 +22,7 @@ export const RpcPaywallComponentVersion = Schema.Struct({
   slug: Schema.String,
   version: Schema.Number,
 });
+export type RpcPaywallComponentVersion = typeof RpcPaywallComponentVersion.Type;
 
 /** Summary of an older component version (no manifest/catalog detail). */
 export const RpcPaywallComponentVersionSummary = Schema.Struct({
@@ -29,6 +30,7 @@ export const RpcPaywallComponentVersionSummary = Schema.Struct({
   createdAt: Schema.Date,
   version: Schema.Number,
 });
+export type RpcPaywallComponentVersionSummary = typeof RpcPaywallComponentVersionSummary.Type;
 
 export const RpcPaywallComponent = Schema.Struct({
   componentId: Schema.String,
@@ -38,6 +40,7 @@ export const RpcPaywallComponent = Schema.Struct({
   slug: Schema.String,
   title: Schema.NullOr(Schema.String),
 });
+export type RpcPaywallComponent = typeof RpcPaywallComponent.Type;
 
 export class PaywallComponentRpcsDef extends RpcGroup.make(
   Rpc.make("ListPaywallComponents", {

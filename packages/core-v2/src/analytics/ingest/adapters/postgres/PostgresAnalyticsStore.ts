@@ -1,4 +1,8 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import { AnalyticsPortError, AnalyticsStore } from "../../../application/ports.ts";
 import type {
@@ -17,9 +21,7 @@ export interface PostgresStatement {
 
 /** PostgreSQL client capabilities used by the analytics adapter. */
 export interface PostgresAnalyticsClientShape {
-  readonly query: <Row extends object>(
-    statement: PostgresStatement,
-  ) => Effect.Effect<ReadonlyArray<Row>, unknown>;
+  readonly query: (statement: PostgresStatement) => Effect.Effect<ReadonlyArray<unknown>, unknown>;
 }
 
 /** PostgreSQL client boundary supplied by the application runtime. */
@@ -208,11 +210,11 @@ const insertStatement = (batch: typeof AnalyticsWriteBatch.Type) => {
   } satisfies PostgresStatement;
 };
 
-const makePostgresAnalyticsStore = Effect.gen(function* () {
+const makePostgresAnalyticsStore = Effect.fn("makePostgresAnalyticsStore")(function* () {
   const client = yield* PostgresAnalyticsClient;
   const list = (input: typeof ListAnalyticsEventsInput.Type) => {
-    if (input.projectIds.length === 0) return Effect.succeed([]);
-    return client.query<PostgresEventRow>(listStatement(input, input.limit ?? 10_000)).pipe(
+    if (Arr.isReadonlyArrayEmpty(input.projectIds)) return Effect.succeed([]);
+    return client.query(listStatement(input, input.limit ?? 10_000)).pipe(
       Effect.timeout(STORE_OPERATION_TIMEOUT),
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresEventRow))),
       Effect.map((rows) => rows.map(storedEvent)),
@@ -221,17 +223,17 @@ const makePostgresAnalyticsStore = Effect.gen(function* () {
   };
 
   const listPage = (input: typeof ListAnalyticsEventsInput.Type) => {
-    if (input.projectIds.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(input.projectIds)) {
       return Effect.succeed({
         events: [],
         hasNextPage: false,
       } satisfies typeof AnalyticsEventPage.Type);
     }
     return Effect.gen(function* () {
-      let cursor: string | undefined;
-      if (input.afterEventId) {
+      const cursor = yield* Effect.gen(function* () {
+        if (!input.afterEventId) return undefined;
         const anchor = yield* client
-          .query<{ readonly sequence: number | string }>({
+          .query({
             name: "analytics.events.cursor",
             text: "SELECT sequence FROM analytics_event WHERE project_id = ANY($1::text[]) AND event_id = $2 LIMIT 1",
             values: [[...input.projectIds], input.afterEventId],
@@ -253,11 +255,11 @@ const makePostgresAnalyticsStore = Effect.gen(function* () {
             message: "analytics event cursor was not found",
           });
         }
-        cursor = sequence;
-      }
+        return sequence;
+      });
       const limit = input.limit ?? 100;
       const rows = yield* client
-        .query<PostgresEventRow>(listStatement(input, limit + 1, cursor))
+        .query(listStatement(input, limit + 1, cursor))
         .pipe(
           Effect.timeout(STORE_OPERATION_TIMEOUT),
           Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresEventRow))),
@@ -274,8 +276,8 @@ const makePostgresAnalyticsStore = Effect.gen(function* () {
     // runtime (the identity resolver writes persons there), so the
     // person/personIdentity projections are intentionally not mirrored here.
     insert: (batch) => {
-      if (batch.events.length === 0) return Effect.succeed(0);
-      return client.query<{ readonly event_id: string }>(insertStatement(batch)).pipe(
+      if (Arr.isReadonlyArrayEmpty(batch.events)) return Effect.succeed(0);
+      return client.query(insertStatement(batch)).pipe(
         Effect.timeout(STORE_OPERATION_TIMEOUT),
         Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(PostgresInsertedEventRow))),
         Effect.map(() => batch.events.length),
@@ -285,7 +287,7 @@ const makePostgresAnalyticsStore = Effect.gen(function* () {
     list,
     listPage,
   } satisfies AnalyticsStoreShape;
-});
+})();
 
 /** PostgreSQL implementation of the unified analytics store. */
 export const PostgresAnalyticsStoreLive = Layer.effect(AnalyticsStore)(makePostgresAnalyticsStore);

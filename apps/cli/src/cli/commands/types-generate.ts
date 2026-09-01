@@ -1,5 +1,8 @@
 import { Command, Flag } from "effect/unstable/cli";
-import { Console, Effect, Path, Schedule } from "effect";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
+import * as Path from "effect/Path";
+import * as Schedule from "effect/Schedule";
 
 import { resolveTypesOutput } from "../../domain/schema/voidhash-config";
 import { Auth } from "../../domain/services/auth";
@@ -59,7 +62,7 @@ export const typesGenerateCommand = Command.make(
       const typesOutput = resolveTypesOutput(config);
       const outPath = pathService.resolve(typesOutput);
 
-      const regenerate = Effect.gen(function* regenerate() {
+      const regenerate = Effect.fn("regenerate")(function* regenerate() {
         yield* Console.log("Fetching remote schema...");
         const { schema, version } = yield* schemaService
           .fetchRemoteSchema()
@@ -75,7 +78,7 @@ export const typesGenerateCommand = Command.make(
           `✓ Types written to ${typesOutput} (version ${version.slice(0, 19)}...)`,
         );
         return version;
-      });
+      })();
 
       const initialVersion = yield* regenerate;
 
@@ -91,7 +94,7 @@ export const typesGenerateCommand = Command.make(
       // can compare and skip work when the schema hasn't changed.
       let lastVersion = initialVersion;
 
-      const pollOnce = Effect.gen(function* pollOnce() {
+      const pollOnce = Effect.fn("pollOnce")(function* pollOnce() {
         const latest = yield* schemaService
           .fetchSchemaVersion()
           .pipe(
@@ -117,7 +120,7 @@ export const typesGenerateCommand = Command.make(
         if (next !== null) {
           lastVersion = next;
         }
-      });
+      })();
 
       yield* Effect.repeat(pollOnce, Schedule.spaced(`${pollIntervalMs} millis`));
     }),

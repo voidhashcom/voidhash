@@ -1,5 +1,8 @@
 import { Command } from "effect/unstable/cli";
-import { Console, Effect, Path } from "effect";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
+import * as Path from "effect/Path";
+import * as Option from "effect/Option";
 
 import { SchemaCheckFailedError } from "../../domain/errors/schema";
 import { resolveTypesOutput } from "../../domain/schema/voidhash-config";
@@ -58,13 +61,14 @@ export const typesCheckCommand = Command.make("check", {}, () =>
         ),
       );
 
-    if (localVersion === null) {
+    if (Option.isNone(localVersion)) {
       return yield* Effect.fail(
         userError(
           `${typesOutput} is missing the @voidhash:version header. Re-run 'voidhash-cli types generate' to regenerate.`,
         ),
       );
     }
+    const localVersionValue = localVersion.value;
 
     const remoteVersion = yield* schemaService
       .fetchSchemaVersion()
@@ -74,13 +78,13 @@ export const typesCheckCommand = Command.make("check", {}, () =>
         ),
       );
 
-    if (localVersion === remoteVersion) {
-      yield* Console.log(`✓ Types are up to date (version ${localVersion.slice(0, 19)}...)`);
+    if (localVersionValue === remoteVersion) {
+      yield* Console.log(`✓ Types are up to date (version ${localVersionValue.slice(0, 19)}...)`);
       return;
     }
 
     yield* Console.log("✗ Types are stale.");
-    yield* Console.log(`  Local:  ${localVersion}`);
+    yield* Console.log(`  Local:  ${localVersionValue}`);
     yield* Console.log(`  Server: ${remoteVersion}`);
     yield* Console.log(
       "\nRun 'voidhash-cli types generate' to refresh, then commit the updated declaration file.",
@@ -88,7 +92,7 @@ export const typesCheckCommand = Command.make("check", {}, () =>
 
     return yield* Effect.fail(
       new SchemaCheckFailedError({
-        message: `Local types version ${localVersion} does not match server version ${remoteVersion}`,
+        message: `Local types version ${localVersionValue} does not match server version ${remoteVersion}`,
       }),
     );
   }),

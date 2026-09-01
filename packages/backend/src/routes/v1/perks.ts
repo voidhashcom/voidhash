@@ -1,3 +1,4 @@
+import * as Arr from "effect/Array";
 import { createdResponse, Perk, VoidhashV1Api } from "@voidhash/api-contracts";
 import {
   ApiActionForbiddenError,
@@ -8,7 +9,8 @@ import {
 import { PerkService } from "@voidhash/core/services";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Order from "effect/Order";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -27,14 +29,14 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
     return handlers
       .handle("listPerks", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PerksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const perks = yield* perkService.getPerks(projectId);
             // The service returns rows in database order; pagination cursors
             // only make sense over a stable one.
-            const sorted = [...perks].sort((a, b) => a.id.localeCompare(b.id));
+            const sorted = Arr.sortWith([...perks], (item) => item.id, Order.String);
             const page = yield* paginate(sorted, (perk) => perk.id, query);
             return {
               data: page.data.map(
@@ -48,7 +50,7 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
               ),
               pageInfo: page.pageInfo,
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -59,7 +61,7 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
       )
       .handle("createPerk", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PerksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -75,7 +77,7 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
               slug: payload.slug,
             });
             return yield* createdResponse(Perk, perk, `/perks/${perk.id}`);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -88,7 +90,7 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
       )
       .handle("getPerk", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PerksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const perk = yield* perkService.getPerkById(params.perkId);
@@ -98,7 +100,7 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
               projectId: perk.projectId,
               slug: perk.slug,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -110,7 +112,7 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
       )
       .handle("updatePerk", ({ params, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PerksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             // The service takes a full name/slug pair plus the owning project,
@@ -125,7 +127,7 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
               slug,
             });
             return new Perk({ id: params.perkId, name, projectId: existing.projectId, slug });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -139,11 +141,11 @@ export const PerksGroupLive = HttpApiBuilder.group(VoidhashV1Api, "perks", (hand
       )
       .handle("deletePerk", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PerksGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* perkService.deletePerk({ perkId: params.perkId });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

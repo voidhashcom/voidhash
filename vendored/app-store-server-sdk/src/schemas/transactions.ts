@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import {
   AdvancedCommerceTransactionInfoSchema,
   TransactionCommitmentInfoSchema,
@@ -19,7 +19,7 @@ import {
  * A decoded payload containing transaction information.
  * @see https://developer.apple.com/documentation/appstoreserverapi/jwstransactiondecodedpayload
  */
-export const JWSTransactionDecodedPayloadSchema = Schema.Struct({
+export const JWSTransactionDecodedPayloadCodec = Schema.Struct({
   /** The original transaction identifier of a purchase. */
   originalTransactionId: Schema.OptionFromOptionalKey(Schema.String),
 
@@ -129,14 +129,24 @@ export const JWSTransactionDecodedPayloadSchema = Schema.Struct({
   /** Commitment info for this transaction. */
   commitmentInfo: Schema.OptionFromOptionalKey(TransactionCommitmentInfoSchema),
 });
+export type JWSTransactionDecodedPayloadCodec = typeof JWSTransactionDecodedPayloadCodec.Type;
 
 export type JWSTransactionDecodedPayload = Schema.Schema.Type<
-  typeof JWSTransactionDecodedPayloadSchema
+  typeof JWSTransactionDecodedPayloadCodec
 >;
 
 /**
  * Decode a JWSTransactionDecodedPayload from an unknown value.
  */
-export const decodeJWSTransactionDecodedPayload = Schema.decodeUnknownEffect(
-  JWSTransactionDecodedPayloadSchema,
+const decodeJWSTransactionDecodedPayloadEffect = Schema.decodeUnknownEffect(
+  JWSTransactionDecodedPayloadCodec,
 );
+
+/** Decode a JWSTransactionDecodedPayload from an unknown value. */
+export function decodeJWSTransactionDecodedPayload(
+  ...args: Parameters<typeof decodeJWSTransactionDecodedPayloadEffect>
+): ReturnType<typeof decodeJWSTransactionDecodedPayloadEffect> {
+  return decodeJWSTransactionDecodedPayloadEffect(...args);
+}
+
+export { JWSTransactionDecodedPayloadCodec as JWSTransactionDecodedPayloadSchema };

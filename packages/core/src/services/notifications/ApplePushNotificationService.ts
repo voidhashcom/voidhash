@@ -1,3 +1,4 @@
+import * as Str from "effect/String";
 /**
  * Apple Push Notification service adapter — the `provider='apns'` delivery edge.
  * Config validation is fully built and NOT gated (APNs configs always save and
@@ -14,7 +15,13 @@
  * every failure (decrypt, JWT sign, network) is mapped onto the normalized
  * {@link PushDeliveryError} channel.
  */
-import { Clock, Duration, Effect, Layer, Option, Schema } from "effect";
+import * as Clock from "effect/Clock";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { FetchHttpClient, Headers, HttpBody, HttpClient } from "effect/unstable/http";
 
 import { constant, stringOr } from "@voidhash/lib/lang";
@@ -45,7 +52,7 @@ const APNS_SEND_TIMEOUT = Duration.seconds(15);
 const APNS_TOKEN_TTL_SECONDS = 50 * 60;
 
 /** The persisted APNs configuration shape (inside `push_notification_config.configuration`). */
-export const apnsConfigurationSchema = Schema.Struct({
+export const apnsConfiguration = Schema.Struct({
   /** Apple Team ID -> JWT `iss` claim. */
   teamId: Schema.String.check(Schema.isPattern(APNS_TEAM_ID_PATTERN)),
   /** Auth Key ID -> JWT `kid` header. */
@@ -57,8 +64,9 @@ export const apnsConfigurationSchema = Schema.Struct({
   /** Selects the endpoint host. */
   environment: Schema.Literals(["sandbox", "production"]),
 });
+export type apnsConfiguration = typeof apnsConfiguration.Type;
 
-export type ApnsConfiguration = typeof apnsConfigurationSchema.Type;
+export type ApnsConfiguration = typeof apnsConfiguration.Type;
 
 const APNS_DEFAULT_CONFIGURATION = constant({
   teamId: "",
@@ -99,9 +107,7 @@ export const buildApnsPayload = (message: PushMessage): Record<string, unknown> 
   return { aps, ...message.data };
 };
 
-const apnsErrorSchema = Schema.fromJsonString(
-  Schema.Struct({ reason: Schema.optional(Schema.Unknown) }),
-);
+const apnsError = Schema.fromJsonString(Schema.Struct({ reason: Schema.optional(Schema.Unknown) }));
 
 /**
  * Decode a JSON response body against `schema`, yielding `Option.none()` when the
@@ -115,23 +121,20 @@ const classifyApnsReason = (
   statusCode: number,
   reason: string,
 ): Effect.Effect<never, PushDeliveryError> => {
-  switch (reason) {
-    case "Unregistered":
-      return Effect.fail(new PushUnregisteredError({ statusCode }));
-    case "BadDeviceToken":
-    case "DeviceTokenNotForTopic":
-      return Effect.fail(new PushBadTokenError({ statusCode }));
-    case "PayloadTooLarge":
-      return Effect.fail(new PushPayloadTooLargeError({ statusCode }));
-    case "TooManyRequests":
-      return Effect.fail(new PushRateExceededError({ statusCode }));
-    case "ExpiredProviderToken":
-    case "InvalidProviderToken":
-    case "MissingProviderToken":
-      return Effect.fail(new PushInvalidCredentialsError({ statusCode }));
-    default:
-      break;
-  }
+  if (reason === "Unregistered")
+    return Effect.fail(new PushUnregisteredError({ statusCode }));
+  if (reason === "BadDeviceToken" || reason === "DeviceTokenNotForTopic")
+    return Effect.fail(new PushBadTokenError({ statusCode }));
+  if (reason === "PayloadTooLarge")
+    return Effect.fail(new PushPayloadTooLargeError({ statusCode }));
+  if (reason === "TooManyRequests")
+    return Effect.fail(new PushRateExceededError({ statusCode }));
+  if (
+    reason === "ExpiredProviderToken" ||
+    reason === "InvalidProviderToken" ||
+    reason === "MissingProviderToken"
+  )
+    return Effect.fail(new PushInvalidCredentialsError({ statusCode }));
   if (statusCode === 410) {
     return Effect.fail(new PushUnregisteredError({ statusCode }));
   }
@@ -164,7 +167,7 @@ export const classifyApnsResult = (
     if (statusCode >= 200 && statusCode < 300) {
       return { statusCode, providerMessageId: apnsId };
     }
-    const parsed = Option.getOrUndefined(yield* decodeJsonBody(apnsErrorSchema, bodyText));
+    const parsed = Option.getOrUndefined(yield* decodeJsonBody(apnsError, bodyText));
     return yield* classifyApnsReason(statusCode, stringOr(parsed?.reason, ""));
   });
 
@@ -231,7 +234,7 @@ export const makeApplePushNotificationProvider = (
   // Provider-auth token cache keyed by `${teamId}:${keyId}` (a single Apple
   // token authenticates ALL topics for that key). A shared cross-isolate cache
   // is a Phase-3 concern; per-isolate is sufficient here.
-  const tokenCache = new Map<string, CachedProviderToken>();
+  const tokenCache = MutableHashMap.empty<string, CachedProviderToken>();
 
   const getProviderToken = (
     teamId: string,
@@ -240,10 +243,13 @@ export const makeApplePushNotificationProvider = (
   ): Effect.Effect<string, PushDeliveryError> =>
     Effect.gen(function* () {
       const cacheKey = `${teamId}:${keyId}`;
-      const cached = tokenCache.get(cacheKey);
+      const cached = MutableHashMap.get(tokenCache, cacheKey);
       const nowMillis = yield* Clock.currentTimeMillis;
-      if (cached && nowMillis - cached.issuedAtEpochMs < APNS_TOKEN_TTL_SECONDS * 1000) {
-        return cached.token;
+      if (
+        Option.isSome(cached) &&
+        nowMillis - cached.value.issuedAtEpochMs < APNS_TOKEN_TTL_SECONDS * 1000
+      ) {
+        return cached.value.token;
       }
       const nowSeconds = Math.floor(nowMillis / 1000);
       const token = yield* signJwtEs256(
@@ -252,7 +258,7 @@ export const makeApplePushNotificationProvider = (
         privateKeyPem,
       ).pipe(Effect.mapError(() => new PushInvalidCredentialsError({})));
       const issuedAtEpochMs = yield* Clock.currentTimeMillis;
-      tokenCache.set(cacheKey, { token, issuedAtEpochMs });
+      MutableHashMap.set(tokenCache, cacheKey, { token, issuedAtEpochMs });
       return token;
     });
 
@@ -302,7 +308,7 @@ export const makeApplePushNotificationProvider = (
     title: "Apple Push Notification service",
     defaultGlobalConfiguration: () => Effect.succeed({ ...APNS_DEFAULT_CONFIGURATION }),
     validateGlobalConfiguration: (configuration) =>
-      Schema.decodeUnknownEffect(apnsConfigurationSchema)(configuration).pipe(
+      Schema.decodeUnknownEffect(apnsConfiguration)(configuration).pipe(
         Effect.mapError((error) => new NotificationConfigValidationError({ cause: error.message })),
         Effect.flatMap((parsed) =>
           // Encrypt the .p8 private key before persist (idempotent). A
@@ -321,11 +327,11 @@ export const makeApplePushNotificationProvider = (
       keyId: readString(configuration, "keyId"),
       bundleId: readString(configuration, "bundleId"),
       environment: configuration.environment ?? "production",
-      hasPrivateKey: readString(configuration, "privateKeyContent").length > 0,
+      hasPrivateKey: Str.isNonEmpty(readString(configuration, "privateKeyContent")),
     }),
     hasPlaintextSecret: (configuration) => {
       const secret = readString(configuration, "privateKeyContent");
-      return secret.length > 0 && !isEncrypted(secret);
+      return Str.isNonEmpty(secret) && !isEncrypted(secret);
     },
     deliver,
   };
@@ -353,3 +359,5 @@ export const ApplePushNotificationServiceConfigLive: Layer.Layer<
   never,
   PaymentConfigSecretCrypto
 > = makeApplePushNotificationServiceConfigLive({ deliveryEnabled: Effect.succeed(false) });
+
+export { apnsConfiguration as apnsConfigurationSchema };

@@ -1,5 +1,8 @@
+import * as P from "effect/Predicate";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect, Layer, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 import {
   PaymentProviderConfigurationOperations,
@@ -33,11 +36,13 @@ const annotateUser = (session: typeof AuthSession.Service) => {
 };
 
 const portErrorMessage = (error: PurchasePortError | { readonly _tag: unknown }) => {
-  if ("message" in error && typeof error.message === "string") return error.message;
+  if ("message" in error && P.isString(error.message)) return error.message;
   return "Purchase persistence operation failed";
 };
 
-const makePaymentProviderConfigurationOperations = Effect.gen(function* () {
+const makePaymentProviderConfigurationOperations = Effect.fn(
+  "makePaymentProviderConfigurationOperations",
+)(function* () {
   const repository = yield* PurchaseManagementRepository;
   const audit = yield* PurchaseAuditLog;
   const permission = yield* ProjectPermissionCheck;
@@ -69,10 +74,8 @@ const makePaymentProviderConfigurationOperations = Effect.gen(function* () {
       ),
     );
 
-  const optionalName = (name: string | undefined) => {
-    if (name === undefined) return {};
-    return { name };
-  };
+  const optionalName = (name: Option.Option<string>) =>
+    Option.match(name, { onNone: () => ({}), onSome: (value) => ({ name: value }) });
 
   return PaymentProviderConfigurationOperations.of({
     createPaymentProviderConfiguration: (input) =>
@@ -250,7 +253,7 @@ const makePaymentProviderConfigurationOperations = Effect.gen(function* () {
               }),
               enabled: false,
               id: input.id,
-              ...optionalName(input.name),
+              ...optionalName(Option.fromNullishOr(input.name)),
             });
             yield* Effect.log(
               `Updated payment provider configuration ${input.id} while disabled (validated: ${Option.isSome(validation)}).`,
@@ -272,7 +275,7 @@ const makePaymentProviderConfigurationOperations = Effect.gen(function* () {
               configuration: validation.parsedConfiguration,
               enabled: true,
               id: input.id,
-              ...optionalName(input.name),
+              ...optionalName(Option.fromNullishOr(input.name)),
               paymentProviderKey: validation.paymentProviderKey,
             });
             yield* Effect.log(
@@ -293,7 +296,7 @@ const makePaymentProviderConfigurationOperations = Effect.gen(function* () {
         }),
       ),
   });
-});
+})();
 
 /** Core provider-configuration orchestration over infrastructure-neutral management ports. */
 export const PaymentProviderConfigurationOperationsLive = Layer.effect(

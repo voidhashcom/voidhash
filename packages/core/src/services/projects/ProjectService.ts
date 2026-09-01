@@ -1,6 +1,11 @@
 import { SLUG_BLACKLIST } from "@voidhash/lib";
 import { constant } from "@voidhash/lib/lang";
-import { Cause, Context, Effect, Layer, Schema } from "effect";
+import * as Cause from "effect/Cause";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { AuthenticationError, AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -11,14 +16,7 @@ import {
   validateAndDecodeAvatar,
 } from "../../domain/avatar.ts";
 import { ProjectNotFoundError } from "../../domain/project/Project.ts";
-import {
-  AuditLogAction,
-  AuditLogEntityType,
-  Db,
-  apiKeys,
-  eq,
-  projects,
-} from "@voidhash/db";
+import { AuditLogAction, AuditLogEntityType, Db, apiKeys, eq, projects } from "@voidhash/db";
 import { createShortId } from "../../utils/create-short-id.ts";
 import { createSlug } from "../../utils/create-slug.ts";
 import { generateId } from "../../utils/generate-id.ts";
@@ -238,22 +236,20 @@ export class ProjectService extends Context.Service<ProjectService>()("ProjectSe
 
         const id = generateId("project");
         yield* Effect.annotateCurrentSpan("voidhash.project.id", id);
-        let slug = createSlug(input.name);
-        if (SLUG_BLACKLIST.includes(slug)) {
-          slug = `${slug}-${createShortId()}`;
-        }
+        const candidateSlug = createSlug(input.name);
+        const availableSlug = SLUG_BLACKLIST.includes(candidateSlug)
+          ? `${candidateSlug}-${createShortId()}`
+          : candidateSlug;
 
         const existingProject = yield* db.query.projects.findFirst({
-          where: { slug, organizationId: input.organizationId },
+          where: { slug: availableSlug, organizationId: input.organizationId },
         });
-        if (existingProject) {
-          slug = `${slug}-${createShortId()}`;
-        }
+        const slug = existingProject ? `${availableSlug}-${createShortId()}` : availableSlug;
         yield* Effect.annotateCurrentSpan("voidhash.project.slug", slug);
 
         const apiKeyId = generateId("apiPublishableKey");
         yield* db.transaction((tx) =>
-          Effect.gen(function* () {
+          Effect.fn("ProjectService.createProject.transaction")(function* () {
             yield* tx.insert(projects).values({
               createdByUserId: userId,
               id,
@@ -269,7 +265,7 @@ export class ProjectService extends Context.Service<ProjectService>()("ProjectSe
               name: "Publishable key",
               ...productionPublishableKey,
             });
-          }),
+          })(),
         );
         yield* Effect.annotateCurrentSpan("voidhash.api_key.id", apiKeyId);
 
@@ -358,24 +354,29 @@ export class ProjectService extends Context.Service<ProjectService>()("ProjectSe
         const sha256 = yield* avatarSha256Hex(bytes);
         const key = deriveAvatarKey("project", input.id, sha256, ext);
 
-        yield* publicFileStore.putObject({ key, body: bytes, contentType: input.contentType });
+        yield* publicFileStore.putObject({
+          key,
+          body: bytes,
+          contentType: Option.some(input.contentType),
+        });
         const logoUrl = publicFileStore.publicUrl(key);
 
         yield* db.update(projects).set({ logo: logoUrl }).where(eq(projects.id, input.id));
 
         // Best-effort cleanup of the superseded object (only our own keys).
+        const previousLogo = Option.fromNullishOr(project.logo);
         if (
-          project.logo !== null &&
-          isOwnedAvatarUrl(project.logo, publicFileStore.publicBaseUrl)
+          Option.isSome(previousLogo) &&
+          isOwnedAvatarUrl(previousLogo, publicFileStore.publicBaseUrl)
         ) {
-          const oldKey = avatarKeyFromUrl(project.logo, publicFileStore.publicBaseUrl);
-          if (oldKey !== null && oldKey !== key) {
+          const oldKey = avatarKeyFromUrl(previousLogo.value, publicFileStore.publicBaseUrl);
+          if (Option.isSome(oldKey) && oldKey.value !== key) {
             yield* publicFileStore
-              .deleteObject(oldKey)
+              .deleteObject(oldKey.value)
               .pipe(
                 Effect.catchCause((cause) =>
                   Effect.logWarning(
-                    `Failed to delete superseded avatar object ${oldKey}: ${Cause.pretty(cause)}`,
+                    `Failed to delete superseded avatar object ${oldKey.value}: ${Cause.pretty(cause)}`,
                   ),
                 ),
               );
@@ -420,18 +421,19 @@ export class ProjectService extends Context.Service<ProjectService>()("ProjectSe
 
         yield* db.update(projects).set({ logo: null }).where(eq(projects.id, input.id));
 
+        const previousLogo = Option.fromNullishOr(project.logo);
         if (
-          project.logo !== null &&
-          isOwnedAvatarUrl(project.logo, publicFileStore.publicBaseUrl)
+          Option.isSome(previousLogo) &&
+          isOwnedAvatarUrl(previousLogo, publicFileStore.publicBaseUrl)
         ) {
-          const oldKey = avatarKeyFromUrl(project.logo, publicFileStore.publicBaseUrl);
-          if (oldKey !== null) {
+          const oldKey = avatarKeyFromUrl(previousLogo.value, publicFileStore.publicBaseUrl);
+          if (Option.isSome(oldKey)) {
             yield* publicFileStore
-              .deleteObject(oldKey)
+              .deleteObject(oldKey.value)
               .pipe(
                 Effect.catchCause((cause) =>
                   Effect.logWarning(
-                    `Failed to delete superseded avatar object ${oldKey}: ${Cause.pretty(cause)}`,
+                    `Failed to delete superseded avatar object ${oldKey.value}: ${Cause.pretty(cause)}`,
                   ),
                 ),
               );

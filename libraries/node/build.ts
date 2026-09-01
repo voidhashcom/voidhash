@@ -1,9 +1,12 @@
-import { Data, Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
+import * as Schema from "effect/Schema";
 import * as tsup from "tsup";
 
-class BuildFailedError extends Data.TaggedError("BuildFailedError")<{
-  readonly cause: unknown;
-}> {}
+class BuildFailedError extends Schema.TaggedErrorClass<BuildFailedError>()("BuildFailedError", {
+  cause: Schema.Unknown,
+}) {}
 
 const main = Effect.tryPromise({
   try: () =>
@@ -71,4 +74,5 @@ const main = Effect.tryPromise({
   ),
 );
 
-void Effect.runPromise(main);
+const runtime = ManagedRuntime.make(Layer.empty);
+void runtime.runPromise(main).finally(() => runtime.dispose());

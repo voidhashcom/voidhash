@@ -1,5 +1,7 @@
 import type { AuthSession } from "@voidhash/rpc";
-import { Context, Schema, type Effect } from "effect";
+import * as Context from "effect/Context";
+import * as Schema from "effect/Schema";
+import type * as Effect from "effect/Effect";
 
 import type { PaymentProviderConfiguration } from "../../domain/ProviderConfiguration.ts";
 import type {
@@ -23,20 +25,32 @@ export interface PurchaseManagementRepositoryShape {
   readonly findScopedConfiguration: (input: {
     readonly id: string;
     readonly projectIds: ReadonlyArray<string>;
-  }) => Effect.Effect<typeof PaymentProviderConfiguration.Type | undefined, PurchasePortError>;
+  }) => Effect.Effect<
+    typeof PaymentProviderConfiguration.Type | typeof Schema.Undefined.Type,
+    PurchasePortError
+  >;
   readonly findConfiguration: (
     id: string,
-  ) => Effect.Effect<typeof PaymentProviderConfiguration.Type | undefined, PurchasePortError>;
+  ) => Effect.Effect<
+    typeof PaymentProviderConfiguration.Type | typeof Schema.Undefined.Type,
+    PurchasePortError
+  >;
   readonly findConfigurationByProjectProvider: (input: {
     readonly projectId: string;
     readonly providerId: string;
-  }) => Effect.Effect<typeof PaymentProviderConfiguration.Type | undefined, PurchasePortError>;
+  }) => Effect.Effect<
+    typeof PaymentProviderConfiguration.Type | typeof Schema.Undefined.Type,
+    PurchasePortError
+  >;
   readonly findConfigurationKeyConflict: (input: {
     readonly excludeId: string;
     readonly paymentProviderKey: string;
     readonly projectId: string;
     readonly providerId: string;
-  }) => Effect.Effect<typeof PaymentProviderConfiguration.Type | undefined, PurchasePortError>;
+  }) => Effect.Effect<
+    typeof PaymentProviderConfiguration.Type | typeof Schema.Undefined.Type,
+    PurchasePortError
+  >;
   readonly insertConfiguration: (input: {
     readonly configuration: Record<string, unknown>;
     readonly enabled: boolean;
@@ -56,7 +70,7 @@ export interface PurchaseManagementRepositoryShape {
   readonly softDeleteConfiguration: (id: string) => Effect.Effect<void, PurchasePortError>;
   readonly findProduct: (
     id: string,
-  ) => Effect.Effect<PurchaseCatalogProduct | undefined, PurchasePortError>;
+  ) => Effect.Effect<PurchaseCatalogProduct | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly listProviderProductsByProject: (
     projectId: string,
   ) => Effect.Effect<ReadonlyArray<typeof ProjectPaymentProviderProduct.Type>, PurchasePortError>;
@@ -65,16 +79,25 @@ export interface PurchaseManagementRepositoryShape {
   ) => Effect.Effect<ReadonlyArray<typeof PaymentProviderProduct.Type>, PurchasePortError>;
   readonly findProviderProduct: (
     id: string,
-  ) => Effect.Effect<typeof PaymentProviderProduct.Type | undefined, PurchasePortError>;
+  ) => Effect.Effect<
+    typeof PaymentProviderProduct.Type | typeof Schema.Undefined.Type,
+    PurchasePortError
+  >;
   readonly findActiveProviderProductByKey: (input: {
     readonly paymentProviderConfigurationId: string;
     readonly providerProductKey: string;
-  }) => Effect.Effect<typeof PaymentProviderProduct.Type | undefined, PurchasePortError>;
+  }) => Effect.Effect<
+    typeof PaymentProviderProduct.Type | typeof Schema.Undefined.Type,
+    PurchasePortError
+  >;
   readonly findProviderProductByNaturalKey: (input: {
     readonly paymentProviderConfigurationId: string;
     readonly productId: string;
     readonly providerProductKey: string;
-  }) => Effect.Effect<typeof PaymentProviderProduct.Type | undefined, PurchasePortError>;
+  }) => Effect.Effect<
+    typeof PaymentProviderProduct.Type | typeof Schema.Undefined.Type,
+    PurchasePortError
+  >;
   readonly insertProviderProduct: (input: {
     readonly configuration: Record<string, unknown>;
     readonly paymentProviderConfigurationId: string;

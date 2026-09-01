@@ -1,4 +1,5 @@
-import { Context, type Effect } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
 
 import type { PaymentProviderConfigurationValidationError } from "../../domain/ProviderConfiguration.ts";
 import type { PaymentProviderProductValidationError } from "../../domain/ProviderProduct.ts";

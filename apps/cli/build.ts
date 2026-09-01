@@ -1,10 +1,11 @@
 import { NodeRuntime } from "@effect/platform-node";
 import { causeMessage } from "@voidhash/lib/lang";
-import { Data, Effect } from "effect";
+import * as Effect from "effect/Effect";
 import * as esbuild from "esbuild";
 import * as tsup from "tsup";
 
 import pkg from "./package.json" with { type: "json" };
+import * as Schema from "effect/Schema";
 
 esbuild.buildSync({
   banner: {
@@ -23,9 +24,10 @@ esbuild.buildSync({
   target: "node16",
 });
 
-class BuildFailedError extends Data.TaggedError("BuildFailedError")<{
-  readonly message: string;
-}> {}
+class BuildFailedError extends Schema.TaggedErrorClass<BuildFailedError>("BuildFailedError")(
+  "BuildFailedError",
+  { message: Schema.String },
+) {}
 
 const main = Effect.tryPromise({
   catch: (cause) => new BuildFailedError({ message: causeMessage(cause) }),

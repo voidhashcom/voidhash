@@ -1,11 +1,13 @@
 // Inspired by https://github.dev/drizzle-team/drizzle-orm
 
-import { Data, Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
 
-export class FailedToLoadJsFileError extends Data.TaggedError("FailedToLoadJsFileError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FailedToLoadJsFileError extends Schema.TaggedErrorClass<FailedToLoadJsFileError>("FailedToLoadJsFileError")(
+  "FailedToLoadJsFileError",
+  { message: Schema.String, cause: Schema.optional(Schema.Unknown) },
+) {}
 
 /**
  * Lazily loads the tiny TypeScript probe used to detect an esbuild-register
@@ -21,7 +23,7 @@ const assertES5 = ({ unregister }: { unregister: () => void }) =>
     try: loadEs5Probe,
     catch: (e: any) => {
       unregister();
-      if ("errors" in e && Array.isArray(e.errors) && e.errors.length > 0) {
+      if ("errors" in e && Array.isArray(e.errors) && Arr.isReadonlyArrayNonEmpty(e.errors)) {
         const es5Error = e.errors.some((it: any) =>
           it.text?.includes(`("es5") is not supported yet`),
         );
@@ -62,7 +64,7 @@ export const safeRegister = () =>
           loader: "ts",
         }),
     }).pipe(
-      Effect.catch(() =>
+      Effect.catchTag("FailedToLoadJsFileError", () =>
         Effect.succeed({
           // it is on purpose an empty function. It is here instead of try-catch due to tsx.
           unregister(): void {},

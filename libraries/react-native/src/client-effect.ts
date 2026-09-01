@@ -1,4 +1,6 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { AUTOMATIC_EVENTS } from "./core/analytics/constants";
@@ -100,7 +102,7 @@ const makeUnitializedClient = () => ({
       // Publish the prefetched person so React subscribers see initial
       // state without having to wait for a hook-driven refetch.
       // `SchemaManager` publishes `schemaAtom` itself.
-      atomRegistry.set(currentPersonAtom, prefetchedPerson);
+      atomRegistry.set(currentPersonAtom, Option.fromNullOr(prefetchedPerson));
 
       return yield* makeInitializedClient({ schema: runtimeSchema });
     }),
@@ -154,11 +156,11 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
             runtime,
             productsBySlug,
             platform: platformProvider.platform,
-            locale: platformProvider.locales[0]?.languageTag,
-            onSkippedProductSlug: (slug) => skippedSlugs.push(slug),
+            locale: Option.fromNullishOr(platformProvider.locales[0]?.languageTag),
+            onSkippedProductSlug: Option.some((slug) => skippedSlugs.push(slug)),
           });
 
-          if (skippedSlugs.length > 0) {
+          if (Arr.isReadonlyArrayNonEmpty(skippedSlugs)) {
             yield* Effect.logDebug("Skipping paywall products unresolved in the native store", {
               slugs: skippedSlugs,
             });
@@ -180,7 +182,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           // Publish to the reactive store so any subscribed React hook
           // re-renders with the latest result (whether cached or freshly
           // fetched).
-          atomRegistry.set(currentPersonAtom, person);
+          atomRegistry.set(currentPersonAtom, Option.fromNullOr(person));
           return person;
         }),
 
@@ -221,7 +223,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           const distinctId = yield* identityManager.getDistinctId();
           const person = yield* personAttributeManager.syncPersonAttributes(distinctId, attributes);
           yield* personInfoManager.cache(distinctId, person);
-          atomRegistry.set(currentPersonAtom, person);
+          atomRegistry.set(currentPersonAtom, Option.some(person));
           return person;
         }),
 

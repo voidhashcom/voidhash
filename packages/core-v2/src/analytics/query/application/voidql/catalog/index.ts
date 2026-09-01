@@ -4,6 +4,8 @@
  * derived alias. Everything else fails compilation, so table functions and
  * `system.*` are structurally unreachable.
  */
+import * as HashSet from "effect/HashSet";
+
 import { eventsTable } from "./events.ts";
 import { personsTable } from "./persons.ts";
 import { revenueTable } from "./revenue.ts";
@@ -22,12 +24,12 @@ export const CATALOG: Readonly<Record<string, CatalogTable>> = {
 };
 
 /** Reserved internal aliases the substitution injects; not bindable by users. */
-export const RESERVED_INTERNAL_ALIASES = new Set([
+export const RESERVED_INTERNAL_ALIASES = HashSet.make(
   "events",
   "persons",
   "pending_overrides",
   "voidql_union",
-]);
+);
 
 export * from "./types.ts";
 export { eventsTable, personsTable, revenueTable };

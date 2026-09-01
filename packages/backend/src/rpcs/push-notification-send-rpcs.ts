@@ -5,7 +5,7 @@ import {
   RpcPushNotificationSendNotFoundError,
   RpcPushNotificationSendServiceError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 /**
  * Read-only studio RPC surface for push-notification send history — the
@@ -21,6 +21,13 @@ export const PushNotificationSendRpcsLive = PushNotificationSendRpcsDef.toLayer(
     return {
       ListPushNotificationSends: ({ limit, projectId }) =>
         service.listSends({ limit, projectId }).pipe(
+          Effect.map(({ sends, ...page }) => ({
+            ...page,
+            sends: sends.map(({ messagePurged, ...send }) => ({
+              ...send,
+              isMessagePurged: messagePurged,
+            })),
+          })),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),

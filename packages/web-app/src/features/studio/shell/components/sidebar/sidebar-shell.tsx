@@ -84,7 +84,7 @@ export function SidebarShell({
                         isActive={
                           (!item.items?.length || item.items.length === 0) && item.isActive?.()
                         }
-                        tooltip={tooltips === "enabled" ? item.title : null}
+                        tooltip={tooltips === "enabled" ? item.title : undefined}
                       >
                         <TanstackLink
                           onClick={() => {
@@ -119,7 +119,7 @@ export function SidebarShell({
                       <SidebarMenuItem>
                         <SidebarMenuButton
                           onClick={() => setSubmenuOpen(false)}
-                          tooltip={tooltips === "enabled" ? "Back" : null}
+                          tooltip={tooltips === "enabled" ? "Back" : undefined}
                           className="cursor-pointer relative"
                         >
                           <ChevronLeft />

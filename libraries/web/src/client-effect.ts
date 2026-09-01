@@ -1,4 +1,9 @@
-import { Effect, Layer, ManagedRuntime, pipe } from "effect";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
+import { pipe } from "effect/Function";
 import { FetchHttpClient } from "effect/unstable/http";
 
 import type { SdkPerson } from "@voidhash/generated-clients";
@@ -26,11 +31,7 @@ const DEFAULT_BASE_URL = "https://api.voidhash.com";
 
 const assertPositiveInteger = (name: string, value: number) => {
   if (!Number.isInteger(value) || value < 1) {
-    // `resolveVoidhashConfig` is a synchronous public API, so the configuration
-    // error is raised as a defect and rethrown verbatim by `Effect.runSync`.
-    return Effect.runSync(
-      Effect.die(new VoidhashConfigurationError(`${name} must be a positive integer.`)),
-    );
+    throw new VoidhashConfigurationError(`${name} must be a positive integer.`);
   }
 };
 
@@ -57,9 +58,7 @@ export const resolveVoidhashConfig = (options: VoidhashClientOptions): ResolvedV
   const ttlMs = options.featureFlags?.ttlMs ?? 300_000;
 
   if (!options.publishableKey.trim()) {
-    return Effect.runSync(
-      Effect.die(new VoidhashConfigurationError("publishableKey is required.")),
-    );
+    throw new VoidhashConfigurationError("publishableKey is required.");
   }
 
   assertPositiveInteger("analytics.maxBatchSize", maxBatchSize);
@@ -124,7 +123,7 @@ export const initializeEffect = (initialDistinctId?: string) =>
 
 // Drain the analytics queue so any pending events are attributed to the
 // current distinct id before it is switched out by identify/reset.
-const flushAnalyticsForIdentitySwitch = Effect.gen(function* flushForIdentitySwitch() {
+const flushAnalyticsForIdentitySwitch = Effect.fn("flushAnalyticsForIdentitySwitch")(function* flushForIdentitySwitch() {
   const analyticsService = yield* AnalyticsService;
   yield* analyticsService.flush();
 });
@@ -133,7 +132,7 @@ export const identifyEffect = (distinctId: string, traits?: VoidhashTraits) =>
   Effect.gen(function* identify() {
     const identityManager = yield* IdentityManager;
     const featureFlags = yield* FeatureFlagService;
-    yield* flushAnalyticsForIdentitySwitch;
+    yield* flushAnalyticsForIdentitySwitch();
     yield* identityManager.identify(distinctId, traits);
     yield* featureFlags.clearCachedFlags();
     yield* featureFlags.refreshTrackedKeySets();
@@ -143,7 +142,7 @@ export const resetEffect = () =>
   Effect.gen(function* reset() {
     const identityManager = yield* IdentityManager;
     const featureFlags = yield* FeatureFlagService;
-    yield* flushAnalyticsForIdentitySwitch;
+    yield* flushAnalyticsForIdentitySwitch();
     yield* identityManager.reset();
     yield* featureFlags.clearCachedFlags();
     yield* featureFlags.refreshTrackedKeySets();
@@ -155,18 +154,16 @@ export const resetEffect = () =>
  */
 const splitPersonAttributes = (attributes: VoidhashPersonAttributes) => {
   const { email, name, ...rest } = attributes;
-  const traits: VoidhashTraits = {};
-  for (const [key, value] of Object.entries(rest)) {
-    if (value !== undefined) {
-      traits[key] = value;
-    }
-  }
+  const traits = R.filter(
+    rest,
+    (value): value is Exclude<typeof value, undefined> => value !== undefined,
+  );
   return { email, name, traits };
 };
 
 /** Returns the traits record, or `undefined` when it carries no entries. */
 const nonEmptyTraits = (traits: VoidhashTraits) => {
-  if (Object.keys(traits).length > 0) {
+  if (Arr.isReadonlyArrayNonEmpty(R.keys(traits))) {
     return traits;
   }
 
@@ -251,13 +248,13 @@ export const flushAnalyticsEffect = () =>
 export const startAnalyticsEffect = () =>
   Effect.gen(function* startAnalytics() {
     const analyticsService = yield* AnalyticsService;
-    analyticsService.start();
+    yield* analyticsService.start();
   });
 
 export const stopAnalyticsEffect = () =>
   Effect.gen(function* stopAnalytics() {
     const analyticsService = yield* AnalyticsService;
-    analyticsService.stop();
+    yield* analyticsService.stop();
   });
 
 export const flushAnalyticsKeepaliveEffect = () =>

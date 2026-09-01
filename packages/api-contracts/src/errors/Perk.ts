@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic perk service error */
 export class ApiPerkServiceError extends Schema.TaggedErrorClass<ApiPerkServiceError>()(

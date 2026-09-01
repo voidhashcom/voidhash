@@ -1,3 +1,8 @@
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
 /**
  * Analytics domain — typed errors that signal an analytics-specific invariant
  * violation (invalid time range, unknown insight, unsupported filter/breakdown)
@@ -7,7 +12,9 @@
  * The catch-all `AnalyticsServiceError` lives with the service.
  */
 import { constant } from "@voidhash/lib/lang";
-import { DateTime, Effect, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 /** Time range parameters were rejected during normalisation. */
 export class InvalidTimeRangeError extends Schema.TaggedErrorClass<InvalidTimeRangeError>(
@@ -39,11 +46,13 @@ export class UnsupportedAnalyticsBreakdownError extends Schema.TaggedErrorClass<
 // =============================================================================
 
 export const TimeGranularity = Schema.Literals(["hour", "day", "week", "month", "quarter", "year"]);
+export type TimeGranularity = typeof TimeGranularity.Type;
 
 export const AnalyticsDataPoint = Schema.Struct({
   timestamp: Schema.Date,
   value: Schema.Number,
 });
+export type AnalyticsDataPoint = typeof AnalyticsDataPoint.Type;
 
 export interface TimeRangeParams {
   endDate: Date;
@@ -79,6 +88,7 @@ export const BuiltInInsightId = Schema.Literals([
   "builtin/trial_conversions",
   "builtin/trial_conversion_rate",
 ]);
+export type BuiltInInsightId = typeof BuiltInInsightId.Type;
 
 export const AnalyticsTimeRange = Schema.Union([
   Schema.Struct({
@@ -99,8 +109,9 @@ export const AnalyticsTimeRange = Schema.Union([
     start: Schema.Date,
   }),
 ]);
+export type AnalyticsTimeRange = typeof AnalyticsTimeRange.Type;
 
-type PrimitiveFilterValue = string | number | boolean | null;
+type PrimitiveFilterValue = string | number | boolean | typeof Schema.Null.Type;
 type FilterValue = PrimitiveFilterValue | ReadonlyArray<PrimitiveFilterValue>;
 
 export type AnalyticsFilter =
@@ -176,17 +187,20 @@ export const AnalyticsInsightQuery = Schema.Struct({
   limit: Schema.optional(PositiveInt),
   timeRange: AnalyticsTimeRange,
 });
+export type AnalyticsInsightQuery = typeof AnalyticsInsightQuery.Type;
 
 export const AnalyticsInsightSummary = Schema.Struct({
   currency: Schema.optional(Schema.String),
   value: Schema.Number,
 });
+export type AnalyticsInsightSummary = typeof AnalyticsInsightSummary.Type;
 
 export const AnalyticsMetricResult = Schema.Struct({
   kind: Schema.Literal("metric"),
   sparkline: Schema.Array(AnalyticsDataPoint),
   summary: AnalyticsInsightSummary,
 });
+export type AnalyticsMetricResult = typeof AnalyticsMetricResult.Type;
 
 export const AnalyticsInsightResult = AnalyticsMetricResult;
 
@@ -373,7 +387,7 @@ export const isReservedAnalyticsField = (field: string): boolean =>
 // Insight classification sets (CURRENCY / RATE) and aggregation helpers.
 // =============================================================================
 
-export const CURRENCY_INSIGHTS = new Set<typeof BuiltInInsightId.Type>([
+export const CURRENCY_INSIGHTS = HashSet.make(
   "builtin/revenue",
   "builtin/mrr",
   "builtin/arr",
@@ -381,22 +395,22 @@ export const CURRENCY_INSIGHTS = new Set<typeof BuiltInInsightId.Type>([
   "builtin/arpu",
   "builtin/arppu",
   "builtin/subscriber_lifetime_value",
-]);
+);
 
-export const RATE_INSIGHTS = new Set<typeof BuiltInInsightId.Type>([
+export const RATE_INSIGHTS = HashSet.make(
   "builtin/churn_rate",
   "builtin/mrr_growth_rate",
   "builtin/active_subscribers_growth",
   "builtin/retention",
   "builtin/trial_conversion_rate",
-]);
+);
 
 /** Point-in-time ("stock") insights whose summary is the latest bucket, not a sum. */
-export const STOCK_INSIGHTS = new Set<typeof BuiltInInsightId.Type>([
+export const STOCK_INSIGHTS = HashSet.make(
   "builtin/active_subscriptions",
   "builtin/active_trials",
   "builtin/person_count",
-]);
+);
 
 export const sumDataPoints = (dataPoints: ReadonlyArray<typeof AnalyticsDataPoint.Type>): number =>
   dataPoints.reduce((sum, dataPoint) => sum + dataPoint.value, 0);
@@ -404,7 +418,7 @@ export const sumDataPoints = (dataPoints: ReadonlyArray<typeof AnalyticsDataPoin
 export const avgDataPoints = (
   dataPoints: ReadonlyArray<typeof AnalyticsDataPoint.Type>,
 ): number => {
-  if (dataPoints.length === 0) return 0;
+  if (Arr.isReadonlyArrayEmpty(dataPoints)) return 0;
   return sumDataPoints(dataPoints) / dataPoints.length;
 };
 
@@ -412,27 +426,29 @@ export const avgDataPoints = (
 // Insight registry lookup + breakdown guard
 // =============================================================================
 
-const INSIGHT_REGISTRY = new Map<string, InsightDefinition>(
-  BUILT_IN_INSIGHTS.map((insight) => [insight.id, insight]),
+const INSIGHT_REGISTRY: HashMap.HashMap<string, InsightDefinition> = HashMap.fromIterable(
+  BUILT_IN_INSIGHTS.map((insight) => [insight.id, insight] as const),
 );
 
 export const getBuiltInInsight = (
   insightId: string,
 ): Effect.Effect<InsightDefinition, UnknownInsightError> => {
-  const insight = INSIGHT_REGISTRY.get(insightId);
-  if (insight) return Effect.succeed(insight);
-  return Effect.fail(
-    new UnknownInsightError({ insightId, message: `Unknown analytics insight ${insightId}` }),
-  );
+  return Option.match(HashMap.get(INSIGHT_REGISTRY, insightId), {
+    onNone: () =>
+      Effect.fail(
+        new UnknownInsightError({ insightId, message: `Unknown analytics insight ${insightId}` }),
+      ),
+    onSome: Effect.succeed,
+  });
 };
 
 export const ensureNoBreakdowns = (
-  breakdowns: (typeof AnalyticsInsightQuery.Type)["breakdowns"] | undefined,
+  breakdowns: Option.Option<NonNullable<(typeof AnalyticsInsightQuery.Type)["breakdowns"]>>,
 ): Effect.Effect<void, UnsupportedAnalyticsBreakdownError> => {
-  if (!breakdowns || breakdowns.length === 0) return Effect.void;
+  if (Option.isNone(breakdowns) || Arr.isReadonlyArrayEmpty(breakdowns.value)) return Effect.void;
   return Effect.fail(
     new UnsupportedAnalyticsBreakdownError({
-      field: breakdowns[0]?.field ?? "unknown",
+      field: breakdowns.value[0]?.field ?? "unknown",
       message: "Breakdowns are not supported yet",
     }),
   );
@@ -470,58 +486,56 @@ export const resolveTimeRange = (
   Effect.gen(function* () {
     const now = truncateToSecond(yield* DateTime.nowAsDate);
 
-    switch (timeRange.preset) {
-      case "today":
-        return {
-          end: now,
-          start: fromUtcParts({
-            day: now.getUTCDate(),
-            month: now.getUTCMonth() + 1,
-            year: now.getUTCFullYear(),
-          }),
-        };
-      case "last_7d":
-        return { end: now, start: fromEpochMillis(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
-      case "last_30d":
-        return { end: now, start: fromEpochMillis(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
-      case "last_90d":
-        return { end: now, start: fromEpochMillis(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
-      case "last_365d":
-        return { end: now, start: fromEpochMillis(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
-      case "mtd":
-        return {
-          end: now,
-          start: fromUtcParts({
-            day: 1,
-            month: now.getUTCMonth() + 1,
-            year: now.getUTCFullYear(),
-          }),
-        };
-      case "qtd": {
-        const quarter = Math.floor(now.getUTCMonth() / 3);
-        return {
-          end: now,
-          start: fromUtcParts({
-            day: 1,
-            month: quarter * 3 + 1,
-            year: now.getUTCFullYear(),
-          }),
-        };
-      }
-      case "ytd":
-        return {
-          end: now,
-          start: fromUtcParts({ day: 1, month: 1, year: now.getUTCFullYear() }),
-        };
-      case "custom": {
-        if (timeRange.start > timeRange.end) {
-          return yield* Effect.fail(
-            new InvalidTimeRangeError({ message: "start must be before end" }),
-          );
-        }
-        return { end: truncateToSecond(timeRange.end), start: truncateToSecond(timeRange.start) };
-      }
+    if (timeRange.preset === "today") {
+      return {
+        end: now,
+        start: fromUtcParts({
+          day: now.getUTCDate(),
+          month: now.getUTCMonth() + 1,
+          year: now.getUTCFullYear(),
+        }),
+      };
     }
+    if (timeRange.preset === "last_7d") {
+      return { end: now, start: fromEpochMillis(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+    }
+    if (timeRange.preset === "last_30d") {
+      return { end: now, start: fromEpochMillis(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+    }
+    if (timeRange.preset === "last_90d") {
+      return { end: now, start: fromEpochMillis(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
+    }
+    if (timeRange.preset === "last_365d") {
+      return { end: now, start: fromEpochMillis(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
+    }
+    if (timeRange.preset === "mtd") {
+      return {
+        end: now,
+        start: fromUtcParts({ day: 1, month: now.getUTCMonth() + 1, year: now.getUTCFullYear() }),
+      };
+    }
+    if (timeRange.preset === "qtd") {
+      const quarter = Math.floor(now.getUTCMonth() / 3);
+      return {
+        end: now,
+        start: fromUtcParts({ day: 1, month: quarter * 3 + 1, year: now.getUTCFullYear() }),
+      };
+    }
+    if (timeRange.preset === "ytd") {
+      return {
+        end: now,
+        start: fromUtcParts({ day: 1, month: 1, year: now.getUTCFullYear() }),
+      };
+    }
+    if (timeRange.preset === "custom") {
+      if (timeRange.start > timeRange.end) {
+        return yield* Effect.fail(
+          new InvalidTimeRangeError({ message: "start must be before end" }),
+        );
+      }
+      return { end: truncateToSecond(timeRange.end), start: truncateToSecond(timeRange.start) };
+    }
+    return yield* Effect.die("Unreachable analytics time-range preset");
   });
 
 // =============================================================================
@@ -565,18 +579,18 @@ const ensureSupportedField = (field: string, supportedFields: readonly string[])
   return Effect.void;
 };
 
-const isPrimitiveFilterValue = (value: FilterValue): value is PrimitiveFilterValue =>
-  value === null || typeof value !== "object";
+const toArray = (value: Option.Option<FilterValue>): ReadonlyArray<PrimitiveFilterValue> =>
+  Option.match(value, {
+    onNone: () => [],
+    onSome: (item) => {
+      if (P.isString(item) || P.isNumber(item) || P.isBoolean(item) || item === null) return [item];
+      return item;
+    },
+  });
 
-const toArray = (value: FilterValue | undefined) => {
-  if (value === undefined) return [];
-  if (isPrimitiveFilterValue(value)) return [value];
-  return [...value];
-};
-
-const toStringArray = (field: SupportedRevenueFilterField, value: FilterValue | undefined) => {
+const toStringArray = (field: SupportedRevenueFilterField, value: Option.Option<FilterValue>) => {
   const values = toArray(value);
-  const strings = values.filter((item) => typeof item === "string");
+  const strings = values.filter((item) => P.isString(item));
   if (strings.length !== values.length) {
     return Effect.fail(
       new InvalidAnalyticsQueryError({ message: `Filter ${field} expects string values` }),
@@ -585,9 +599,9 @@ const toStringArray = (field: SupportedRevenueFilterField, value: FilterValue | 
   return Effect.succeed(strings);
 };
 
-const toNumberArray = (field: SupportedRevenueFilterField, value: FilterValue | undefined) => {
+const toNumberArray = (field: SupportedRevenueFilterField, value: Option.Option<FilterValue>) => {
   const values = toArray(value);
-  const numbers = values.filter((item) => typeof item === "number");
+  const numbers = values.filter((item) => P.isNumber(item));
   if (numbers.length !== values.length) {
     return Effect.fail(
       new InvalidAnalyticsQueryError({ message: `Filter ${field} expects numeric values` }),
@@ -596,22 +610,42 @@ const toNumberArray = (field: SupportedRevenueFilterField, value: FilterValue | 
   return Effect.succeed(numbers);
 };
 
-const intersect = <T>(left: T[] | undefined, right: T[] | undefined) => {
-  if (!left) return right;
-  if (!right) return left;
-  return left.filter((item) => right.includes(item));
+const intersect = <T>(left: Option.Option<T[]>, right: Option.Option<T[]>) => {
+  if (Option.isNone(left)) return right;
+  if (Option.isNone(right)) return left;
+  return Option.some(left.value.filter((item) => right.value.includes(item)));
 };
 
-const union = <T>(left: T[] | undefined, right: T[] | undefined) => {
-  if (!left) return right;
-  if (!right) return left;
-  return [...new Set([...left, ...right])];
+const union = <T>(left: Option.Option<T[]>, right: Option.Option<T[]>) => {
+  if (Option.isNone(left)) return right;
+  if (Option.isNone(right)) return left;
+  const initial: { readonly seen: HashSet.HashSet<T>; readonly values: T[] } = {
+    seen: HashSet.empty(),
+    values: [],
+  };
+  return Option.some(Arr.reduce(
+    [...left.value, ...right.value],
+    initial,
+    (state, value) => {
+      if (HashSet.has(state.seen, value)) return state;
+      return { seen: HashSet.add(state.seen, value), values: [...state.values, value] };
+    },
+  ).values);
 };
 
 const mergeAndConstraints = (left: PartialConstraints, right: PartialConstraints) => ({
-  productIds: intersect(left.productIds, right.productIds),
-  projectIds: intersect(left.projectIds, right.projectIds),
-  providerEnvironments: intersect(left.providerEnvironments, right.providerEnvironments),
+  productIds: Option.getOrUndefined(
+    intersect(Option.fromNullishOr(left.productIds), Option.fromNullishOr(right.productIds)),
+  ),
+  projectIds: Option.getOrUndefined(
+    intersect(Option.fromNullishOr(left.projectIds), Option.fromNullishOr(right.projectIds)),
+  ),
+  providerEnvironments: Option.getOrUndefined(
+    intersect(
+      Option.fromNullishOr(left.providerEnvironments),
+      Option.fromNullishOr(right.providerEnvironments),
+    ),
+  ),
 });
 
 /**
@@ -620,12 +654,15 @@ const mergeAndConstraints = (left: PartialConstraints, right: PartialConstraints
  * else would silently narrow to an AND.
  */
 const mergeOrConstraints = (left: PartialConstraints, right: PartialConstraints) => {
-  const fields = new Set<string>();
-  if (left.productIds || right.productIds) fields.add("productIds");
-  if (left.projectIds || right.projectIds) fields.add("projectIds");
-  if (left.providerEnvironments || right.providerEnvironments) fields.add("providerEnvironments");
+  const fields = HashSet.fromIterable([
+    ...((left.productIds || right.productIds) ? ["productIds"] : []),
+    ...((left.projectIds || right.projectIds) ? ["projectIds"] : []),
+    ...((left.providerEnvironments || right.providerEnvironments)
+      ? ["providerEnvironments"]
+      : []),
+  ]);
 
-  if (fields.size > 1) {
+  if (HashSet.size(fields) > 1) {
     return Effect.fail(
       new UnsupportedAnalyticsFilterError({
         field: "or",
@@ -635,9 +672,18 @@ const mergeOrConstraints = (left: PartialConstraints, right: PartialConstraints)
   }
 
   return Effect.succeed({
-    productIds: union(left.productIds, right.productIds),
-    projectIds: union(left.projectIds, right.projectIds),
-    providerEnvironments: union(left.providerEnvironments, right.providerEnvironments),
+    productIds: Option.getOrUndefined(
+      union(Option.fromNullishOr(left.productIds), Option.fromNullishOr(right.productIds)),
+    ),
+    projectIds: Option.getOrUndefined(
+      union(Option.fromNullishOr(left.projectIds), Option.fromNullishOr(right.projectIds)),
+    ),
+    providerEnvironments: Option.getOrUndefined(
+      union(
+        Option.fromNullishOr(left.providerEnvironments),
+        Option.fromNullishOr(right.providerEnvironments),
+      ),
+    ),
   });
 };
 
@@ -651,31 +697,24 @@ const compilePredicate = ({
   Effect.gen(function* () {
     const { field, op, value } = filter;
 
-    switch (field) {
-      case "project.id": {
-        if (op === "eq" || op === "in") {
-          const ids = yield* toStringArray(field, value);
-          return { projectIds: availableProjectIds.filter((id) => ids.includes(id)) };
-        }
-        if (op === "neq" || op === "not_in") {
-          const ids = yield* toStringArray(field, value);
-          return { projectIds: availableProjectIds.filter((id) => !ids.includes(id)) };
-        }
-        break;
+    if (field === "project.id") {
+      if (op === "eq" || op === "in") {
+        const ids = yield* toStringArray(field, Option.fromNullishOr(value));
+        return { projectIds: availableProjectIds.filter((id) => ids.includes(id)) };
       }
-      case "product.id": {
-        if (op === "eq" || op === "in") {
-          return { productIds: yield* toStringArray(field, value) };
-        }
-        break;
-      }
-      case "provider.environment": {
-        if (op === "eq" || op === "in") {
-          return { providerEnvironments: yield* toNumberArray(field, value) };
-        }
-        break;
+      if (op === "neq" || op === "not_in") {
+        const ids = yield* toStringArray(field, Option.fromNullishOr(value));
+        return { projectIds: availableProjectIds.filter((id) => !ids.includes(id)) };
       }
     }
+    if (field === "product.id" && (op === "eq" || op === "in")) {
+      return { productIds: yield* toStringArray(field, Option.fromNullishOr(value)) };
+    }
+    if (field === "provider.environment" && (op === "eq" || op === "in")) {
+      return {
+        providerEnvironments: yield* toNumberArray(field, Option.fromNullishOr(value)),
+      };
+      }
 
     return yield* Effect.fail(
       new UnsupportedAnalyticsFilterError({
@@ -705,46 +744,47 @@ const compileNode = ({
   InvalidAnalyticsQueryError | UnsupportedAnalyticsFilterError
 > =>
   Effect.gen(function* () {
-    switch (filter.type) {
-      case "predicate": {
-        yield* ensureSupportedField(filter.field, supportedFields);
-        return yield* compilePredicate({ availableProjectIds, filter });
-      }
-      case "and": {
-        let current: PartialConstraints = {};
-        for (const child of filter.filters) {
-          current = mergeAndConstraints(
-            current,
-            yield* compileNode({ availableProjectIds, filter: child, supportedFields }),
-          );
-        }
-        return current;
-      }
-      case "or": {
-        let current: PartialConstraints = {};
-        for (const child of filter.filters) {
-          current = yield* mergeOrConstraints(
-            current,
-            yield* compileNode({ availableProjectIds, filter: child, supportedFields }),
-          );
-        }
-        return current;
-      }
-      case "not": {
-        if (filter.filter.type !== "predicate" || filter.filter.field !== "project.id") {
-          return yield* Effect.fail(
-            new UnsupportedAnalyticsFilterError({
-              field: "not",
-              message: "NOT filters are only supported for project.id in this PoC",
-            }),
-          );
-        }
-        return yield* compilePredicate({
-          availableProjectIds,
-          filter: { ...filter.filter, op: negatePredicateOp(filter.filter.op) },
-        });
-      }
+    if (filter.type === "predicate") {
+      yield* ensureSupportedField(filter.field, supportedFields);
+      return yield* compilePredicate({ availableProjectIds, filter });
     }
+    if (filter.type === "and") {
+      const constraints = yield* Effect.forEach(
+        filter.filters,
+        (child) => compileNode({ availableProjectIds, filter: child, supportedFields }),
+        { concurrency: 1 },
+      );
+      return Arr.reduce(constraints, {}, mergeAndConstraints);
+    }
+    if (filter.type === "or") {
+      const constraints = yield* Effect.forEach(
+        filter.filters,
+        (child) => compileNode({ availableProjectIds, filter: child, supportedFields }),
+        { concurrency: 1 },
+      );
+      const initial: Effect.Effect<PartialConstraints, UnsupportedAnalyticsFilterError> =
+        Effect.succeed({});
+      return yield* Arr.reduce(
+        constraints,
+        initial,
+        (current, right) => current.pipe(Effect.flatMap((left) => mergeOrConstraints(left, right))),
+      );
+    }
+    if (filter.type === "not") {
+      if (filter.filter.type !== "predicate" || filter.filter.field !== "project.id") {
+        return yield* Effect.fail(
+          new UnsupportedAnalyticsFilterError({
+            field: "not",
+            message: "NOT filters are only supported for project.id in this PoC",
+          }),
+        );
+      }
+      return yield* compilePredicate({
+        availableProjectIds,
+        filter: { ...filter.filter, op: negatePredicateOp(filter.filter.op) },
+      });
+    }
+    return yield* Effect.die("Unreachable analytics filter node");
   });
 
 export const compileAnalyticsFilter = ({

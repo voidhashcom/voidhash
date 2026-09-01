@@ -1,5 +1,13 @@
 import { constant } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as Schema from "effect/Schema";
 import type { ProductTypeValue, SubscriptionDurationValue } from "@voidhash/lib";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -67,7 +75,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  */
 /** `products.type` is a plain smallint column mirroring the `ProductType` enum. */
 const asProductType = (type: any): ProductTypeValue => type;
-const asSubscriptionDuration = (duration: any): SubscriptionDurationValue | null => duration;
+const asSubscriptionDuration = (duration: any): Option.Option<SubscriptionDurationValue> =>
+  Option.fromNullishOr(duration);
 
 /** `payment_provider_configuration_product.configuration` is an untyped JSON column. */
 const asConfigurationRecord = (configuration: any): Record<string, unknown> => configuration;
@@ -109,29 +118,29 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
           dbEnabledProviders,
         ] = yield* Effect.all(
           [
-            Effect.gen(function* () {
+            Effect.fn("schema.queryPerks")(function* () {
               return yield* db.query.perks.findMany({
                 orderBy: { slug: "asc" },
                 where: { projectId },
               });
-            }),
-            Effect.gen(function* () {
+            })(),
+            Effect.fn("schema.queryProducts")(function* () {
               return yield* db.query.products.findMany({
                 orderBy: { slug: "asc" },
                 where: { projectId },
               });
-            }),
+            })(),
             // Archived locations are not part of the schema the SDK / CLI
             // cares about — mirror `findActiveLocationBySlug`.
-            Effect.gen(function* () {
+            Effect.fn("schema.queryLocations")(function* () {
               return yield* db.query.paywallLocations.findMany({
                 orderBy: { slug: "asc" },
                 where: { projectId, archivedAt: { isNull: true } },
               });
-            }),
+            })(),
             // One row per (product, perk) link, projected to the perk slug
             // the handler actually needs (it doesn't care about perk id).
-            Effect.gen(function* () {
+            Effect.fn("schema.queryProductPerkLinks")(function* () {
               const rows = yield* db
                 .select({
                   perkSlug: perks.slug,
@@ -146,12 +155,12 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
                 perkSlug: row.perkSlug,
                 productId: row.productId,
               }));
-            }),
+            })(),
             // Active per-product provider mappings joined with the parent
             // configuration row (so we can ignore mappings whose
             // configuration was soft-deleted, and read the parent's
             // `providerId`).
-            Effect.gen(function* () {
+            Effect.fn("schema.queryProductProviderMappings")(function* () {
               const rows = yield* db
                 .select({
                   configuration: paymentProviderConfigurationProducts.configuration,
@@ -186,11 +195,11 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
                 productId: row.productId,
                 providerId: row.providerId,
               }));
-            }),
+            })(),
             // Set of providerIds with at least one enabled, non-deleted
             // configuration in the project — drives `enabledProviders` on
             // the CLI response.
-            Effect.gen(function* () {
+            Effect.fn("schema.queryEnabledProviders")(function* () {
               const rows = yield* db
                 .select({ providerId: paymentProviderConfigurations.providerId })
                 .from(paymentProviderConfigurations)
@@ -203,64 +212,89 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
                 )
                 .orderBy(asc(paymentProviderConfigurations.providerId));
               return rows.map((row) => ({ providerId: row.providerId }));
-            }),
+            })(),
           ],
           { concurrency: "unbounded" },
         );
 
-        const perkRows = dbPerks
-          .map((perk) => ({ name: perk.name, slug: perk.slug }))
-          .sort((a, b) => a.slug.localeCompare(b.slug));
+        const slugOrder = Order.mapInput(
+          Order.String,
+          (item: { readonly slug: string }) => item.slug,
+        );
+        const providerOrder = Order.mapInput(
+          Order.String,
+          (provider: { readonly providerId: SchemaProviderId }) => provider.providerId,
+        );
+        const perkRows = Arr.sort(
+          dbPerks.map((perk) => ({ name: perk.name, slug: perk.slug })),
+          slugOrder,
+        );
 
-        const locationRows = dbLocations
-          .map((location) => ({
-            description: location.description,
+        const locationRows = Arr.sort(
+          dbLocations.map((location) => ({
+            description: Option.fromNullishOr(location.description),
             name: location.name,
             slug: location.slug,
-          }))
-          .sort((a, b) => a.slug.localeCompare(b.slug));
+          })),
+          slugOrder,
+        );
 
-        const perkSlugsByProductId = new Map<string, string[]>();
-        for (const link of dbProductPerkLinks) {
-          const list = perkSlugsByProductId.get(link.productId);
-          if (list) {
-            list.push(link.perkSlug);
-          } else {
-            perkSlugsByProductId.set(link.productId, [link.perkSlug]);
-          }
-        }
+        const perkSlugsByProductId = Arr.reduce(
+          dbProductPerkLinks,
+          HashMap.empty<string, ReadonlyArray<string>>(),
+          (grouped, link) =>
+            HashMap.modifyAt(grouped, link.productId, (current) =>
+              Option.some(
+                Arr.append(
+                  Option.getOrElse(current, () => []),
+                  link.perkSlug,
+                ),
+              ),
+            ),
+        );
 
         // Drop providers the schema contract doesn't surface (e.g. `"stripe"`).
         // Filtering server-side keeps the version hash stable across CLI and
         // server.
-        const providersByProductId = new Map<
-          string,
-          Array<{
-            readonly providerId: SchemaProviderId;
-            readonly configuration: Record<string, unknown>;
-          }>
-        >();
-        for (const mapping of dbProductProviderMappings) {
-          const providerId = mapDbProviderIdToSchemaProviderId(mapping.providerId);
-          if (!providerId) {
-            continue;
-          }
-          const configuration = asConfigurationRecord(mapping.configuration ?? {});
-          const entry = { providerId, configuration };
-          const list = providersByProductId.get(mapping.productId);
-          if (list) {
-            list.push(entry);
-          } else {
-            providersByProductId.set(mapping.productId, [entry]);
-          }
-        }
+        const providersByProductId = Arr.reduce(
+          dbProductProviderMappings,
+          HashMap.empty<
+            string,
+            ReadonlyArray<{
+              readonly providerId: SchemaProviderId;
+              readonly configuration: Record<string, unknown>;
+            }>
+          >(),
+          (grouped, mapping) =>
+            Option.match(mapDbProviderIdToSchemaProviderId(mapping.providerId), {
+              onNone: () => grouped,
+              onSome: (providerId) => {
+                const entry = {
+                  providerId,
+                  configuration: asConfigurationRecord(mapping.configuration ?? {}),
+                };
+                return HashMap.modifyAt(grouped, mapping.productId, (current) =>
+                  Option.some(
+                    Arr.append(
+                      Option.getOrElse(current, () => []),
+                      entry,
+                    ),
+                  ),
+                );
+              },
+            }),
+        );
 
-        const productRows = dbProducts
-          .map((product) => {
-            const perksForProduct = (perkSlugsByProductId.get(product.id) ?? []).slice().sort();
-            const providersForProduct = (providersByProductId.get(product.id) ?? [])
-              .slice()
-              .sort((a, b) => a.providerId.localeCompare(b.providerId));
+        const productRows = Arr.sort(
+          dbProducts.map((product) => {
+            const perksForProduct = Arr.sort(
+              Option.getOrElse(HashMap.get(perkSlugsByProductId, product.id), () => []),
+              Order.String,
+            );
+            const providersForProduct = Arr.sort(
+              Option.getOrElse(HashMap.get(providersByProductId, product.id), () => []),
+              providerOrder,
+            );
             return {
               name: product.name,
               duration: dbSubscriptionDurationToLabel(asSubscriptionDuration(product.duration)),
@@ -269,17 +303,20 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
               slug: product.slug,
               type: dbProductTypeToLabel(asProductType(product.type)),
             };
-          })
-          .sort((a, b) => a.slug.localeCompare(b.slug));
+          }),
+          slugOrder,
+        );
 
-        const enabledProvidersSet = new Set<SchemaProviderId>();
-        for (const row of dbEnabledProviders) {
-          const providerId = mapDbProviderIdToSchemaProviderId(row.providerId);
-          if (providerId) {
-            enabledProvidersSet.add(providerId);
-          }
-        }
-        const enabledProviders: ReadonlyArray<SchemaProviderId> = [...enabledProvidersSet].sort();
+        const enabledProviders = Arr.sort(
+          [
+            ...HashSet.fromIterable(
+              Arr.getSomes(
+                dbEnabledProviders.map((row) => mapDbProviderIdToSchemaProviderId(row.providerId)),
+              ),
+            ),
+          ],
+          Order.String,
+        );
 
         const projection: SchemaProjection = {
           enabledProviders,
@@ -300,13 +337,15 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
 
         return new ProjectSchema({
           enabledProviders,
-          locations: locationRows.map((row) => new SchemaLocation(row)),
+          locations: locationRows.map(
+            (row) => new SchemaLocation({ ...row, description: Option.getOrNull(row.description) }),
+          ),
           perks: perkRows.map((row) => new SchemaPerk(row)),
           products: productRows.map(
             (row) =>
               new SchemaProduct({
                 name: row.name,
-                duration: row.duration,
+                duration: Option.getOrNull(row.duration),
                 perks: row.perks,
                 providers: row.providers.map((p) => new SchemaProductProvider(p)),
                 slug: row.slug,
@@ -334,35 +373,36 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
      * its class identity stripped). We therefore store the plain *encoded*
      * form and reconstruct the instance on read. See {@link ProjectSchemaCache}.
      */
-    const assembleAndCache = (projectId: string, stub: ProjectSchemaCacheStub) =>
-      Effect.gen(function* () {
-        const fresh = yield* assembleFromDb(projectId);
-        const encoded = yield* Schema.encodeUnknownEffect(ProjectSchema)(fresh).pipe(Effect.orDie);
-        yield* stub.set(encoded, CACHE_TTL_MS);
-        return fresh;
-      });
+    const assembleAndCache = Effect.fn("schema.assembleAndCache")(function* (
+      projectId: string,
+      stub: ProjectSchemaCacheStub,
+    ) {
+      const fresh = yield* assembleFromDb(projectId);
+      const encoded = yield* Schema.encodeUnknownEffect(ProjectSchema)(fresh).pipe(Effect.orDie);
+      yield* stub.set(encoded, CACHE_TTL_MS);
+      return fresh;
+    });
 
-    const fetchOrAssemble = (projectId: string) =>
-      Effect.gen(function* () {
-        const stub = cache.getByName(projectId);
-        const cached = yield* stub.get();
-        if (cached === null || cached === undefined) {
-          yield* Effect.annotateCurrentSpan("voidhash.schema.cache_hit", false);
-          return yield* assembleAndCache(projectId, stub);
-        }
-        // The cached payload is opaque plain JSON after the DO round-trip —
-        // decode it back into a `ProjectSchema`. A decode failure means a
-        // stale or shape-incompatible entry; treat that as a miss and
-        // re-assemble rather than failing the read.
-        return yield* Schema.decodeUnknownEffect(ProjectSchema)(cached).pipe(
-          Effect.tap(() => Effect.annotateCurrentSpan("voidhash.schema.cache_hit", true)),
-          Effect.catch(() =>
-            Effect.annotateCurrentSpan("voidhash.schema.cache_hit", false).pipe(
-              Effect.andThen(() => assembleAndCache(projectId, stub)),
-            ),
+    const fetchOrAssemble = Effect.fn("schema.fetchOrAssemble")(function* (projectId: string) {
+      const stub = cache.getByName(projectId);
+      const cached = yield* stub.get();
+      if (cached === null || cached === undefined) {
+        yield* Effect.annotateCurrentSpan("voidhash.schema.cache_hit", false);
+        return yield* assembleAndCache(projectId, stub);
+      }
+      // The cached payload is opaque plain JSON after the DO round-trip —
+      // decode it back into a `ProjectSchema`. A decode failure means a
+      // stale or shape-incompatible entry; treat that as a miss and
+      // re-assemble rather than failing the read.
+      return yield* Schema.decodeUnknownEffect(ProjectSchema)(cached).pipe(
+        Effect.tap(() => Effect.annotateCurrentSpan("voidhash.schema.cache_hit", true)),
+        Effect.catch(() =>
+          Effect.annotateCurrentSpan("voidhash.schema.cache_hit", false).pipe(
+            Effect.andThen(() => assembleAndCache(projectId, stub)),
           ),
-        );
-      });
+        ),
+      );
+    });
 
     const getProjectSchema = Effect.fn("schema.getProjectSchema")(function* (projectId: string) {
       const session = yield* AuthSession;

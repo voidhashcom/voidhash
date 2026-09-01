@@ -1,5 +1,10 @@
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import * as Workflow from "@voidhash/platform/Workflow";
 
 import { Db, WebhookDeliveryStatus, WebhookEndpointStatus, webhookDeliveries } from "@voidhash/db";
@@ -61,7 +66,7 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
             subscribedEndpoints.length,
           );
 
-          if (subscribedEndpoints.length === 0) {
+          if (Arr.isReadonlyArrayEmpty(subscribedEndpoints)) {
             yield* Effect.logDebug(
               `No webhook endpoints subscribed to ${input.eventType} for project ${input.projectId}`,
             );
@@ -69,8 +74,9 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
           }
 
           const eventOccurredAt = yield* DateTime.nowAsDate;
-
-          for (const endpoint of subscribedEndpoints) {
+          const dispatchToEndpoint = Effect.fn("webhookDispatch.dispatchToEndpoint")(function* (
+            endpoint: (typeof subscribedEndpoints)[number],
+          ) {
             const deliveryId = generateId("webhookDelivery");
 
             yield* db.insert(webhookDeliveries).values({
@@ -93,7 +99,12 @@ export class WebhookDispatchService extends Context.Service<WebhookDispatchServi
               payload: input.payload,
               url: endpoint.url,
             }).pipe(Effect.forkDetach);
-          }
+          });
+
+          yield* Effect.forEach(subscribedEndpoints, dispatchToEndpoint, {
+            concurrency: 1,
+            discard: true,
+          });
 
           yield* Effect.logInfo(
             `Emitted ${input.eventType} event to ${subscribedEndpoints.length} webhook endpoints`,

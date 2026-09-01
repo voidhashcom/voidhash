@@ -17,7 +17,9 @@ export {
 import { PerkGrantService } from "@voidhash/core/services/perkGrants/PerkGrantService";
 import { WebhookDispatchService } from "@voidhash/core/services/webhookDispatch/WebhookDispatchService";
 import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
-import { Context, Effect, Layer } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import { DbPurchaseStateRepositoryLive } from "./DbPurchaseStateRepositoryLive.ts";
 import {

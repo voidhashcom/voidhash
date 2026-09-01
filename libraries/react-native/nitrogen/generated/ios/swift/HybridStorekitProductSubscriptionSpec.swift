@@ -11,7 +11,7 @@ import NitroModules
 public protocol HybridStorekitProductSubscriptionSpec_protocol: HybridObject {
   // Properties
   var introductoryOffer: Variant_NullType__any_HybridStorekitProductOfferSpec_? { get }
-  var promotionalOffers: [Variant_NullType__any_HybridStorekitProductOfferSpec_] { get }
+  var promotionalOffers: [NitroNullable] { get }
   var subscriptionGroupID: String { get }
   var subscriptionPeriod: (any HybridStorekitProductSubscriptionPeriodSpec) { get }
 

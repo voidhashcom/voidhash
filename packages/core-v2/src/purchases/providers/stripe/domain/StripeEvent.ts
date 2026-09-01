@@ -11,7 +11,8 @@
  * converts to the `Option`-based domain types at its boundary.
  */
 import { constant } from "@voidhash/lib/lang";
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import { StripePaymentProviderServiceError } from "./StripeErrors.ts";
 
@@ -42,6 +43,7 @@ export const StripeEvent = Schema.Struct({
     previous_attributes: Schema.optional(Schema.Unknown),
   }),
 });
+export type StripeEvent = typeof StripeEvent.Type;
 
 /**
  * Loose view of `data.previous_attributes` for `customer.subscription.updated`.
@@ -53,6 +55,7 @@ export const StripeSubscriptionPreviousAttributes = Schema.Struct({
   items: Schema.optional(Schema.Unknown),
   plan: Schema.optional(Schema.Unknown),
 });
+export type StripeSubscriptionPreviousAttributes = typeof StripeSubscriptionPreviousAttributes.Type;
 
 const StripePriceRef = Schema.Struct({
   id: Schema.optional(Schema.String),
@@ -108,6 +111,7 @@ export const StripeInvoice = Schema.Struct({
     ),
   ),
 });
+export type StripeInvoice = typeof StripeInvoice.Type;
 
 const StripeSubscriptionItem = Schema.Struct({
   price: Schema.optional(Schema.NullOr(StripePriceRef)),
@@ -133,6 +137,7 @@ export const StripeSubscription = Schema.Struct({
   ),
   metadata: Schema.optional(Schema.NullOr(Schema.Record(Schema.String, Schema.String))),
 });
+export type StripeSubscription = typeof StripeSubscription.Type;
 
 const StripeBillingDetails = Schema.Struct({
   address: Schema.optional(
@@ -156,6 +161,7 @@ export const StripeCharge = Schema.Struct({
   billing_details: Schema.optional(Schema.NullOr(StripeBillingDetails)),
   metadata: Schema.optional(Schema.NullOr(Schema.Record(Schema.String, Schema.String))),
 });
+export type StripeCharge = typeof StripeCharge.Type;
 
 /** Subset of a Stripe `checkout.session`. */
 export const StripeCheckoutSession = Schema.Struct({
@@ -175,6 +181,7 @@ export const StripeCheckoutSession = Schema.Struct({
   ),
   metadata: Schema.optional(Schema.NullOr(Schema.Record(Schema.String, Schema.String))),
 });
+export type StripeCheckoutSession = typeof StripeCheckoutSession.Type;
 
 /** Subset of a Stripe `refund` (`charge.refund.updated`). */
 export const StripeRefund = Schema.Struct({
@@ -187,6 +194,7 @@ export const StripeRefund = Schema.Struct({
   created: Schema.optional(Schema.Number),
   metadata: Schema.optional(Schema.NullOr(Schema.Record(Schema.String, Schema.String))),
 });
+export type StripeRefund = typeof StripeRefund.Type;
 
 /** Subset of a Stripe `dispute` (`charge.dispute.closed`). */
 export const StripeDispute = Schema.Struct({
@@ -199,6 +207,7 @@ export const StripeDispute = Schema.Struct({
   created: Schema.optional(Schema.Number),
   metadata: Schema.optional(Schema.NullOr(Schema.Record(Schema.String, Schema.String))),
 });
+export type StripeDispute = typeof StripeDispute.Type;
 
 /** Line-items list returned by `GET /v1/checkout/sessions/{id}/line_items`. */
 export const StripeCheckoutLineItems = Schema.Struct({
@@ -212,6 +221,7 @@ export const StripeCheckoutLineItems = Schema.Struct({
     ),
   ),
 });
+export type StripeCheckoutLineItems = typeof StripeCheckoutLineItems.Type;
 
 /** Balance-transaction fee shape (from `GET /v1/balance_transactions/{id}`). */
 export const StripeBalanceTransaction = Schema.Struct({
@@ -220,6 +230,7 @@ export const StripeBalanceTransaction = Schema.Struct({
   currency: Schema.optional(Schema.String),
   amount: Schema.optional(Schema.Number),
 });
+export type StripeBalanceTransaction = typeof StripeBalanceTransaction.Type;
 
 const decodeEvent = Schema.decodeUnknownEffect(StripeEvent);
 

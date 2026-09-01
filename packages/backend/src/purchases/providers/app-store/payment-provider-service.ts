@@ -16,7 +16,12 @@
  *      are dispatched here through the shared workflow runtime. The
  *      synchronous record path does not depend on their completion.
  */
-import { DateTime, Effect, Layer, Option, Predicate, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 
 import {
   AppStorePaymentProviderService,
@@ -36,10 +41,14 @@ import { AppStorePaymentProviderServiceQueries } from "./payment-provider-servic
 import { AppStoreTransactionVerifier } from "./transaction-verifier.ts";
 import { AppStorePaymentProviderProductNotMappedError } from "./errors.ts";
 import { generateId } from "@voidhash/core/utils/generate-id";
+import * as Arr from "effect/Array";
+import { MutableSet } from "../../../collection-boundary.ts";
+import { hasTag } from "../../../runtime-boundary.ts";
+import { assumeType } from "../../../runtime-boundary.ts";
 
 /** Reads a property off an unknown value without an `as` assertion. */
 const readProperty = <P extends string>(value: unknown, property: P): unknown => {
-  if (Predicate.hasProperty(value, property)) return value[property];
+  if (P.hasProperty(value, property)) return value[property];
   return undefined;
 };
 
@@ -52,29 +61,29 @@ const readProperty = <P extends string>(value: unknown, property: P): unknown =>
  */
 const extractCause = (error: unknown): string => {
   if (error instanceof AppStorePaymentProviderServiceError) return error.cause;
-  if (typeof error === "object" && error !== null) {
+  if (P.isObject(error) && error !== null) {
     const paymentProviderConfigurationId = readProperty(error, "paymentProviderConfigurationId");
-    if (typeof paymentProviderConfigurationId === "string") {
+    if (P.isString(paymentProviderConfigurationId)) {
       return `Payment provider configuration ${paymentProviderConfigurationId} not found`;
     }
     const projectId = readProperty(error, "projectId");
-    if (typeof projectId === "string") return `Project ${projectId} not found`;
+    if (P.isString(projectId)) return `Project ${projectId} not found`;
     const errorMessage = readProperty(error, "errorMessage");
     if (Option.isOption(errorMessage) && Option.isSome(errorMessage)) {
       return String(errorMessage.value);
     }
     const message = readProperty(error, "message");
-    if (typeof message === "string") return message;
+    if (P.isString(message)) return message;
     const cause = readProperty(error, "cause");
-    if (typeof cause === "string") return cause;
+    if (P.isString(cause)) return cause;
     const status = readProperty(error, "status");
-    if (typeof status === "string") return String(status);
+    if (P.isString(status)) return String(status);
   }
   return String(error);
 };
 
 /** Error tags that mark a permanently missing target — mapped to `kind: "not_found"`. */
-const NOT_FOUND_ERROR_TAGS = new Set<string>([
+const NOT_FOUND_ERROR_TAGS = new MutableSet<string>([
   "AppStorePaymentProviderConfigurationNotFoundError",
   "AppStorePaymentProviderProjectNotFoundError",
 ]);
@@ -82,7 +91,7 @@ const NOT_FOUND_ERROR_TAGS = new Set<string>([
 const toServiceError = (error: unknown): AppStorePaymentProviderServiceError => {
   if (error instanceof AppStorePaymentProviderServiceError) return error;
   const tag = readProperty(error, "_tag");
-  if (typeof tag === "string" && NOT_FOUND_ERROR_TAGS.has(tag)) {
+  if (P.isString(tag) && NOT_FOUND_ERROR_TAGS.has(tag)) {
     return new AppStorePaymentProviderServiceError({
       cause: extractCause(error),
       kind: "not_found",
@@ -150,7 +159,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
         const originalTransactionId = Option.getOrUndefined(
           decodedTransaction.originalTransactionId,
         );
-        const shouldReconcileFirstSeen = yield* Effect.gen(function* () {
+        const shouldReconcileFirstSeen = yield* Effect.fn("shouldReconcileFirstSeen")(function* () {
           if (!originalTransactionId) {
             return false;
           }
@@ -168,7 +177,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
             originalTransactionId,
           });
           return !alreadyRecorded;
-        });
+        })();
 
         const result = yield* appStorePaymentProvider
           .recordPurchase({
@@ -185,10 +194,10 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
           .pipe(
             Effect.catchIf(
               (error): error is AppStorePaymentProviderProductNotMappedError =>
-                Predicate.hasProperty(error, "_tag") &&
-                error._tag === "AppStorePaymentProviderProductNotMappedError",
+                P.hasProperty(error, "_tag") &&
+                hasTag(error, "AppStorePaymentProviderProductNotMappedError"),
               (error) =>
-                Effect.gen(function* () {
+                Effect.fn("result")(function* () {
                   const providerOccurredAt = Option.match(decodedTransaction.purchaseDate, {
                     onNone: () => input.receivedAt,
                     onSome: (milliseconds) => DateTime.toDateUtc(DateTime.makeUnsafe(milliseconds)),
@@ -218,7 +227,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
                     parked: true,
                     providerProductKey: error.providerProductKey,
                   } satisfies AppStoreSdkTransactionResult;
-                }),
+                })(),
             ),
           );
         if ("parked" in result) {
@@ -236,7 +245,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
         });
 
         // Deferred-replay trigger: under the per-tenant
-        // `trackNewPurchasesFromAppleServerNotifications = false` mode,
+        // `shouldTrackNewPurchasesFromAppleServerNotifications = false` mode,
         // lifecycle webhooks for this series were parked pending this SDK
         // confirmation. Now that the purchase is recorded, dispatch the replay
         // workflow to drain them — but only if any are actually parked, so the
@@ -247,7 +256,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
             originalTransactionId,
             paymentProviderConfigurationId: configuration.id,
           });
-          if (parked.length > 0) {
+          if (Arr.isReadonlyArrayNonEmpty(parked)) {
             yield* Workflow.dispatchAndForget(AppStoreReplayParkedSdkNotifications, {
               originalTransactionId,
               paymentProviderConfigurationId: configuration.id,
@@ -290,7 +299,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
     // to AppStorePaymentProviderServiceLive at the backend root once the
     // request-graph wiring for `Cloudflare.Worker` is finalized.
     // oxlint-disable-next-line effect/noAs -- boundary cast described in the comment above: the residual Cloudflare.Worker requirement is ambient at call time inside the deployed Worker, and satisfies is not an assertion so it cannot erase it.
-    return {
+    return assumeType<AppStorePaymentProviderServiceShape>({
       acceptServerNotification: (input: {
         readonly paymentProviderConfigurationId: string;
         readonly signedPayload: string;
@@ -301,7 +310,7 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
           .acceptServerNotification(input)
           .pipe(Effect.catch((error) => Effect.fail(toServiceError(error)))),
       processSdkTransaction,
-    } as unknown as AppStorePaymentProviderServiceShape;
+    });
   }),
   // `Layer.provide` (not `provideMerge`): the webhook handler / provider engine /
   // queries are implementation details consumed here, not part of this service's

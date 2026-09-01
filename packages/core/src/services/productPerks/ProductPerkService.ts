@@ -1,5 +1,9 @@
 import { constant } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -37,7 +41,8 @@ export class ProductPerkValidationError extends Schema.TaggedErrorClass<ProductP
 type DbProductPerkWithProduct = DbProductPerk & { readonly product: DbProduct };
 
 /** The relational query returns a looser row shape than the joined type above. */
-const asProductPerkWithProduct = (row: any): DbProductPerkWithProduct | undefined => row;
+const asProductPerkWithProduct = (row: any): Option.Option<DbProductPerkWithProduct> =>
+  Option.fromNullishOr(row);
 
 /**
  * `ProductPerkService` orchestrates the (product, perk) join-table
@@ -187,19 +192,22 @@ export class ProductPerkService extends Context.Service<ProductPerkService>()(
               session.person.distinctId,
             );
 
-          const productPerk = asProductPerkWithProduct(
+          const productPerk = yield* asProductPerkWithProduct(
             yield* db.query.productPerks.findFirst({
               where: { id: input.id },
               with: { product: true },
             }),
+          ).pipe(
+            Option.match({
+              onNone: () =>
+                Effect.fail(
+                  new ProductPerkValidationError({
+                    message: `Product perk ${input.id} not found`,
+                  }),
+                ),
+              onSome: Effect.succeed,
+            }),
           );
-          if (!productPerk) {
-            return yield* Effect.fail(
-              new ProductPerkValidationError({
-                message: `Product perk ${input.id} not found`,
-              }),
-            );
-          }
           yield* Effect.annotateCurrentSpan("voidhash.product.id", productPerk.productId);
           yield* Effect.annotateCurrentSpan("voidhash.perk.id", productPerk.perkId);
           yield* Effect.annotateCurrentSpan("voidhash.project.id", productPerk.product.projectId);

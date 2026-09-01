@@ -5,7 +5,7 @@
  * `push` namespace to avoid colliding with the entrenched payment-provider
  * webhook "notification" domain.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Configuration row not found. */
 export class RpcPushNotificationConfigurationNotFoundError extends Schema.TaggedErrorClass<RpcPushNotificationConfigurationNotFoundError>(

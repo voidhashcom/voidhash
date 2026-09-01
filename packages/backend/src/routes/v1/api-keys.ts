@@ -7,7 +7,7 @@ import {
 import { ApiKeyService } from "@voidhash/core/services";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 /** Public keys echo their raw value back; secret keys never do. */
@@ -34,7 +34,7 @@ export const ApiKeysGroupLive = HttpApiBuilder.group(VoidhashV1Api, "api_keys", 
       )
       .handle("listApiKeys", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ApiKeysGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -50,7 +50,7 @@ export const ApiKeysGroupLive = HttpApiBuilder.group(VoidhashV1Api, "api_keys", 
               ),
               pageInfo: page.pageInfo,
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

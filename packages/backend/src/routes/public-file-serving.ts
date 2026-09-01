@@ -10,8 +10,12 @@
  */
 import { PublicFileStore } from "@voidhash/core/services";
 import { constant } from "@voidhash/lib/lang";
-import { Cause, Effect, Layer } from "effect";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
+import * as Str from "effect/String";
 
 const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
@@ -22,7 +26,7 @@ const HEADERS = constant({
 
 const notFound = HttpServerResponse.json({ error: "Not found" }, { headers: HEADERS, status: 404 });
 
-const handleServe = Effect.gen(function* () {
+const handleServe = Effect.fn("handleServe")(function* () {
   const store = yield* PublicFileStore;
   const params = yield* HttpRouter.params;
   const key = params["*"];
@@ -31,27 +35,27 @@ const handleServe = Effect.gen(function* () {
   // the route never echoes a creative key back into the store.
   if (
     key === undefined ||
-    key.length === 0 ||
-    key.split("/").some((segment) => segment.length === 0 || segment === "..")
+    Str.isEmpty(key) ||
+    key.split("/").some((segment) => Str.isEmpty(segment) || segment === "..")
   ) {
     return yield* notFound;
   }
 
   const object = yield* store.getObject(key);
-  if (object === null) {
+  if (Option.isNone(object)) {
     return yield* notFound;
   }
 
-  return HttpServerResponse.uint8Array(object.body, {
-    contentType: object.contentType ?? "application/octet-stream",
+  return HttpServerResponse.uint8Array(object.value.body, {
+    contentType: Option.getOrElse(object.value.contentType, () => "application/octet-stream"),
     headers: {
       ...HEADERS,
       "cache-control": IMMUTABLE_CACHE_CONTROL,
     },
   });
-});
+})();
 
-const registerPublicFileServingRoutes = Effect.gen(function* () {
+const registerPublicFileServingRoutes = Effect.fn("registerPublicFileServingRoutes")(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(
@@ -61,16 +65,16 @@ const registerPublicFileServingRoutes = Effect.gen(function* () {
       // catchCause so store defects are logged with their full cause instead of
       // escaping the worker as an opaque exception.
       Effect.catchCause((cause) =>
-        Effect.gen(function* () {
+        Effect.fn("registerPublicFileServingRoutes")(function* () {
           yield* Effect.logError(`Public file serving error: ${Cause.pretty(cause)}`);
           return yield* HttpServerResponse.json(
             { error: "Failed to load file" },
             { headers: HEADERS, status: 502 },
           );
-        }),
+        })(),
       ),
     ),
   );
-});
+})();
 
 export const PublicFileServingRouteLayer = Layer.effectDiscard(registerPublicFileServingRoutes);

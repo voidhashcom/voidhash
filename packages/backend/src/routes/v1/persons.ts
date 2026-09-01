@@ -1,3 +1,5 @@
+import * as Schema from "effect/Schema";
+import { unsafeDefined } from "../../runtime-boundary.ts";
 import {
   createdResponse,
   Person,
@@ -22,7 +24,8 @@ import {
 } from "@voidhash/core/utils";
 import { PersonOrigin } from "@voidhash/db";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -37,8 +40,8 @@ const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "sec
 const toApiPerson = (person: {
   personId: string;
   distinctId: string;
-  email: string | null;
-  name: string | null;
+  email: string | typeof Schema.Null.Type;
+  name: string | typeof Schema.Null.Type;
 }) =>
   new Person({
     personId: person.personId,
@@ -48,16 +51,17 @@ const toApiPerson = (person: {
   });
 
 /** Resolves an optional opaque cursor to the `personId` it points at. */
-const toAfterPersonId = (cursor: string | undefined) => {
+const toAfterPersonId = (cursor: string | typeof Schema.Undefined.Type) => {
   if (cursor === undefined) return Effect.succeed(undefined);
   return decodeCursor(cursor);
 };
 
 /** Wraps a keyset anchor id back into the public opaque cursor form. */
-const toEndCursor = (personId: string | null): string | null => {
-  if (personId === null) return null;
-  return encodeCursor(personId);
-};
+const toEndCursor = (personId: Option.Option<string>) =>
+  Option.match(personId, {
+    onNone: () => null,
+    onSome: encodeCursor,
+  });
 
 const toApiEntitlementGrant = (grant: SdkPersonSnapshotGrant) =>
   new SdkEntitlementGrant({
@@ -88,20 +92,20 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
     return handlers
       .handle("createPerson", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PersonsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
             const person = yield* personService.createPerson({
               distinctId: payload.distinctId,
-              email: payload.email ?? null,
-              name: payload.name ?? null,
+              email: Option.fromNullishOr(payload.email),
+              name: Option.fromNullishOr(payload.name),
               projectId,
               origin: PersonOrigin.API,
             });
-            const created = toApiPerson(person!);
+            const created = toApiPerson(unsafeDefined(person));
             return yield* createdResponse(Person, created, `/persons/${created.personId}`);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -112,7 +116,7 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
       )
       .handle("listPersons", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PersonsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -152,7 +156,7 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
                 hasNextPage: page.hasNextPage,
               },
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -163,13 +167,13 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
       )
       .handle("getPersonById", ({ params: { personId } }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PersonsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             return yield* personService.getPersonById(personId);
-          }),
+          })(),
         ).pipe(
-          Effect.map((person) => toApiPerson(person!)),
+          Effect.map((person) => toApiPerson(unsafeDefined(person))),
           Effect.catchTags({
             ActionForbiddenError: (e) =>
               Effect.fail(new ApiActionForbiddenError({ message: e.message })),
@@ -180,7 +184,7 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
       )
       .handle("updatePerson", ({ params: { personId }, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PersonsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             // `setPersonAttributes` keys on `(projectId, distinctId)`, so the
@@ -189,15 +193,15 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
             // `projectId`: the row already names one.
             const person = yield* personService.getPersonById(personId);
             return yield* personService.setPersonAttributes({
-              distinctId: person!.distinctId,
+              distinctId: unsafeDefined(person).distinctId,
               email: payload.email,
               name: payload.name,
               origin: PersonOrigin.API,
-              projectId: person!.projectId,
+              projectId: unsafeDefined(person).projectId,
               setOnce: payload.setOnce,
               traits: payload.traits,
             });
-          }),
+          })(),
         ).pipe(
           Effect.map((person) => toApiPerson(person)),
           Effect.catchTags({
@@ -210,16 +214,18 @@ export const PersonsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "persons", (
       )
       .handle("getPersonEntitlements", ({ params: { personId } }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PersonsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             // `getPersonById` resolves merge chains and applies the same
             // not-found / forbidden scoping as the sibling person reads, so the
             // grants below are always loaded for the canonical person.
             const person = yield* personService.getPersonById(personId);
-            const grants = yield* perkGrantService.getPersonEntitlementGrants(person!.personId);
+            const grants = yield* perkGrantService.getPersonEntitlementGrants(
+              unsafeDefined(person).personId,
+            );
             return new PersonEntitlementsResponse({ grants: grants.map(toApiEntitlementGrant) });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

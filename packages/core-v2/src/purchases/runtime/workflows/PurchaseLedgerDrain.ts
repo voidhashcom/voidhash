@@ -1,5 +1,11 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { Effect, Schema } from "effect";
+import type {
+  PlatformRuntime,
+  WorkflowRunner,
+  WorkflowRunnerError,
+} from "@voidhash/platform";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import { PurchaseLedgerWorker } from "../../processing/application/PurchaseLedgerWorker.ts";
 import { PurchaseLedgerDrain } from "./definitions.ts";
@@ -21,14 +27,23 @@ export const PurchaseLedgerDrainRegistration = WorkflowRegistration.make(Purchas
   },
   run: (input, ctx) =>
     Effect.gen(function* () {
-      let batches = 0;
-      let claimedCount = 0;
-      let deadLetteredCount = 0;
-      let publishedCount = 0;
-      let retriedCount = 0;
-      let staleClaimsReleased = 0;
-
-      for (let index = 0; index < 10; index++) {
+      const drain = (
+        index: number,
+        totals: {
+          readonly batches: number;
+          readonly claimedCount: number;
+          readonly deadLetteredCount: number;
+          readonly publishedCount: number;
+          readonly retriedCount: number;
+          readonly staleClaimsReleased: number;
+        },
+      ): Effect.Effect<
+        typeof totals,
+        WorkflowRunnerError,
+        PlatformRuntime | WorkflowRunner
+      > =>
+        Effect.gen(function* () {
+          if (index >= 10) return totals;
         const result = yield* ctx.step({
           name: `drain-${input.runId}-batch-${index}`,
           success: PollResult,
@@ -37,23 +52,25 @@ export const PurchaseLedgerDrainRegistration = WorkflowRegistration.make(Purchas
             return yield* worker.poll(PurchaseLedgerWorker.DEFAULT_RUN_OPTIONS);
           }),
         });
+          const next = {
+            batches: totals.batches + 1,
+            claimedCount: totals.claimedCount + result.claimedCount,
+            deadLetteredCount: totals.deadLetteredCount + result.deadLetteredCount,
+            publishedCount: totals.publishedCount + result.publishedCount,
+            retriedCount: totals.retriedCount + result.retriedCount,
+            staleClaimsReleased: totals.staleClaimsReleased + result.staleClaimsReleased,
+          };
+          if (result.claimedCount === 0) return next;
+          return yield* drain(index + 1, next);
+        });
 
-        batches++;
-        claimedCount += result.claimedCount;
-        deadLetteredCount += result.deadLetteredCount;
-        publishedCount += result.publishedCount;
-        retriedCount += result.retriedCount;
-        staleClaimsReleased += result.staleClaimsReleased;
-        if (result.claimedCount === 0) break;
-      }
-
-      return {
-        batches,
-        claimedCount,
-        deadLetteredCount,
-        publishedCount,
-        retriedCount,
-        staleClaimsReleased,
-      };
+      return yield* drain(0, {
+        batches: 0,
+        claimedCount: 0,
+        deadLetteredCount: 0,
+        publishedCount: 0,
+        retriedCount: 0,
+        staleClaimsReleased: 0,
+      });
     }),
 });

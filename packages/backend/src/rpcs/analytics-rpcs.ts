@@ -9,9 +9,10 @@ import {
   RpcUnsupportedAnalyticsBreakdownError,
   RpcUnsupportedAnalyticsFilterError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
-const toMutableBreakdowns = <T>(breakdowns: readonly T[] | undefined): T[] | undefined => {
+const toMutableBreakdowns = <T>(breakdowns: readonly T[] | typeof Schema.Undefined.Type): T[] | typeof Schema.Undefined.Type => {
   if (!breakdowns) return undefined;
   return [...breakdowns];
 };
@@ -57,8 +58,7 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
           analytics.queryOrganization({
             organizationId: query.context.organizationId,
             queries: [{ ...query, breakdowns: toMutableBreakdowns(query.breakdowns) }],
-          }),
-        ).pipe(
+          }), { concurrency: 1 }).pipe(
           Effect.map((results) => ({ results: results.flat() })),
           Effect.catchTags({
             AnalyticsQueryError: (error) =>

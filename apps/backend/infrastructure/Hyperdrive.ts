@@ -8,13 +8,9 @@ import { DevelopmentDatabase } from "./PGlite.ts";
 
 const logicalId = "CommunityDatabaseHyperdrive";
 
-// oxlint-disable-next-line effect/noAs -- Worker runtime only needs Alchemy's nominal logical resource reference; there is no deploy-time connection object to construct in workerd.
-const runtimeReference = {
-  Type: "Cloudflare.Hyperdrive",
-  LogicalId: logicalId,
-} as Cloudflare.Hyperdrive.Connection;
+const runtimeReference = Cloudflare.Hyperdrive.Connection.ref(logicalId);
 
-const databaseOrigin = Effect.gen(function* () {
+const databaseOrigin = Effect.fn("databaseOrigin")(function* () {
   const host = yield* Config.string("DATABASE_HOST").pipe(Config.withDefault("127.0.0.1"));
   const port = yield* Config.number("DATABASE_PORT").pipe(Config.withDefault(5432));
   const database = yield* Config.string("DATABASE_NAME").pipe(Config.withDefault("voidhash"));
@@ -31,7 +27,7 @@ const databaseOrigin = Effect.gen(function* () {
     password,
   };
   return origin;
-});
+})();
 
 /**
  * Hyperdrive connection shared by the Community Worker and managed compositions.
@@ -42,11 +38,11 @@ const databaseOrigin = Effect.gen(function* () {
  * connection is passed directly to the local Hyperdrive binding.
  */
 export const DatabaseHyperdrive: Effect.Effect<Cloudflare.Hyperdrive.Connection, never, any> =
-  Effect.gen(function* () {
-    if (globalThis.__ALCHEMY_RUNTIME__) return runtimeReference;
+  Effect.fn("DatabaseHyperdrive")(function* () {
+    if (globalThis.__ALCHEMY_RUNTIME__) return yield* runtimeReference;
 
     const context = yield* Effect.serviceOption(Alchemy.AlchemyContext);
-    if (Option.isNone(context)) return runtimeReference;
+    if (Option.isNone(context)) return yield* runtimeReference;
 
     if (context.value.dev) {
       const origin = yield* DevelopmentDatabase;
@@ -62,4 +58,4 @@ export const DatabaseHyperdrive: Effect.Effect<Cloudflare.Hyperdrive.Connection,
       caching: { disabled: true },
       origin,
     });
-  });
+  })();

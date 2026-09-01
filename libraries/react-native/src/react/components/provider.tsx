@@ -1,9 +1,10 @@
-import { Effect } from "effect";
+import * as Option from "effect/Option";
 import React, { type ReactNode, createContext } from "react";
 
 import type { VoidhashClient } from "../../client";
 import {
   type VoidhashInitStatus,
+  type VoidhashClientLifecycleState,
   createVoidhashClientLifecycle,
 } from "../internal/client-lifecycle";
 
@@ -16,7 +17,7 @@ export interface VoidhashProviderBaseProps {
 export interface VoidhashContext {
   client: VoidhashClient;
   /** The error that failed `init()`. `null` unless `status` is `"failed"`. */
-  initError: Error | null;
+  initError: VoidhashClientLifecycleState["initError"];
   /** Compatibility alias for `status === "ready"`. Stays false while disabled. */
   isInitialized: boolean;
   /**
@@ -29,7 +30,7 @@ export interface VoidhashContext {
 }
 
 export function voidhashProviderFactory(initialClient: VoidhashClient) {
-  const VoidhashContext = createContext<VoidhashContext | null>(null);
+  const VoidhashContext = createContext<Option.Option<VoidhashContext>>(Option.none());
   const lifecycle = createVoidhashClientLifecycle(initialClient);
 
   function VoidhashProvider({ children }: VoidhashProviderBaseProps) {
@@ -52,17 +53,15 @@ export function voidhashProviderFactory(initialClient: VoidhashClient) {
       [state.initError, state.status],
     );
 
-    return <VoidhashContext.Provider value={value}>{children}</VoidhashContext.Provider>;
+    return <VoidhashContext.Provider value={Option.some(value)}>{children}</VoidhashContext.Provider>;
   }
 
   function useVoidhash() {
     const context = React.useContext(VoidhashContext);
-    if (!context) {
-      return Effect.runSync(
-        Effect.die(new Error("useVoidhash must be used within a VoidhashProvider")),
-      );
+    if (Option.isNone(context)) {
+      throw new TypeError("useVoidhash must be used within a VoidhashProvider");
     }
-    return context;
+    return context.value;
   }
 
   return { context: VoidhashContext, provider: VoidhashProvider, useVoidhash };

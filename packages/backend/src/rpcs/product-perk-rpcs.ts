@@ -5,7 +5,7 @@ import {
   RpcProductPerkServiceError,
   RpcProductPerkValidationError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 export const ProductPerkRpcsLive = ProductPerkRpcsDef.toLayer(
   Effect.gen(function* ProductPerkRpcsLive() {

@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 import {
   createdResponse,
   PaymentProviderConfigurationDetail,
@@ -15,7 +16,8 @@ import {
 import { PaymentProviderConfigurationService } from "@voidhash/core-v2";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Order from "effect/Order";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -23,12 +25,16 @@ import {
   bridgeAuthSession,
   requireCredential,
 } from "../../ApiMiddlewares.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as Str from "effect/String";
 
 /** Provider credentials are never client-safe, so publishable keys are out. */
 const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 const toConfiguration = (value: unknown): Record<string, unknown> => {
   if (isRecord(value)) return value;
@@ -42,9 +48,9 @@ const toConfiguration = (value: unknown): Record<string, unknown> => {
  */
 export const isPresent = (value: unknown): boolean => {
   if (value === null || value === undefined) return false;
-  if (typeof value === "string") return value.length > 0;
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === "object") return Object.keys(value).length > 0;
+  if (P.isString(value)) return Str.isNonEmpty(value);
+  if (Array.isArray(value)) return Arr.isReadonlyArrayNonEmpty(value);
+  if (P.isObject(value)) return Arr.isReadonlyArrayNonEmpty(R.keys(value));
   return true;
 };
 
@@ -58,23 +64,23 @@ export const isPresent = (value: unknown): boolean => {
 export const configurationPresence = (value: unknown): Record<string, boolean> => {
   if (!isRecord(value)) return {};
   const flags: Record<string, boolean> = {};
-  for (const [key, fieldValue] of Object.entries(value)) {
+  Arr.forEach(R.toEntries(value), ([key, fieldValue]) => {
     flags[`has${key.charAt(0).toUpperCase()}${key.slice(1)}`] = isPresent(fieldValue);
-  }
+  });
   return flags;
 };
 
 interface ConfigurationRow {
-  readonly activeProviderId: string | null;
+  readonly activeProviderId: string | typeof Schema.Null.Type;
   readonly configuration: unknown;
-  readonly createdAt: Date | null;
-  readonly enabled: boolean;
+  readonly createdAt: Date | typeof Schema.Null.Type;
+  readonly isEnabled: boolean;
   readonly id: string;
   readonly name: string;
   readonly paymentProviderKey: string;
   readonly projectId: string;
   readonly providerId: string;
-  readonly updatedAt: Date | null;
+  readonly updatedAt: Date | typeof Schema.Null.Type;
 }
 
 /** Secret-stripped read projection shared by every endpoint in this group. */
@@ -82,7 +88,7 @@ const toDetail = (row: ConfigurationRow) => ({
   activeProviderId: row.activeProviderId,
   configurationPresence: configurationPresence(row.configuration),
   createdAt: row.createdAt,
-  enabled: row.enabled,
+  isEnabled: row.isEnabled,
   id: row.id,
   name: row.name,
   paymentProviderKey: row.paymentProviderKey,
@@ -92,7 +98,7 @@ const toDetail = (row: ConfigurationRow) => ({
 });
 
 /** Omits `name` from an update when the caller did not send one, so the stored value survives. */
-const nameUpdate = (name: string | undefined): { name?: string } => {
+const nameUpdate = (name: string | typeof Schema.Undefined.Type): { name?: string } => {
   if (name === undefined) return {};
   return { name };
 };
@@ -107,7 +113,7 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("listPaymentProviderConfigurations", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderConfigurationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -117,10 +123,10 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
               );
               // The service returns rows in database order; cursors only make
               // sense over a stable one.
-              const sorted = [...matching].sort((a, b) => a.id.localeCompare(b.id));
+              const sorted = Arr.sortWith([...matching], (item) => item.id, Order.String);
               const page = yield* paginate(sorted, (row) => row.id, query);
               return { data: page.data.map(toDetail), pageInfo: page.pageInfo };
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -134,7 +140,7 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
         )
         .handle("createPaymentProviderConfiguration", ({ payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderConfigurationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -149,7 +155,7 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
                 detail,
                 `/payment-provider-configurations/${detail.id}`,
               );
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -171,14 +177,14 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
         )
         .handle("getPaymentProviderConfiguration", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderConfigurationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const row = yield* service.getPaymentProviderConfigurationById(
                 params.configurationId,
               );
               return toDetail(row);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -196,7 +202,7 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
         )
         .handle("updatePaymentProviderConfiguration", ({ params, payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderConfigurationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               // The update service call takes a full row, so omitted fields are
@@ -206,7 +212,7 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
               );
               yield* service.updatePaymentProviderConfiguration({
                 configuration: payload.configuration ?? toConfiguration(existing.configuration),
-                enabled: payload.enabled ?? existing.enabled,
+                enabled: payload.isEnabled ?? existing.isEnabled,
                 id: params.configurationId,
                 ...nameUpdate(payload.name),
               });
@@ -214,7 +220,7 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
                 params.configurationId,
               );
               return toDetail(row);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -238,13 +244,13 @@ export const PaymentProviderConfigurationsGroupLive = HttpApiBuilder.group(
         )
         .handle("deletePaymentProviderConfiguration", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderConfigurationsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               return yield* service.deletePaymentProviderConfiguration({
                 paymentProviderConfigurationId: params.configurationId,
               });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>

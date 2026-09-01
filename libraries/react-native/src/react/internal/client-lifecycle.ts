@@ -1,4 +1,10 @@
 import type { VoidhashClient } from "../../client";
+import * as Console from "effect/Console";
+import * as EffectRuntime from "effect/Effect";
+import * as MutableHashSet from "effect/MutableHashSet";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 
 /**
  * Lifecycle phase of the SDK client owned by `VoidhashProvider`.
@@ -10,7 +16,7 @@ export type VoidhashInitStatus = "disabled" | "failed" | "initializing" | "ready
 
 export interface VoidhashClientLifecycleState {
   /** The error that failed `init()`. `null` unless `status` is `"failed"`. */
-  initError: Error | null;
+  initError: Option.Option<VoidhashInitError>;
   status: VoidhashInitStatus;
 }
 
@@ -38,12 +44,12 @@ interface InitAttempt {
 }
 
 const INITIALIZING_STATE: VoidhashClientLifecycleState = {
-  initError: null,
+  initError: Option.none(),
   status: "initializing",
 };
 
 const DISABLED_STATE: VoidhashClientLifecycleState = {
-  initError: null,
+  initError: Option.none(),
   status: "disabled",
 };
 
@@ -52,8 +58,18 @@ const noopTeardown = () => {
 };
 
 /** Normalizes an unknown rejection value into an `Error`. */
-export function toVoidhashInitError(value: unknown): Error {
-  return value instanceof Error ? value : new Error(String(value));
+export class VoidhashInitError extends Schema.TaggedErrorClass<VoidhashInitError>(
+  "VoidhashInitError",
+)("VoidhashInitError", { message: Schema.String, cause: Schema.Unknown }) {}
+
+export function toVoidhashInitError(value: unknown): VoidhashInitError {
+  return new VoidhashInitError({
+    message:
+      P.isObject(value) && "message" in value && P.isString(value.message)
+        ? value.message
+        : String(value),
+    cause: value,
+  });
 }
 
 /**
@@ -72,10 +88,9 @@ export function toVoidhashInitError(value: unknown): Error {
 export function createVoidhashClientLifecycle(
   client: VoidhashClient,
 ): VoidhashClientLifecycleController {
-  const listeners = new Set<() => void>();
+  const listeners = MutableHashSet.empty<() => void>();
   let state: VoidhashClientLifecycleState = client.isEnabled ? INITIALIZING_STATE : DISABLED_STATE;
-  let currentAttempt: InitAttempt | null = null;
-  // oxlint-disable-next-line effect/noNewPromise -- this is the React/promise boundary described above: `init()`/`end()` are promise-returning client methods driven by a `useSyncExternalStore` mount effect, so the serialization queue they chain onto has to be a promise. There is no Effect runtime or Scope on this path to hang an Effect.Semaphore off.
+  let currentAttempt = Option.none<InitAttempt>();
   let queue: Promise<void> = Promise.resolve();
 
   const enqueue = (task: () => Promise<void>): Promise<void> => {
@@ -86,24 +101,26 @@ export function createVoidhashClientLifecycle(
 
   const setState = (nextState: VoidhashClientLifecycleState) => {
     state = nextState;
-    for (const listener of listeners) {
-      listener();
-    }
+    Array.from(listeners).forEach((listener) => listener());
   };
 
   const runInitAttempt = (attempt: InitAttempt) =>
     enqueue(async () => {
       const initError = await client.init().then(
-        () => null,
-        (error: unknown) => toVoidhashInitError(error),
+        () => Option.none<VoidhashInitError>(),
+        (error: unknown) => Option.some(toVoidhashInitError(error)),
       );
 
-      attempt.initialized = initError === null;
+      attempt.initialized = Option.isNone(initError);
       if (attempt.cancelled) {
         return;
       }
 
-      setState(initError ? { initError, status: "failed" } : { initError: null, status: "ready" });
+      setState(
+        Option.isSome(initError)
+          ? { initError, status: "failed" }
+          : { initError: Option.none(), status: "ready" },
+      );
     });
 
   const endInitAttempt = (attempt: InitAttempt) =>
@@ -121,13 +138,15 @@ export function createVoidhashClientLifecycle(
       attempt.initialized = false;
       await client.end().then(undefined, (error: unknown) => {
         // This warning is intentionally surfaced in all environments.
-        console.warn("[voidhash] failed to end the client on unmount", error);
+        EffectRuntime.runFork(
+          Console.warn("[voidhash] failed to end the client on unmount", error),
+        );
       });
     });
 
   const startAttempt = () => {
     const attempt: InitAttempt = { cancelled: false, initialized: false };
-    currentAttempt = attempt;
+    currentAttempt = Option.some(attempt);
     void runInitAttempt(attempt);
   };
 
@@ -149,10 +168,10 @@ export function createVoidhashClientLifecycle(
         unmounted = true;
 
         const attempt = currentAttempt;
-        currentAttempt = null;
-        if (attempt) {
-          attempt.cancelled = true;
-          void endInitAttempt(attempt);
+        currentAttempt = Option.none();
+        if (Option.isSome(attempt)) {
+          attempt.value.cancelled = true;
+          void endInitAttempt(attempt.value);
         }
 
         setState(INITIALIZING_STATE);
@@ -161,7 +180,7 @@ export function createVoidhashClientLifecycle(
     retryInit: () => {
       // Gating on `failed` is what prevents a duplicate `init()` from being
       // fired while one is already in flight or has already succeeded.
-      if (state.status !== "failed" || !currentAttempt) {
+      if (state.status !== "failed" || Option.isNone(currentAttempt)) {
         return;
       }
 
@@ -170,16 +189,16 @@ export function createVoidhashClientLifecycle(
       // subscription running, so the retry tears down through the same
       // serialized path as unmount before starting over — otherwise the second
       // `init()` would install a duplicate observer.
-      const failedAttempt = currentAttempt;
+      const failedAttempt = currentAttempt.value;
       failedAttempt.cancelled = true;
       void endInitAttempt(failedAttempt);
       setState(INITIALIZING_STATE);
       startAttempt();
     },
     subscribe: (listener: () => void) => {
-      listeners.add(listener);
+      MutableHashSet.add(listeners, listener);
       return () => {
-        listeners.delete(listener);
+        MutableHashSet.remove(listeners, listener);
       };
     },
   };

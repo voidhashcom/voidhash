@@ -5,7 +5,7 @@
  * Note: paywall-location, paywall-release, and paywall-publish errors live
  * with their respective services (`paywall-locations/`, `paywall-publishing/`).
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Paywall row not found in the database. */
 export class PaywallNotFoundError extends Schema.TaggedErrorClass<PaywallNotFoundError>(

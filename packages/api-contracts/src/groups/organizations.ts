@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/httpapi";
 
 import {
@@ -50,11 +50,7 @@ export const OrganizationsGroup = HttpApiGroup.make("organizations")
     HttpApiEndpoint.get("getOrganization", "/:organizationId", {
       params: { organizationId: Schema.String },
       success: Organization,
-      error: [
-        ApiActionForbiddenError,
-        ApiOrganizationNotFoundError,
-        ApiOrganizationServiceError,
-      ],
+      error: [ApiActionForbiddenError, ApiOrganizationNotFoundError, ApiOrganizationServiceError],
     }),
   )
   /**
@@ -68,11 +64,7 @@ export const OrganizationsGroup = HttpApiGroup.make("organizations")
       params: { organizationId: Schema.String },
       payload: UpdateOrganizationBody,
       success: Organization,
-      error: [
-        ApiActionForbiddenError,
-        ApiOrganizationNotFoundError,
-        ApiOrganizationServiceError,
-      ],
+      error: [ApiActionForbiddenError, ApiOrganizationNotFoundError, ApiOrganizationServiceError],
     }),
   )
   /**

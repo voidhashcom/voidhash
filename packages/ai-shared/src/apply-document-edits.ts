@@ -2,6 +2,28 @@ import { shortId } from "@voidhash/mimic-core";
 
 import type { EditableDocumentNode } from "./document-edits.ts";
 import type { DocumentEdit, MintedIds, NodeInput } from "./surfaces.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
+
+interface MutableIndex<K, V> {
+  readonly get: (key: K) => V | void;
+  readonly set: (key: K, value: V) => void;
+  readonly delete: (key: K) => void;
+  readonly has: (key: K) => boolean;
+}
+
+const makeMutableIndex = <K, V>(): MutableIndex<K, V> => {
+  const backing = MutableHashMap.empty<K, V>();
+  return {
+    get: (key) => Option.getOrUndefined(MutableHashMap.get(backing, key)),
+    set: (key, value) => { MutableHashMap.set(backing, key, value); },
+    delete: (key) => { MutableHashMap.remove(backing, key); },
+    has: (key) => MutableHashMap.has(backing, key),
+  };
+};
 
 /**
  * A pure document-edit applier: given a decoded document tree and a batch of
@@ -73,62 +95,59 @@ export function applyDocumentEdits(
   const mintedIds: MintedIds = {};
 
   edits.forEach((edit, editIndex) => {
-    switch (edit.op) {
-      case "insert": {
+    if (edit.op === "insert") {
         const parent = index.byId.get(edit.parentId);
-        if (parent === undefined) break;
+        if (parent === undefined) return;
         const minted: string[] = [];
         const node = nodeInputToMutable(edit.node, minted, index);
         insertChild(parent, node, edit.index);
         registerSubtree(index, node);
-        if (minted.length > 0) {
+        if (Arr.isReadonlyArrayNonEmpty(minted)) {
           mintedIds[String(editIndex)] = minted;
         }
-        break;
-      }
-      case "update": {
+        return;
+    }
+    if (edit.op === "update") {
         const node = index.byId.get(edit.nodeId);
-        if (node === undefined) break;
+        if (node === undefined) return;
         node.data = mergeData(node.data, edit.set);
-        break;
-      }
-      case "move": {
+        return;
+    }
+    if (edit.op === "move") {
         const node = index.byId.get(edit.nodeId);
         const parent = index.byId.get(edit.parentId);
-        if (node === undefined || parent === undefined) break;
+        if (node === undefined || parent === undefined) return;
         const currentParent = index.parentOf.get(node.id);
-        if (currentParent === undefined) break; // the root itself is not movable
+        if (currentParent === undefined) return;
         detachChild(currentParent, node.id);
         insertChild(parent, node, edit.index);
         index.parentOf.set(node.id, parent);
-        break;
-      }
-      case "remove": {
+        return;
+    }
+    if (edit.op === "remove") {
         const node = index.byId.get(edit.nodeId);
-        if (node === undefined) break;
+        if (node === undefined) return;
         const parent = index.parentOf.get(node.id);
-        if (parent === undefined) break; // the root itself is not removable
+        if (parent === undefined) return;
         detachChild(parent, node.id);
         unregisterSubtree(index, node);
-        break;
-      }
-      case "replaceChildren": {
+        return;
+    }
+    if (edit.op === "replaceChildren") {
         const node = index.byId.get(edit.nodeId);
-        if (node === undefined) break;
-        for (const child of node.children) {
+        if (node === undefined) return;
+        Arr.forEach(node.children, (child) => {
           unregisterSubtree(index, child);
-        }
+        });
         node.children = [];
         const minted: string[] = [];
-        for (const childInput of edit.children) {
+        Arr.forEach(edit.children, (childInput) => {
           const child = nodeInputToMutable(childInput, minted, index);
           node.children.push(child);
           index.parentOf.set(child.id, node);
           registerSubtree(index, child);
-        }
+        });
         mintedIds[String(editIndex)] = minted;
-        break;
-      }
     }
   });
 
@@ -140,17 +159,17 @@ export function applyDocumentEdits(
 // ---------------------------------------------------------------------------
 
 interface TreeIndex {
-  readonly byId: Map<string, MutableNode>;
-  readonly parentOf: Map<string, MutableNode>;
+  readonly byId: MutableIndex<string, MutableNode>;
+  readonly parentOf: MutableIndex<string, MutableNode>;
 }
 
 function buildIndex(root: MutableNode): TreeIndex {
-  const byId = new Map<string, MutableNode>();
-  const parentOf = new Map<string, MutableNode>();
-  const walk = (node: MutableNode, parent: MutableNode | undefined) => {
+  const byId = makeMutableIndex<string, MutableNode>();
+  const parentOf = makeMutableIndex<string, MutableNode>();
+  const walk = (node: MutableNode, parent: MutableNode | void) => {
     byId.set(node.id, node);
     if (parent !== undefined) parentOf.set(node.id, parent);
-    for (const child of node.children) walk(child, node);
+    Arr.forEach(node.children, (child) => { walk(child, node); });
   };
   walk(root, undefined);
   return { byId, parentOf };
@@ -159,26 +178,26 @@ function buildIndex(root: MutableNode): TreeIndex {
 /** Register a freshly-attached subtree (its parent link is set by the caller). */
 function registerSubtree(index: TreeIndex, node: MutableNode): void {
   index.byId.set(node.id, node);
-  for (const child of node.children) {
+  Arr.forEach(node.children, (child) => {
     index.parentOf.set(child.id, node);
     registerSubtree(index, child);
-  }
+  });
 }
 
 /** Drop a detached subtree from the index (called after `detachChild`). */
 function unregisterSubtree(index: TreeIndex, node: MutableNode): void {
   index.byId.delete(node.id);
   index.parentOf.delete(node.id);
-  for (const child of node.children) unregisterSubtree(index, child);
+  Arr.forEach(node.children, (child) => { unregisterSubtree(index, child); });
 }
 
 /** Insert `node` among `parent`'s children at `index` (clamped into range). */
-function insertChild(parent: MutableNode, node: MutableNode, at: number | undefined): void {
+function insertChild(parent: MutableNode, node: MutableNode, at: number | void): void {
   parent.children.splice(insertPosition(parent.children.length, at), 0, node);
 }
 
 /** The resolved insertion position: appended when omitted, else clamped into range. */
-function insertPosition(childCount: number, at: number | undefined): number {
+function insertPosition(childCount: number, at: number | void): number {
   if (at === undefined) return childCount;
   return clamp(at, childCount);
 }
@@ -211,10 +230,10 @@ function mergeData(
   set: Record<string, unknown>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...data };
-  for (const [key, value] of Object.entries(set)) {
+  Arr.forEach(R.toEntries(set), ([key, value]) => {
     if (value === undefined) {
       delete out[key];
-      continue;
+      return;
     }
     const existing = out[key];
     if (isPlainObject(existing) && isPlainObject(value)) {
@@ -222,12 +241,12 @@ function mergeData(
     } else {
       out[key] = value;
     }
-  }
+  });
   return out;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  return value !== null && P.isObject(value) && !Array.isArray(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -251,10 +270,10 @@ function nodeInputToMutable(node: NodeInput, minted: string[], index: TreeIndex)
   const id = mintUniqueId(index);
   minted.push(id);
   const data: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(node)) {
-    if (key === "type" || key === "children") continue;
+  Arr.forEach(R.toEntries(node), ([key, value]) => {
+    if (key === "type" || key === "children") return;
     data[key] = value;
-  }
+  });
   const mutable: MutableNode = { id, type: node.type, data, children: [] };
   // Reserve the id before minting children so a sibling can't collide with it.
   index.byId.set(id, mutable);
@@ -268,11 +287,11 @@ function nodeInputToMutable(node: NodeInput, minted: string[], index: TreeIndex)
  * `nextUniqueNodeId` applies so a pre-minted id is always addressable.
  */
 function mintUniqueId(index: TreeIndex): string {
-  let id = shortId();
-  while (index.byId.has(id)) {
-    id = shortId();
-  }
-  return id;
+  const mint = (): string => {
+    const id = shortId();
+    return index.byId.has(id) ? mint() : id;
+  };
+  return mint();
 }
 
 // ---------------------------------------------------------------------------

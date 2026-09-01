@@ -1,4 +1,10 @@
-import { Effect, Encoding, Schema } from "effect";
+import { subtle } from "uncrypto";
+
+import { promiseOrDie } from "../effect-boundary.ts";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 /**
  * Raised when an uploaded paywall asset image fails validation (unsupported
@@ -35,26 +41,20 @@ const startsWith = (bytes: Uint8Array, signature: readonly number[], offset = 0)
 
 /** Magic-byte sniff: confirm the decoded bytes actually match the claimed type. */
 const matchesContentType = (bytes: Uint8Array, contentType: string): boolean => {
-  switch (contentType) {
-    case "image/png":
-      return startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    case "image/jpeg":
-      return startsWith(bytes, [0xff, 0xd8, 0xff]);
-    case "image/webp":
-      // "RIFF" <4-byte length> "WEBP"
-      return (
-        startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&
-        startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
-      );
-    case "image/gif":
-      // "GIF87a" or "GIF89a"
-      return (
-        startsWith(bytes, [0x47, 0x49, 0x46, 0x38, 0x37, 0x61]) ||
-        startsWith(bytes, [0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
-      );
-    default:
-      return false;
-  }
+  if (contentType === "image/png")
+    return startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (contentType === "image/jpeg") return startsWith(bytes, [0xff, 0xd8, 0xff]);
+  if (contentType === "image/webp")
+    return (
+      startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&
+      startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
+    );
+  if (contentType === "image/gif")
+    return (
+      startsWith(bytes, [0x47, 0x49, 0x46, 0x38, 0x37, 0x61]) ||
+      startsWith(bytes, [0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
+    );
+  return false;
 };
 
 /** Tolerate a `data:<type>;base64,` prefix even though the studio sends raw base64. */
@@ -117,7 +117,7 @@ export const validateAndDecodePaywallAsset = (input: {
       ),
     );
 
-    if (bytes.length === 0) {
+    if (bytes.byteLength === 0) {
       return yield* Effect.fail(new PaywallAssetValidationError({ message: "Image is empty." }));
     }
     if (bytes.length > MAX_PAYWALL_ASSET_BYTES) {
@@ -138,8 +138,7 @@ export const validateAndDecodePaywallAsset = (input: {
 
 /** SHA-256 hex digest of the asset bytes (WebCrypto; available in workerd). */
 export const paywallAssetSha256Hex = (bytes: Uint8Array): Effect.Effect<string> =>
-  // oxlint-disable-next-line effect/noGlobals -- WebCrypto is used deliberately (see the doc comment above); Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel, and requiring one would leak a Crypto dependency into every caller.
-  Effect.promise(() => crypto.subtle.digest("SHA-256", toArrayBuffer(bytes))).pipe(
+  promiseOrDie(() => subtle.digest("SHA-256", toArrayBuffer(bytes))).pipe(
     Effect.map((digest) =>
       Array.from(new Uint8Array(digest))
         .map((b) => b.toString(16).padStart(2, "0"))
@@ -160,29 +159,31 @@ export const derivePaywallAssetKey = (
  * both against deleting external URLs and against deleting another org's object.
  */
 export const isOwnedPaywallAssetUrl = (
-  url: string | null,
+  url: Option.Option<string>,
   organizationId: string,
   publicBaseUrl: string,
 ): boolean =>
-  url !== null && url.startsWith(`${publicBaseUrl}/files/paywall-assets/${organizationId}/`);
+  Option.exists(url, (value) =>
+    value.startsWith(`${publicBaseUrl}/files/paywall-assets/${organizationId}/`),
+  );
 
 /**
  * Extracts the object key from one of our public paywall-asset URLs when it is
- * owned by `organizationId`, or `null`. The org-prefix check keeps deletion
+ * owned by `organizationId`. The org-prefix check keeps deletion
  * scoped to the caller's own objects.
  */
 export const paywallAssetKeyFromUrl = (
   url: string,
   organizationId: string,
   publicBaseUrl: string,
-): string | null => {
+): Option.Option<string> => {
   const prefix = `${publicBaseUrl}/files/`;
   if (!url.startsWith(prefix)) {
-    return null;
+    return Option.none();
   }
   const key = url.slice(prefix.length);
   if (!key.startsWith(`paywall-assets/${organizationId}/`)) {
-    return null;
+    return Option.none();
   }
-  return key;
+  return Option.some(key);
 };

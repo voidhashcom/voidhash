@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { CurrentUser, ForbiddenError, UsersRpcs } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag } from "../../app/hostService.ts";

@@ -1,4 +1,10 @@
-import { Effect } from "effect";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
 import { compileComponents } from "./compile.ts";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error, hasErrors, info } from "./diagnostics.ts";
@@ -6,7 +12,6 @@ import { extractManifests, type ExtractedComponent } from "./extract.ts";
 import type { BuildReadFs } from "./fs.ts";
 import { hashSource } from "./hash.ts";
 import { resolveImports } from "./imports.ts";
-import { comparePaths } from "./paths.ts";
 import { typecheck } from "./typecheck.ts";
 import type {
   BuildArtifacts,
@@ -39,7 +44,7 @@ export function buildPaywall(
   entryPath: string,
   caps: BuildCapabilities,
 ): Promise<BuildResult> {
-  return Effect.runPromise(buildPaywallEffect(fs, entryPath, caps));
+  return EffectRuntime.runPromise(buildPaywallEffect(fs, entryPath, caps));
 }
 
 /** The build pipeline as an Effect; {@link buildPaywall} runs it. */
@@ -80,15 +85,15 @@ function buildPaywallEffect(
     }
 
     // Stage 3 — compile.
-    const compileResult = yield* Effect.promise(() =>
+    const compileResult = yield* Effect.tryPromise(() =>
       compileComponents(imports.components, caps),
-    );
+    ).pipe(Effect.orDie);
     diagnostics.push(...compileResult.diagnostics);
 
     // Stage 4 — extract manifests.
-    const extractResult = yield* Effect.promise(() =>
+    const extractResult = yield* Effect.tryPromise(() =>
       extractManifests(compileResult.compiled, caps),
-    );
+    ).pipe(Effect.orDie);
     diagnostics.push(...extractResult.diagnostics);
 
     // Stage 5 — cross-validate.
@@ -108,7 +113,7 @@ function buildPaywallEffect(
 
 /** The typecheck options a `true`/options capability value resolves to. */
 function typecheckOptions(capability: NonNullable<BuildCapabilities["typecheck"]>): TypecheckOptions {
-  if (typeof capability === "object") return capability;
+  if (P.isObject(capability)) return capability;
   return {};
 }
 
@@ -121,17 +126,16 @@ function toComponentArtifacts(
   imported: ReturnType<typeof resolveImports>["components"],
   extracted: readonly ExtractedComponent[],
 ): readonly ComponentArtifact[] {
-  const byPath = new Map(extracted.map((e) => [e.path, e]));
-  return imported
+  const byPath = HashMap.fromIterable(extracted.map((extractedComponent) => [extractedComponent.path, extractedComponent] as const));
+  return Arr.sort(imported
     .map((component): ComponentArtifact => {
-      const e = byPath.get(component.path);
+      const e = HashMap.get(byPath, component.path).valueOrUndefined;
       return {
         path: component.path,
         source: component.source,
         sourceHash: e?.sourceHash ?? hashSource(component.source),
-        manifest: e?.manifest ?? null,
+        manifest: e?.manifest ?? Option.none(),
         status: e?.status ?? "unknown",
       };
-    })
-    .sort((a, b) => comparePaths(a.path, b.path));
+    }), Order.mapInput(Order.String, (artifact: ComponentArtifact) => artifact.path));
 }

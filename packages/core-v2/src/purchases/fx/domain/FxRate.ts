@@ -9,7 +9,7 @@
  */
 
 /** USD identity rate: `1.0 × FX_RATE_PRECISION`. */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { CurrencyCode } from "../../domain/Money.ts";
 
@@ -24,21 +24,16 @@ export const FX_RATE_PRECISION = 1_000_000;
  * `asOfDate` is normalized to midnight UTC so the unique `(currency,
  * as_of_date)` index hits regardless of intraday call time.
  */
-export interface FxRateLookup {
-  readonly currency: string;
-  readonly rate: number;
-  readonly asOfDate: Date;
-  readonly source: string;
-}
-
 export const FxRateLookup = Schema.Struct({
   asOfDate: Schema.Date,
   currency: Schema.NonEmptyString,
   rate: Schema.Int.check(Schema.isGreaterThan(0)),
   source: Schema.NonEmptyString,
 });
+export type FxRateLookup = typeof FxRateLookup.Type;
 
 export const FxRateLookups = Schema.Array(FxRateLookup);
+export type FxRateLookups = typeof FxRateLookups.Type;
 
 /**
  * Write-side counterpart of {@link FxRateLookup}: the same row, but `currency`
@@ -49,15 +44,13 @@ export const FxRateLookups = Schema.Array(FxRateLookup);
  * currency into a read-path outage for that currency. Only rows we newly write
  * are held to the tighter contract.
  */
-export interface FxRateWrite extends FxRateLookup {
-  readonly currency: typeof CurrencyCode.Type;
-}
-
 export const FxRateWrite = Schema.Struct({
   asOfDate: Schema.Date,
   currency: CurrencyCode,
   rate: Schema.Int.check(Schema.isGreaterThan(0)),
   source: Schema.NonEmptyString,
 });
+export type FxRateWrite = typeof FxRateWrite.Type;
 
 export const FxRateWrites = Schema.Array(FxRateWrite);
+export type FxRateWrites = typeof FxRateWrites.Type;

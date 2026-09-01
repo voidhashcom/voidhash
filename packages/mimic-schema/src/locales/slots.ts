@@ -1,3 +1,8 @@
+import * as Arr from "effect/Array";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Str from "effect/String";
 import { entryValue } from "./entry.ts";
 import type { ComponentNodeData } from "../nodes/component-node.ts";
 import type { RootNodeData } from "../nodes/root-node.ts";
@@ -45,7 +50,7 @@ export function collectLocalizableSlots(
 ): LocalizableSlot[] {
   const slots: LocalizableSlot[] = [];
   if (isSnapshotNode(root)) {
-    walk(root, null, slots, options);
+    walk(root, Option.none(), slots, options);
   }
   return slots;
 }
@@ -54,7 +59,7 @@ export function collectLocalizableSlots(
 function isSnapshotNode(value: unknown): value is SnapshotNode {
   return (
     value !== null &&
-    typeof value === "object" &&
+    P.isObject(value) &&
     "type" in value &&
     "id" in value &&
     "data" in value &&
@@ -62,19 +67,18 @@ function isSnapshotNode(value: unknown): value is SnapshotNode {
   );
 }
 
-function isTextSlotData(data: Record<string, unknown>): data is Record<string, unknown> &
-  TextSlotData {
-  return typeof data["name"] === "string" && typeof data["text"] === "string";
+function isTextSlotData(
+  data: Record<string, unknown>,
+): data is Record<string, unknown> & TextSlotData {
+  return P.isString(data["name"]) && P.isString(data["text"]);
 }
 
-function isImageSlotData(data: Record<string, unknown>): data is Record<string, unknown> &
-  ImageSlotData {
+function isImageSlotData(
+  data: Record<string, unknown>,
+): data is Record<string, unknown> & ImageSlotData {
   const style = data["style"];
   return (
-    typeof data["name"] === "string" &&
-    style !== null &&
-    typeof style === "object" &&
-    "backgroundImage" in style
+    P.isString(data["name"]) && style !== null && P.isObject(style) && "backgroundImage" in style
   );
 }
 
@@ -83,24 +87,27 @@ function isComponentNode(node: SnapshotNode): node is SnapshotNode & ComponentNo
   return node.type === "component";
 }
 
-function screenIdFor(node: SnapshotNode, inheritedScreenId: string | null): string | null {
+function screenIdFor(
+  node: SnapshotNode,
+  inheritedScreenId: Option.Option<string>,
+): Option.Option<string> {
   if (node.type === "screen") {
-    return node.id;
+    return Option.some(node.id);
   }
   return inheritedScreenId;
 }
 
 function walk(
   node: SnapshotNode,
-  screenId: string | null,
+  screenId: Option.Option<string>,
   slots: LocalizableSlot[],
   options: CollectLocalizableSlotsOptions,
 ): void {
   const currentScreenId = screenIdFor(node, screenId);
-  const groupId = currentScreenId ?? node.id;
+  const groupId = Option.getOrElse(currentScreenId, () => node.id);
 
-  switch (node.type) {
-    case "text": {
+  Match.value(node.type).pipe(
+    Match.when("text", () => {
       if (isTextSlotData(node.data)) {
         slots.push({
           kind: "text",
@@ -110,68 +117,63 @@ function walk(
           screenId: groupId,
         });
       }
-      break;
-    }
-    case "view":
-    case "scrollView":
-    case "screen": {
-      if (isImageSlotData(node.data)) {
-        const image = node.data.style.backgroundImage;
-        if (image.url.length > 0) {
-          slots.push({
-            kind: "image",
-            nodeId: node.id,
-            label: node.data.name,
-            baseValue: image,
-            screenId: groupId,
-          });
-        }
-      }
-      break;
-    }
-    case "component": {
+    }),
+    Match.when("view", () => collectImageSlot(node, groupId, slots)),
+    Match.when("scrollView", () => collectImageSlot(node, groupId, slots)),
+    Match.when("screen", () => collectImageSlot(node, groupId, slots)),
+    Match.when("component", () => {
       if (isComponentNode(node)) {
         const descriptors = options.getLocalizableProps?.(node) ?? [];
-        for (const descriptor of descriptors) {
+        Arr.forEach(descriptors, (descriptor) => {
           const prop = findProp(node, descriptor.propName);
-          if (prop === undefined || prop.value.type !== "literal") {
-            continue;
-          }
+          if (Option.isNone(prop) || prop.value.value.type !== "literal") return;
           slots.push({
             kind: "componentProp",
             nodeId: node.id,
             propName: descriptor.propName,
             label: descriptor.label,
-            baseValue: prop.value.value,
+            baseValue: prop.value.value.value,
             screenId: groupId,
           });
-        }
+        });
       }
-      break;
+    }),
+    Match.orElse(() => undefined),
+  );
+
+  Arr.forEach(node.children, (child) => {
+    walk(child, currentScreenId, slots, options);
+  });
+}
+
+const collectImageSlot = (node: SnapshotNode, groupId: string, slots: LocalizableSlot[]): void => {
+  if (isImageSlotData(node.data)) {
+    const image = node.data.style.backgroundImage;
+    if (Str.isNonEmpty(image.url)) {
+      slots.push({
+        kind: "image",
+        nodeId: node.id,
+        label: node.data.name,
+        baseValue: image,
+        screenId: groupId,
+      });
     }
   }
-
-  for (const child of node.children) {
-    walk(child, currentScreenId, slots, options);
-  }
-}
+};
 
 /** Narrows a decoded prop entry value to one carrying a `name`. */
 function isNamedComponentProp(value: unknown): value is NamedComponentProp {
-  return value !== null && typeof value === "object" && "name" in value && "value" in value;
+  return value !== null && P.isObject(value) && "name" in value && "value" in value;
 }
 
 /** Finds a component node's prop by name, unwrapping the CRDT entry envelope. */
-function findProp(node: SnapshotNode, name: string): LocalizableComponentProp | undefined {
+function findProp(node: SnapshotNode, name: string): Option.Option<LocalizableComponentProp> {
   const props = node.data["props"];
   if (!Array.isArray(props)) {
-    return undefined;
+    return Option.none();
   }
-  for (const entry of props) {
+  return Arr.findFirst(props, (entry) => {
     const value = entryValue<unknown>(entry);
-    if (isNamedComponentProp(value) && value.name === name) {
-      return value;
-    }
-  }
-  return undefined;
+    return isNamedComponentProp(value) && value.name === name;
+  }).pipe(Option.map(entryValue<unknown>), Option.filter(isNamedComponentProp));
 }

@@ -1,5 +1,8 @@
 import type { Db } from "@voidhash/db";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import type { PersonIdentityEventV1, PersonSnapshotEventV1 } from "../../domain/person/Person.ts";
 import { QueueProducerError } from "../infrastructure/QueueProducer.ts";
@@ -18,6 +21,7 @@ export const ProcessorPersonEventV1 = Schema.Struct({
   traits: Schema.Record(Schema.String, Schema.Unknown),
   version: Schema.Number,
 });
+export type ProcessorPersonEventV1 = typeof ProcessorPersonEventV1.Type;
 
 /** Portable person identity mapping consumed by hosted analytics projection. */
 export const ProcessorPersonIdentityEventV1 = Schema.Struct({
@@ -30,6 +34,7 @@ export const ProcessorPersonIdentityEventV1 = Schema.Struct({
   schemaVersion: Schema.Literal(1),
   version: Schema.Number,
 });
+export type ProcessorPersonIdentityEventV1 = typeof ProcessorPersonIdentityEventV1.Type;
 
 export interface IdentityProjectionInput {
   readonly identity: { readonly distinctId: string };

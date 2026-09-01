@@ -1,12 +1,15 @@
 import type { AuthSession } from "@voidhash/rpc";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import {
   PurchaseAuthorizer,
   PurchaseQueryStore,
   type PurchaseActionForbiddenError,
 } from "../../application/ports/PurchaseQueryStore.ts";
-import type { PurchasePortError } from "../../application/ports/PurchasePortError.ts";
+import { PurchasePortError } from "../../application/ports/PurchasePortError.ts";
 import { type Purchase } from "../../domain/Purchase.ts";
 import { RequestEnvironmentMode } from "../../runtime/RequestEnvironmentMode.ts";
 
@@ -31,7 +34,7 @@ export interface PurchaseQueryShape {
 
 const PersonPurchaseQuery = Schema.Struct({ personId: Schema.NonEmptyString });
 
-const makePurchaseQuery = Effect.gen(function* () {
+const makePurchaseQuery = Effect.fn("makePurchaseQuery")(function* () {
   const authorizer = yield* PurchaseAuthorizer;
   const store = yield* PurchaseQueryStore;
 
@@ -60,14 +63,14 @@ const makePurchaseQuery = Effect.gen(function* () {
         return purchases;
       }).pipe(
         Effect.mapError((error) => {
-          if (error._tag === "PurchasePortError") {
+          if (error instanceof PurchasePortError) {
             return new PurchaseServiceError({ cause: error.message });
           }
           return error;
         }),
       ),
   } satisfies PurchaseQueryShape;
-});
+})();
 
 export class PurchaseQuery extends Context.Service<PurchaseQuery, PurchaseQueryShape>()(
   "@voidhash/core-v2/purchases/PurchaseQuery",

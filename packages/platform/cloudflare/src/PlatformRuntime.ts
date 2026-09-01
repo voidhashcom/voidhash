@@ -1,5 +1,6 @@
 import { RuntimeContext, type BaseRuntimeContext } from "alchemy/RuntimeContext";
-import { Effect, Layer } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 

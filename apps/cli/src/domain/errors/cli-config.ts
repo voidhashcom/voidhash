@@ -1,11 +1,11 @@
-import { Data } from "effect";
+import * as Schema from "effect/Schema";
 
-export class CliConfigFileNotFoundError extends Data.TaggedError("ConfigFileNotFoundError")<{
-  readonly cause?: unknown;
-  readonly message: string;
-}> {}
+export class CliConfigFileNotFoundError extends Schema.TaggedErrorClass<CliConfigFileNotFoundError>("ConfigFileNotFoundError")(
+  "ConfigFileNotFoundError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToReadCliConfigError extends Data.TaggedError("FailedToReadConfigError")<{
-  readonly cause?: unknown;
-  readonly message: string;
-}> {}
+export class FailedToReadCliConfigError extends Schema.TaggedErrorClass<FailedToReadCliConfigError>("FailedToReadConfigError")(
+  "FailedToReadConfigError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}

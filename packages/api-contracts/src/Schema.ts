@@ -1,18 +1,21 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { HttpApiSchema } from "effect/unstable/httpapi";
 
 export const PublishableKeyAuthHeaders = Schema.Struct({
   "x-distinct-id": Schema.String,
   "x-publishable-key": Schema.String,
 });
+export type PublishableKeyAuthHeaders = typeof PublishableKeyAuthHeaders.Type;
 
 export const ApiKeyAuthHeaders = Schema.Struct({
   "x-api-key": Schema.String,
 });
+export type ApiKeyAuthHeaders = typeof ApiKeyAuthHeaders.Type;
 
 export const SecretKeyAuthHeaders = Schema.Struct({
   "x-secret-key": Schema.String,
 });
+export type SecretKeyAuthHeaders = typeof SecretKeyAuthHeaders.Type;
 
 // ========================================================
 // Auth
@@ -43,6 +46,7 @@ export const Session = Schema.Struct({
     }),
   ),
 });
+export type Session = typeof Session.Type;
 
 // ========================================================
 // API Keys
@@ -98,6 +102,7 @@ const TraitValue = Schema.Union([Schema.String, Schema.Number, Schema.Boolean, S
  * person, so anything that needs structure belongs on an event instead.
  */
 export const PersonTraits = Schema.Record(Schema.String, TraitValue);
+export type PersonTraits = typeof PersonTraits.Type;
 
 /**
  * Body of the server-to-server person-attribute write. Mirrors
@@ -160,6 +165,7 @@ export class PaywallLocation extends Schema.Class<PaywallLocation>("PaywallLocat
 // ========================================================
 
 export const ProductType = Schema.Literals(["subscription", "one-time", "one-time-consumable"]);
+export type ProductType = typeof ProductType.Type;
 
 export class Product extends Schema.Class<Product>("Product")({
   duration: Schema.NullOr(Schema.Number),
@@ -252,6 +258,7 @@ export const SdkHeaders = Schema.Struct({
   ...PublishableKeyAuthHeaders.fields,
   ...CommonSdkHeaders.fields,
 });
+export type SdkHeaders = typeof SdkHeaders.Type;
 
 // SDK Identify
 export class SdkIdentifyBody extends Schema.Class<SdkIdentifyBody>("SdkIdentifyBody")({
@@ -370,6 +377,7 @@ export const SdkSyncTransactionBody = Schema.Struct({
   receipt: Schema.optional(Schema.String),
   transactionId: Schema.String,
 });
+export type SdkSyncTransactionBody = typeof SdkSyncTransactionBody.Type;
 
 export class SdkSyncTransactionResponse extends Schema.Class<SdkSyncTransactionResponse>(
   "SdkSyncTransactionResponse",
@@ -400,6 +408,7 @@ export const SdkSubscriptionHistoryStatus = Schema.Literals([
   "trialing",
   "past_due",
 ]);
+export type SdkSubscriptionHistoryStatus = typeof SdkSubscriptionHistoryStatus.Type;
 
 export const SdkSubscriptionCurrentStatus = Schema.Literals([
   "none",
@@ -408,14 +417,19 @@ export const SdkSubscriptionCurrentStatus = Schema.Literals([
   "past_due",
   "trialing",
 ]);
+export type SdkSubscriptionCurrentStatus = typeof SdkSubscriptionCurrentStatus.Type;
 
 export const SdkGrantStatus = Schema.Literals(["active", "expired"]);
+export type SdkGrantStatus = typeof SdkGrantStatus.Type;
 
 export const SdkGrantSource = Schema.Literals(["subscription", "purchase", "manual"]);
+export type SdkGrantSource = typeof SdkGrantSource.Type;
 
 export const SdkPurchaseHistoryType = Schema.Literals(["one_time", "subscription"]);
+export type SdkPurchaseHistoryType = typeof SdkPurchaseHistoryType.Type;
 
 export const SdkPersonSnapshotMode = Schema.Literals(["persisted", "temporary_pending_transfer"]);
+export type SdkPersonSnapshotMode = typeof SdkPersonSnapshotMode.Type;
 
 export class SdkEntitlementGrant extends Schema.Class<SdkEntitlementGrant>("SdkEntitlementGrant")({
   expiresAt: Schema.NullOr(Schema.Date),
@@ -708,8 +722,10 @@ export const WebhookEventType = Schema.Literals([
   "purchase.completed",
   "purchase.refunded",
 ]);
+export type WebhookEventType = typeof WebhookEventType.Type;
 
 export const WebhookEndpointStatus = Schema.Literals(["active", "disabled", "failed"]);
+export type WebhookEndpointStatus = typeof WebhookEndpointStatus.Type;
 
 export const WebhookDeliveryStatus = Schema.Literals([
   "pending",
@@ -718,6 +734,7 @@ export const WebhookDeliveryStatus = Schema.Literals([
   "failed",
   "exhausted",
 ]);
+export type WebhookDeliveryStatus = typeof WebhookDeliveryStatus.Type;
 
 /**
  * A webhook endpoint as returned by reads. The signing secret is deliberately
@@ -1073,12 +1090,14 @@ export class SdkResolvedPaywall extends Schema.Class<SdkResolvedPaywall>("SdkRes
  * decode would preempt.
  */
 export const PaywallDeployManifestBody = Schema.Unknown;
+export type PaywallDeployManifestBody = typeof PaywallDeployManifestBody.Type;
 
 /**
  * Request body for `PUT /api/v1/paywall-deploys/:deployId/blobs/:sha256` —
  * the raw `application/octet-stream` blob bytes (deploy contract §4.2).
  */
 export const PaywallDeployBlobBody = Schema.Uint8Array.pipe(HttpApiSchema.asUint8Array());
+export type PaywallDeployBlobBody = typeof PaywallDeployBlobBody.Type;
 
 /** Response for `POST /api/v1/paywall-deploys` (deploy contract §4.1, 201). */
 export class CreatePaywallDeployResponse extends Schema.Class<CreatePaywallDeployResponse>(

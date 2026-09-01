@@ -7,7 +7,9 @@ import {
 } from "@voidhash/core-v2";
 import { Db } from "@voidhash/db";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect, Layer, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 const PersonRecord = Schema.Struct({
   id: Schema.NonEmptyString,
@@ -53,13 +55,13 @@ export const DbPurchaseQueryStoreLive = Layer.effect(
 /** Request-scoped project authorization for purchase applications. */
 export const PurchaseAuthorizerLive = Layer.succeed(PurchaseAuthorizer, {
   requireProject: (projectId, message) =>
-    Effect.gen(function* () {
+    Effect.fn("requireProject")(function* () {
       const session = yield* AuthSession;
       const project = session.projects.find((candidate) => candidate.id === projectId);
       if (!project?.permissions.includes("project:all")) {
         return yield* Effect.fail(new PurchaseActionForbiddenError({ message }));
       }
-    }),
+    })(),
 });
 
 export const PurchaseQueryPortsLive = Layer.merge(DbPurchaseQueryStoreLive, PurchaseAuthorizerLive);

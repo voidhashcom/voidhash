@@ -1,12 +1,21 @@
 "use client";
 
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+
 /*
   This file is adapted from next-themes to work with tanstack start.
   next-themes can be found at https://github.com/pacocoursey/next-themes under the MIT license.
 */
 
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
 import * as React from "react";
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 
 interface ValueObject {
   [themeName: string]: string;
@@ -16,47 +25,48 @@ export interface UseThemeProps {
   /** List of all available theme names */
   themes: string[];
   /** Forced theme name for the current page */
-  forcedTheme?: string | undefined;
+  forcedTheme?: string;
   /** Update the theme */
   setTheme: React.Dispatch<React.SetStateAction<string>>;
   /** Active theme name */
-  theme?: string | undefined;
+  theme?: string;
   /** If enableSystem is true, returns the System theme preference ("dark" or "light"), regardless what the active theme is */
-  systemTheme?: "dark" | "light" | undefined;
+  systemTheme?: "dark" | "light";
 }
 
 export type Attribute = `data-${string}` | "class";
 
 export interface ThemeProviderProps extends React.PropsWithChildren {
   /** List of all available theme names */
-  themes?: string[] | undefined;
+  themes?: string[];
   /** Forced theme name for the current page */
-  forcedTheme?: string | undefined;
+  forcedTheme?: string;
   /** Whether to switch between dark and light themes based on prefers-color-scheme */
-  enableSystem?: boolean | undefined;
+  enableSystem?: boolean;
   /** Disable all CSS transitions when switching themes */
-  disableTransitionOnChange?: boolean | undefined;
+  disableTransitionOnChange?: boolean;
   /** Whether to indicate to browsers which color scheme is used (dark or light) for built-in UI like inputs and buttons */
-  enableColorScheme?: boolean | undefined;
+  enableColorScheme?: boolean;
   /** Key used to store theme setting in localStorage */
-  storageKey?: string | undefined;
+  storageKey?: string;
   /** Default theme name (for v0.0.12 and lower the default was light). If `enableSystem` is false, the default theme is light */
-  defaultTheme?: string | undefined;
+  defaultTheme?: string;
   /** HTML attribute modified based on the active theme. Accepts `class`, `data-*` (meaning any data attribute, `data-mode`, `data-color`, etc.), or an array which could include both */
-  attribute?: Attribute | Attribute[] | undefined;
+  attribute?: Attribute | Attribute[];
   /** Mapping of theme name to HTML attribute value. Object where key is the theme name and value is the attribute value */
-  value?: ValueObject | undefined;
+  value?: ValueObject;
   /** Nonce string to pass to the inline script for CSP headers */
-  nonce?: string | undefined;
+  nonce?: string;
 }
 
-const colorSchemes = new Set(["light", "dark"]);
+const colorSchemes = HashSet.make("light", "dark");
 const MEDIA = "(prefers-color-scheme: dark)";
-const isServer = typeof window === "undefined";
-const ThemeContext = React.createContext<UseThemeProps | undefined>(undefined);
+const isServer = P.isUndefined(window);
 const defaultContext: UseThemeProps = { setTheme: (_) => {}, themes: [] };
+const ThemeContext = React.createContext<Option.Option<UseThemeProps>>(Option.none());
 
-export const useTheme = () => React.useContext(ThemeContext) ?? defaultContext;
+export const useTheme = () =>
+  Option.getOrElse(React.useContext(ThemeContext), () => defaultContext);
 
 export const ThemeProviderTanstack = (
   props: ThemeProviderProps & { suppressHydrationWarning?: boolean },
@@ -64,7 +74,7 @@ export const ThemeProviderTanstack = (
   const context = React.useContext(ThemeContext);
 
   // Ignore nested context providers, just passthrough children
-  if (context) {
+  if (Option.isSome(context)) {
     return props.children;
   }
   return <Theme {...props} />;
@@ -86,10 +96,10 @@ const Theme = ({
   nonce,
 }: ThemeProviderProps) => {
   const [theme, setThemeState] = React.useState(() => getTheme(storageKey, defaultTheme));
-  const attrs = value ? Object.values(value) : themes;
+  const attrs = value ? R.values(value) : themes;
 
   // apply selected theme function (light, dark, system)
-  const applyTheme = React.useCallback((theme: string | undefined) => {
+  const applyTheme = React.useCallback((theme?: string) => {
     let resolved = theme;
     if (!resolved) {
       return;
@@ -126,10 +136,9 @@ const Theme = ({
     }
 
     if (enableColorScheme) {
-      const fallback = colorSchemes.has(defaultTheme) ? defaultTheme : null;
-      const colorScheme = colorSchemes.has(resolved) ? resolved : fallback;
-      // @ts-expect-error
-      d.style.colorScheme = colorScheme;
+      const fallback = HashSet.has(colorSchemes, defaultTheme) ? defaultTheme : null;
+      const colorScheme = HashSet.has(colorSchemes, resolved) ? resolved : fallback;
+      d.style.colorScheme = colorScheme ?? "";
     }
 
     enable?.();
@@ -138,11 +147,11 @@ const Theme = ({
   // Set theme state and save to local storage
   const setTheme = React.useCallback(
     (value: any) => {
-      const newTheme = typeof value === "function" ? value(theme) : value;
+      const newTheme = P.isFunction(value) ? value(theme) : value;
       setThemeState(newTheme);
 
       // Save to storage (unsupported / blocked storage is ignored)
-      Effect.runSync(
+      EffectRuntime.runSync(
         Effect.ignore(
           Effect.try(() => {
             localStorage.setItem(storageKey, newTheme);
@@ -207,7 +216,7 @@ const Theme = ({
   );
 
   return (
-    <ThemeContext.Provider value={providerValue}>
+    <ThemeContext.Provider value={Option.some(providerValue)}>
       <ThemeScript
         {...{
           attribute,
@@ -238,7 +247,7 @@ const ThemeScript = React.memo(
     themes,
     nonce,
   }: Omit<ThemeProviderProps, "children"> & { defaultTheme: string }) => {
-    const scriptArgs = JSON.stringify([
+    const scriptArgs = effectEncodeJson([
       attribute,
       storageKey,
       defaultTheme,
@@ -255,7 +264,7 @@ const ThemeScript = React.memo(
         dangerouslySetInnerHTML={{
           __html: `(${script.toString()})(${scriptArgs})`,
         }}
-        nonce={typeof window === "undefined" ? nonce : ""}
+        nonce={P.isUndefined(window) ? nonce : ""}
         // Needed to inject script before hydration
         suppressHydrationWarning
       />
@@ -270,9 +279,9 @@ const getTheme = (key: string, fallback?: string) => {
     return;
   }
   // Unsupported / blocked storage reads as absent.
-  const theme = Effect.runSync(
+  const theme = EffectRuntime.runSync(
     Effect.try(() => localStorage.getItem(key) || undefined).pipe(
-      Effect.orElseSucceed((): string | undefined => undefined),
+      Effect.orElseSucceed(() => undefined),
     ),
   );
   return theme || fallback;
@@ -310,20 +319,31 @@ const getSystemTheme = (e?: MediaQueryList | MediaQueryListEvent) => {
   next-themes can be found at https://github.com/pacocoursey/next-themes under the MIT license.
 */
 
-export const script: (...args: any[]) => void = (
+type ThemeScriptArgs = [
+  attribute: Attribute,
+  storageKey: string,
+  defaultTheme: string,
+  forcedTheme?: string,
+  themes?: string[],
+  value?: ValueObject,
+  enableSystem?: boolean,
+  enableColorScheme?: boolean,
+];
+
+export const script = (...[
   attribute,
   storageKey,
   defaultTheme,
   forcedTheme,
-  themes,
+  themes = [],
   value,
   enableSystem,
   enableColorScheme,
-) => {
+]: ThemeScriptArgs): void => {
   const el = document.documentElement;
-  const systemThemes = new Set(["light", "dark"]);
+  const systemThemes = ["light", "dark"];
   const isClass = attribute === "class";
-  const classes = isClass && value ? themes.map((t: string | number) => value[t] || t) : themes;
+  const classes = isClass && value ? themes.map((theme) => value[theme] || theme) : themes;
 
   function updateDOM(theme: string) {
     if (isClass) {
@@ -337,7 +357,7 @@ export const script: (...args: any[]) => void = (
   }
 
   function setColorScheme(theme: string) {
-    if (enableColorScheme && systemThemes.has(theme)) {
+    if (enableColorScheme && systemThemes.includes(theme)) {
       el.style.colorScheme = theme;
     }
   }
@@ -349,14 +369,9 @@ export const script: (...args: any[]) => void = (
   if (forcedTheme) {
     updateDOM(forcedTheme);
   } else {
-    // oxlint-disable-next-line effect/noTryCatch -- `script` is stringified into a blocking inline <script> that runs before any bundle (let alone an Effect runtime) exists; the catch swallows localStorage access throwing under privacy modes. Adapted verbatim from next-themes.
-    try {
-      const themeName = localStorage.getItem(storageKey) || defaultTheme;
-      const isSystem = enableSystem && themeName === "system";
-      const theme = isSystem ? getSystemTheme() : themeName;
-      updateDOM(theme);
-    } catch {
-      //
-    }
+    const themeName = localStorage.getItem(storageKey) || defaultTheme;
+    const isSystem = enableSystem && themeName === "system";
+    const theme = isSystem ? getSystemTheme() : themeName;
+    updateDOM(theme);
   }
 };

@@ -1,5 +1,7 @@
 import { constant } from "@voidhash/lib/lang";
-import { Effect, Random } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Random from "effect/Random";
 
 import { base64Url, createHash, type SHAFamily, type TypedArray } from "./create-hash.ts";
 
@@ -26,19 +28,24 @@ export const KEY_END_LENGTH = 4;
 const createHashEf = (algorithm: SHAFamily) =>
   Effect.succeed({
     digest: (input: string | ArrayBuffer | TypedArray) =>
-      Effect.promise(() => createHash(algorithm).digest(input)),
+      promiseOrDie(() => createHash(algorithm).digest(input)),
   });
 
-const keyGenerator = (options: { length: number; prefix: string | undefined }) =>
-  Effect.gen(function* () {
-    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    let apiKey = `${options.prefix || ""}`;
-    for (const _ of Array.from({ length: options.length })) {
-      const index = yield* Random.nextIntBetween(0, characters.length, { halfOpen: true });
-      apiKey += characters[index];
-    }
-    return apiKey;
-  });
+const keyGenerator = Effect.fn("apiKeys.generate")(function* (options: {
+  length: number;
+  prefix: string;
+}) {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const body = yield* Effect.forEach(
+    Arr.makeBy(options.length, (index) => index),
+    () =>
+      Random.nextIntBetween(0, characters.length, { halfOpen: true }).pipe(
+        Effect.map((index) => characters.charAt(index)),
+      ),
+    { concurrency: 1 },
+  );
+  return options.prefix + body.join("");
+});
 
 export const hashKey = (key: string) =>
   createHashEf("SHA-256").pipe(
@@ -105,3 +112,4 @@ export const createUserApiKey = (prefix: string) =>
       rawKey: key,
     };
   });
+import { promiseOrDie } from "../../effect-boundary.ts";

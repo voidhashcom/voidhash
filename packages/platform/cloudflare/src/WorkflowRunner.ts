@@ -1,6 +1,11 @@
 import * as Cloudflare from "alchemy/Cloudflare";
 import { RuntimeContext, type BaseRuntimeContext } from "alchemy/RuntimeContext";
-import { Cause, Effect, Layer, Option, Schema } from "effect";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { PlatformRuntime } from "@voidhash/platform/PlatformRuntime";
 import * as Workflow from "@voidhash/platform/Workflow";
@@ -50,20 +55,23 @@ const catchRunnerCause = <A, E, R>(
  * `dispatch` caller. workerd always provides `crypto.subtle`.
  */
 const sha256 = (value: string): Effect.Effect<string> =>
-  // oxlint-disable-next-line effect/noGlobals -- see the doc comment above: this port's methods are pinned to `R = PlatformRuntime`, and Effect v4's `Crypto` is a `Context.Service` with no Workers-safe layer, so requiring it here would leak a `Crypto` dependency into every `dispatch` caller. workerd always provides `crypto.subtle`.
-  Effect.promise(() => crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))).pipe(
+  Effect.tryPromise({
+    try: () => crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
+    catch: (cause) => cause,
+  }).pipe(
+    Effect.orDie,
     Effect.map((digest) =>
       Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""),
     ),
   );
 
 const workflowHandle = (
-  handles: ReadonlyMap<string, Handle>,
+  handles: MutableHashMap.MutableHashMap<string, Handle>,
   workflowName: string,
   operation: string,
 ): Effect.Effect<Handle, WorkflowRunnerError> => {
-  const handle = handles.get(workflowName);
-  if (handle) return Effect.succeed(handle);
+  const handle = MutableHashMap.get(handles, workflowName);
+  if (Option.isSome(handle)) return Effect.succeed(handle.value);
   return Effect.fail(
     runnerError(workflowName, operation, `Workflow ${workflowName} is not registered`),
   );
@@ -79,6 +87,8 @@ const provideRuntime = <A, E, R>(
     Effect.provideService(PlatformRuntime, PlatformRuntime.of({})),
     Effect.provideService(WorkflowRunner, runner),
   );
+
+const asContract: <T>(value: any) => T = (value) => value;
 
 /** Observability wiring for the Cloudflare Workflows adapter. */
 export interface WorkflowRunnerTelemetryOptions {
@@ -100,153 +110,173 @@ export const make = (
   options: WorkflowRunnerTelemetryOptions = {},
 ): WorkflowRunnerShape => {
   const telemetry = options.telemetry ?? Layer.empty;
-  const handles = new Map<string, Handle>();
+  const handles = MutableHashMap.empty<string, Handle>();
   let runner: WorkflowRunnerShape;
 
   runner = {
     register: (workflow, run, dependencies) => {
-      const payloadSchema = Schema.Struct(workflow.payload);
-      // oxlint-disable-next-line effect/noAs -- Cloudflare's `WorkflowImpl<unknown, unknown>` is a nominal alchemy type whose generator body cannot be structurally inferred from this closure; the cast pins the erased input/output pair. `satisfies` would demand the un-erased schema types the adapter no longer has.
-      const implementation = Effect.succeed(((encodedInput: unknown) =>
-        Effect.gen(function* () {
-          const event = yield* Cloudflare.WorkflowEvent;
-          const input = yield* Schema.decodeUnknownEffect(payloadSchema)(encodedInput).pipe(
-            Effect.orDie,
-          );
-          const context: Workflow.Context<any> = {
-            executionId: event.instanceId,
-            // oxlint-disable-next-line effect/noAs -- `Workflow.Context.step` is generic per call site over the step's success schema; this adapter encodes/decodes through the erased schema, so the built function cannot be re-related to that generic signature without a cast. `satisfies` cannot widen an erased type back into a generic position.
-            step: ((options) =>
-              Workflow.durableOperationName(options.name).pipe(
-                Effect.flatMap((name) =>
-                  Cloudflare.task(
-                    name,
-                    provideRuntime(
-                      options.execute.pipe(
-                        Effect.provide(dependencies),
-                        Effect.flatMap((value) =>
-                          Schema.encodeUnknownEffect(options.success)(value),
+      const payload = Schema.Struct(workflow.payload);
+      const implementation = asContract<Effect.Effect<Cloudflare.WorkflowImpl<unknown, unknown>>>(
+        Effect.succeed((encodedInput: unknown) =>
+          Effect.gen(function* () {
+            const event = yield* Cloudflare.WorkflowEvent;
+            const input = yield* Schema.decodeUnknownEffect(payload)(encodedInput).pipe(
+              Effect.orDie,
+            );
+            const context: Workflow.Context<any> = {
+              executionId: event.instanceId,
+              step: asContract<Workflow.Context<any>["step"]>(
+                (options: Workflow.StepOptions<any, any>) =>
+                  Workflow.durableOperationName(options.name).pipe(
+                    Effect.flatMap((name) =>
+                      Cloudflare.task(
+                        name,
+                        provideRuntime(
+                          options.execute.pipe(
+                            Effect.provide(dependencies),
+                            Effect.flatMap((value) =>
+                              Schema.encodeUnknownEffect(options.success)(value),
+                            ),
+                            Effect.catchCause((cause) =>
+                              Effect.die(stepDefect(options.retry, cause)),
+                            ),
+                          ),
+                          runtimeContext,
+                          runner,
+                        ).pipe(
+                          Effect.withSpan(`workflow.step ${workflow.name}/${options.name}`, {
+                            attributes: {
+                              "voidhash.workflow.name": workflow.name,
+                              "voidhash.workflow.step": options.name,
+                            },
+                          }),
+                          Effect.provide(telemetry),
                         ),
-                        Effect.catchCause((cause) => Effect.die(stepDefect(options.retry, cause))),
                       ),
-                      runtimeContext,
-                      runner,
-                    ).pipe(
-                      Effect.withSpan(`workflow.step ${workflow.name}/${options.name}`, {
-                        attributes: {
-                          "voidhash.workflow.name": workflow.name,
-                          "voidhash.workflow.step": options.name,
-                        },
-                      }),
-                      Effect.provide(telemetry),
+                    ),
+                    Effect.flatMap((value) => Schema.decodeUnknownEffect(options.success)(value)),
+                    Effect.mapError((cause) =>
+                      runnerError(workflow.name, `step:${options.name}`, cause),
                     ),
                   ),
-                ),
-                Effect.flatMap((value) => Schema.decodeUnknownEffect(options.success)(value)),
-                Effect.mapError((cause) =>
-                  runnerError(workflow.name, `step:${options.name}`, cause),
-                ),
-              )) as Workflow.Context<any>["step"],
-            // oxlint-disable-next-line effect/noAs -- `Workflow.Context.sleepUntil` is an overloaded signature that `Cloudflare.sleepUntil` cannot be structurally checked against; the `as unknown as` bridges the Cloudflare durable-sleep shape to the port's. `satisfies` cannot bridge two unrelated call signatures.
-            sleepUntil: ((name: string, scheduledTime: Date) =>
-              Workflow.durableOperationName(name).pipe(
-                Effect.flatMap((durableName) => Cloudflare.sleepUntil(durableName, scheduledTime)),
-                Effect.mapError((cause) => runnerError(workflow.name, `sleep:${name}`, cause)),
-              )) as unknown as Workflow.Context<any>["sleepUntil"],
-          };
-          const result = yield* provideRuntime(run(input, context), runtimeContext, runner).pipe(
-            Effect.orDie,
-          );
-          return yield* Schema.encodeUnknownEffect(workflow.success)(result).pipe(Effect.orDie);
-        }).pipe(
-          // Cloudflare replays the whole body on every resume, so this span
-          // measures the CURRENT invocation rather than wall-clock run time —
-          // its value is the run OUTCOME (a failed run fails the span). Step
-          // spans carry the per-step timings and flush at their own boundaries.
-          Effect.withSpan(`workflow.run ${workflow.name}`, {
-            attributes: { "voidhash.workflow.name": workflow.name },
-          }),
-          Effect.provide(telemetry),
-        )) as Cloudflare.WorkflowImpl<unknown, unknown>);
+              ),
+              sleepUntil: asContract<Workflow.Context<any>["sleepUntil"]>(
+                (name: string, scheduledTime: Date) =>
+                  Workflow.durableOperationName(name).pipe(
+                    Effect.flatMap((durableName) =>
+                      Cloudflare.sleepUntil(durableName, scheduledTime),
+                    ),
+                    Effect.mapError((cause) => runnerError(workflow.name, `sleep:${name}`, cause)),
+                  ),
+              ),
+            };
+            const result = yield* provideRuntime(run(input, context), runtimeContext, runner).pipe(
+              Effect.orDie,
+            );
+            return yield* Schema.encodeUnknownEffect(workflow.success)(result).pipe(Effect.orDie);
+          }).pipe(
+            // Cloudflare replays the whole body on every resume, so this span
+            // measures the CURRENT invocation rather than wall-clock run time —
+            // its value is the run OUTCOME (a failed run fails the span). Step
+            // spans carry the per-step timings and flush at their own boundaries.
+            Effect.withSpan(`workflow.run ${workflow.name}`, {
+              attributes: { "voidhash.workflow.name": workflow.name },
+            }),
+            Effect.provide(telemetry),
+          ),
+        ),
+      );
 
-      // oxlint-disable-next-line effect/noAs -- `register` in `WorkflowRunnerShape` is generic over the workflow definition, which this adapter has already erased to `Cloudflare.WorkflowImpl<unknown, unknown>`; the resulting effect cannot be re-related to the port's type parameter without a cast. `satisfies` cannot widen an erased type back into a generic position.
-      return catchRunnerCause(
-        Effect.gen(function* () {
-          const registered = yield* Cloudflare.Workflow<never>()(workflow.name, implementation);
-          handles.set(workflow.name, registered);
-        }),
-        workflow.name,
-        "register",
-      ) as never;
+      return asContract(
+        catchRunnerCause(
+          Effect.gen(function* () {
+            const registered = yield* Cloudflare.Workflow<never>()(workflow.name, implementation);
+            MutableHashMap.set(handles, workflow.name, registered);
+          }),
+          workflow.name,
+          "register",
+        ),
+      );
     },
     dispatch: (workflow, payload) =>
-      // oxlint-disable-next-line effect/noAs -- `dispatch` in `WorkflowRunnerShape` is generic over the workflow definition; the adapter works with the erased `Schema.Struct(workflow.payload)`, so the produced effect cannot be re-related to the port's type parameter without a cast. `satisfies` cannot widen an erased type back into a generic position.
-      catchRunnerCause(
-        Effect.gen(function* () {
-          yield* PlatformRuntime;
-          const handle = yield* workflowHandle(handles, workflow.name, "dispatch");
-          const encoded = yield* Schema.encodeUnknownEffect(Schema.Struct(workflow.payload))(
-            payload,
-          );
-          const executionId = yield* sha256(workflow.idempotencyKey(payload));
-          const instance = yield* handle
-            .create({ id: executionId, params: encoded })
-            .pipe(Effect.catchCause(() => handle.get(executionId)));
-          return instance.id;
-        }),
-        workflow.name,
-        "dispatch",
-      ) as never,
+      asContract(
+        catchRunnerCause(
+          Effect.gen(function* () {
+            yield* PlatformRuntime;
+            const handle = yield* workflowHandle(handles, workflow.name, "dispatch");
+            const encoded = yield* Schema.encodeUnknownEffect(Schema.Struct(workflow.payload))(
+              payload,
+            );
+            const executionId = yield* sha256(workflow.idempotencyKey(payload));
+            const instance = yield* handle
+              .create({ id: executionId, params: encoded })
+              .pipe(Effect.catchCause(() => handle.get(executionId)));
+            return instance.id;
+          }),
+          workflow.name,
+          "dispatch",
+        ),
+      ),
     execute: (workflow, payload) =>
       catchRunnerCause(
         Effect.gen(function* () {
           const executionId = yield* runner.dispatch(workflow, payload);
-          while (true) {
-            const result = yield* runner.poll(workflow, executionId);
-            if (Option.isSome(result)) {
-              if (result.value.status === "succeeded") return result.value.value;
-              if (result.value.status === "failed") return yield* result.value.error;
-              if (result.value.status === "interrupted") {
-                return yield* runnerError(workflow.name, "execute", "Workflow interrupted");
+          const completed = yield* runner.poll(workflow, executionId).pipe(
+            Effect.flatMap((result) => {
+              if (Option.isNone(result) || result.value.status === "suspended") {
+                return Effect.sleep("250 millis").pipe(Effect.as(Option.none()));
               }
-            }
-            yield* Effect.sleep("250 millis");
-          }
+              if (result.value.status === "succeeded")
+                return Effect.succeed(Option.some(result.value.value));
+              if (result.value.status === "failed") return result.value.error;
+              return runnerError(workflow.name, "execute", "Workflow interrupted");
+            }),
+            Effect.repeat({ until: Option.isSome }),
+          );
+          return yield* Option.match(completed, {
+            onNone: () => Effect.die("Workflow polling completed without a result"),
+            onSome: Effect.succeed,
+          });
         }),
         workflow.name,
         "execute",
       ),
     poll: (workflow, executionId) =>
-      // oxlint-disable-next-line effect/noAs -- `poll` in `WorkflowRunnerShape` is generic over the workflow's success type; this adapter only sees the erased `Schema`, so the concrete `Option<WorkflowExecutionResult<…>>` cannot be re-related to the port's type parameter without a cast. `satisfies` cannot widen an erased type back into a generic position.
-      catchRunnerCause(
-        Effect.gen(function* () {
-          yield* PlatformRuntime;
-          const handle = yield* workflowHandle(handles, workflow.name, "poll");
-          const instance = yield* handle.get(executionId);
-          const status = yield* instance.status();
+      asContract(
+        catchRunnerCause(
+          Effect.gen(function* () {
+            yield* PlatformRuntime;
+            const handle = yield* workflowHandle(handles, workflow.name, "poll");
+            const instance = yield* handle.get(executionId);
+            const status = yield* instance.status();
 
-          if (status.status === "terminated") {
-            return Option.some<WorkflowExecutionResult<never>>({ status: "interrupted" });
-          }
-          if (status.status === "errored") {
-            return Option.some<WorkflowExecutionResult<never>>({
-              status: "failed",
-              error: runnerError(workflow.name, "poll", status.error?.message ?? "Workflow failed"),
-            });
-          }
-          if (status.status === "complete") {
-            const value = yield* Schema.decodeUnknownEffect(workflow.success)(status.output);
-            return Option.some<WorkflowExecutionResult<typeof value>>({
-              status: "succeeded",
-              value,
-            });
-          }
-          if (status.status === "unknown") return Option.none();
-          return Option.some<WorkflowExecutionResult<never>>({ status: "suspended" });
-        }),
-        workflow.name,
-        "poll",
-      ) as never,
+            if (status.status === "terminated") {
+              return Option.some<WorkflowExecutionResult<never>>({ status: "interrupted" });
+            }
+            if (status.status === "errored") {
+              return Option.some<WorkflowExecutionResult<never>>({
+                status: "failed",
+                error: runnerError(
+                  workflow.name,
+                  "poll",
+                  status.error?.message ?? "Workflow failed",
+                ),
+              });
+            }
+            if (status.status === "complete") {
+              const value = yield* Schema.decodeUnknownEffect(workflow.success)(status.output);
+              return Option.some<WorkflowExecutionResult<typeof value>>({
+                status: "succeeded",
+                value,
+              });
+            }
+            if (status.status === "unknown") return Option.none();
+            return Option.some<WorkflowExecutionResult<never>>({ status: "suspended" });
+          }),
+          workflow.name,
+          "poll",
+        ),
+      ),
     resume: (workflow, executionId) =>
       catchRunnerCause(
         Effect.gen(function* () {

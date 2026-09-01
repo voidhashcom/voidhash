@@ -1,4 +1,6 @@
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
+import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 import { SignJWT, importPKCS8 } from "jose";
 
 import { GooglePlayUnauthorizedError } from "../errors/api-errors.ts";
@@ -24,21 +26,21 @@ export interface GooglePlayAuthClient {
   readonly accessToken: string;
 }
 
-const serviceAccountSchema = Schema.Struct({
+const serviceAccountCodec = Schema.Struct({
   client_email: Schema.String.check(Schema.isMinLength(1)),
   private_key: Schema.String.check(Schema.isMinLength(1)),
   token_uri: Schema.optional(Schema.String),
 });
 
-const serviceAccountFromJson = Schema.fromJsonString(serviceAccountSchema);
+const serviceAccountFromJson = Schema.fromJsonString(serviceAccountCodec);
 
-const tokenResponseSchema = Schema.Struct({
+const tokenResponse = Schema.Struct({
   access_token: Schema.String.check(Schema.isMinLength(1)),
   expires_in: Schema.optional(Schema.Number),
   token_type: Schema.optional(Schema.String),
 });
 
-const tokenResponseFromJson = Schema.fromJsonString(tokenResponseSchema);
+const tokenResponseFromJson = Schema.fromJsonString(tokenResponse);
 
 const parseServiceAccount = (serviceAccountKey: string) =>
   Schema.decodeUnknownEffect(serviceAccountFromJson)(serviceAccountKey).pipe(
@@ -58,7 +60,7 @@ const parseServiceAccount = (serviceAccountKey: string) =>
  * uses the global `fetch` rather than `HttpClient` so the SDK carries no
  * service requirement and stays usable from any Workers entrypoint.
  */
-const requestAccessToken = (serviceAccount: typeof serviceAccountSchema.Type) =>
+const requestAccessToken = (serviceAccount: typeof serviceAccountCodec.Type) =>
   Effect.gen(function* () {
     const tokenUri = serviceAccount.token_uri ?? DEFAULT_TOKEN_URI;
 
@@ -92,26 +94,22 @@ const requestAccessToken = (serviceAccount: typeof serviceAccountSchema.Type) =>
         cause,
       });
 
-    const response = yield* Effect.tryPromise({
-      try: () =>
-        // oxlint-disable-next-line effect/noGlobals -- deliberate raw fetch so this module runs on Cloudflare Workers without pulling in an HttpClient dependency.
-        fetch(tokenUri, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
+    const client = yield* HttpClient.HttpClient;
+    const response = yield* client
+      .post(tokenUri, {
+        body: HttpBody.text(
+          new URLSearchParams({
             assertion,
             grant_type: JWT_BEARER_GRANT_TYPE,
           }).toString(),
-        }),
-      catch: transportFailure,
-    });
+          "application/x-www-form-urlencoded",
+        ),
+      })
+      .pipe(Effect.mapError(transportFailure));
 
-    const responseBody = yield* Effect.tryPromise({
-      try: () => response.text(),
-      catch: transportFailure,
-    });
+    const responseBody = yield* response.text.pipe(Effect.mapError(transportFailure));
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       return yield* new GooglePlayUnauthorizedError({
         message: `Google token endpoint returned ${response.status}: ${responseBody}`,
       });
@@ -128,7 +126,7 @@ const requestAccessToken = (serviceAccount: typeof serviceAccountSchema.Type) =>
     );
 
     return parsed.access_token;
-  });
+  }).pipe(Effect.provide(FetchHttpClient.layer));
 
 /**
  * Creates an authenticated Google Play client by minting an OAuth2 access token

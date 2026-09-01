@@ -1,4 +1,8 @@
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
+import * as Random from "effect/Random";
+import * as Option from "effect/Option";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
@@ -10,7 +14,7 @@ import { PersonInfoManager } from "./person-info-manager";
 
 const CACHE_KEY = "distinctId";
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("makeIdentityManager")(function* effect() {
   const cacheManager = yield* CacheManager;
   const personInfoManager = yield* PersonInfoManager;
   const atomRegistry = yield* AtomRegistry.AtomRegistry;
@@ -27,7 +31,8 @@ const make = Effect.gen(function* effect() {
         return distinctId;
       }
 
-      const anonymousDistinctId = generateAnonymousDistinctId();
+      const entropy = yield* Random.next;
+      const anonymousDistinctId = `${ANONYMOUS_DISTINCT_ID_PREFIX}${entropy.toString(36).slice(2, 15)}`;
       yield* setDistinctIdInCache(anonymousDistinctId);
       return anonymousDistinctId;
     });
@@ -58,32 +63,37 @@ const make = Effect.gen(function* effect() {
         },
       });
 
-      yield* Effect.all([
-        setDistinctIdInCache(distinctId),
-        personInfoManager.cache(distinctId, identifyRequest),
-      ]);
+      yield* Effect.all(
+        [setDistinctIdInCache(distinctId), personInfoManager.cache(distinctId, identifyRequest)],
+        { concurrency: 1 },
+      );
 
       // Identity has changed: surface the new person and clear stale
       // feature flag state, since flag evaluations are identity-scoped.
-      atomRegistry.set(currentPersonAtom, {
+      atomRegistry.set(currentPersonAtom, Option.some({
         ...identifyRequest,
         distinctId,
-      });
+      }));
       atomRegistry.set(featureFlagsByKeyAtom, {});
     });
 
   const reset = () =>
     Effect.gen(function* reset() {
       yield* cacheManager.clear();
-      atomRegistry.set(currentPersonAtom, null);
+      atomRegistry.set(currentPersonAtom, Option.none());
       atomRegistry.set(featureFlagsByKeyAtom, {});
     });
 
   // Helpers
-  const generateAnonymousDistinctId = () =>
-    `${ANONYMOUS_DISTINCT_ID_PREFIX}${Math.random().toString(36).slice(2, 15)}`;
   const getDistinctIdFromCache = () =>
-    cacheManager.get<string>(CACHE_KEY).pipe(Effect.map((distinctId) => distinctId?.value ?? null));
+    cacheManager.get<string>(CACHE_KEY).pipe(
+      Effect.map(
+        Option.match({
+          onNone: () => null,
+          onSome: (distinctId) => distinctId.value,
+        }),
+      ),
+    );
   const setDistinctIdInCache = (distinctId: string) => cacheManager.set(CACHE_KEY, distinctId);
 
   return {
@@ -97,9 +107,9 @@ const make = Effect.gen(function* effect() {
 
 export class IdentityManager extends Context.Service<
   IdentityManager,
-  Effect.Success<typeof make>
+  Effect.Success<ReturnType<typeof make>>
 >()("rn-voidhash/IdentityManager") {
-  static Default = Layer.effect(IdentityManager, make).pipe(
+  static Default = Layer.effect(IdentityManager, make()).pipe(
     Layer.provide(Layer.mergeAll(CacheManager.Default, PersonInfoManager.Default)),
   );
 }

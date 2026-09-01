@@ -1,5 +1,6 @@
 import { Prompt } from "effect/unstable/cli";
-import { Console, Effect } from "effect";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
 
 import { NoSignedInUserError } from "../../domain/errors/auth";
 import { CliConfig } from "../../domain/services/cli-config";
@@ -31,7 +32,7 @@ export const createProject = (input: { organizationId: string }) =>
       return yield* Effect.fail(new NoSignedInUserError({ message: "No signed in user" }));
     }
 
-    const attemptToCreateProject = Effect.gen(function* attemptToCreateProject() {
+    const attemptToCreateProject = Effect.fn("attemptToCreateProject")(function* attemptToCreateProject() {
       const name = yield* Prompt.run(
         Prompt.text({
           message: "Enter a name for the project",
@@ -47,7 +48,7 @@ export const createProject = (input: { organizationId: string }) =>
       yield* Console.log(`Successfully created project ${project.name}`);
 
       return project;
-    });
+    })();
 
     return yield* attemptToCreateProject;
   });

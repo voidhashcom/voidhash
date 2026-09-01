@@ -50,29 +50,31 @@ function sha256Hex(bytes: Uint8Array): string {
   view.setUint32(paddedLength - 4, bitLength >>> 0, false);
 
   const w = new Uint32Array(64);
-  for (let offset = 0; offset < paddedLength; offset += 64) {
-    for (let t = 0; t < 16; t += 1) {
+  Array.from({ length: paddedLength / 64 }, (_, index) => index * 64).forEach((offset) => {
+    Array.from({ length: 16 }, (_, t) => t).forEach((t) => {
       w[t] = view.getUint32(offset + t * 4, false);
-    }
-    for (let t = 16; t < 64; t += 1) {
-      const s0 = rotr(w[t - 15]!, 7) ^ rotr(w[t - 15]!, 18) ^ (w[t - 15]! >>> 3);
-      const s1 = rotr(w[t - 2]!, 17) ^ rotr(w[t - 2]!, 19) ^ (w[t - 2]! >>> 10);
-      w[t] = (w[t - 16]! + s0 + w[t - 7]! + s1) >>> 0;
-    }
+    });
+    Array.from({ length: 48 }, (_, index) => index + 16).forEach((t) => {
+      const word15 = w[t - 15] ?? 0;
+      const word2 = w[t - 2] ?? 0;
+      const s0 = rotr(word15, 7) ^ rotr(word15, 18) ^ (word15 >>> 3);
+      const s1 = rotr(word2, 17) ^ rotr(word2, 19) ^ (word2 >>> 10);
+      w[t] = ((w[t - 16] ?? 0) + s0 + (w[t - 7] ?? 0) + s1) >>> 0;
+    });
 
-    let a = h[0]!;
-    let b = h[1]!;
-    let c = h[2]!;
-    let d = h[3]!;
-    let e = h[4]!;
-    let f = h[5]!;
-    let g = h[6]!;
-    let hh = h[7]!;
+    let a = h[0] ?? 0;
+    let b = h[1] ?? 0;
+    let c = h[2] ?? 0;
+    let d = h[3] ?? 0;
+    let e = h[4] ?? 0;
+    let f = h[5] ?? 0;
+    let g = h[6] ?? 0;
+    let hh = h[7] ?? 0;
 
-    for (let t = 0; t < 64; t += 1) {
+    Array.from({ length: 64 }, (_, t) => t).forEach((t) => {
       const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
       const ch = (e & f) ^ (~e & g);
-      const temp1 = (hh + S1 + ch + K[t]! + w[t]!) >>> 0;
+      const temp1 = (hh + S1 + ch + (K[t] ?? 0) + (w[t] ?? 0)) >>> 0;
       const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const temp2 = (S0 + maj) >>> 0;
@@ -84,21 +86,19 @@ function sha256Hex(bytes: Uint8Array): string {
       c = b;
       b = a;
       a = (temp1 + temp2) >>> 0;
-    }
+    });
 
-    h[0] = (h[0]! + a) >>> 0;
-    h[1] = (h[1]! + b) >>> 0;
-    h[2] = (h[2]! + c) >>> 0;
-    h[3] = (h[3]! + d) >>> 0;
-    h[4] = (h[4]! + e) >>> 0;
-    h[5] = (h[5]! + f) >>> 0;
-    h[6] = (h[6]! + g) >>> 0;
-    h[7] = (h[7]! + hh) >>> 0;
-  }
+    h[0] = ((h[0] ?? 0) + a) >>> 0;
+    h[1] = ((h[1] ?? 0) + b) >>> 0;
+    h[2] = ((h[2] ?? 0) + c) >>> 0;
+    h[3] = ((h[3] ?? 0) + d) >>> 0;
+    h[4] = ((h[4] ?? 0) + e) >>> 0;
+    h[5] = ((h[5] ?? 0) + f) >>> 0;
+    h[6] = ((h[6] ?? 0) + g) >>> 0;
+    h[7] = ((h[7] ?? 0) + hh) >>> 0;
+  });
 
-  let hex = "";
-  for (let i = 0; i < 8; i += 1) {
-    hex += h[i]!.toString(16).padStart(8, "0");
-  }
-  return hex;
+  return Array.from({ length: 8 }, (_, i) =>
+    (h[i] ?? 0).toString(16).padStart(8, "0"),
+  ).join("");
 }

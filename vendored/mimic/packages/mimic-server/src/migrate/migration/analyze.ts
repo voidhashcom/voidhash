@@ -1,4 +1,8 @@
-import { Effect, Schema as EffectSchema } from "effect";
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as EffectSchema from "effect/Schema";
 import { materializeDefault } from "@voidhash/mimic-core";
 import type {
   ArraySchema,
@@ -9,7 +13,6 @@ import type {
   TreeSchema,
   TreeVariantSchema,
   UnionSchema,
-  Value,
 } from "@voidhash/mimic-core";
 
 import type { AnalyzeMigrationOptions, SchemaMigrationCompatibilityIssue } from "./types.ts";
@@ -18,7 +21,7 @@ import type { AnalyzeMigrationOptions, SchemaMigrationCompatibilityIssue } from 
 const encodeJson = EffectSchema.encodeSync(EffectSchema.fromJsonString(EffectSchema.Unknown));
 
 const pathToString = (path: readonly string[]): string => {
-  if (path.length === 0) return "root";
+  if (!Arr.isReadonlyArrayNonEmpty(path)) return "root";
   return `root.${path.join(".")}`;
 };
 
@@ -26,10 +29,7 @@ const pathToString = (path: readonly string[]): string => {
  * Materializes a field default, treating a schema that cannot produce one as
  * "no default" rather than propagating the failure.
  */
-const materializeDefaultOrUndefined = (schema: Schema): Value | undefined =>
-  Effect.runSync(
-    Effect.try(() => materializeDefault(schema)).pipe(Effect.orElseSucceed(() => undefined)),
-  );
+const materializeDefaultOption = Option.liftThrowable(materializeDefault);
 
 const isLiteralSchema = (schema: Schema): schema is LiteralSchema => schema.kind === "literal";
 const isObjectSchema = (schema: Schema): schema is ObjectSchema => schema.kind === "object";
@@ -57,11 +57,11 @@ const analyzeObject = (
   path: readonly string[],
   issues: SchemaMigrationCompatibilityIssue[],
 ): void => {
-  for (const [key, newField] of Object.entries(newSchema.fields)) {
+  R.toEntries(newSchema.fields).forEach(([key, newField]) => {
     const oldField = oldSchema.fields[key];
     if (!oldField) {
-      const defaultValue = materializeDefaultOrUndefined(newField);
-      if (newField.required === true && defaultValue === undefined) {
+      const defaultValue = materializeDefaultOption(newField);
+      if (newField.required === true && Option.isNone(defaultValue)) {
         pushIssue(
           issues,
           "required-field-without-default",
@@ -69,10 +69,10 @@ const analyzeObject = (
           `Field "${key}" is required in the new schema but has no default`,
         );
       }
-      continue;
+      return;
     }
     analyzeSchemaCompatibility(oldField, newField, [...path, key], issues);
-  }
+  });
 };
 
 const analyzeUnion = (
@@ -91,7 +91,7 @@ const analyzeUnion = (
     return;
   }
 
-  for (const [variantKey, oldVariant] of Object.entries(oldSchema.variants)) {
+  R.toEntries(oldSchema.variants).forEach(([variantKey, oldVariant]) => {
     const newVariant = newSchema.variants[variantKey];
     if (!newVariant) {
       pushIssue(
@@ -100,10 +100,10 @@ const analyzeUnion = (
         [...path, "variants", variantKey],
         `Union variant "${variantKey}" is missing in the new schema`,
       );
-      continue;
+      return;
     }
     analyzeObject(oldVariant, newVariant, [...path, "variants", variantKey], issues);
-  }
+  });
 };
 
 const analyzeEither = (
@@ -112,7 +112,7 @@ const analyzeEither = (
   path: readonly string[],
   issues: SchemaMigrationCompatibilityIssue[],
 ): void => {
-  for (const [index, oldVariant] of oldSchema.variants.entries()) {
+  oldSchema.variants.forEach((oldVariant, index) => {
     const compatible = newSchema.variants.some((candidate) => {
       const nestedIssues: SchemaMigrationCompatibilityIssue[] = [];
       analyzeSchemaCompatibility(
@@ -121,7 +121,7 @@ const analyzeEither = (
         [...path, "variants", String(index)],
         nestedIssues,
       );
-      return nestedIssues.length === 0;
+      return Arr.isReadonlyArrayNonEmpty(nestedIssues);
     });
 
     if (!compatible) {
@@ -132,7 +132,7 @@ const analyzeEither = (
         `Either variant at index ${index} has no compatible target variant`,
       );
     }
-  }
+  });
 };
 
 const analyzeTreeVariant = (
@@ -142,7 +142,7 @@ const analyzeTreeVariant = (
   issues: SchemaMigrationCompatibilityIssue[],
 ): void => {
   analyzeObject(oldVariant.schema, newVariant.schema, [...path, "schema"], issues);
-  for (const child of oldVariant.children) {
+  oldVariant.children.forEach((child) => {
     if (!newVariant.children.includes(child)) {
       pushIssue(
         issues,
@@ -151,7 +151,7 @@ const analyzeTreeVariant = (
         `Tree child variant "${child}" is no longer allowed`,
       );
     }
-  }
+  });
 };
 
 const analyzeTree = (
@@ -165,7 +165,7 @@ const analyzeTree = (
     return;
   }
 
-  for (const root of oldSchema.roots) {
+  oldSchema.roots.forEach((root) => {
     if (!newSchema.roots.includes(root)) {
       pushIssue(
         issues,
@@ -174,9 +174,9 @@ const analyzeTree = (
         `Tree root variant "${root}" is no longer allowed`,
       );
     }
-  }
+  });
 
-  for (const [variantKey, oldVariant] of Object.entries(oldSchema.variants)) {
+  R.toEntries(oldSchema.variants).forEach(([variantKey, oldVariant]) => {
     const newVariant = newSchema.variants[variantKey];
     if (!newVariant) {
       pushIssue(
@@ -185,10 +185,10 @@ const analyzeTree = (
         [...path, "variants", variantKey],
         `Tree variant "${variantKey}" is missing in the new schema`,
       );
-      continue;
+      return;
     }
     analyzeTreeVariant(oldVariant, newVariant, [...path, "variants", variantKey], issues);
-  }
+  });
 };
 
 const analyzeSchemaCompatibility = (
@@ -207,45 +207,43 @@ const analyzeSchemaCompatibility = (
     return;
   }
 
-  switch (oldSchema.kind) {
-    case "string":
-    case "number":
-    case "boolean":
-      return;
-    case "literal": {
+  Match.value(oldSchema).pipe(
+    Match.when({ kind: "string" }, () => undefined),
+    Match.when({ kind: "number" }, () => undefined),
+    Match.when({ kind: "boolean" }, () => undefined),
+    Match.when({ kind: "literal" }, (oldLiteral) => {
       if (!isLiteralSchema(newSchema)) return;
-      if (oldSchema.value !== newSchema.value) {
+      if (oldLiteral.value !== newSchema.value) {
         pushIssue(
           issues,
           "incompatible-type",
           path,
-          `Literal changed from ${encodeJson(oldSchema.value)} to ${encodeJson(newSchema.value)}`,
+          `Literal changed from ${encodeJson(oldLiteral.value)} to ${encodeJson(newSchema.value)}`,
         );
       }
-      return;
-    }
-    case "object":
+    }),
+    Match.when({ kind: "object" }, (oldObject) => {
       if (!isObjectSchema(newSchema)) return;
-      analyzeObject(oldSchema, newSchema, path, issues);
-      return;
-    case "array": {
+      analyzeObject(oldObject, newSchema, path, issues);
+    }),
+    Match.when({ kind: "array" }, (oldArray) => {
       if (!isArraySchema(newSchema)) return;
-      analyzeSchemaCompatibility(oldSchema.element, newSchema.element, [...path, "element"], issues);
-      return;
-    }
-    case "union":
+      analyzeSchemaCompatibility(oldArray.element, newSchema.element, [...path, "element"], issues);
+    }),
+    Match.when({ kind: "union" }, (oldUnion) => {
       if (!isUnionSchema(newSchema)) return;
-      analyzeUnion(oldSchema, newSchema, path, issues);
-      return;
-    case "either":
+      analyzeUnion(oldUnion, newSchema, path, issues);
+    }),
+    Match.when({ kind: "either" }, (oldEither) => {
       if (!isEitherSchema(newSchema)) return;
-      analyzeEither(oldSchema, newSchema, path, issues);
-      return;
-    case "tree":
+      analyzeEither(oldEither, newSchema, path, issues);
+    }),
+    Match.when({ kind: "tree" }, (oldTree) => {
       if (!isTreeSchema(newSchema)) return;
-      analyzeTree(oldSchema, newSchema, path, issues);
-      return;
-  }
+      analyzeTree(oldTree, newSchema, path, issues);
+    }),
+    Match.exhaustive,
+  );
 };
 
 export const analyzeMigration = (

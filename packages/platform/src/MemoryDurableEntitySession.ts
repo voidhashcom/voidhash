@@ -1,5 +1,6 @@
 import type { DurableEntitySession } from "@voidhash/platform/DurableEntity";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 /** Minimal server-side WebSocket surface needed by the entity session adapter. */
 export interface DurableEntitySocketLike {
@@ -27,7 +28,7 @@ export const makeMemoryDurableEntitySession = (
       Effect.sync(() => {
         socket.close(code, reason);
       }),
-    getAttachment: Effect.sync(() => attachment),
+    getAttachment: Effect.sync(() => Option.fromUndefinedOr(attachment)),
     setAttachment: (nextAttachment) =>
       Effect.sync(() => {
         attachment = nextAttachment;

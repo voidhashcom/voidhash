@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcApiKeyNotFoundError, RpcApiKeyServiceError } from "../errors/ApiKey.ts";
 import { RpcActionForbiddenError } from "../errors/common.ts";
@@ -14,6 +14,7 @@ export const ApiKey = Schema.Struct({
   prefix: Schema.String,
   projectId: Schema.String,
 });
+export type ApiKey = typeof ApiKey.Type;
 
 export const ApiKeyWithRawKey = Schema.Struct({
   end: Schema.String,
@@ -24,6 +25,7 @@ export const ApiKeyWithRawKey = Schema.Struct({
   projectId: Schema.String,
   rawKey: Schema.String,
 });
+export type ApiKeyWithRawKey = typeof ApiKeyWithRawKey.Type;
 
 export const UserApiKey = Schema.Struct({
   createdAt: Schema.Date,
@@ -34,6 +36,7 @@ export const UserApiKey = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   prefix: Schema.NullOr(Schema.String),
 });
+export type UserApiKey = typeof UserApiKey.Type;
 
 export const UserApiKeyWithRawKey = Schema.Struct({
   createdAt: Schema.Date,
@@ -43,6 +46,7 @@ export const UserApiKeyWithRawKey = Schema.Struct({
   prefix: Schema.String,
   rawKey: Schema.String,
 });
+export type UserApiKeyWithRawKey = typeof UserApiKeyWithRawKey.Type;
 
 export class ApiKeyRpcsDef extends RpcGroup.make(
   Rpc.make("CreateSecretKey", {

@@ -1,5 +1,6 @@
 import type { BackgroundImageSnapshot, LocalizableImageData } from "@voidhash/mimic-schema";
 import { resolveBackgroundImage } from "@voidhash/mimic-schema";
+import * as Option from "effect/Option";
 
 import { usePaywallContext } from "../context/paywall-context";
 
@@ -11,5 +12,5 @@ import { usePaywallContext } from "../context/paywall-context";
  */
 export function useLocalizedBackgroundImage(data: LocalizableImageData): BackgroundImageSnapshot {
   const { locale, defaultLocale } = usePaywallContext();
-  return resolveBackgroundImage(data, locale, defaultLocale);
+  return resolveBackgroundImage(data, Option.fromNullishOr(locale), defaultLocale);
 }

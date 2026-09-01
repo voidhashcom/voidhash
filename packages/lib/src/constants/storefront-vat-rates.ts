@@ -63,8 +63,9 @@ export const STOREFRONT_VAT_RATES_BPS: Readonly<Record<string, number>> = {
  * Looks up the estimated tax rate (in basis points) for an Apple storefront
  * country. Returns `0` when the storefront is unknown or omitted.
  */
-export const getStorefrontVatRateBps = (storefront: string | undefined | null): number => {
-  if (!storefront) return 0;
-  const upper = storefront.toUpperCase();
-  return STOREFRONT_VAT_RATES_BPS[upper] ?? 0;
-};
+export const getStorefrontVatRateBps = (storefront: Option.Option<string>): number =>
+  Option.match(storefront, {
+    onNone: () => 0,
+    onSome: (value) => STOREFRONT_VAT_RATES_BPS[value.toUpperCase()] ?? 0,
+  });
+import * as Option from "effect/Option";

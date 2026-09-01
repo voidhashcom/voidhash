@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * The wire message published to `PushDeliveryQueue` — ONE per
@@ -17,5 +17,6 @@ export const PushDeliveryQueueMessage = Schema.Struct({
   projectId: Schema.String,
   provider: Schema.String,
 });
+export type PushDeliveryQueueMessage = typeof PushDeliveryQueueMessage.Type;
 
 export type PushDeliveryQueueMessageType = typeof PushDeliveryQueueMessage.Type;

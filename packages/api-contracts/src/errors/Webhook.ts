@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic webhook service error */
 export class ApiWebhookServiceError extends Schema.TaggedErrorClass<ApiWebhookServiceError>()(

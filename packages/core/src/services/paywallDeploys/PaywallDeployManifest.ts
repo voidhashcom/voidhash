@@ -8,12 +8,22 @@
  * lives in `PaywallDeployService`.
  */
 import { constant } from "@voidhash/lib/lang";
-import { Effect, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as Schema from "effect/Schema";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
 
+import { promiseOrDie } from "../../effect-boundary.ts";
 import { createHash } from "../apiKeys/create-hash.ts";
 
 /** JSON serialization for the canonical hash preimage. */
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
+const decodeJsonRecord = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown));
 
 /** Manifest major version this server build understands (contract §1/§8). */
 export const DEPLOY_MANIFEST_SCHEMA_VERSION = 2;
@@ -71,7 +81,7 @@ export const CONTENT_TYPE_MAX_LENGTH = 100;
  * `;`) — {@link CONTENT_TYPE_PATTERN} constrains any suffix to a charset
  * parameter only.
  */
-export const CONTENT_TYPE_ALLOWLIST: ReadonlySet<string> = new Set([
+export const CONTENT_TYPE_ALLOWLIST = HashSet.fromIterable([
   "text/html",
   "text/javascript",
   "application/json",
@@ -105,77 +115,84 @@ const Sha256Hex = Schema.String.check(Schema.isPattern(SHA256_HEX_PATTERN));
 const FileBytes = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 /** `DeployFile = { path, bytes, sha256 }` (contract §1). */
-export const DeployFileSchema = Schema.Struct({
+export const DeployFileDefinition = Schema.Struct({
   path: Schema.String.check(Schema.isMinLength(1)),
   bytes: FileBytes,
   sha256: Sha256Hex,
 });
-export type DeployFile = typeof DeployFileSchema.Type;
+export type DeployFile = typeof DeployFileDefinition.Type;
+export type DeployFileDefinition = typeof DeployFileDefinition.Type;
 
 /** `DeployArtifact = DeployFile + { contentType }` (contract §1). */
-export const DeployArtifactSchema = Schema.Struct({
-  ...DeployFileSchema.fields,
+export const DeployArtifactDefinition = Schema.Struct({
+  ...DeployFileDefinition.fields,
   contentType: Schema.String.check(
     Schema.isMaxLength(CONTENT_TYPE_MAX_LENGTH),
     Schema.isPattern(CONTENT_TYPE_PATTERN),
   ),
 });
-export type DeployArtifact = typeof DeployArtifactSchema.Type;
+export type DeployArtifact = typeof DeployArtifactDefinition.Type;
+export type DeployArtifactDefinition = typeof DeployArtifactDefinition.Type;
 
 /** `variables` values are `string | number | boolean` only (contract §1.1). */
-export const VariableValueSchema = Schema.Union([Schema.String, Schema.Number, Schema.Boolean]);
-export type VariableValue = typeof VariableValueSchema.Type;
+export const VariableValueDefinition = Schema.Union([Schema.String, Schema.Number, Schema.Boolean]);
+export type VariableValue = typeof VariableValueDefinition.Type;
+export type VariableValueDefinition = typeof VariableValueDefinition.Type;
 
-export const ManifestPaywallSchema = Schema.Struct({
+export const ManifestPaywallDefinition = Schema.Struct({
   id: DeploySlug,
   title: Schema.String,
   description: Schema.optional(Schema.String),
   products: Schema.Array(Schema.String),
-  variables: Schema.Record(Schema.String, VariableValueSchema),
-  source: DeployFileSchema,
+  variables: Schema.Record(Schema.String, VariableValueDefinition),
+  source: DeployFileDefinition,
   artifacts: Schema.Struct({
-    html: DeployArtifactSchema,
-    js: DeployArtifactSchema,
+    html: DeployArtifactDefinition,
+    js: DeployArtifactDefinition,
   }),
   assets: Schema.Array(Schema.String),
   contentHash: Sha256Hex,
 });
-export type ManifestPaywall = typeof ManifestPaywallSchema.Type;
+export type ManifestPaywall = typeof ManifestPaywallDefinition.Type;
+export type ManifestPaywallDefinition = typeof ManifestPaywallDefinition.Type;
 
-export const ManifestComponentPreviewSchema = Schema.Struct({
+export const ManifestComponentPreviewDefinition = Schema.Struct({
   state: Schema.String.check(Schema.isMinLength(1)),
-  file: DeployArtifactSchema,
+  file: DeployArtifactDefinition,
 });
-export type ManifestComponentPreview = typeof ManifestComponentPreviewSchema.Type;
+export type ManifestComponentPreview = typeof ManifestComponentPreviewDefinition.Type;
+export type ManifestComponentPreviewDefinition = typeof ManifestComponentPreviewDefinition.Type;
 
-export const ManifestComponentSchema = Schema.Struct({
+export const ManifestComponentDefinition = Schema.Struct({
   id: DeploySlug,
   title: Schema.optional(Schema.String),
-  source: DeployFileSchema,
-  manifest: DeployArtifactSchema,
-  previews: Schema.Array(ManifestComponentPreviewSchema),
+  source: DeployFileDefinition,
+  manifest: DeployArtifactDefinition,
+  previews: Schema.Array(ManifestComponentPreviewDefinition),
   artifacts: Schema.Struct({
-    runtime: DeployArtifactSchema,
-    panel: Schema.NullOr(DeployArtifactSchema),
+    runtime: DeployArtifactDefinition,
+    panel: Schema.NullOr(DeployArtifactDefinition),
   }),
   contentHash: Sha256Hex,
 });
-export type ManifestComponent = typeof ManifestComponentSchema.Type;
+export type ManifestComponent = typeof ManifestComponentDefinition.Type;
+export type ManifestComponentDefinition = typeof ManifestComponentDefinition.Type;
 
 /** The §1 deploy manifest, `schemaVersion: 2`. */
-export const PaywallDeployManifestSchema = Schema.Struct({
+export const PaywallDeployManifestDefinition = Schema.Struct({
   schemaVersion: Schema.Literal(DEPLOY_MANIFEST_SCHEMA_VERSION),
   cliVersion: Schema.String.check(Schema.isMinLength(1)),
   runtimeVersion: Schema.String.check(Schema.isMinLength(1)),
   team: Schema.String.check(Schema.isMinLength(1)),
   project: Schema.String.check(Schema.isMinLength(1)),
   createdAt: Schema.String,
-  paywalls: Schema.Array(ManifestPaywallSchema),
-  components: Schema.Array(ManifestComponentSchema),
-  config: DeployFileSchema,
-  assets: Schema.Array(DeployArtifactSchema),
+  paywalls: Schema.Array(ManifestPaywallDefinition),
+  components: Schema.Array(ManifestComponentDefinition),
+  config: DeployFileDefinition,
+  assets: Schema.Array(DeployArtifactDefinition),
 });
-export type PaywallDeployManifest = typeof PaywallDeployManifestSchema.Type;
+export type PaywallDeployManifest = typeof PaywallDeployManifestDefinition.Type;
+export type PaywallDeployManifestDefinition = typeof PaywallDeployManifestDefinition.Type;
 
 // =============================================================================
 // §2 Component manifest
@@ -187,7 +204,7 @@ const PropCommonFields = constant({
   optional: Schema.optional(Schema.Boolean),
 });
 
-const StringPropSchema = Schema.Struct({
+const StringPropDefinition = Schema.Struct({
   kind: Schema.Literal("string"),
   default: Schema.optional(Schema.String),
   editor: Schema.optional(Schema.Literal("color")),
@@ -198,60 +215,60 @@ const StringPropSchema = Schema.Struct({
   ...PropCommonFields,
 });
 
-const NumberPropSchema = Schema.Struct({
+const NumberPropDefinition = Schema.Struct({
   kind: Schema.Literal("number"),
   default: Schema.optional(Schema.Number),
   ...PropCommonFields,
 });
 
-const BooleanPropSchema = Schema.Struct({
+const BooleanPropDefinition = Schema.Struct({
   kind: Schema.Literal("boolean"),
   default: Schema.optional(Schema.Boolean),
   ...PropCommonFields,
 });
 
-const SelectPropSchema = Schema.Struct({
+const SelectPropDefinition = Schema.Struct({
   kind: Schema.Literal("select"),
   options: Schema.Array(Schema.String).check(Schema.isMinLength(1)),
   default: Schema.optional(Schema.String),
   ...PropCommonFields,
 });
 
-const ImagePropSchema = Schema.Struct({
+const ImagePropDefinition = Schema.Struct({
   kind: Schema.Literal("image"),
   // §2: image default is a string URL/ref.
   default: Schema.optional(Schema.String),
-  // §2: localizable content override flag — see {@link StringPropSchema}.
+  // §2: localizable content override flag — see {@link StringPropDefinition}.
   localizable: Schema.optional(Schema.Boolean),
   ...PropCommonFields,
 });
 
-const RefPropSchema = Schema.Struct({
+const RefPropDefinition = Schema.Struct({
   kind: Schema.Literal("ref"),
   // P1: products are the only referenceable entity (contract §2).
   refType: Schema.Literal("product"),
   ...PropCommonFields,
 });
 
-const ComponentPropSchema = Schema.Struct({
+const ComponentPropDefinition = Schema.Struct({
   kind: Schema.Literal("component"),
   ...PropCommonFields,
 });
 
 /** `array.item` must be a non-array kind (contract §2). */
-const ArrayItemSchema = Schema.Union([
-  StringPropSchema,
-  NumberPropSchema,
-  BooleanPropSchema,
-  SelectPropSchema,
-  ImagePropSchema,
-  RefPropSchema,
-  ComponentPropSchema,
+const ArrayItemDefinition = Schema.Union([
+  StringPropDefinition,
+  NumberPropDefinition,
+  BooleanPropDefinition,
+  SelectPropDefinition,
+  ImagePropDefinition,
+  RefPropDefinition,
+  ComponentPropDefinition,
 ]);
 
-const ArrayPropSchema = Schema.Struct({
+const ArrayPropDefinition = Schema.Struct({
   kind: Schema.Literal("array"),
-  item: ArrayItemSchema,
+  item: ArrayItemDefinition,
   // §2: array default is a scalar array.
   default: Schema.optional(
     Schema.Array(Schema.Union([Schema.String, Schema.Number, Schema.Boolean])),
@@ -259,26 +276,28 @@ const ArrayPropSchema = Schema.Struct({
   ...PropCommonFields,
 });
 
-export const ComponentPropDefinitionSchema = Schema.Union([
-  StringPropSchema,
-  NumberPropSchema,
-  BooleanPropSchema,
-  SelectPropSchema,
-  ImagePropSchema,
-  RefPropSchema,
-  ComponentPropSchema,
-  ArrayPropSchema,
+export const ComponentPropDefinitionDefinition = Schema.Union([
+  StringPropDefinition,
+  NumberPropDefinition,
+  BooleanPropDefinition,
+  SelectPropDefinition,
+  ImagePropDefinition,
+  RefPropDefinition,
+  ComponentPropDefinition,
+  ArrayPropDefinition,
 ]);
-export type ComponentPropDefinition = typeof ComponentPropDefinitionSchema.Type;
+export type ComponentPropDefinition = typeof ComponentPropDefinitionDefinition.Type;
+export type ComponentPropDefinitionDefinition = typeof ComponentPropDefinitionDefinition.Type;
 
-const ActionPayloadFieldSchema = Schema.Struct({
+const ActionPayloadFieldDefinition = Schema.Struct({
   kind: Schema.Literals(["string", "number", "boolean"]),
 });
 
-export const ComponentActionSchema = Schema.Struct({
-  payload: Schema.Record(Schema.String, ActionPayloadFieldSchema),
+export const ComponentActionDefinition = Schema.Struct({
+  payload: Schema.Record(Schema.String, ActionPayloadFieldDefinition),
 });
-export type ComponentAction = typeof ComponentActionSchema.Type;
+export type ComponentAction = typeof ComponentActionDefinition.Type;
+export type ComponentActionDefinition = typeof ComponentActionDefinition.Type;
 
 /**
  * The §2 component manifest emitted per component by the CLI. v2 dropped the
@@ -286,17 +305,19 @@ export type ComponentAction = typeof ComponentActionSchema.Type;
  * paywall document, not an embedded slug — so an id-bearing manifest is
  * rejected here (unknown key under {@link strictParseOptions}).
  */
-export const ComponentManifestSchema = Schema.Struct({
+export const ComponentManifestDefinition = Schema.Struct({
   manifestVersion: Schema.Literal(COMPONENT_MANIFEST_VERSION),
   title: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
-  props: Schema.Record(Schema.String, ComponentPropDefinitionSchema),
-  actions: Schema.optional(Schema.Record(Schema.String, ComponentActionSchema)),
+  props: Schema.Record(Schema.String, ComponentPropDefinitionDefinition),
+  actions: Schema.optional(Schema.Record(Schema.String, ComponentActionDefinition)),
   slot: Schema.optional(Schema.Boolean),
   previewStates: Schema.optional(Schema.Array(Schema.String)),
   hostData: Schema.optional(Schema.Array(Schema.String)),
 });
-export type ComponentManifest = typeof ComponentManifestSchema.Type;
+export type ComponentManifest = typeof ComponentManifestDefinition.Type;
+export type ComponentManifestDefinition = typeof ComponentManifestDefinition.Type;
+export { ComponentManifestDefinition as ComponentManifestSchema };
 
 // =============================================================================
 // §3 Preview node tree
@@ -310,14 +331,14 @@ const OptionalStyleValue = Schema.optional(StyleValue);
  * Which background fill a node renders. Mirrors the OSS validator's
  * `BACKGROUND_TYPES` literal set exactly.
  */
-const BackgroundTypeSchema = Schema.Literals(["solid", "gradient", "image"]);
+const BackgroundTypeDefinition = Schema.Literals(["solid", "gradient", "image"]);
 
 /**
  * A gradient color stop: an RGBA color string at a finite `0..1` position.
  * Mirrors the OSS validator's per-stop constraints (`color` string, `position`
  * a finite number).
  */
-const GradientStopSchema = Schema.Struct({
+const GradientStopDefinition = Schema.Struct({
   color: Schema.String,
   position: Schema.Finite,
 });
@@ -325,22 +346,22 @@ const GradientStopSchema = Schema.Struct({
 /**
  * A gradient background. Geometry is a two-point line in normalized node space;
  * mirrors the OSS validator's `validateBackgroundGradient` (kind literal, finite
- * coords, stops array of {@link GradientStopSchema}).
+ * coords, stops array of {@link GradientStopDefinition}).
  */
-const BackgroundGradientSchema = Schema.Struct({
+const BackgroundGradientDefinition = Schema.Struct({
   kind: Schema.Literals(["linear", "radial"]),
   startX: Schema.Finite,
   startY: Schema.Finite,
   endX: Schema.Finite,
   endY: Schema.Finite,
-  stops: Schema.Array(GradientStopSchema),
+  stops: Schema.Array(GradientStopDefinition),
 });
 
 /**
  * An image background. Mirrors the OSS validator's `validateBackgroundImage`
  * (url string, resizeMode literal).
  */
-const BackgroundImageSchema = Schema.Struct({
+const BackgroundImageDefinition = Schema.Struct({
   url: Schema.String,
   resizeMode: Schema.Literals(["cover", "contain", "stretch", "center"]),
 });
@@ -349,7 +370,7 @@ const BackgroundImageSchema = Schema.Struct({
  * Closed §3.1 RN-compatible style vocabulary. Decoded with
  * {@link strictParseOptions}, so any key outside this set is rejected.
  */
-export const PreviewStyleSchema = Schema.Struct({
+export const PreviewStyleDefinition = Schema.Struct({
   // flexbox
   flex: OptionalStyleValue,
   flexDirection: OptionalStyleValue,
@@ -390,9 +411,9 @@ export const PreviewStyleSchema = Schema.Struct({
   borderStyle: OptionalStyleValue,
   // visual
   backgroundColor: OptionalStyleValue,
-  backgroundType: Schema.optional(BackgroundTypeSchema),
-  backgroundGradient: Schema.optional(BackgroundGradientSchema),
-  backgroundImage: Schema.optional(BackgroundImageSchema),
+  backgroundType: Schema.optional(BackgroundTypeDefinition),
+  backgroundGradient: Schema.optional(BackgroundGradientDefinition),
+  backgroundImage: Schema.optional(BackgroundImageDefinition),
   opacity: OptionalStyleValue,
   overflow: OptionalStyleValue,
   // position
@@ -414,10 +435,11 @@ export const PreviewStyleSchema = Schema.Struct({
   textDecorationLine: OptionalStyleValue,
   fontFamily: OptionalStyleValue,
 });
-export type PreviewStyle = typeof PreviewStyleSchema.Type;
+export type PreviewStyle = typeof PreviewStyleDefinition.Type;
+export type PreviewStyleDefinition = typeof PreviewStyleDefinition.Type;
 
 /** The serializable rest-state motion vocabulary introduced by preview tree v2. */
-export const PreviewMotionStyleSchema = Schema.Struct({
+export const PreviewMotionStyleDefinition = Schema.Struct({
   x: Schema.optional(Schema.Number),
   y: Schema.optional(Schema.Number),
   scale: Schema.optional(Schema.Number),
@@ -428,39 +450,40 @@ export const PreviewMotionStyleSchema = Schema.Struct({
   backgroundColor: Schema.optional(Schema.String),
   transformOrigin: Schema.optional(Schema.Struct({ x: Schema.Number, y: Schema.Number })),
 });
-export type PreviewMotionStyle = typeof PreviewMotionStyleSchema.Type;
+export type PreviewMotionStyle = typeof PreviewMotionStyleDefinition.Type;
+export type PreviewMotionStyleDefinition = typeof PreviewMotionStyleDefinition.Type;
 
 export interface PreviewViewNode {
   readonly type: "view";
   readonly style: PreviewStyle;
-  readonly motion?: PreviewMotionStyle | undefined;
+  readonly motion?: PreviewMotionStyle;
   readonly children: ReadonlyArray<PreviewNode>;
 }
 export interface PreviewPressableNode {
   readonly type: "pressable";
   readonly style: PreviewStyle;
-  readonly motion?: PreviewMotionStyle | undefined;
+  readonly motion?: PreviewMotionStyle;
   readonly children: ReadonlyArray<PreviewNode>;
-  readonly action?: string | undefined;
+  readonly action?: string;
 }
 export interface PreviewScrollNode {
   readonly type: "scroll";
   readonly style: PreviewStyle;
-  readonly motion?: PreviewMotionStyle | undefined;
+  readonly motion?: PreviewMotionStyle;
   readonly children: ReadonlyArray<PreviewNode>;
 }
 export interface PreviewTextNode {
   readonly type: "text";
   readonly style: PreviewStyle;
-  readonly motion?: PreviewMotionStyle | undefined;
+  readonly motion?: PreviewMotionStyle;
   readonly text: string;
 }
 export interface PreviewImageNode {
   readonly type: "image";
   readonly style: PreviewStyle;
-  readonly motion?: PreviewMotionStyle | undefined;
+  readonly motion?: PreviewMotionStyle;
   readonly src: string;
-  readonly resizeMode?: "cover" | "contain" | "stretch" | "center" | undefined;
+  readonly resizeMode?: "cover" | "contain" | "stretch" | "center";
 }
 export interface PreviewSlotNode {
   readonly type: "slot";
@@ -480,88 +503,88 @@ export type PreviewNode =
   | PreviewSlotNode
   | PreviewPlaceholderNode;
 
-const SuspendedPreviewNode = Schema.suspend((): Schema.Codec<PreviewNode> => PreviewNodeSchema);
+const SuspendedPreviewNode = Schema.suspend((): Schema.Codec<PreviewNode> => PreviewNodeDefinition);
 
-const PreviewViewNodeSchema = Schema.Struct({
+const PreviewViewNodeDefinition = Schema.Struct({
   type: Schema.Literal("view"),
-  style: PreviewStyleSchema,
-  motion: Schema.optional(PreviewMotionStyleSchema),
+  style: PreviewStyleDefinition,
+  motion: Schema.optional(PreviewMotionStyleDefinition),
   children: Schema.Array(SuspendedPreviewNode),
 });
 
-const PreviewPressableNodeSchema = Schema.Struct({
+const PreviewPressableNodeDefinition = Schema.Struct({
   type: Schema.Literal("pressable"),
-  style: PreviewStyleSchema,
-  motion: Schema.optional(PreviewMotionStyleSchema),
+  style: PreviewStyleDefinition,
+  motion: Schema.optional(PreviewMotionStyleDefinition),
   children: Schema.Array(SuspendedPreviewNode),
   // The declared action name this pressable fires (contract §3).
   action: Schema.optional(Schema.String),
 });
 
-const PreviewScrollNodeSchema = Schema.Struct({
+const PreviewScrollNodeDefinition = Schema.Struct({
   type: Schema.Literal("scroll"),
-  style: PreviewStyleSchema,
-  motion: Schema.optional(PreviewMotionStyleSchema),
+  style: PreviewStyleDefinition,
+  motion: Schema.optional(PreviewMotionStyleDefinition),
   children: Schema.Array(SuspendedPreviewNode),
 });
 
-const PreviewTextNodeSchema = Schema.Struct({
+const PreviewTextNodeDefinition = Schema.Struct({
   type: Schema.Literal("text"),
-  style: PreviewStyleSchema,
-  motion: Schema.optional(PreviewMotionStyleSchema),
+  style: PreviewStyleDefinition,
+  motion: Schema.optional(PreviewMotionStyleDefinition),
   text: Schema.String,
 });
 
-const PreviewImageNodeSchema = Schema.Struct({
+const PreviewImageNodeDefinition = Schema.Struct({
   type: Schema.Literal("image"),
-  style: PreviewStyleSchema,
-  motion: Schema.optional(PreviewMotionStyleSchema),
+  style: PreviewStyleDefinition,
+  motion: Schema.optional(PreviewMotionStyleDefinition),
   src: Schema.String,
   resizeMode: Schema.optional(Schema.Literals(["cover", "contain", "stretch", "center"])),
 });
 
-const PreviewSlotNodeSchema = Schema.Struct({
+const PreviewSlotNodeDefinition = Schema.Struct({
   type: Schema.Literal("slot"),
 });
 
-const PreviewPlaceholderNodeSchema = Schema.Struct({
+const PreviewPlaceholderNodeDefinition = Schema.Struct({
   type: Schema.Literal("placeholder"),
   reason: Schema.String,
 });
 
-export const PreviewNodeSchema: Schema.Codec<PreviewNode> = Schema.Union([
-  PreviewViewNodeSchema,
-  PreviewPressableNodeSchema,
-  PreviewScrollNodeSchema,
-  PreviewTextNodeSchema,
-  PreviewImageNodeSchema,
-  PreviewSlotNodeSchema,
-  PreviewPlaceholderNodeSchema,
+export const PreviewNodeDefinition: Schema.Codec<PreviewNode> = Schema.Union([
+  PreviewViewNodeDefinition,
+  PreviewPressableNodeDefinition,
+  PreviewScrollNodeDefinition,
+  PreviewTextNodeDefinition,
+  PreviewImageNodeDefinition,
+  PreviewSlotNodeDefinition,
+  PreviewPlaceholderNodeDefinition,
 ]);
+export type PreviewNodeDefinition = typeof PreviewNodeDefinition.Type;
 
 /** The §3 `previews/<state>.json` artifact: a tree of closed primitives. */
-export const PreviewTreeSchema = Schema.Struct({
+export const PreviewTreeDefinition = Schema.Struct({
   treeVersion: Schema.Union([Schema.Literal(1), Schema.Literal(PREVIEW_TREE_VERSION)]),
   state: Schema.String,
-  root: PreviewNodeSchema,
+  root: PreviewNodeDefinition,
 });
-export type PreviewTree = typeof PreviewTreeSchema.Type;
+export type PreviewTree = typeof PreviewTreeDefinition.Type;
+export type PreviewTreeDefinition = typeof PreviewTreeDefinition.Type;
+export { PreviewTreeDefinition as PreviewTreeSchema };
 
 /**
  * Counts `slot` nodes in a §3 preview tree. The contract allows at most one
  * slot marker per tree; finalize validation rejects trees where this exceeds 1.
  */
 export const countSlotNodes = (node: PreviewNode): number => {
-  switch (node.type) {
-    case "slot":
-      return 1;
-    case "view":
-    case "pressable":
-    case "scroll":
-      return node.children.reduce((count, child) => count + countSlotNodes(child), 0);
-    default:
-      return 0;
+  if (node.type === "slot") {
+    return 1;
   }
+  if (node.type === "view" || node.type === "pressable" || node.type === "scroll") {
+    return node.children.reduce((count, child) => count + countSlotNodes(child), 0);
+  }
+  return 0;
 };
 
 // =============================================================================
@@ -570,7 +593,7 @@ export const countSlotNodes = (node: PreviewNode): number => {
 
 /** Lowercase hex sha256 over a UTF-8 string or raw bytes (WebCrypto, workerd-safe). */
 export const sha256Hex = (input: string | Uint8Array): Effect.Effect<string> =>
-  Effect.promise(() => createHash("SHA-256", "hex").digest(input));
+  promiseOrDie(() => createHash("SHA-256", "hex").digest(input));
 
 /**
  * §1.2 paywall preimage: `sha256(html) + ":" + sha256(js) + ":" +
@@ -580,7 +603,8 @@ export const paywallContentHashPreimage = (input: {
   readonly htmlSha256: string;
   readonly jsSha256: string;
   readonly assetSha256s: ReadonlyArray<string>;
-}): string => `${input.htmlSha256}:${input.jsSha256}:${[...input.assetSha256s].sort().join(":")}`;
+}): string =>
+  `${input.htmlSha256}:${input.jsSha256}:${Arr.sort(input.assetSha256s, Order.String).join(":")}`;
 
 /** Recomputes a paywall's §1.2 contentHash from its manifest-listed file hashes. */
 export const computePaywallContentHash = (input: {
@@ -596,20 +620,16 @@ export const computePaywallContentHash = (input: {
 export const componentContentHashPreimage = (input: {
   readonly manifestSha256: string;
   readonly runtimeSha256: string;
-  readonly panelSha256: string | null;
+  readonly panelSha256: Option.Option<string>;
   readonly previewSha256s: ReadonlyArray<string>;
 }): string =>
-  `${input.manifestSha256}:${input.runtimeSha256}:${input.panelSha256 ?? ""}:${[
-    ...input.previewSha256s,
-  ]
-    .sort()
-    .join(":")}`;
+  `${input.manifestSha256}:${input.runtimeSha256}:${Option.getOrElse(input.panelSha256, () => "")}:${Arr.sort(input.previewSha256s, Order.String).join(":")}`;
 
 /** Recomputes a component's §1.2 contentHash from its manifest-listed file hashes. */
 export const computeComponentContentHash = (input: {
   readonly manifestSha256: string;
   readonly runtimeSha256: string;
-  readonly panelSha256: string | null;
+  readonly panelSha256: Option.Option<string>;
   readonly previewSha256s: ReadonlyArray<string>;
 }): Effect.Effect<string> => sha256Hex(componentContentHashPreimage(input));
 
@@ -619,23 +639,18 @@ export const computeComponentContentHash = (input: {
  * key (`paywall_deploy.manifest_hash`): the same manifest re-POSTed always
  * hashes identically regardless of key order.
  */
-const compareKeys = (a: string, b: string): number => {
-  if (a < b) return -1;
-  if (a > b) return 1;
-  return 0;
-};
-
 export const canonicalJsonStringify = (value: unknown): string => {
-  if (value === null || typeof value !== "object") {
-    return encodeJson(value);
-  }
   if (Array.isArray(value)) {
     return `[${value.map((item) => canonicalJsonStringify(item)).join(",")}]`;
   }
-  const entries = Object.entries(value)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => compareKeys(a, b))
-    .map(([k, v]) => `${encodeJson(k)}:${canonicalJsonStringify(v)}`);
+  if (!P.isObject(value)) {
+    return encodeJson(value);
+  }
+  const record = Option.getOrElse(decodeJsonRecord(value), () => R.empty<string, unknown>());
+  const entries = Arr.sort(
+    R.toEntries(record).filter(([, v]) => v !== undefined),
+    Order.mapInput(Order.String, (entry: [string, unknown]) => entry[0]),
+  ).map(([k, v]) => `${encodeJson(k)}:${canonicalJsonStringify(v)}`);
   return `{${entries.join(",")}}`;
 };
 
@@ -687,32 +702,28 @@ export interface ServingCopy {
  */
 export const servingCopiesForPaywall = (
   paywall: ManifestPaywall,
-  assetsByPath: ReadonlyMap<string, DeployArtifact>,
-): ReadonlyArray<ServingCopy> => {
-  const copies: ServingCopy[] = [
-    {
-      contentType: paywall.artifacts.html.contentType,
-      sha256: paywall.artifacts.html.sha256,
-      targetKey: paywallServingHtmlKey(paywall.contentHash),
-    },
-    {
-      contentType: paywall.artifacts.js.contentType,
-      sha256: paywall.artifacts.js.sha256,
-      targetKey: paywallServingJsKey(paywall.contentHash),
-    },
-  ];
-  for (const assetPath of paywall.assets) {
-    const asset = assetsByPath.get(assetPath);
-    if (asset) {
-      copies.push({
+  assetsByPath: HashMap.HashMap<string, DeployArtifact>,
+): ReadonlyArray<ServingCopy> => [
+  {
+    contentType: paywall.artifacts.html.contentType,
+    sha256: paywall.artifacts.html.sha256,
+    targetKey: paywallServingHtmlKey(paywall.contentHash),
+  },
+  {
+    contentType: paywall.artifacts.js.contentType,
+    sha256: paywall.artifacts.js.sha256,
+    targetKey: paywallServingJsKey(paywall.contentHash),
+  },
+  ...paywall.assets.flatMap((assetPath) =>
+    Option.toArray(
+      Option.map(HashMap.get(assetsByPath, assetPath), (asset) => ({
         contentType: asset.contentType,
         sha256: asset.sha256,
         targetKey: paywallServingAssetKey(paywall.contentHash, assetPath),
-      });
-    }
-  }
-  return copies;
-};
+      })),
+    ),
+  ),
+];
 
 /** §5.1 serving prefix for one component's artifacts: `c/<contentHash>`. */
 export const componentServingPrefix = (contentHash: string): string => `c/${contentHash}`;
@@ -741,56 +752,50 @@ export const componentServingPanelKey = (contentHash: string): string =>
  */
 export const servingCopiesForComponent = (
   component: ManifestComponent,
-): ReadonlyArray<ServingCopy> => {
-  const copies: ServingCopy[] = [
-    {
-      contentType: component.manifest.contentType,
-      sha256: component.manifest.sha256,
-      targetKey: componentServingManifestKey(component.contentHash),
-    },
-  ];
-  for (const preview of component.previews) {
-    copies.push({
-      contentType: preview.file.contentType,
-      sha256: preview.file.sha256,
-      targetKey: componentServingPreviewKey(component.contentHash, preview.state),
-    });
-  }
-  copies.push({
+): ReadonlyArray<ServingCopy> => [
+  {
+    contentType: component.manifest.contentType,
+    sha256: component.manifest.sha256,
+    targetKey: componentServingManifestKey(component.contentHash),
+  },
+  ...component.previews.map((preview) => ({
+    contentType: preview.file.contentType,
+    sha256: preview.file.sha256,
+    targetKey: componentServingPreviewKey(component.contentHash, preview.state),
+  })),
+  {
     contentType: component.artifacts.runtime.contentType,
     sha256: component.artifacts.runtime.sha256,
     targetKey: componentServingRuntimeKey(component.contentHash),
-  });
-  if (component.artifacts.panel) {
-    copies.push({
-      contentType: component.artifacts.panel.contentType,
-      sha256: component.artifacts.panel.sha256,
-      targetKey: componentServingPanelKey(component.contentHash),
-    });
-  }
-  return copies;
-};
+  },
+  ...Option.toArray(
+    Option.fromNullishOr(component.artifacts.panel).pipe(
+      Option.map((panel) => ({
+        contentType: panel.contentType,
+        sha256: panel.sha256,
+        targetKey: componentServingPanelKey(component.contentHash),
+      })),
+    ),
+  ),
+];
 
 /**
  * Read-time catalog metadata for one component version, derived from its
  * MINTING deploy's §1 manifest (matched by the §1.2 contentHash): the preview
  * states actually copied into the §5.1 serving layout and whether a panel
- * bundle exists. Returns `null` when the manifest declares no component with
+ * bundle exists. Returns `Option.none` when the manifest declares no component with
  * this contentHash — callers treat that as ledger/manifest drift.
  */
 export const componentServingMetadata = (
   manifest: PaywallDeployManifest,
   contentHash: string,
-): { readonly hasPanel: boolean; readonly previewStates: ReadonlyArray<string> } | null => {
-  const component = manifest.components.find((entry) => entry.contentHash === contentHash);
-  if (component === undefined) {
-    return null;
-  }
-  return {
-    hasPanel: component.artifacts.panel !== null,
-    previewStates: component.previews.map((preview) => preview.state),
-  };
-};
+): Option.Option<{ readonly hasPanel: boolean; readonly previewStates: ReadonlyArray<string> }> =>
+  Option.fromNullishOr(manifest.components.find((entry) => entry.contentHash === contentHash)).pipe(
+    Option.map((component) => ({
+      hasPanel: component.artifacts.panel !== null,
+      previewStates: component.previews.map((preview) => preview.state),
+    })),
+  );
 
 // =============================================================================
 // Manifest traversal helpers
@@ -799,8 +804,8 @@ export const componentServingMetadata = (
 /** Indexes the manifest's top-level `assets[]` by path. */
 export const manifestAssetsByPath = (
   manifest: PaywallDeployManifest,
-): ReadonlyMap<string, DeployArtifact> =>
-  new Map(manifest.assets.map((asset) => [asset.path, asset]));
+): HashMap.HashMap<string, DeployArtifact> =>
+  HashMap.fromIterable(manifest.assets.map((asset) => [asset.path, asset]));
 
 /** One manifest-listed file flattened to its deploy-file row shape. */
 export interface ManifestFileEntry {
@@ -822,24 +827,25 @@ export interface ManifestFileEntry {
 
 /** §1.1 size cap (bytes) applying to a manifest file of the given role. */
 export const sizeCapForRole = (role: ManifestFileEntry["role"]): number => {
-  switch (role) {
-    case "paywallHtml":
-      return SIZE_CAPS.html;
-    case "paywallJs":
-    case "componentRuntime":
-    case "componentPanel":
-      return SIZE_CAPS.jsBundle;
-    case "asset":
-      return SIZE_CAPS.asset;
-    case "source":
-      return SIZE_CAPS.sourceFile;
-    case "config":
-      return SIZE_CAPS.config;
-    case "componentManifest":
-      return SIZE_CAPS.componentManifest;
-    case "componentPreview":
-      return SIZE_CAPS.previewTree;
+  if (role === "paywallHtml") {
+    return SIZE_CAPS.html;
   }
+  if (role === "paywallJs" || role === "componentRuntime" || role === "componentPanel") {
+    return SIZE_CAPS.jsBundle;
+  }
+  if (role === "asset") {
+    return SIZE_CAPS.asset;
+  }
+  if (role === "source") {
+    return SIZE_CAPS.sourceFile;
+  }
+  if (role === "config") {
+    return SIZE_CAPS.config;
+  }
+  if (role === "componentManifest") {
+    return SIZE_CAPS.componentManifest;
+  }
+  return SIZE_CAPS.previewTree;
 };
 
 /**
@@ -854,7 +860,7 @@ export const validateUploadedBlobSize = (
   actualBytes: number,
 ): ReadonlyArray<string> => {
   const violations: string[] = [];
-  for (const entry of entries) {
+  Arr.forEach(entries, (entry) => {
     if (actualBytes !== entry.bytes) {
       violations.push(
         `file "${entry.logicalPath}": uploaded body is ${actualBytes} bytes but the manifest declares ${entry.bytes} bytes`,
@@ -866,7 +872,7 @@ export const validateUploadedBlobSize = (
         `file "${entry.logicalPath}" (${entry.role}): ${actualBytes} bytes exceeds the ${cap}-byte cap`,
       );
     }
-  }
+  });
   return violations;
 };
 
@@ -879,130 +885,132 @@ export const validateUploadedBlobSize = (
  */
 export const validateRecordedBlobCaps = (
   manifest: PaywallDeployManifest,
-  bytesBySha256: ReadonlyMap<string, number>,
+  bytesBySha256: HashMap.HashMap<string, number>,
 ): ReadonlyArray<string> => {
   const violations: string[] = [];
-  for (const entry of manifestFileEntries(manifest)) {
-    const recorded = bytesBySha256.get(entry.sha256);
-    if (recorded === undefined) {
-      continue;
+  Arr.forEach(manifestFileEntries(manifest), (entry) => {
+    const recorded = HashMap.get(bytesBySha256, entry.sha256);
+    if (Option.isNone(recorded)) {
+      return;
     }
     const cap = sizeCapForRole(entry.role);
-    if (recorded > cap) {
+    if (recorded.value > cap) {
       violations.push(
-        `file "${entry.logicalPath}" (${entry.role}): recorded blob is ${recorded} bytes, exceeding the ${cap}-byte cap`,
+        `file "${entry.logicalPath}" (${entry.role}): recorded blob is ${recorded.value} bytes, exceeding the ${cap}-byte cap`,
       );
     }
-  }
+  });
   return violations;
 };
 
 /** Flattens every file the §1 manifest references into role-tagged entries. */
 export const manifestFileEntries = (
   manifest: PaywallDeployManifest,
-): ReadonlyArray<ManifestFileEntry> => {
-  const entries: ManifestFileEntry[] = [];
-  for (const paywall of manifest.paywalls) {
-    entries.push({
-      bytes: paywall.source.bytes,
-      logicalPath: paywall.source.path,
-      role: "source",
-      sha256: paywall.source.sha256,
-    });
-    entries.push({
-      bytes: paywall.artifacts.html.bytes,
-      logicalPath: paywall.artifacts.html.path,
-      role: "paywallHtml",
-      sha256: paywall.artifacts.html.sha256,
-    });
-    entries.push({
-      bytes: paywall.artifacts.js.bytes,
-      logicalPath: paywall.artifacts.js.path,
-      role: "paywallJs",
-      sha256: paywall.artifacts.js.sha256,
-    });
-  }
-  for (const component of manifest.components) {
-    entries.push({
-      bytes: component.source.bytes,
-      logicalPath: component.source.path,
-      role: "source",
-      sha256: component.source.sha256,
-    });
-    entries.push({
-      bytes: component.manifest.bytes,
-      logicalPath: component.manifest.path,
-      role: "componentManifest",
-      sha256: component.manifest.sha256,
-    });
-    for (const preview of component.previews) {
-      entries.push({
-        bytes: preview.file.bytes,
-        logicalPath: preview.file.path,
-        role: "componentPreview",
-        sha256: preview.file.sha256,
-      });
-    }
-    entries.push({
-      bytes: component.artifacts.runtime.bytes,
-      logicalPath: component.artifacts.runtime.path,
-      role: "componentRuntime",
-      sha256: component.artifacts.runtime.sha256,
-    });
-    if (component.artifacts.panel) {
-      entries.push({
-        bytes: component.artifacts.panel.bytes,
-        logicalPath: component.artifacts.panel.path,
-        role: "componentPanel",
-        sha256: component.artifacts.panel.sha256,
-      });
-    }
-  }
-  entries.push({
+): ReadonlyArray<ManifestFileEntry> => [
+  ...manifest.paywalls.flatMap(
+    (paywall): ReadonlyArray<ManifestFileEntry> => [
+      {
+        bytes: paywall.source.bytes,
+        logicalPath: paywall.source.path,
+        role: "source",
+        sha256: paywall.source.sha256,
+      },
+      {
+        bytes: paywall.artifacts.html.bytes,
+        logicalPath: paywall.artifacts.html.path,
+        role: "paywallHtml",
+        sha256: paywall.artifacts.html.sha256,
+      },
+      {
+        bytes: paywall.artifacts.js.bytes,
+        logicalPath: paywall.artifacts.js.path,
+        role: "paywallJs",
+        sha256: paywall.artifacts.js.sha256,
+      },
+    ],
+  ),
+  ...manifest.components.flatMap(
+    (component): ReadonlyArray<ManifestFileEntry> => [
+      {
+        bytes: component.source.bytes,
+        logicalPath: component.source.path,
+        role: "source",
+        sha256: component.source.sha256,
+      },
+      {
+        bytes: component.manifest.bytes,
+        logicalPath: component.manifest.path,
+        role: "componentManifest",
+        sha256: component.manifest.sha256,
+      },
+      ...component.previews.map(
+        (preview): ManifestFileEntry => ({
+          bytes: preview.file.bytes,
+          logicalPath: preview.file.path,
+          role: "componentPreview",
+          sha256: preview.file.sha256,
+        }),
+      ),
+      {
+        bytes: component.artifacts.runtime.bytes,
+        logicalPath: component.artifacts.runtime.path,
+        role: "componentRuntime",
+        sha256: component.artifacts.runtime.sha256,
+      },
+      ...Option.toArray(
+        Option.fromNullishOr(component.artifacts.panel).pipe(
+          Option.map(
+            (panel): ManifestFileEntry => ({
+              bytes: panel.bytes,
+              logicalPath: panel.path,
+              role: "componentPanel",
+              sha256: panel.sha256,
+            }),
+          ),
+        ),
+      ),
+    ],
+  ),
+  {
     bytes: manifest.config.bytes,
     logicalPath: manifest.config.path,
     role: "config",
     sha256: manifest.config.sha256,
-  });
-  for (const asset of manifest.assets) {
-    entries.push({
+  },
+  ...manifest.assets.map(
+    (asset): ManifestFileEntry => ({
       bytes: asset.bytes,
       logicalPath: asset.path,
       role: "asset",
       sha256: asset.sha256,
-    });
-  }
-  return entries;
-};
+    }),
+  ),
+];
 
 /** Distinct sha256s of every file the manifest references. */
 export const collectManifestHashes = (manifest: PaywallDeployManifest): ReadonlyArray<string> => [
-  ...new Set(manifestFileEntries(manifest).map((entry) => entry.sha256)),
+  ...HashSet.fromIterable(manifestFileEntries(manifest).map((entry) => entry.sha256)),
 ];
 
 /** Declared contentType of the manifest artifact carrying `sha256`, if any. */
 export const findDeclaredContentType = (
   manifest: PaywallDeployManifest,
   sha256: string,
-): string | null => {
-  for (const paywall of manifest.paywalls) {
-    if (paywall.artifacts.html.sha256 === sha256) return paywall.artifacts.html.contentType;
-    if (paywall.artifacts.js.sha256 === sha256) return paywall.artifacts.js.contentType;
-  }
-  for (const component of manifest.components) {
-    if (component.manifest.sha256 === sha256) return component.manifest.contentType;
-    if (component.artifacts.runtime.sha256 === sha256)
-      return component.artifacts.runtime.contentType;
-    if (component.artifacts.panel?.sha256 === sha256) return component.artifacts.panel.contentType;
-    for (const preview of component.previews) {
-      if (preview.file.sha256 === sha256) return preview.file.contentType;
-    }
-  }
-  for (const asset of manifest.assets) {
-    if (asset.sha256 === sha256) return asset.contentType;
-  }
-  return null;
-};
+): Option.Option<string> =>
+  Option.fromNullishOr(
+    manifestFileArtifacts(manifest).find((artifact) => artifact.sha256 === sha256)?.contentType,
+  );
+
+const manifestFileArtifacts = (manifest: PaywallDeployManifest): ReadonlyArray<DeployArtifact> => [
+  ...manifest.paywalls.flatMap((paywall) => [paywall.artifacts.html, paywall.artifacts.js]),
+  ...manifest.components.flatMap((component) => [
+    component.manifest,
+    component.artifacts.runtime,
+    ...Option.toArray(Option.fromNullishOr(component.artifacts.panel)),
+    ...component.previews.map((preview) => preview.file),
+  ]),
+  ...manifest.assets,
+];
 
 // =============================================================================
 // §1.1 constraint validation (size caps, contentType allowlist, uniqueness)
@@ -1013,7 +1021,7 @@ const bareContentType = (contentType: string): string =>
   (contentType.split(";")[0] ?? "").trim().toLowerCase();
 
 const isAllowedContentType = (contentType: string): boolean =>
-  CONTENT_TYPE_ALLOWLIST.has(bareContentType(contentType));
+  HashSet.has(CONTENT_TYPE_ALLOWLIST, bareContentType(contentType));
 
 /**
  * Validates the §1.1 constraints the Schema layer does not express: id
@@ -1032,24 +1040,27 @@ export const validateManifestConstraints = (
 ): ReadonlyArray<string> => {
   const violations: string[] = [];
 
-  if (manifest.paywalls.length === 0 && manifest.components.length === 0) {
+  if (
+    Arr.isReadonlyArrayEmpty(manifest.paywalls) &&
+    Arr.isReadonlyArrayEmpty(manifest.components)
+  ) {
     violations.push("manifest must declare at least one paywall or component");
   }
 
-  const paywallIds = new Set<string>();
-  for (const paywall of manifest.paywalls) {
-    if (paywallIds.has(paywall.id)) {
+  let paywallIds = HashSet.empty<string>();
+  Arr.forEach(manifest.paywalls, (paywall) => {
+    if (HashSet.has(paywallIds, paywall.id)) {
       violations.push(`duplicate paywall id "${paywall.id}"`);
     }
-    paywallIds.add(paywall.id);
-  }
-  const componentIds = new Set<string>();
-  for (const component of manifest.components) {
-    if (componentIds.has(component.id)) {
+    paywallIds = HashSet.add(paywallIds, paywall.id);
+  });
+  let componentIds = HashSet.empty<string>();
+  Arr.forEach(manifest.components, (component) => {
+    if (HashSet.has(componentIds, component.id)) {
       violations.push(`duplicate component id "${component.id}"`);
     }
-    componentIds.add(component.id);
-  }
+    componentIds = HashSet.add(componentIds, component.id);
+  });
 
   const checkContentType = (label: string, artifact: DeployArtifact): void => {
     // Re-checked here (not just at schema decode) so finalize rejects stored
@@ -1101,7 +1112,7 @@ export const validateManifestConstraints = (
 
   const assetsByPath = manifestAssetsByPath(manifest);
 
-  for (const paywall of manifest.paywalls) {
+  Arr.forEach(manifest.paywalls, (paywall) => {
     const label = `paywall "${paywall.id}"`;
     checkExactContentType(`${label} html`, paywall.artifacts.html, "text/html");
     checkExactContentType(`${label} js`, paywall.artifacts.js, "text/javascript");
@@ -1109,31 +1120,31 @@ export const validateManifestConstraints = (
     // §5 serving keys keep only the asset basename, so two referenced assets
     // sharing a basename would land on the same `p/<hash>/assets/<basename>`
     // object — reject the manifest instead of silently flattening them.
-    const servingNames = new Map<string, string>();
-    const seenPaths = new Set<string>();
-    for (const assetPath of paywall.assets) {
-      const asset = assetsByPath.get(assetPath);
-      if (!asset) {
+    let servingNames = HashMap.empty<string, string>();
+    let seenPaths = HashSet.empty<string>();
+    Arr.forEach(paywall.assets, (assetPath) => {
+      const asset = HashMap.get(assetsByPath, assetPath);
+      if (Option.isNone(asset)) {
         violations.push(`${label}: asset path "${assetPath}" is not in the top-level assets list`);
-        continue;
+        return;
       }
-      if (seenPaths.has(assetPath)) {
-        continue;
+      if (HashSet.has(seenPaths, assetPath)) {
+        return;
       }
-      seenPaths.add(assetPath);
+      seenPaths = HashSet.add(seenPaths, assetPath);
       const basename = assetBasename(assetPath);
-      const first = servingNames.get(basename);
-      if (first === undefined) {
-        servingNames.set(basename, assetPath);
+      const first = HashMap.get(servingNames, basename);
+      if (Option.isNone(first)) {
+        servingNames = HashMap.set(servingNames, basename, assetPath);
       } else {
         violations.push(
-          `${label}: assets "${first}" and "${assetPath}" collide on serving name "assets/${basename}"`,
+          `${label}: assets "${first.value}" and "${assetPath}" collide on serving name "assets/${basename}"`,
         );
       }
-    }
-  }
+    });
+  });
 
-  for (const component of manifest.components) {
+  Arr.forEach(manifest.components, (component) => {
     const label = `component "${component.id}"`;
     checkExactContentType(`${label} manifest`, component.manifest, "application/json");
     if (component.manifest.bytes > SIZE_CAPS.componentManifest) {
@@ -1147,16 +1158,16 @@ export const validateManifestConstraints = (
       checkExactContentType(`${label} panel`, component.artifacts.panel, "text/javascript");
       checkJsCap(`${label} panel`, component.artifacts.panel);
     }
-    if (component.previews.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(component.previews)) {
       violations.push(`${label}: previews must not be empty`);
     }
-    const previewStates = new Set<string>();
-    for (const preview of component.previews) {
+    let previewStates = HashSet.empty<string>();
+    Arr.forEach(component.previews, (preview) => {
       const previewLabel = `${label} preview "${preview.state}"`;
-      if (previewStates.has(preview.state)) {
+      if (HashSet.has(previewStates, preview.state)) {
         violations.push(`${label}: duplicate preview state "${preview.state}"`);
       }
-      previewStates.add(preview.state);
+      previewStates = HashSet.add(previewStates, preview.state);
       if (!PREVIEW_STATE_PATTERN.test(preview.state)) {
         violations.push(
           `${previewLabel}: state "${preview.state}" is malformed; expected ${PREVIEW_STATE_PATTERN}`,
@@ -1168,16 +1179,16 @@ export const validateManifestConstraints = (
           `${previewLabel}: preview tree exceeds ${SIZE_CAPS.previewTree} bytes (${preview.file.bytes})`,
         );
       }
-    }
-  }
+    });
+  });
 
-  for (const asset of manifest.assets) {
+  Arr.forEach(manifest.assets, (asset) => {
     const label = `asset "${asset.path}"`;
     checkAssetContentType(label, asset);
     if (asset.bytes > SIZE_CAPS.asset) {
       violations.push(`${label}: exceeds ${SIZE_CAPS.asset} bytes (${asset.bytes})`);
     }
-  }
+  });
 
   return violations;
 };

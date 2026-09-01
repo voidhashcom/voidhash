@@ -1,12 +1,15 @@
 import * as PgClient from "@effect/sql-pg/PgClient";
 import * as PgDrizzle from "drizzle-orm/effect-postgres";
-import { Context, Effect, Layer, Redacted } from "effect";
-import type { ConnectionOptions } from "node:tls";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as HashSet from "effect/HashSet";
+import * as Redacted from "effect/Redacted";
 
 import { relations } from "./relations.ts";
 
 // Primitives
-const localDatabaseHosts = new Set([
+const localDatabaseHosts = HashSet.fromIterable([
   "localhost",
   "127.0.0.1",
   "::1",
@@ -18,7 +21,7 @@ const localDatabaseHosts = new Set([
 const isLocalDatabaseHost = (host: string): boolean => {
   const normalizedHost = host.trim().toLowerCase();
   return (
-    localDatabaseHosts.has(normalizedHost) ||
+    HashSet.has(localDatabaseHosts, normalizedHost) ||
     normalizedHost.endsWith(".localhost") ||
     // Cloudflare Hyperdrive's local proxy socket is plaintext (it terminates TLS
     // upstream), so a `.hyperdrive.local` host must never default to TLS.
@@ -26,7 +29,7 @@ const isLocalDatabaseHost = (host: string): boolean => {
   );
 };
 
-const getDefaultSsl = (host: string): boolean | ConnectionOptions | undefined => {
+const getDefaultSsl = (host: string): PgClient.PgClientConfig["ssl"] => {
   if (isLocalDatabaseHost(host)) return undefined;
   return { rejectUnauthorized: true };
 };
@@ -41,7 +44,7 @@ export interface DbConfig {
   readonly username: string;
   readonly password: string;
   readonly databaseName: string;
-  readonly ssl?: boolean | ConnectionOptions;
+  readonly ssl?: NonNullable<PgClient.PgClientConfig["ssl"]>;
 }
 
 /**
@@ -62,7 +65,7 @@ export type DbTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0
 /** The tagged error every `Db` query fails with (`EffectDrizzleQueryError`). */
 export type DbError = PgDrizzle.EffectPgQueryEffectHKT["error"];
 
-const resolveSsl = (config: DbConfig): boolean | ConnectionOptions | undefined => {
+const resolveSsl = (config: DbConfig): PgClient.PgClientConfig["ssl"] => {
   if ("ssl" in config) return config.ssl;
   return getDefaultSsl(config.host);
 };

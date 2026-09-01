@@ -1,7 +1,7 @@
 "use client";
 
-import { Effect } from "effect";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
+import * as Option from "effect/Option";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import * as React from "react";
 
@@ -29,18 +29,16 @@ type CarouselContextProps = {
   canScrollNext: boolean;
 } & CarouselProps;
 
-const CarouselContext = React.createContext<CarouselContextProps | null>(null);
+const CarouselContext = React.createContext<Option.Option<CarouselContextProps>>(Option.none());
 
 function useCarousel() {
   const context = React.useContext(CarouselContext);
 
-  if (!context) {
-    return Effect.runSync(
-      Effect.die(new Error("useCarousel must be used within a <Carousel />")),
-    );
+  if (Option.isNone(context)) {
+    throw new TypeError("useCarousel must be used within a <Carousel />");
   }
 
-  return context;
+  return context.value;
 }
 
 function Carousel({
@@ -113,7 +111,7 @@ function Carousel({
 
   return (
     <CarouselContext.Provider
-      value={{
+      value={Option.some({
         api,
         canScrollNext,
         canScrollPrev,
@@ -122,7 +120,7 @@ function Carousel({
         orientation: orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
         scrollNext,
         scrollPrev,
-      }}
+      })}
     >
       <div
         aria-roledescription="carousel"

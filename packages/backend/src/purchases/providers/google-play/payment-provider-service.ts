@@ -6,7 +6,9 @@
  * normalize → forward to {@link GooglePlayPaymentProvider.recordPurchase}) and
  * delegates webhook ingress to {@link GooglePlayWebhookHandlerService}.
  */
-import { Effect, Layer, Predicate } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as P from "effect/Predicate";
 
 import {
   GooglePlayPaymentProviderService,
@@ -23,10 +25,13 @@ import { GooglePlayPaymentProvider } from "./payment-provider.ts";
 import { GooglePlayPaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import { GooglePlayPurchaseVerifier } from "./purchase-verifier.ts";
 import { GooglePlayWebhookHandlerService } from "./webhook-handler-service.ts";
+import { MutableSet } from "../../../collection-boundary.ts";
+import { hasTag } from "../../../runtime-boundary.ts";
+import { assumeType } from "../../../runtime-boundary.ts";
 
 /** Reads a property off an unknown value without an `as` assertion. */
 const readProperty = <P extends string>(value: unknown, property: P): unknown => {
-  if (Predicate.hasProperty(value, property)) return value[property];
+  if (P.hasProperty(value, property)) return value[property];
   return undefined;
 };
 
@@ -38,19 +43,19 @@ const readProperty = <P extends string>(value: unknown, property: P): unknown =>
  */
 const extractCause = (error: unknown): string => {
   if (error instanceof GooglePlayPaymentProviderServiceError) return error.cause;
-  if (typeof error === "object" && error !== null) {
+  if (P.isObject(error) && error !== null) {
     const message = readProperty(error, "message");
-    if (typeof message === "string") return message;
+    if (P.isString(message)) return message;
     const cause = readProperty(error, "cause");
-    if (typeof cause === "string") return cause;
+    if (P.isString(cause)) return cause;
     const status = readProperty(error, "status");
-    if (typeof status === "string") return String(status);
+    if (P.isString(status)) return String(status);
   }
   return String(error);
 };
 
 /** Error tags that mark a permanently missing target — mapped to `kind: "not_found"`. */
-const NOT_FOUND_ERROR_TAGS = new Set<string>([
+const NOT_FOUND_ERROR_TAGS = new MutableSet<string>([
   "GooglePlayPaymentProviderConfigurationNotFoundError",
   "GooglePlayPaymentProviderProjectNotFoundError",
 ]);
@@ -58,7 +63,7 @@ const NOT_FOUND_ERROR_TAGS = new Set<string>([
 const toServiceError = (error: unknown): GooglePlayPaymentProviderServiceError => {
   if (error instanceof GooglePlayPaymentProviderServiceError) return error;
   const tag = readProperty(error, "_tag");
-  if (typeof tag === "string" && NOT_FOUND_ERROR_TAGS.has(tag)) {
+  if (P.isString(tag) && NOT_FOUND_ERROR_TAGS.has(tag)) {
     return new GooglePlayPaymentProviderServiceError({
       cause: extractCause(error),
       kind: "not_found",
@@ -131,10 +136,10 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
           .pipe(
             Effect.catchIf(
               (error): error is GooglePlayPaymentProviderProductNotMappedError =>
-                Predicate.hasProperty(error, "_tag") &&
-                error._tag === "GooglePlayPaymentProviderProductNotMappedError",
+                P.hasProperty(error, "_tag") &&
+                hasTag(error, "GooglePlayPaymentProviderProductNotMappedError"),
               (error) =>
-                Effect.gen(function* () {
+                Effect.fn("result")(function* () {
                   yield* queries.insertNotificationProcessedIfAbsent({
                     id: generateId("paymentProviderNotification"),
                     notificationSubtype: null,
@@ -160,7 +165,7 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
                     parked: true,
                     providerProductKey: error.providerProductKey,
                   } satisfies GooglePlaySdkTransactionResult;
-                }),
+                })(),
             ),
           );
         if ("parked" in result) {
@@ -183,7 +188,7 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
     // residual the public shape models as `never`. The deps are ambient at call
     // time (the service runs inside the deployed Worker).
     // oxlint-disable-next-line effect/noAs -- boundary cast described in the comment above: the residual R/E left by the engine is ambient at call time inside the deployed Worker, and satisfies is not an assertion so it cannot erase it.
-    return {
+    return assumeType<GooglePlayPaymentProviderServiceShape>({
       acceptRtdnNotification: (input: {
         readonly paymentProviderConfigurationId: string;
         readonly receivedAt: Date;
@@ -193,6 +198,6 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
           .acceptRtdnNotification(input)
           .pipe(Effect.catch((error) => Effect.fail(toServiceError(error)))),
       processSdkTransaction,
-    } as unknown as GooglePlayPaymentProviderServiceShape;
+    });
   }),
 ).pipe(Layer.provide(GooglePlayWebhookHandlerService.layer));

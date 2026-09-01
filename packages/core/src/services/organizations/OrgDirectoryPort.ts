@@ -1,4 +1,7 @@
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all error for {@link OrgDirectoryPort} operations. Adapters wrap any
@@ -15,24 +18,24 @@ export class OrgDirectoryPortError extends Schema.TaggedErrorClass<OrgDirectoryP
 export interface OrgDirectoryOrganization {
   readonly id: string;
   readonly name: string;
-  readonly externalId: string | null;
+  readonly externalId: Option.Option<string>;
 }
 
 export interface OrgDirectoryMembership {
   readonly id: string;
   readonly organizationId: string;
   readonly userId: string;
-  readonly role: string | null;
+  readonly role: Option.Option<string>;
 }
 
 export interface OrgDirectoryUser {
   readonly id: string;
   readonly email: string;
   readonly emailVerified: boolean;
-  readonly externalId: string | null;
-  readonly firstName: string | null;
-  readonly lastName: string | null;
-  readonly profilePictureUrl: string | null;
+  readonly externalId: Option.Option<string>;
+  readonly firstName: Option.Option<string>;
+  readonly lastName: Option.Option<string>;
+  readonly profilePictureUrl: Option.Option<string>;
 }
 
 export interface OrgDirectoryPortShape {
@@ -52,7 +55,7 @@ export interface OrgDirectoryPortShape {
 
   readonly getOrganizationByExternalId: (
     externalId: string,
-  ) => Effect.Effect<OrgDirectoryOrganization | null, OrgDirectoryPortError>;
+  ) => Effect.Effect<Option.Option<OrgDirectoryOrganization>, OrgDirectoryPortError>;
 
   /** Fetches a WorkOS organization by its WorkOS id. */
   readonly getOrganization: (
@@ -81,7 +84,7 @@ export interface OrgDirectoryPortShape {
 
   readonly findUserByEmail: (
     email: string,
-  ) => Effect.Effect<OrgDirectoryUser | null, OrgDirectoryPortError>;
+  ) => Effect.Effect<Option.Option<OrgDirectoryUser>, OrgDirectoryPortError>;
 }
 
 /**

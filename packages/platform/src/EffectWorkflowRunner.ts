@@ -1,4 +1,11 @@
-import { Cause, Clock, Effect, Exit, Layer, Option, Schema } from "effect";
+import * as Cause from "effect/Cause";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { Activity, DurableClock, Workflow, WorkflowEngine } from "effect/unstable/workflow";
 
 import { PlatformRuntime } from "./PlatformRuntime.ts";
@@ -76,17 +83,21 @@ const failureResult = (cause: Cause.Cause<WorkflowRunnerError>): WorkflowExecuti
 
 const executionResult = <A>(
   result: Workflow.Result<A, WorkflowRunnerError>,
-): Effect.Effect<WorkflowExecutionResult<A>> => {
-  if (result._tag === "Suspended") {
-    return Effect.succeed({ status: "suspended" });
-  }
-  return Effect.succeed(
-    Exit.match(result.exit, {
-      onFailure: failureResult,
-      onSuccess: (value): WorkflowExecutionResult<A> => ({ status: "succeeded", value }),
-    }),
+): Effect.Effect<WorkflowExecutionResult<A>> =>
+  Match.value(result).pipe(
+    Match.when({ _tag: "Suspended" }, () =>
+      Effect.succeed<WorkflowExecutionResult<A>>({ status: "suspended" }),
+    ),
+    Match.when({ _tag: "Complete" }, ({ exit }) =>
+      Effect.succeed(
+        Exit.match(exit, {
+          onFailure: failureResult,
+          onSuccess: (value): WorkflowExecutionResult<A> => ({ status: "succeeded", value }),
+        }),
+      ),
+    ),
+    Match.exhaustive,
   );
-};
 
 /**
  * Extra attempts a `platform-default` step gets in process.
@@ -102,9 +113,9 @@ const PLATFORM_DEFAULT_STEP_RETRIES = 5;
 
 const withStepRetry = <A, E, R>(
   effect: Effect.Effect<A, E, R>,
-  retry: WorkflowContract.StepRetry | undefined,
+  retry: Option.Option<WorkflowContract.StepRetry>,
 ): Effect.Effect<A, E, R> => {
-  if (retry === "none") return effect;
+  if (Option.contains(retry, "none")) return effect;
   return Activity.retry(effect, { times: PLATFORM_DEFAULT_STEP_RETRIES });
 };
 
@@ -115,7 +126,9 @@ const makeStep = <Success extends Schema.Top, R>(
 ): Effect.Effect<Success["Type"], WorkflowRunnerError, WorkflowRunner | PlatformRuntime> =>
   WorkflowContract.durableOperationName(options.name).pipe(
     Effect.flatMap((name) =>
-      asContract<Effect.Effect<Success["Type"], WorkflowRunnerError, WorkflowRunner | PlatformRuntime>>(
+      asContract<
+        Effect.Effect<Success["Type"], WorkflowRunnerError, WorkflowRunner | PlatformRuntime>
+      >(
         Activity.make({
           name,
           success: options.success,
@@ -125,7 +138,7 @@ const makeStep = <Success extends Schema.Top, R>(
               PlatformRuntime.pipe(
                 Effect.andThen(options.execute.pipe(Effect.provide(dependencies))),
               ),
-              options.retry,
+              Option.fromUndefinedOr(options.retry),
             ),
             workflowName,
             `step:${options.name}`,

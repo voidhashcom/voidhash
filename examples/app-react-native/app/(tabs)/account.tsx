@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import * as Option from "effect/Option";
 
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
@@ -36,7 +37,7 @@ export default function AccountScreen() {
 
   const plan = isPro ? "pro" : "free";
   const grants = person?.entitlements.grants ?? [];
-  const variant = getVariant(NEW_ONBOARDING_FLAG);
+  const variant = Option.getOrNull(getVariant(NEW_ONBOARDING_FLAG));
   const isFlagEnabled = isEnabled(NEW_ONBOARDING_FLAG);
   const inputStyle = [
     styles.input,
@@ -217,9 +218,10 @@ export default function AccountScreen() {
             tone={isFlagEnabled ? "positive" : "neutral"}
           />
         )}
-        {variant === null || variant.variantKey === null ? null : (
-          <Field label="Variant" value={variant.variantKey} />
-        )}
+        {variant === null ? null : Option.match(variant.variantKey, {
+          onNone: () => null,
+          onSome: (variantKey) => <Field label="Variant" value={variantKey} />,
+        })}
         <Button
           onPress={() => {
             void refetchFlags();

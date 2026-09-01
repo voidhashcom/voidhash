@@ -2,6 +2,7 @@ import {
   AgentAttachmentService,
   AgentSessionIndexService,
   PaywallEditSessionService,
+  type AgentSessionSummary,
 } from "@voidhash/core/services";
 import {
   AgentSessionRpcsDef,
@@ -11,7 +12,10 @@ import {
   RpcAgentSessionServiceError,
 } from "@voidhash/rpc";
 import { causeMessage, constant } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 
 type RevertRpcError =
   | RpcActionForbiddenError
@@ -25,8 +29,8 @@ interface RevertErrorLike {
   readonly sessionId?: unknown;
 }
 
-const revertErrorRecord = (error: unknown): RevertErrorLike | undefined => {
-  if (typeof error === "object" && error !== null) return error;
+const revertErrorRecord = (error: unknown): RevertErrorLike | typeof Schema.Undefined.Type => {
+  if (P.isObject(error) && error !== null) return error;
   return undefined;
 };
 
@@ -50,6 +54,11 @@ const mapRevertError = (error: unknown): Effect.Effect<never, RevertRpcError> =>
   );
 };
 
+const toRpcSession = (session: AgentSessionSummary) => ({
+  ...session,
+  paywallId: Option.getOrNull(session.paywallId),
+});
+
 /** RPC handlers for durable session history and prompt attachments. */
 export const AgentSessionRpcsLive = AgentSessionRpcsDef.toLayer(
   Effect.gen(function* AgentSessionRpcsLive() {
@@ -65,10 +74,19 @@ export const AgentSessionRpcsLive = AgentSessionRpcsDef.toLayer(
     return {
       ListAgentSessions: ({ organizationId, projectId, surface, paywallId }) =>
         sessions
-          .list({ organizationId, projectId, surface, paywallId })
-          .pipe(Effect.catchTags(mapSessionErrors)),
+          .list({
+            organizationId,
+            projectId,
+            surface,
+            paywallId: Option.map(Option.fromNullishOr(paywallId), Option.some),
+          })
+          .pipe(
+            Effect.map((items) => items.map(toRpcSession)),
+            Effect.catchTags(mapSessionErrors),
+          ),
       GetAgentSession: ({ sessionId }) =>
         sessions.get({ sessionId }).pipe(
+          Effect.map(toRpcSession),
           Effect.catchTags({
             ...mapSessionErrors,
             AgentSessionNotFoundError: (error) =>

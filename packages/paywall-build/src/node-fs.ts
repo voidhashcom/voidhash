@@ -1,101 +1,160 @@
-// oxlint-disable-next-line effect/noNodeBuiltinImport -- Node-only BuildFs adapter, exported solely from the @voidhash/paywall-build/node subpath so node:fs never lands in a browser/workerd bundle (see NodeFs docs below); FileSystem would make the synchronous BuildFs interface unimplementable.
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-// oxlint-disable-next-line effect/noNodeBuiltinImport -- same Node-only BuildFs adapter: path joining happens inside synchronous BuildFs methods that have no Effect context to obtain the Path service from.
-import { dirname as nodeDirname, join, posix } from "node:path";
-import type { BuildFileEntry, BuildFs } from "./fs.ts";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Order from "effect/Order";
+import * as Path from "effect/Path";
+import type * as PlatformError from "effect/PlatformError";
+import * as Schema from "effect/Schema";
+import type { BuildFileEntry } from "./fs.ts";
 
 export type { NodeCapabilityOptions } from "./node-capabilities.ts";
 export { makeNodeCapabilities } from "./node-capabilities.ts";
 
+/** A build path attempted to traverse outside the configured root. */
+export class NodeFsPathError extends Schema.TaggedErrorClass<NodeFsPathError>("NodeFsPathError")(
+  "NodeFsPathError",
+  { path: Schema.String },
+) {}
+
 /**
- * A real-filesystem {@link BuildFs} rooted at an absolute directory.
+ * An Effect-native real-filesystem adapter rooted at an absolute directory.
  *
- * Exported ONLY from the `@voidhash/paywall-build/node` subpath so it (and
- * its `node:fs` import) never lands in a browser/workerd bundle of the main
- * entry. The build's absolute POSIX paths (`/paywall.tsx`) are re-anchored under
- * `root` (`<root>/paywall.tsx`); path segments are validated against traversal.
+ * Every operation uses the Effect `FileSystem` and `Path` services. Build paths
+ * such as `/paywall.tsx` are re-anchored under `root`, and traversal segments
+ * fail with {@link NodeFsPathError}.
  */
-export class NodeFs implements BuildFs {
+export class NodeFs {
   constructor(private readonly root: string) {}
 
-  private resolve(absPath: string): string {
-    // Absolute POSIX build paths map to <root>/<path-without-leading-slash>.
+  private resolve(absPath: string) {
     const rel = absPath.replace(/^\/+/, "");
     if (rel.split("/").includes("..")) {
-      // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- BuildFs is a synchronous interface (read returns a string, not an Effect), so the path-traversal guard has no error channel other than throw.
-      throw new Error(`NodeFs: path traversal is not allowed: ${absPath}`);
+      return Effect.fail(new NodeFsPathError({ path: absPath }));
     }
-    return join(this.root, ...rel.split("/"));
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const path = yield* Path.Path;
+        return path.join(this.root, ...rel.split("/"));
+      }.bind(this),
+    );
   }
 
-  read(path: string): string {
-    return readFileSync(this.resolve(path), "utf8");
+  /** Read a UTF-8 build file. */
+  read(path: string) {
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const fileSystem = yield* FileSystem.FileSystem;
+        return yield* fileSystem.readFileString(yield* this.resolve(path));
+      }.bind(this),
+    );
   }
 
-  exists(path: string): boolean {
-    const full = this.resolve(path);
-    return existsSync(full) && statSync(full).isFile();
+  /** Whether a regular file exists at the build path. */
+  exists(path: string) {
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const full = yield* this.resolve(path);
+        if (!(yield* fileSystem.exists(full))) return false;
+        return (yield* fileSystem.stat(full)).type === "File";
+      }.bind(this),
+    );
   }
 
-  list(dir: string): readonly string[] {
-    const full = this.resolve(dir);
-    if (!existsSync(full) || !statSync(full).isDirectory()) return [];
-    const base = dir.replace(/\/$/, "");
-    return readdirSync(full)
-      .filter((entry) => statSync(join(full, entry)).isFile())
-      .map((entry) => posix.join(base, entry))
-      .sort();
+  /** List build paths of regular files immediately below a directory. */
+  list(dir: string) {
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const full = yield* this.resolve(dir);
+        if (!(yield* fileSystem.exists(full))) return [];
+        if ((yield* fileSystem.stat(full)).type !== "Directory") return [];
+        const base = dir.replace(/\/$/, "");
+        const entries = yield* fileSystem.readDirectory(full);
+        const files = yield* Effect.filter(
+          entries,
+          (entry) =>
+            fileSystem
+              .stat(path.join(full, entry))
+              .pipe(Effect.map((info) => info.type === "File")),
+          { concurrency: "unbounded" },
+        );
+        return Arr.sort(files.map((entry) => `${base}/${entry}`), Order.String);
+      }.bind(this),
+    );
   }
 
-  write(path: string, content: string): void {
-    const full = this.resolve(path);
-    mkdirSync(nodeDirname(full), { recursive: true });
-    writeFileSync(full, content, "utf8");
+  /** Create or overwrite a UTF-8 build file. */
+  write(path: string, content: string) {
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const pathService = yield* Path.Path;
+        const full = yield* this.resolve(path);
+        yield* fileSystem.makeDirectory(pathService.dirname(full), { recursive: true });
+        yield* fileSystem.writeFileString(full, content);
+      }.bind(this),
+    );
   }
 
-  remove(path: string): void {
-    rmSync(this.resolve(path), { force: true });
+  /** Remove a build file if it exists. */
+  remove(path: string) {
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const fileSystem = yield* FileSystem.FileSystem;
+        yield* fileSystem.remove(yield* this.resolve(path), { force: true });
+      }.bind(this),
+    );
   }
 
-  rename(from: string, to: string): void {
-    const target = this.resolve(to);
-    mkdirSync(nodeDirname(target), { recursive: true });
-    renameSync(this.resolve(from), target);
+  /** Move a build file, creating the destination directory when needed. */
+  rename(from: string, to: string) {
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const source = yield* this.resolve(from);
+        const target = yield* this.resolve(to);
+        yield* fileSystem.makeDirectory(path.dirname(target), { recursive: true });
+        yield* fileSystem.rename(source, target);
+      }.bind(this),
+    );
   }
 
-  /** Read every file under `root` recursively as `{ path, content }[]`. */
-  toFiles(): BuildFileEntry[] {
-    const out: BuildFileEntry[] = [];
-    const dirPath = (relDir: string): string => {
-      if (relDir === "") return this.root;
-      return join(this.root, ...relDir.split("/"));
-    };
-    const childPath = (relDir: string, entry: string): string => {
-      if (relDir === "") return entry;
-      return `${relDir}/${entry}`;
-    };
-    const walk = (relDir: string): void => {
-      const full = dirPath(relDir);
-      for (const entry of readdirSync(full).sort()) {
-        const childRel = childPath(relDir, entry);
-        const childFull = join(full, entry);
-        if (statSync(childFull).isDirectory()) {
-          walk(childRel);
-        } else {
-          out.push({ path: `/${childRel}`, content: readFileSync(childFull, "utf8") });
-        }
-      }
-    };
-    walk("");
-    return out;
+  /** Read every file under `root` recursively as sorted build-file entries. */
+  toFiles() {
+    return Effect.gen(
+      function* (this: NodeFs) {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const walk = Effect.fn("NodeFs.walk")(
+          function* (
+            this: NodeFs,
+            relDir: string,
+          ): Effect.fn.Return<BuildFileEntry[], PlatformError.PlatformError> {
+            const full = relDir === "" ? this.root : path.join(this.root, ...relDir.split("/"));
+            const entries = Arr.sort(yield* fileSystem.readDirectory(full), Order.String);
+            const children = yield* Effect.forEach(
+              entries,
+              (entry) => {
+                const childRel = relDir === "" ? entry : `${relDir}/${entry}`;
+                const childFull = path.join(full, entry);
+                return Effect.flatMap(fileSystem.stat(childFull), (info) =>
+                  info.type === "Directory"
+                    ? walk(childRel)
+                    : Effect.map(fileSystem.readFileString(childFull), (content) => [
+                        { path: `/${childRel}`, content },
+                      ]),
+                );
+              },
+              { concurrency: 1 },
+            );
+            return children.flat();
+          }.bind(this),
+        );
+        return yield* walk("");
+      }.bind(this),
+    );
   }
 }

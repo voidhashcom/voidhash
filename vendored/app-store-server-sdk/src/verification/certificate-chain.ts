@@ -4,7 +4,9 @@
 import "reflect-metadata";
 import * as x509 from "@peculiar/x509";
 import { causeMessage } from "@voidhash/lib/lang";
-import { DateTime, Effect, Option } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { CertificateError, VerificationError, VerificationStatus } from "../errors/index.ts";
 import { bytesToHex } from "../internal/bytes.ts";
 
@@ -34,10 +36,11 @@ export interface CertificateChainValidationConfig {
 const makeVerificationError = (status: VerificationStatus): VerificationError =>
   new VerificationError({ status, cause: Option.none() });
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+function asOption<T>(value: Option.Option<T>): Option.Option<T>;
+function asOption(value: unknown): Option.Option<unknown> {
   if (Option.isOption(value)) return value;
   return Option.fromNullishOr(value);
-};
+}
 
 /** Builds the `catch` handler shared by the certificate operations below. */
 const certificateError =
@@ -70,7 +73,7 @@ export const extractCertificateChain = (
       const pem = `-----BEGIN CERTIFICATE-----\n${cert}\n-----END CERTIFICATE-----`;
       return parseCertificate(pem);
     }),
-  );
+   { concurrency: 1 });
 
 /**
  * Checks if a certificate carries a specific extension OID.
@@ -131,26 +134,31 @@ export const validateCertificateChain = (
     });
 
     // Validate certificate dates with clock skew
-    for (const cert of chain) {
-      const effectiveNotBefore = cert.notBefore.getTime() - MAX_SKEW_MS;
-      const effectiveNotAfter = cert.notAfter.getTime() + MAX_SKEW_MS;
-
-      if (now.getTime() < effectiveNotBefore || now.getTime() > effectiveNotAfter) {
-        return yield* Effect.fail(makeVerificationError(VerificationStatus.INVALID_CERTIFICATE));
-      }
-    }
+    yield* Effect.forEach(
+      chain,
+      (cert) => {
+        const effectiveNotBefore = cert.notBefore.getTime() - MAX_SKEW_MS;
+        const effectiveNotAfter = cert.notAfter.getTime() + MAX_SKEW_MS;
+        return now.getTime() < effectiveNotBefore || now.getTime() > effectiveNotAfter
+          ? Effect.fail(makeVerificationError(VerificationStatus.INVALID_CERTIFICATE))
+          : Effect.void;
+      },
+      { concurrency: 1, discard: true },
+    );
 
     // Verify root is in our trusted root certificates (by SHA-256 thumbprint)
     const rootThumbprint = yield* getThumbprintHex(root);
-    let rootTrusted = false;
-    for (const trustedRootPem of config.rootCertificates) {
-      const trustedRoot = yield* parseCertificate(trustedRootPem);
-      const trustedThumbprint = yield* getThumbprintHex(trustedRoot);
-      if (rootThumbprint === trustedThumbprint) {
-        rootTrusted = true;
-        break;
-      }
-    }
+    const trustMatches = yield* Effect.forEach(
+      config.rootCertificates,
+      (trustedRootPem) =>
+        Effect.gen(function* () {
+          const trustedRoot = yield* parseCertificate(trustedRootPem);
+          const trustedThumbprint = yield* getThumbprintHex(trustedRoot);
+          return rootThumbprint === trustedThumbprint;
+        }),
+      { concurrency: 1 },
+    );
+    const rootTrusted = Arr.some(trustMatches, (matches) => matches);
 
     if (!rootTrusted) {
       return yield* Effect.fail(makeVerificationError(VerificationStatus.VERIFICATION_FAILURE));
@@ -193,3 +201,4 @@ export const getPublicKeyFromChain = (
       catch: toError,
     });
   });
+import * as Arr from "effect/Array";

@@ -1,10 +1,21 @@
-import { Cause, Effect, Exit } from "effect";
-import React, { useCallback, useEffect } from "react";
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as MutableHashSet from "effect/MutableHashSet";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
+import React from "react";
 import { AppState, Linking, Platform } from "react-native";
 
 import type { SdkResolvedPaywall } from "@voidhash/generated-clients";
 import type { VoidhashClient } from "../../client";
 import type { Product } from "../../core/entities/product";
+import type { ProductsBySlug } from "../../core/products/product-service";
 import { COMMERCE_FEATURES_ENABLED } from "../../core/constants";
 import { VoidhashError } from "../../errors";
 import type { PaywallReleaseRuntime } from "../../core/paywalls/paywall-service";
@@ -18,6 +29,7 @@ import {
 } from "../../internal/paywall-bridge/protocol";
 import { PaywallPresenter } from "../../nitro";
 import type { VoidhashContext } from "../components/provider";
+import { toVoidhashInitError } from "../internal/client-lifecycle";
 
 /**
  * Outcome of {@link UsePaywallByLocationResult.show}. Every non-`"shown"`
@@ -73,25 +85,48 @@ export interface UsePaywallByLocationOptions {
 
 interface ResolvedPaywallEntry {
   htmlUrl: string;
-  /** Contract §6 runtime block; `null` for visual-editor releases. */
-  runtime: PaywallReleaseRuntime | null;
+  /** Contract §6 runtime block; absent for visual-editor releases. */
+  runtime: Option.Option<PaywallReleaseRuntime>;
 }
 
-const resolvedPaywallByLocation = new Map<string, ResolvedPaywallEntry>();
-const activeHookCountByLocation = new Map<string, number>();
-const inFlightActionByLocation = new Set<string>();
+const resolvedPaywallByLocation = MutableHashMap.empty<string, ResolvedPaywallEntry>();
+const activeHookCountByLocation = MutableHashMap.empty<string, number>();
+const inFlightActionByLocation = MutableHashSet.empty<string>();
+
+class PaywallBridgeActionError extends Schema.TaggedErrorClass<PaywallBridgeActionError>()(
+  "PaywallBridgeActionError",
+  { cause: Schema.Unknown },
+) {}
 
 export function __internal_resetPaywallByLocationCachesForTests() {
-  resolvedPaywallByLocation.clear();
-  activeHookCountByLocation.clear();
-  inFlightActionByLocation.clear();
+  MutableHashMap.clear(resolvedPaywallByLocation);
+  MutableHashMap.clear(activeHookCountByLocation);
+  MutableHashSet.clear(inFlightActionByLocation);
 }
 
 export function __internal_setResolvedPaywallForTests(
   locationKey: string,
-  entry: ResolvedPaywallEntry,
+  entry: { htmlUrl: string; runtime: unknown },
 ) {
-  resolvedPaywallByLocation.set(locationKey, entry);
+  const candidate = Option.isOption(entry.runtime)
+    ? entry.runtime
+    : Option.fromNullishOr(entry.runtime);
+  MutableHashMap.set(resolvedPaywallByLocation, locationKey, {
+    htmlUrl: entry.htmlUrl,
+    runtime: Option.filter(candidate, isPaywallReleaseRuntime),
+  });
+}
+
+function isPaywallReleaseRuntime(value: unknown): value is PaywallReleaseRuntime {
+  return (
+    P.isObject(value) &&
+    P.hasProperty(value, "contentHash") &&
+    P.isString(value.contentHash) &&
+    P.hasProperty(value, "productSlugs") &&
+    Arr.isArray(value.productSlugs) &&
+    P.hasProperty(value, "variables") &&
+    P.isObject(value.variables)
+  );
 }
 
 function normalizeLocation(locationSlug: string): string {
@@ -99,26 +134,29 @@ function normalizeLocation(locationSlug: string): string {
 }
 
 function getResolvedPaywallEntry(
-  resolvedPaywall: SdkResolvedPaywall | null | undefined,
-): ResolvedPaywallEntry | null {
-  if (!resolvedPaywall) {
-    return null;
+  resolvedPaywall: Option.Option<SdkResolvedPaywall>,
+): Option.Option<ResolvedPaywallEntry> {
+  if (Option.isNone(resolvedPaywall)) {
+    return Option.none();
   }
 
-  const paywallRelease = resolvedPaywall.showing.paywallRelease;
+  const paywallRelease = resolvedPaywall.value.showing.paywallRelease;
   const htmlUrl = paywallRelease?.htmlUrl;
-  if (!htmlUrl || htmlUrl.length === 0) {
-    return null;
+  if (!htmlUrl) {
+    return Option.none();
   }
 
-  return {
+  return Option.some({
     htmlUrl,
-    runtime: paywallRelease?.runtime ?? null,
-  };
+    runtime: Option.fromNullishOr(paywallRelease?.runtime),
+  });
 }
 
 function toPaywallError(value: unknown): Error {
-  return value instanceof Error ? value : new Error(String(value));
+  if (P.isError(value)) return value;
+  return new VoidhashError("UNKNOWN", P.isObject(value) && "message" in value && P.isString(value.message)
+    ? value.message
+    : String(value), { cause: value });
 }
 
 /**
@@ -129,45 +167,53 @@ function toPaywallError(value: unknown): Error {
 async function runBackgroundPreload(options: {
   locationKey: string;
   onPreloadError?: (error: Error) => void;
-  preloadPaywall: () => Promise<Error | null>;
+  preloadPaywall: () => Promise<Option.Option<Error>>;
 }): Promise<void> {
   const error = await options.preloadPaywall();
-  if (!error) {
+  if (Option.isNone(error)) {
     return;
   }
 
-  // This warning is intentionally surfaced in all environments.
-  console.warn(
-    `[voidhash] failed to preload the paywall for location "${options.locationKey}"`,
-    error,
+  EffectRuntime.runSync(
+    Effect.logWarning(
+      `[voidhash] failed to preload the paywall for location "${options.locationKey}"`,
+      error.value,
+    ),
   );
-  options.onPreloadError?.(error);
+  options.onPreloadError?.(error.value);
 }
 
 export async function __internal_runBackgroundPreloadForTests(options: {
   locationKey: string;
   onPreloadError?: (error: Error) => void;
-  preloadPaywall: () => Promise<Error | null>;
+  preloadPaywall: () => Promise<unknown>;
 }) {
-  await runBackgroundPreload(options);
+  await runBackgroundPreload({
+    ...options,
+    preloadPaywall: async () => {
+      const result = await options.preloadPaywall();
+      if (Option.isOption(result)) return Option.filter(result, P.isError);
+      return result == null ? Option.none() : Option.some(toPaywallError(result));
+    },
+  });
 }
 
 function findProductByBridgeProductId(
-  products: Record<string, Product | null>,
+  products: ProductsBySlug,
   productId: string,
-): Product | null {
-  const productList = Object.values(products).filter(
-    (product): product is Product => product !== null,
-  );
+): Option.Option<Product> {
+  const productList = Arr.getSomes(R.values(products));
 
   const byId = productList.find((product) => product.id === productId);
   if (byId) {
-    return byId;
+    return Option.some(byId);
   }
 
   const bySlug = productList.find((product) => product.slug === productId);
-  if (bySlug) return bySlug;
-  return productList.find((product) => product.providerProductId === productId) ?? null;
+  if (bySlug) return Option.some(bySlug);
+  return Option.fromUndefinedOr(
+    productList.find((product) => product.providerProductId === productId),
+  );
 }
 
 interface PaywallPresenterBridgeAdapter {
@@ -175,9 +221,15 @@ interface PaywallPresenterBridgeAdapter {
   postMessage: (locationSlug: string, data: string) => void;
 }
 
+function isRuntimeVariable(value: unknown): value is string | number | boolean {
+  return P.isString(value) || P.isNumber(value) || P.isBoolean(value);
+}
+
 /** `Platform.OS` narrowed to the contract §7.1 platform union. */
-function getBridgePlatform(): "ios" | "android" | undefined {
-  return Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : undefined;
+function getBridgePlatform(): Option.Option<"ios" | "android"> {
+  return Platform.OS === "ios" || Platform.OS === "android"
+    ? Option.some(Platform.OS)
+    : Option.none();
 }
 
 /**
@@ -196,12 +248,14 @@ async function sendConfigureMessage(options: {
 }) {
   const { client, locationKey, presenter, requestId } = options;
 
-  const runtime = resolvedPaywallByLocation.get(locationKey)?.runtime;
-  if (!runtime) {
+  const runtime = MutableHashMap.get(resolvedPaywallByLocation, locationKey).pipe(
+    Option.flatMap((entry) => entry.runtime),
+  );
+  if (Option.isNone(runtime)) {
     return;
   }
 
-  const runtimeConfigResult = await client.internal.buildPaywallRuntimeConfig(runtime);
+  const runtimeConfigResult = await client.internal.buildPaywallRuntimeConfig(runtime.value);
 
   if (runtimeConfigResult.isOk()) {
     const postExit = Effect.runSyncExit(
@@ -217,16 +271,18 @@ async function sendConfigureMessage(options: {
     if (Exit.isSuccess(postExit)) {
       return;
     }
-    // This warning is intentionally surfaced in all environments.
-    console.warn(
-      "[voidhash] failed to send paywall configure message",
-      Cause.squash(postExit.cause),
+    EffectRuntime.runSync(
+      Effect.logWarning(
+        "[voidhash] failed to send paywall configure message",
+        Cause.squash(postExit.cause),
+      ),
     );
   } else {
-    // This warning is intentionally surfaced in all environments.
-    console.warn(
-      "[voidhash] failed to build the paywall runtime config",
-      runtimeConfigResult.error,
+    EffectRuntime.runSync(
+      Effect.logWarning(
+        "[voidhash] failed to build the paywall runtime config",
+        runtimeConfigResult.error,
+      ),
     );
   }
 
@@ -240,10 +296,8 @@ async function sendConfigureMessage(options: {
           createPaywallBridgeConfigureMessage(
             {
               products: [],
-              variables: (runtime.variables ?? {}) as Parameters<
-                typeof createPaywallBridgeConfigureMessage
-              >[0]["variables"],
-              platform: getBridgePlatform(),
+              variables: R.filter(runtime.value.variables ?? {}, isRuntimeVariable),
+              platform: getBridgePlatform().valueOrUndefined,
             },
             requestId,
           ),
@@ -253,10 +307,11 @@ async function sendConfigureMessage(options: {
   );
 
   if (!Exit.isSuccess(fallbackExit)) {
-    // This warning is intentionally surfaced in all environments.
-    console.warn(
-      "[voidhash] failed to send fallback paywall configure message",
-      Cause.squash(fallbackExit.cause),
+    EffectRuntime.runSync(
+      Effect.logWarning(
+        "[voidhash] failed to send fallback paywall configure message",
+        Cause.squash(fallbackExit.cause),
+      ),
     );
   }
 }
@@ -272,18 +327,14 @@ async function handlePaywallBridgeEvent(options: {
   const { client, locationKey, openExternalUrl, paywallOptions, presenter, rawBridgeEvent } =
     options;
 
-  const bridgeEventExit = Effect.runSyncExit(
-    Effect.try({
-      try: () => parsePaywallBridgeEnvelope(rawBridgeEvent),
-      catch: (error) => error,
-    }),
-  );
+  const bridgeEventExit = EffectRuntime.runSyncExit(parsePaywallBridgeEnvelope(rawBridgeEvent));
 
   if (!Exit.isSuccess(bridgeEventExit)) {
-    // This warning is intentionally surfaced in all environments.
-    console.warn(
-      "[voidhash] ignoring unparseable paywall bridge message",
-      Cause.squash(bridgeEventExit.cause),
+    EffectRuntime.runSync(
+      Effect.logWarning(
+        "[voidhash] ignoring unparseable paywall bridge message",
+        Cause.squash(bridgeEventExit.cause),
+      ),
     );
     return;
   }
@@ -324,9 +375,9 @@ async function handlePaywallBridgeEvent(options: {
     return;
   }
 
-  if (inFlightActionByLocation.has(locationKey)) {
+  if (MutableHashSet.has(inFlightActionByLocation, locationKey)) {
     const busyMessage = "Another paywall action is already running";
-    paywallOptions?.onError?.(new Error(busyMessage), {
+    paywallOptions?.onError?.(new VoidhashError("UNKNOWN", busyMessage), {
       action: bridgeEvent.type,
       requestId: bridgeEvent.requestId,
     });
@@ -347,7 +398,7 @@ async function handlePaywallBridgeEvent(options: {
    * throwing. `null` means the action completed (or was cancelled by the
    * customer) and all envelopes have been posted.
    */
-  const runBridgeAction = async (): Promise<VoidhashError | null> => {
+  const runBridgeAction = async (): Promise<Option.Option<VoidhashError>> => {
     if (bridgeEvent.type === "purchase") {
       presenter.postMessage(
         locationKey,
@@ -357,54 +408,54 @@ async function handlePaywallBridgeEvent(options: {
       );
       const productsResult = await client.getProducts();
       if (productsResult.isErr()) {
-        return productsResult.error;
+        return Option.some(productsResult.error);
       }
       const product = findProductByBridgeProductId(
         productsResult.value,
         bridgeEvent.payload.productId,
       );
 
-      if (!product) {
-        return new VoidhashError(
+      if (Option.isNone(product)) {
+        return Option.some(new VoidhashError(
           "FAILED_TO_PURCHASE",
           `Product not found: ${bridgeEvent.payload.productId}`,
-        );
+        ));
       }
 
-      const result = await client.purchase(product);
+      const result = await client.purchase(product.value);
 
       if (result.isErr()) {
-        return result.error;
+        return Option.some(result.error);
       }
 
       if (result.value.status === "cancelled") {
         presenter.postMessage(
           locationKey,
           createPaywallBridgeStatusMessage("cancelled", bridgeEvent.requestId, {
-            productId: product.id,
+            productId: product.value.id,
           }),
         );
-        return null;
+        return Option.none();
       }
 
       paywallOptions?.onPurchase?.({
-        productId: product.id,
+        productId: product.value.id,
         requestId: bridgeEvent.requestId,
       });
       presenter.postMessage(
         locationKey,
         createPaywallBridgeStatusMessage("purchased", bridgeEvent.requestId, {
-          productId: product.id,
+          productId: product.value.id,
         }),
       );
       presenter.postMessage(
         locationKey,
         createPaywallBridgeSuccessResponse("purchase", bridgeEvent.requestId, {
-          productId: product.id,
+          productId: product.value.id,
         }),
       );
       await presenter.dismiss();
-      return null;
+      return Option.none();
     }
 
     presenter.postMessage(
@@ -413,7 +464,7 @@ async function handlePaywallBridgeEvent(options: {
     );
     const restoreResult = await client.restorePurchases();
     if (restoreResult.isErr()) {
-      return restoreResult.error;
+      return Option.some(restoreResult.error);
     }
     paywallOptions?.onRestore?.({
       requestId: bridgeEvent.requestId,
@@ -427,7 +478,7 @@ async function handlePaywallBridgeEvent(options: {
       createPaywallBridgeSuccessResponse("restore", bridgeEvent.requestId),
     );
     await presenter.dismiss();
-    return null;
+    return Option.none();
   };
 
   const postActionFailure = (actionError: VoidhashError | Error) => {
@@ -452,25 +503,23 @@ async function handlePaywallBridgeEvent(options: {
     );
   };
 
-  inFlightActionByLocation.add(locationKey);
-  await Effect.runPromise(
-    Effect.tryPromise({ try: () => runBridgeAction(), catch: (error) => error }).pipe(
-      Effect.flatMap((actionError) =>
-        actionError === null
-          ? Effect.void
-          : Effect.sync(() => {
-              postActionFailure(actionError);
-            }),
-      ),
-      Effect.catch((unexpectedError) =>
-        Effect.sync(() => {
-          postActionFailure(toPaywallError(unexpectedError));
+  MutableHashSet.add(inFlightActionByLocation, locationKey);
+  await EffectRuntime.runPromise(
+    Effect.tryPromise({
+      try: () => runBridgeAction(),
+      catch: (cause) => new PaywallBridgeActionError({ cause }),
+    }).pipe(
+      Effect.tap((actionError) =>
+        Option.match(actionError, {
+          onNone: () => Effect.void,
+          onSome: (error) => Effect.sync(() => postActionFailure(error)),
         }),
+      ),
+      Effect.catchTag("PaywallBridgeActionError", (error) =>
+        Effect.sync(() => postActionFailure(toPaywallError(error.cause))),
       ),
       Effect.ensuring(
-        Effect.sync(() => {
-          inFlightActionByLocation.delete(locationKey);
-        }),
+        Effect.sync(() => MutableHashSet.remove(inFlightActionByLocation, locationKey)),
       ),
     ),
   );
@@ -518,7 +567,7 @@ async function showResolvedPaywall(options: {
   const { client, htmlUrl, locationKey, onBridgeEvent, presenter } = options;
 
   const shown = await presenter.show(locationKey, htmlUrl, onBridgeEvent, () => {
-    inFlightActionByLocation.delete(locationKey);
+    MutableHashSet.remove(inFlightActionByLocation, locationKey);
   });
 
   if (shown) {
@@ -546,9 +595,9 @@ interface ShowPaywallForLocationOptions {
   client: VoidhashClient;
   locationKey: string;
   onBridgeEvent: (rawBridgeEvent: string) => void;
-  preloadPaywall: () => Promise<Error | null>;
-  presenter: PaywallPresenterShowAdapter | null | undefined;
-  voidhashContext: VoidhashContext | null;
+  preloadPaywall: () => Promise<Option.Option<Error>>;
+  presenter: Option.Option<PaywallPresenterShowAdapter>;
+  voidhashContext: Option.Option<VoidhashContext>;
 }
 
 /**
@@ -563,34 +612,39 @@ async function showPaywallForLocation(
   const { client, locationKey, onBridgeEvent, preloadPaywall, presenter, voidhashContext } =
     options;
 
-  if (!commerceFeaturesEnabled || voidhashContext?.status === "disabled") {
+  if (
+    !commerceFeaturesEnabled ||
+    (Option.isSome(voidhashContext) && voidhashContext.value.status === "disabled")
+  ) {
     return { status: "disabled" };
   }
 
-  if (!voidhashContext || voidhashContext.status === "initializing") {
+  if (Option.isNone(voidhashContext) || voidhashContext.value.status === "initializing") {
     return { status: "not_initialized" };
   }
 
-  if (voidhashContext.status === "failed") {
+  if (voidhashContext.value.status === "failed") {
     return {
-      error: voidhashContext.initError ?? new Error("Voidhash client failed to initialize"),
+      error: Option.getOrElse(voidhashContext.value.initError, () =>
+        toVoidhashInitError("Voidhash client failed to initialize"),
+      ),
       status: "initialization_failed",
     };
   }
 
-  if (!presenter) {
+  if (Option.isNone(presenter)) {
     return { status: "native_unavailable" };
   }
 
-  if (!resolvedPaywallByLocation.has(locationKey)) {
+  if (Option.isNone(MutableHashMap.get(resolvedPaywallByLocation, locationKey))) {
     const preloadError = await preloadPaywall();
-    if (preloadError) {
-      return { error: preloadError, status: "failed" };
+    if (Option.isSome(preloadError)) {
+      return { error: preloadError.value, status: "failed" };
     }
   }
 
-  const resolvedEntry = resolvedPaywallByLocation.get(locationKey);
-  if (!resolvedEntry) {
+  const resolvedEntry = MutableHashMap.get(resolvedPaywallByLocation, locationKey);
+  if (Option.isNone(resolvedEntry)) {
     return { status: "not_assigned" };
   }
 
@@ -599,10 +653,10 @@ async function showPaywallForLocation(
       try: () =>
         showResolvedPaywall({
           client,
-          htmlUrl: resolvedEntry.htmlUrl,
+          htmlUrl: resolvedEntry.value.htmlUrl,
           locationKey,
           onBridgeEvent,
-          presenter,
+          presenter: presenter.value,
         }),
       catch: (error) => error,
     }),
@@ -614,7 +668,10 @@ async function showPaywallForLocation(
 
   if (!showExit.value) {
     return {
-      error: new Error(`Native paywall presentation was declined for location "${locationKey}"`),
+      error: new VoidhashError(
+        "UNKNOWN",
+        `Native paywall presentation was declined for location "${locationKey}"`,
+      ),
       status: "failed",
     };
   }
@@ -623,32 +680,83 @@ async function showPaywallForLocation(
 }
 
 export async function __internal_showPaywallForLocationForTests(
-  options: ShowPaywallForLocationOptions,
+  options: {
+    client: VoidhashClient;
+    locationKey: string;
+    onBridgeEvent: (rawBridgeEvent: string) => void;
+    preloadPaywall: () => Promise<unknown>;
+    presenter: unknown;
+    voidhashContext: unknown;
+  },
   commerceFeaturesEnabled = true,
 ) {
-  return await showPaywallForLocation(options, commerceFeaturesEnabled);
+  return await showPaywallForLocation(
+    {
+      ...options,
+      preloadPaywall: async () => {
+        const result = await options.preloadPaywall();
+        if (Option.isOption(result)) return Option.filter(result, P.isError);
+        return result == null ? Option.none() : Option.some(toPaywallError(result));
+      },
+      presenter: Option.filter(Option.fromNullishOr(options.presenter), isPaywallPresenter),
+      voidhashContext: Option.filter(
+        Option.fromNullishOr(options.voidhashContext),
+        isVoidhashContext,
+      ).pipe(
+        Option.map((context) => ({
+          ...context,
+          initError: Option.isOption(context.initError)
+            ? context.initError
+            : Option.fromNullishOr(context.initError),
+        })),
+      ),
+    },
+    commerceFeaturesEnabled,
+  );
+}
+
+function isPaywallPresenter(value: unknown): value is PaywallPresenterShowAdapter {
+  return (
+    P.isObject(value) &&
+    P.hasProperty(value, "dismiss") &&
+    P.isFunction(value.dismiss) &&
+    P.hasProperty(value, "postMessage") &&
+    P.isFunction(value.postMessage) &&
+    P.hasProperty(value, "show") &&
+    P.isFunction(value.show)
+  );
+}
+
+function isVoidhashContext(value: unknown): value is VoidhashContext {
+  return P.isObject(value) && P.hasProperty(value, "status") && P.isString(value.status);
 }
 
 function incrementActiveHookCount(locationSlug: string) {
-  const existingCount = activeHookCountByLocation.get(locationSlug) ?? 0;
-  activeHookCountByLocation.set(locationSlug, existingCount + 1);
+  const existingCount = Option.getOrElse(
+    MutableHashMap.get(activeHookCountByLocation, locationSlug),
+    () => 0,
+  );
+  MutableHashMap.set(activeHookCountByLocation, locationSlug, existingCount + 1);
 }
 
 function decrementActiveHookCount(locationSlug: string) {
-  const existingCount = activeHookCountByLocation.get(locationSlug) ?? 0;
+  const existingCount = Option.getOrElse(
+    MutableHashMap.get(activeHookCountByLocation, locationSlug),
+    () => 0,
+  );
   if (existingCount <= 1) {
-    activeHookCountByLocation.delete(locationSlug);
+    MutableHashMap.remove(activeHookCountByLocation, locationSlug);
     return 0;
   }
 
   const nextCount = existingCount - 1;
-  activeHookCountByLocation.set(locationSlug, nextCount);
+  MutableHashMap.set(activeHookCountByLocation, locationSlug, nextCount);
   return nextCount;
 }
 
 export function paywallByLocationHookFactory(
   client: VoidhashClient,
-  vhContext: React.Context<VoidhashContext | null>,
+  vhContext: React.Context<Option.Option<VoidhashContext>>,
 ) {
   function usePaywallByLocation(
     locationSlug: LocationSlug,
@@ -656,49 +764,54 @@ export function paywallByLocationHookFactory(
   ): UsePaywallByLocationResult {
     const voidhashContext = React.useContext(vhContext);
     const locationKey = normalizeLocation(String(locationSlug));
-    const isReady = COMMERCE_FEATURES_ENABLED && voidhashContext?.status === "ready";
+    const isReady =
+      COMMERCE_FEATURES_ENABLED &&
+      Option.isSome(voidhashContext) &&
+      voidhashContext.value.status === "ready";
 
     // `paywallOptions` is typically a fresh object literal on every render, so
     // the preload effect reads the callback through a ref instead of taking a
     // dependency that would re-run (and re-preload) on every render.
     const onPreloadError = paywallOptions?.onPreloadError;
     const onPreloadErrorRef = React.useRef(onPreloadError);
-    useEffect(() => {
+    React.useEffect(() => {
       onPreloadErrorRef.current = onPreloadError;
     }, [onPreloadError]);
 
     /** Returns the preload failure instead of throwing, so callers decide how to report it. */
-    const preloadPaywall = useCallback(async (): Promise<Error | null> => {
+    const preloadPaywall = React.useCallback(async (): Promise<Option.Option<Error>> => {
       const presenter = PaywallPresenter;
       if (!(isReady && presenter)) {
-        return null;
+        return Option.none();
       }
 
       const resolvedPaywallResult = await client.getPaywallForLocation(locationSlug);
       if (resolvedPaywallResult.isErr()) {
-        return resolvedPaywallResult.error;
+        return Option.some(resolvedPaywallResult.error);
       }
-      const resolvedEntry = getResolvedPaywallEntry(resolvedPaywallResult.value);
+      const resolvedEntry = getResolvedPaywallEntry(
+        Option.fromNullishOr(resolvedPaywallResult.value),
+      );
 
-      if (!resolvedEntry) {
-        resolvedPaywallByLocation.delete(locationKey);
-        return null;
+      if (Option.isNone(resolvedEntry)) {
+        MutableHashMap.remove(resolvedPaywallByLocation, locationKey);
+        return Option.none();
       }
 
-      resolvedPaywallByLocation.set(locationKey, resolvedEntry);
+      MutableHashMap.set(resolvedPaywallByLocation, locationKey, resolvedEntry.value);
       const preloadExit = await Effect.runPromiseExit(
         Effect.tryPromise({
-          try: () => presenter.preload(locationKey, resolvedEntry.htmlUrl),
+          try: () => presenter.preload(locationKey, resolvedEntry.value.htmlUrl),
           catch: (error) => error,
         }),
       );
       if (Exit.isSuccess(preloadExit)) {
-        return null;
+        return Option.none();
       }
-      return toPaywallError(Cause.squash(preloadExit.cause));
+      return Option.some(toPaywallError(Cause.squash(preloadExit.cause)));
     }, [client, isReady, locationKey, locationSlug]);
 
-    const preloadInBackground = useCallback(() => {
+    const preloadInBackground = React.useCallback(() => {
       void runBackgroundPreload({
         locationKey,
         onPreloadError: (error: Error) => onPreloadErrorRef.current?.(error),
@@ -706,7 +819,7 @@ export function paywallByLocationHookFactory(
       });
     }, [locationKey, preloadPaywall]);
 
-    const handleBridgeEvent = useCallback(
+    const handleBridgeEvent = React.useCallback(
       async (rawBridgeEvent: string) => {
         if (!PaywallPresenter) {
           return;
@@ -724,7 +837,7 @@ export function paywallByLocationHookFactory(
       [client, locationKey, paywallOptions],
     );
 
-    const show = useCallback(
+    const show = React.useCallback(
       async () =>
         await showPaywallForLocation({
           client,
@@ -733,25 +846,25 @@ export function paywallByLocationHookFactory(
             void handleBridgeEvent(rawBridgeEvent);
           },
           preloadPaywall,
-          presenter: PaywallPresenter,
+          presenter: Option.fromNullishOr(PaywallPresenter),
           voidhashContext,
         }),
       [handleBridgeEvent, locationKey, preloadPaywall, voidhashContext],
     );
 
-    useEffect(() => {
+    React.useEffect(() => {
       incrementActiveHookCount(locationKey);
 
       return () => {
         const nextCount = decrementActiveHookCount(locationKey);
         if (nextCount === 0 && PaywallPresenter) {
-          inFlightActionByLocation.delete(locationKey);
+          MutableHashSet.remove(inFlightActionByLocation, locationKey);
           PaywallPresenter.release(locationKey);
         }
       };
     }, [locationKey]);
 
-    useEffect(() => {
+    React.useEffect(() => {
       if (!isReady) {
         return;
       }

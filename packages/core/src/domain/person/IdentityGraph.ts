@@ -1,3 +1,9 @@
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as R from "effect/Record";
 /**
  * Order-agnostic identity resolution — the pure core of the event-sourced
  * ("Option B") identity model described in
@@ -47,11 +53,11 @@ export interface IdentityAssertion {
 /** Result of {@link resolveIdentities}. */
 export interface IdentityResolution {
   /** Every distinct id mapped to the canonical distinct id of its component. */
-  readonly canonicalOf: ReadonlyMap<string, string>;
+  readonly canonicalOf: HashMap.HashMap<string, string>;
   /** Canonical distinct id mapped to its sorted component members. */
-  readonly membersOf: ReadonlyMap<string, ReadonlyArray<string>>;
+  readonly membersOf: HashMap.HashMap<string, ReadonlyArray<string>>;
   /** Per distinct id, the earliest event timestamp it was seen at. */
-  readonly firstSeenTs: ReadonlyMap<string, number>;
+  readonly firstSeenTs: HashMap.HashMap<string, number>;
 }
 
 /** Lexicographic, locale-independent string order for deterministic results. */
@@ -80,90 +86,90 @@ export const resolveIdentities = ({
   readonly observations?: Iterable<IdentityObservation>;
   readonly assertions?: Iterable<IdentityAssertion>;
 }): IdentityResolution => {
-  const firstSeen = new Map<string, number>();
-  const see = (distinctId: string, eventTs: number): void => {
-    const current = firstSeen.get(distinctId);
-    if (current === undefined || eventTs < current) {
-      firstSeen.set(distinctId, eventTs);
-    }
-  };
+  const see = (
+    firstSeen: HashMap.HashMap<string, number>,
+    distinctId: string,
+    eventTs: number,
+  ): HashMap.HashMap<string, number> =>
+    HashMap.modifyAt(firstSeen, distinctId, (current) =>
+      Option.some(
+        Math.min(
+          eventTs,
+          Option.getOrElse(current, () => eventTs),
+        ),
+      ),
+    );
 
-  const edges: Array<readonly [string, string]> = [];
-  for (const observation of observations ?? []) {
-    see(observation.distinctId, observation.eventTs);
-  }
-  for (const assertion of assertions ?? []) {
-    see(assertion.distinctIdA, assertion.eventTs);
-    see(assertion.distinctIdB, assertion.eventTs);
-    if (assertion.distinctIdA !== assertion.distinctIdB) {
-      edges.push([assertion.distinctIdA, assertion.distinctIdB]);
-    }
-  }
+  const firstSeenFromObservations = Arr.reduce(
+    Arr.fromIterable(observations ?? []),
+    HashMap.empty<string, number>(),
+    (firstSeen, observation) => see(firstSeen, observation.distinctId, observation.eventTs),
+  );
+  const assertionList = Arr.fromIterable(assertions ?? []);
+  const firstSeen = Arr.reduce(assertionList, firstSeenFromObservations, (current, assertion) =>
+    see(
+      see(current, assertion.distinctIdA, assertion.eventTs),
+      assertion.distinctIdB,
+      assertion.eventTs,
+    ),
+  );
+  const edges = Arr.flatMap(assertionList, (assertion) =>
+    assertion.distinctIdA === assertion.distinctIdB
+      ? []
+      : [[assertion.distinctIdA, assertion.distinctIdB] as const],
+  );
 
   // Union-find. Every key's sort order is fully known before unioning, so the
   // root that survives each union is always the component minimum.
-  const parent = new Map<string, string>();
-  for (const distinctId of firstSeen.keys()) {
-    parent.set(distinctId, distinctId);
-  }
+  let parent = HashMap.map(firstSeen, (_, distinctId) => distinctId);
 
   const findRoot = (start: string): string => {
-    let root = start;
-    let next = parent.get(root);
-    while (next !== undefined && next !== root) {
-      root = next;
-      next = parent.get(root);
+    const next = Option.getOrElse(HashMap.get(parent, start), () => start);
+    if (next === start) {
+      return start;
     }
-    // Path compression keeps repeated lookups near-constant.
-    let cursor = start;
-    while (cursor !== root) {
-      const parentOfCursor = parent.get(cursor) ?? root;
-      parent.set(cursor, root);
-      cursor = parentOfCursor;
-    }
+    const root = findRoot(next);
+    parent = HashMap.set(parent, start, root);
     return root;
   };
 
   const compareKey = (left: string, right: string): number => {
-    const leftTs = firstSeen.get(left) ?? 0;
-    const rightTs = firstSeen.get(right) ?? 0;
+    const leftTs = Option.getOrElse(HashMap.get(firstSeen, left), () => 0);
+    const rightTs = Option.getOrElse(HashMap.get(firstSeen, right), () => 0);
     if (leftTs !== rightTs) {
       return leftTs - rightTs;
     }
     return compareString(left, right);
   };
 
-  for (const [a, b] of edges) {
+  parent = Arr.reduce(edges, parent, (currentParent, [a, b]) => {
+    parent = currentParent;
     const rootA = findRoot(a);
     const rootB = findRoot(b);
     if (rootA === rootB) {
-      continue;
+      return parent;
     }
     // Smaller key becomes the parent → the surviving root is the component min.
-    if (compareKey(rootA, rootB) <= 0) {
-      parent.set(rootB, rootA);
-    } else {
-      parent.set(rootA, rootB);
-    }
-  }
+    return compareKey(rootA, rootB) <= 0
+      ? HashMap.set(parent, rootB, rootA)
+      : HashMap.set(parent, rootA, rootB);
+  });
 
-  const canonicalOf = new Map<string, string>();
-  const members = new Map<string, Array<string>>();
-  for (const distinctId of firstSeen.keys()) {
-    const root = findRoot(distinctId);
-    canonicalOf.set(distinctId, root);
-    const list = members.get(root);
-    if (list) {
-      list.push(distinctId);
-    } else {
-      members.set(root, [distinctId]);
-    }
-  }
+  const [canonicalOf, members] = Arr.reduce(
+    Arr.fromIterable(HashMap.keys(firstSeen)),
+    [HashMap.empty<string, string>(), HashMap.empty<string, ReadonlyArray<string>>()] as const,
+    ([canonicalOf, members], distinctId) => {
+      const root = findRoot(distinctId);
+      return [
+        HashMap.set(canonicalOf, distinctId, root),
+        HashMap.modifyAt(members, root, (current) =>
+          Option.some([...Option.getOrElse(current, () => []), distinctId]),
+        ),
+      ] as const;
+    },
+  );
 
-  const membersOf = new Map<string, ReadonlyArray<string>>();
-  for (const [root, list] of members) {
-    membersOf.set(root, [...list].sort(compareString));
-  }
+  const membersOf = HashMap.map(members, (list) => Arr.sort(list, Order.String));
 
   return { canonicalOf, firstSeenTs: firstSeen, membersOf };
 };
@@ -171,8 +177,8 @@ export const resolveIdentities = ({
 /** The birth coordinates of a person, used to pick a merge survivor. */
 export interface PersonSeniority {
   readonly id: string;
-  readonly firstSeenAt?: Date | null;
-  readonly createdAt?: Date | null;
+  readonly firstSeenAt: Option.Option<Date>;
+  readonly createdAt: Option.Option<Date>;
 }
 
 /**
@@ -191,8 +197,13 @@ export interface PersonSeniority {
  * stabilizes on the genuinely-oldest identity.
  */
 export const comparePersonForMerge = (left: PersonSeniority, right: PersonSeniority): number => {
-  const leftTs = (left.firstSeenAt ?? left.createdAt)?.getTime() ?? 0;
-  const rightTs = (right.firstSeenAt ?? right.createdAt)?.getTime() ?? 0;
+  const timestamp = (person: PersonSeniority): number =>
+    Option.orElse(person.firstSeenAt, () => person.createdAt).pipe(
+      Option.map((date) => date.getTime()),
+      Option.getOrElse(() => 0),
+    );
+  const leftTs = timestamp(left);
+  const rightTs = timestamp(right);
   if (leftTs !== rightTs) {
     return leftTs - rightTs;
   }
@@ -208,9 +219,9 @@ export interface DistinctIdMapping {
 /** The recomputed projection produced by {@link planProjectionRebuild}. */
 export interface RebuildPlan {
   /** Every distinct id mapped to the canonical person id it should resolve to. */
-  readonly canonicalPersonOf: ReadonlyMap<string, string>;
+  readonly canonicalPersonOf: HashMap.HashMap<string, string>;
   /** Each non-canonical person id mapped to the person it should merge into. */
-  readonly mergedInto: ReadonlyMap<string, string>;
+  readonly mergedInto: HashMap.HashMap<string, string>;
 }
 
 /**
@@ -230,49 +241,66 @@ export const planProjectionRebuild = (input: {
   readonly assertions?: Iterable<IdentityAssertion>;
   readonly mappings: Iterable<DistinctIdMapping>;
 }): RebuildPlan => {
-  const personByDistinct = new Map<string, PersonSeniority>();
-  const observations: Array<IdentityObservation> = [];
-  for (const mapping of input.mappings) {
-    personByDistinct.set(mapping.distinctId, mapping.person);
-    observations.push({
+  const mappingList = Arr.fromIterable(input.mappings);
+  const personByDistinct = HashMap.fromIterable(
+    Arr.map(mappingList, (mapping) => [mapping.distinctId, mapping.person] as const),
+  );
+  const observations = Arr.map(
+    mappingList,
+    (mapping): IdentityObservation => ({
       distinctId: mapping.distinctId,
-      eventTs: mapping.person.firstSeenAt?.getTime() ?? mapping.person.createdAt?.getTime() ?? 0,
-    });
-  }
+      eventTs: Option.orElse(mapping.person.firstSeenAt, () => mapping.person.createdAt).pipe(
+        Option.map((date) => date.getTime()),
+        Option.getOrElse(() => 0),
+      ),
+    }),
+  );
 
   const resolution = resolveIdentities({ assertions: input.assertions, observations });
 
-  const canonicalPersonOf = new Map<string, string>();
-  const mergedInto = new Map<string, string>();
+  const [canonicalPersonOf, mergedInto] = Arr.reduce(
+    Arr.fromIterable(HashMap.values(resolution.membersOf)),
+    [HashMap.empty<string, string>(), HashMap.empty<string, string>()] as const,
+    ([canonicalPersonOf, mergedInto], members) => {
+      const personsInComponent = HashMap.fromIterable(
+        Arr.flatMap(members, (distinctId) =>
+          Arr.fromOption(
+            HashMap.get(personByDistinct, distinctId).pipe(
+              Option.map((person) => [person.id, person] as const),
+            ),
+          ),
+        ),
+      );
+      const canonical = Arr.reduce(
+        Arr.fromIterable(HashMap.values(personsInComponent)),
+        Option.none<PersonSeniority>(),
+        (current, person) =>
+          Option.match(current, {
+            onNone: () => Option.some(person),
+            onSome: (selected) =>
+              Option.some(comparePersonForMerge(person, selected) < 0 ? person : selected),
+          }),
+      );
 
-  for (const members of resolution.membersOf.values()) {
-    const personsInComponent = new Map<string, PersonSeniority>();
-    for (const distinctId of members) {
-      const person = personByDistinct.get(distinctId);
-      if (person) {
-        personsInComponent.set(person.id, person);
-      }
-    }
-    let canonical: PersonSeniority | undefined;
-    for (const person of personsInComponent.values()) {
-      if (!canonical || comparePersonForMerge(person, canonical) < 0) {
-        canonical = person;
-      }
-    }
-    if (!canonical) {
-      continue;
-    }
-    for (const distinctId of members) {
-      if (personByDistinct.has(distinctId)) {
-        canonicalPersonOf.set(distinctId, canonical.id);
-      }
-    }
-    for (const person of personsInComponent.values()) {
-      if (person.id !== canonical.id) {
-        mergedInto.set(person.id, canonical.id);
-      }
-    }
-  }
+      return Option.match(canonical, {
+        onNone: () => [canonicalPersonOf, mergedInto] as const,
+        onSome: (selected) =>
+          [
+            Arr.reduce(members, canonicalPersonOf, (result, distinctId) =>
+              HashMap.has(personByDistinct, distinctId)
+                ? HashMap.set(result, distinctId, selected.id)
+                : result,
+            ),
+            Arr.reduce(
+              Arr.fromIterable(HashMap.values(personsInComponent)),
+              mergedInto,
+              (result, person) =>
+                person.id === selected.id ? result : HashMap.set(result, person.id, selected.id),
+            ),
+          ] as const,
+      });
+    },
+  );
 
   return { canonicalPersonOf, mergedInto };
 };
@@ -307,36 +335,43 @@ const isLater = (aTs: number, aId: string, bTs: number, bId: string): boolean =>
  *   `$set_once` value, mirroring PostHog semantics while staying commutative.
  */
 export const foldTraits = (writes: Iterable<TraitWrite>): Record<string, unknown> => {
-  const bestSet = new Map<string, LwwCell>();
-  const bestSetOnce = new Map<string, LwwCell>();
+  const select = (
+    cells: HashMap.HashMap<string, LwwCell>,
+    entries: ReadonlyArray<readonly [string, unknown]>,
+    write: TraitWrite,
+    wins: (current: LwwCell) => boolean,
+  ): HashMap.HashMap<string, LwwCell> =>
+    Arr.reduce(entries, cells, (result, [key, value]) =>
+      HashMap.modifyAt(result, key, (current) =>
+        Option.match(current, {
+          onNone: () => Option.some({ id: write.eventId, ts: write.eventTs, value }),
+          onSome: (cell) =>
+            wins(cell)
+              ? Option.some({ id: write.eventId, ts: write.eventTs, value })
+              : Option.some(cell),
+        }),
+      ),
+    );
 
-  for (const write of writes) {
-    if (write.set) {
-      for (const [key, value] of Object.entries(write.set)) {
-        const current = bestSet.get(key);
-        if (!current || isLater(write.eventTs, write.eventId, current.ts, current.id)) {
-          bestSet.set(key, { id: write.eventId, ts: write.eventTs, value });
-        }
-      }
-    }
-    if (write.setOnce) {
-      for (const [key, value] of Object.entries(write.setOnce)) {
-        const current = bestSetOnce.get(key);
-        if (!current || isLater(current.ts, current.id, write.eventTs, write.eventId)) {
-          bestSetOnce.set(key, { id: write.eventId, ts: write.eventTs, value });
-        }
-      }
-    }
-  }
+  const [bestSet, bestSetOnce] = Arr.reduce(
+    Arr.fromIterable(writes),
+    [HashMap.empty<string, LwwCell>(), HashMap.empty<string, LwwCell>()] as const,
+    ([bestSet, bestSetOnce], write) => [
+      select(bestSet, R.toEntries(write.set ?? {}), write, (current) =>
+        isLater(write.eventTs, write.eventId, current.ts, current.id),
+      ),
+      select(bestSetOnce, R.toEntries(write.setOnce ?? {}), write, (current) =>
+        isLater(current.ts, current.id, write.eventTs, write.eventId),
+      ),
+    ],
+  );
 
-  const resolved: Record<string, unknown> = {};
-  for (const [key, cell] of bestSetOnce) {
-    resolved[key] = cell.value;
-  }
-  for (const [key, cell] of bestSet) {
-    resolved[key] = cell.value;
-  }
-  return resolved;
+  const emptyResolved: Record<string, unknown> = {};
+  return Arr.reduce(
+    [...HashMap.toEntries(bestSetOnce), ...HashMap.toEntries(bestSet)],
+    emptyResolved,
+    (resolved, [key, cell]) => ({ ...resolved, [key]: cell.value }),
+  );
 };
 
 /** Per-trait LWW bookkeeping cell — structurally `PersonTraitMeta` in the DB. */
@@ -363,38 +398,38 @@ export interface TraitFoldState {
  * depends on processing order. Returns fresh objects; inputs are not mutated.
  */
 export const applyTraitWrite = (state: TraitFoldState, write: TraitWrite): TraitFoldState => {
-  const traits = { ...state.traits };
-  const meta: TraitsMeta = { ...state.meta };
-
-  if (write.setOnce) {
-    for (const [key, value] of Object.entries(write.setOnce)) {
-      const cell = meta[key];
-      // `$set_once` loses to any existing `$set`; among `$set_once` writes the
-      // earliest wins.
-      const wins =
-        !cell ||
-        (cell.mode === "setOnce" && isLater(cell.ts, cell.id, write.eventTs, write.eventId));
-      if (wins) {
-        traits[key] = value;
-        meta[key] = { id: write.eventId, mode: "setOnce", ts: write.eventTs };
+  const applyEntries = (
+    current: TraitFoldState,
+    entries: ReadonlyArray<readonly [string, unknown]>,
+    mode: TraitMetaCell["mode"],
+    wins: (cell: TraitMetaCell) => boolean,
+  ): TraitFoldState =>
+    Arr.reduce(entries, current, (result, [key, value]) => {
+      const cell = result.meta[key];
+      if (cell && !wins(cell)) {
+        return result;
       }
-    }
-  }
+      return {
+        meta: {
+          ...result.meta,
+          [key]: { id: write.eventId, mode, ts: write.eventTs },
+        },
+        traits: { ...result.traits, [key]: value },
+      };
+    });
 
-  if (write.set) {
-    for (const [key, value] of Object.entries(write.set)) {
-      const cell = meta[key];
-      // `$set` always outranks `$set_once`; among `$set` writes the newest wins.
-      const wins =
-        !cell || cell.mode === "setOnce" || isLater(write.eventTs, write.eventId, cell.ts, cell.id);
-      if (wins) {
-        traits[key] = value;
-        meta[key] = { id: write.eventId, mode: "set", ts: write.eventTs };
-      }
-    }
-  }
-
-  return { meta, traits };
+  const withSetOnce = applyEntries(
+    state,
+    R.toEntries(write.setOnce ?? {}),
+    "setOnce",
+    (cell) => cell.mode === "setOnce" && isLater(cell.ts, cell.id, write.eventTs, write.eventId),
+  );
+  return applyEntries(
+    withSetOnce,
+    R.toEntries(write.set ?? {}),
+    "set",
+    (cell) => cell.mode === "setOnce" || isLater(write.eventTs, write.eventId, cell.ts, cell.id),
+  );
 };
 
 /**
@@ -404,16 +439,14 @@ export const applyTraitWrite = (state: TraitFoldState, write: TraitWrite): Trait
  * through {@link combineTraitStates} yet loses to any real write.
  */
 export const materializeTraitState = (
-  traits: Readonly<Record<string, unknown>> | null | undefined,
-  meta: Readonly<TraitsMeta> | null | undefined,
+  traits: Option.Option<Readonly<Record<string, unknown>>>,
+  meta: Option.Option<Readonly<TraitsMeta>>,
 ): TraitFoldState => {
-  const nextTraits: Record<string, unknown> = { ...traits };
-  const nextMeta: TraitsMeta = { ...meta };
-  for (const key of Object.keys(nextTraits)) {
-    if (!nextMeta[key]) {
-      nextMeta[key] = { id: "", mode: "set", ts: 0 };
-    }
-  }
+  const nextTraits = { ...Option.getOrElse(traits, () => ({})) };
+  const initialMeta: TraitsMeta = { ...Option.getOrElse(meta, () => ({})) };
+  const nextMeta = Arr.reduce(R.keys(nextTraits), initialMeta, (result, key) =>
+    result[key] ? result : { ...result, [key]: { id: "", mode: "set" as const, ts: 0 } },
+  );
   return { meta: nextMeta, traits: nextTraits };
 };
 
@@ -436,29 +469,29 @@ const traitCellWins = (a: TraitMetaCell, b: TraitMetaCell): boolean => {
  * first so legacy keys without metadata are not dropped.
  */
 export const combineTraitStates = (left: TraitFoldState, right: TraitFoldState): TraitFoldState => {
-  const meta: TraitsMeta = {};
-  const traits: Record<string, unknown> = {};
-  const keys = new Set<string>([...Object.keys(left.meta), ...Object.keys(right.meta)]);
-  for (const key of keys) {
+  const keys = HashSet.fromIterable([...R.keys(left.meta), ...R.keys(right.meta)]);
+  const initial: TraitFoldState = { meta: {}, traits: {} };
+  return Arr.reduce(Arr.fromIterable(keys), initial, (result, key) => {
     const leftCell = left.meta[key];
     const rightCell = right.meta[key];
-    if (leftCell && rightCell) {
-      if (traitCellWins(leftCell, rightCell)) {
-        meta[key] = leftCell;
-        traits[key] = left.traits[key];
-      } else {
-        meta[key] = rightCell;
-        traits[key] = right.traits[key];
-      }
-    } else if (leftCell) {
-      meta[key] = leftCell;
-      traits[key] = left.traits[key];
-    } else if (rightCell) {
-      meta[key] = rightCell;
-      traits[key] = right.traits[key];
-    }
-  }
-  return { meta, traits };
+    const selected =
+      leftCell && rightCell
+        ? traitCellWins(leftCell, rightCell)
+          ? Option.some([leftCell, left.traits[key]] as const)
+          : Option.some([rightCell, right.traits[key]] as const)
+        : leftCell
+          ? Option.some([leftCell, left.traits[key]] as const)
+          : rightCell
+            ? Option.some([rightCell, right.traits[key]] as const)
+            : Option.none();
+    return Option.match(selected, {
+      onNone: () => result,
+      onSome: ([cell, value]) => ({
+        meta: { ...result.meta, [key]: cell },
+        traits: { ...result.traits, [key]: value },
+      }),
+    });
+  });
 };
 
 /**
@@ -484,13 +517,17 @@ const identityLwwFields = ({
   emailCell,
   nameCell,
 }: {
-  readonly emailCell: LwwCell<string> | undefined;
-  readonly nameCell: LwwCell<string> | undefined;
+  readonly emailCell: Option.Option<LwwCell<string>>;
+  readonly nameCell: Option.Option<LwwCell<string>>;
 }): { email?: string; name?: string } => {
-  const fields: { email?: string; name?: string } = {};
-  if (emailCell) fields.email = emailCell.value;
-  if (nameCell) fields.name = nameCell.value;
-  return fields;
+  const email = Option.match(emailCell, {
+    onNone: () => ({}),
+    onSome: (cell) => ({ email: cell.value }),
+  });
+  return Option.match(nameCell, {
+    onNone: () => email,
+    onSome: (cell) => ({ ...email, name: cell.value }),
+  });
 };
 
 /** The fully-resolved view of a single person (one canonical component). */
@@ -507,9 +544,9 @@ export interface ResolvedPerson {
 /** Result of {@link project}. */
 export interface IdentityProjection {
   /** Every distinct id mapped to its canonical (person-key) distinct id. */
-  readonly canonicalOf: ReadonlyMap<string, string>;
+  readonly canonicalOf: HashMap.HashMap<string, string>;
   /** Canonical distinct id mapped to the resolved person. */
-  readonly persons: ReadonlyMap<string, ResolvedPerson>;
+  readonly persons: HashMap.HashMap<string, ResolvedPerson>;
 }
 
 /**
@@ -524,88 +561,119 @@ export interface IdentityProjection {
  * relies on to drop the legacy per-identity serialization.
  */
 export const project = (events: Iterable<IdentityEventInput>): IdentityProjection => {
-  const eventList = [...events];
+  const eventList = Arr.fromIterable(events);
 
-  const observations: Array<IdentityObservation> = [];
-  const assertions: Array<IdentityAssertion> = [];
-  for (const event of eventList) {
-    observations.push({ distinctId: event.distinctId, eventTs: event.eventTs });
-    if (event.previousDistinctId !== undefined) {
-      observations.push({ distinctId: event.previousDistinctId, eventTs: event.eventTs });
-      if (event.previousDistinctId !== event.distinctId) {
-        assertions.push({
-          distinctIdA: event.previousDistinctId,
-          distinctIdB: event.distinctId,
-          eventTs: event.eventTs,
-        });
-      }
-    }
-  }
+  const observations = Arr.flatMap(
+    eventList,
+    (event): ReadonlyArray<IdentityObservation> => [
+      { distinctId: event.distinctId, eventTs: event.eventTs },
+      ...(event.previousDistinctId === undefined
+        ? []
+        : [{ distinctId: event.previousDistinctId, eventTs: event.eventTs }]),
+    ],
+  );
+  const assertions = Arr.flatMap(eventList, (event) =>
+    event.previousDistinctId === undefined || event.previousDistinctId === event.distinctId
+      ? []
+      : [
+          {
+            distinctIdA: event.previousDistinctId,
+            distinctIdB: event.distinctId,
+            eventTs: event.eventTs,
+          },
+        ],
+  );
 
   const resolution = resolveIdentities({ assertions, observations });
 
-  const writesByCanonical = new Map<string, Array<TraitWrite>>();
-  const firstSeenByCanonical = new Map<string, number>();
-  const lastSeenByCanonical = new Map<string, number>();
-  const bestEmail = new Map<string, LwwCell<string>>();
-  const bestName = new Map<string, LwwCell<string>>();
-
   const canonicalFor = (distinctId: string): string =>
-    resolution.canonicalOf.get(distinctId) ?? distinctId;
+    Option.getOrElse(HashMap.get(resolution.canonicalOf, distinctId), () => distinctId);
 
-  for (const event of eventList) {
-    const canonical = canonicalFor(event.distinctId);
+  const state = Arr.reduce(
+    eventList,
+    {
+      bestEmail: HashMap.empty<string, LwwCell<string>>(),
+      bestName: HashMap.empty<string, LwwCell<string>>(),
+      firstSeenByCanonical: HashMap.empty<string, number>(),
+      lastSeenByCanonical: HashMap.empty<string, number>(),
+      writesByCanonical: HashMap.empty<string, ReadonlyArray<TraitWrite>>(),
+    },
+    (state, event) => {
+      const canonical = canonicalFor(event.distinctId);
+      const write: TraitWrite = {
+        eventId: event.eventId,
+        eventTs: event.eventTs,
+        set: event.set,
+        setOnce: event.setOnce,
+      };
+      const updateProfile = (
+        cells: HashMap.HashMap<string, LwwCell<string>>,
+        value: Option.Option<string>,
+      ): HashMap.HashMap<string, LwwCell<string>> =>
+        Option.match(value, {
+          onNone: () => cells,
+          onSome: (value) =>
+            HashMap.modifyAt(cells, canonical, (current) =>
+              Option.match(current, {
+                onNone: () => Option.some({ id: event.eventId, ts: event.eventTs, value }),
+                onSome: (cell) =>
+                  isLater(event.eventTs, event.eventId, cell.ts, cell.id)
+                    ? Option.some({ id: event.eventId, ts: event.eventTs, value })
+                    : Option.some(cell),
+              }),
+            ),
+        });
+      return {
+        bestEmail: updateProfile(state.bestEmail, Option.fromNullishOr(event.email)),
+        bestName: updateProfile(state.bestName, Option.fromNullishOr(event.name)),
+        firstSeenByCanonical: HashMap.modifyAt(state.firstSeenByCanonical, canonical, (current) =>
+          Option.some(
+            Math.min(
+              event.eventTs,
+              Option.getOrElse(current, () => event.eventTs),
+            ),
+          ),
+        ),
+        lastSeenByCanonical: HashMap.modifyAt(state.lastSeenByCanonical, canonical, (current) =>
+          Option.some(
+            Math.max(
+              event.eventTs,
+              Option.getOrElse(current, () => event.eventTs),
+            ),
+          ),
+        ),
+        writesByCanonical: HashMap.modifyAt(state.writesByCanonical, canonical, (current) =>
+          Option.some([...Option.getOrElse(current, () => []), write]),
+        ),
+      };
+    },
+  );
 
-    const writes = writesByCanonical.get(canonical);
-    const write: TraitWrite = {
-      eventId: event.eventId,
-      eventTs: event.eventTs,
-      set: event.set,
-      setOnce: event.setOnce,
-    };
-    if (writes) {
-      writes.push(write);
-    } else {
-      writesByCanonical.set(canonical, [write]);
-    }
-
-    const currentFirst = firstSeenByCanonical.get(canonical);
-    if (currentFirst === undefined || event.eventTs < currentFirst) {
-      firstSeenByCanonical.set(canonical, event.eventTs);
-    }
-    const currentLast = lastSeenByCanonical.get(canonical);
-    if (currentLast === undefined || event.eventTs > currentLast) {
-      lastSeenByCanonical.set(canonical, event.eventTs);
-    }
-
-    if (event.email !== undefined) {
-      const current = bestEmail.get(canonical);
-      if (!current || isLater(event.eventTs, event.eventId, current.ts, current.id)) {
-        bestEmail.set(canonical, { id: event.eventId, ts: event.eventTs, value: event.email });
-      }
-    }
-    if (event.name !== undefined) {
-      const current = bestName.get(canonical);
-      if (!current || isLater(event.eventTs, event.eventId, current.ts, current.id)) {
-        bestName.set(canonical, { id: event.eventId, ts: event.eventTs, value: event.name });
-      }
-    }
-  }
-
-  const persons = new Map<string, ResolvedPerson>();
-  for (const [canonical, distinctIds] of resolution.membersOf) {
-    const emailCell = bestEmail.get(canonical);
-    const nameCell = bestName.get(canonical);
-    persons.set(canonical, {
+  const persons = HashMap.map(resolution.membersOf, (distinctIds, canonical): ResolvedPerson => {
+    const fallbackFirstSeen = Option.getOrElse(
+      HashMap.get(resolution.firstSeenTs, canonical),
+      () => 0,
+    );
+    return {
       canonicalDistinctId: canonical,
       distinctIds,
-      firstSeenTs:
-        firstSeenByCanonical.get(canonical) ?? resolution.firstSeenTs.get(canonical) ?? 0,
-      lastSeenTs: lastSeenByCanonical.get(canonical) ?? resolution.firstSeenTs.get(canonical) ?? 0,
-      traits: foldTraits(writesByCanonical.get(canonical) ?? []),
-      ...identityLwwFields({ emailCell, nameCell }),
-    });
-  }
+      firstSeenTs: Option.getOrElse(
+        HashMap.get(state.firstSeenByCanonical, canonical),
+        () => fallbackFirstSeen,
+      ),
+      lastSeenTs: Option.getOrElse(
+        HashMap.get(state.lastSeenByCanonical, canonical),
+        () => fallbackFirstSeen,
+      ),
+      traits: foldTraits(
+        Option.getOrElse(HashMap.get(state.writesByCanonical, canonical), () => []),
+      ),
+      ...identityLwwFields({
+        emailCell: HashMap.get(state.bestEmail, canonical),
+        nameCell: HashMap.get(state.bestName, canonical),
+      }),
+    };
+  });
 
   return { canonicalOf: resolution.canonicalOf, persons };
 };

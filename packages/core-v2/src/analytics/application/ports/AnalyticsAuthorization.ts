@@ -1,4 +1,6 @@
-import { Context, Schema, type Effect } from "effect";
+import * as Context from "effect/Context";
+import * as Schema from "effect/Schema";
+import type * as Effect from "effect/Effect";
 import type { AuthSession } from "@voidhash/rpc";
 
 import type { AnalyticsPortError } from "./AnalyticsPortError.ts";

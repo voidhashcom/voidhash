@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 
@@ -10,6 +10,7 @@ import { PageParams } from "../Pagination.ts";
 export const WebhookScopeParams = Schema.Struct({
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "WebhookScopeParams" });
+export type WebhookScopeParams = typeof WebhookScopeParams.Type;
 
 /**
  * Query parameters of `GET /webhooks/endpoints`. Endpoints carry no filterable
@@ -20,6 +21,7 @@ export const WebhookEndpointListParams = Schema.Struct({
   ...PageParams.fields,
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "WebhookEndpointListParams" });
+export type WebhookEndpointListParams = typeof WebhookEndpointListParams.Type;
 
 /**
  * Query parameters of `GET /webhooks/deliveries`. `endpointId` narrows the page
@@ -31,6 +33,7 @@ export const WebhookDeliveryListParams = Schema.Struct({
   endpointId: Schema.optional(Schema.String),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "WebhookDeliveryListParams" });
+export type WebhookDeliveryListParams = typeof WebhookDeliveryListParams.Type;
 
 /**
  * Body of `POST /webhooks/endpoints`. `projectId` is optional for a secret key

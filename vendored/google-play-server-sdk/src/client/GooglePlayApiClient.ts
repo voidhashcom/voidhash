@@ -1,4 +1,14 @@
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import {
+  FetchHttpClient,
+  Headers,
+  HttpBody,
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "effect/unstable/http";
 
 import { GooglePlayGeneralError } from "../errors/client-errors.ts";
 import {
@@ -32,20 +42,12 @@ const withQuery = (path: string, params: URLSearchParams): string => {
 };
 
 /** Builds the acknowledge/consume request body, omitted when no payload is set. */
-const developerPayloadBody = (developerPayload?: string) => {
-  if (!developerPayload) {
-    return undefined;
-  }
-  return { developerPayload };
-};
+const developerPayloadBody = (developerPayload: Option.Option<string>) =>
+  Option.map(developerPayload, (value) => ({ developerPayload: value }));
 
 /** Parses a `Retry-After` header value, ignoring absent or unparsable values. */
-const parseRetryAfterSeconds = (retryAfter: string | null) => {
-  if (!retryAfter) {
-    return undefined;
-  }
-  return Number.parseInt(retryAfter);
-};
+const parseRetryAfterSeconds = (retryAfter: Option.Option<string>): Option.Option<number> =>
+  Option.map(retryAfter, Number.parseInt);
 
 /** Tolerant shape of a Google Play API error payload. */
 const ApiErrorBody = Schema.Struct({
@@ -70,11 +72,12 @@ const SubscriptionDeferResponse = Schema.Struct({
  */
 const encodeRequestBody = (
   body: unknown,
-): Effect.Effect<string | undefined, GooglePlayGeneralError> => {
+): Effect.Effect<Option.Option<string>, GooglePlayGeneralError> => {
   if (!body) {
-    return Effect.succeed(undefined);
+    return Effect.succeed(Option.none());
   }
   return Schema.encodeUnknownEffect(Schema.UnknownFromJsonString)(body).pipe(
+    Effect.map(Option.some),
     Effect.mapError(
       (cause) =>
         new GooglePlayGeneralError({
@@ -126,14 +129,22 @@ interface ApiRequestOptions {
  * status, the raw response text and the tolerantly decoded error payload are
  * all the classification needs.
  */
-const classifyApiFailure = (options: ApiRequestOptions, response: Response, responseText: string) =>
+const classifyApiFailure = (
+  options: ApiRequestOptions,
+  response: HttpClientResponse.HttpClientResponse,
+  responseText: string,
+) =>
   Effect.gen(function* () {
     const rawBody = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(
       responseText,
-    ).pipe(Effect.orElseSucceed(() => undefined));
-    const body = yield* Schema.decodeUnknownEffect(ApiErrorBody)(rawBody).pipe(
-      Effect.orElseSucceed((): ApiErrorBodyType => ({})),
-    );
+    ).pipe(Effect.option);
+    const body = yield* Option.match(rawBody, {
+      onNone: () => Effect.succeed<ApiErrorBodyType>({}),
+      onSome: (value) =>
+        Schema.decodeUnknownEffect(ApiErrorBody)(value).pipe(
+          Effect.orElseSucceed((): ApiErrorBodyType => ({})),
+        ),
+    });
     const errorMessage = body.error?.message ?? "Google Play API request failed";
 
     if (response.status === 404) {
@@ -152,7 +163,10 @@ const classifyApiFailure = (options: ApiRequestOptions, response: Response, resp
         }
       }
 
-      if (options.path.includes("/oneTimeProducts/") || options.path.includes("/onetimeproducts/")) {
+      if (
+        options.path.includes("/oneTimeProducts/") ||
+        options.path.includes("/onetimeproducts/")
+      ) {
         const productMatch = options.path.match(/\/(?:oneTimeProducts|onetimeproducts)\/([^/]+)/);
         if (productMatch?.[1]) {
           return yield* new GooglePlayProductNotFoundError({
@@ -183,14 +197,20 @@ const classifyApiFailure = (options: ApiRequestOptions, response: Response, resp
     if (response.status === 429) {
       return yield* new GooglePlayRateLimitExceededError({
         message: errorMessage,
-        retryAfterSeconds: parseRetryAfterSeconds(response.headers.get("Retry-After")),
+        ...Option.match(parseRetryAfterSeconds(Headers.get(response.headers, "Retry-After")), {
+          onNone: () => ({}),
+          onSome: (retryAfterSeconds) => ({ retryAfterSeconds }),
+        }),
       });
     }
 
     if (response.status === 400) {
       return yield* new GooglePlayInvalidRequestError({
         message: errorMessage,
-        details: rawBody,
+        ...Option.match(rawBody, {
+          onNone: () => ({}),
+          onSome: (details) => ({ details }),
+        }),
       });
     }
 
@@ -224,37 +244,36 @@ const makeApiRequest = (options: ApiRequestOptions) =>
         cause,
       });
 
-    const body = yield* encodeRequestBody(options.body);
-
-    const response = yield* Effect.tryPromise({
-      try: () =>
-        // oxlint-disable-next-line effect/noGlobals -- deliberate raw fetch so this module runs on Cloudflare Workers without pulling in an HttpClient dependency.
-        fetch(url, {
-          method: options.method,
+    const encodedBody = yield* encodeRequestBody(options.body);
+    const client = yield* HttpClient.HttpClient;
+    const request = Option.match(encodedBody, {
+      onNone: () => HttpClientRequest.make(options.method)(url, { headers }),
+      onSome: (body) =>
+        HttpClientRequest.make(options.method)(url, {
           headers,
-          body,
+          body: HttpBody.text(body, "application/json"),
         }),
-      catch: transportFailure,
     });
+    const response = yield* client.execute(request).pipe(Effect.mapError(transportFailure));
 
     // Handle empty responses (204, etc.)
-    if (response.status === 204 || response.headers.get("content-length") === "0") {
+    if (
+      response.status === 204 ||
+      Option.contains(Headers.get(response.headers, "content-length"), "0")
+    ) {
       return {};
     }
 
-    const responseText = yield* Effect.tryPromise({
-      try: () => response.text(),
-      catch: transportFailure,
-    });
+    const responseText = yield* response.text.pipe(Effect.mapError(transportFailure));
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       return yield* classifyApiFailure(options, response, responseText);
     }
 
     return yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(responseText).pipe(
       Effect.mapError(transportFailure),
     );
-  });
+  }).pipe(Effect.provide(FetchHttpClient.layer));
 
 // ============================================================================
 // Initialize SDK
@@ -344,7 +363,10 @@ export const initializeSdk = Effect.sync(() =>
         makeApiRequest({
           method: "POST",
           path: `${basePath}/purchases/subscriptions/${subscriptionId}/tokens/${purchaseToken}:acknowledge`,
-          body: developerPayloadBody(developerPayload),
+          ...Option.match(developerPayloadBody(Option.fromNullishOr(developerPayload)), {
+            onNone: () => ({}),
+            onSome: (body) => ({ body }),
+          }),
           auth,
           packageName: input.packageName,
         }).pipe(Effect.asVoid),
@@ -460,7 +482,10 @@ export const initializeSdk = Effect.sync(() =>
         makeApiRequest({
           method: "POST",
           path: `${basePath}/purchases/products/${productId}/tokens/${purchaseToken}:acknowledge`,
-          body: developerPayloadBody(developerPayload),
+          ...Option.match(developerPayloadBody(Option.fromNullishOr(developerPayload)), {
+            onNone: () => ({}),
+            onSome: (body) => ({ body }),
+          }),
           auth,
           packageName: input.packageName,
         }).pipe(Effect.asVoid),

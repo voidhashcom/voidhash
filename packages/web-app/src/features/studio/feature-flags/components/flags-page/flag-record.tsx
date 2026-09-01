@@ -39,7 +39,7 @@ export function FlagRecord({
   const isArchived = flag.archivedAt != null;
   const status = isArchived
     ? { dotClassName: "bg-muted-foreground/50", label: "Archived" }
-    : flag.enabled
+    : flag.isEnabled
       ? { dotClassName: "bg-emerald-500", label: "Enabled" }
       : { dotClassName: "bg-muted-foreground/50", label: "Disabled" };
 
@@ -59,7 +59,7 @@ export function FlagRecord({
             <Link className="truncate font-medium hover:underline" {...detailLink}>
               {flag.slug}
             </Link>
-            {flag.internal ? (
+            {flag.isInternal ? (
               <Badge variant="outline">
                 <FlaskConical className="mr-1 size-3" />
                 Internal

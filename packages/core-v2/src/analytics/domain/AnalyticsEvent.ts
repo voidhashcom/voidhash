@@ -1,6 +1,9 @@
-import { DateTime, Schema } from "effect";
+import * as P from "effect/Predicate";
+import * as DateTime from "effect/DateTime";
+import * as Schema from "effect/Schema";
 
 export const AnalyticsEventSource = Schema.Literals(["sdk", "revenue", "internal"]);
+export type AnalyticsEventSource = typeof AnalyticsEventSource.Type;
 
 /**
  * Storage-neutral event shared by every analytics storage implementation.
@@ -30,6 +33,7 @@ export const AnalyticsEventV1 = Schema.Struct({
   source: AnalyticsEventSource,
   sourceTopic: Schema.String,
 });
+export type AnalyticsEventV1 = typeof AnalyticsEventV1.Type;
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 const decodeJsonRecord = Schema.decodeUnknownSync(
@@ -40,7 +44,7 @@ const normalizeJsonRecord = (value: unknown) => decodeJsonRecord(encodeJson(valu
 
 const storedProperties = (value: Readonly<Record<string, unknown>>) => {
   const inner = value.properties;
-  if (typeof inner !== "object" || inner === null || Array.isArray(inner)) return value;
+  if (!P.isObject(inner) || inner === null || Array.isArray(inner)) return value;
   return normalizeJsonRecord(inner);
 };
 
@@ -51,7 +55,7 @@ const sourceForProcessedTopic = (sourceTopic: string) => {
 };
 
 const previousDistinctIdFrom = (properties: Readonly<Record<string, unknown>>) => {
-  if (typeof properties.$previous_distinct_id === "string") {
+  if (P.isString(properties.$previous_distinct_id)) {
     return properties.$previous_distinct_id;
   }
   return null;

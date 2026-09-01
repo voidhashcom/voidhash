@@ -1,3 +1,4 @@
+import * as Str from "effect/String";
 /**
  * Service that encrypts/decrypts secret payment-provider configuration fields
  * (Apple PKCS8 key, Stripe/Google secrets) using {@link SecretBox} under a key
@@ -11,7 +12,10 @@
  * ciphertext requires the key, else it fails loud).
  */
 import { constant } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Option } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 import {
   decodeEncryptionKey,
@@ -33,7 +37,7 @@ const make = (config: PaymentConfigSecretCryptoConfig) =>
     // A malformed key is a deployment misconfiguration — fail fast (die) at
     // layer construction rather than degrade silently.
     const keyOpt = yield* Effect.gen(function* () {
-      if (keyB64.length === 0) {
+      if (Str.isEmpty(keyB64)) {
         // Intentional no-op mode for local/dev — but loud, so an
         // un-provisioned production environment is visible in logs instead of
         // silently persisting payment-provider secrets as plaintext.

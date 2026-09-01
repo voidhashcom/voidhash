@@ -1,14 +1,15 @@
+import * as P from "effect/Predicate";
 import { cn } from "../lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 function simpleHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.codePointAt(i) ?? 0;
-    hash = (hash << 5) - hash + char;
-    hash &= hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash);
+  return Math.abs(
+    Array.from({ length: str.length }, (_, index) => index).reduce((hash, index) => {
+      const char = str.codePointAt(index) ?? 0;
+      const next = (hash << 5) - hash + char;
+      return next | 0;
+    }, 0),
+  );
 }
 
 /**
@@ -54,14 +55,7 @@ const HSL2RGB = (HBase: number, S: number, L: number) => {
  * @returns {String} 6 digits hex starting with #
  */
 const RGB2HEX = (RGBArray: number[]) => {
-  let hex = "#";
-  for (const value of RGBArray) {
-    if (value < 16) {
-      hex += 0;
-    }
-    hex += value.toString(16);
-  }
-  return hex;
+  return `#${RGBArray.map((value) => `${value < 16 ? "0" : ""}${value.toString(16)}`).join("")}`;
 };
 
 class ColorHash {
@@ -78,26 +72,23 @@ class ColorHash {
       hash?: string | ((str: string) => number);
     } = {},
   ) {
-    const [L, S] = [options.lightness, options.saturation].map((param) => {
-      const paramValue = param !== undefined ? param : [0.35, 0.5, 0.65]; // note that 3 is a prime
-      return Array.isArray(paramValue) ? paramValue.concat() : [paramValue];
-    });
+    const lightness = options.lightness ?? [0.35, 0.5, 0.65];
+    const saturation = options.saturation ?? [0.35, 0.5, 0.65];
+    this.L = Array.isArray(lightness) ? [...lightness] : [lightness];
+    this.S = Array.isArray(saturation) ? [...saturation] : [saturation];
 
-    this.L = L!;
-    this.S = S!;
-
-    if (typeof options.hue === "number") {
+    if (P.isNumber(options.hue)) {
       options.hue = { max: options.hue, min: options.hue };
     }
-    if (typeof options.hue === "object" && !Array.isArray(options.hue)) {
+    if (P.isObject(options.hue) && !Array.isArray(options.hue)) {
       options.hue = [options.hue];
     }
-    if (typeof options.hue === "undefined") {
+    if (P.isUndefined(options.hue)) {
       options.hue = [];
     }
     this.hueRanges = options.hue.map((range) => ({
-      max: typeof range.max === "undefined" ? 360 : range.max,
-      min: typeof range.min === "undefined" ? 0 : range.min,
+      max: P.isUndefined(range.max) ? 360 : range.max,
+      min: P.isUndefined(range.min) ? 0 : range.min,
     }));
   }
 
@@ -116,7 +107,7 @@ class ColorHash {
     let L: number;
 
     if (this.hueRanges.length) {
-      const range = this.hueRanges[hash % this.hueRanges.length]!;
+      const range = this.hueRanges[hash % this.hueRanges.length] ?? { max: 360, min: 0 };
       H =
         (((hash / this.hueRanges.length) % hueResolution) * (range.max - range.min)) /
           hueResolution +
@@ -125,11 +116,11 @@ class ColorHash {
       H = hash % 359;
     }
     hash = Math.ceil(hash / 360);
-    S = this.S[hash % this.S.length]!;
+    S = this.S[hash % this.S.length] ?? 0.5;
     hash = Math.ceil(hash / this.S.length);
-    L = this.L[hash % this.L.length]!;
+    L = this.L[hash % this.L.length] ?? 0.5;
 
-    return [H, S!, L!];
+    return [H, S, L];
   }
 
   /**
@@ -155,11 +146,11 @@ class ColorHash {
     return RGB2HEX(rgb);
   }
 
-  hexPair(str: string) {
+  hexPair(str: string): [string, string] {
     const s1Hsl = this.hsl(str);
-    const s2Hsl = [(s1Hsl[0] + 87) % 360, s1Hsl[1], s1Hsl[2]];
+    const s2Hsl: [number, number, number] = [(s1Hsl[0] + 87) % 360, s1Hsl[1], s1Hsl[2]];
     const rgb1 = HSL2RGB.apply(this, s1Hsl);
-    const rgb2 = HSL2RGB.apply(this, s2Hsl as [number, number, number]);
+    const rgb2 = HSL2RGB.apply(this, s2Hsl);
     const hex1 = RGB2HEX(rgb1);
     const hex2 = RGB2HEX(rgb2);
     return [hex1, hex2];
@@ -168,12 +159,12 @@ class ColorHash {
 
 const colorHash = new ColorHash({ saturation: 1 });
 
-const stringToColours = (s: string): string[] => colorHash.hexPair(s);
+const stringToColours = (s: string): [string, string] => colorHash.hexPair(s);
 
 const generateColours = (s: string): [string, string] => {
   const s1 = s.slice(0, s.length / 2);
   const [c1, c2] = stringToColours(s1);
-  return [c1!, c2!];
+  return [c1, c2];
 };
 
 const generateDataUrl = (s: string): string => {

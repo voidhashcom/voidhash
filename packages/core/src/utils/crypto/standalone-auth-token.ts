@@ -4,7 +4,7 @@
  * The same compact JWT is used as both the browser session cookie value and the
  * `Authorization: Bearer` token, so the backend's cookie and bearer paths
  * collapse onto one verifier. Claims deliberately match
- * `JwtAuthPayloadSchema` (`sub`, `email`, `name`, `image`) so the token flows
+ * `JwtAuthPayloadDefinition` (`sub`, `email`, `name`, `image`) so the token flows
  * through the existing bearer pipeline unchanged.
  *
  * WebCrypto only (no Node `crypto`/`Buffer`), matching {@link jwt-sign} — the
@@ -13,9 +13,17 @@
  *
  * See `docs/standalone-auth-design.md` for the trust model.
  */
-import { Clock, Effect, Encoding, Schema } from "effect";
+import * as Clock from "effect/Clock";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
 import { numberOr } from "@voidhash/lib/lang";
 
+import { promiseOrDie } from "../../effect-boundary.ts";
 import { createHash } from "../../services/apiKeys/create-hash.ts";
 
 /** Raised when a standalone token cannot be signed, parsed, or verified. */
@@ -86,16 +94,19 @@ const signingSignature = (signingInput: string, secret: string) =>
 /** Length-independent comparison so verification does not leak the signature. */
 export const constantTimeEquals = (left: string, right: string): boolean => {
   if (left.length !== right.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < left.length; i++) {
-    mismatch |= left.charCodeAt(i) ^ right.charCodeAt(i);
-  }
-  return mismatch === 0;
+  return (
+    left
+      .split("")
+      .reduce(
+        (mismatch, _, index) => mismatch | (left.charCodeAt(index) ^ right.charCodeAt(index)),
+        0,
+      ) === 0
+  );
 };
 
 /** Lowercase hex sha256 over a UTF-8 string (WebCrypto via `uncrypto`, workerd-safe). */
 const sha256Hex = (value: string): Effect.Effect<string> =>
-  Effect.promise(() => createHash("SHA-256", "hex").digest(value));
+  promiseOrDie(() => createHash("SHA-256", "hex").digest(value));
 
 /**
  * Compares two secrets without leaking their length or contents through timing.
@@ -137,8 +148,8 @@ const JWT_HEADER_JSON = '{"alg":"HS256","typ":"JWT"}';
 
 /** Spreadable fragment: the claim when it carries a value, nothing otherwise. */
 const optionalClaim = (key: "image" | "name", value: unknown): Record<string, string> => {
-  if (typeof value !== "string") return {};
-  if (value.length === 0) return {};
+  if (!P.isString(value)) return {};
+  if (Str.isEmpty(value)) return {};
   return { [key]: value };
 };
 
@@ -153,8 +164,8 @@ export interface StandaloneAuthTokenClaims {
 
 export interface SignStandaloneAuthTokenInput {
   readonly email: string;
-  readonly name?: string | undefined;
-  readonly image?: string | undefined;
+  readonly name: Option.Option<string>;
+  readonly image: Option.Option<string>;
   readonly secret: string;
   /** Seconds until expiry; defaults to {@link STANDALONE_AUTH_DEFAULT_TTL_SECONDS}. */
   readonly expiresInSeconds?: number;
@@ -174,8 +185,8 @@ export const signStandaloneAuthToken = (
       exp: issuedAt + (input.expiresInSeconds ?? STANDALONE_AUTH_DEFAULT_TTL_SECONDS),
       iat: issuedAt,
       sub: STANDALONE_ROOT_SUBJECT,
-      ...optionalClaim("image", input.image),
-      ...optionalClaim("name", input.name),
+      ...optionalClaim("image", Option.getOrUndefined(input.image)),
+      ...optionalClaim("name", Option.getOrUndefined(input.name)),
     };
     const claimsJson = yield* Schema.encodeEffect(StandaloneAuthTokenClaimsJson)(claims).pipe(
       Effect.mapError(
@@ -205,7 +216,7 @@ export const verifyStandaloneAuthToken = (
       header === undefined ||
       payload === undefined ||
       signature === undefined ||
-      rest.length > 0
+      Arr.isReadonlyArrayNonEmpty(rest)
     ) {
       return yield* Effect.fail(
         new StandaloneAuthTokenError({ message: "standalone auth token is malformed" }),
@@ -231,14 +242,16 @@ export const verifyStandaloneAuthToken = (
     );
 
     const { email, exp, iat, sub } = parsed;
-    if (typeof sub !== "string" || typeof email !== "string" || typeof exp !== "number") {
+    if (!P.isString(sub) || !P.isString(email) || !P.isNumber(exp)) {
       return yield* Effect.fail(
         new StandaloneAuthTokenError({ message: "standalone auth token claims are incomplete" }),
       );
     }
     if (sub !== STANDALONE_ROOT_SUBJECT) {
       return yield* Effect.fail(
-        new StandaloneAuthTokenError({ message: "standalone auth token subject is not the root identity" }),
+        new StandaloneAuthTokenError({
+          message: "standalone auth token subject is not the root identity",
+        }),
       );
     }
     const nowMillis = yield* Clock.currentTimeMillis;
@@ -260,15 +273,14 @@ export const verifyStandaloneAuthToken = (
 
 /** Reads a named cookie out of a raw `Cookie` header. */
 export const readCookieValue = (
-  cookieHeader: string | null | undefined,
+  cookieHeader: Option.Option<string>,
   cookieName: string,
-): string | undefined => {
-  if (!cookieHeader) return undefined;
-  for (const segment of cookieHeader.split(";")) {
-    const trimmed = segment.trim();
-    if (trimmed.startsWith(`${cookieName}=`)) {
-      return decodeURIComponent(trimmed.slice(cookieName.length + 1));
-    }
-  }
-  return undefined;
-};
+): Option.Option<string> =>
+  Option.flatMap(cookieHeader, (header) =>
+    Option.map(
+      Arr.findFirst(Str.split(header, ";"), (segment) =>
+        segment.trim().startsWith(`${cookieName}=`),
+      ),
+      (segment) => decodeURIComponent(segment.trim().slice(cookieName.length + 1)),
+    ),
+  );

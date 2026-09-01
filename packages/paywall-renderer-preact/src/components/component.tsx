@@ -1,3 +1,5 @@
+import * as R from "effect/Record";
+import * as Match from "effect/Match";
 import type {
   ActionCallbacks,
   ComponentSnapshotNode,
@@ -13,8 +15,7 @@ import {
   executeComponentBoundAction,
   previewResizeModeToObjectFit,
 } from "@voidhash/paywall-renderer-web-core";
-import type { ComponentChildren } from "preact";
-import { useCallback, useMemo } from "preact/hooks";
+import { createElement, type ComponentChildren } from "preact";
 
 import { usePaywallContext } from "../context/paywall-context";
 import { BUILTIN_RENDERERS } from "./builtins/renderers";
@@ -63,19 +64,15 @@ function previewNodeStyle(
 }
 
 function pickPreviewTree(
-  trees: Record<string, PreviewTree> | undefined,
   previewState: string,
-): PreviewTree | undefined {
+  trees?: Record<string, PreviewTree>,
+) {
   if (!trees) {
     return undefined;
   }
-  for (const candidate of [previewState, "default"]) {
-    const tree = trees[candidate];
-    if (tree) {
-      return tree;
-    }
-  }
-  const firstState = Object.keys(trees)[0];
+  const preferred = [previewState, "default"].map((candidate) => trees[candidate]).find(Boolean);
+  if (preferred) return preferred;
+  const firstState = R.keys(trees)[0];
   return firstState === undefined ? undefined : trees[firstState];
 }
 
@@ -88,19 +85,23 @@ function PreviewNodeView({
   slot: ComponentChildren;
   fireAction: (actionName: string) => void;
 }) {
-  switch (node.type) {
-    case "view":
-    case "scroll": {
-      return (
+  return Match.value(node).pipe(
+    Match.when({ type: "view" }, (node) => (
         <div style={previewNodeStyle(node.style, node.type, node.motion)}>
           {node.children.map((child, index) => (
             // preview trees are immutable per contentHash+state
             <PreviewNodeView fireAction={fireAction} key={index} node={child} slot={slot} />
           ))}
         </div>
-      );
-    }
-    case "pressable": {
+      )),
+    Match.when({ type: "scroll" }, (node) => (
+      <div style={previewNodeStyle(node.style, node.type, node.motion)}>
+        {node.children.map((child, index) => (
+          <PreviewNodeView fireAction={fireAction} key={index} node={child} slot={slot} />
+        ))}
+      </div>
+    )),
+    Match.when({ type: "pressable" }, (node) => {
       const actionName = node.action;
       const onClick = actionName === undefined ? undefined : () => fireAction(actionName);
       return (
@@ -111,12 +112,11 @@ function PreviewNodeView({
           ))}
         </div>
       );
-    }
-    case "text": {
-      return <div style={previewNodeStyle(node.style, "text", node.motion)}>{node.text}</div>;
-    }
-    case "image": {
-      return (
+    }),
+    Match.when({ type: "text" }, (node) => (
+      <div style={previewNodeStyle(node.style, "text", node.motion)}>{node.text}</div>
+    )),
+    Match.when({ type: "image" }, (node) => (
         <img
           alt=""
           src={node.src}
@@ -125,18 +125,13 @@ function PreviewNodeView({
             objectFit: previewResizeModeToObjectFit(node.resizeMode) ?? "cover",
           }}
         />
-      );
-    }
-    case "slot": {
-      return <>{slot}</>;
-    }
-    case "placeholder": {
-      return <div style={PLACEHOLDER_STYLES}>{node.reason}</div>;
-    }
-    default: {
-      return null;
-    }
-  }
+      )),
+    Match.when({ type: "slot" }, () => <>{slot}</>),
+    Match.when({ type: "placeholder" }, (node) => (
+      <div style={PLACEHOLDER_STYLES}>{node.reason}</div>
+    )),
+    Match.orElse(() => null),
+  );
 }
 
 /**
@@ -160,29 +155,23 @@ export function ComponentInstance({ node, children }: ComponentInstanceProps) {
   const variables = getNodeVariables(node.id);
 
   // Wrap onSetVariable to capture this node's ID (same idiom as useInteractions)
-  const scopedCallbacks = useMemo<ActionCallbacks>(
-    () => ({
+  const scopedCallbacks: ActionCallbacks = {
       ...callbacks,
       onSetVariable: (variableId: string, newValue: VariableValue) => {
         setNodeVariable(node.id, variableId, newValue);
       },
-    }),
-    [callbacks, node.id, setNodeVariable],
-  );
+    };
 
   // Preview-tree pressables fire with no payload; builtin implementations may
   // emit one, feeding the bound action's `action-payload` sources.
-  const fireAction = useCallback(
-    (actionName: string, payload?: Record<string, unknown>) => {
+  const fireAction = (actionName: string, payload?: Record<string, unknown>) => {
       const binding = node.data.actionBindings.find((entry) => entry.value?.name === actionName);
       const action = binding?.value?.action;
       if (!action) {
         return;
       }
       executeComponentBoundAction(action, payload, variables, scopedCallbacks);
-    },
-    [node.data.actionBindings, variables, scopedCallbacks],
-  );
+    };
 
   // Builtins ship WITH this renderer: they resolve by stable slug (unpinned —
   // no contentHash) to a REAL preact component, not a pre-rendered preview
@@ -199,13 +188,10 @@ export function ComponentInstance({ node, children }: ComponentInstanceProps) {
       );
     }
     const builtinProps = resolveComponentInstanceProps(node.data.props, variables);
-    return (
-      <div data-node-id={node.id} style={{ display: "contents" }}>
-        {/* @ts-ignore BuiltinRenderer returns preact ComponentChildren — not a valid element type when cross-checked under react-jsx from studio */}
-        <Builtin fireAction={fireAction} props={builtinProps}>
-          {children}
-        </Builtin>
-      </div>
+    return createElement(
+      "div",
+      { "data-node-id": node.id, style: { display: "contents" } },
+      createElement(Builtin, { children, fireAction, props: builtinProps }),
     );
   }
 
@@ -215,7 +201,7 @@ export function ComponentInstance({ node, children }: ComponentInstanceProps) {
   const candidateTrees = isLocal
     ? componentArtifacts?.localTrees?.[node.data.componentPath]
     : componentArtifacts?.trees[node.data.contentHash];
-  const tree = pickPreviewTree(candidateTrees, node.data.previewState);
+  const tree = pickPreviewTree(node.data.previewState, candidateTrees);
 
   if (!tree) {
     // Local instances carry a `componentSlug` sentinel of `""`; label them by

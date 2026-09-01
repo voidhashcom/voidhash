@@ -70,9 +70,9 @@ const backendDeployment = Effect.gen(function* () {
   const planContext = Option.getOrUndefined(yield* Effect.serviceOption(Alchemy.AlchemyContext));
   const dev = planContext?.dev === true;
   const configuredDomain = yield* CommunityBackendDomain;
-  const domain: string | undefined = Match.value(dev).pipe(
+  const domain = Match.value(dev).pipe(
     Match.when(true, () => undefined),
-    Match.orElse(() => configuredDomain),
+    Match.orElse(() => Option.getOrUndefined(configuredDomain)),
   );
 
   return {
@@ -88,10 +88,10 @@ const backendDeployment = Effect.gen(function* () {
   };
 }).pipe(Effect.orDie);
 
-const paywallPublicBaseUrl = (fallback: Effect.Effect<string | undefined>) =>
+const paywallPublicBaseUrl = (fallback: Effect.Effect<Option.Option<string>>) =>
   Effect.flatMap(fallback, (value) => {
     const configured = Config.string("PAYWALL_PUBLIC_BASE_URL");
-    return Option.match(Option.fromNullishOr(value), {
+    return Option.match(value, {
       onNone: () => configured,
       onSome: (fallbackValue) => configured.pipe(Config.withDefault(fallbackValue)),
     });
@@ -101,7 +101,7 @@ const AnalyticsStorage = Config.literals(["postgres", "clickhouse"], "ANALYTICS_
   Config.withDefault("postgres"),
 );
 
-const analyticsLiveFromConfig = Effect.gen(function* () {
+const analyticsLiveFromConfig = Effect.fn("analyticsLiveFromConfig")(function* () {
   if ((yield* AnalyticsStorage) === "postgres") return makePostgresAnalyticsLive();
   const config = {
     database: yield* Config.string("ANALYTICS_CLICKHOUSE_DATABASE").pipe(
@@ -120,9 +120,9 @@ const analyticsLiveFromConfig = Effect.gen(function* () {
     ),
   };
   return makeClickHouseAnalyticsLive(config);
-});
+})();
 
-const workerEnvironment = (publicBaseUrl: Effect.Effect<string | undefined>) => ({
+const workerEnvironment = (publicBaseUrl: Effect.Effect<Option.Option<string>>) => ({
   ANALYTICS_CLICKHOUSE_DATABASE: Config.string("ANALYTICS_CLICKHOUSE_DATABASE").pipe(
     Config.withDefault("default"),
   ),
@@ -174,7 +174,9 @@ export default Cloudflare.Worker(
     compatibility: { date: "2026-03-17", flags: ["nodejs_compat"] },
     dev: { host: "0.0.0.0", port: 8787, strictPort: true },
     env: workerEnvironment(
-      backendDeployment.pipe(Effect.map(({ publicBaseUrl }) => publicBaseUrl)),
+      backendDeployment.pipe(
+        Effect.map(({ publicBaseUrl }) => Option.fromNullishOr(publicBaseUrl)),
+      ),
     ),
   },
   Effect.gen(function* () {
@@ -252,21 +254,22 @@ export default Cloudflare.Worker(
     yield* Effect.forEach(
       backendWorkflows,
       (registration) => registration.register(workflowInfrastructure),
-      { discard: true },
+      { concurrency: 1, discard: true },
     ).pipe(Effect.provide(workflowRuntime), Effect.orDie);
 
     if (!isDev) {
       yield* Effect.forEach(
         backendWorkflows,
         (registration) => {
-          if (registration.cron === undefined) return Effect.void;
-          return Cloudflare.cron(registration.cron.schedule, (controller) =>
-            registration
-              .cron!.dispatch(DateTime.toDateUtc(DateTime.makeUnsafe(controller.scheduledTime)))
+          const cron = registration.cron;
+          if (cron === undefined) return Effect.void;
+          return Cloudflare.cron(cron.schedule, (controller) =>
+            cron
+              .dispatch(DateTime.toDateUtc(DateTime.makeUnsafe(controller.scheduledTime)))
               .pipe(Effect.provide(workflowRuntime)),
           );
         },
-        { discard: true },
+        { concurrency: 1, discard: true },
       );
     }
 
@@ -313,14 +316,14 @@ export default Cloudflare.Worker(
 
     // Build scoped connections in the ambient request scope so a streaming
     // response retains them until its body closes.
-    const captureFetch = Effect.gen(function* () {
+    const captureFetch = Effect.fn("captureFetch")(function* () {
       const requestContext = yield* Layer.build(requestInfrastructure);
       return yield* captureHandler.pipe(Effect.provide(requestContext));
-    });
+    })();
 
-    const backendFetch = Effect.gen(function* () {
+    const backendFetch = Effect.fn("backendFetch")(function* () {
       const requestContext = yield* Layer.build(requestInfrastructure);
-      return yield* Effect.gen(function* () {
+      return yield* Effect.fn("backendFetch")(function* () {
         const handler = yield* buildBackendFetch({
           analytics: AnalyticsLive,
           auth: RpcAuthLive(authTokenVerifier),
@@ -329,17 +332,17 @@ export default Cloudflare.Worker(
           rpcExtension: NoBackendRpcExtension,
         });
         return yield* handler;
-      }).pipe(Effect.provide(requestContext));
-    });
+      })().pipe(Effect.provide(requestContext));
+    })();
 
-    const routedFetch = Effect.gen(function* () {
+    const routedFetch = Effect.fn("routedFetch")(function* () {
       const request = yield* Cloudflare.Request;
       const pathname = new URL(request.url).pathname;
       if (pathname === "/i" || pathname.startsWith("/i/")) {
         return yield* captureFetch;
       }
       return yield* backendFetch;
-    });
+    })();
 
     const fetch = routedFetch.pipe(
       providePlatformRuntime,

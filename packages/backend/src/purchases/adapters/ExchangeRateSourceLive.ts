@@ -5,8 +5,15 @@ import {
   type FxRateLookup,
 } from "@voidhash/core-v2";
 import { causeMessage } from "@voidhash/lib/lang";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import { HttpClient } from "effect/unstable/http";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import { utcTimestamp } from "../../runtime-boundary.ts";
 
 const DEFAULT_BASE_URL = "https://v6.exchangerate-api.com/v6";
 
@@ -31,7 +38,7 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/u, "");
 const utcDay = (epochSeconds: number) => {
   const date = DateTime.toDateUtc(DateTime.makeUnsafe(epochSeconds * 1_000));
   return DateTime.toDateUtc(
-    DateTime.makeUnsafe(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())),
+    DateTime.makeUnsafe(utcTimestamp(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())),
   );
 };
 
@@ -40,20 +47,17 @@ const invertRates = (
   asOfDate: Date,
   source: string,
 ): ReadonlyArray<FxRateLookup> => {
-  const result: FxRateLookup[] = [];
-  for (const [rawCurrency, quote] of Object.entries(rates)) {
-    if (typeof quote !== "number" || !Number.isFinite(quote) || quote <= 0) continue;
+  return Arr.flatMap(R.toEntries(rates), ([rawCurrency, quote]) => {
+    if (!P.isNumber(quote) || !Number.isFinite(quote) || quote <= 0) return [];
     const currency = rawCurrency.toUpperCase();
-    let rate = FX_RATE_PRECISION;
-    if (currency !== "USD") rate = Math.round((1 / quote) * FX_RATE_PRECISION);
-    result.push({
+    const rate = currency === "USD" ? FX_RATE_PRECISION : Math.round((1 / quote) * FX_RATE_PRECISION);
+    return [{
       asOfDate,
       currency,
       rate,
       source,
-    });
-  }
-  return result;
+    }];
+  });
 };
 
 /** Runtime configuration for the ExchangeRate-API source. */
@@ -72,16 +76,13 @@ export const ExchangeRateSourceLive = (
     Effect.gen(function* () {
       const apiKey = yield* config.apiKey;
       const httpClient = yield* HttpClient.HttpClient;
-      let baseUrl = DEFAULT_BASE_URL;
-      if (config.baseUrl !== undefined) {
-        const configuredBaseUrl = (yield* config.baseUrl).trim();
-        if (configuredBaseUrl !== "") baseUrl = configuredBaseUrl;
-      }
+      const configuredBaseUrl = config.baseUrl === undefined ? "" : (yield* config.baseUrl).trim();
+      const baseUrl = configuredBaseUrl === "" ? DEFAULT_BASE_URL : configuredBaseUrl;
       const url = `${trimTrailingSlash(baseUrl)}/${encodeURIComponent(apiKey)}/latest/USD`;
 
       return FxRateSource.of({
         fetchLatestUsdRates: () =>
-          Effect.gen(function* () {
+          Effect.fn("fetchLatestUsdRates")(function* () {
             const response = yield* httpClient
               .get(url, { headers: { Accept: "application/json" } })
               .pipe(Effect.mapError(portError("ExchangeRate API fetch failed")));
@@ -108,7 +109,7 @@ export const ExchangeRateSourceLive = (
               utcDay(payload.time_last_update_unix),
               `exchange-rate-api:latest:${payload.time_last_update_unix}`,
             );
-          }),
+          })(),
       });
     }),
   );

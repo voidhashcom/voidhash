@@ -1,9 +1,16 @@
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
 import {
   type DurableEntityContext,
   DurableEntityHost,
   makeDurableEntityAddress,
 } from "@voidhash/platform/DurableEntity";
-import { Clock, Effect, Layer, Predicate } from "effect";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import { NotFoundError } from "@voidhash/mimic-server/rpc";
 import { constant } from "@voidhash/lib/lang";
@@ -46,15 +53,13 @@ const docKeyOf = (collectionId: string, documentId: string): string =>
  * narrowed here instead of at every broadcast site.
  */
 const isAuthenticatedSession = (attachment: unknown): attachment is SessionAttachment => {
-  if (!Predicate.hasProperty(attachment, "authenticated")) return false;
+  if (!P.hasProperty(attachment, "authenticated")) return false;
   return attachment.authenticated === true;
 };
 
 /** Spreads `userId` into a presence entry only when the connection has one. */
-const optionalUserId = (userId: string | undefined): { readonly userId?: string } => {
-  if (userId === undefined) return {};
-  return { userId };
-};
+const optionalUserId = (userId: Option.Option<string>): { readonly userId?: string } =>
+  Option.match(userId, { onNone: () => ({}), onSome: (value) => ({ userId: value }) });
 
 interface StoredPresence {
   readonly entry: PresenceEntry;
@@ -77,12 +82,15 @@ export interface LocalHostServiceDeps {
 export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService => {
   const { control, entities, migrations, documentStores, config } = deps;
   const schema = makeControlStoreSchemaProvider(control.store);
-  const documents = new Map<string, DocumentEngineApi>();
-  const presence = new Map<string, Map<string, StoredPresence>>();
+  const documents = MutableHashMap.empty<string, DocumentEngineApi>();
+  const presence = MutableHashMap.empty<
+    string,
+    MutableHashMap.MutableHashMap<string, StoredPresence>
+  >();
 
   const getDoc = (collectionId: string, documentId: string): DocumentEngineApi => {
     const key = docKeyOf(collectionId, documentId);
-    let engine = documents.get(key);
+    let engine = Option.getOrUndefined(MutableHashMap.get(documents, key));
     if (!engine) {
       engine = makeDocumentEngine({
         store: documentStores.make(collectionId, documentId),
@@ -90,17 +98,20 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
         schema,
         snapshotEveryCommands: config.snapshotEveryCommands,
       });
-      documents.set(key, engine);
+      MutableHashMap.set(documents, key, engine);
     }
     return engine;
   };
 
-  const presenceOf = (collectionId: string, documentId: string): Map<string, StoredPresence> => {
+  const presenceOf = (
+    collectionId: string,
+    documentId: string,
+  ): MutableHashMap.MutableHashMap<string, StoredPresence> => {
     const key = docKeyOf(collectionId, documentId);
-    let entries = presence.get(key);
+    let entries = Option.getOrUndefined(MutableHashMap.get(presence, key));
     if (!entries) {
-      entries = new Map();
-      presence.set(key, entries);
+      entries = MutableHashMap.empty();
+      MutableHashMap.set(presence, key, entries);
     }
     return entries;
   };
@@ -109,8 +120,8 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     collectionId: string,
     documentId: string,
   ): Record<string, PresenceEntry> =>
-    Object.fromEntries(
-      [...presenceOf(collectionId, documentId)].map(([connectionId, stored]) => [
+    R.fromEntries(
+      Array.from(presenceOf(collectionId, documentId)).map(([connectionId, stored]) => [
         connectionId,
         stored.entry,
       ]),
@@ -145,28 +156,27 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
             if (!isAuthenticatedSession(attachment)) return;
             yield* session.send(encodeServerMessage(message));
           }),
-        { discard: true },
+        { discard: true, concurrency: 1 },
       );
     });
 
   const scheduleAlarmAt = (entity: DurableEntityContext, scheduledTime: number) =>
     Effect.gen(function* () {
       const current = yield* entity.alarm.get;
-      if (current === undefined || scheduledTime < current) {
+      if (Option.isNone(current) || scheduledTime < current.value) {
         yield* entity.alarm.set(scheduledTime);
       }
     });
 
   const scheduleNextPresenceExpiry = (
-    entries: Map<string, StoredPresence>,
+    entries: MutableHashMap.MutableHashMap<string, StoredPresence>,
     entity: DurableEntityContext,
   ) => {
     const expirations: number[] = [];
-    for (const { expiresAt } of entries.values()) {
-      if (expiresAt === undefined) continue;
-      expirations.push(expiresAt);
-    }
-    if (expirations.length === 0) return Effect.void;
+    Array.from(MutableHashMap.values(entries)).forEach(({ expiresAt }) => {
+      if (expiresAt !== undefined) expirations.push(expiresAt);
+    });
+    if (!Arr.isReadonlyArrayNonEmpty(expirations)) return Effect.void;
     return scheduleAlarmAt(entity, Math.min(...expirations));
   };
 
@@ -178,11 +188,15 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     Effect.gen(function* () {
       const entries = presenceOf(collectionId, documentId);
       const now = yield* Clock.currentTimeMillis;
-      for (const [connectionId, stored] of entries) {
-        if (stored.expiresAt === undefined || stored.expiresAt > now) continue;
-        entries.delete(connectionId);
-        yield* broadcast(entity, presenceRemoveMessage(connectionId));
-      }
+      yield* Effect.forEach(
+        Array.from(entries),
+        ([connectionId, stored]) => {
+          if (stored.expiresAt === undefined || stored.expiresAt > now) return Effect.void;
+          MutableHashMap.remove(entries, connectionId);
+          return broadcast(entity, presenceRemoveMessage(connectionId));
+        },
+        { concurrency: 1, discard: true },
+      );
       yield* scheduleNextPresenceExpiry(entries, entity);
     });
 
@@ -196,13 +210,13 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     Effect.gen(function* () {
       yield* prunePresence(collectionId, documentId, entity);
       const entries = presenceOf(collectionId, documentId);
-      const current = entries.get(connectionId);
+      const current = Option.getOrUndefined(MutableHashMap.get(entries, connectionId));
       if (current?.expiresAt === undefined) {
         return yield* Effect.fail(connectionNotFound(connectionId));
       }
       const now = yield* Clock.currentTimeMillis;
       const next = { ...current, expiresAt: now + leaseMs };
-      entries.set(connectionId, next);
+      MutableHashMap.set(entries, connectionId, next);
       yield* scheduleAlarmAt(entity, next.expiresAt);
       return next;
     });
@@ -245,21 +259,26 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
 
     createDocument: (collectionId, id, value) =>
       Effect.suspend(() => {
-        const documentId = id ?? randomId();
+        const documentId = Option.getOrElse(id, randomId);
         return runDocument(collectionId, documentId, () =>
           Effect.gen(function* () {
             // Probe the per-document engine so prepareDocument can heal a half-dead
             // index row (live + same-collection, but the document engine holds no
             // state) instead of conflicting forever — see prepareDocument.
             const prepared = yield* runControl(() =>
-              control.prepareDocument(collectionId, documentId, value, (preparedId) =>
-                getDoc(collectionId, preparedId)
-                  .load()
-                  .pipe(
-                    Effect.as(true),
-                    Effect.catchTag("NotFoundError", () => Effect.succeed(false)),
-                    Effect.catchTag("MigrationFailedError", () => Effect.succeed(true)),
-                  ),
+              control.prepareDocument(
+                collectionId,
+                Option.some(documentId),
+                value,
+                Option.some((preparedId) =>
+                  getDoc(collectionId, preparedId)
+                    .load()
+                    .pipe(
+                      Effect.as(true),
+                      Effect.catchTag("NotFoundError", () => Effect.succeed(false)),
+                      Effect.catchTag("MigrationFailedError", () => Effect.succeed(true)),
+                    ),
+                ),
               ),
             );
             yield* getDoc(collectionId, prepared.documentId).create(
@@ -290,21 +309,24 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     listDocuments: (collectionId) =>
       Effect.gen(function* () {
         const ids = yield* runControl(() => control.listDocumentIds(collectionId));
-        return yield* Effect.forEach(ids, (documentId) =>
-          runDocument(collectionId, documentId, () =>
-            getDoc(collectionId, documentId)
-              .load()
-              .pipe(
-                Effect.map((loaded) =>
-                  constant({
-                    id: documentId,
-                    collectionId,
-                    value: loaded.value,
-                    version: loaded.version,
-                  }),
+        return yield* Effect.forEach(
+          ids,
+          (documentId) =>
+            runDocument(collectionId, documentId, () =>
+              getDoc(collectionId, documentId)
+                .load()
+                .pipe(
+                  Effect.map((loaded) =>
+                    constant({
+                      id: documentId,
+                      collectionId,
+                      value: loaded.value,
+                      version: loaded.version,
+                    }),
+                  ),
                 ),
-              ),
-          ),
+            ),
+          { concurrency: 1 },
         );
       }),
 
@@ -353,14 +375,14 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
           const loaded = yield* getDoc(collectionId, documentId).load();
           const entry: PresenceEntry = {
             data: connectionPresence,
-            ...optionalUserId(userId),
+            ...optionalUserId(Option.fromUndefinedOr(userId)),
           };
           const now = yield* Clock.currentTimeMillis;
           const stored = {
             entry,
             expiresAt: now + leaseMs,
           };
-          presenceOf(collectionId, documentId).set(connectionId, stored);
+          MutableHashMap.set(presenceOf(collectionId, documentId), connectionId, stored);
           yield* scheduleAlarmAt(entity, stored.expiresAt);
           yield* broadcast(entity, presenceUpdateMessage(connectionId, entry.data, entry.userId));
           return {
@@ -410,7 +432,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
             ...transaction,
             actor: {
               connectionId,
-              ...optionalUserId(connection.entry.userId),
+              ...optionalUserId(Option.fromUndefinedOr(connection.entry.userId)),
             },
           };
           const result = yield* getDoc(collectionId, documentId).submit(envelope);
@@ -424,9 +446,11 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     detachConnection: (collectionId, documentId, connectionId) =>
       runDocument(collectionId, documentId, (entity) =>
         Effect.gen(function* () {
-          const removed = presenceOf(collectionId, documentId).delete(connectionId);
+          const entries = presenceOf(collectionId, documentId);
+          const removed = MutableHashMap.has(entries, connectionId);
+          MutableHashMap.remove(entries, connectionId);
           if (removed) yield* broadcast(entity, presenceRemoveMessage(connectionId));
-          if (removed && presenceOf(collectionId, documentId).size === 0) {
+          if (removed && MutableHashMap.isEmpty(entries)) {
             const now = yield* Clock.currentTimeMillis;
             yield* scheduleAlarmAt(entity, now + config.idleNotifyDebounceMs);
           }
@@ -442,11 +466,16 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
       ),
     setPresence: (collectionId, documentId, connectionId, entry) =>
       runDocument(collectionId, documentId, () =>
-        Effect.sync(() => void presenceOf(collectionId, documentId).set(connectionId, { entry })),
+        Effect.sync(
+          () =>
+            void MutableHashMap.set(presenceOf(collectionId, documentId), connectionId, { entry }),
+        ),
       ),
     removePresence: (collectionId, documentId, connectionId) =>
       runDocument(collectionId, documentId, () =>
-        Effect.sync(() => void presenceOf(collectionId, documentId).delete(connectionId)),
+        Effect.sync(
+          () => void MutableHashMap.remove(presenceOf(collectionId, documentId), connectionId),
+        ),
       ),
   };
 };
@@ -463,8 +492,9 @@ export const LocalHostServiceLive = Layer.effect(
     const documentStores = yield* DocumentStoreFactory;
     const config = getConfig();
     const control = makeControlEngine(controlStore, migrations);
-    yield* entities.run(makeDurableEntityAddress("mimic-control", "default"), () =>
-      Effect.gen(function* () {
+    yield* entities.run(
+      makeDurableEntityAddress("mimic-control", "default"),
+      Effect.fn("LocalHostServiceLive")(function* () {
         yield* ensureMigrationRegistry(controlStore, migrations);
         yield* control.ensureRootUser(config.rootUsername, config.rootPassword);
       }),

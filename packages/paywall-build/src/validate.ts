@@ -1,4 +1,8 @@
 import ts from "typescript";
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
 import type { ResolvedComponent } from "./imports.ts";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error } from "./diagnostics.ts";
@@ -17,29 +21,26 @@ import { basename } from "./paths.ts";
  * entry is the ONLY error and short-circuits every other stage.)
  */
 export function validate(components: readonly ResolvedComponent[]): readonly BuildDiagnostic[] {
-  const diagnostics: BuildDiagnostic[] = [];
-
   // Case-insensitive path collision detection.
-  const byLowerPath = new Map<string, string[]>();
-  for (const component of components) {
+  const byLowerPath = components.reduce(
+    (paths, component) => {
     const key = component.path.toLowerCase();
-    const bucket = byLowerPath.get(key);
-    if (bucket) bucket.push(component.path);
-    else byLowerPath.set(key, [component.path]);
-  }
-  for (const [, paths] of byLowerPath) {
-    if (paths.length > 1) {
-      const unique = [...new Set(paths)];
-      for (const path of unique) {
-        diagnostics.push(error(path, "validate", collisionMessage(unique, path)));
-      }
-    }
-  }
+      const bucket = HashMap.get(paths, key).valueOrUndefined ?? [];
+      return HashMap.set(paths, key, [...bucket, component.path]);
+    },
+    HashMap.empty<string, readonly string[]>(),
+  );
+  const collisionDiagnostics = [...byLowerPath].flatMap(([, paths]) => {
+    if (paths[1] === undefined) return [];
+    const unique = Arr.dedupe(paths);
+    return unique.map((path) => error(path, "validate", collisionMessage(unique, path)));
+  });
 
   // Default-export-defineComponent check.
-  for (const component of components) {
-    if (!hasDefineComponentDefaultExport(component)) {
-      diagnostics.push(
+  const exportDiagnostics = components.flatMap((component) =>
+    hasDefineComponentDefaultExport(component)
+      ? []
+      : [
         error(
           component.path,
           "validate",
@@ -48,11 +49,10 @@ export function validate(components: readonly ResolvedComponent[]): readonly Bui
             "`defineComponent(...)` and exported as default is also accepted). Do NOT " +
             "export `definition.component` — export the definition itself.",
         ),
-      );
-    }
-  }
+      ],
+  );
 
-  return diagnostics;
+  return [...collisionDiagnostics, ...exportDiagnostics];
 }
 
 /**
@@ -61,7 +61,7 @@ export function validate(components: readonly ResolvedComponent[]): readonly Bui
  * distinct spellings.
  */
 function collisionMessage(unique: readonly string[], path: string): string {
-  if (unique.length === 1) return `Duplicate component path "${path}".`;
+  if (unique[1] === undefined) return `Duplicate component path "${path}".`;
   const others = unique.filter((p) => p !== path).join(", ");
   return `Component path collides (case-insensitively) with: ${others}.`;
 }
@@ -80,13 +80,14 @@ function hasDefineComponentDefaultExport(component: ResolvedComponent): boolean 
     ts.ScriptKind.TSX,
   );
 
-  const isDefineComponentCall = (expr: ts.Expression | undefined): boolean => {
-    if (!expr) return false;
+  const isDefineComponentCall = (expr: Option.Option<ts.Expression>): boolean => {
+    if (Option.isNone(expr)) return false;
     // Unwrap `defineComponent(...) as X` / parenthesized forms.
-    let node: ts.Expression = expr;
-    while (ts.isAsExpression(node) || ts.isParenthesizedExpression(node)) {
-      node = node.expression;
-    }
+    const unwrap = (node: ts.Expression): ts.Expression =>
+      ts.isAsExpression(node) || ts.isParenthesizedExpression(node)
+        ? unwrap(node.expression)
+        : node;
+    const node = unwrap(expr.value);
     return (
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
@@ -95,36 +96,38 @@ function hasDefineComponentDefaultExport(component: ResolvedComponent): boolean 
   };
 
   // Track `const X = defineComponent(...)` for `export { X as default }`.
-  const defineComponentBindings = new Set<string>();
-  for (const statement of file.statements) {
-    if (ts.isVariableStatement(statement)) {
-      for (const decl of statement.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && isDefineComponentCall(decl.initializer)) {
-          defineComponentBindings.add(decl.name.text);
-        }
+  const defineComponentBindings = file.statements.reduce((bindings, statement) => {
+    if (!ts.isVariableStatement(statement)) return bindings;
+    return statement.declarationList.declarations.reduce((current, declaration) => {
+      if (
+        ts.isIdentifier(declaration.name) &&
+        isDefineComponentCall(Option.fromUndefinedOr(declaration.initializer))
+      ) {
+        return HashSet.add(current, declaration.name.text);
       }
-    }
-  }
+      return current;
+    }, bindings);
+  }, HashSet.empty<string>());
 
-  for (const statement of file.statements) {
+  return file.statements.some((statement) => {
     // `export default defineComponent(...)`
     if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
-      if (isDefineComponentCall(statement.expression)) return true;
+      if (isDefineComponentCall(Option.some(statement.expression))) return true;
       if (
         ts.isIdentifier(statement.expression) &&
-        defineComponentBindings.has(statement.expression.text)
+        HashSet.has(defineComponentBindings, statement.expression.text)
       ) {
         return true;
       }
     }
     // `export { X as default }`
     if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
-      for (const element of statement.exportClause.elements) {
+      return statement.exportClause.elements.some((element) => {
         const exportedAs = element.name.text;
         const local = element.propertyName?.text ?? element.name.text;
-        if (exportedAs === "default" && defineComponentBindings.has(local)) return true;
-      }
+        return exportedAs === "default" && HashSet.has(defineComponentBindings, local);
+      });
     }
-  }
-  return false;
+    return false;
+  });
 }

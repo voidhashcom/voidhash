@@ -13,7 +13,8 @@
  * Its per-occurrence enumeration must grow in lock-step with every newly
  * enabled construct such as UNION arms, lambdas, and windows.
  */
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as HashSet from "effect/HashSet";
 
 import type { InjectedScope } from "./catalog/types.ts";
 import { VoidQlIsolationError } from "./errors.ts";
@@ -21,11 +22,11 @@ import { renderDebugSql, type SqlPiece } from "./ir.ts";
 import type { AuthorizedScope } from "./scope.ts";
 
 /** Physical tables VoidQL is permitted to reference — all only inside a `lower()`. */
-const ALLOWED_PHYSICAL_TABLES = new Set([
+const ALLOWED_PHYSICAL_TABLES = HashSet.make(
   "analytics_events_v2",
   "analytics_persons_v1",
   "analytics_person_identity_pending_overrides_v2",
-]);
+);
 
 /** Tokens that must never appear in compiled VoidQL — the catalog/registry already
  * exclude them; this scan is the independent backstop (T3/T4/T5/T8). */
@@ -46,12 +47,9 @@ const countOccurrences = (haystack: string, needle: string) => haystack.split(ne
 const arrayEqual = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((v, i) => v === b[i]);
 
-const fail = (message: string) =>
-  // `Effect.runSync` on a died effect rethrows the defect verbatim, so callers
-  // still observe the tagged `VoidQlIsolationError` itself.
-  Effect.runSync(
-    Effect.die(new VoidQlIsolationError({ message: `isolation verifier: ${message}` })),
-  );
+const fail = (message: string): never => {
+  throw new VoidQlIsolationError({ message: `isolation verifier: ${message}` });
+};
 
 /**
  * Verify the compiled IR against the authorized scope. Throws
@@ -65,14 +63,14 @@ export const verify = (
   const { sql } = renderDebugSql(pieces);
 
   // ── I1: every injected scope binds to the authorized org and exactly its projects.
-  for (const scoped of injected) {
+  Arr.forEach(injected, (scoped) => {
     if (scoped.orgValue !== scope.organizationId) {
       fail(`base-ref '${scoped.alias}' bound to a non-authorized organization`);
     }
     if (!arrayEqual(scoped.projectValues, scope.availableProjectIds)) {
       fail(`base-ref '${scoped.alias}' bound to the wrong project set`);
     }
-  }
+  });
 
   // ── Triangulation: printer-reported base-refs vs physical tables vs predicates.
   // An `events`/`revenue` lowering scopes TWO physical reads — the dedup scan of
@@ -104,11 +102,11 @@ export const verify = (
   }
 
   // ── I2: only the allow-listed physical tables appear; no table fns / introspection.
-  for (const match of sql.matchAll(VERSIONED_TABLE_RE)) {
-    if (!ALLOWED_PHYSICAL_TABLES.has(match[0])) {
+  Arr.forEach(Arr.fromIterable(sql.matchAll(VERSIONED_TABLE_RE)), (match) => {
+    if (!HashSet.has(ALLOWED_PHYSICAL_TABLES, match[0])) {
       fail(`unexpected physical table token '${match[0]}'`);
     }
-  }
+  });
   if (/\bsystem\./i.test(sql)) fail("reference to a system table");
   const forbidden = FORBIDDEN_TOKEN_RE.exec(sql);
   if (forbidden) fail(`forbidden function/table-function '${forbidden[1]}'`);

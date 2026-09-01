@@ -18,8 +18,20 @@
  * channel rather than thrown.
  */
 import { constant, numberOr, stringOr } from "@voidhash/lib/lang";
-import { Clock, Duration, Effect, Layer, Option, Schema } from "effect";
-import { FetchHttpClient, Headers, HttpBody, HttpClient } from "effect/unstable/http";
+import * as Clock from "effect/Clock";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
+import * as Schema from "effect/Schema";
+import * as P from "effect/Predicate";
+import * as Str from "effect/String";
+import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
+import * as Headers from "effect/unstable/http/Headers";
+import * as HttpBody from "effect/unstable/http/HttpBody";
+import * as HttpClient from "effect/unstable/http/HttpClient";
 
 import { NotificationConfigValidationError } from "../../domain/notifications/PushNotificationConfiguration.ts";
 import { PaymentConfigSecretCrypto } from "../../utils/crypto/PaymentConfigSecretCrypto.ts";
@@ -41,7 +53,7 @@ import {
 } from "./push-delivery-provider.ts";
 
 /** The persisted FCM configuration shape (inside `push_notification_config.configuration`). */
-export const fcmConfigurationSchema = Schema.Struct({
+export const fcmConfigurationDefinition = Schema.Struct({
   /** FCM project id — the `{project_id}` path segment; becomes `pushProviderKey`. */
   projectId: Schema.String.check(Schema.isMinLength(1)),
   /**
@@ -55,7 +67,8 @@ export const fcmConfigurationSchema = Schema.Struct({
   apnsPriority: Schema.optional(Schema.Literals(["5", "10"])),
 });
 
-export type FcmConfiguration = typeof fcmConfigurationSchema.Type;
+export type FcmConfiguration = typeof fcmConfigurationDefinition.Type;
+export type fcmConfigurationDefinition = typeof fcmConfigurationDefinition.Type;
 
 const FCM_DEFAULT_CONFIGURATION = constant({
   projectId: "",
@@ -85,12 +98,8 @@ const encodeJsonValue = Schema.encodeSync(Schema.UnknownFromJsonString);
 const readString = (configuration: Record<string, unknown>, key: string): string =>
   stringOr(configuration[key], "");
 
-const stringOrUndefined = (value: unknown): string | undefined => {
-  if (typeof value === "string") {
-    return value;
-  }
-  return undefined;
-};
+const stringOption = (value: unknown): Option.Option<string> =>
+  P.isString(value) ? Option.some(value) : Option.none();
 
 /**
  * Decode a JSON response body against `schema`, yielding `Option.none()` when the
@@ -106,7 +115,7 @@ interface ServiceAccount {
   readonly tokenUri: string;
 }
 
-const serviceAccountSchema = Schema.fromJsonString(
+const serviceAccountDefinition = Schema.fromJsonString(
   Schema.Struct({
     client_email: Schema.optional(Schema.Unknown),
     private_key: Schema.optional(Schema.Unknown),
@@ -118,10 +127,10 @@ const parseServiceAccount = (
   json: string,
 ): Effect.Effect<ServiceAccount, PushInvalidCredentialsError> =>
   Effect.gen(function* () {
-    const parsed = Option.getOrUndefined(yield* decodeJsonBody(serviceAccountSchema, json));
+    const parsed = Option.getOrUndefined(yield* decodeJsonBody(serviceAccountDefinition, json));
     const clientEmail = stringOr(parsed?.client_email, "");
     const privateKey = stringOr(parsed?.private_key, "");
-    if (clientEmail.length === 0 || privateKey.length === 0) {
+    if (Str.isEmpty(clientEmail) || Str.isEmpty(privateKey)) {
       return yield* new PushInvalidCredentialsError({});
     }
     return {
@@ -133,20 +142,18 @@ const parseServiceAccount = (
 
 /** FCM rejects non-string `data` values, so anything else is JSON-encoded. */
 const toDataValue = (value: unknown): string => {
-  if (typeof value === "string") {
+  if (P.isString(value)) {
     return value;
   }
   return encodeJsonValue(value);
 };
 
 const buildDataBlock = (
-  data: PushMessage["data"],
-): Record<string, string> | undefined => {
-  if (data === undefined) {
-    return undefined;
-  }
-  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, toDataValue(value)]));
-};
+  data: Option.Option<NonNullable<PushMessage["data"]>>,
+): Option.Option<Record<string, string>> =>
+  Option.map(data, (values) =>
+    R.fromEntries(R.toEntries(values).map(([key, value]) => [key, toDataValue(value)])),
+  );
 
 const toAndroidPriority = (priority: PushMessage["priority"]): string => {
   if (priority === "high") {
@@ -166,7 +173,7 @@ export const buildFcmMessage = (
   message: PushMessage,
   options: { readonly androidTtl?: string; readonly apnsPriority?: string },
 ): Record<string, unknown> => {
-  const data = buildDataBlock(message.data);
+  const data = buildDataBlock(Option.fromNullishOr(message.data));
 
   const android: Record<string, unknown> = {
     priority: toAndroidPriority(message.priority),
@@ -208,8 +215,8 @@ export const buildFcmMessage = (
     token: fcmToken,
     notification: { title: message.title, body: message.body },
   };
-  if (data) {
-    fcmMessage.data = data;
+  if (Option.isSome(data)) {
+    fcmMessage.data = data.value;
   }
   fcmMessage.android = android;
   fcmMessage.apns = { headers: apnsHeaders, payload: { aps } };
@@ -217,11 +224,11 @@ export const buildFcmMessage = (
   return { message: fcmMessage };
 };
 
-const sendSuccessSchema = Schema.fromJsonString(
+const sendSuccessDefinition = Schema.fromJsonString(
   Schema.Struct({ name: Schema.optional(Schema.Unknown) }),
 );
 
-const sendErrorSchema = Schema.fromJsonString(
+const sendErrorDefinition = Schema.fromJsonString(
   Schema.Struct({
     error: Schema.optional(
       Schema.Struct({
@@ -245,22 +252,15 @@ const classifyFcmErrorCode = (
   errorCode: string,
   retryAfterSeconds?: number,
 ): Effect.Effect<never, PushDeliveryError> => {
-  switch (errorCode) {
-    case "UNREGISTERED":
-      return Effect.fail(new PushUnregisteredError({ statusCode }));
-    case "INVALID_ARGUMENT":
-    case "SENDER_ID_MISMATCH":
-      return Effect.fail(new PushBadTokenError({ statusCode }));
-    case "QUOTA_EXCEEDED":
-      return Effect.fail(new PushRateExceededError({ statusCode, retryAfterSeconds }));
-    case "THIRD_PARTY_AUTH_ERROR":
-      return Effect.fail(new PushInvalidCredentialsError({ statusCode }));
-    case "UNAVAILABLE":
-    case "INTERNAL":
-      return Effect.fail(new PushTransientError({ statusCode, retryAfterSeconds }));
-    default:
-      break;
-  }
+  if (errorCode === "UNREGISTERED") return Effect.fail(new PushUnregisteredError({ statusCode }));
+  if (errorCode === "INVALID_ARGUMENT" || errorCode === "SENDER_ID_MISMATCH")
+    return Effect.fail(new PushBadTokenError({ statusCode }));
+  if (errorCode === "QUOTA_EXCEEDED")
+    return Effect.fail(new PushRateExceededError({ statusCode, retryAfterSeconds }));
+  if (errorCode === "THIRD_PARTY_AUTH_ERROR")
+    return Effect.fail(new PushInvalidCredentialsError({ statusCode }));
+  if (errorCode === "UNAVAILABLE" || errorCode === "INTERNAL")
+    return Effect.fail(new PushTransientError({ statusCode, retryAfterSeconds }));
   if (statusCode === 401 || statusCode === 403) {
     return Effect.fail(new PushInvalidCredentialsError({ statusCode }));
   }
@@ -295,36 +295,31 @@ export const classifyFcmResult = (
 ): Effect.Effect<PushDeliverySuccess, PushDeliveryError> =>
   Effect.gen(function* () {
     if (statusCode >= 200 && statusCode < 300) {
-      const parsed = Option.getOrUndefined(yield* decodeJsonBody(sendSuccessSchema, bodyText));
-      return { statusCode, providerMessageId: stringOrUndefined(parsed?.name) };
+      const parsed = Option.getOrUndefined(yield* decodeJsonBody(sendSuccessDefinition, bodyText));
+      return { statusCode, providerMessageId: Option.getOrUndefined(stringOption(parsed?.name)) };
     }
 
-    const parsed = Option.getOrUndefined(yield* decodeJsonBody(sendErrorSchema, bodyText));
-    const detailCode = parsed?.error?.details?.find(
-      (detail) => typeof detail?.errorCode === "string",
+    const parsed = Option.getOrUndefined(yield* decodeJsonBody(sendErrorDefinition, bodyText));
+    const detailCode = parsed?.error?.details?.find((detail) =>
+      P.isString(detail?.errorCode),
     )?.errorCode;
     const errorCode = stringOr(detailCode, stringOr(parsed?.error?.status, ""));
 
     return yield* classifyFcmErrorCode(statusCode, errorCode, retryAfterSeconds);
   });
 
-const parseRetryAfterSeconds = (headerValue: string | undefined): number | undefined => {
-  if (!headerValue) {
-    return undefined;
-  }
-  const asSeconds = Number(headerValue);
-  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
-    return asSeconds;
-  }
-  return undefined;
-};
+const parseRetryAfterSeconds = (headerValue: Option.Option<string>): Option.Option<number> =>
+  Option.flatMap(headerValue, (value) => {
+    const asSeconds = Number(value);
+    return Number.isFinite(asSeconds) && asSeconds >= 0 ? Option.some(asSeconds) : Option.none();
+  });
 
 interface CachedAccessToken {
   readonly token: string;
   readonly expiresAtEpochMs: number;
 }
 
-const accessTokenSchema = Schema.fromJsonString(
+const accessTokenDefinition = Schema.fromJsonString(
   Schema.Struct({
     access_token: Schema.optional(Schema.Unknown),
     expires_in: Schema.optional(Schema.Unknown),
@@ -344,7 +339,7 @@ export const makeFirebaseCloudMessagingProvider = (
   // by the (tiny) number of distinct FCM configs an isolate serves; a shared
   // KV/DO cache is a Phase-3 concern. Concurrent refreshes are harmless (last
   // write wins), so no lock is taken.
-  const tokenCache = new Map<string, CachedAccessToken>();
+  const tokenCache = MutableHashMap.empty<string, CachedAccessToken>();
 
   const fetchAccessToken = (account: ServiceAccount): Effect.Effect<string, PushDeliveryError> =>
     Effect.gen(function* () {
@@ -382,14 +377,14 @@ export const makeFirebaseCloudMessagingProvider = (
       }
       // Guard the parse: a non-JSON token response must NOT throw a defect (the
       // consumer recovers typed errors from `deliver`, never defects).
-      const parsed = Option.getOrUndefined(yield* decodeJsonBody(accessTokenSchema, bodyText));
+      const parsed = Option.getOrUndefined(yield* decodeJsonBody(accessTokenDefinition, bodyText));
       const accessToken = stringOr(parsed?.access_token, "");
-      if (accessToken.length === 0) {
+      if (Str.isEmpty(accessToken)) {
         return yield* new PushInvalidCredentialsError({});
       }
       const expiresIn = numberOr(parsed?.expires_in, 3600);
       const issuedAtMillis = yield* Clock.currentTimeMillis;
-      tokenCache.set(account.clientEmail, {
+      MutableHashMap.set(tokenCache, account.clientEmail, {
         token: accessToken,
         expiresAtEpochMs: issuedAtMillis + expiresIn * 1000,
       });
@@ -402,13 +397,16 @@ export const makeFirebaseCloudMessagingProvider = (
   ): Effect.Effect<string, PushDeliveryError> =>
     Effect.gen(function* () {
       if (forceRefresh) {
-        tokenCache.delete(account.clientEmail);
+        MutableHashMap.remove(tokenCache, account.clientEmail);
         return yield* fetchAccessToken(account);
       }
-      const cached = tokenCache.get(account.clientEmail);
+      const cached = MutableHashMap.get(tokenCache, account.clientEmail);
       const nowMillis = yield* Clock.currentTimeMillis;
-      if (cached && cached.expiresAtEpochMs - FCM_TOKEN_REFRESH_SKEW_SECONDS * 1000 > nowMillis) {
-        return cached.token;
+      if (
+        Option.isSome(cached) &&
+        cached.value.expiresAtEpochMs - FCM_TOKEN_REFRESH_SKEW_SECONDS * 1000 > nowMillis
+      ) {
+        return cached.value.token;
       }
       return yield* fetchAccessToken(account);
     });
@@ -434,8 +432,8 @@ export const makeFirebaseCloudMessagingProvider = (
       return {
         status: response.status,
         bodyText,
-        retryAfter: parseRetryAfterSeconds(
-          Option.getOrUndefined(Headers.get(response.headers, "Retry-After")),
+        retryAfter: Option.getOrUndefined(
+          parseRetryAfterSeconds(Headers.get(response.headers, "Retry-After")),
         ),
       };
     }).pipe(
@@ -482,7 +480,7 @@ export const makeFirebaseCloudMessagingProvider = (
     title: "Firebase Cloud Messaging",
     defaultGlobalConfiguration: () => Effect.succeed({ ...FCM_DEFAULT_CONFIGURATION }),
     validateGlobalConfiguration: (configuration) =>
-      Schema.decodeUnknownEffect(fcmConfigurationSchema)(configuration).pipe(
+      Schema.decodeUnknownEffect(fcmConfigurationDefinition)(configuration).pipe(
         Effect.mapError((error) => new NotificationConfigValidationError({ cause: error.message })),
         Effect.flatMap((parsed) =>
           // Encrypt the service-account JSON before persist (idempotent — an
@@ -502,11 +500,11 @@ export const makeFirebaseCloudMessagingProvider = (
       androidPriority: configuration.androidPriority ?? "normal",
       androidTtl: configuration.androidTtl ?? "2419200s",
       apnsPriority: configuration.apnsPriority ?? "10",
-      hasServiceAccountJson: readString(configuration, "serviceAccountJson").length > 0,
+      hasServiceAccountJson: Str.isNonEmpty(readString(configuration, "serviceAccountJson")),
     }),
     hasPlaintextSecret: (configuration) => {
       const secret = readString(configuration, "serviceAccountJson");
-      return secret.length > 0 && !isEncrypted(secret);
+      return Str.isNonEmpty(secret) && !isEncrypted(secret);
     },
     deliver,
   };

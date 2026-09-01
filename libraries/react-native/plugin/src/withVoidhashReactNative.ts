@@ -1,14 +1,13 @@
-// oxlint-disable effect/noDynamicImports -- Expo prebuild loads config plugins through CommonJS `require`, so this file compiles to CJS and locates the shared native core with `require.resolve`.
-// oxlint-disable effect/noNodeBuiltinImport -- Config plugins run in Expo's Node CLI, outside any Effect runtime, so `node:path` is the only path API available here.
-// oxlint-disable effect/noTryCatch -- `require.resolve` signals "not installed" by throwing; there is no non-throwing resolver in CommonJS.
-import path from "node:path";
-
+import { resolveFrom } from "@expo/require-utils";
 import type { ConfigPlugin } from "expo/config-plugins";
 import { CodeGenerator, createRunOncePlugin, withPodfile } from "expo/config-plugins";
+import { dirname, relative, resolve } from "pathe";
 
 import pkg from "../../package.json";
 
-const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
+declare const __dirname: string;
+
+const PACKAGE_ROOT = resolve(__dirname, "..", "..");
 const POD_NAMES = ["VoidhashCore", "Voidhash"] as const;
 const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
 
@@ -19,11 +18,9 @@ const PODFILE_ANCHORS = [/use_expo_modules!/, /use_native_modules!/];
  * where the workspace dependency is not installed.
  */
 const resolveCorePodDirectory = (): string => {
-  try {
-    return path.dirname(require.resolve("@voidhash/ios/package.json", { paths: [PACKAGE_ROOT] }));
-  } catch {
-    return path.resolve(PACKAGE_ROOT, "..", "ios");
-  }
+  const installedPackage = resolveFrom(PACKAGE_ROOT, "@voidhash/ios/package.json");
+  if (installedPackage) return dirname(installedPackage);
+  return resolve(PACKAGE_ROOT, "..", "ios");
 };
 
 /**
@@ -65,7 +62,7 @@ const withVoidhashCorePod: ConfigPlugin<void> = (config) =>
       return podfileConfig;
     }
 
-    const podDirectory = path.relative(
+    const podDirectory = relative(
       podfileConfig.modRequest.platformProjectRoot,
       resolveCorePodDirectory(),
     );

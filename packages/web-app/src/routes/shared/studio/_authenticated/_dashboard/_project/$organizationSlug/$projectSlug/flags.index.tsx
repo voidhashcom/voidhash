@@ -111,9 +111,9 @@ function FlagsIndexPage() {
       case "all":
         return true;
       case "enabled":
-        return !isArchived && flag.enabled;
+        return !isArchived && flag.isEnabled;
       case "disabled":
-        return !isArchived && !flag.enabled;
+        return !isArchived && !flag.isEnabled;
       case "archived":
         return isArchived;
       default: {

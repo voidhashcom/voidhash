@@ -1,7 +1,15 @@
-// oxlint-disable effect/noThrowStatement, effect/noTryCatch, effect/noGlobals -- this module is the Node webhook adapter boundary and is deliberately Effect-free: it is called from plain Express/Fastify route handlers that have no Effect runtime, so verification failures surface as a thrown `VoidhashWebhookVerificationError` (the documented contract of `constructWebhookEvent`), the raw signed body is decoded with `JSON.parse` behind a try/catch, and the tolerance check falls back to the wall clock when the caller injects no `now`. Modelling any of that with Effect would put `effect` in the dependency graph of every consumer of this file.
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
+import * as Arr from "effect/Array";
+import * as DateTime from "effect/DateTime";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
+const effectDecodeJson = Schema.decodeUnknownSync(Schema.UnknownFromJsonString);
 
-import { Buffer } from "node:buffer";
-import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
  * Lifecycle events Voidhash can deliver to a webhook endpoint.
@@ -70,11 +78,11 @@ export interface VoidhashWebhookEvent {
    * {@link WebhookEventName}; names added server side after this SDK release
    * still pass through as plain strings.
    */
-  readonly type: WebhookEventName | (string & {});
+  readonly type: string;
   /** `JSON.parse` of the raw request body. */
   readonly payload: unknown;
   /** Signing time reported by the `X-Webhook-Timestamp` header. */
-  readonly timestamp: Date;
+  readonly timestamp: DateTime.Utc;
 }
 
 const EVENT_HEADER = "x-webhook-event";
@@ -84,74 +92,81 @@ const TIMESTAMP_HEADER = "x-webhook-timestamp";
 const SIGNATURE_PREFIX = "v1=";
 const DEFAULT_TOLERANCE_SECONDS = 300;
 
-/** Unix seconds carried by the timestamp header, or `null` if malformed. */
-const parseTimestampSeconds = (timestamp: string): number | null => {
+/** Unix seconds carried by the timestamp header. */
+const parseTimestampSeconds = (timestamp: string): Option.Option<number> => {
   if (!/^\d+$/.test(timestamp)) {
-    return null;
+    return Option.none();
   }
 
   const seconds = Number(timestamp);
 
   if (!Number.isSafeInteger(seconds)) {
-    return null;
+    return Option.none();
   }
 
-  return seconds;
+  return Option.some(seconds);
 };
 
 const isWithinTolerance = (
   timestampSeconds: number,
-  now: Date,
+  now: DateTime.Utc,
   toleranceSeconds: number,
 ): boolean =>
-  Math.abs(Math.floor(now.getTime() / 1000) - timestampSeconds) <= toleranceSeconds;
+  Math.abs(Math.floor(DateTime.toEpochMillis(now) / 1000) - timestampSeconds) <= toleranceSeconds;
+
+const currentUtc = (): DateTime.Utc =>
+  DateTime.makeUnsafe(globalThis.performance.timeOrigin + globalThis.performance.now());
 
 const computeSignature = (payload: string, timestamp: string, secret: string): string =>
-  `${SIGNATURE_PREFIX}${createHmac("sha256", secret).update(`${timestamp}.${payload}`, "utf8").digest("hex")}`;
+  `${SIGNATURE_PREFIX}${bytesToHex(
+    hmac(sha256, utf8ToBytes(secret), utf8ToBytes(`${timestamp}.${payload}`)),
+  )}`;
 
-/** Length-safe constant-time comparison — `timingSafeEqual` throws on a size mismatch. */
+/** Length-safe constant-time comparison for same-length signature strings. */
 const constantTimeEquals = (left: string, right: string): boolean => {
-  const leftBytes = Buffer.from(left, "utf8");
-  const rightBytes = Buffer.from(right, "utf8");
-
-  if (leftBytes.length !== rightBytes.length) {
+  if (left.length !== right.length) {
     return false;
   }
-
-  return timingSafeEqual(leftBytes, rightBytes);
+  const difference = Arr.reduce(
+    Array.from(left),
+    0,
+    (current, character, index) =>
+      current | (character.charCodeAt(0) ^ right.charCodeAt(index)),
+  );
+  return difference === 0;
 };
 
 /**
  * The one value a header carries, or `undefined` when it was sent more than
  * once — a repeated signing header is ambiguous, so it is treated as missing.
  */
-const singleHeaderValue = (raw: string | string[] | undefined): string | undefined => {
+const singleHeaderValue = (raw?: string | string[]): Option.Option<string> => {
   if (!Array.isArray(raw)) {
-    return raw;
+    return Option.fromNullishOr(raw);
   }
 
   if (raw.length !== 1) {
-    return undefined;
+    return Option.none();
   }
 
-  return raw[0];
+  return Option.fromNullishOr(raw[0]);
 };
 
 const readHeader = (
-  headers: Record<string, string | string[] | undefined>,
+  headers: Readonly<Record<string, string | string[]>>,
   name: string,
 ): string => {
-  const entry = Object.entries(headers).find(([key]) => key.toLowerCase() === name);
+  const entry = R.toEntries(headers).find(([key]) => key.toLowerCase() === name);
   const value = singleHeaderValue(entry?.[1]);
 
-  if (typeof value !== "string" || value.length === 0) {
+  if (Option.isNone(value) || Str.isEmpty(value.value)) {
     throw new VoidhashWebhookVerificationError(
       "missing_header",
       `Webhook request must carry exactly one "${name}" header.`,
     );
   }
 
-  return value;
+  return value.value;
 };
 
 export interface VerifyWebhookSignatureOptions {
@@ -165,8 +180,8 @@ export interface VerifyWebhookSignatureOptions {
   readonly secret: string;
   /** Accepted clock skew in either direction. Defaults to 300 seconds. */
   readonly toleranceSeconds?: number;
-  /** Current time; injectable for tests. Defaults to `new Date()`. */
-  readonly now?: Date;
+  /** Current time; injectable for tests. Defaults to the current UTC instant. */
+  readonly now?: DateTime.Utc;
 }
 
 /**
@@ -182,14 +197,14 @@ export interface VerifyWebhookSignatureOptions {
 export const verifyWebhookSignature = (options: VerifyWebhookSignatureOptions): boolean => {
   const timestampSeconds = parseTimestampSeconds(options.timestamp);
 
-  if (timestampSeconds === null) {
+  if (Option.isNone(timestampSeconds)) {
     return false;
   }
 
   if (
     !isWithinTolerance(
-      timestampSeconds,
-      options.now ?? new Date(),
+      timestampSeconds.value,
+      options.now ?? currentUtc(),
       options.toleranceSeconds ?? DEFAULT_TOLERANCE_SECONDS,
     )
   ) {
@@ -210,13 +225,13 @@ export interface ConstructWebhookEventOptions {
   /** Raw request body string, exactly as received. */
   readonly payload: string;
   /** Inbound request headers; looked up case-insensitively. */
-  readonly headers: Record<string, string | string[] | undefined>;
+  readonly headers: Readonly<Record<string, string | string[]>>;
   /** Endpoint signing secret (`whsec_...`) from Studio. */
   readonly secret: string;
   /** Accepted clock skew in either direction. Defaults to 300 seconds. */
   readonly toleranceSeconds?: number;
-  /** Current time; injectable for tests. Defaults to `new Date()`. */
-  readonly now?: Date;
+  /** Current time; injectable for tests. Defaults to the current UTC instant. */
+  readonly now?: DateTime.Utc;
 }
 
 /**
@@ -262,9 +277,12 @@ export const constructWebhookEvent = (
 
   const timestampSeconds = parseTimestampSeconds(timestamp);
   const toleranceSeconds = options.toleranceSeconds ?? DEFAULT_TOLERANCE_SECONDS;
-  const now = options.now ?? new Date();
+  const now = options.now ?? currentUtc();
 
-  if (timestampSeconds === null || !isWithinTolerance(timestampSeconds, now, toleranceSeconds)) {
+  if (
+    Option.isNone(timestampSeconds) ||
+    !isWithinTolerance(timestampSeconds.value, now, toleranceSeconds)
+  ) {
     throw new VoidhashWebhookVerificationError(
       "timestamp_out_of_tolerance",
       `Webhook timestamp "${timestamp}" is not within ${toleranceSeconds}s of the current time.`,
@@ -287,21 +305,20 @@ export const constructWebhookEvent = (
     );
   }
 
-  let payload: unknown;
-
-  try {
-    payload = JSON.parse(options.payload);
-  } catch (cause) {
-    throw new VoidhashWebhookVerificationError(
-      "invalid_payload",
-      "Webhook payload is not valid JSON.",
-      { cause },
-    );
-  }
+  const payload = Result.try(() => effectDecodeJson(options.payload)).pipe(
+    Result.getOrThrowWith(
+      (cause) =>
+        new VoidhashWebhookVerificationError(
+          "invalid_payload",
+          "Webhook payload is not valid JSON.",
+          { cause },
+        ),
+    ),
+  );
 
   return {
     payload,
-    timestamp: new Date(timestampSeconds * 1000),
+    timestamp: DateTime.makeUnsafe(timestampSeconds.value * 1000),
     type: eventName,
   };
 };

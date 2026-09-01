@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { constant } from "@voidhash/lib/lang";
 
 /**
@@ -17,7 +17,7 @@ export const VerificationStatus = constant({
 
 export type VerificationStatus = (typeof VerificationStatus)[keyof typeof VerificationStatus];
 
-export const VerificationStatusSchema = Schema.Union([
+export const VerificationStatusCodec = Schema.Union([
   Schema.Literal(VerificationStatus.OK),
   Schema.Literal(VerificationStatus.VERIFICATION_FAILURE),
   Schema.Literal(VerificationStatus.RETRYABLE_VERIFICATION_FAILURE),
@@ -27,6 +27,7 @@ export const VerificationStatusSchema = Schema.Union([
   Schema.Literal(VerificationStatus.INVALID_CERTIFICATE),
   Schema.Literal(VerificationStatus.FAILURE),
 ]);
+export type VerificationStatusCodec = typeof VerificationStatusCodec.Type;
 
 /**
  * Error thrown when JWS verification fails.
@@ -34,7 +35,7 @@ export const VerificationStatusSchema = Schema.Union([
 export class VerificationError extends Schema.TaggedErrorClass<VerificationError>(
   "VerificationError",
 )("VerificationError", {
-  status: VerificationStatusSchema,
+  status: VerificationStatusCodec,
   cause: Schema.OptionFromOptionalKey(Schema.Unknown),
 }) {
   get isRetryable(): boolean {
@@ -63,3 +64,5 @@ export class CertificateError extends Schema.TaggedErrorClass<CertificateError>(
     cause: Schema.OptionFromOptionalKey(Schema.Unknown),
   },
 ) {}
+
+export { VerificationStatusCodec as VerificationStatusSchema };

@@ -1,5 +1,13 @@
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { sql } from "drizzle-orm";
 
 import { Db, paywallComponentManifests } from "@voidhash/db";
@@ -55,15 +63,17 @@ export interface RecordComponentManifestInput {
 
 /**
  * A resolved cache row: the compile status plus, when `ready`, the validated
- * {@link ComponentManifest}. `error` rows carry `manifest: null`.
+ * {@link ComponentManifest}. `error` rows carry no manifest or preview trees.
  */
 export interface CachedComponentManifest {
   readonly sourceHash: string;
   readonly status: "ready" | "error";
-  readonly manifest: ComponentManifest | null;
-  readonly previewTrees: Readonly<Record<string, unknown>> | null;
+  readonly manifest: Option.Option<ComponentManifest>;
+  readonly previewTrees: Option.Option<Readonly<Record<string, unknown>>>;
   readonly diagnostics: ReadonlyArray<ComponentManifestDiagnostic>;
 }
+
+type CachedComponentManifestEntry = readonly [string, CachedComponentManifest];
 
 /**
  * `ComponentManifestCacheService` owns the content-addressed component-manifest
@@ -89,7 +99,7 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
        * Validate an unknown value as an OSS v2 {@link ComponentManifest} on the
        * Effect channel: a `parseComponentManifest` failure fails with a
        * {@link ComponentManifestInvalidError} carrying the joined reasons. This
-       * replaces the deploy-side `ComponentManifestSchema` decode — the workspace
+       * replaces the deploy-side `ComponentManifestDefinition` decode — the workspace
        * cache stores the v2 (id-less) manifest the browser/container compiler
        * extracts, which the document-first tools consume directly.
        */
@@ -127,39 +137,41 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
             input.sourceHash,
           );
 
-          let manifest: ComponentManifest | null = null;
-          if (input.status === "ready") {
-            if (input.manifest === undefined) {
-              return yield* Effect.fail(
-                new ComponentManifestInvalidError({
-                  message: `A "ready" manifest upload for ${input.sourceHash} carried no manifest.`,
-                }),
-              );
-            }
-            manifest = yield* decodeManifest(input.manifest).pipe(
-              Effect.mapError(
-                (error) =>
-                  new ComponentManifestInvalidError({
-                    message: `Component manifest for ${input.sourceHash} ${error.message}`,
-                  }),
-              ),
-            );
-          }
+          const manifest = yield* input.status === "ready"
+            ? Option.match(Option.fromNullishOr(input.manifest), {
+                onNone: () =>
+                  Effect.fail(
+                    new ComponentManifestInvalidError({
+                      message: `A "ready" manifest upload for ${input.sourceHash} carried no manifest.`,
+                    }),
+                  ),
+                onSome: (value) =>
+                  decodeManifest(value).pipe(
+                    Effect.map(Option.some),
+                    Effect.mapError(
+                      (error) =>
+                        new ComponentManifestInvalidError({
+                          message: `Component manifest for ${input.sourceHash} ${error.message}`,
+                        }),
+                    ),
+                  ),
+              })
+            : Effect.succeed(Option.none<ComponentManifest>());
 
           const diagnostics = input.diagnostics ?? [];
           // Only a `ready` upload carries preview trees; `error` rows clear them.
-          const previewTrees = (() => {
-            if (input.status !== "ready") return null;
-            return input.previewTrees ?? null;
-          })();
+          const previewTrees =
+            input.status === "ready"
+              ? Option.fromNullishOr(input.previewTrees)
+              : Option.none<Readonly<Record<string, unknown>>>();
           const updatedAt = yield* DateTime.nowAsDate;
           yield* db
             .insert(paywallComponentManifests)
             .values({
               sourceHash: input.sourceHash,
               status: input.status,
-              manifest,
-              previewTrees,
+              manifest: Option.getOrNull(manifest),
+              previewTrees: Option.getOrNull(previewTrees),
               diagnostics,
             })
             .onConflictDoUpdate({
@@ -195,45 +207,56 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
        */
       const getMany = Effect.fn("componentManifestCache.getMany")(
         function* (sourceHashes: ReadonlyArray<string>) {
-          const result = new Map<string, CachedComponentManifest>();
-          const distinct = [...new Set(sourceHashes)];
-          if (distinct.length === 0) {
-            return result;
+          const distinct = [...HashSet.fromIterable(sourceHashes)];
+          if (Arr.isReadonlyArrayEmpty(distinct)) {
+            return HashMap.empty<string, CachedComponentManifest>();
           }
           const rows = yield* db.query.paywallComponentManifests.findMany({
             where: { sourceHash: { in: distinct } },
           });
-          for (const row of rows) {
-            const diagnostics = Option.getOrElse(
-              decodeDiagnostics(row.diagnostics ?? []),
-              () => NO_DIAGNOSTICS,
-            );
-            if (row.status === "ready") {
-              const manifest = yield* decodeManifest(row.manifest).pipe(
-                Effect.map((value): ComponentManifest | null => value),
-                Effect.orElseSucceed(() => null),
+          const entries = yield* Effect.forEach(
+            rows,
+            (row): Effect.Effect<Option.Option<CachedComponentManifestEntry>> => {
+              const diagnostics = Option.getOrElse(
+                decodeDiagnostics(row.diagnostics ?? []),
+                () => NO_DIAGNOSTICS,
               );
-              if (manifest === null) {
-                continue;
+              if (row.status !== "ready") {
+                return Effect.succeed(
+                  Option.some([
+                    row.sourceHash,
+                    {
+                      sourceHash: row.sourceHash,
+                      status: "error",
+                      manifest: Option.none<ComponentManifest>(),
+                      previewTrees: Option.none<Readonly<Record<string, unknown>>>(),
+                      diagnostics,
+                    },
+                  ] satisfies CachedComponentManifestEntry),
+                );
               }
-              result.set(row.sourceHash, {
-                sourceHash: row.sourceHash,
-                status: "ready",
-                manifest,
-                previewTrees: row.previewTrees ?? null,
-                diagnostics,
-              });
-            } else {
-              result.set(row.sourceHash, {
-                sourceHash: row.sourceHash,
-                status: "error",
-                manifest: null,
-                previewTrees: null,
-                diagnostics,
-              });
-            }
-          }
-          return result;
+              return decodeManifest(row.manifest).pipe(
+                Effect.option,
+                Effect.map(
+                  Option.map(
+                    (manifest) =>
+                      [
+                        row.sourceHash,
+                        {
+                          sourceHash: row.sourceHash,
+                          status: "ready",
+                          manifest: Option.some(manifest),
+                          previewTrees: Option.fromNullishOr(row.previewTrees),
+                          diagnostics,
+                        },
+                      ] satisfies CachedComponentManifestEntry,
+                  ),
+                ),
+              );
+            },
+            { concurrency: 1 },
+          );
+          return HashMap.fromIterable(Arr.getSomes(entries));
         },
         (effect) =>
           effect.pipe(

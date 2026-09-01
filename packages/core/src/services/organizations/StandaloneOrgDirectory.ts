@@ -11,7 +11,10 @@
  * source of truth.
  */
 import { Db, eq, member, organization, user } from "@voidhash/db";
-import { Effect, Layer } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 
 import { generateId } from "../../utils/generate-id.ts";
 import {
@@ -29,14 +32,16 @@ const LOCAL_MEMBERSHIP_PREFIX = "local_mem_";
 export const toStandaloneOrganizationId = (externalId: string): string =>
   `${LOCAL_ORGANIZATION_PREFIX}${externalId}`;
 
-const splitName = (name: string): { firstName: string | null; lastName: string | null } => {
+const splitName = (
+  name: string,
+): { firstName: Option.Option<string>; lastName: Option.Option<string> } => {
   const trimmed = name.trim();
-  if (trimmed.length === 0) return { firstName: null, lastName: null };
+  if (Str.isEmpty(trimmed)) return { firstName: Option.none(), lastName: Option.none() };
   const separator = trimmed.indexOf(" ");
-  if (separator === -1) return { firstName: trimmed, lastName: null };
+  if (separator === -1) return { firstName: Option.some(trimmed), lastName: Option.none() };
   return {
-    firstName: trimmed.slice(0, separator),
-    lastName: trimmed.slice(separator + 1).trim() || null,
+    firstName: Option.some(trimmed.slice(0, separator)),
+    lastName: Option.liftPredicate(trimmed.slice(separator + 1).trim(), Str.isNonEmpty),
   };
 };
 
@@ -64,13 +69,13 @@ export const StandaloneOrgDirectoryLive: Layer.Layer<OrgDirectoryPort, never, Db
         Effect.succeed({
           id: `${LOCAL_MEMBERSHIP_PREFIX}${generateId("member")}`,
           organizationId: input.workosOrganizationId,
-          role: input.roleSlug ?? null,
+          role: Option.fromNullishOr(input.roleSlug),
           userId: input.workosUserId,
         } satisfies OrgDirectoryMembership),
 
       createOrganization: (input) =>
         Effect.succeed({
-          externalId: input.externalId,
+          externalId: Option.some(input.externalId),
           id: toStandaloneOrganizationId(input.externalId),
           name: input.name,
         } satisfies OrgDirectoryOrganization),
@@ -81,29 +86,35 @@ export const StandaloneOrgDirectoryLive: Layer.Layer<OrgDirectoryPort, never, Db
 
       findUserByEmail: (email) =>
         query(
-          Effect.gen(function* () {
-            const row = yield* db.query.user.findFirst({
-              where: { email: email.trim().toLowerCase() },
-            });
+          Effect.fn("StandaloneOrgDirectory.findUserByEmail")(function* () {
+            const row = Option.fromNullishOr(
+              yield* db.query.user.findFirst({
+                where: { email: email.trim().toLowerCase() },
+              }),
+            );
             // A user who has never signed in has no provider id yet, which is
             // indistinguishable from "no such user" for this port's callers.
-            if (!row?.workosUserId) return null;
-            const { firstName, lastName } = splitName(row.name);
-            return {
-              email: row.email,
-              emailVerified: row.emailVerified,
-              externalId: row.id,
+            if (Option.isNone(row)) return Option.none<OrgDirectoryUser>();
+            const workosUserId = Option.fromNullishOr(row.value.workosUserId);
+            if (Option.isNone(workosUserId)) return Option.none<OrgDirectoryUser>();
+            const { firstName, lastName } = splitName(row.value.name);
+            return Option.some({
+              email: row.value.email,
+              emailVerified: row.value.emailVerified,
+              externalId: Option.some(row.value.id),
               firstName,
-              id: row.workosUserId,
+              id: workosUserId.value,
               lastName,
-              profilePictureUrl: row.customImageUrl ?? row.image ?? null,
-            } satisfies OrgDirectoryUser;
-          }),
+              profilePictureUrl: Option.orElse(Option.fromNullishOr(row.value.customImageUrl), () =>
+                Option.fromNullishOr(row.value.image),
+              ),
+            } satisfies OrgDirectoryUser);
+          })(),
         ),
 
       getOrganization: (workosOrganizationId) =>
         query(
-          Effect.gen(function* () {
+          Effect.fn("StandaloneOrgDirectory.getOrganization")(function* () {
             const row = yield* db.query.organization.findFirst({
               where: { workosOrganizationId },
             });
@@ -113,31 +124,33 @@ export const StandaloneOrgDirectoryLive: Layer.Layer<OrgDirectoryPort, never, Db
               });
             }
             return {
-              externalId: row.id,
+              externalId: Option.some(row.id),
               id: row.workosOrganizationId,
               name: row.name,
             } satisfies OrgDirectoryOrganization;
-          }),
+          })(),
         ),
 
       getOrganizationByExternalId: (externalId) =>
         query(
-          Effect.gen(function* () {
-            const row = yield* db.query.organization.findFirst({ where: { id: externalId } });
-            if (row === undefined) {
-              return null;
-            }
-            return {
-              externalId: row.id,
-              id: row.workosOrganizationId,
-              name: row.name,
-            } satisfies OrgDirectoryOrganization;
-          }),
+          Effect.fn("StandaloneOrgDirectory.getOrganizationByExternalId")(function* () {
+            return Option.map(
+              Option.fromNullishOr(
+                yield* db.query.organization.findFirst({ where: { id: externalId } }),
+              ),
+              (row) =>
+                ({
+                  externalId: Option.some(row.id),
+                  id: row.workosOrganizationId,
+                  name: row.name,
+                }) satisfies OrgDirectoryOrganization,
+            );
+          })(),
         ),
 
       listMembershipsForUser: (workosUserId) =>
         query(
-          Effect.gen(function* () {
+          Effect.fn("StandaloneOrgDirectory.listMembershipsForUser")(function* () {
             const rows = yield* db
               .select({
                 membershipId: member.workosMembershipId,
@@ -153,16 +166,16 @@ export const StandaloneOrgDirectoryLive: Layer.Layer<OrgDirectoryPort, never, Db
               (row): OrgDirectoryMembership => ({
                 id: row.membershipId,
                 organizationId: row.workosOrganizationId,
-                role: row.role,
+                role: Option.fromNullishOr(row.role),
                 userId: workosUserId,
               }),
             );
-          }),
+          })(),
         ),
 
       updateMembershipRole: (workosMembershipId, input) =>
         query(
-          Effect.gen(function* () {
+          Effect.fn("StandaloneOrgDirectory.updateMembershipRole")(function* () {
             const rows = yield* db
               .select({
                 workosOrganizationId: organization.workosOrganizationId,
@@ -173,33 +186,43 @@ export const StandaloneOrgDirectoryLive: Layer.Layer<OrgDirectoryPort, never, Db
               .innerJoin(organization, eq(member.organizationId, organization.id))
               .where(eq(member.workosMembershipId, workosMembershipId));
 
-            const row = rows[0];
-            if (!row?.workosUserId) {
+            const row = Option.fromNullishOr(rows[0]);
+            const workosUserId = Option.flatMap(row, (value) =>
+              Option.fromNullishOr(value.workosUserId),
+            );
+            if (Option.isNone(row) || Option.isNone(workosUserId)) {
               return yield* Effect.fail({
                 message: `No local membership for ${workosMembershipId}`,
               });
             }
             return {
               id: workosMembershipId,
-              organizationId: row.workosOrganizationId,
-              role: input.roleSlug,
-              userId: row.workosUserId,
+              organizationId: row.value.workosOrganizationId,
+              role: Option.some(input.roleSlug),
+              userId: workosUserId.value,
             } satisfies OrgDirectoryMembership;
-          }),
+          })(),
         ),
 
       updateOrganization: (input) =>
         query(
-          Effect.gen(function* () {
-            const row = yield* db.query.organization.findFirst({
-              where: { workosOrganizationId: input.workosOrganizationId },
-            });
+          Effect.fn("StandaloneOrgDirectory.updateOrganization")(function* () {
+            const row = Option.fromNullishOr(
+              yield* db.query.organization.findFirst({
+                where: { workosOrganizationId: input.workosOrganizationId },
+              }),
+            );
             return {
-              externalId: row?.id ?? null,
+              externalId: Option.map(row, (value) => value.id),
               id: input.workosOrganizationId,
-              name: input.name ?? row?.name ?? "",
+              name:
+                input.name ??
+                Option.getOrElse(
+                  Option.map(row, (value) => value.name),
+                  () => "",
+                ),
             } satisfies OrgDirectoryOrganization;
-          }),
+          })(),
         ),
     };
   }),

@@ -2,12 +2,16 @@ import { PaywallService, PaywallWorkspaceService } from "@voidhash/core/services
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
 import { fileNameFromDocRelative, readComponentDefinitions } from "@voidhash/paywall-workspace";
 import { pick } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Schema from "effect/Schema";
+import { recoverCause } from "../runtime-boundary.ts";
 
 type DocumentSnapshotNode = Parameters<typeof readComponentDefinitions>[0][number];
 
 const isSnapshotNode = (value: unknown): value is DocumentSnapshotNode =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 /** Server-resolved facts about the user's current designer workspace. */
 export interface DesignerContext {
@@ -46,7 +50,7 @@ const componentFileNamesFromDocument = (root: unknown): ReadonlyArray<string> =>
 export const buildDesignerContext = (
   input: DesignerContextInput,
 ): Effect.Effect<
-  DesignerContext | undefined,
+  DesignerContext | typeof Schema.Undefined.Type,
   never,
   PaywallService | PaywallWorkspaceService | AuthSession
 > =>
@@ -64,14 +68,12 @@ export const buildDesignerContext = (
             name: row.name,
             componentFileNames: componentFileNamesFromDocument(resolved.root),
           })),
-          Effect.catchCause(() =>
-            Effect.succeed({
+          recoverCause(() => ({
               paywallId: row.id,
               slug: row.slug,
               name: row.name,
               componentFileNames: [],
-            }),
-          ),
+            })),
         ),
       { concurrency: 8 },
     );
@@ -88,10 +90,10 @@ export const buildDesignerContext = (
       },
       selectedNodeIds: input.selectedNodeIds,
     };
-  }).pipe(Effect.catchCause(() => Effect.succeed(undefined)));
+  }).pipe(recoverCause(() => undefined));
 
 const formatComponents = (componentFileNames: ReadonlyArray<string>): string => {
-  if (componentFileNames.length === 0) return "no code components";
+  if (Arr.isReadonlyArrayEmpty(componentFileNames)) return "no code components";
   return `components: ${componentFileNames.map((fileName) => `components/${fileName}`).join(", ")}`;
 };
 
@@ -103,7 +105,7 @@ const formatPaywallEntry = (paywall: DesignerContext["paywalls"][number]): strin
 /** Renders the dynamic designer facts appended to the agent system prompt. */
 export const renderDesignerContext = (context: DesignerContext): string => {
   const sections: string[] = [];
-  if (context.paywalls.length > 0) {
+  if (Arr.isReadonlyArrayNonEmpty(context.paywalls)) {
     sections.push(
       `Paywalls in this project (stable id, display name, slug, code components):\n${context.paywalls.map(formatPaywallEntry).join("\n")}`,
     );
@@ -113,7 +115,7 @@ export const renderDesignerContext = (context: DesignerContext): string => {
     const lines = [
       `The user currently has the "${name}" paywall (id "${paywallId}", slug "${slug}") open in the designer. Unqualified references like "this paywall", "the current screen", or "here" mean this one — open it with \`begin_paywall_edit({ paywallId: "${paywallId}" })\`, then pass the returned \`editSessionId\` to every scoped tool.`,
     ];
-    if (context.selectedNodeIds.length > 0) {
+    if (Arr.isReadonlyArrayNonEmpty(context.selectedNodeIds)) {
       const plural = pick(context.selectedNodeIds.length === 1, "node", "nodes");
       lines.push(
         `The user currently has ${plural} with id ${context.selectedNodeIds.join(", ")} selected in the open paywall — these are document node ids you can target directly in \`edit_paywall\` ops (no need to re-locate them).`,
@@ -125,6 +127,6 @@ export const renderDesignerContext = (context: DesignerContext): string => {
       "The user does not have a specific paywall open in the designer right now, so treat requests as project-wide unless they name a paywall.",
     );
   }
-  if (sections.length === 0) return "";
+  if (Arr.isReadonlyArrayEmpty(sections)) return "";
   return `\n\nCurrent context:\n${sections.join("\n\n")}`;
 };

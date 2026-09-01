@@ -1,3 +1,10 @@
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
 import type {
   AnalyticsDataPoint,
   BuiltInInsightId,
@@ -6,27 +13,28 @@ import type {
 } from "../domain/Analytics.ts";
 import { isRevenueMoneyEventName } from "../../domain/InternalAnalyticsEvents.ts";
 import type { StoredAnalyticsEvent } from "../../application/ports.ts";
-import { DateTime } from "effect";
+import * as DateTime from "effect/DateTime";
 
 const eventNames = {
-  subscriptionActivity: new Set(["$subscription.created", "$subscription.renewed"]),
-  subscriptionChurn: new Set(["$subscription.canceled", "$subscription.expired"]),
+  subscriptionActivity: HashSet.make("$subscription.created", "$subscription.renewed"),
+  subscriptionChurn: HashSet.make("$subscription.canceled", "$subscription.expired"),
 };
 
-const property = (event: typeof StoredAnalyticsEvent.Type, ...keys: ReadonlyArray<string>) => {
-  for (const key of keys) {
+const property = (event: typeof StoredAnalyticsEvent.Type, ...keys: ReadonlyArray<string>) =>
+  Arr.findFirst(keys, (key) => {
     const value = event.properties[key];
-    if (value !== undefined && value !== null) return value;
-  }
-  return undefined;
-};
+    return value !== undefined && value !== null;
+  }).pipe(
+    Option.map((key) => event.properties[key]),
+    Option.getOrUndefined,
+  );
 
 const optionalNumberProperty = (
   event: typeof StoredAnalyticsEvent.Type,
   ...keys: ReadonlyArray<string>
 ) => {
   const value = property(event, ...keys);
-  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  if (!P.isNumber(value) || !Number.isFinite(value)) return undefined;
   return value;
 };
 
@@ -41,7 +49,7 @@ const stringProperty = (
   ...keys: ReadonlyArray<string>
 ) => {
   const value = property(event, ...keys);
-  if (typeof value !== "string") return "";
+  if (!P.isString(value)) return "";
   return value;
 };
 
@@ -111,10 +119,11 @@ const matchesFilters = (
   return true;
 };
 
-const pointsFromValues = (values: ReadonlyMap<string, number>) =>
-  [...values.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([timestamp, value]) => ({ timestamp: dateFrom(timestamp), value }));
+const pointsFromValues = (values: Iterable<readonly [string, number]>) =>
+  Arr.sort(
+    Arr.fromIterable(values),
+    Order.mapInput(Order.String, ([timestamp]: readonly [string, number]) => timestamp),
+  ).map(([timestamp, value]) => ({ timestamp: dateFrom(timestamp), value }));
 
 const advanceBucket = (date: Date, granularity: typeof TimeGranularity.Type) => {
   const next = dateFrom(date.getTime());
@@ -137,27 +146,32 @@ const subscriptionStockByBucket = (input: {
   readonly events: ReadonlyArray<typeof StoredAnalyticsEvent.Type>;
   readonly granularity: typeof TimeGranularity.Type;
   readonly start: Date;
-  readonly valueOf: (states: ReadonlyMap<string, SubscriptionState>) => number;
+  readonly valueOf: (states: HashMap.HashMap<string, SubscriptionState>) => number;
 }) => {
-  const lifecycle = input.events
-    .filter(
+  const lifecycle = Arr.sort(
+    input.events.filter(
       (event) =>
-        eventNames.subscriptionActivity.has(event.eventName) ||
-        eventNames.subscriptionChurn.has(event.eventName),
-    )
-    .sort(
-      (left, right) =>
-        left.eventTimestamp.getTime() - right.eventTimestamp.getTime() ||
-        left.eventId.localeCompare(right.eventId),
-    );
-  const states = new Map<string, SubscriptionState>();
+        HashSet.has(eventNames.subscriptionActivity, event.eventName) ||
+        HashSet.has(eventNames.subscriptionChurn, event.eventName),
+    ),
+    Order.make<typeof StoredAnalyticsEvent.Type>((left, right) => {
+      const byTimestamp = left.eventTimestamp.getTime() - right.eventTimestamp.getTime();
+      if (byTimestamp < 0) return -1;
+      if (byTimestamp > 0) return 1;
+      const byId = left.eventId.localeCompare(right.eventId);
+      if (byId < 0) return -1;
+      if (byId > 0) return 1;
+      return 0;
+    }),
+  );
+  let states = HashMap.empty<string, SubscriptionState>();
   const apply = (event: typeof StoredAnalyticsEvent.Type) => {
     const id = subscriptionId(event);
-    if (eventNames.subscriptionChurn.has(event.eventName)) {
-      states.delete(id);
+    if (HashSet.has(eventNames.subscriptionChurn, event.eventName)) {
+      states = HashMap.remove(states, id);
       return;
     }
-    const previous = states.get(id);
+    const previous = HashMap.get(states, id);
     const amount = optionalNumberProperty(
       event,
       "gross_amount_usd",
@@ -165,36 +179,43 @@ const subscriptionStockByBucket = (input: {
       "amount_usd",
       "amountUsd",
     );
-    let amountUsd = previous?.amountUsd ?? 0;
+    let amountUsd = Option.match(previous, { onNone: () => 0, onSome: (value) => value.amountUsd });
     if (amount !== undefined) amountUsd = amount / 100;
-    states.set(id, {
+    states = HashMap.set(states, id, {
       amountUsd,
       trial: booleanProperty(event, "is_trial", "isTrial"),
     });
   };
   let index = 0;
-  while (lifecycle[index] && lifecycle[index].eventTimestamp < input.start) {
-    apply(lifecycle[index]);
+  const applyBeforeStart = (): void => {
+    const event = lifecycle[index];
+    if (!event || event.eventTimestamp >= input.start) return;
+    apply(event);
     index += 1;
-  }
+    applyBeforeStart();
+  };
+  applyBeforeStart();
   const points: (typeof AnalyticsDataPoint.Type)[] = [];
-  for (
-    let cursor = startOfBucket(input.start, input.granularity);
-    cursor.getTime() <= input.end.getTime();
-    cursor = advanceBucket(cursor, input.granularity)
-  ) {
+  const collectBuckets = (cursor: Date): void => {
+    if (cursor.getTime() > input.end.getTime()) return;
     const next = advanceBucket(cursor, input.granularity);
     const finalBucket = next.getTime() > input.end.getTime();
-    while (lifecycle[index]) {
-      const timestamp = lifecycle[index].eventTimestamp.getTime();
+    const applyBucketEvents = (): void => {
+      const event = lifecycle[index];
+      if (!event) return;
+      const timestamp = event.eventTimestamp.getTime();
       let inBucket = timestamp < next.getTime();
       if (finalBucket) inBucket = timestamp <= input.end.getTime();
-      if (!inBucket) break;
-      apply(lifecycle[index]);
+      if (!inBucket) return;
+      apply(event);
       index += 1;
-    }
+      applyBucketEvents();
+    };
+    applyBucketEvents();
     points.push({ timestamp: dateFrom(cursor.getTime()), value: input.valueOf(states) });
-  }
+    collectBuckets(next);
+  };
+  collectBuckets(startOfBucket(input.start, input.granularity));
   return points;
 };
 
@@ -205,19 +226,21 @@ const fillSeries = (
   end: Date,
   granularity: typeof TimeGranularity.Type,
 ) => {
-  const byKey = new Map(
+  const byKey = HashMap.fromIterable(
     points.map((point) => [startOfBucket(point.timestamp, granularity).toISOString(), point]),
   );
   const filled: (typeof AnalyticsDataPoint.Type)[] = [];
-  for (
-    let cursor = startOfBucket(start, granularity);
-    cursor.getTime() <= end.getTime();
-    cursor = advanceBucket(cursor, granularity)
-  ) {
+  const fill = (cursor: Date): void => {
+    if (cursor.getTime() > end.getTime()) return;
     filled.push(
-      byKey.get(cursor.toISOString()) ?? { timestamp: dateFrom(cursor.getTime()), value: 0 },
+      Option.getOrElse(HashMap.get(byKey, cursor.toISOString()), () => ({
+        timestamp: dateFrom(cursor.getTime()),
+        value: 0,
+      })),
     );
-  }
+    fill(advanceBucket(cursor, granularity));
+  };
+  fill(startOfBucket(start, granularity));
   return filled;
 };
 
@@ -226,11 +249,10 @@ const sumByBucket = (
   granularity: typeof TimeGranularity.Type,
   valueOf: (event: typeof StoredAnalyticsEvent.Type) => number,
 ) => {
-  const values = new Map<string, number>();
-  for (const event of events) {
+  const values = Arr.reduce(events, HashMap.empty<string, number>(), (acc, event) => {
     const key = bucketKey(event, granularity);
-    values.set(key, (values.get(key) ?? 0) + valueOf(event));
-  }
+    return HashMap.set(acc, key, Option.getOrElse(HashMap.get(acc, key), () => 0) + valueOf(event));
+  });
   return pointsFromValues(values);
 };
 
@@ -239,14 +261,16 @@ const uniqueByBucket = (
   granularity: typeof TimeGranularity.Type,
   keyOf: (event: typeof StoredAnalyticsEvent.Type) => string,
 ) => {
-  const values = new Map<string, Set<string>>();
-  for (const event of events) {
-    const key = bucketKey(event, granularity);
-    const bucket = values.get(key) ?? new Set<string>();
-    bucket.add(keyOf(event));
-    values.set(key, bucket);
-  }
-  return pointsFromValues(new Map([...values].map(([key, bucket]) => [key, bucket.size])));
+  const values = Arr.reduce(
+    events,
+    HashMap.empty<string, HashSet.HashSet<string>>(),
+    (acc, event) => {
+      const key = bucketKey(event, granularity);
+      const bucket = Option.getOrElse(HashMap.get(acc, key), HashSet.empty<string>);
+      return HashMap.set(acc, key, HashSet.add(bucket, keyOf(event)));
+    },
+  );
+  return pointsFromValues(HashMap.map(values, HashSet.size));
 };
 
 const combine = (
@@ -254,15 +278,23 @@ const combine = (
   right: ReadonlyArray<typeof AnalyticsDataPoint.Type>,
   operation: (left: number, right: number) => number,
 ) => {
-  const leftByTime = new Map(left.map((point) => [point.timestamp.toISOString(), point.value]));
-  const rightByTime = new Map(right.map((point) => [point.timestamp.toISOString(), point.value]));
-  const timestamps = new Set([...leftByTime.keys(), ...rightByTime.keys()]);
-  return [...timestamps]
-    .sort((a, b) => a.localeCompare(b))
-    .map((timestamp) => ({
-      timestamp: dateFrom(timestamp),
-      value: operation(leftByTime.get(timestamp) ?? 0, rightByTime.get(timestamp) ?? 0),
-    }));
+  const leftByTime = HashMap.fromIterable(
+    left.map((point) => [point.timestamp.toISOString(), point.value] as const),
+  );
+  const rightByTime = HashMap.fromIterable(
+    right.map((point) => [point.timestamp.toISOString(), point.value] as const),
+  );
+  const timestamps = HashSet.fromIterable([
+    ...HashMap.keys(leftByTime),
+    ...HashMap.keys(rightByTime),
+  ]);
+  return Arr.sort(Arr.fromIterable(timestamps), Order.String).map((timestamp) => ({
+    timestamp: dateFrom(timestamp),
+    value: operation(
+      Option.getOrElse(HashMap.get(leftByTime, timestamp), () => 0),
+      Option.getOrElse(HashMap.get(rightByTime, timestamp), () => 0),
+    ),
+  }));
 };
 
 const rate = (numerator: number, denominator: number) => {
@@ -292,64 +324,62 @@ export const resolvePortableAnalyticsSeries = (input: {
 }): (typeof AnalyticsDataPoint.Type)[] => {
   const matching = input.events.filter((event) => matchesFilters(event, input.filters));
   const filtered = matching.filter((event) => withinRange(event, input.start, input.end));
-  const cache = new Map<typeof BuiltInInsightId.Type, (typeof AnalyticsDataPoint.Type)[]>();
+  let cache = HashMap.empty<typeof BuiltInInsightId.Type, (typeof AnalyticsDataPoint.Type)[]>();
 
   const series = (insightId: typeof BuiltInInsightId.Type): (typeof AnalyticsDataPoint.Type)[] => {
-    const cached = cache.get(insightId);
-    if (cached) return cached;
-    let result: (typeof AnalyticsDataPoint.Type)[];
-    switch (insightId) {
-      case "builtin/revenue":
-        result = sumByBucket(
+    const cached = HashMap.get(cache, insightId);
+    if (Option.isSome(cached)) return cached.value;
+    const result = Match.value(insightId).pipe(
+      Match.when("builtin/revenue", () =>
+        sumByBucket(
           filtered.filter((event) => isRevenueMoneyEventName(event.eventName)),
           input.granularity,
           (event) =>
             numberProperty(event, "gross_amount_usd", "grossAmountUsd", "amount_usd", "amountUsd") /
             100,
-        );
-        break;
-      case "builtin/mrr":
-        result = subscriptionStockByBucket({
+        ),
+      ),
+      Match.when("builtin/mrr", () =>
+        subscriptionStockByBucket({
           end: input.end,
           events: matching,
           granularity: input.granularity,
           start: input.start,
           valueOf: (states) =>
-            [...states.values()].reduce((total, subscription) => {
+            Arr.fromIterable(HashMap.values(states)).reduce((total, subscription) => {
               if (subscription.trial) return total;
               return total + subscription.amountUsd;
             }, 0),
-        });
-        break;
-      case "builtin/arr":
-        result = series("builtin/mrr").map((point) => ({ ...point, value: point.value * 12 }));
-        break;
-      case "builtin/churned_revenue":
-        result = sumByBucket(
-          filtered.filter((event) => eventNames.subscriptionChurn.has(event.eventName)),
+        }),
+      ),
+      Match.when("builtin/arr", () =>
+        series("builtin/mrr").map((point) => ({ ...point, value: point.value * 12 })),
+      ),
+      Match.when("builtin/churned_revenue", () =>
+        sumByBucket(
+          filtered.filter((event) => HashSet.has(eventNames.subscriptionChurn, event.eventName)),
           input.granularity,
           (event) =>
             numberProperty(event, "gross_amount_usd", "grossAmountUsd", "amount_usd", "amountUsd") /
             100,
-        );
-        break;
-      case "builtin/active_subscriptions":
-      case "builtin/active_trials": {
-        const trials = insightId === "builtin/active_trials";
-        result = subscriptionStockByBucket({
+        ),
+      ),
+      Match.whenOr("builtin/active_subscriptions", "builtin/active_trials", (matchedInsightId) => {
+        const trials = matchedInsightId === "builtin/active_trials";
+        return subscriptionStockByBucket({
           end: input.end,
           events: matching,
           granularity: input.granularity,
           start: input.start,
           valueOf: (states) =>
-            [...states.values()].filter((subscription) => subscription.trial === trials).length,
+            Arr.fromIterable(HashMap.values(states)).filter(
+              (subscription) => subscription.trial === trials,
+            ).length,
         });
-        break;
-      }
-      case "builtin/new_subscriptions":
-      case "builtin/trials": {
-        const trials = insightId === "builtin/trials";
-        result = sumByBucket(
+      }),
+      Match.whenOr("builtin/new_subscriptions", "builtin/trials", (matchedInsightId) => {
+        const trials = matchedInsightId === "builtin/trials";
+        return sumByBucket(
           filtered.filter(
             (event) =>
               event.eventName === "$subscription.created" &&
@@ -358,63 +388,77 @@ export const resolvePortableAnalyticsSeries = (input: {
           input.granularity,
           () => 1,
         );
-        break;
-      }
-      case "builtin/churned_subscriptions":
-        result = sumByBucket(
-          filtered.filter((event) => eventNames.subscriptionChurn.has(event.eventName)),
+      }),
+      Match.when("builtin/churned_subscriptions", () =>
+        sumByBucket(
+          filtered.filter((event) => HashSet.has(eventNames.subscriptionChurn, event.eventName)),
           input.granularity,
           () => 1,
-        );
-        break;
-      case "builtin/trial_conversions": {
+        ),
+      ),
+      Match.when("builtin/trial_conversions", () => {
         // No emitter stamps a conversion property, so conversion is derived from
         // event sequences: a subscription that started as a trial and later saw
         // a paid renewal; conversion time is that first paid renewal.
-        const trialStarts = new Map<string, Date>();
-        const conversions = new Map<string, typeof StoredAnalyticsEvent.Type>();
-        for (const event of matching) {
-          if (event.eventTimestamp > input.end) continue;
-          if (
-            event.eventName !== "$subscription.created" &&
-            event.eventName !== "$subscription.renewed"
-          )
-            continue;
-          const id = subscriptionId(event);
-          if (event.eventName === "$subscription.created") {
-            if (booleanProperty(event, "is_trial", "isTrial")) {
-              const existing = trialStarts.get(id);
-              if (!existing || event.eventTimestamp < existing) {
-                trialStarts.set(id, event.eventTimestamp);
+        const conversionState = Arr.reduce(
+          matching,
+          {
+            conversions: HashMap.empty<string, typeof StoredAnalyticsEvent.Type>(),
+            trialStarts: HashMap.empty<string, Date>(),
+          },
+          (state, event) => {
+            if (event.eventTimestamp > input.end) return state;
+            if (
+              event.eventName !== "$subscription.created" &&
+              event.eventName !== "$subscription.renewed"
+            )
+              return state;
+            const id = subscriptionId(event);
+            if (event.eventName === "$subscription.created") {
+              if (booleanProperty(event, "is_trial", "isTrial")) {
+                const existing = HashMap.get(state.trialStarts, id);
+                if (Option.isNone(existing) || event.eventTimestamp < existing.value) {
+                  return {
+                    ...state,
+                    trialStarts: HashMap.set(state.trialStarts, id, event.eventTimestamp),
+                  };
+                }
               }
+              return state;
             }
-            continue;
-          }
-          const trialStart = trialStarts.get(id);
-          if (!trialStart || event.eventTimestamp < trialStart) continue;
-          if (booleanProperty(event, "is_trial", "isTrial")) continue;
-          const existing = conversions.get(id);
-          if (!existing || event.eventTimestamp < existing.eventTimestamp)
-            conversions.set(id, event);
-        }
-        result = uniqueByBucket(
-          [...conversions.values()].filter((event) => withinRange(event, input.start, input.end)),
+            const trialStart = HashMap.get(state.trialStarts, id);
+            if (Option.isNone(trialStart) || event.eventTimestamp < trialStart.value) return state;
+            if (booleanProperty(event, "is_trial", "isTrial")) return state;
+            const existing = HashMap.get(state.conversions, id);
+            if (Option.isSome(existing) && event.eventTimestamp >= existing.value.eventTimestamp) {
+              return state;
+            }
+            return { ...state, conversions: HashMap.set(state.conversions, id, event) };
+          },
+        );
+        return uniqueByBucket(
+          Arr.fromIterable(HashMap.values(conversionState.conversions)).filter((event) =>
+            withinRange(event, input.start, input.end),
+          ),
           input.granularity,
           subscriptionId,
         );
-        break;
-      }
-      case "builtin/person_count":
-      case "builtin/new_persons": {
-        const firstSeen = new Map<string, typeof StoredAnalyticsEvent.Type>();
-        for (const event of matching) {
-          if (event.eventTimestamp > input.end) continue;
-          const key = personKey(event);
-          const existing = firstSeen.get(key);
-          if (!existing || existing.eventTimestamp > event.eventTimestamp)
-            firstSeen.set(key, event);
-        }
-        const firstSeenEvents = [...firstSeen.values()].filter((event) =>
+      }),
+      Match.whenOr("builtin/person_count", "builtin/new_persons", (matchedInsightId) => {
+        const firstSeen = Arr.reduce(
+          matching,
+          HashMap.empty<string, typeof StoredAnalyticsEvent.Type>(),
+          (seen, event) => {
+            if (event.eventTimestamp > input.end) return seen;
+            const key = personKey(event);
+            const existing = HashMap.get(seen, key);
+            if (Option.isSome(existing) && existing.value.eventTimestamp <= event.eventTimestamp) {
+              return seen;
+            }
+            return HashMap.set(seen, key, event);
+          },
+        );
+        const firstSeenEvents = Arr.fromIterable(HashMap.values(firstSeen)).filter((event) =>
           withinRange(event, input.start, input.end),
         );
         // Fill first so the cumulative total carries zero buckets forward
@@ -425,46 +469,41 @@ export const resolvePortableAnalyticsSeries = (input: {
           input.end,
           input.granularity,
         );
-        if (insightId === "builtin/new_persons") {
-          result = perBucket;
-          break;
-        }
-        let running = [...firstSeen.values()].filter(
+        if (matchedInsightId === "builtin/new_persons") return perBucket;
+        let running = Arr.fromIterable(HashMap.values(firstSeen)).filter(
           (event) => event.eventTimestamp < input.start,
         ).length;
-        result = perBucket.map((point) => {
+        return perBucket.map((point) => {
           running += point.value;
           return { timestamp: point.timestamp, value: running };
         });
-        break;
-      }
-      case "builtin/mrr_growth_rate": {
+      }),
+      Match.when("builtin/mrr_growth_rate", () => {
         const mrr = series("builtin/mrr");
-        result = mrr.map((point, index) => {
+        return mrr.map((point, index) => {
           const previous = mrr[index - 1]?.value ?? 0;
           const value = growthRate(point.value, previous);
           return { timestamp: point.timestamp, value };
         });
-        break;
-      }
-      case "builtin/churn_rate":
-        result = combine(
+      }),
+      Match.when("builtin/churn_rate", () =>
+        combine(
           series("builtin/churned_subscriptions"),
           series("builtin/active_subscriptions"),
           (churned, active) => rate(churned, active + churned),
-        );
-        break;
-      case "builtin/retention":
-        result = combine(
+        ),
+      ),
+      Match.when("builtin/retention", () =>
+        combine(
           series("builtin/active_subscriptions"),
           series("builtin/churned_subscriptions"),
           (active, churned) => rate(active, active + churned),
-        );
-        break;
-      case "builtin/arpu":
-        result = combine(series("builtin/revenue"), series("builtin/person_count"), ratio);
-        break;
-      case "builtin/arppu": {
+        ),
+      ),
+      Match.when("builtin/arpu", () =>
+        combine(series("builtin/revenue"), series("builtin/person_count"), ratio),
+      ),
+      Match.when("builtin/arppu", () => {
         const paying = uniqueByBucket(
           filtered.filter(
             (event) =>
@@ -480,30 +519,29 @@ export const resolvePortableAnalyticsSeries = (input: {
           input.granularity,
           personKey,
         );
-        result = combine(series("builtin/revenue"), paying, ratio);
-        break;
-      }
-      case "builtin/active_subscribers_growth": {
+        return combine(series("builtin/revenue"), paying, ratio);
+      }),
+      Match.when("builtin/active_subscribers_growth", () => {
         const active = series("builtin/active_subscriptions");
-        result = active.map((point, index) => {
+        return active.map((point, index) => {
           const previous = active[index - 1]?.value ?? 0;
           return {
             timestamp: point.timestamp,
             value: growthRate(point.value, previous),
           };
         });
-        break;
-      }
-      case "builtin/subscriber_lifetime_value":
-        result = combine(series("builtin/arpu"), series("builtin/churn_rate"), (arpu, churn) =>
+      }),
+      Match.when("builtin/subscriber_lifetime_value", () =>
+        combine(series("builtin/arpu"), series("builtin/churn_rate"), (arpu, churn) =>
           ratio(arpu, churn / 100),
-        );
-        break;
-      case "builtin/trial_conversion_rate":
-        result = combine(series("builtin/trial_conversions"), series("builtin/trials"), rate);
-        break;
-    }
-    cache.set(insightId, result);
+        ),
+      ),
+      Match.when("builtin/trial_conversion_rate", () =>
+        combine(series("builtin/trial_conversions"), series("builtin/trials"), rate),
+      ),
+      Match.exhaustive,
+    );
+    cache = HashMap.set(cache, insightId, result);
     return result;
   };
 

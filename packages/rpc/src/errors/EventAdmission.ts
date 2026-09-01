@@ -2,7 +2,7 @@
  * Event admission errors — typed errors returned by the event-admission RPCs.
  * Class names and `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all event-admission service error. Wraps unknown built-in keys, invalid

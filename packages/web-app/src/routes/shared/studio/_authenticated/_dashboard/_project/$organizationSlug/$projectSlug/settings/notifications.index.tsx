@@ -124,7 +124,7 @@ function NotificationsIndexPage() {
 
                 {pushNotificationConfiguration.id ? (
                   <div className="flex shrink-0 items-center gap-2">
-                    {pushNotificationConfiguration.enabled ? (
+                    {pushNotificationConfiguration.isEnabled ? (
                       <Badge className="text-[11px]">Enabled</Badge>
                     ) : (
                       <Badge className="text-[11px]" variant="outline">

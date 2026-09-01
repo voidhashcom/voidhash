@@ -1,7 +1,7 @@
 import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/navigation-menu";
 import { cva } from "class-variance-authority";
 import { ChevronDownIcon } from "lucide-react";
-import { isValidElement, type ReactElement } from "react";
+import { isValidElement } from "react";
 
 import { cn } from "../../lib/utils";
 
@@ -171,12 +171,12 @@ function NavigationMenuLink({
   render,
   ...props
 }: NavigationMenuLinkProps) {
-  if (asChild && isValidElement(children)) {
+  if (asChild && isValidElement<Record<string, unknown>>(children)) {
     return (
       <NavigationMenuPrimitive.Link
         className={cn(navigationMenuLinkStyle(), className)}
         data-slot="navigation-menu-link"
-        render={children as ReactElement<Record<string, unknown>>}
+        render={children}
         {...props}
       />
     );

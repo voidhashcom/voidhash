@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -10,6 +10,7 @@ import { RpcReleaseNotFoundError } from "../errors/paywall.ts";
 import { AuthMiddleware } from "../middlewares.ts";
 
 export const RpcPaywallDeployStatus = Schema.Literals(["pending", "ready"]);
+export type RpcPaywallDeployStatus = typeof RpcPaywallDeployStatus.Type;
 
 /** Per-deploy paywall summary (manifest-derived, enriched with release rows). */
 export const RpcPaywallDeployPaywallSummary = Schema.Struct({
@@ -18,6 +19,7 @@ export const RpcPaywallDeployPaywallSummary = Schema.Struct({
   slug: Schema.String,
   version: Schema.NullOr(Schema.Number),
 });
+export type RpcPaywallDeployPaywallSummary = typeof RpcPaywallDeployPaywallSummary.Type;
 
 /** Per-deploy component summary (manifest-derived, enriched with version rows). */
 export const RpcPaywallDeployComponentSummary = Schema.Struct({
@@ -26,6 +28,7 @@ export const RpcPaywallDeployComponentSummary = Schema.Struct({
   slug: Schema.String,
   version: Schema.NullOr(Schema.Number),
 });
+export type RpcPaywallDeployComponentSummary = typeof RpcPaywallDeployComponentSummary.Type;
 
 export const RpcPaywallDeploy = Schema.Struct({
   cliVersion: Schema.String,
@@ -38,6 +41,7 @@ export const RpcPaywallDeploy = Schema.Struct({
   schemaVersion: Schema.Number,
   status: RpcPaywallDeployStatus,
 });
+export type RpcPaywallDeploy = typeof RpcPaywallDeploy.Type;
 
 export class PaywallDeployRpcsDef extends RpcGroup.make(
   Rpc.make("ListPaywallDeploys", {

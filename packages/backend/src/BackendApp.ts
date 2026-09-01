@@ -173,6 +173,7 @@ import { ProductRpcsLive } from "./rpcs/product-rpcs.ts";
 import { ProjectRpcsLive } from "./rpcs/project-rpcs.ts";
 import { UserRpcsLive } from "./rpcs/user-rpcs.ts";
 import { WebhookRpcsLive } from "./rpcs/webhook-rpcs.ts";
+import * as Schema from "effect/Schema";
 
 /**
  * The always-on infrastructure services the route graph builds on. Declaring
@@ -545,14 +546,14 @@ export const BackendPublicFileStoreStubLive = Layer.succeed(PublicFileStore, {
 export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
   closePaywallConnection: () => Effect.void,
   createPaywallEditToken: () =>
-    Effect.gen(function* () {
+    Effect.fn("createPaywallEditToken")(function* () {
       const now = yield* DateTime.now;
       return {
         expiresAt: DateTime.toDateUtc(DateTime.addDuration(now, "5 minutes")),
         token: "stub-token",
         url: "wss://stub.invalid/ws",
       };
-    }),
+    })(),
   ensurePaywallDocument: () => Effect.void,
   getPaywallSnapshot: () =>
     Effect.succeed(
@@ -641,7 +642,7 @@ const isAllowedCorsOrigin = (origin: string): boolean => {
   );
 };
 
-const corsHeaders = (origin: string | undefined): Record<string, string> => {
+const corsHeaders = (origin: string | typeof Schema.Undefined.Type): Record<string, string> => {
   if (!origin || !isAllowedCorsOrigin(origin)) {
     return {};
   }
@@ -652,7 +653,7 @@ const corsHeaders = (origin: string | undefined): Record<string, string> => {
   };
 };
 
-const preflightVary = (accessControlRequestHeaders: string | undefined): string => {
+const preflightVary = (accessControlRequestHeaders: string | typeof Schema.Undefined.Type): string => {
   if (accessControlRequestHeaders) {
     return "Origin, Access-Control-Request-Headers";
   }
@@ -660,8 +661,8 @@ const preflightVary = (accessControlRequestHeaders: string | undefined): string 
 };
 
 const preflightCorsHeaders = (
-  origin: string | undefined,
-  accessControlRequestHeaders: string | undefined,
+  origin: string | typeof Schema.Undefined.Type,
+  accessControlRequestHeaders: string | typeof Schema.Undefined.Type,
 ): Record<string, string> => ({
   ...corsHeaders(origin),
   "access-control-allow-headers": accessControlRequestHeaders ?? "",

@@ -1,4 +1,13 @@
-import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { constant } from "@voidhash/lib/lang";
 import { AuthSession, AuthenticationError } from "../../domain/auth/Auth.ts";
@@ -8,7 +17,8 @@ import {
   type SdkPersonSnapshot,
   SdkValidationError,
 } from "../../domain/sdkPerson/SdkPerson.ts";
-import { Db, PersonOrigin, type PersonOriginValue } from "@voidhash/db";
+import { Db, PersonOrigin, persons, type PersonOriginValue } from "@voidhash/db";
+import type { EffectDrizzleQueryError } from "drizzle-orm/effect-core";
 import {
   AppStorePaymentProviderService,
   GooglePlayPaymentProviderService,
@@ -63,9 +73,9 @@ export interface PersonAttributesParams {
   email?: string;
   personMetadata: PersonMetadata;
   /** `$set` traits — newest write wins per key. */
-  traits?: Record<string, string | number | boolean | null>;
+  traits?: Record<string, unknown>;
   /** `$set_once` traits — earliest write wins; loses to any `$set`. */
-  setOnce?: Record<string, string | number | boolean | null>;
+  setOnce?: Record<string, unknown>;
   /**
    * Stable client-supplied id used as the LWW tie-break (`eventId`). Lets a
    * synchronous write and its eventual async `$set` echo converge idempotently.
@@ -90,10 +100,11 @@ export class SdkServiceError extends Schema.TaggedErrorClass<SdkServiceError>("S
 
 const CONFLICTING_IDENTIFIED_WARNING_FRAGMENT = "different identified person";
 
-const eventIdPatch = (clientEventId: string | undefined): { eventId?: string } => {
-  if (!clientEventId) return {};
-  return { eventId: clientEventId };
-};
+const eventIdPatch = (clientEventId: Option.Option<string>): { eventId?: string } =>
+  Option.match(clientEventId, {
+    onNone: () => ({}),
+    onSome: (eventId) => ({ eventId }),
+  });
 
 const originFromPersonMetadata = (metadata: PersonMetadata): PersonOriginValue => {
   const platform = metadata.platform.toLowerCase();
@@ -108,9 +119,9 @@ const originFromPersonMetadata = (metadata: PersonMetadata): PersonOriginValue =
 
 const buildSyncSetAttributes = (
   metadata: PersonMetadata,
-  traits: Record<string, string | number | boolean | null> | undefined,
+  traits: Option.Option<Record<string, unknown>>,
 ) => ({
-  ...traits,
+  ...Option.getOrElse(traits, () => ({})),
   platform: metadata.platform,
   sdk: metadata.sdk,
   sdkVersion: metadata.sdkVersion,
@@ -152,31 +163,30 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
     const identityProjectionPublisher = yield* IdentityProjectionPublisher;
     const db = yield* Db;
 
-    const findCanonicalPersonByDistinctId = (input: {
-      readonly distinctId: string;
-      readonly projectId: string;
-    }) =>
-      Effect.gen(function* () {
+    const findCanonicalPersonByDistinctId = Effect.fn("SdkService.findCanonicalPersonByDistinctId")(
+      function* (input: { readonly distinctId: string; readonly projectId: string }) {
         const mapping = yield* db.query.personIdentities.findFirst({
           where: { projectId: input.projectId, distinctId: input.distinctId },
         });
-        if (!mapping) {
-          return undefined;
-        }
-        let current = yield* db.query.persons.findFirst({
-          where: { id: mapping.personId },
-        });
-        while (current?.mergedIntoPersonId) {
-          const mergedIntoPerson = yield* db.query.persons.findFirst({
-            where: { id: current.mergedIntoPersonId },
+        if (!mapping) return Option.none();
+
+        const followMerge: (
+          personId: string,
+        ) => Effect.Effect<Option.Option<typeof persons.$inferSelect>, EffectDrizzleQueryError> =
+          Effect.fn("SdkService.followPersonMerge")(function* (personId: string) {
+            const current = Option.fromNullishOr(
+              yield* db.query.persons.findFirst({ where: { id: personId } }),
+            );
+            if (Option.isNone(current)) return current;
+            const mergedIntoPersonId = Option.fromNullishOr(current.value.mergedIntoPersonId);
+            if (Option.isNone(mergedIntoPersonId)) return current;
+            const merged = yield* followMerge(mergedIntoPersonId.value);
+            return Option.orElse(merged, () => current);
           });
-          if (!mergedIntoPerson) {
-            return current;
-          }
-          current = mergedIntoPerson;
-        }
-        return current;
-      });
+
+        return yield* followMerge(mapping.personId);
+      },
+    );
 
     /**
      * Fans out to `PerkGrantService.getPersonUnlockedPerks` per id with an
@@ -249,14 +259,14 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         yield* Effect.annotateCurrentSpan("voidhash.organization.id", organizationId);
       }
 
-      const sourceMapping = yield* Effect.gen(function* () {
+      const sourceMapping = yield* Effect.fn("SdkService.loadSourceMapping")(function* () {
         if (!input.previousDistinctId || input.previousDistinctId === input.distinctId) {
           return undefined;
         }
         return yield* db.query.personIdentities.findFirst({
           where: { projectId: input.projectId, distinctId: input.previousDistinctId },
         });
-      });
+      })();
 
       const activeJob = yield* db.query.personIdentityMigrationJobs.findFirst({
         orderBy: { createdAt: "desc" },
@@ -278,20 +288,20 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
       });
 
       yield* Effect.annotateCurrentSpan("voidhash.snapshot.mode", scope.mode);
-      if (scope.migrationJobId) {
-        yield* Effect.annotateCurrentSpan("voidhash.migration_job.id", scope.migrationJobId);
+      if (Option.isSome(scope.migrationJobId)) {
+        yield* Effect.annotateCurrentSpan("voidhash.migration_job.id", scope.migrationJobId.value);
       }
       yield* Effect.annotateCurrentSpan(
         "voidhash.person.ids.count",
         scope.includedPersonIds.length,
       );
 
-      const personRows = yield* Effect.gen(function* () {
-        if (scope.includedPersonIds.length === 0) return [];
+      const personRows = yield* Effect.fn("SdkService.loadSnapshotPersons")(function* () {
+        if (Arr.isReadonlyArrayEmpty(scope.includedPersonIds)) return [];
         return yield* db.query.persons.findMany({
           where: { id: { in: [...scope.includedPersonIds] } },
         });
-      });
+      })();
       const targetPerson = personRows.find((person) => person.id === input.personId);
       if (!targetPerson) {
         return yield* Effect.fail(
@@ -305,21 +315,27 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
 
       const [subscriptionRows, purchaseRows, unlockedPerkRows] = yield* Effect.all(
         [
-          Effect.gen(function* () {
+          Effect.fn("SdkService.loadSnapshotSubscriptions")(function* () {
             const empty: ReadonlyArray<SubscriptionWithProduct> = [];
-            if (existingPersonIds.length === 0) return empty;
-            const rows: ReadonlyArray<SubscriptionWithProduct> =
-              yield* db.query.subscriptions.findMany({
-                where: {
-                  personId: { in: [...existingPersonIds] },
-                  providerEnvironment: { in: [...environmentMode.providerEnvironments] },
-                },
-                with: {
-                  paymentProviderConfigurationProduct: true,
-                },
-              });
-            return rows;
-          }),
+            if (Arr.isReadonlyArrayEmpty(existingPersonIds)) return empty;
+            const rows = yield* db.query.subscriptions.findMany({
+              where: {
+                personId: { in: [...existingPersonIds] },
+                providerEnvironment: { in: [...environmentMode.providerEnvironments] },
+              },
+              with: {
+                paymentProviderConfigurationProduct: true,
+              },
+            });
+            return rows.map(
+              (row): SubscriptionWithProduct => ({
+                ...row,
+                paymentProviderConfigurationProduct: Option.fromNullishOr(
+                  row.paymentProviderConfigurationProduct,
+                ),
+              }),
+            );
+          })(),
           loadPurchasesForPersonIds(existingPersonIds, input.projectId, session),
           loadGrantsForPersonIds(existingPersonIds, input.projectId, session),
         ],
@@ -327,18 +343,21 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
       );
 
       const purchaseConfigurationProductIds = [
-        ...new Set(purchaseRows.map((purchase) => purchase.paymentProviderConfigurationProductId)),
+        ...HashSet.fromIterable(
+          purchaseRows.map((purchase) => purchase.paymentProviderConfigurationProductId),
+        ),
       ];
-      const purchaseConfigurationProducts = yield* Effect.gen(function* () {
-        if (purchaseConfigurationProductIds.length === 0) return [];
+      const purchaseConfigurationProducts = yield* Effect.fn(
+        "SdkService.loadPurchaseConfigurationProducts",
+      )(function* () {
+        if (Arr.isReadonlyArrayEmpty(purchaseConfigurationProductIds)) return [];
         return yield* db.query.paymentProviderConfigurationProducts.findMany({
           where: { id: { in: [...purchaseConfigurationProductIds] } },
         });
-      });
-      const purchaseProductIdLookup = new Map<string, string>();
-      for (const product of purchaseConfigurationProducts) {
-        purchaseProductIdLookup.set(product.id, product.productId);
-      }
+      })();
+      const purchaseProductIdLookup = HashMap.fromIterable(
+        purchaseConfigurationProducts.map((product) => [product.id, product.productId]),
+      );
 
       return composeSnapshot({
         distinctId: input.distinctId,
@@ -386,15 +405,15 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
           distinctId,
           projectId,
         });
-        if (!canonicalPerson) {
+        if (Option.isNone(canonicalPerson)) {
           return yield* Effect.fail(new SdkPersonNotFoundError({ message: "Person not found" }));
         }
 
-        yield* Effect.annotateCurrentSpan("voidhash.person.id", canonicalPerson.id);
+        yield* Effect.annotateCurrentSpan("voidhash.person.id", canonicalPerson.value.id);
 
         return yield* buildSnapshot({
           distinctId,
-          personId: canonicalPerson.id,
+          personId: canonicalPerson.value.id,
           projectId,
         });
       },
@@ -432,9 +451,9 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
     const identifyPerson = Effect.fn("identifyPerson")(
       function* (input: {
         distinctId: string;
-        name: string | null;
-        email: string | null;
-        traits?: Record<string, string | number | boolean | null>;
+        name: Option.Option<string>;
+        email: Option.Option<string>;
+        traits?: Record<string, unknown>;
       }) {
         const session = yield* AuthSession;
 
@@ -476,7 +495,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
             distinctId: input.distinctId,
             projectId,
           });
-          if (!canonicalPerson) {
+          if (Option.isNone(canonicalPerson)) {
             return yield* Effect.fail(
               new SdkPersonNotFoundError({
                 message:
@@ -485,15 +504,15 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
             );
           }
 
-          yield* Effect.annotateCurrentSpan("voidhash.person.id", canonicalPerson.id);
+          yield* Effect.annotateCurrentSpan("voidhash.person.id", canonicalPerson.value.id);
 
           yield* Effect.log(
-            `identifyPerson no-op for already-identified source ${currentDistinctId}; returning snapshot for ${input.distinctId} (person ${canonicalPerson.id})`,
+            `identifyPerson no-op for already-identified source ${currentDistinctId}; returning snapshot for ${input.distinctId} (person ${canonicalPerson.value.id})`,
           );
 
           return yield* buildSnapshot({
             distinctId: input.distinctId,
-            personId: canonicalPerson.id,
+            personId: canonicalPerson.value.id,
             projectId,
           });
         }
@@ -508,10 +527,10 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
 
         const result = yield* personIdentityService.identifyDistinctId({
           previousDistinctId: currentDistinctId,
-          email: input.email ?? undefined,
+          email: Option.getOrUndefined(input.email),
           eventTimestamp: yield* DateTime.nowAsDate,
           distinctId: input.distinctId,
-          name: input.name ?? undefined,
+          name: Option.getOrUndefined(input.name),
           projectId,
           setAttributes: input.traits ?? {},
           setOnceAttributes: {},
@@ -526,7 +545,9 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
           );
         }
         if (!result.identity.personId) {
-          return yield* Effect.die(new Error("identifyDistinctId resolved without a personId"));
+          return yield* Effect.die(
+            unexpectedError("identifyDistinctId resolved without a personId"),
+          );
         }
 
         yield* Effect.annotateCurrentSpan("voidhash.person.id", result.identity.personId);
@@ -615,7 +636,7 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
 
         if (!isAnonymousId(distinctId)) {
           const existing = yield* findCanonicalPersonByDistinctId({ distinctId, projectId });
-          if (!existing) {
+          if (Option.isNone(existing)) {
             return yield* Effect.fail(
               new SdkPersonNotFoundError({
                 message:
@@ -630,17 +651,20 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
         // *caller-supplied* payload instead. This keeps an attribute-less
         // request (no longer issued at SDK init) from materializing a person.
         const hasExplicitPayload =
-          (input.traits && Object.keys(input.traits).length > 0) ||
-          (input.setOnce && Object.keys(input.setOnce).length > 0) ||
+          (input.traits && Arr.isReadonlyArrayNonEmpty(R.keys(input.traits))) ||
+          (input.setOnce && Arr.isReadonlyArrayNonEmpty(R.keys(input.setOnce))) ||
           input.email !== undefined ||
           input.name !== undefined;
 
-        const setAttributes = buildSyncSetAttributes(input.personMetadata, input.traits);
+        const setAttributes = buildSyncSetAttributes(
+          input.personMetadata,
+          Option.fromNullishOr(input.traits),
+        );
 
         const identityResult = yield* personIdentityService.resolveDistinctId({
           distinctId,
           email: input.email,
-          ...eventIdPatch(input.clientEventId),
+          ...eventIdPatch(Option.fromNullishOr(input.clientEventId)),
           eventTimestamp: yield* DateTime.nowAsDate,
           name: input.name,
           origin: originFromPersonMetadata(input.personMetadata),
@@ -662,7 +686,9 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
               }),
             );
           }
-          return yield* Effect.die(new Error("resolveDistinctId resolved without a personId"));
+          return yield* Effect.die(
+            unexpectedError("resolveDistinctId resolved without a personId"),
+          );
         }
 
         yield* Effect.annotateCurrentSpan("voidhash.person.id", identityResult.identity.personId);
@@ -932,3 +958,4 @@ export class SdkService extends Context.Service<SdkService>()("SdkService", {
 }) {
   static layer = Layer.effect(SdkService)(SdkService.make);
 }
+import { unexpectedError } from "../../effect-boundary.ts";

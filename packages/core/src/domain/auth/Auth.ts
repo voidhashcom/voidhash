@@ -1,4 +1,7 @@
-import { DateTime, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
+import * as SchemaTransformation from "effect/SchemaTransformation";
 import { AuthSession } from "@voidhash/rpc";
 // Single canonical AuthSession service tag — the rpc package owns the
 // definition and middleware that provides it; re-exporting here keeps domain
@@ -22,7 +25,7 @@ export class NotAuthenticatedError extends Schema.TaggedErrorClass<NotAuthentica
   "NotAuthenticatedError",
 )("NotAuthenticatedError", { message: Schema.String }) {}
 
-export const SessionOrganizationSchema = Schema.Struct({
+export const SessionOrganizationDefinition = Schema.Struct({
   id: Schema.String,
   logo: Schema.NullOr(Schema.String),
   name: Schema.String,
@@ -30,8 +33,9 @@ export const SessionOrganizationSchema = Schema.Struct({
   slug: Schema.String,
   workosOrganizationId: Schema.NullOr(Schema.String),
 });
+export type SessionOrganizationDefinition = typeof SessionOrganizationDefinition.Type;
 
-export const SessionProjectSchema = Schema.Struct({
+export const SessionProjectDefinition = Schema.Struct({
   id: Schema.String,
   logo: Schema.NullOr(Schema.String),
   name: Schema.String,
@@ -39,65 +43,100 @@ export const SessionProjectSchema = Schema.Struct({
   permissions: Schema.Array(Schema.String),
   slug: Schema.String,
 });
+export type SessionProjectDefinition = typeof SessionProjectDefinition.Type;
 
-const SessionOrganizationsSchema = Schema.Array(SessionOrganizationSchema);
-const SessionProjectsSchema = Schema.Array(SessionProjectSchema);
+const SessionOrganizationsDefinition = Schema.Array(SessionOrganizationDefinition);
+const SessionProjectsDefinition = Schema.Array(SessionProjectDefinition);
+type SessionOrganizationsDefinition = typeof SessionOrganizationsDefinition.Type;
+type SessionProjectsDefinition = typeof SessionProjectsDefinition.Type;
 
-export const SessionPersonSchema = Schema.Struct({
+export const SessionPersonDefinition = Schema.Struct({
   distinctId: Schema.String,
 });
+export type SessionPersonDefinition = typeof SessionPersonDefinition.Type;
 
-export const SessionUserSchema = Schema.Struct({
+const SessionUserWire = Schema.Struct({
   createdAt: Schema.Date,
   email: Schema.String,
-  emailVerified: Schema.Boolean,
+  isEmailVerified: Schema.Boolean,
   id: Schema.String,
   image: Schema.NullOr(Schema.String),
   name: Schema.String,
   role: Schema.NullOr(Schema.String),
   updatedAt: Schema.Date,
   workosUserId: Schema.NullOr(Schema.String),
-});
+}).pipe(Schema.encodeKeys({ isEmailVerified: "emailVerified" }));
+type SessionUserWire = typeof SessionUserWire.Type;
 
-export const UserSessionSchema = Schema.Struct({
+interface SessionUserFields extends Omit<SessionUserWire, "isEmailVerified"> {
+  readonly emailVerified: boolean;
+}
+
+const SessionUserValue = Schema.declare<SessionUserFields>(
+  (input): input is SessionUserFields => P.isObject(input),
+);
+type SessionUserValue = typeof SessionUserValue.Type;
+
+export const SessionUserDefinition = SessionUserWire.pipe(
+  Schema.decodeTo(
+    SessionUserValue,
+    SchemaTransformation.transform({
+      decode: ({ isEmailVerified, ...user }) => ({
+        ...user,
+        emailVerified: isEmailVerified,
+      }),
+      encode: ({ emailVerified, ...user }) => ({
+        ...user,
+        isEmailVerified: emailVerified,
+      }),
+    }),
+  ),
+);
+export type SessionUserDefinition = typeof SessionUserDefinition.Type;
+
+export const UserSessionDefinition = Schema.Struct({
   cookie: Schema.NullOr(Schema.String),
   person: Schema.Null,
   method: Schema.Literal("user"),
   name: Schema.String,
-  organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema,
-  user: SessionUserSchema,
+  organizations: SessionOrganizationsDefinition,
+  projects: SessionProjectsDefinition,
+  user: SessionUserDefinition,
 });
+export type UserSessionDefinition = typeof UserSessionDefinition.Type;
 
-export const SecretKeySessionSchema = Schema.Struct({
+export const SecretKeySessionDefinition = Schema.Struct({
   cookie: Schema.Null,
   person: Schema.Null,
   method: Schema.Literal("secret-key"),
   name: Schema.String,
-  organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema,
+  organizations: SessionOrganizationsDefinition,
+  projects: SessionProjectsDefinition,
   user: Schema.Null,
 });
+export type SecretKeySessionDefinition = typeof SecretKeySessionDefinition.Type;
 
-export const PublishableKeySessionSchema = Schema.Struct({
+export const PublishableKeySessionDefinition = Schema.Struct({
   cookie: Schema.Null,
-  person: SessionPersonSchema,
+  person: SessionPersonDefinition,
   method: Schema.Literal("publishable-key"),
   name: Schema.String,
-  organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema,
+  organizations: SessionOrganizationsDefinition,
+  projects: SessionProjectsDefinition,
   user: Schema.Null,
 });
+export type PublishableKeySessionDefinition = typeof PublishableKeySessionDefinition.Type;
 
-export const AuthSessionSchema = Schema.Union([
-  UserSessionSchema,
-  SecretKeySessionSchema,
-  PublishableKeySessionSchema,
+export const AuthSessionDefinition = Schema.Union([
+  UserSessionDefinition,
+  SecretKeySessionDefinition,
+  PublishableKeySessionDefinition,
 ]);
+export type AuthSessionDefinition = typeof AuthSessionDefinition.Type;
 
-export type UserSession = typeof UserSessionSchema.Type;
-export type SecretKeySession = typeof SecretKeySessionSchema.Type;
-export type PublishableKeySession = typeof PublishableKeySessionSchema.Type;
+export type UserSession = typeof UserSessionDefinition.Type;
+export type SecretKeySession = typeof SecretKeySessionDefinition.Type;
+export type PublishableKeySession = typeof PublishableKeySessionDefinition.Type;
 
 export type AnyAuthSession = UserSession | SecretKeySession | PublishableKeySession;
 

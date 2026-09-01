@@ -9,7 +9,8 @@ import {
   WebhookEndpointWithSecret,
   WebhookRpcsDef,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 /** Shape the webhook service returns for an endpoint — secret included. */
 type ServiceEndpoint = typeof WebhookEndpointWithSecret.Type;
@@ -79,6 +80,13 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
             projectId,
           })
           .pipe(
+            Effect.map(({ attempts, ...delivery }) => ({
+              ...delivery,
+              attempts: attempts.map(({ succeeded, ...attempt }) => ({
+                ...attempt,
+                isSucceeded: succeeded,
+              })),
+            })),
             Effect.catchTags({
               ActionForbiddenError: (error) =>
                 Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -182,7 +190,9 @@ export const WebhookRpcsLive = WebhookRpcsDef.toLayer(
       UpdateWebhookEndpoint: ({ endpointId, name, url, events, status, description, projectId }) =>
         webhookManagerService
           .updateEndpoint({
-            description,
+            ...(description === undefined
+              ? {}
+              : { description: Option.fromNullishOr(description) }),
             endpointId,
             events,
             name,

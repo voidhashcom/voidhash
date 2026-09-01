@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Largest page a caller may request. Kept low enough that a single page always
@@ -21,6 +21,7 @@ export const PageParams = Schema.Struct({
     Schema.FiniteFromString.check(Schema.isBetween({ maximum: MAX_PAGE_SIZE, minimum: 1 })),
   ),
 });
+export type PageParams = typeof PageParams.Type;
 
 /**
  * Cursor state for the next page. `endCursor` is `null` exactly when

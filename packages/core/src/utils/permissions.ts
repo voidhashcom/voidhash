@@ -1,5 +1,6 @@
+import * as Arr from "effect/Array";
 import type { OrganizationPermission, ProjectPermission } from "@voidhash/lib";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 import { ActionForbiddenError, type AnyAuthSession, AuthSession } from "../domain/auth/Auth.ts";
 
@@ -34,10 +35,7 @@ export const extractAuthorizedProjectId = (authSession: AnyAuthSession) =>
  * @param session - the authenticated session
  * @param requested - `projectId` from the query string or body, if supplied
  */
-export const resolveRequestProjectId = (
-  session: AnyAuthSession,
-  requested?: string,
-) =>
+export const resolveRequestProjectId = (session: AnyAuthSession, requested?: string) =>
   Effect.gen(function* () {
     if (requested !== undefined) {
       const match = session.projects.find((p) => p.id === requested);
@@ -51,11 +49,12 @@ export const resolveRequestProjectId = (
       return match.id;
     }
 
-    if (session.projects.length === 1) {
-      return session.projects[0]!.id;
+    const onlyProject = session.projects[0];
+    if (session.projects.length === 1 && onlyProject) {
+      return onlyProject.id;
     }
 
-    if (session.projects.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(session.projects)) {
       return yield* Effect.fail(
         new ActionForbiddenError({
           message: "No project found for this authentication method.",
@@ -100,9 +99,9 @@ export const checkProjectPermission = (
 ) =>
   Effect.gen(function* () {
     const session = yield* AuthSession;
-    const hasPermission = session?.projects.some(
-      (p) => p.id === projectId && p.permissions.includes(permission),
-    );
+    const hasPermission =
+      session?.projects.some((p) => p.id === projectId && p.permissions.includes(permission)) ??
+      false;
     return yield* processPermissionCheck(hasPermission, message);
   });
 
@@ -113,13 +112,14 @@ export const checkOrganizationPermission = (
 ) =>
   Effect.gen(function* () {
     const session = yield* AuthSession;
-    const hasPermission = session?.organizations.some(
-      (o) => o.id === organizationId && o.permissions.includes(permission),
-    );
+    const hasPermission =
+      session?.organizations.some(
+        (o) => o.id === organizationId && o.permissions.includes(permission),
+      ) ?? false;
     return yield* processPermissionCheck(hasPermission, message);
   });
 
-const processPermissionCheck = (hasPermission: boolean | undefined, message: string) =>
+const processPermissionCheck = (hasPermission: boolean, message: string) =>
   Effect.gen(function* () {
     if (!hasPermission) {
       yield* Effect.logWarning(message);

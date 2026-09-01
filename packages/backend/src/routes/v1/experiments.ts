@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 import {
   createdResponse,
   Experiment,
@@ -22,15 +23,19 @@ import { AnalyticsQuery } from "@voidhash/core-v2";
 import { paginate, resolveRequestProjectId, sortById } from "@voidhash/core/utils";
 import { ExperimentStatus } from "@voidhash/db";
 import { AuthSession } from "@voidhash/rpc";
-import { DateTime, Duration, Effect } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
+import { MutableMap } from "../../collection-boundary.ts";
 
 type ExperimentStatusName = "draft" | "running" | "paused" | "concluded";
 
 /** The lifecycle small-int column is published under its name, and filtered on by name. */
-const STATUS_NAMES = new Map<number, ExperimentStatusName>([
+const STATUS_NAMES = new MutableMap<number, ExperimentStatusName>([
   [ExperimentStatus.draft, "draft"],
   [ExperimentStatus.running, "running"],
   [ExperimentStatus.paused, "paused"],
@@ -62,48 +67,50 @@ const STATE_CONFLICT_MESSAGES = [
 const isStateConflict = (message: string) => STATE_CONFLICT_MESSAGES.includes(message);
 
 interface ExperimentRelations {
-  readonly archivedAt: Date | null;
-  readonly createdAt: Date | null;
-  readonly createdByUserId: string | null;
-  readonly description: string | null;
-  readonly endedAt: Date | null;
+  readonly archivedAt: Date | typeof Schema.Null.Type;
+  readonly createdAt: Date | typeof Schema.Null.Type;
+  readonly createdByUserId: string | typeof Schema.Null.Type;
+  readonly description: string | typeof Schema.Null.Type;
+  readonly endedAt: Date | typeof Schema.Null.Type;
   readonly featureFlagId: string;
-  readonly hypothesis: string | null;
+  readonly hypothesis: string | typeof Schema.Null.Type;
   readonly id: string;
   readonly name: string;
-  readonly primaryMetricEventName: string | null;
+  readonly primaryMetricEventName: string | typeof Schema.Null.Type;
   readonly projectId: string;
-  readonly secondaryMetricEventNames: readonly string[] | null;
-  readonly startedAt: Date | null;
+  readonly secondaryMetricEventNames: readonly string[] | typeof Schema.Null.Type;
+  readonly startedAt: Date | typeof Schema.Null.Type;
   readonly status: number;
-  readonly updatedAt: Date | null;
-  readonly updatedByUserId: string | null;
+  readonly updatedAt: Date | typeof Schema.Null.Type;
+  readonly updatedByUserId: string | typeof Schema.Null.Type;
   readonly version: number;
-  readonly winningVariantId: string | null;
-  readonly featureFlag: {
-    readonly enabled: boolean;
-    readonly id: string;
-    readonly key: string;
-    readonly rolloutBps: number;
-  } | null;
+  readonly winningVariantId: string | typeof Schema.Null.Type;
+  readonly featureFlag:
+    | {
+        readonly enabled: boolean;
+        readonly id: string;
+        readonly key: string;
+        readonly rolloutBps: number;
+      }
+    | typeof Schema.Null.Type;
   readonly treatments: ReadonlyArray<{
-    readonly archivedAt: Date | null;
+    readonly archivedAt: Date | typeof Schema.Null.Type;
     readonly config: unknown;
-    readonly createdAt: Date | null;
+    readonly createdAt: Date | typeof Schema.Null.Type;
     readonly experimentId: string;
     readonly id: string;
     readonly treatmentType: string;
-    readonly updatedAt: Date | null;
+    readonly updatedAt: Date | typeof Schema.Null.Type;
     readonly variantId: string;
   }>;
   readonly variants: ReadonlyArray<{
-    readonly archivedAt: Date | null;
-    readonly createdAt: Date | null;
+    readonly archivedAt: Date | typeof Schema.Null.Type;
+    readonly createdAt: Date | typeof Schema.Null.Type;
     readonly experimentId: string;
     readonly id: string;
     readonly isControl: boolean;
     readonly name: string;
-    readonly updatedAt: Date | null;
+    readonly updatedAt: Date | typeof Schema.Null.Type;
     readonly weightBps: number;
   }>;
 }
@@ -221,7 +228,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
     return handlers
       .handle("listExperiments", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -239,7 +246,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
               data: page.data.map(toListItem),
               pageInfo: page.pageInfo,
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -249,7 +256,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("createExperiment", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -259,7 +266,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
             });
             const experiment = yield* reload(created.id);
             return yield* createdResponse(Experiment, experiment, `/experiments/${experiment.id}`);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -277,11 +284,11 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("getExperiment", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             return yield* reload(params.experimentId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -292,15 +299,32 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("updateExperiment", ({ params, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
+            const {
+              description,
+              hypothesis,
+              primaryMetricEventName,
+              secondaryMetricEventNames,
+              ...setup
+            } = payload;
             const experiment = yield* experimentService.saveSetup({
-              ...payload,
+              ...setup,
+              ...(description === undefined
+                ? {}
+                : { description: Option.fromNullishOr(description) }),
+              ...(hypothesis === undefined ? {} : { hypothesis: Option.fromNullishOr(hypothesis) }),
               id: params.experimentId,
+              ...(primaryMetricEventName === undefined
+                ? {}
+                : { primaryMetricEventName: Option.fromNullishOr(primaryMetricEventName) }),
+              ...(secondaryMetricEventNames === undefined
+                ? {}
+                : { secondaryMetricEventNames: Option.fromNullishOr(secondaryMetricEventNames) }),
             });
             return toExperiment(experiment);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -313,11 +337,11 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("archiveExperiment", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             return yield* experimentService.archiveExperiment({ id: params.experimentId });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -328,12 +352,12 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("restoreExperiment", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             yield* experimentService.restoreExperiment({ id: params.experimentId });
             return yield* reload(params.experimentId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -344,12 +368,12 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("startExperiment", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             yield* experimentService.startExperiment({ id: params.experimentId });
             return yield* reload(params.experimentId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -364,12 +388,12 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("pauseExperiment", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             yield* experimentService.pauseExperiment({ id: params.experimentId });
             return yield* reload(params.experimentId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -381,7 +405,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("concludeExperiment", ({ params, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             yield* experimentService.concludeExperiment({
@@ -389,7 +413,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
               winningVariantId: payload.winningVariantId,
             });
             return yield* reload(params.experimentId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,
@@ -401,7 +425,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
       )
       .handle("getExperimentResults", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ExperimentsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const experiment = yield* experimentService.getExperiment({
@@ -420,7 +444,7 @@ export const ExperimentsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "experim
             return new ExperimentResults({
               variants: results.variants.map((variant) => new ExperimentVariantResult(variant)),
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: forbidden,

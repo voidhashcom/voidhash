@@ -1,4 +1,6 @@
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import { AnalyticsEventV1 } from "../../domain/AnalyticsEvent.ts";
 import {
@@ -13,6 +15,7 @@ export const StoredAnalyticsEvent = Schema.Struct({
   /** Stable adapter cursor used to order and resume event scans. */
   storageCursor: Schema.String,
 });
+export type StoredAnalyticsEvent = typeof StoredAnalyticsEvent.Type;
 
 /** Filters and pagination controls for reading canonical events. */
 export const ListAnalyticsEventsInput = Schema.Struct({
@@ -31,12 +34,14 @@ export const ListAnalyticsEventsInput = Schema.Struct({
   /** Inclusive lower bound for event time. */
   start: Schema.optional(Schema.Date),
 });
+export type ListAnalyticsEventsInput = typeof ListAnalyticsEventsInput.Type;
 
 /** One page of stored events and its continuation state. */
 export const AnalyticsEventPage = Schema.Struct({
   events: Schema.Array(StoredAnalyticsEvent),
   hasNextPage: Schema.Boolean,
 });
+export type AnalyticsEventPage = typeof AnalyticsEventPage.Type;
 
 /**
  * Canonical events plus the identity projections derived while processing.
@@ -52,6 +57,7 @@ export const AnalyticsWriteBatch = Schema.Struct({
   personEvents: Schema.Array(ProcessorPersonEventV1),
   personIdentityEvents: Schema.Array(ProcessorPersonIdentityEventV1),
 });
+export type AnalyticsWriteBatch = typeof AnalyticsWriteBatch.Type;
 
 /** Portable storage capabilities implemented by PostgreSQL and ClickHouse adapters. */
 export interface AnalyticsStoreShape {

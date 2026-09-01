@@ -1,17 +1,19 @@
-import { Effect, Layer } from "effect";
+import * as Effect from "effect/Effect";
+import { runPromise } from "./RuntimeBoundary.ts";
+import * as Layer from "effect/Layer";
 
 /** Executes an Effect against services selected by connection-specific input. */
 export interface EffectRunner<ConnectionData, R> {
   <A, E>(
     connectionData: ConnectionData,
     effect: Effect.Effect<A, E, R>,
-    signal?: AbortSignal,
+    ...signals: [] | [signal: AbortSignal]
   ): Promise<A>;
 }
 
 /** Executes an Effect after its connection-specific input has been bound. */
 export interface BoundEffectRunner<R> {
-  <A, E>(effect: Effect.Effect<A, E, R>, signal?: AbortSignal): Promise<A>;
+  <A, E>(effect: Effect.Effect<A, E, R>, ...signals: [] | [signal: AbortSignal]): Promise<A>;
 }
 
 /** Binds connection data to an Effect runner without acquiring any services yet. */
@@ -20,13 +22,12 @@ export const bindEffectRunner =
     runner: EffectRunner<ConnectionData, R>,
     connectionData: ConnectionData,
   ): BoundEffectRunner<R> =>
-  (effect, signal) =>
-    runner(connectionData, effect, signal);
+  (effect, ...signals) => runner(connectionData, effect, ...signals);
 
 const runOptions = (
-  signal: AbortSignal | undefined,
-): { readonly signal: AbortSignal } | undefined => {
-  if (signal === undefined) return undefined;
+  signal: AbortSignal | void,
+): Readonly<Partial<{ signal: AbortSignal }>> => {
+  if (signal === undefined) return {};
   return { signal };
 };
 
@@ -38,5 +39,5 @@ export const makeLayerEffectRunner =
   <ConnectionData, R>(
     layerFor: (connectionData: ConnectionData) => Layer.Layer<R>,
   ): EffectRunner<ConnectionData, R> =>
-  (connectionData, effect, signal) =>
-    Effect.runPromise(effect.pipe(Effect.provide(layerFor(connectionData))), runOptions(signal));
+  (connectionData, effect, ...signals) =>
+    runPromise(effect.pipe(Effect.provide(layerFor(connectionData))), runOptions(signals[0]));

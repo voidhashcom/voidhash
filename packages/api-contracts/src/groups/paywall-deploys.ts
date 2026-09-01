@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/httpapi";
 
 import {
@@ -53,11 +53,7 @@ export const PaywallDeploysGroup = HttpApiGroup.make("paywall_deploys")
       params: { deployId: Schema.String },
       query: PaywallDeployItemParams,
       success: PaywallDeploy,
-      error: [
-        ApiActionForbiddenError,
-        ApiPaywallDeployNotFoundError,
-        ApiPaywallDeployServiceError,
-      ],
+      error: [ApiActionForbiddenError, ApiPaywallDeployNotFoundError, ApiPaywallDeployServiceError],
     }),
   )
   .add(

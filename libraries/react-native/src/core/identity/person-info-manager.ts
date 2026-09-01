@@ -1,11 +1,14 @@
 import type { SdkPerson } from "@voidhash/generated-clients";
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 
 import { CacheManager } from "../caching/cache-manager";
 import { ApiClient } from "../networking/api-client";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("makePersonInfoManager")(function* effect() {
   const cacheManager = yield* CacheManager;
   const apiClient = yield* ApiClient;
 
@@ -51,7 +54,10 @@ const make = Effect.gen(function* effect() {
     Effect.gen(function* getPerson() {
       if (cachePolicy === "cache") {
         const personFromCache = yield* getPersonFromCache(distinctId);
-        return personFromCache?.value ?? null;
+        return Option.match(personFromCache, {
+          onNone: () => null,
+          onSome: (hit) => hit.value,
+        });
       }
 
       if (cachePolicy === "fetch") {
@@ -61,12 +67,11 @@ const make = Effect.gen(function* effect() {
       // fetch-while-stale policy
       const personFromCache = yield* getPersonFromCache(distinctId);
       if (
-        personFromCache &&
-        !personFromCache.isStale &&
-        !personFromCache.isExpired &&
-        personFromCache.value
+        Option.isSome(personFromCache) &&
+        !personFromCache.value.isStale &&
+        !personFromCache.value.isExpired
       ) {
-        return personFromCache.value;
+        return personFromCache.value.value;
       }
 
       return yield* getPersonFromServerAndCache(distinctId);
@@ -82,7 +87,9 @@ const make = Effect.gen(function* effect() {
 
 export class PersonInfoManager extends Context.Service<
   PersonInfoManager,
-  Effect.Success<typeof make>
+  Effect.Success<ReturnType<typeof make>>
 >()("rn-voidhash/PersonInfoManager") {
-  static Default = Layer.effect(PersonInfoManager, make).pipe(Layer.provide(CacheManager.Default));
+  static Default = Layer.effect(PersonInfoManager, make()).pipe(
+    Layer.provide(CacheManager.Default),
+  );
 }

@@ -3,7 +3,7 @@
  * on a paywall location or its active showing. Row data lives in the
  * `paywallLocations` Drizzle table.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Location row not found in the database. */
 export class PaywallLocationNotFoundError extends Schema.TaggedErrorClass<PaywallLocationNotFoundError>(

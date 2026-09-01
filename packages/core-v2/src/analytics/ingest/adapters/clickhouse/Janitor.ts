@@ -1,4 +1,4 @@
-import { DateTime } from "effect";
+import * as DateTime from "effect/DateTime";
 
 export interface SnapshotResources {
   readonly pendingOverrideDictionaryName: string;

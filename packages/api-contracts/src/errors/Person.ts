@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic person service error */
 export class ApiPersonServiceError extends Schema.TaggedErrorClass<ApiPersonServiceError>()(

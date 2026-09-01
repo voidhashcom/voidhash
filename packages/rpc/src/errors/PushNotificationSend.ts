@@ -5,7 +5,7 @@
  * and the credential CRUD path evolve independently, and namespaced with
  * `Rpc` / `Rpc/` like the rest of the wire contract.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** A send (or its parent send for a deliveries lookup) was not found. */
 export class RpcPushNotificationSendNotFoundError extends Schema.TaggedErrorClass<RpcPushNotificationSendNotFoundError>(

@@ -1,4 +1,11 @@
-import { Clock, Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import { randomUUID } from "uncrypto";
 
 import { constant } from "@voidhash/lib/lang";
 
@@ -36,8 +43,8 @@ export class ApiKeyServiceError extends Schema.TaggedErrorClass<ApiKeyServiceErr
   "ApiKeyServiceError",
 )("ApiKeyServiceError", { cause: Schema.String }) {}
 
-const isExpired = (expiresAt: Date | null | undefined, nowMillis: number): boolean =>
-  expiresAt !== null && expiresAt !== undefined && expiresAt.getTime() <= nowMillis;
+const isExpired = (expiresAt: Option.Option<Date>, nowMillis: number): boolean =>
+  Option.exists(expiresAt, (expires) => expires.getTime() <= nowMillis);
 
 /**
  * `ApiKeyService` is the single entry point for the three kinds of api keys:
@@ -286,8 +293,7 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
           yield* Effect.annotateCurrentSpan("voidhash.api_key.prefix", input.prefix);
 
         const { rawKey, ...userApiKey } = yield* generateUserApiKeyFn(input.prefix);
-        // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (only Node/Browser/Bun, none Workers-safe), and this service runs on workerd.
-        const apiKeyId = crypto.randomUUID();
+        const apiKeyId = randomUUID();
         const now = yield* DateTime.nowAsDate;
         yield* db.insert(apikey).values({
           createdAt: now,
@@ -390,7 +396,12 @@ export class ApiKeyService extends Context.Service<ApiKeyService>()("ApiKeyServi
         const nowMillis = yield* Clock.currentTimeMillis;
         const user = found?.user;
 
-        if (!found || !user || found.enabled === false || isExpired(found.expiresAt, nowMillis)) {
+        if (
+          !found ||
+          !user ||
+          found.enabled === false ||
+          isExpired(Option.fromNullishOr(found.expiresAt), nowMillis)
+        ) {
           // Never echo the raw (secret-equivalent) key — omit the id entirely.
           return yield* Effect.fail(new ApiKeyNotFoundError({}));
         }

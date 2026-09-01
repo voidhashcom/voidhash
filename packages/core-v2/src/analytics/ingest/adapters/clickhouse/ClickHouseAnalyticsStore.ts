@@ -1,4 +1,10 @@
-import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { AnalyticsPortError, AnalyticsStore } from "../../../application/ports.ts";
 import type {
@@ -25,9 +31,9 @@ export interface ClickHouseAnalyticsClientShape {
     readonly table: string;
     readonly values: ReadonlyArray<Record<string, unknown>>;
   }) => Effect.Effect<void, unknown>;
-  readonly query: <Row extends object>(
+  readonly query: (
     statement: ClickHouseStatement,
-  ) => Effect.Effect<ReadonlyArray<Row>, unknown>;
+  ) => Effect.Effect<ReadonlyArray<unknown>, unknown>;
 }
 
 /** ClickHouse client boundary supplied by the application runtime. */
@@ -193,11 +199,11 @@ const listStatement = (
   } satisfies ClickHouseStatement;
 };
 
-const makeClickHouseAnalyticsStore = Effect.gen(function* () {
+const makeClickHouseAnalyticsStore = Effect.fn("makeClickHouseAnalyticsStore")(function* () {
   const client = yield* ClickHouseAnalyticsClient;
   const list = (input: typeof ListAnalyticsEventsInput.Type) => {
-    if (input.projectIds.length === 0) return Effect.succeed([]);
-    return client.query<ClickHouseEventRow>(listStatement(input, input.limit ?? 10_000)).pipe(
+    if (Arr.isReadonlyArrayEmpty(input.projectIds)) return Effect.succeed([]);
+    return client.query(listStatement(input, input.limit ?? 10_000)).pipe(
       Effect.timeout(STORE_OPERATION_TIMEOUT),
       Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseEventRow))),
       Effect.map((rows) => rows.map(storedEvent)),
@@ -213,37 +219,32 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
           if (row.record_type === "event") return count + 1;
           return count;
         }, 0);
-        if (
-          batch.events.length > 0 ||
-          batch.personEvents.length > 0 ||
-          batch.personIdentityEvents.length > 0
-        ) {
-          yield* client
-            .insert({
-              deduplicationToken: String(rows[0]!.write_id),
-              table: "analytics_records_v1",
-              values: rows,
-            })
-            .pipe(Effect.timeout(STORE_OPERATION_TIMEOUT));
-        }
+        yield* Option.match(Arr.head(rows), {
+          onNone: () => Effect.void,
+          onSome: (first) =>
+            client
+              .insert({
+                deduplicationToken: String(first.write_id),
+                table: "analytics_records_v1",
+                values: rows,
+              })
+              .pipe(Effect.timeout(STORE_OPERATION_TIMEOUT)),
+        });
         return insertedEventCount;
       }).pipe(Effect.mapError(portError("failed to insert analytics batch"))),
     list,
     listPage: (input) => {
-      if (input.projectIds.length === 0) {
+      if (Arr.isReadonlyArrayEmpty(input.projectIds)) {
         return Effect.succeed({
           events: [],
           hasNextPage: false,
         } satisfies typeof AnalyticsEventPage.Type);
       }
       return Effect.gen(function* () {
-        let cursor: { readonly eventId: string; readonly insertedAt: string } | undefined;
-        if (input.afterEventId) {
+        const cursor = yield* Effect.gen(function* () {
+          if (!input.afterEventId) return undefined;
           const anchors = yield* client
-            .query<{
-              readonly event_id: string;
-              readonly inserted_ts: string;
-            }>({
+            .query({
               name: "analytics.events.cursor",
               sql: "SELECT event_id, inserted_ts FROM analytics_events_v2 WHERE project_id IN {projectIds:Array(String)} AND event_id = {eventId:String} ORDER BY processed_ts DESC LIMIT 1",
               params: { eventId: input.afterEventId, projectIds: [...input.projectIds] },
@@ -253,17 +254,17 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
               Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseCursorRow))),
             );
           if (anchors[0]) {
-            cursor = { eventId: anchors[0].event_id, insertedAt: anchors[0].inserted_ts };
+            return { eventId: anchors[0].event_id, insertedAt: anchors[0].inserted_ts };
           } else {
             return yield* Effect.fail({
               cause: input.afterEventId,
               message: "analytics event cursor was not found",
             });
           }
-        }
+        });
         const limit = input.limit ?? 100;
         const rows = yield* client
-          .query<ClickHouseEventRow>(listStatement(input, limit + 1, cursor))
+          .query(listStatement(input, limit + 1, cursor))
           .pipe(
             Effect.timeout(STORE_OPERATION_TIMEOUT),
             Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(ClickHouseEventRow))),
@@ -275,7 +276,7 @@ const makeClickHouseAnalyticsStore = Effect.gen(function* () {
       }).pipe(Effect.mapError(portError("failed to page analytics events")));
     },
   } satisfies AnalyticsStoreShape;
-});
+})();
 
 /** ClickHouse implementation of the unified analytics store. */
 export const ClickHouseAnalyticsStoreLive = Layer.effect(AnalyticsStore)(

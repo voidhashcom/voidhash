@@ -1,5 +1,12 @@
 import { CliError } from "effect/unstable/cli";
-import { Cause, Console, Data, Effect } from "effect";
+import * as Cause from "effect/Cause";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 
 const CliErrorTypeId = Symbol.for("~effect/cli/CliError");
 
@@ -12,25 +19,23 @@ export const isDebugMode = (): boolean =>
 
 /**
  * Resolve the active config profile from the `--profile <name>` / `--profile=<name>`
- * flag, or `null` when no profile is requested.
+ * flag, or `Option.none` when no profile is requested.
  *
  * Like {@link isDebugMode}, this reads `process.argv` directly because the parsed
  * flag value isn't available where the CliConfig layer is built. The flag itself
  * is registered as a shared flag on the root command so the parser accepts it on
  * every command.
  */
-export const getActiveProfile = (): string | null => {
+export const getActiveProfile = (): Option.Option<string> => {
   // oxlint-disable-next-line effect/noGlobals -- as documented above, the `--profile` value is read straight from argv because the parsed flag isn't available where the CliConfig layer is built.
   const argv = process.argv;
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === undefined) continue;
-    if (arg === "--profile") return argv[i + 1] ?? null;
+  return Arr.findFirst(argv, (arg, index) => {
+    if (arg === "--profile") return Option.fromNullishOr(argv[index + 1]);
     if (arg.startsWith("--profile=")) {
-      return arg.slice("--profile=".length) || null;
+      return Option.liftPredicate(Str.isNonEmpty)(arg.slice("--profile=".length));
     }
-  }
-  return null;
+    return Option.none();
+  });
 };
 
 /**
@@ -48,9 +53,10 @@ export const getActiveProfile = (): string | null => {
  * The cause carried by a {@link userError} — an ordinary `Error` (so
  * `Cause.pretty` renders it) whose only payload is the user-facing message.
  */
-export class UserMessageError extends Data.TaggedError("UserMessageError")<{
-  readonly message: string;
-}> {}
+export class UserMessageError extends Schema.TaggedErrorClass<UserMessageError>("UserMessageError")(
+  "UserMessageError",
+  { message: Schema.String },
+) {}
 
 export const userError = (message: string): CliError.UserError =>
   new CliError.UserError({ cause: new UserMessageError({ message }) });
@@ -59,7 +65,7 @@ export const userError = (message: string): CliError.UserError =>
  * Check if an error is a CliError from @effect/cli
  */
 const isCliError = (error: unknown): error is CliError.CliError =>
-  typeof error === "object" && error !== null && CliErrorTypeId in error;
+  P.isObject(error) && error !== null && CliErrorTypeId in error;
 
 /**
  * Wraps a CLI effect to properly render CliErrors.
@@ -75,33 +81,30 @@ export const withValidationErrorHandler = <A, E, R>(
 ): Effect.Effect<A | void, Exclude<E, CliError.CliError>, R> =>
   effect.pipe(
     Effect.catchCause((cause) => {
-      const failures = cause.reasons
-        .filter((r): r is Extract<typeof r, { _tag: "Fail" }> => r._tag === "Fail")
-        .map((r) => r.error);
+      const failures = cause.reasons.filter(Cause.isFailReason).map((reason) => reason.error);
 
-      for (const failure of failures) {
-        if (isCliError(failure)) {
+      const cliFailure = failures.find(isCliError);
+      if (isCliError(cliFailure)) {
           // In debug mode, show the full cause chain
           if (isDebugMode()) {
             return Console.error("\n--- Debug Trace ---").pipe(
               Effect.andThen(Console.error(Cause.pretty(cause))),
               Effect.andThen(Console.error("--- End Debug Trace ---\n")),
-              Effect.andThen(Console.error(failure.message)),
+              Effect.andThen(Console.error(cliFailure.message)),
               // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the cause the handler just rendered.
               Effect.andThen(Effect.sync(() => process.exit(1))),
             );
           }
 
           // Normal mode: just show the user-friendly message
-          return Console.error(failure.message).pipe(
+          return Console.error(cliFailure.message).pipe(
             // oxlint-disable-next-line effect/noGlobals -- terminal CLI exit: this handler wraps the whole program, so there is no outer Effect runtime left to carry an exit code; failing instead would re-print the message just rendered.
             Effect.andThen(Effect.sync(() => process.exit(1))),
           );
-        }
       }
 
       // For non-CliError failures, show full cause in debug mode
-      if (isDebugMode() && cause.reasons.length > 0) {
+      if (isDebugMode() && Arr.isReadonlyArrayNonEmpty(cause.reasons)) {
         return Console.error("\n--- Debug Trace ---").pipe(
           Effect.andThen(Console.error(Cause.pretty(cause))),
           Effect.andThen(Console.error("--- End Debug Trace ---\n")),
@@ -121,7 +124,8 @@ export const withValidationErrorHandler = <A, E, R>(
 
       // Handle defects
       const defects = cause.reasons.filter(
-        (reason): reason is Cause.Die | Cause.Interrupt => reason._tag !== "Fail",
+        (reason): reason is Cause.Die | Cause.Interrupt =>
+          Cause.isDieReason(reason) || Cause.isInterruptReason(reason),
       );
       return Effect.failCause(Cause.fromReasons(defects));
     }),

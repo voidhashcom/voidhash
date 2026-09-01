@@ -1,5 +1,6 @@
 import { Result } from "better-result";
-import { useCallback, useState } from "react";
+import * as Option from "effect/Option";
+import * as React from "react";
 
 import type { PurchaseOutcome, VoidhashClient } from "../../client";
 import type { Product } from "../../core/entities/product";
@@ -17,13 +18,13 @@ export type UsePurchaseCallOptions = UsePurchaseOptions;
 
 export function purchaseHookFactory(client: VoidhashClient) {
   function usePurchase(hookOptions?: UsePurchaseOptions) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<VoidhashError | null>(null);
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [error, setError] = React.useState<Option.Option<VoidhashError>>(Option.none());
 
-    const purchase = useCallback(
+    const purchase = React.useCallback(
       (product: Product, options?: UsePurchaseCallOptions): Promise<PurchaseResult> => {
         setIsLoading(true);
-        setError(null);
+        setError(Option.none());
 
         // Call-level callbacks take precedence; the hook-level callback for
         // an event fires only when the call didn't provide its own.
@@ -38,7 +39,7 @@ export function purchaseHookFactory(client: VoidhashClient) {
               onSuccess?.();
             }
           } else {
-            setError(result.error);
+            setError(Option.some(result.error));
             onError?.(result.error);
           }
 

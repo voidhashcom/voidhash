@@ -1,26 +1,29 @@
+import { unsafeDefined } from "./runtime-boundary.ts";
 import { constant } from "@voidhash/lib/lang";
-import { Config, Context, Data, Effect, Layer, Schema } from "effect";
+import * as Config from "effect/Config";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 
-const GooglePubSubClaimsSchema = Schema.Struct({
+const GooglePubSubClaims = Schema.Struct({
   email: Schema.String,
-  email_verified: Schema.Boolean,
-});
+  isEmailVerified: Schema.Boolean,
+}).pipe(Schema.encodeKeys({ isEmailVerified: "email_verified" }));
 
 const GOOGLE_OIDC_ISSUERS = constant(["accounts.google.com", "https://accounts.google.com"]);
 const GOOGLE_OIDC_JWKS_URL = new URL("https://www.googleapis.com/oauth2/v3/certs");
 
-export class GooglePubSubPushVerificationError extends Data.TaggedError(
+export class GooglePubSubPushVerificationError extends Schema.TaggedErrorClass<GooglePubSubPushVerificationError>("GooglePubSubPushVerificationError")(
   "GooglePubSubPushVerificationError",
-)<{
-  readonly kind: "misconfigured" | "unauthorized";
-  readonly message: string;
-}> {}
+  { kind: Schema.Literals(["misconfigured" , "unauthorized"]), message: Schema.String },
+) {}
 
 export interface GooglePubSubPushVerifierShape {
   /** Verifies the authenticated Pub/Sub push bearer token and its bound identity. */
   readonly verify: (
-    authorizationHeader: string | undefined,
+    authorizationHeader: string | typeof Schema.Undefined.Type,
   ) => Effect.Effect<void, GooglePubSubPushVerificationError>;
 }
 
@@ -62,7 +65,7 @@ export const makeGooglePubSubPushVerifier = (
 
       const verification = yield* Effect.tryPromise({
         try: () =>
-          jwtVerify(bearerMatch[1]!, options.jwks, {
+          jwtVerify(unsafeDefined(bearerMatch[1]), options.jwks, {
             algorithms: ["RS256"],
             audience,
             issuer: [...GOOGLE_OIDC_ISSUERS],
@@ -74,7 +77,7 @@ export const makeGooglePubSubPushVerifier = (
           }),
       });
 
-      const claims = yield* Schema.decodeUnknownEffect(GooglePubSubClaimsSchema)(
+      const claims = yield* Schema.decodeUnknownEffect(GooglePubSubClaims)(
         verification.payload,
       ).pipe(
         Effect.mapError(
@@ -86,7 +89,7 @@ export const makeGooglePubSubPushVerifier = (
         ),
       );
 
-      if (!claims.email_verified || claims.email !== serviceAccountEmail) {
+      if (!claims.isEmailVerified || claims.email !== serviceAccountEmail) {
         return yield* new GooglePubSubPushVerificationError({
           kind: "unauthorized",
           message: "Pub/Sub identity token does not match the configured service account",

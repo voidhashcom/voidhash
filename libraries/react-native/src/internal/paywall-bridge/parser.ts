@@ -1,5 +1,7 @@
-import { Effect } from "effect";
-
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 import {
   PAYWALL_BRIDGE_VERSION,
   type PaywallBridgeActionType,
@@ -13,18 +15,23 @@ export type PaywallBridgeParseErrorCode =
   | "UNSUPPORTED_TYPE"
   | "INVALID_PAYLOAD";
 
-export class PaywallBridgeParseError extends Error {
-  constructor(
-    readonly code: PaywallBridgeParseErrorCode,
-    message: string,
-    readonly causeValue?: unknown,
-  ) {
-    super(message);
-    this.name = "PaywallBridgeParseError";
-  }
-}
+const ParseErrorCode = Schema.Literals([
+  "INVALID_JSON",
+  "INVALID_ENVELOPE",
+  "UNSUPPORTED_VERSION",
+  "UNSUPPORTED_TYPE",
+  "INVALID_PAYLOAD",
+]);
 
-const ACTION_TYPES: PaywallBridgeActionType[] = [
+export class PaywallBridgeParseError extends Schema.TaggedErrorClass<PaywallBridgeParseError>(
+  "PaywallBridgeParseError",
+)("PaywallBridgeParseError", {
+  code: ParseErrorCode,
+  message: Schema.String,
+  causeValue: Schema.optional(Schema.Unknown),
+}) {}
+
+const ACTION_TYPES: readonly PaywallBridgeActionType[] = [
   "ready",
   "close",
   "purchase",
@@ -34,169 +41,112 @@ const ACTION_TYPES: PaywallBridgeActionType[] = [
   "log",
 ];
 
+const NonEmptyString = Schema.String.check(Schema.isMinLength(1));
+const BaseFields = {
+  version: Schema.Literal(PAYWALL_BRIDGE_VERSION),
+  requestId: Schema.optional(NonEmptyString),
+};
+const EnvelopeSchema = Schema.Union([
+  Schema.Struct({
+    ...BaseFields,
+    type: Schema.Literal("ready"),
+    payload: Schema.optional(Schema.Struct({ templateVersion: Schema.optional(Schema.String) })),
+  }),
+  Schema.Struct({
+    ...BaseFields,
+    type: Schema.Literal("close"),
+    payload: Schema.optional(Schema.Struct({ reason: Schema.optional(Schema.String) })),
+  }),
+  Schema.Struct({
+    ...BaseFields,
+    type: Schema.Literal("purchase"),
+    payload: Schema.Struct({
+      productId: NonEmptyString,
+      paywallProductId: Schema.optional(Schema.String),
+    }),
+  }),
+  Schema.Struct({
+    ...BaseFields,
+    type: Schema.Literal("restore"),
+    payload: Schema.optional(Schema.Struct({ source: Schema.optional(Schema.String) })),
+  }),
+  Schema.Struct({
+    ...BaseFields,
+    type: Schema.Literal("openExternal"),
+    payload: Schema.Struct({ url: NonEmptyString }),
+  }),
+  Schema.Struct({
+    ...BaseFields,
+    type: Schema.Literal("event"),
+    payload: Schema.Struct({
+      name: NonEmptyString,
+      properties: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+    }),
+  }),
+  Schema.Struct({
+    ...BaseFields,
+    type: Schema.Literal("log"),
+    payload: Schema.Struct({
+      level: Schema.Literals(["debug", "info", "warn", "error"]),
+      message: NonEmptyString,
+    }),
+  }),
+]) satisfies Schema.Schema<PaywallBridgeEnvelope>;
+
+const decodeJson = Schema.decodeEffect(Schema.UnknownFromJsonString);
+const decodeEnvelope = Schema.decodeUnknownOption(EnvelopeSchema);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return P.isObject(value) && value !== null;
 }
 
-function getRequiredString(
-  value: unknown,
-  fieldName: string,
-  type: PaywallBridgeActionType,
-): string {
-  if (typeof value === "string" && value.length > 0) {
-    return value;
-  }
-  return Effect.runSync(
-    Effect.die(
-      new PaywallBridgeParseError(
-        "INVALID_PAYLOAD",
-        `Invalid paywall bridge payload for '${type}': '${fieldName}' must be a non-empty string`,
-        value,
-      ),
+function isActionType(value: unknown): value is PaywallBridgeActionType {
+  return P.isString(value) && ACTION_TYPES.some((type) => type === value);
+}
+
+/** Parse and validate a message received from the paywall bridge. */
+export const parsePaywallBridgeEnvelope = Effect.fn("parsePaywallBridgeEnvelope")(function* (
+  raw: string,
+): Effect.fn.Return<PaywallBridgeEnvelope, PaywallBridgeParseError> {
+  const parsed = yield* decodeJson(raw).pipe(
+    Effect.mapError(
+      (causeValue) =>
+        new PaywallBridgeParseError({
+          code: "INVALID_JSON",
+          message: "Invalid paywall bridge payload: failed to parse JSON",
+          causeValue,
+        }),
     ),
   );
-}
-
-function validatePayload(type: PaywallBridgeActionType, payload: unknown): void {
-  if (payload === undefined || payload === null) {
-    if (type === "purchase" || type === "openExternal" || type === "event" || type === "log") {
-      return Effect.runSync(
-        Effect.die(
-          new PaywallBridgeParseError(
-            "INVALID_PAYLOAD",
-            `Invalid paywall bridge payload for '${type}': payload is required`,
-          ),
-        ),
-      );
-    }
-    return;
-  }
-
-  if (!isRecord(payload)) {
-    return Effect.runSync(
-      Effect.die(
-        new PaywallBridgeParseError(
-          "INVALID_PAYLOAD",
-          `Invalid paywall bridge payload for '${type}': payload must be an object`,
-          payload,
-        ),
-      ),
-    );
-  }
-
-  if (type === "purchase") {
-    getRequiredString(payload.productId, "productId", type);
-    return;
-  }
-
-  if (type === "openExternal") {
-    getRequiredString(payload.url, "url", type);
-    return;
-  }
-
-  if (type === "event") {
-    getRequiredString(payload.name, "name", type);
-
-    if (payload.properties !== undefined && !isRecord(payload.properties)) {
-      return Effect.runSync(
-        Effect.die(
-          new PaywallBridgeParseError(
-            "INVALID_PAYLOAD",
-            "Invalid paywall bridge payload for 'event': 'properties' must be an object when present",
-            payload.properties,
-          ),
-        ),
-      );
-    }
-    return;
-  }
-
-  if (type === "log") {
-    const level = payload.level;
-    const message = payload.message;
-
-    if (level !== "debug" && level !== "info" && level !== "warn" && level !== "error") {
-      return Effect.runSync(
-        Effect.die(
-          new PaywallBridgeParseError(
-            "INVALID_PAYLOAD",
-            "Invalid paywall bridge payload for 'log': 'level' must be debug|info|warn|error",
-            level,
-          ),
-        ),
-      );
-    }
-
-    getRequiredString(message, "message", type);
-  }
-}
-
-export function parsePaywallBridgeEnvelope(raw: string): PaywallBridgeEnvelope {
-  const parsed: unknown = Effect.runSync(
-    Effect.try({
-      try: () => JSON.parse(raw) as unknown,
-      catch: (error) =>
-        new PaywallBridgeParseError(
-          "INVALID_JSON",
-          "Invalid paywall bridge payload: failed to parse JSON",
-          error,
-        ),
-    }).pipe(Effect.orDie),
-  );
-
   if (!isRecord(parsed)) {
-    return Effect.runSync(
-      Effect.die(
-        new PaywallBridgeParseError(
-          "INVALID_ENVELOPE",
-          "Invalid paywall bridge payload: expected object envelope",
-          parsed,
-        ),
-      ),
-    );
+    return yield* new PaywallBridgeParseError({
+      code: "INVALID_ENVELOPE",
+      message: "Invalid paywall bridge payload: expected object envelope",
+      causeValue: parsed,
+    });
   }
-
   if (parsed.version !== PAYWALL_BRIDGE_VERSION) {
-    return Effect.runSync(
-      Effect.die(
-        new PaywallBridgeParseError(
-          "UNSUPPORTED_VERSION",
-          `Unsupported paywall bridge version: ${String(parsed.version)}`,
-          parsed.version,
-        ),
-      ),
-    );
+    return yield* new PaywallBridgeParseError({
+      code: "UNSUPPORTED_VERSION",
+      message: `Unsupported paywall bridge version: ${String(parsed.version)}`,
+      causeValue: parsed.version,
+    });
   }
-
-  if (!ACTION_TYPES.includes(parsed.type as PaywallBridgeActionType)) {
-    return Effect.runSync(
-      Effect.die(
-        new PaywallBridgeParseError(
-          "UNSUPPORTED_TYPE",
-          `Unsupported paywall bridge message type: ${String(parsed.type)}`,
-          parsed.type,
-        ),
-      ),
-    );
+  if (!isActionType(parsed.type)) {
+    return yield* new PaywallBridgeParseError({
+      code: "UNSUPPORTED_TYPE",
+      message: `Unsupported paywall bridge message type: ${String(parsed.type)}`,
+      causeValue: parsed.type,
+    });
   }
-
-  if (
-    parsed.requestId !== undefined &&
-    (typeof parsed.requestId !== "string" || parsed.requestId.length === 0)
-  ) {
-    return Effect.runSync(
-      Effect.die(
-        new PaywallBridgeParseError(
-          "INVALID_ENVELOPE",
-          "Invalid paywall bridge payload: 'requestId' must be a non-empty string when present",
-          parsed.requestId,
-        ),
-      ),
-    );
-  }
-
-  const type = parsed.type as PaywallBridgeActionType;
-  validatePayload(type, parsed.payload);
-
-  return parsed as unknown as PaywallBridgeEnvelope;
-}
+  const actionType = parsed.type;
+  return yield* Option.match(decodeEnvelope(parsed), {
+    onSome: Effect.succeed,
+    onNone: () =>
+      new PaywallBridgeParseError({
+        code: parsed.requestId === undefined ? "INVALID_PAYLOAD" : "INVALID_ENVELOPE",
+        message: `Invalid paywall bridge payload for '${actionType}'`,
+        causeValue: parsed,
+      }),
+  });
+});

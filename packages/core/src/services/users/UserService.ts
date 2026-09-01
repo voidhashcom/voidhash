@@ -1,5 +1,10 @@
 import { constant } from "@voidhash/lib/lang";
-import { Cause, Effect, Layer, Option, Schema, Context } from "effect";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
 import { AuthenticationError, AuthSession } from "../../domain/auth/Auth.ts";
 import {
   avatarKeyFromUrl,
@@ -57,18 +62,19 @@ export class UserService extends Context.Service<UserService>()("UserService", {
       // resolution failure must never break CurrentUser, so orgs simply fall
       // back to no extra flags.
       const maybeInternalFlags = yield* Effect.serviceOption(InternalFeatureFlagService);
-      let enabledFlagsByOrg: Record<string, readonly string[]> = {};
-      if (Option.isSome(maybeInternalFlags)) {
-        enabledFlagsByOrg = yield* maybeInternalFlags.value
-          .resolveEnabledForOrganizations(session.organizations.map((o) => o.id))
-          .pipe(
-            Effect.catch((error) =>
-              Effect.logWarning("Failed to resolve internal feature flags for CurrentUser", {
-                cause: error.message,
-              }).pipe(Effect.as<Record<string, readonly string[]>>({})),
+      const enabledFlagsByOrg = yield* Option.match(maybeInternalFlags, {
+        onNone: () => Effect.succeed<Record<string, readonly string[]>>({}),
+        onSome: (internalFlags) =>
+          internalFlags
+            .resolveEnabledForOrganizations(session.organizations.map((o) => o.id))
+            .pipe(
+              Effect.catch((error) =>
+                Effect.logWarning("Failed to resolve internal feature flags for CurrentUser", {
+                  cause: error.message,
+                }).pipe(Effect.as<Record<string, readonly string[]>>({})),
+              ),
             ),
-          );
-      }
+      });
 
       return {
         ...session.user,
@@ -113,26 +119,35 @@ export class UserService extends Context.Service<UserService>()("UserService", {
      * dependency-free (keeping `getUser` unit-testable in isolation); the store
      * is provided by the application root wherever the avatar methods run.
      */
-    const deleteSupersededAvatar = (previous: string | null, exceptKey?: string) =>
-      Effect.gen(function* () {
+    const deleteSupersededAvatar = Effect.fn("UserService.deleteSupersededAvatar")(
+      function* (
+        previous: Option.Option<string>,
+        exceptKey: Option.Option<string> = Option.none(),
+      ) {
         const publicFileStore = yield* PublicFileStore;
-        if (previous === null || !isOwnedAvatarUrl(previous, publicFileStore.publicBaseUrl)) {
+        if (!isOwnedAvatarUrl(previous, publicFileStore.publicBaseUrl)) {
           return;
         }
-        const oldKey = avatarKeyFromUrl(previous, publicFileStore.publicBaseUrl);
-        if (oldKey === null || oldKey === exceptKey) {
+        const oldKey = Option.flatMap(previous, (url) =>
+          avatarKeyFromUrl(url, publicFileStore.publicBaseUrl),
+        );
+        if (
+          Option.isNone(oldKey) ||
+          (Option.isSome(exceptKey) && oldKey.value === exceptKey.value)
+        ) {
           return;
         }
         yield* publicFileStore
-          .deleteObject(oldKey)
+          .deleteObject(oldKey.value)
           .pipe(
             Effect.catchCause((cause) =>
               Effect.logWarning(
-                `Failed to delete superseded avatar object ${oldKey}: ${Cause.pretty(cause)}`,
+                `Failed to delete superseded avatar object ${oldKey.value}: ${Cause.pretty(cause)}`,
               ),
             ),
           );
-      });
+      },
+    );
 
     const setAvatar = Effect.fn("setUserAvatar")(
       function* (input: { readonly imageBase64: string; readonly contentType: string }) {
@@ -145,12 +160,19 @@ export class UserService extends Context.Service<UserService>()("UserService", {
         const sha256 = yield* avatarSha256Hex(bytes);
         const key = deriveAvatarKey("user", userId, sha256, ext);
 
-        yield* publicFileStore.putObject({ key, body: bytes, contentType: input.contentType });
+        yield* publicFileStore.putObject({
+          key,
+          body: bytes,
+          contentType: Option.some(input.contentType),
+        });
         const imageUrl = publicFileStore.publicUrl(key);
 
         const current = yield* db.query.user.findFirst({ where: { id: userId } });
         yield* db.update(user).set({ customImageUrl: imageUrl }).where(eq(user.id, userId));
-        yield* deleteSupersededAvatar(current?.customImageUrl ?? null, key);
+        yield* deleteSupersededAvatar(
+          Option.fromNullishOr(current?.customImageUrl),
+          Option.some(key),
+        );
 
         return { imageUrl };
       },
@@ -173,7 +195,7 @@ export class UserService extends Context.Service<UserService>()("UserService", {
 
         const current = yield* db.query.user.findFirst({ where: { id: userId } });
         yield* db.update(user).set({ customImageUrl: null }).where(eq(user.id, userId));
-        yield* deleteSupersededAvatar(current?.customImageUrl ?? null);
+        yield* deleteSupersededAvatar(Option.fromNullishOr(current?.customImageUrl));
       },
       (effect) =>
         effect.pipe(

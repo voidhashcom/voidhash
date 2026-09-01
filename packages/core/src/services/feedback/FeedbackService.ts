@@ -1,4 +1,10 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
 
 import { Db, voidhashFeedback } from "@voidhash/db";
 import { FeedbackSentimentLabels, FeedbackStatus, FeedbackTopicLabels } from "@voidhash/lib";
@@ -15,12 +21,12 @@ export class FeedbackServiceError extends Schema.TaggedErrorClass<FeedbackServic
 /** Everything the submit endpoint accepts; identity is taken from the session. */
 export interface FeedbackSubmitInput {
   readonly topic: string;
-  readonly sentiment: number | null;
+  readonly sentiment: Option.Option<number>;
   readonly message: string;
-  readonly organizationId: string | null;
-  readonly projectId: string | null;
-  readonly pathname: string | null;
-  readonly userAgent: string | null;
+  readonly organizationId: Option.Option<string>;
+  readonly projectId: Option.Option<string>;
+  readonly pathname: Option.Option<string>;
+  readonly userAgent: Option.Option<string>;
 }
 
 /** Public {@link FeedbackService} surface. */
@@ -51,18 +57,15 @@ const topicLabelFor = (topic: string): string => {
   return labels[topic] ?? topic;
 };
 
-/** Human label for an ordinal sentiment, or `null` when absent/unknown. */
-const sentimentLabelFor = (sentiment: number | null): string | null => {
-  if (sentiment == null) return null;
+/** Human label for an ordinal sentiment when present and known. */
+const sentimentLabelFor = (sentiment: Option.Option<number>): Option.Option<string> => {
   const labels: Record<number, string> = FeedbackSentimentLabels;
-  return labels[sentiment] ?? null;
+  return Option.flatMap(sentiment, (value) => Option.fromNullishOr(labels[value]));
 };
 
-/** Truncates a nullable free-form client field to its column limit. */
-const truncate = (value: string | null, limit: number): string | null => {
-  if (!value) return null;
-  return value.slice(0, limit);
-};
+/** Truncates an optional free-form client field to its column limit. */
+const truncate = (value: Option.Option<string>, limit: number): Option.Option<string> =>
+  Option.filter(value, Str.isNonEmpty).pipe(Option.map((text) => text.slice(0, limit)));
 
 /**
  * Builds the Slack Block Kit payload for one feedback item. Exported for unit
@@ -71,19 +74,21 @@ const truncate = (value: string | null, limit: number): string | null => {
  */
 export const buildSlackMessage = (params: {
   readonly topicLabel: string;
-  readonly sentimentLabel: string | null;
+  readonly sentimentLabel: Option.Option<string>;
   readonly message: string;
   readonly userName: string;
   readonly userEmail: string;
-  readonly organizationName: string | null;
-  readonly projectName: string | null;
-  readonly pathname: string | null;
+  readonly organizationName: Option.Option<string>;
+  readonly projectName: Option.Option<string>;
+  readonly pathname: Option.Option<string>;
 }) => {
-  const lines = [`*From:* ${params.userName} (${params.userEmail})`];
-  if (params.organizationName) lines.push(`*Organization:* ${params.organizationName}`);
-  if (params.projectName) lines.push(`*Project:* ${params.projectName}`);
-  if (params.pathname) lines.push(`*Page:* \`${params.pathname}\``);
-  if (params.sentimentLabel) lines.push(`*Sentiment:* ${params.sentimentLabel}`);
+  const lines = [
+    `*From:* ${params.userName} (${params.userEmail})`,
+    ...Arr.fromOption(Option.map(params.organizationName, (name) => `*Organization:* ${name}`)),
+    ...Arr.fromOption(Option.map(params.projectName, (name) => `*Project:* ${name}`)),
+    ...Arr.fromOption(Option.map(params.pathname, (pathname) => `*Page:* \`${pathname}\``)),
+    ...Arr.fromOption(Option.map(params.sentimentLabel, (label) => `*Sentiment:* ${label}`)),
+  ];
   const contextLines = lines.join("\n");
 
   const blocks = [
@@ -99,12 +104,12 @@ export const buildSlackMessage = (params: {
   return { blocks, text };
 };
 
-const make = Effect.gen(function* () {
+const make = Effect.fn("FeedbackService.make")(function* () {
   const db = yield* Db;
   const slack = yield* SlackClientTag;
 
-  const submit: FeedbackServiceShape["submit"] = (input) =>
-    Effect.gen(function* () {
+  const submit: FeedbackServiceShape["submit"] = Effect.fn("FeedbackService.submit")(
+    function* (input) {
       const session = yield* AuthSession;
       if (session.method !== "user") {
         return yield* Effect.fail(
@@ -116,45 +121,47 @@ const make = Effect.gen(function* () {
       const user = session.user;
       yield* Effect.annotateCurrentSpan("voidhash.user.id", user.id);
 
-      const findProject = () => {
-        if (!input.projectId) return null;
-        return session.projects.find((p) => p.id === input.projectId) ?? null;
-      };
-      const project = findProject();
+      const project = Option.flatMap(input.projectId, (projectId) =>
+        Option.fromNullishOr(session.projects.find((candidate) => candidate.id === projectId)),
+      );
       // A project determines its organization. This prevents a user who belongs
       // to multiple tenants from persisting a mismatched org/project snapshot.
-      const findOrganization = () => {
-        if (project) {
-          return session.organizations.find((o) => o.id === project.organizationId) ?? null;
-        }
-        if (input.organizationId) {
-          return session.organizations.find((o) => o.id === input.organizationId) ?? null;
-        }
-        return null;
-      };
-      const organization = findOrganization();
+      const organization = Option.match(project, {
+        onNone: () =>
+          Option.flatMap(input.organizationId, (organizationId) =>
+            Option.fromNullishOr(
+              session.organizations.find((candidate) => candidate.id === organizationId),
+            ),
+          ),
+        onSome: (selectedProject) =>
+          Option.fromNullishOr(
+            session.organizations.find(
+              (candidate) => candidate.id === selectedProject.organizationId,
+            ),
+          ),
+      });
 
       const id = generateId("voidhashFeedback");
       yield* db.insert(voidhashFeedback).values({
         id,
         // Truncate to the column limit — the topic is a free string on the wire.
         topic: input.topic.slice(0, 32),
-        sentiment: input.sentiment,
+        sentiment: Option.getOrNull(input.sentiment),
         message: input.message,
         status: FeedbackStatus.New,
         userId: user.id,
         userEmail: user.email,
         userName: user.name,
-        organizationId: organization?.id ?? null,
-        organizationSlug: organization?.slug ?? null,
-        organizationName: organization?.name ?? null,
-        projectId: project?.id ?? null,
-        projectSlug: project?.slug ?? null,
-        projectName: project?.name ?? null,
+        organizationId: Option.map(organization, (value) => value.id).pipe(Option.getOrNull),
+        organizationSlug: Option.map(organization, (value) => value.slug).pipe(Option.getOrNull),
+        organizationName: Option.map(organization, (value) => value.name).pipe(Option.getOrNull),
+        projectId: Option.map(project, (value) => value.id).pipe(Option.getOrNull),
+        projectSlug: Option.map(project, (value) => value.slug).pipe(Option.getOrNull),
+        projectName: Option.map(project, (value) => value.name).pipe(Option.getOrNull),
         // Truncate free-form client fields to their column limits so an
         // unusually long value can never fail the insert (and lose the feedback).
-        pathname: truncate(input.pathname, 1024),
-        userAgent: truncate(input.userAgent, 512),
+        pathname: Option.getOrNull(truncate(input.pathname, 1024)),
+        userAgent: Option.getOrNull(truncate(input.userAgent, 512)),
       });
 
       const topicLabel = topicLabelFor(input.topic);
@@ -165,8 +172,8 @@ const make = Effect.gen(function* () {
         message: input.message,
         userName: user.name,
         userEmail: user.email,
-        organizationName: organization?.name ?? null,
-        projectName: project?.name ?? null,
+        organizationName: Option.map(organization, (value) => value.name),
+        projectName: Option.map(project, (value) => value.name),
         pathname: input.pathname,
       });
 
@@ -180,12 +187,15 @@ const make = Effect.gen(function* () {
       );
 
       return { id };
-    }).pipe(
-      Effect.catchTags({
-        EffectDrizzleQueryError: (error) =>
-          Effect.fail(new FeedbackServiceError({ message: String(error.cause) })),
-      }),
-    );
+    },
+    (effect) =>
+      effect.pipe(
+        Effect.catchTags({
+          EffectDrizzleQueryError: (error) =>
+            Effect.fail(new FeedbackServiceError({ message: String(error.cause) })),
+        }),
+      ),
+  );
 
   return { submit } satisfies FeedbackServiceShape;
 });
@@ -197,4 +207,4 @@ const make = Effect.gen(function* () {
  * the relay silently no-ops, so feedback is still stored.
  */
 export const FeedbackServiceLive = (config: SlackConfig): Layer.Layer<FeedbackService, never, Db> =>
-  Layer.effect(FeedbackService)(make).pipe(Layer.provide(slackClientLayer(config)));
+  Layer.effect(FeedbackService)(make()).pipe(Layer.provide(slackClientLayer(config)));

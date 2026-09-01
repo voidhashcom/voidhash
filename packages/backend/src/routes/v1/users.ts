@@ -1,7 +1,7 @@
 import { User, VoidhashV1Api } from "@voidhash/api-contracts";
 import { ApiAuthenticationError } from "@voidhash/api-contracts/errors";
 import { UserService } from "@voidhash/core/services";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession } from "../../ApiMiddlewares.ts";

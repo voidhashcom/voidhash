@@ -1,3 +1,6 @@
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
 import { constant, pick } from "@voidhash/lib/lang";
 
 /**
@@ -15,7 +18,7 @@ interface ViewBox {
 interface ParsedPath {
   name: string;
   d: string;
-  transform: string | null;
+  transform: Option.Option<string>;
   fillColor: string;
   fillEnabled: boolean;
   fillRule: "nonzero" | "evenodd";
@@ -30,8 +33,8 @@ interface ParsedPath {
 
 export interface ParsedSvg {
   viewBox: ViewBox;
-  width: number | null;
-  height: number | null;
+  width: Option.Option<number>;
+  height: Option.Option<number>;
   paths: ParsedPath[];
 }
 
@@ -78,24 +81,18 @@ interface ResolvedPathStyle {
   strokeLinejoin: "miter" | "round" | "bevel";
 }
 
-interface SvgElement {
-  getAttribute(name: string): string | null;
-  tagName: string;
-  children: ArrayLike<SvgElement>;
-}
+type SvgElement = Element;
+type SvgParserConstructor = new () => DOMParser;
 
-interface SvgDocument {
-  querySelector(selector: string): SvgElement | null;
-}
+const attribute = (element: SvgElement, name: string): Option.Option<string> =>
+  Option.fromNullOr(element.getAttribute(name));
 
-type SvgParserConstructor = new () => {
-  parseFromString(input: string, mimeType: string): SvgDocument;
-};
-
-function parseColorToRgba(color: string | null): string {
-  if (!color || color === "none" || color === "transparent") {
+function parseColorToRgba(colorOption: Option.Option<string>): string {
+  if (Option.isNone(colorOption)) {
     return FALLBACK_COLOR;
   }
+  const color = colorOption.value;
+  if (color === "none" || color === "transparent") return FALLBACK_COLOR;
 
   if (color.startsWith("rgba(")) {
     return color;
@@ -132,82 +129,62 @@ function parseColorToRgba(color: string | null): string {
   return NAMED_COLORS[color.toLowerCase()] ?? FALLBACK_COLOR;
 }
 
-function parseStyleAttribute(styleAttribute: string | null): Record<string, string> {
-  if (!styleAttribute) {
-    return {};
-  }
-
-  const styles: Record<string, string> = {};
-
-  for (const declaration of styleAttribute.split(";")) {
+function parseStyleAttribute(
+  styleAttribute: Option.Option<string>,
+): Readonly<Record<string, string>> {
+  if (Option.isNone(styleAttribute)) return {};
+  return Arr.reduce(styleAttribute.value.split(";"), {}, (styles, declaration) => {
     const [rawProperty, rawValue] = declaration.split(":");
     const property = rawProperty?.trim();
     const value = rawValue?.trim();
-
-    if (property && value) {
-      styles[property] = value;
-    }
-  }
-
-  return styles;
+    return property && value ? { ...styles, [property]: value } : styles;
+  });
 }
 
 function resolveStyleProperty(
   element: SvgElement,
   property: string,
   inherited: Record<string, string>,
-): string | null {
-  const attributeValue = element.getAttribute(property);
-  if (attributeValue !== null && attributeValue !== "inherit") {
+): Option.Option<string> {
+  const attributeValue = attribute(element, property);
+  if (Option.exists(attributeValue, (value) => value !== "inherit")) {
     return attributeValue;
   }
 
-  const styleValue = parseStyleAttribute(element.getAttribute("style"))[property];
+  const styleValue = parseStyleAttribute(attribute(element, "style"))[property];
   if (styleValue !== undefined && styleValue !== "inherit") {
-    return styleValue;
+    return Option.some(styleValue);
   }
 
-  return inherited[property] ?? null;
+  return Option.fromUndefinedOr(inherited[property]);
 }
 
 function buildInheritedStyles(
   element: SvgElement,
   inherited: Record<string, string>,
 ): Record<string, string> {
-  const nextInherited = { ...inherited };
-
-  for (const property of INHERITABLE_STYLE_PROPERTIES) {
+  return Arr.reduce(INHERITABLE_STYLE_PROPERTIES, { ...inherited }, (nextInherited, property) => {
     const value = resolveStyleProperty(element, property, inherited);
-    if (value !== null && value !== "inherit") {
-      nextInherited[property] = value;
-    }
-  }
-
-  return nextInherited;
+    return Option.match(value, {
+      onNone: () => nextInherited,
+      onSome: (resolved) =>
+        resolved === "inherit" ? nextInherited : { ...nextInherited, [property]: resolved },
+    });
+  });
 }
 
 function combineTransforms(
-  parentTransform: string | null,
-  childTransform: string | null,
-): string | null {
-  if (!parentTransform && !childTransform) {
-    return null;
-  }
-  if (!parentTransform) {
-    return childTransform;
-  }
-  if (!childTransform) {
-    return parentTransform;
-  }
-  return `${parentTransform} ${childTransform}`;
+  parentTransform: Option.Option<string>,
+  childTransform: Option.Option<string>,
+): Option.Option<string> {
+  if (Option.isNone(parentTransform)) return childTransform;
+  if (Option.isNone(childTransform)) return parentTransform;
+  return Option.some(`${parentTransform.value} ${childTransform.value}`);
 }
 
-function parseNumber(value: string | null, fallback: number): number {
-  if (value === null) {
-    return fallback;
-  }
-
-  const parsed = Number.parseFloat(value);
+function parseNumber(value: Option.Option<string>, fallback: number): number {
+  if (Option.isNone(value)) return fallback;
+  const parsed = Number.parseFloat(value.value);
   if (Number.isNaN(parsed)) {
     return fallback;
   }
@@ -215,30 +192,30 @@ function parseNumber(value: string | null, fallback: number): number {
 }
 
 /** Maps a resolved `fill-rule` value onto the two rules the path node supports. */
-function toFillRule(value: string | null): "nonzero" | "evenodd" {
-  if (value === "evenodd") {
+function toFillRule(value: Option.Option<string>): "nonzero" | "evenodd" {
+  if (Option.contains(value, "evenodd")) {
     return "evenodd";
   }
   return "nonzero";
 }
 
 /** Maps a resolved `stroke-linecap` value onto the supported cap union. */
-function toStrokeLinecap(value: string | null): "butt" | "round" | "square" {
-  if (value === "round") {
+function toStrokeLinecap(value: Option.Option<string>): "butt" | "round" | "square" {
+  if (Option.contains(value, "round")) {
     return "round";
   }
-  if (value === "square") {
+  if (Option.contains(value, "square")) {
     return "square";
   }
   return "butt";
 }
 
 /** Maps a resolved `stroke-linejoin` value onto the supported join union. */
-function toStrokeLinejoin(value: string | null): "miter" | "round" | "bevel" {
-  if (value === "round") {
+function toStrokeLinejoin(value: Option.Option<string>): "miter" | "round" | "bevel" {
+  if (Option.contains(value, "round")) {
     return "round";
   }
-  if (value === "bevel") {
+  if (Option.contains(value, "bevel")) {
     return "bevel";
   }
   return "miter";
@@ -259,15 +236,19 @@ function resolvePathStyle(
   const strokeLinejoin = resolveStyleProperty(element, "stroke-linejoin", inherited);
 
   const fillEnabled =
-    !options?.disableFill && fill !== null && fill !== "none" && fill !== "transparent";
-  const strokeEnabled = stroke !== null && stroke !== "none" && stroke !== "transparent";
+    !options?.disableFill &&
+    Option.exists(fill, (value) => value !== "none" && value !== "transparent");
+  const strokeEnabled = Option.exists(
+    stroke,
+    (value) => value !== "none" && value !== "transparent",
+  );
 
   return {
-    fillColor: parseColorToRgba(pick(fillEnabled, fill, "black")),
+    fillColor: parseColorToRgba(pick(fillEnabled, fill, Option.some("black"))),
     fillEnabled,
     fillRule: toFillRule(fillRule),
     fillOpacity: parseNumber(fillOpacity, 1),
-    strokeColor: parseColorToRgba(pick(strokeEnabled, stroke, "black")),
+    strokeColor: parseColorToRgba(pick(strokeEnabled, stroke, Option.some("black"))),
     strokeEnabled,
     strokeWidth: parseNumber(strokeWidth, 1),
     strokeOpacity: parseNumber(strokeOpacity, 1),
@@ -279,10 +260,10 @@ function resolvePathStyle(
 function nextPathName(
   pathCounter: { count: number },
   fallbackPrefix: string,
-  id: string | null,
+  id: Option.Option<string>,
 ): string {
   pathCounter.count += 1;
-  return id || `${fallbackPrefix} ${pathCounter.count}`;
+  return Option.getOrElse(id, () => `${fallbackPrefix} ${pathCounter.count}`);
 }
 
 function pushPath(paths: ParsedPath[], path: ParsedPath): void {
@@ -290,12 +271,12 @@ function pushPath(paths: ParsedPath[], path: ParsedPath): void {
 }
 
 function rectToPath(element: SvgElement): string {
-  const x = parseNumber(element.getAttribute("x"), 0);
-  const y = parseNumber(element.getAttribute("y"), 0);
-  const width = parseNumber(element.getAttribute("width"), 0);
-  const height = parseNumber(element.getAttribute("height"), 0);
-  const rx = parseNumber(element.getAttribute("rx"), 0);
-  const ry = parseNumber(element.getAttribute("ry"), rx);
+  const x = parseNumber(attribute(element, "x"), 0);
+  const y = parseNumber(attribute(element, "y"), 0);
+  const width = parseNumber(attribute(element, "width"), 0);
+  const height = parseNumber(attribute(element, "height"), 0);
+  const rx = parseNumber(attribute(element, "rx"), 0);
+  const ry = parseNumber(attribute(element, "ry"), rx);
 
   if (rx === 0 && ry === 0) {
     return `M${x},${y} h${width} v${height} h${-width} Z`;
@@ -305,58 +286,54 @@ function rectToPath(element: SvgElement): string {
 }
 
 function circleToPath(element: SvgElement): string {
-  const cx = parseNumber(element.getAttribute("cx"), 0);
-  const cy = parseNumber(element.getAttribute("cy"), 0);
-  const radius = parseNumber(element.getAttribute("r"), 0);
+  const cx = parseNumber(attribute(element, "cx"), 0);
+  const cy = parseNumber(attribute(element, "cy"), 0);
+  const radius = parseNumber(attribute(element, "r"), 0);
 
   return `M${cx - radius},${cy} a${radius},${radius} 0 1 0 ${2 * radius},0 a${radius},${radius} 0 1 0 ${-2 * radius},0`;
 }
 
 function ellipseToPath(element: SvgElement): string {
-  const cx = parseNumber(element.getAttribute("cx"), 0);
-  const cy = parseNumber(element.getAttribute("cy"), 0);
-  const rx = parseNumber(element.getAttribute("rx"), 0);
-  const ry = parseNumber(element.getAttribute("ry"), 0);
+  const cx = parseNumber(attribute(element, "cx"), 0);
+  const cy = parseNumber(attribute(element, "cy"), 0);
+  const rx = parseNumber(attribute(element, "rx"), 0);
+  const ry = parseNumber(attribute(element, "ry"), 0);
 
   return `M${cx - rx},${cy} a${rx},${ry} 0 1 0 ${2 * rx},0 a${rx},${ry} 0 1 0 ${-2 * rx},0`;
 }
 
 function lineToPath(element: SvgElement): string {
-  const x1 = parseNumber(element.getAttribute("x1"), 0);
-  const y1 = parseNumber(element.getAttribute("y1"), 0);
-  const x2 = parseNumber(element.getAttribute("x2"), 0);
-  const y2 = parseNumber(element.getAttribute("y2"), 0);
+  const x1 = parseNumber(attribute(element, "x1"), 0);
+  const y1 = parseNumber(attribute(element, "y1"), 0);
+  const x2 = parseNumber(attribute(element, "x2"), 0);
+  const y2 = parseNumber(attribute(element, "y2"), 0);
 
   return `M${x1},${y1} L${x2},${y2}`;
 }
 
-function pointsToPath(points: string, closePath: boolean): string | null {
+function pointsToPath(points: string, closePath: boolean): Option.Option<string> {
   const coordinates = points
     .trim()
     .split(/[\s,]+/)
     .map(Number);
   if (coordinates.length < 4) {
-    return null;
+    return Option.none();
   }
 
-  let path = `M${coordinates[0]},${coordinates[1]}`;
-  for (let i = 2; i < coordinates.length; i += 2) {
-    path += ` L${coordinates[i]},${coordinates[i + 1]}`;
-  }
-
-  if (closePath) {
-    path += " Z";
-  }
-
-  return path;
+  const path = Arr.reduce(
+    Arr.range(1, Math.floor(coordinates.length / 2) - 1),
+    `M${coordinates[0]},${coordinates[1]}`,
+    (result, index) => `${result} L${coordinates[index * 2]},${coordinates[index * 2 + 1]}`,
+  );
+  return Option.some(closePath ? `${path} Z` : path);
 }
 
-function parseViewBox(viewBoxString: string | null): ViewBox {
-  if (!viewBoxString) {
+function parseViewBox(viewBoxString: Option.Option<string>): ViewBox {
+  if (Option.isNone(viewBoxString)) {
     return { ...FALLBACK_VIEWBOX };
   }
 
-  const parts = viewBoxString
+  const parts = viewBoxString.value
     .trim()
     .split(/[\s,]+/)
     .map(Number);
@@ -375,135 +352,122 @@ function parseViewBox(viewBoxString: string | null): ViewBox {
 function collectPaths(
   element: SvgElement,
   paths: ParsedPath[],
-  parentTransform: string | null,
+  parentTransform: Option.Option<string>,
   inherited: Record<string, string>,
   pathCounter: { count: number },
 ): void {
   const inheritedForChildren = buildInheritedStyles(element, inherited);
-  const elementTransform = element.getAttribute("transform");
+  const elementTransform = attribute(element, "transform");
   const combinedTransform = combineTransforms(parentTransform, elementTransform);
 
-  for (let childIndex = 0; childIndex < element.children.length; childIndex += 1) {
-    const child = element.children[childIndex];
-    if (!child) {
-      continue;
-    }
-
+  Arr.forEach(Arr.fromIterable(element.children), (child) => {
     const tagName = child.tagName.toLowerCase();
 
     if (tagName === "g" || tagName === "svg") {
       collectPaths(child, paths, combinedTransform, inheritedForChildren, pathCounter);
-      continue;
+      return;
     }
 
-    const childTransform = combineTransforms(combinedTransform, child.getAttribute("transform"));
+    const childTransform = combineTransforms(combinedTransform, attribute(child, "transform"));
 
     if (tagName === "path") {
-      const d = child.getAttribute("d");
-      if (!d) {
-        continue;
-      }
+      const d = attribute(child, "d");
+      if (Option.isNone(d)) return;
 
       pushPath(paths, {
         ...resolvePathStyle(child, inheritedForChildren),
-        d,
-        name: nextPathName(pathCounter, "Path", child.getAttribute("id")),
+        d: d.value,
+        name: nextPathName(pathCounter, "Path", attribute(child, "id")),
         transform: childTransform,
       });
-      continue;
+      return;
     }
 
     if (tagName === "rect") {
       pushPath(paths, {
         ...resolvePathStyle(child, inheritedForChildren),
         d: rectToPath(child),
-        name: nextPathName(pathCounter, "Rect", child.getAttribute("id")),
+        name: nextPathName(pathCounter, "Rect", attribute(child, "id")),
         transform: childTransform,
       });
-      continue;
+      return;
     }
 
     if (tagName === "circle") {
       pushPath(paths, {
         ...resolvePathStyle(child, inheritedForChildren),
         d: circleToPath(child),
-        name: nextPathName(pathCounter, "Circle", child.getAttribute("id")),
+        name: nextPathName(pathCounter, "Circle", attribute(child, "id")),
         transform: childTransform,
       });
-      continue;
+      return;
     }
 
     if (tagName === "ellipse") {
       pushPath(paths, {
         ...resolvePathStyle(child, inheritedForChildren),
         d: ellipseToPath(child),
-        name: nextPathName(pathCounter, "Ellipse", child.getAttribute("id")),
+        name: nextPathName(pathCounter, "Ellipse", attribute(child, "id")),
         transform: childTransform,
       });
-      continue;
+      return;
     }
 
     if (tagName === "line") {
       pushPath(paths, {
         ...resolvePathStyle(child, inheritedForChildren, { disableFill: true }),
         d: lineToPath(child),
-        name: nextPathName(pathCounter, "Line", child.getAttribute("id")),
+        name: nextPathName(pathCounter, "Line", attribute(child, "id")),
         transform: childTransform,
       });
-      continue;
+      return;
     }
 
     if (tagName === "polygon" || tagName === "polyline") {
-      const points = child.getAttribute("points");
-      if (!points) {
-        continue;
-      }
+      const points = attribute(child, "points");
+      if (Option.isNone(points)) return;
 
-      const d = pointsToPath(points, tagName === "polygon");
-      if (!d) {
-        continue;
-      }
+      const d = pointsToPath(points.value, tagName === "polygon");
+      if (Option.isNone(d)) return;
 
       pushPath(paths, {
         ...resolvePathStyle(child, inheritedForChildren, {
           disableFill: tagName === "polyline",
         }),
-        d,
+        d: d.value,
         name: nextPathName(
           pathCounter,
           pick(tagName === "polygon", "Polygon", "Polyline"),
-          child.getAttribute("id"),
+          attribute(child, "id"),
         ),
         transform: childTransform,
       });
     }
-  }
+  });
 }
 
 function buildRootInheritedStyles(svg: SvgElement): Record<string, string> {
-  const inherited: Record<string, string> = {};
-
-  for (const property of INHERITABLE_STYLE_PROPERTIES) {
+  return Arr.reduce(INHERITABLE_STYLE_PROPERTIES, {}, (inherited, property) => {
     const value = resolveStyleProperty(svg, property, inherited);
-    if (value !== null && value !== "inherit") {
-      inherited[property] = value;
-    }
-  }
-
-  return inherited;
+    return Option.match(value, {
+      onNone: () => inherited,
+      onSome: (resolved) =>
+        resolved === "inherit" ? inherited : { ...inherited, [property]: resolved },
+    });
+  });
 }
 
 /** Narrows the ambient `DOMParser` global, absent outside the browser. */
 function isSvgParserConstructor(value: unknown): value is SvgParserConstructor {
-  return typeof value === "function";
+  return P.isFunction(value);
 }
 
-/** `null` for a `NaN` measurement, so absent dimensions stay absent. */
-function nullIfNaN(value: number): number | null {
+/** `None` for a `NaN` measurement, so absent dimensions stay absent. */
+function optionIfNaN(value: number): Option.Option<number> {
   if (Number.isNaN(value)) {
-    return null;
+    return Option.none();
   }
-  return value;
+  return Option.some(value);
 }
 
 /**
@@ -514,44 +478,49 @@ export function parseSvg(svgString: string): ParsedSvg {
   if (!isSvgParserConstructor(domParserConstructor)) {
     return {
       viewBox: { ...FALLBACK_VIEWBOX },
-      width: null,
-      height: null,
+      width: Option.none(),
+      height: Option.none(),
       paths: [],
     };
   }
 
   const parser = new domParserConstructor();
   const document = parser.parseFromString(svgString, "image/svg+xml");
-  const parserError = document.querySelector("parsererror");
-  const svg = document.querySelector("svg");
+  const parserError = Option.fromNullOr(document.querySelector("parsererror"));
+  const svg = Option.fromNullOr(document.querySelector("svg"));
 
-  if (!svg || parserError) {
+  if (Option.isNone(svg) || Option.isSome(parserError)) {
     return {
       viewBox: { ...FALLBACK_VIEWBOX },
-      width: null,
-      height: null,
+      width: Option.none(),
+      height: Option.none(),
       paths: [],
     };
   }
 
-  const viewBox = parseViewBox(svg.getAttribute("viewBox"));
+  const viewBoxAttribute = attribute(svg.value, "viewBox");
+  const viewBox = parseViewBox(viewBoxAttribute);
 
-  const width = parseNumber(svg.getAttribute("width"), Number.NaN);
-  const height = parseNumber(svg.getAttribute("height"), Number.NaN);
+  const width = parseNumber(attribute(svg.value, "width"), Number.NaN);
+  const height = parseNumber(attribute(svg.value, "height"), Number.NaN);
 
-  const parsedWidth = nullIfNaN(width);
-  const parsedHeight = nullIfNaN(height);
+  const parsedWidth = optionIfNaN(width);
+  const parsedHeight = optionIfNaN(height);
 
-  if (!svg.getAttribute("viewBox") && parsedWidth !== null && parsedHeight !== null) {
-    viewBox.width = parsedWidth;
-    viewBox.height = parsedHeight;
+  if (
+    Option.isNone(viewBoxAttribute) &&
+    Option.isSome(parsedWidth) &&
+    Option.isSome(parsedHeight)
+  ) {
+    viewBox.width = parsedWidth.value;
+    viewBox.height = parsedHeight.value;
   }
 
   const paths: ParsedPath[] = [];
   const pathCounter = { count: 0 };
-  const inherited = buildRootInheritedStyles(svg);
+  const inherited = buildRootInheritedStyles(svg.value);
 
-  collectPaths(svg, paths, null, inherited, pathCounter);
+  collectPaths(svg.value, paths, Option.none(), inherited, pathCounter);
 
   return {
     viewBox,

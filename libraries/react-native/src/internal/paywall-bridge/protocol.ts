@@ -1,3 +1,6 @@
+
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 export const PAYWALL_BRIDGE_VERSION = 1 as const;
 
 /**
@@ -11,7 +14,7 @@ export const PAYWALL_BRIDGE_VERSION = 1 as const;
  * `JSON.parse` reassembles them).
  */
 const toAsciiSafeJson = (value: unknown): string =>
-  JSON.stringify(value).replace(
+  effectEncodeJson(value).replace(
     /[\u0080-\uffff]/g,
     (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
   );

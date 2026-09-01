@@ -3,7 +3,7 @@
  * invariant violation. Row data lives in the `paymentProviderConfigurations`
  * Drizzle table.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Provider catalog. Kept here (rather than with the DB schema) because it's
@@ -16,13 +16,14 @@ export const PaymentProviderId = Schema.Literals([
   "google-play",
   "stripe",
 ]);
+export type PaymentProviderId = typeof PaymentProviderId.Type;
 
-export const PaymentProviderConfiguration = Schema.Struct({
+const PaymentProviderConfigurationValue = Schema.Struct({
   activeProviderId: Schema.NullOr(Schema.String),
   configuration: Schema.NullOr(Schema.Record(Schema.String, Schema.Unknown)),
   createdAt: Schema.NullOr(Schema.Date),
   deletedAt: Schema.NullOr(Schema.Date),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.NonEmptyString,
   name: Schema.String,
   paymentProviderKey: Schema.String,
@@ -31,7 +32,13 @@ export const PaymentProviderConfiguration = Schema.Struct({
   updatedAt: Schema.NullOr(Schema.Date),
 });
 
+export const PaymentProviderConfiguration = PaymentProviderConfigurationValue.pipe(
+  Schema.encodeKeys({ isEnabled: "enabled" }),
+);
+export type PaymentProviderConfiguration = typeof PaymentProviderConfiguration.Type;
+
 export const PaymentProviderConfigurations = Schema.Array(PaymentProviderConfiguration);
+export type PaymentProviderConfigurations = typeof PaymentProviderConfigurations.Type;
 
 /** Configuration row not found. */
 export class PaymentProviderConfigurationNotFoundError extends Schema.TaggedErrorClass<PaymentProviderConfigurationNotFoundError>(

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 
@@ -15,6 +15,7 @@ export const AnalyticsGranularity = Schema.Union([
   Schema.Literal("quarter"),
   Schema.Literal("year"),
 ]);
+export type AnalyticsGranularity = typeof AnalyticsGranularity.Type;
 
 /** Rolling windows the server resolves against its own clock. */
 export const AnalyticsTimeRangePreset = Schema.Union([
@@ -27,6 +28,7 @@ export const AnalyticsTimeRangePreset = Schema.Union([
   Schema.Literal("qtd"),
   Schema.Literal("ytd"),
 ]);
+export type AnalyticsTimeRangePreset = typeof AnalyticsTimeRangePreset.Type;
 
 /**
  * Either a named rolling window or an explicit `[start, end]`. The resolved
@@ -43,6 +45,7 @@ export const AnalyticsTimeRange = Schema.Union([
     start: Schema.Date,
   }),
 ]);
+export type AnalyticsTimeRange = typeof AnalyticsTimeRange.Type;
 
 const AnalyticsFieldValuePrimitive = Schema.Union([
   Schema.String,
@@ -56,6 +59,7 @@ export const AnalyticsFieldValue = Schema.Union([
   AnalyticsFieldValuePrimitive,
   Schema.Array(AnalyticsFieldValuePrimitive),
 ]);
+export type AnalyticsFieldValue = typeof AnalyticsFieldValue.Type;
 
 /** A single `field op value` comparison. */
 export const AnalyticsFilterPredicate = Schema.Struct({
@@ -75,6 +79,7 @@ export const AnalyticsFilterPredicate = Schema.Struct({
   type: Schema.Literal("predicate"),
   value: Schema.optional(AnalyticsFieldValue),
 }).annotate({ identifier: "AnalyticsFilterPredicate" });
+export type AnalyticsFilterPredicate = typeof AnalyticsFilterPredicate.Type;
 
 export type AnalyticsFilterType =
   | typeof AnalyticsFilterPredicate.Type
@@ -108,6 +113,7 @@ export const AnalyticsFilter: AnalyticsFilterCodec = Schema.Union([
     type: Schema.Literal("not"),
   }),
 ]);
+export type AnalyticsFilter = typeof AnalyticsFilter.Type;
 
 /** Split a result by a dimension. Only supported on a subset of insights. */
 export const AnalyticsBreakdown = Schema.Struct({
@@ -117,6 +123,7 @@ export const AnalyticsBreakdown = Schema.Struct({
   ),
   order: Schema.optional(Schema.Union([Schema.Literal("asc"), Schema.Literal("desc")])),
 }).annotate({ identifier: "AnalyticsBreakdown" });
+export type AnalyticsBreakdown = typeof AnalyticsBreakdown.Type;
 
 /** The catalogue of built-in insights every project can query without setup. */
 export const BuiltInInsightId = Schema.Union([
@@ -141,6 +148,7 @@ export const BuiltInInsightId = Schema.Union([
   Schema.Literal("builtin/trial_conversions"),
   Schema.Literal("builtin/trial_conversion_rate"),
 ]);
+export type BuiltInInsightId = typeof BuiltInInsightId.Type;
 
 /**
  * One insight in a batch. `key` is caller-chosen and echoed back on the
@@ -159,6 +167,7 @@ export const AnalyticsInsightQuery = Schema.Struct({
   limit: Schema.optional(Schema.Number),
   timeRange: AnalyticsTimeRange,
 }).annotate({ identifier: "AnalyticsInsightQuery" });
+export type AnalyticsInsightQuery = typeof AnalyticsInsightQuery.Type;
 
 /**
  * Body of `POST /analytics/queries/insights`. A batch keeps a dashboard's worth
@@ -179,12 +188,14 @@ export const AnalyticsDataPoint = Schema.Struct({
   timestamp: Schema.Date,
   value: Schema.Number,
 }).annotate({ identifier: "AnalyticsDataPoint" });
+export type AnalyticsDataPoint = typeof AnalyticsDataPoint.Type;
 
 /** The headline number for an insight; `currency` is set on monetary insights. */
 export const AnalyticsSummary = Schema.Struct({
   currency: Schema.optional(Schema.String),
   value: Schema.Number,
 }).annotate({ identifier: "AnalyticsSummary" });
+export type AnalyticsSummary = typeof AnalyticsSummary.Type;
 
 const AnalyticsMetricResult = Schema.Struct({
   kind: Schema.Literal("metric"),
@@ -216,6 +227,7 @@ export const AnalyticsInsightResult = Schema.Union([
   AnalyticsTimeseriesResult,
   AnalyticsBreakdownResult,
 ]);
+export type AnalyticsInsightResult = typeof AnalyticsInsightResult.Type;
 
 /** One entry of a batch response, keyed back to the request by `key`. */
 export const AnalyticsInsightResponseItem = Schema.Struct({
@@ -227,6 +239,7 @@ export const AnalyticsInsightResponseItem = Schema.Struct({
   }),
   result: AnalyticsInsightResult,
 }).annotate({ identifier: "AnalyticsInsightResponseItem" });
+export type AnalyticsInsightResponseItem = typeof AnalyticsInsightResponseItem.Type;
 
 /** Success body of `POST /analytics/queries/insights`. */
 export class QueryInsightsResult extends Schema.Class<QueryInsightsResult>("QueryInsightsResult")({
@@ -281,6 +294,7 @@ export const EventListParams = Schema.Struct({
   eventName: Schema.optional(Schema.String),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "EventListParams" });
+export type EventListParams = typeof EventListParams.Type;
 
 // ========================================================
 // Ingest policy
@@ -288,15 +302,18 @@ export const EventListParams = Schema.Struct({
 
 /** One built-in event entry resolved against the project's stored overrides. */
 export const BuiltinEventAdmission = Schema.Struct({
-  defaultEnabled: Schema.Boolean,
+  isDefaultEnabled: Schema.Boolean,
   description: Schema.String,
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   eventNames: Schema.Array(Schema.String),
   key: Schema.String,
   name: Schema.String,
   override: Schema.NullOr(Schema.Boolean),
   warning: Schema.NullOr(Schema.String),
-}).annotate({ identifier: "BuiltinEventAdmission" });
+})
+  .pipe(Schema.encodeKeys({ isDefaultEnabled: "defaultEnabled", isEnabled: "enabled" }))
+  .annotate({ identifier: "BuiltinEventAdmission" });
+export type BuiltinEventAdmission = typeof BuiltinEventAdmission.Type;
 
 /**
  * A project's complete event admission policy. Built-in (`$`-prefixed) events
@@ -314,6 +331,7 @@ export class EventAdmissionPolicy extends Schema.Class<EventAdmissionPolicy>(
 export const IngestPolicyParams = Schema.Struct({
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "IngestPolicyParams" });
+export type IngestPolicyParams = typeof IngestPolicyParams.Type;
 
 /** Body of `PUT /ingest-policy/builtin-events/:key`. */
 export class SetBuiltinEventAdmissionBody extends Schema.Class<SetBuiltinEventAdmissionBody>(

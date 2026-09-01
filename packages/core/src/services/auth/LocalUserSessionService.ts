@@ -1,5 +1,11 @@
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 
 import {
   Db,
@@ -17,8 +23,8 @@ import type { LocalUserAccess, LocalUserIdentity } from "../../domain/auth/Local
 import { generateId } from "../../utils/generate-id.ts";
 
 const toLocalUserName = (identity: LocalUserIdentity): string => {
-  const name = [identity.firstName, identity.lastName].filter(Boolean).join(" ").trim();
-  if (name.length > 0) return name;
+  const name = [identity.firstName, identity.lastName].flatMap(Option.toArray).join(" ").trim();
+  if (Str.isNonEmpty(name)) return name;
   return identity.email;
 };
 
@@ -36,8 +42,8 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
        * backfilled yet (e.g. created before the column existed), and the column
        * is backfilled whenever such a row is matched.
        */
-      const resolveLocalUser = (identity: LocalUserIdentity): Effect.Effect<DbUser, DbError, Db> =>
-        Effect.gen(function* () {
+      const resolveLocalUser: (identity: LocalUserIdentity) => Effect.Effect<DbUser, DbError, Db> =
+        Effect.fn("LocalUserSessionService.resolveLocalUser")(function* (identity) {
           const matchedByWorkosId = yield* db.query.user.findFirst({
             where: { workosUserId: identity.id },
           });
@@ -49,7 +55,7 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
             }));
 
           const nextName = toLocalUserName(identity);
-          const nextImage = identity.profilePictureUrl ?? null;
+          const nextImage = Option.getOrNull(identity.profilePictureUrl);
 
           if (matchedUser) {
             const needsUpdate =
@@ -135,8 +141,8 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
         });
 
       /** Loads the organizations and projects available to a local user. */
-      const loadUserAccess = (userId: string): Effect.Effect<LocalUserAccess, DbError, Db> =>
-        Effect.gen(function* () {
+      const loadUserAccess: (userId: string) => Effect.Effect<LocalUserAccess, DbError, Db> =
+        Effect.fn("LocalUserSessionService.loadUserAccess")(function* (userId) {
           const memberships = yield* db
             .select({
               organizationId: organization.id,
@@ -150,24 +156,23 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
             .where(eq(member.userId, userId));
 
           const organizationIds = memberships.map((membership) => membership.organizationId);
-          const accessibleProjects = yield* Effect.gen(function* () {
-            if (organizationIds.length === 0) return [];
-            return yield* db
-              .select({
-                id: projects.id,
-                logo: projects.logo,
-                name: projects.name,
-                organizationId: projects.organizationId,
-                slug: projects.slug,
-              })
-              .from(projects)
-              .where(inArray(projects.organizationId, organizationIds));
-          });
+          const accessibleProjects = Arr.isReadonlyArrayEmpty(organizationIds)
+            ? []
+            : yield* db
+                .select({
+                  id: projects.id,
+                  logo: projects.logo,
+                  name: projects.name,
+                  organizationId: projects.organizationId,
+                  slug: projects.slug,
+                })
+                .from(projects)
+                .where(inArray(projects.organizationId, organizationIds));
 
           return {
             organizations: memberships.map((membership) => ({
               id: membership.organizationId,
-              logo: membership.organizationLogo ?? null,
+              logo: Option.fromNullishOr(membership.organizationLogo),
               name: membership.organizationName,
               permissions: ["organization:all"],
               slug: membership.organizationSlug ?? membership.organizationId,
@@ -175,7 +180,7 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
             })),
             projects: accessibleProjects.map((project) => ({
               id: project.id,
-              logo: project.logo ?? null,
+              logo: Option.fromNullishOr(project.logo),
               name: project.name,
               organizationId: project.organizationId,
               permissions: ["project:all"],
@@ -188,15 +193,21 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
       const toUserSession = (
         dbUser: DbUser,
         access: LocalUserAccess,
-        cookie: string | null,
-        workosUserId: string | null,
+        cookie: Option.Option<string>,
+        workosUserId: Option.Option<string>,
       ) => ({
-        cookie,
+        cookie: Option.getOrNull(cookie),
         method: constant("user"),
         name: `${dbUser.name} <${dbUser.email}>`,
-        organizations: access.organizations,
+        organizations: access.organizations.map((organization) => ({
+          ...organization,
+          logo: Option.getOrNull(organization.logo),
+        })),
         person: null,
-        projects: access.projects,
+        projects: access.projects.map((project) => ({
+          ...project,
+          logo: Option.getOrNull(project.logo),
+        })),
         user: {
           createdAt: dbUser.createdAt,
           email: dbUser.email,
@@ -208,16 +219,18 @@ export class LocalUserSessionService extends Context.Service<LocalUserSessionSer
           name: dbUser.name,
           role: dbUser.role ?? null,
           updatedAt: dbUser.updatedAt,
-          workosUserId,
+          workosUserId: Option.getOrNull(workosUserId),
         },
       });
 
       /** Fetches a local user by id. */
-      const getLocalUser = (userId: string): Effect.Effect<DbUser | undefined, DbError, Db> =>
-        Effect.gen(function* () {
-          return yield* db.query.user.findFirst({
-            where: { id: userId },
-          });
+      const getLocalUser: (userId: string) => Effect.Effect<Option.Option<DbUser>, DbError, Db> =
+        Effect.fn("LocalUserSessionService.getLocalUser")(function* (userId) {
+          return Option.fromNullishOr(
+            yield* db.query.user.findFirst({
+              where: { id: userId },
+            }),
+          );
         });
 
       return constant({

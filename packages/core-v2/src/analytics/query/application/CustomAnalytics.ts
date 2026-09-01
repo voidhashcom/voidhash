@@ -1,3 +1,5 @@
+import * as Str from "effect/String";
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
 import type {
   AnalyticsFilterType,
@@ -6,7 +8,12 @@ import type {
   CustomAnalyticsInsightQueryType,
   QueryCustomAnalyticsInsightResponseType,
 } from "@voidhash/rpc";
-import { DateTime, Effect } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
 
 import { InvalidAnalyticsQueryError } from "../domain/Analytics.ts";
 
@@ -70,17 +77,21 @@ type TrendsInsightResult = Extract<
 type ResolvedTrendsTimeRange = TrendsInsightResult["resolvedTimeRange"];
 
 const shiftUtcYear = (value: Date, years: number) => {
-  const targetYear = value.getUTCFullYear() + years;
-  const lastDay = dateFrom(Date.UTC(targetYear, value.getUTCMonth() + 1, 0)).getUTCDate();
-  return dateFrom(
-    Date.UTC(
-      targetYear,
-      value.getUTCMonth(),
-      Math.min(value.getUTCDate(), lastDay),
-      value.getUTCHours(),
-      value.getUTCMinutes(),
-      value.getUTCSeconds(),
-    ),
+  const parts = DateTime.toPartsUtc(DateTime.makeUnsafe(value));
+  const targetYear = parts.year + years;
+  const targetMonth = DateTime.makeZonedUnsafe(
+    { day: 1, month: parts.month, year: targetYear },
+    { adjustForTimeZone: true, timeZone: DateTime.zoneMakeNamedUnsafe("UTC") },
+  );
+  const lastDay = DateTime.toPartsUtc(DateTime.endOf(targetMonth, "month")).day;
+  return DateTime.toDateUtc(
+    DateTime.setPartsUtc(targetMonth, {
+      day: Math.min(parts.day, lastDay),
+      hour: parts.hour,
+      millisecond: parts.millisecond,
+      minute: parts.minute,
+      second: parts.second,
+    }),
   );
 };
 
@@ -122,18 +133,17 @@ const labelWithComparison = (
   return `${label} (${suffix})`;
 };
 
-const keyWithBreakdown = (key: string, breakdownValue: string | undefined) => {
-  if (breakdownValue === undefined) return key;
-  return `${key}:${breakdownValue}`;
-};
+const keyWithBreakdown = (key: string, breakdownValue: Option.Option<string>) =>
+  Option.match(breakdownValue, { onNone: () => key, onSome: (value) => `${key}:${value}` });
 
-const labelWithBreakdown = (label: string, breakdownValue: string | undefined) => {
-  if (breakdownValue === undefined) return label;
-  return `${label} · ${breakdownValue || "(empty)"}`;
-};
+const labelWithBreakdown = (label: string, breakdownValue: Option.Option<string>) =>
+  Option.match(breakdownValue, {
+    onNone: () => label,
+    onSome: (value) => `${label} · ${value || "(empty)"}`,
+  });
 
 const stripSuffix = (key: string, suffix: string) => {
-  if (suffix.length === 0) return key;
+  if (Str.isEmpty(suffix)) return key;
   return key.slice(0, -suffix.length);
 };
 
@@ -182,13 +192,18 @@ const trendsBuckets = (
   range: ResolvedTrendsTimeRange,
   granularity: ExecutableTrendsDefinition["granularity"],
 ) => {
-  const buckets: Date[] = [];
-  let cursor = startOfTrendsBucket(range.start, granularity);
-  while (cursor <= range.end && buckets.length < 20_000) {
-    buckets.push(cursor);
-    cursor = nextTrendsBucket(cursor, granularity);
-  }
-  return buckets;
+  const initial: { readonly buckets: Date[]; readonly cursor: Date } = {
+    buckets: [],
+    cursor: startOfTrendsBucket(range.start, granularity),
+  };
+  return Arr.reduce(Arr.range(0, 19_999), initial, (state) => {
+    if (state.cursor > range.end) return state;
+    state.buckets.push(state.cursor);
+    return {
+      buckets: state.buckets,
+      cursor: nextTrendsBucket(state.cursor, granularity),
+    };
+  }).buckets;
 };
 
 /** Align comparison points to the current x-axis by bucket position. */
@@ -200,13 +215,20 @@ export const alignTrendsComparisonPoints = (
 ): TrendsInsightResult["series"][number]["points"] => {
   const currentBuckets = trendsBuckets(current, granularity);
   const comparisonBuckets = trendsBuckets(comparison, granularity);
-  const currentByComparisonTimestamp = new Map(
-    comparisonBuckets.map((bucket, index) => [bucket.getTime(), currentBuckets[index]]),
+  const currentByComparisonTimestamp = HashMap.fromIterable(
+    comparisonBuckets.flatMap((bucket, index) => {
+      const currentBucket = currentBuckets[index];
+      if (currentBucket === undefined) return [];
+      return [[bucket.getTime(), currentBucket] as const];
+    }),
   );
   return points.flatMap((point) => {
-    const timestamp = currentByComparisonTimestamp.get(point.timestamp.getTime());
-    if (timestamp === undefined) return [];
-    return [{ ...point, timestamp }];
+    return Arr.fromOption(
+      Option.map(
+        HashMap.get(currentByComparisonTimestamp, point.timestamp.getTime()),
+        (timestamp) => ({ ...point, timestamp }),
+      ),
+    );
   });
 };
 
@@ -216,10 +238,12 @@ export const fillTrendsSeriesPoints = (
   range: ResolvedTrendsTimeRange,
   granularity: ExecutableTrendsDefinition["granularity"],
 ): TrendsInsightResult["series"][number]["points"] => {
-  const values = new Map(points.map((point) => [point.timestamp.getTime(), point.value]));
+  const values = HashMap.fromIterable(
+    points.map((point) => [point.timestamp.getTime(), point.value] as const),
+  );
   return trendsBuckets(range, granularity).map((timestamp) => ({
     timestamp,
-    value: values.get(timestamp.getTime()) ?? 0,
+    value: Option.getOrElse(HashMap.get(values, timestamp.getTime()), () => 0),
   }));
 };
 
@@ -277,23 +301,27 @@ type TrendsFormulaToken =
 
 const TRENDS_FORMULA_OPERATORS = constant(["+", "-", "*", "/", "%"]);
 
-const arithmeticOperator = (character: string | undefined) =>
-  TRENDS_FORMULA_OPERATORS.find((operator) => operator === character);
+const arithmeticOperator = (character: Option.Option<string>) =>
+  Option.flatMap(character, (value) =>
+    Arr.findFirst(TRENDS_FORMULA_OPERATORS, (operator) => operator === value),
+  );
 
 const tokenizeTrendsFormula = (source: string) =>
   Effect.gen(function* () {
     const tokens: TrendsFormulaToken[] = [];
     let offset = 0;
-    while (offset < source.length) {
+    const scan = (): Effect.Effect<TrendsFormulaToken[], InvalidAnalyticsQueryError> =>
+      Effect.gen(function* () {
+      if (offset >= source.length) return tokens;
       const character = source[offset];
       if (character && /\s/u.test(character)) {
         offset += 1;
-        continue;
+        return yield* scan();
       }
       const remainder = source.slice(offset);
       const number = /^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/iu.exec(remainder)?.[0];
       const identifier = /^[a-z][a-z0-9_]*/iu.exec(remainder)?.[0];
-      const operator = arithmeticOperator(character);
+      const operator = Option.getOrUndefined(arithmeticOperator(Option.fromNullishOr(character)));
       if (number) {
         const value = Number(number);
         if (!Number.isFinite(value)) {
@@ -330,8 +358,9 @@ const tokenizeTrendsFormula = (source: string) =>
           new InvalidAnalyticsQueryError({ message: "Formula is too complex" }),
         );
       }
-    }
-    return tokens;
+      return yield* scan();
+    });
+    return yield* scan();
   });
 
 /** Recursive-descent parser over the tokenized Trends formula grammar. */
@@ -398,49 +427,53 @@ const parseTrendsFormulaTokens = (
 
   const parseMultiplicative = (): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
     Effect.gen(function* () {
-      let left = yield* parseUnary();
-      while (true) {
+      const continueParsing = (
+        left: TrendsFormulaNode,
+      ): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
+        Effect.gen(function* () {
         const operator = current();
         if (
           operator?.kind !== "operator" ||
           (operator.value !== "*" && operator.value !== "/" && operator.value !== "%")
         ) {
-          break;
+          return left;
         }
         yield* consume();
         const right = yield* parseUnary();
-        left = {
+        return yield* continueParsing({
           kind: "binary",
           left,
           operator: operator.value,
           right,
-        };
-      }
-      return left;
+        });
+      });
+      return yield* continueParsing(yield* parseUnary());
     });
 
   const parseAdditive = (): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
     Effect.gen(function* () {
-      let left = yield* parseMultiplicative();
-      while (true) {
+      const continueParsing = (
+        left: TrendsFormulaNode,
+      ): Effect.Effect<TrendsFormulaNode, InvalidAnalyticsQueryError> =>
+        Effect.gen(function* () {
         const operator = current();
         if (operator?.kind !== "operator" || (operator.value !== "+" && operator.value !== "-")) {
-          break;
+          return left;
         }
         yield* consume();
         const right = yield* parseMultiplicative();
-        left = {
+        return yield* continueParsing({
           kind: "binary",
           left,
           operator: operator.value,
           right,
-        };
-      }
-      return left;
+        });
+      });
+      return yield* continueParsing(yield* parseMultiplicative());
     });
 
   return Effect.gen(function* () {
-    if (tokens.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(tokens)) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({ message: "Formula cannot be empty" }),
       );
@@ -455,13 +488,16 @@ const parseTrendsFormulaTokens = (
   });
 };
 
-const collectTrendsFormulaReferences = (node: TrendsFormulaNode, references: Set<string>) => {
-  if (node.kind === "series") references.add(node.key);
-  else if (node.kind === "unary") collectTrendsFormulaReferences(node.operand, references);
-  else if (node.kind === "binary") {
-    collectTrendsFormulaReferences(node.left, references);
-    collectTrendsFormulaReferences(node.right, references);
+const collectTrendsFormulaReferences = (node: TrendsFormulaNode): HashSet.HashSet<string> => {
+  if (node.kind === "series") return HashSet.make(node.key);
+  if (node.kind === "unary") return collectTrendsFormulaReferences(node.operand);
+  if (node.kind === "binary") {
+    return HashSet.union(
+      collectTrendsFormulaReferences(node.left),
+      collectTrendsFormulaReferences(node.right),
+    );
   }
+  return HashSet.empty();
 };
 
 const applyTrendsFormulaOperator = (
@@ -485,10 +521,10 @@ const applyTrendsFormulaOperator = (
 
 const evaluateTrendsFormulaNode = (
   node: TrendsFormulaNode,
-  values: ReadonlyMap<string, number>,
+  values: HashMap.HashMap<string, number>,
 ): number => {
   if (node.kind === "number") return node.value;
-  if (node.kind === "series") return values.get(node.key) ?? 0;
+  if (node.kind === "series") return Option.getOrElse(HashMap.get(values, node.key), () => 0);
   if (node.kind === "unary") {
     const value = evaluateTrendsFormulaNode(node.operand, values);
     if (node.operator === "-") return -value;
@@ -503,7 +539,7 @@ const evaluateTrendsFormulaNode = (
 
 const compileTrendsFormula = (
   formula: AnalyticsTrendsFormulaType,
-  allowedSeries: ReadonlySet<string>,
+  allowedSeries: HashSet.HashSet<string>,
 ) =>
   Effect.gen(function* () {
     const node = yield* tokenizeTrendsFormula(formula.expression).pipe(
@@ -515,10 +551,11 @@ const compileTrendsFormula = (
           }),
       ),
     );
-    const references = new Set<string>();
-    collectTrendsFormulaReferences(node, references);
-    const missing = [...references].filter((reference) => !allowedSeries.has(reference));
-    if (missing.length > 0) {
+    const references = collectTrendsFormulaReferences(node);
+    const missing = Arr.fromIterable(references).filter(
+      (reference) => !HashSet.has(allowedSeries, reference),
+    );
+    if (Arr.isReadonlyArrayNonEmpty(missing)) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({
           message: `Trends formula ${formula.key} references unknown series: ${missing.join(", ")}`,
@@ -529,8 +566,8 @@ const compileTrendsFormula = (
   });
 
 const CUSTOM_PROPERTY_PREFIX = "event.properties.";
-const CUSTOM_EVENT_FIELDS = new Set(["event.name", "person.id"]);
-const PROPERTY_AGGREGATIONS = new Set([
+const CUSTOM_EVENT_FIELDS = HashSet.make("event.name", "person.id");
+const PROPERTY_AGGREGATIONS = HashSet.make(
   "property_sum",
   "property_average",
   "property_minimum",
@@ -540,10 +577,10 @@ const PROPERTY_AGGREGATIONS = new Set([
   "property_p90",
   "property_p95",
   "property_p99",
-]);
+);
 
 const validateCustomEventField = (field: string) => {
-  if (CUSTOM_EVENT_FIELDS.has(field)) return Effect.void;
+  if (HashSet.has(CUSTOM_EVENT_FIELDS, field)) return Effect.void;
   if (
     field.startsWith(CUSTOM_PROPERTY_PREFIX) &&
     field.length > CUSTOM_PROPERTY_PREFIX.length &&
@@ -575,7 +612,7 @@ const validateCustomEventFilter = (
     // The `and`/`or` group shares one union member, so it is narrowed by excluding
     // the other tags rather than by testing its own tag.
     if (filter.type !== "predicate") {
-      if (filter.filters.length === 0) {
+      if (Arr.isReadonlyArrayEmpty(filter.filters)) {
         return yield* Effect.fail(
           new InvalidAnalyticsQueryError({
             message: "Custom analytics filter groups cannot be empty",
@@ -584,6 +621,7 @@ const validateCustomEventFilter = (
       }
       const counts = yield* Effect.all(
         filter.filters.map((child) => validateCustomEventFilter(child, depth + 1)),
+        { concurrency: 1 },
       );
       return counts.reduce((total, count) => total + count, 0);
     }
@@ -651,22 +689,26 @@ export const validateExecutableTrendsDefinition = (
         }),
       );
     }
-    const seriesKeys = new Set(definition.series.map((series) => series.key.toLowerCase()));
-    if (seriesKeys.size !== definition.series.length) {
+    const seriesKeys = HashSet.fromIterable(
+      definition.series.map((series) => series.key.toLowerCase()),
+    );
+    if (HashSet.size(seriesKeys) !== definition.series.length) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({ message: "Trends series keys must be unique" }),
       );
     }
     if (definition.formulas) {
-      if (definition.formulas.length === 0 || definition.formulas.length > 8) {
+      if (Arr.isReadonlyArrayEmpty(definition.formulas) || definition.formulas.length > 8) {
         return yield* Effect.fail(
           new InvalidAnalyticsQueryError({ message: "Trends supports between 1 and 8 formulas" }),
         );
       }
-      const formulaKeys = new Set(definition.formulas.map((formula) => formula.key.toLowerCase()));
+      const formulaKeys = HashSet.fromIterable(
+        definition.formulas.map((formula) => formula.key.toLowerCase()),
+      );
       if (
-        formulaKeys.size !== definition.formulas.length ||
-        [...formulaKeys].some((key) => seriesKeys.has(key))
+        HashSet.size(formulaKeys) !== definition.formulas.length ||
+        Arr.fromIterable(formulaKeys).some((key) => HashSet.has(seriesKeys, key))
       ) {
         return yield* Effect.fail(
           new InvalidAnalyticsQueryError({
@@ -679,26 +721,31 @@ export const validateExecutableTrendsDefinition = (
         { concurrency: 4 },
       );
     }
-    let predicateCount = 0;
-    for (const series of definition.series) {
-      if (PROPERTY_AGGREGATIONS.has(series.aggregation)) {
-        if (!series.mathProperty?.trim()) {
+    const predicateCounts = yield* Effect.forEach(
+      definition.series,
+      Effect.fn("validateTrendsSeries")(function* (series) {
+        if (HashSet.has(PROPERTY_AGGREGATIONS, series.aggregation)) {
+          if (!series.mathProperty?.trim()) {
+            return yield* Effect.fail(
+              new InvalidAnalyticsQueryError({
+                message: `${series.aggregation} requires an event property`,
+              }),
+            );
+          }
+          yield* validateCustomEventField(`${CUSTOM_PROPERTY_PREFIX}${series.mathProperty.trim()}`);
+        } else if (series.mathProperty !== undefined) {
           return yield* Effect.fail(
             new InvalidAnalyticsQueryError({
-              message: `${series.aggregation} requires an event property`,
+              message: `${series.aggregation} does not use an event property`,
             }),
           );
         }
-        yield* validateCustomEventField(`${CUSTOM_PROPERTY_PREFIX}${series.mathProperty.trim()}`);
-      } else if (series.mathProperty !== undefined) {
-        return yield* Effect.fail(
-          new InvalidAnalyticsQueryError({
-            message: `${series.aggregation} does not use an event property`,
-          }),
-        );
-      }
-      if (series.filters) predicateCount += yield* validateCustomEventFilter(series.filters);
-    }
+        if (series.filters) return yield* validateCustomEventFilter(series.filters);
+        return 0;
+      }),
+      { concurrency: 1 },
+    );
+    const predicateCount = Arr.reduce(predicateCounts, 0, (total, count) => total + count);
     if (predicateCount > 20) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({ message: "Custom Trends supports at most 20 predicates" }),
@@ -710,7 +757,7 @@ export const validateExecutableTrendsDefinition = (
 interface TrendsFormulaGroup {
   readonly breakdownValue?: string;
   readonly comparison: "current" | AnalyticsTrendsComparisonType;
-  readonly series: Map<string, Map<number, number>>;
+  readonly series: HashMap.HashMap<string, HashMap.HashMap<number, number>>;
 }
 
 /** Build formula-only Trends series from the queried source series and their aligned buckets. */
@@ -719,72 +766,91 @@ export const buildTrendsFormulaSeries = (
   sourceSeries: ReadonlyArray<TrendsInsightResult["series"][number]>,
 ): Effect.Effect<TrendsInsightResult["series"], InvalidAnalyticsQueryError> =>
   Effect.gen(function* () {
-    if (!definition.formulas?.length) return [...sourceSeries];
-    const allowedSeries = new Set(definition.series.map((series) => series.key.toLowerCase()));
+    const formulas = definition.formulas;
+    if (!formulas?.length) return [...sourceSeries];
+    const allowedSeries = HashSet.fromIterable(
+      definition.series.map((series) => series.key.toLowerCase()),
+    );
     const compiled = yield* Effect.all(
-      definition.formulas.map((formula) => compileTrendsFormula(formula, allowedSeries)),
+      formulas.map((formula) => compileTrendsFormula(formula, allowedSeries)),
       { concurrency: 4 },
     );
-    const definitionsBySpecificity = [...definition.series].sort(
-      (left, right) => right.key.length - left.key.length,
+    const definitionsBySpecificity = Arr.sort(
+      definition.series,
+      Order.mapInput(
+        Order.Number,
+        (series: ExecutableTrendsDefinition["series"][number]) => -series.key.length,
+      ),
     );
-    const groups = new Map<string, TrendsFormulaGroup>();
-
-    for (const source of sourceSeries) {
-      const comparison = source.comparison ?? "current";
-      const sourceKey = stripSuffix(source.key, trendsComparisonKeySuffix(comparison));
-      const definitionSeries = definitionsBySpecificity.find(
-        (candidate) => sourceKey === candidate.key || sourceKey.startsWith(`${candidate.key}:`),
-      );
-      if (!definitionSeries) continue;
-      const breakdownValue = breakdownValueFromKey(sourceKey, definitionSeries.key);
-      const groupKey = `${comparison}\u0000${breakdownValue ?? ""}`;
-      const breakdownFields: { breakdownValue?: string } = {};
-      if (breakdownValue !== undefined) breakdownFields.breakdownValue = breakdownValue;
-      const group = groups.get(groupKey) ?? {
-        ...breakdownFields,
-        comparison,
-        series: new Map<string, Map<number, number>>(),
-      };
-      group.series.set(
-        definitionSeries.key.toLowerCase(),
-        new Map(source.points.map((point) => [point.timestamp.getTime(), point.value])),
-      );
-      groups.set(groupKey, group);
-    }
-
-    const result: Array<TrendsInsightResult["series"][number]> = [];
-    for (const group of groups.values()) {
-      const timestamps = new Set<number>();
-      for (const points of group.series.values()) {
-        for (const timestamp of points.keys()) timestamps.add(timestamp);
-      }
-      const sortedTimestamps = [...timestamps].sort((left, right) => left - right);
-      for (const [index, formula] of definition.formulas.entries()) {
-        const node = compiled[index];
-        if (!node) continue;
-        const formulaLabel = formula.label ?? `Formula (${formula.expression})`;
-        result.push({
-          comparison: group.comparison,
-          key: `${keyWithBreakdown(formula.key, group.breakdownValue)}${trendsComparisonKeySuffix(group.comparison)}`,
-          label: labelWithComparison(
-            labelWithBreakdown(formulaLabel, group.breakdownValue),
-            group.comparison,
+    const groups = Arr.reduce(
+      sourceSeries,
+      HashMap.empty<string, TrendsFormulaGroup>(),
+      (all, source) => {
+        const comparison = source.comparison ?? "current";
+        const sourceKey = stripSuffix(source.key, trendsComparisonKeySuffix(comparison));
+        const definitionSeries = definitionsBySpecificity.find(
+          (candidate) => sourceKey === candidate.key || sourceKey.startsWith(`${candidate.key}:`),
+        );
+        if (!definitionSeries) return all;
+        const breakdownValue = breakdownValueFromKey(sourceKey, definitionSeries.key);
+        const groupKey = `${comparison}\u0000${breakdownValue ?? ""}`;
+        const breakdownFields: { breakdownValue?: string } = {};
+        if (breakdownValue !== undefined) breakdownFields.breakdownValue = breakdownValue;
+        const group = Option.getOrElse(HashMap.get(all, groupKey), () => ({
+          ...breakdownFields,
+          comparison,
+          series: HashMap.empty<string, HashMap.HashMap<number, number>>(),
+        }));
+        return HashMap.set(all, groupKey, {
+          ...group,
+          series: HashMap.set(
+            group.series,
+            definitionSeries.key.toLowerCase(),
+            HashMap.fromIterable(
+              source.points.map((point) => [point.timestamp.getTime(), point.value]),
+            ),
           ),
-          points: sortedTimestamps.map((timestamp) => {
-            const values = new Map<string, number>();
-            for (const seriesKey of allowedSeries) {
-              values.set(seriesKey, group.series.get(seriesKey)?.get(timestamp) ?? 0);
-            }
-            return {
-              timestamp: dateFrom(timestamp),
-              value: evaluateTrendsFormulaNode(node, values),
-            };
-          }),
         });
-      }
-    }
-    return result;
+      },
+    );
+
+    return Arr.flatMap(Arr.fromIterable(HashMap.values(groups)), (group) => {
+      const timestamps = HashSet.fromIterable(
+        Arr.flatMap(Arr.fromIterable(HashMap.values(group.series)), (points) =>
+          Arr.fromIterable(HashMap.keys(points)),
+        ),
+      );
+      const sortedTimestamps = Arr.sort(Arr.fromIterable(timestamps), Order.Number);
+      return Arr.map(Arr.zip(formulas, compiled), ([formula, node]) => {
+          const formulaLabel = formula.label ?? `Formula (${formula.expression})`;
+          return {
+            comparison: group.comparison,
+            key: `${keyWithBreakdown(formula.key, Option.fromNullishOr(group.breakdownValue))}${trendsComparisonKeySuffix(group.comparison)}`,
+            label: labelWithComparison(
+              labelWithBreakdown(formulaLabel, Option.fromNullishOr(group.breakdownValue)),
+              group.comparison,
+            ),
+            points: sortedTimestamps.map((timestamp) => {
+              const values = HashMap.fromIterable(
+                Arr.map(
+                  Arr.fromIterable(allowedSeries),
+                  (seriesKey) =>
+                    [
+                      seriesKey,
+                      Option.flatMap(HashMap.get(group.series, seriesKey), (points) =>
+                        HashMap.get(points, timestamp),
+                      ).pipe(Option.getOrElse(() => 0)),
+                    ] as const,
+                ),
+              );
+              return {
+                timestamp: dateFrom(timestamp),
+                value: evaluateTrendsFormulaNode(node, values),
+              };
+            }),
+          };
+      });
+    });
   });
 
 /** Validate a funnel definition before lowering it to ClickHouse. */
@@ -832,10 +898,12 @@ export const validateExecutableFunnelsDefinition = (
         }),
       );
     }
-    let predicateCount = 0;
-    for (const step of definition.steps) {
-      if (step.filters) predicateCount += yield* validateCustomEventFilter(step.filters);
-    }
+    const predicateCounts = yield* Effect.forEach(
+      definition.steps,
+      (step) => step.filters ? validateCustomEventFilter(step.filters) : Effect.succeed(0),
+      { concurrency: 1 },
+    );
+    const predicateCount = Arr.reduce(predicateCounts, 0, (total, count) => total + count);
     if (predicateCount > 20) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({ message: "Funnels support at most 20 predicates" }),
@@ -959,14 +1027,14 @@ export const validateExecutablePathsDefinition = (
         new InvalidAnalyticsQueryError({ message: "Paths require between 2 and 20 steps" }),
       );
     }
-    if (definition.startEventName !== undefined && definition.startEventName.trim().length === 0) {
+    if (definition.startEventName !== undefined && Str.isEmpty(definition.startEventName.trim())) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({
           message: "Paths start event cannot be empty",
         }),
       );
     }
-    if (definition.endEventName !== undefined && definition.endEventName.trim().length === 0) {
+    if (definition.endEventName !== undefined && Str.isEmpty(definition.endEventName.trim())) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({
           message: "Paths end event cannot be empty",
@@ -1062,17 +1130,21 @@ export const validateExecutableStickinessDefinition = (
         }),
       );
     }
-    let predicateCount = 0;
-    for (const series of definition.series) {
-      if (series.aggregation !== "unique_users") {
-        return yield* Effect.fail(
-          new InvalidAnalyticsQueryError({
-            message: "Stickiness series must use unique users",
-          }),
-        );
-      }
-      if (series.filters) predicateCount += yield* validateCustomEventFilter(series.filters);
-    }
+    const predicateCounts = yield* Effect.forEach(
+      definition.series,
+      (series) => {
+        if (series.aggregation !== "unique_users") {
+          return Effect.fail(
+            new InvalidAnalyticsQueryError({
+              message: "Stickiness series must use unique users",
+            }),
+          );
+        }
+        return series.filters ? validateCustomEventFilter(series.filters) : Effect.succeed(0);
+      },
+      { concurrency: 1 },
+    );
+    const predicateCount = Arr.reduce(predicateCounts, 0, (total, count) => total + count);
     if (predicateCount > 20) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({ message: "Stickiness supports at most 20 predicates" }),
@@ -1122,11 +1194,13 @@ export const countStickinessIntervals = (
 
 const stickinessBucketCount = (
   raw: ReadonlyArray<EventStickinessBucket>,
-  counts: ReadonlyMap<number, number>,
+  counts: HashMap.HashMap<number, number>,
   computation: "cumulative" | "exact",
   intervals: number,
 ) => {
-  if (computation !== "cumulative") return counts.get(intervals) ?? 0;
+  if (computation !== "cumulative") {
+    return Option.getOrElse(HashMap.get(counts, intervals), () => 0);
+  }
   return raw.reduce((total, bucket) => {
     if (bucket.intervals >= intervals) return total + bucket.count;
     return total;
@@ -1139,7 +1213,7 @@ export const buildStickinessBuckets = (
   computation: "cumulative" | "exact",
   maximumIntervals: number,
 ): EventStickinessBucket[] => {
-  const counts = new Map(raw.map((bucket) => [bucket.intervals, bucket.count]));
+  const counts = HashMap.fromIterable(raw.map((bucket) => [bucket.intervals, bucket.count]));
   return Array.from({ length: maximumIntervals }, (_, offset) => {
     const intervals = offset + 1;
     return {
@@ -1174,7 +1248,10 @@ export const validateExecutableLifecycleDefinition = (
         );
       }
     }
-    if (definition.statuses && new Set(definition.statuses).size !== definition.statuses.length) {
+    if (
+      definition.statuses &&
+      HashSet.size(HashSet.fromIterable(definition.statuses)) !== definition.statuses.length
+    ) {
       return yield* Effect.fail(
         new InvalidAnalyticsQueryError({ message: "Lifecycle statuses cannot be duplicated" }),
       );
@@ -1209,16 +1286,15 @@ export const buildLifecycleSeries = (
 ): LifecycleInsightResult["series"] => {
   const from = startOfStickinessInterval(start, granularity);
   const to = startOfStickinessInterval(end, granularity);
-  const periods: Date[] = [];
-  for (let period = from; period <= to; period = nextLifecycleInterval(period, granularity)) {
-    periods.push(period);
-  }
-  const counts = new Map(
+  const buildPeriods = (period: Date): ReadonlyArray<Date> =>
+    period > to ? [] : [period, ...buildPeriods(nextLifecycleInterval(period, granularity))];
+  const periods = buildPeriods(from);
+  const counts = HashMap.fromIterable(
     points.map((point) => [`${point.status}:${point.timestamp.getTime()}`, point.count]),
   );
   return statuses.map((status) => ({
     points: periods.map((timestamp) => ({
-      count: counts.get(`${status}:${timestamp.getTime()}`) ?? 0,
+      count: Option.getOrElse(HashMap.get(counts, `${status}:${timestamp.getTime()}`), () => 0),
       timestamp,
     })),
     status,

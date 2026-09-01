@@ -1,4 +1,6 @@
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import type { CapturedTransportRecord } from "../../ingest/domain/Ingest.ts";
 import {
@@ -15,6 +17,7 @@ export const ResolvedAnalyticsIdentity = Schema.Struct({
   /** Stable profile identifier, present only for full identity resolution. */
   personId: Schema.optional(Schema.String),
 });
+export type ResolvedAnalyticsIdentity = typeof ResolvedAnalyticsIdentity.Type;
 
 /** Resolved event identity plus the projections produced while resolving it. */
 export const IdentityResolution = Schema.Struct({
@@ -22,6 +25,7 @@ export const IdentityResolution = Schema.Struct({
   personEvents: Schema.Array(ProcessorPersonEventV1),
   personIdentityEvents: Schema.Array(ProcessorPersonIdentityEventV1),
 });
+export type IdentityResolution = typeof IdentityResolution.Type;
 
 /** Identity-resolution capabilities used by the analytics processor. */
 export interface AnalyticsIdentityResolverShape {

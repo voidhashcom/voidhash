@@ -3,7 +3,13 @@ import type {
   PaywallRuntimeConfigProduct,
   PaywallRuntimeConfigProductPeriod,
 } from "../../internal/paywall-bridge/protocol";
-import type { Product, SubscriptionProduct } from "../entities/product";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Str from "effect/String";
+import type { Product } from "../entities/product";
+import type { ProductsBySlug } from "../products/product-service";
 import type { PaywallReleaseRuntime } from "./paywall-service";
 
 const PERIOD_BY_NORMALIZED_INTERVAL: Readonly<Record<string, PaywallRuntimeConfigProductPeriod>> = {
@@ -30,12 +36,11 @@ const PERIOD_BY_NORMALIZED_INTERVAL: Readonly<Record<string, PaywallRuntimeConfi
  * optional on the wire.
  */
 export function mapStoreIntervalToPeriod(
-  interval: string | undefined,
-): PaywallRuntimeConfigProductPeriod | undefined {
-  if (!interval) {
-    return;
-  }
-  return PERIOD_BY_NORMALIZED_INTERVAL[interval.trim().toLowerCase()];
+  interval: Option.Option<string>,
+): Option.Option<PaywallRuntimeConfigProductPeriod> {
+  return Option.flatMap(interval, (value) =>
+    Option.fromNullishOr(PERIOD_BY_NORMALIZED_INTERVAL[value.trim().toLowerCase()]),
+  );
 }
 
 function mapProductToRuntimeConfigProduct(product: Product): PaywallRuntimeConfigProduct {
@@ -43,13 +48,19 @@ function mapProductToRuntimeConfigProduct(product: Product): PaywallRuntimeConfi
     id: product.id,
     slug: product.slug,
     displayName: product.displayName,
-    description: product.description.length > 0 ? product.description : undefined,
+    description: Str.isNonEmpty(product.description) ? product.description : undefined,
     price: Number.isFinite(product.price) ? product.price : undefined,
     priceString: product.displayPrice,
-    currencyCode: product.currency.length > 0 ? product.currency : undefined,
+    currencyCode: Str.isNonEmpty(product.currency) ? product.currency : undefined,
     // `interval` is only present when the adapter produced a full
     // SubscriptionProduct; plain Product instances leave it undefined.
-    period: mapStoreIntervalToPeriod((product as Partial<SubscriptionProduct>).interval),
+    period: Option.getOrUndefined(
+      mapStoreIntervalToPeriod(
+        "interval" in product && P.isString(product.interval)
+          ? Option.some(product.interval)
+          : Option.none(),
+      ),
+    ),
     // Trial metadata isn't surfaced by the current native adapters yet.
     trialPeriod: undefined,
   };
@@ -63,26 +74,29 @@ function mapProductToRuntimeConfigProduct(product: Product): PaywallRuntimeConfi
  */
 export function buildPaywallRuntimeConfig(options: {
   runtime: PaywallReleaseRuntime;
-  productsBySlug: Readonly<Record<string, Product | null>>;
+  productsBySlug: ProductsBySlug;
   platform: "ios" | "android" | "unknown";
-  locale: string | undefined;
-  onSkippedProductSlug?: (slug: string) => void;
+  locale: Option.Option<string>;
+  onSkippedProductSlug: Option.Option<(slug: string) => void>;
 }): PaywallRuntimeConfig {
-  const products: PaywallRuntimeConfigProduct[] = [];
-
-  for (const slug of options.runtime.productSlugs) {
-    const product = options.productsBySlug[slug] ?? null;
-    if (!product) {
-      options.onSkippedProductSlug?.(slug);
-      continue;
+  const initialProducts: ReadonlyArray<PaywallRuntimeConfigProduct> = [];
+  const products = Arr.reduce(options.runtime.productSlugs, initialProducts, (items, slug) => {
+    const product = options.productsBySlug[slug] ?? Option.none();
+    if (Option.isSome(product)) {
+      return [...items, mapProductToRuntimeConfigProduct(product.value)];
     }
-    products.push(mapProductToRuntimeConfigProduct(product));
-  }
+    Option.map(options.onSkippedProductSlug, (onSkipped) => onSkipped(slug));
+    return items;
+  });
 
   return {
-    products,
-    variables: options.runtime.variables as PaywallRuntimeConfig["variables"],
-    locale: options.locale,
+    products: Arr.fromIterable(products),
+    variables: R.filter(
+      options.runtime.variables,
+      (value): value is string | number | boolean =>
+        P.isString(value) || P.isNumber(value) || P.isBoolean(value),
+    ),
+    locale: Option.getOrUndefined(options.locale),
     platform: options.platform === "unknown" ? undefined : options.platform,
     defaultSelectedProductId: products[0]?.id,
   };

@@ -1,6 +1,10 @@
 import * as PgClient from "@effect/sql-pg/PgClient";
 import { validateValue, type Command, type Value } from "@voidhash/mimic-core";
-import { Effect, Predicate, Redacted, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Redacted from "effect/Redacted";
+import * as Schema from "effect/Schema";
 import { SqlClient, SqlError } from "effect/unstable/sql";
 
 import type { CommandRow, DocumentMeta, DocumentStoreApi, SnapshotRow } from "./store.ts";
@@ -50,7 +54,7 @@ const acceptAny = Schema.decodeUnknownSync(Schema.Any);
  * shapes are normalised here through the same JSON codec.
  */
 const decodeJsonColumn = <A>(input: unknown): A => {
-  if (Predicate.isString(input)) return parseJsonText(input);
+  if (P.isString(input)) return parseJsonText(input);
   return acceptAny(input);
 };
 
@@ -68,15 +72,13 @@ const decodeCommand = (input: unknown): Command => decodeJsonColumn<Command>(inp
 interface MetaSqlRow {
   readonly collectionId: string;
   readonly schemaVersion: number;
-  readonly migrationVersion: number | null;
+  readonly migrationVersion: unknown;
   readonly currentSeq: number | string;
   readonly snapshotSeq: number | string;
-  readonly deletedAt: number | string | null;
+  readonly deletedAt: unknown;
 }
-const nullableNumber = (value: number | string | null): number | null => {
-  if (value === null) return null;
-  return Number(value);
-};
+const nullableNumber = (value: unknown): Option.Option<number> =>
+  value === null || value === undefined ? Option.none() : Option.some(Number(value));
 
 interface SnapshotSqlRow {
   readonly seq: number | string;
@@ -96,8 +98,13 @@ const UNDEFINED_COLUMN = "42703";
 /** Postgres SQLSTATE for `insufficient_privilege`. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 
+class DocumentTableSetupError extends Schema.TaggedErrorClass<DocumentTableSetupError>()(
+  "DocumentTableSetupError",
+  { message: Schema.String },
+) {}
+
 const sqlErrorCauseProperty = (error: SqlError.SqlError, property: string): unknown => {
-  if (!Predicate.hasProperty(error.reason.cause, property)) return undefined;
+  if (!P.hasProperty(error.reason.cause, property)) return undefined;
   return error.reason.cause[property];
 };
 
@@ -153,11 +160,12 @@ export const ensureDocumentTables = (config: PgDocumentConfig): Effect.Effect<vo
             Effect.catch((createError) => {
               if (!isDdlDeniedError(createError)) return Effect.fail(createError);
               return Effect.die(
-                new Error(
-                  `mimic document table "${table}" does not exist and the database denies runtime DDL ` +
+                new DocumentTableSetupError({
+                  message:
+                    `mimic document table "${table}" does not exist and the database denies runtime DDL ` +
                     `(the connected Postgres role cannot CREATE TABLE). Apply the ` +
                     `mimic_document_tables migration in packages/db/src/alchemy-migrations before serving traffic.`,
-                ),
+                }),
               );
             }),
           );
@@ -188,9 +196,10 @@ export const ensureDocumentTables = (config: PgDocumentConfig): Effect.Effect<vo
           Effect.catch((alterError) => {
             if (!isDdlDeniedError(alterError)) return Effect.fail(alterError);
             return Effect.die(
-              new Error(
-                "mimic_documents.migration_version is missing and the database denies runtime DDL. Apply the current database migrations before serving traffic.",
-              ),
+              new DocumentTableSetupError({
+                message:
+                  "mimic_documents.migration_version is missing and the database denies runtime DDL. Apply the current database migrations before serving traffic.",
+              }),
             );
           }),
         );
@@ -281,15 +290,15 @@ export const makePgDocumentStore = (
             FROM mimic_documents WHERE id = ${documentId}
           `;
           const row = rows[0];
-          if (!row) return undefined;
-          return {
+          if (!row) return Option.none();
+          return Option.some({
             collectionId: row.collectionId,
             schemaVersion: row.schemaVersion,
-            migrationVersion: row.migrationVersion,
+            migrationVersion: Option.fromNullishOr(row.migrationVersion).pipe(Option.map(Number)),
             currentSeq: Number(row.currentSeq),
             snapshotSeq: Number(row.snapshotSeq),
             deletedAt: nullableNumber(row.deletedAt),
-          } satisfies DocumentMeta;
+          } satisfies DocumentMeta);
         }),
       ),
 
@@ -303,7 +312,7 @@ export const makePgDocumentStore = (
           yield* sql`DELETE FROM mimic_documents WHERE id = ${documentId}`;
           yield* sql`
             INSERT INTO mimic_documents (id, collection_id, schema_version, migration_version, current_seq, snapshot_seq, deleted_at)
-            VALUES (${documentId}, ${collectionId}, ${schemaVersion}, ${migrationVersion}, 0, 0, NULL)
+            VALUES (${documentId}, ${collectionId}, ${schemaVersion}, ${Option.getOrNull(migrationVersion)}, 0, 0, NULL)
           `;
           yield* sql`
             INSERT INTO mimic_document_snapshots (document_id, seq, schema_version, state_json)
@@ -323,12 +332,12 @@ export const makePgDocumentStore = (
             ORDER BY seq DESC LIMIT 1
           `;
           const row = rows[0];
-          if (!row) return undefined;
-          return {
+          if (!row) return Option.none();
+          return Option.some({
             seq: Number(row.seq),
             value: decodeValue(row.stateJson),
             schemaVersion: row.schemaVersion,
-          } satisfies SnapshotRow;
+          } satisfies SnapshotRow);
         }),
       ),
 
@@ -365,7 +374,7 @@ export const makePgDocumentStore = (
                 INSERT INTO mimic_document_commands (document_id, seq, command_json, tx_id)
                 VALUES (${documentId}, ${fromSeq + 1 + index}, ${encodeJsonColumn(command)}::jsonb, ${txId})
               `,
-            { discard: true },
+            { discard: true, concurrency: 1 },
           );
         }),
       ),
@@ -401,7 +410,7 @@ export const makePgDocumentStore = (
               `;
               yield* sql`
                 UPDATE mimic_documents
-                SET schema_version = ${schemaVersion}, migration_version = ${migrationVersion}, snapshot_seq = ${seq}
+                SET schema_version = ${schemaVersion}, migration_version = ${Option.getOrNull(migrationVersion)}, snapshot_seq = ${seq}
                 WHERE id = ${documentId}
               `;
             }),
@@ -424,7 +433,7 @@ export const makePgDocumentStore = (
             yield* sql`UPDATE mimic_documents SET schema_version = ${patch.schemaVersion} WHERE id = ${documentId}`;
           }
           if (patch.deletedAt !== undefined) {
-            yield* sql`UPDATE mimic_documents SET deleted_at = ${patch.deletedAt} WHERE id = ${documentId}`;
+            yield* sql`UPDATE mimic_documents SET deleted_at = ${Option.getOrNull(patch.deletedAt)} WHERE id = ${documentId}`;
           }
         }),
       ),

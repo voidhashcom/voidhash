@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 
@@ -20,14 +20,14 @@ export const PaymentProviderConfigurationDetail = Schema.Struct({
   activeProviderId: Schema.NullOr(Schema.String),
   configurationPresence: Schema.Record(Schema.String, Schema.Boolean),
   createdAt: Schema.NullOr(Schema.Date),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.String,
   name: Schema.String,
   paymentProviderKey: Schema.String,
   projectId: Schema.String,
   providerId: Schema.String,
   updatedAt: Schema.NullOr(Schema.Date),
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled" }));
 
 export type PaymentProviderConfigurationDetail = typeof PaymentProviderConfigurationDetail.Type;
 
@@ -37,6 +37,8 @@ export const ListPaymentProviderConfigurationsQuery = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   providerId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListPaymentProviderConfigurationsQuery" });
+export type ListPaymentProviderConfigurationsQuery =
+  typeof ListPaymentProviderConfigurationsQuery.Type;
 
 /**
  * Body for `POST /payment-provider-configurations`. Only the provider is
@@ -47,6 +49,8 @@ export const CreatePaymentProviderConfigurationBody = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   providerId: Schema.String,
 }).annotate({ identifier: "CreatePaymentProviderConfigurationBody" });
+export type CreatePaymentProviderConfigurationBody =
+  typeof CreatePaymentProviderConfigurationBody.Type;
 
 /**
  * Body for `PATCH /payment-provider-configurations/:configurationId`. Omitted
@@ -55,9 +59,13 @@ export const CreatePaymentProviderConfigurationBody = Schema.Struct({
  */
 export const UpdatePaymentProviderConfigurationBody = Schema.Struct({
   configuration: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-  enabled: Schema.optional(Schema.Boolean),
+  isEnabled: Schema.optional(Schema.Boolean),
   name: Schema.optional(Schema.String),
-}).annotate({ identifier: "UpdatePaymentProviderConfigurationBody" });
+})
+  .pipe(Schema.encodeKeys({ isEnabled: "enabled" }))
+  .annotate({ identifier: "UpdatePaymentProviderConfigurationBody" });
+export type UpdatePaymentProviderConfigurationBody =
+  typeof UpdatePaymentProviderConfigurationBody.Type;
 
 // ========================================================
 // Payment provider products
@@ -88,6 +96,7 @@ export const ListPaymentProviderProductsQuery = Schema.Struct({
   productId: Schema.optional(Schema.String),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListPaymentProviderProductsQuery" });
+export type ListPaymentProviderProductsQuery = typeof ListPaymentProviderProductsQuery.Type;
 
 /** Body for `POST /payment-provider-products`. */
 export const CreatePaymentProviderProductBody = Schema.Struct({
@@ -95,11 +104,13 @@ export const CreatePaymentProviderProductBody = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
   productId: Schema.String,
 }).annotate({ identifier: "CreatePaymentProviderProductBody" });
+export type CreatePaymentProviderProductBody = typeof CreatePaymentProviderProductBody.Type;
 
 /** Body for `PATCH /payment-provider-products/:mappingId`. */
 export const UpdatePaymentProviderProductBody = Schema.Struct({
   configuration: Schema.Record(Schema.String, Schema.Unknown),
 }).annotate({ identifier: "UpdatePaymentProviderProductBody" });
+export type UpdatePaymentProviderProductBody = typeof UpdatePaymentProviderProductBody.Type;
 
 // ========================================================
 // Push notification configurations
@@ -115,17 +126,16 @@ export const PushNotificationConfigurationDetail = Schema.Struct({
   configuration: Schema.Record(Schema.String, Schema.Unknown),
   createdAt: Schema.NullOr(Schema.Date),
   deletedAt: Schema.NullOr(Schema.Date),
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   id: Schema.String,
   name: Schema.String,
   projectId: Schema.String,
   providerId: Schema.String,
   pushProviderKey: Schema.String,
   updatedAt: Schema.NullOr(Schema.Date),
-});
+}).pipe(Schema.encodeKeys({ isEnabled: "enabled" }));
 
-export type PushNotificationConfigurationDetail =
-  typeof PushNotificationConfigurationDetail.Type;
+export type PushNotificationConfigurationDetail = typeof PushNotificationConfigurationDetail.Type;
 
 /** Query for `GET /push-notification-configurations`. */
 export const ListPushNotificationConfigurationsQuery = Schema.Struct({
@@ -133,19 +143,27 @@ export const ListPushNotificationConfigurationsQuery = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   providerId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListPushNotificationConfigurationsQuery" });
+export type ListPushNotificationConfigurationsQuery =
+  typeof ListPushNotificationConfigurationsQuery.Type;
 
 /** Body for `POST /push-notification-configurations`. */
 export const CreatePushNotificationConfigurationBody = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   providerId: Schema.String,
 }).annotate({ identifier: "CreatePushNotificationConfigurationBody" });
+export type CreatePushNotificationConfigurationBody =
+  typeof CreatePushNotificationConfigurationBody.Type;
 
 /** Body for `PATCH /push-notification-configurations/:configurationId`. */
 export const UpdatePushNotificationConfigurationBody = Schema.Struct({
   configuration: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
-  enabled: Schema.optional(Schema.Boolean),
+  isEnabled: Schema.optional(Schema.Boolean),
   name: Schema.optional(Schema.String),
-}).annotate({ identifier: "UpdatePushNotificationConfigurationBody" });
+})
+  .pipe(Schema.encodeKeys({ isEnabled: "enabled" }))
+  .annotate({ identifier: "UpdatePushNotificationConfigurationBody" });
+export type UpdatePushNotificationConfigurationBody =
+  typeof UpdatePushNotificationConfigurationBody.Type;
 
 // ========================================================
 // Notification send history
@@ -164,14 +182,16 @@ export const PushNotificationSend = Schema.Struct({
   id: Schema.String,
   idempotencyKey: Schema.NullOr(Schema.String),
   message: Schema.Record(Schema.String, Schema.Unknown),
-  messagePurged: Schema.Boolean,
+  isMessagePurged: Schema.Boolean,
   requestedDistinctIdCount: Schema.Number,
   requestedPersonCount: Schema.Number,
   skippedCount: Schema.Number,
   status: Schema.String,
   succeededCount: Schema.Number,
   unresolvedDistinctIds: Schema.Array(Schema.String),
-}).annotate({ identifier: "PushNotificationSend" });
+})
+  .pipe(Schema.encodeKeys({ isMessagePurged: "messagePurged" }))
+  .annotate({ identifier: "PushNotificationSend" });
 
 export type PushNotificationSend = typeof PushNotificationSend.Type;
 
@@ -197,6 +217,7 @@ export const ListNotificationSendsQuery = Schema.Struct({
   ...PageParams.fields,
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListNotificationSendsQuery" });
+export type ListNotificationSendsQuery = typeof ListNotificationSendsQuery.Type;
 
 /** Query for `GET /notification-sends/:sendId/deliveries`. */
 export const ListNotificationDeliveriesQuery = Schema.Struct({
@@ -204,11 +225,13 @@ export const ListNotificationDeliveriesQuery = Schema.Struct({
   projectId: Schema.optional(Schema.String),
   status: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListNotificationDeliveriesQuery" });
+export type ListNotificationDeliveriesQuery = typeof ListNotificationDeliveriesQuery.Type;
 
 /** Optional idempotency header accepted by `POST /notifications`. */
 export const NotificationIdempotencyHeaders = Schema.Struct({
   "idempotency-key": Schema.optional(Schema.String),
 }).annotate({ identifier: "NotificationIdempotencyHeaders" });
+export type NotificationIdempotencyHeaders = typeof NotificationIdempotencyHeaders.Type;
 
 // ========================================================
 // Development sandbox
@@ -216,27 +239,34 @@ export const NotificationIdempotencyHeaders = Schema.Struct({
 
 /** Whether the project accepts development-provider (sandbox) purchases. */
 export const DevelopmentSettings = Schema.Struct({
-  developmentPurchasesEnabled: Schema.Boolean,
-}).annotate({ identifier: "DevelopmentSettings" });
+  isDevelopmentPurchasesEnabled: Schema.Boolean,
+})
+  .pipe(Schema.encodeKeys({ isDevelopmentPurchasesEnabled: "developmentPurchasesEnabled" }))
+  .annotate({ identifier: "DevelopmentSettings" });
 
 export type DevelopmentSettings = typeof DevelopmentSettings.Type;
 
 /** Body for `PATCH /development/settings`. */
 export const UpdateDevelopmentSettingsBody = Schema.Struct({
-  developmentPurchasesEnabled: Schema.Boolean,
+  isDevelopmentPurchasesEnabled: Schema.Boolean,
   projectId: Schema.optional(Schema.String),
-}).annotate({ identifier: "UpdateDevelopmentSettingsBody" });
+})
+  .pipe(Schema.encodeKeys({ isDevelopmentPurchasesEnabled: "developmentPurchasesEnabled" }))
+  .annotate({ identifier: "UpdateDevelopmentSettingsBody" });
+export type UpdateDevelopmentSettingsBody = typeof UpdateDevelopmentSettingsBody.Type;
 
 /** Query for `GET /development/settings` and `DELETE /development/data`. */
 export const DevelopmentProjectQuery = Schema.Struct({
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "DevelopmentProjectQuery" });
+export type DevelopmentProjectQuery = typeof DevelopmentProjectQuery.Type;
 
 /** Query for `GET /development/state`; `personId` selects the sandbox subject. */
 export const DevelopmentStateQuery = Schema.Struct({
   personId: Schema.String,
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "DevelopmentStateQuery" });
+export type DevelopmentStateQuery = typeof DevelopmentStateQuery.Type;
 
 const DevelopmentGrant = Schema.Struct({
   expiresAt: Schema.NullOr(Schema.Date),
@@ -269,11 +299,13 @@ const DevelopmentSubscription = Schema.Struct({
 
 /** The full sandbox state for one person: their simulated entitlements. */
 export const DevelopmentState = Schema.Struct({
-  developmentPurchasesEnabled: Schema.Boolean,
+  isDevelopmentPurchasesEnabled: Schema.Boolean,
   grants: Schema.Array(DevelopmentGrant),
   purchases: Schema.Array(DevelopmentPurchase),
   subscriptions: Schema.Array(DevelopmentSubscription),
-}).annotate({ identifier: "DevelopmentState" });
+})
+  .pipe(Schema.encodeKeys({ isDevelopmentPurchasesEnabled: "developmentPurchasesEnabled" }))
+  .annotate({ identifier: "DevelopmentState" });
 
 export type DevelopmentState = typeof DevelopmentState.Type;
 
@@ -289,11 +321,11 @@ export const DevelopmentLifecycleActionBody = Schema.Struct({
   targetId: Schema.String,
   targetType: Schema.Literals(["subscription", "purchase"]),
 }).annotate({ identifier: "DevelopmentLifecycleActionBody" });
+export type DevelopmentLifecycleActionBody = typeof DevelopmentLifecycleActionBody.Type;
 
 /** Acknowledgement echoing the idempotency key the action was recorded under. */
 export const DevelopmentLifecycleActionAccepted = Schema.Struct({
   actionId: Schema.String,
 });
 
-export type DevelopmentLifecycleActionAccepted =
-  typeof DevelopmentLifecycleActionAccepted.Type;
+export type DevelopmentLifecycleActionAccepted = typeof DevelopmentLifecycleActionAccepted.Type;

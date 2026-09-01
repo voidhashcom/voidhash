@@ -1,3 +1,4 @@
+import * as Str from "effect/String";
 /**
  * Asymmetric JWT signing for outbound push-provider authentication, using
  * WebCrypto only (no Node `crypto`/`Buffer`) so it runs unchanged on Cloudflare
@@ -15,7 +16,9 @@
  * Both take a PKCS#8 PEM private key. Callers pass the DECRYPTED key material —
  * decryption happens upstream (the provider adapter owns its secret seam).
  */
-import { Effect, Encoding, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Encoding from "effect/Encoding";
+import * as Schema from "effect/Schema";
 
 /** Raised when JWT construction or signing fails (bad key, WebCrypto error). */
 export class JwtSigningError extends Schema.TaggedErrorClass<JwtSigningError>("JwtSigningError")(
@@ -53,7 +56,7 @@ const pemToDer = (pem: string): Effect.Effect<Uint8Array, JwtSigningError> =>
       .replace(/-----BEGIN [^-]+-----/g, "")
       .replace(/-----END [^-]+-----/g, "")
       .replace(/\s+/g, "");
-    if (body.length === 0) {
+    if (Str.isEmpty(body)) {
       return yield* new JwtSigningError({ message: "invalid PKCS#8 PEM: empty PEM body" });
     }
     return yield* Effect.fromResult(Encoding.decodeBase64(body)).pipe(

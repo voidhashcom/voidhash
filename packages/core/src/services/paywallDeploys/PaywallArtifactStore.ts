@@ -1,4 +1,7 @@
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all error for {@link PaywallArtifactStore} operations. Adapters wrap
@@ -14,7 +17,7 @@ export class PaywallArtifactStoreError extends Schema.TaggedErrorClass<PaywallAr
 
 export interface PaywallArtifactObject {
   readonly body: Uint8Array;
-  readonly contentType: string | null;
+  readonly contentType: Option.Option<string>;
 }
 
 export interface PaywallArtifactHead {
@@ -34,18 +37,18 @@ export interface PaywallArtifactStoreShape {
   readonly putObject: (input: {
     readonly key: string;
     readonly body: Uint8Array;
-    readonly contentType: string | undefined;
+    readonly contentType: Option.Option<string>;
   }) => Effect.Effect<void, PaywallArtifactStoreError>;
 
-  /** Reads the object at `key`; `null` when it does not exist. */
+  /** Reads the object at `key`; `Option.none` when it does not exist. */
   readonly getObject: (
     key: string,
-  ) => Effect.Effect<PaywallArtifactObject | null, PaywallArtifactStoreError>;
+  ) => Effect.Effect<Option.Option<PaywallArtifactObject>, PaywallArtifactStoreError>;
 
-  /** Object metadata without the body; `null` when it does not exist. */
+  /** Object metadata without the body; `Option.none` when it does not exist. */
   readonly head: (
     key: string,
-  ) => Effect.Effect<PaywallArtifactHead | null, PaywallArtifactStoreError>;
+  ) => Effect.Effect<Option.Option<PaywallArtifactHead>, PaywallArtifactStoreError>;
 }
 
 /**

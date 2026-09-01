@@ -16,7 +16,9 @@ import { PerkGrantService } from "@voidhash/core/services/perkGrants/PerkGrantSe
 import { WebhookEventPublisher } from "@voidhash/core/services/webhookDispatch/WebhookEventPublisher";
 import { generateId } from "@voidhash/core/utils/generate-id";
 import { Db, type DbTransaction, eq, purchaseLedger } from "@voidhash/db";
-import { Effect, Layer, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 import { makeDbPurchaseStateRepository } from "./DbPurchaseStateRepositoryLive.ts";
 

@@ -13,10 +13,11 @@ import {
   RpcPaywallNotFoundError,
   RpcPaywallWorkspaceError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as P from "effect/Predicate";
 
 const isSnapshotDocumentNode = (value: unknown): value is SnapshotDocumentNode =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 /** The decoded renderer root as the single-element snapshot array, or empty. */
 const documentRoots = (root: unknown): SnapshotDocumentNode[] => {

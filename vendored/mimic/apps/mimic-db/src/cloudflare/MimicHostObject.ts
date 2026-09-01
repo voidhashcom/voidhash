@@ -1,12 +1,12 @@
 import * as Cloudflare from "alchemy/Cloudflare";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 
 import { getConfig } from "../config.ts";
 import { makeControlEngine } from "../core/control-engine.ts";
 import { ensureMigrationRegistry } from "../core/migration-registry.ts";
-import { makeControlStoreSchemaProvider } from "../core/schema-provider.ts";
 import { makeSqlControlStore } from "./SqlControlStore.ts";
+import { makeControlStoreRpcServer } from "./ControlStoreRpc.ts";
 
 /**
  * Control-plane Durable Object (single instance, addressed as `"default"`).
@@ -29,11 +29,7 @@ export const makeMimicHostObject = (migrations: MigrationRegistry) => {
         const control = makeControlEngine(store, migrations);
         const config = getConfig();
         yield* control.ensureRootUser(config.rootUsername, config.rootPassword);
-        const schema = makeControlStoreSchemaProvider(store);
-        return {
-          ...store,
-          getCollectionContext: (collectionId: string) => schema.getCollectionContext(collectionId),
-        };
+        return makeControlStoreRpcServer(store);
       });
     }),
   ) {}

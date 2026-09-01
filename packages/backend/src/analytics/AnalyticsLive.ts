@@ -43,7 +43,16 @@ import {
   type ResolveDistinctIdInput,
 } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { AuthSession } from "@voidhash/rpc";
-import { Crypto, DateTime, Duration, Effect, Layer, PlatformError } from "effect";
+import * as Crypto from "effect/Crypto";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as PlatformError from "effect/PlatformError";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import { MutableMap } from "../collection-boundary.ts";
 
 const portError = (message: string) => (cause: unknown) =>
   new AnalyticsPortError({ cause, message });
@@ -72,8 +81,8 @@ const PostgresAnalyticsClientLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* Db;
     return {
-      query: <Row extends object>(statement: PostgresStatement) =>
-        db.$client.unsafe<Row>(statement.text, statement.values),
+      query: (statement: PostgresStatement) =>
+        db.$client.unsafe<object>(statement.text, statement.values),
     } satisfies PostgresAnalyticsClientShape;
   }),
 );
@@ -84,7 +93,7 @@ const PostgresStoreLive = PostgresAnalyticsStoreLive.pipe(
 
 const AnalyticsAuthorizerLive = Layer.succeed(AnalyticsAuthorizer, {
   organizationProjects: (organizationId) =>
-    Effect.gen(function* () {
+    Effect.fn("organizationProjects")(function* () {
       const session = yield* AuthSession;
       const organization = session.organizations.find(
         (candidate) => candidate.id === organizationId,
@@ -97,9 +106,9 @@ const AnalyticsAuthorizerLive = Layer.succeed(AnalyticsAuthorizer, {
       return session.projects
         .filter((project) => project.organizationId === organizationId)
         .map((project) => project.id);
-    }),
+    })(),
   requireProject: (projectId) =>
-    Effect.gen(function* () {
+    Effect.fn("requireProject")(function* () {
       const session = yield* AuthSession;
       const project = session.projects.find((candidate) => candidate.id === projectId);
       if (!project?.permissions.includes("project:all")) {
@@ -107,7 +116,7 @@ const AnalyticsAuthorizerLive = Layer.succeed(AnalyticsAuthorizer, {
           message: "not authorized to query project analytics",
         });
       }
-    }),
+    })(),
 });
 
 const CaptureCredentialRepositoryLive = Layer.effect(
@@ -116,7 +125,7 @@ const CaptureCredentialRepositoryLive = Layer.effect(
     const db = yield* Db;
     return CaptureCredentialRepository.of({
       resolve: ({ isPublic, lookupKey }) =>
-        Effect.gen(function* () {
+        Effect.fn("resolve")(function* () {
           const [record] = yield* db
             .select({ organizationId: projects.organizationId, projectId: apiKeys.projectId })
             .from(apiKeys)
@@ -129,7 +138,7 @@ const CaptureCredentialRepositoryLive = Layer.effect(
               builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
               customEventBlocklist: captureProjectPolicies.customEventBlocklist,
               eventsPerDay: captureProjectPolicies.eventsPerDay,
-              ingestEnabled: captureProjectPolicies.ingestEnabled,
+              isIngestEnabled: captureProjectPolicies.ingestEnabled,
               requestsPerMinute: captureProjectPolicies.requestsPerMinute,
             })
             .from(captureProjectPolicies)
@@ -141,12 +150,12 @@ const CaptureCredentialRepositoryLive = Layer.effect(
             policy: {
               admission: policy ?? emptyEventAdmissionPolicy,
               eventsPerDay: policy?.eventsPerDay ?? undefined,
-              ingestEnabled: policy?.ingestEnabled ?? true,
+              isIngestEnabled: policy?.isIngestEnabled ?? true,
               projectId: record.projectId,
               requestsPerMinute: policy?.requestsPerMinute ?? undefined,
             },
           };
-        }).pipe(Effect.mapError(portError("capture project lookup failed"))),
+        })().pipe(Effect.mapError(portError("capture project lookup failed"))),
     });
   }),
 );
@@ -157,68 +166,64 @@ const ProcessorProjectRepositoryLive = Layer.effect(
     const db = yield* Db;
     return ProcessorProjectRepository.of({
       resolve: (event) =>
-        Effect.gen(function* () {
+        Effect.fn("resolve")(function* () {
           const trusted = isTrustedInternalAnalyticsEventSource({
             eventName: event.event,
             sourceTopic: event.sourceTopic,
             trustClass: event.trustClass,
           });
-          let records: ReadonlyArray<{
+          const records: ReadonlyArray<{
             readonly organizationId: string;
             readonly projectId: string;
-          }>;
-          if (trusted) {
-            records = yield* db
-              .select({ organizationId: projects.organizationId, projectId: projects.id })
-              .from(projects)
-              .where(eq(projects.id, event.projectId))
-              .limit(1);
-          } else {
-            records = yield* db
-              .select({ organizationId: projects.organizationId, projectId: apiKeys.projectId })
-              .from(apiKeys)
-              .innerJoin(projects, eq(projects.id, apiKeys.projectId))
-              .where(
-                and(
-                  eq(apiKeys.isPublic, event.token.startsWith("vh_pk_")),
-                  eq(apiKeys.key, event.token),
-                ),
-              )
-              .limit(1);
-          }
+          }> = trusted
+            ? yield* db
+                .select({ organizationId: projects.organizationId, projectId: projects.id })
+                .from(projects)
+                .where(eq(projects.id, event.projectId))
+                .limit(1)
+            : yield* db
+                .select({ organizationId: projects.organizationId, projectId: apiKeys.projectId })
+                .from(apiKeys)
+                .innerJoin(projects, eq(projects.id, apiKeys.projectId))
+                .where(
+                  and(
+                    eq(apiKeys.isPublic, event.token.startsWith("vh_pk_")),
+                    eq(apiKeys.key, event.token),
+                  ),
+                )
+                .limit(1);
           const record = records[0];
           if (!record) return undefined;
           const [policy] = yield* db
             .select({
               builtinEventOverrides: captureProjectPolicies.builtinEventOverrides,
               customEventBlocklist: captureProjectPolicies.customEventBlocklist,
-              processorEnabled: captureProjectPolicies.processorEnabled,
+              isProcessorEnabled: captureProjectPolicies.processorEnabled,
             })
             .from(captureProjectPolicies)
             .where(eq(captureProjectPolicies.projectId, record.projectId))
             .limit(1);
-          let admission = emptyEventAdmissionPolicy;
-          if (policy) {
-            admission = {
-              builtinEventOverrides: policy.builtinEventOverrides,
-              customEventBlocklist: policy.customEventBlocklist,
-            };
-          }
+          const admission = policy
+            ? {
+                builtinEventOverrides: policy.builtinEventOverrides,
+                customEventBlocklist: policy.customEventBlocklist,
+              }
+            : emptyEventAdmissionPolicy;
           return {
             organizationId: record.organizationId,
             policy: {
               admission,
-              processorEnabled: policy?.processorEnabled ?? true,
+              isProcessorEnabled: policy?.isProcessorEnabled ?? true,
             },
             projectId: record.projectId,
           };
-        }).pipe(Effect.mapError(portError("processor project lookup failed"))),
+        })().pipe(Effect.mapError(portError("processor project lookup failed"))),
     });
   }),
 );
 
 const firstString = (...values: ReadonlyArray<unknown>) =>
-  values.find((value): value is string => typeof value === "string");
+  values.find((value): value is string => P.isString(value));
 
 const personEvent = (event: PersonSnapshotEventV1) => ({
   changedAt: event.changedAt,
@@ -280,11 +285,11 @@ const makeIdentityCall = (record: typeof CapturedTransportRecord.Type) => {
   }
   const name = firstString(traits.value.set.name, traits.value.setOnce.name);
   const email = firstString(traits.value.set.email, traits.value.setOnce.email);
-  const setAttributes = Object.fromEntries(
-    Object.entries(traits.value.set).filter(([key]) => key !== "email" && key !== "name"),
+  const setAttributes = R.fromEntries(
+    R.toEntries(traits.value.set).filter(([key]) => key !== "email" && key !== "name"),
   );
-  const setOnceAttributes = Object.fromEntries(
-    Object.entries(traits.value.setOnce).filter(([key]) => key !== "email" && key !== "name"),
+  const setOnceAttributes = R.fromEntries(
+    R.toEntries(traits.value.setOnce).filter(([key]) => key !== "email" && key !== "name"),
   );
   const common = {
     distinctId: event.distinctId,
@@ -304,7 +309,7 @@ const makeIdentityCall = (record: typeof CapturedTransportRecord.Type) => {
   }
   const configured = event.properties.$process_person_profile;
   let shouldCreatePerson = !event.distinctId.startsWith("vh:anon:");
-  if (typeof configured === "boolean") shouldCreatePerson = configured;
+  if (P.isBoolean(configured)) shouldCreatePerson = configured;
   return Effect.succeed({
     kind: "resolve",
     input: {
@@ -321,20 +326,14 @@ const AnalyticsIdentityResolverLive = Layer.effect(
     const db = yield* Db;
     return AnalyticsIdentityResolver.of({
       resolve: (record) =>
-        Effect.gen(function* () {
+        Effect.fn("resolve")(function* () {
           const call = yield* makeIdentityCall(record);
-          let result: PersonIdentityResult;
-          if (call.kind === "identify") {
-            result = yield* identities
-              .identifyDistinctId(call.input)
-              .pipe(Effect.provideService(Db, db));
-          } else {
-            result = yield* identities
-              .resolveDistinctId(call.input)
-              .pipe(Effect.provideService(Db, db));
-          }
+          const result: PersonIdentityResult =
+            call.kind === "identify"
+              ? yield* identities.identifyDistinctId(call.input).pipe(Effect.provideService(Db, db))
+              : yield* identities.resolveDistinctId(call.input).pipe(Effect.provideService(Db, db));
           return identityResolution(result);
-        }).pipe(Effect.mapError(portError("identity resolution failed"))),
+        })().pipe(Effect.mapError(portError("identity resolution failed"))),
     });
   }),
 );
@@ -345,7 +344,7 @@ const AnalyticsDeadLetterStoreLive = Layer.effect(
     const db = yield* Db;
     return AnalyticsDeadLetterStore.of({
       write: (events) => {
-        if (events.length === 0) return Effect.void;
+        if (Arr.isReadonlyArrayEmpty(events)) return Effect.void;
         return db
           .insert(analyticsIngestDlq)
           .values(
@@ -434,7 +433,10 @@ export const makeClickHouseAnalyticsClientLive = (
             username: input.username,
           }),
         ),
-        (client) => Effect.promise(() => client.close()),
+        (client) =>
+          Effect.tryPromise({ try: () => client.close(), catch: (cause) => cause }).pipe(
+            Effect.orDie,
+          ),
       );
       const [initialize, invalidate] = yield* Effect.cachedInvalidateWithTTL(
         options.initialize ?? Effect.void,
@@ -466,7 +468,7 @@ export const makeClickHouseAnalyticsClientLive = (
               ).pipe(Effect.asVoid),
             ),
           ),
-        query: <Row extends object>(statement: ClickHouseStatement) =>
+        query: (statement: ClickHouseStatement) =>
           ensureInitialized.pipe(
             Effect.andThen(
               Effect.tryPromise(() =>
@@ -479,7 +481,7 @@ export const makeClickHouseAnalyticsClientLive = (
                     clickhouse_settings: { quota_key: statement.quotaKey },
                   }),
                 }),
-              ).pipe(Effect.flatMap((result) => Effect.tryPromise(() => result.json<Row>()))),
+              ).pipe(Effect.flatMap((result) => Effect.tryPromise(() => result.json<object>()))),
             ),
           ),
       } satisfies ClickHouseAnalyticsClientShape;
@@ -507,7 +509,7 @@ const buildClickHouseAnalyticsLive = (input: ClickHouseAnalyticsConnectionOption
   );
 };
 
-const ClickHouseAnalyticsLiveCache = new Map<
+const ClickHouseAnalyticsLiveCache = new MutableMap<
   string,
   ReturnType<typeof buildClickHouseAnalyticsLive>
 >();
@@ -545,7 +547,8 @@ export const migrateClickHouseAnalytics = (input: {
       Effect.forEach(
         CLICKHOUSE_ANALYTICS_MIGRATIONS.flatMap((migration) => migration.statements),
         (query) => Effect.tryPromise(() => client.command({ query })),
-        { discard: true },
+        { concurrency: 1, discard: true },
       ),
-    (client) => Effect.promise(() => client.close()),
+    (client) =>
+      Effect.tryPromise({ try: () => client.close(), catch: (cause) => cause }).pipe(Effect.orDie),
   );

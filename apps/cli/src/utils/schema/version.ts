@@ -9,13 +9,13 @@ export const VOIDHASH_FETCHED_AT_COMMENT_PREFIX = "// @voidhash:fetched-at ";
 
 /**
  * Extract the version header from a generated `.d.ts`, if present.
- * Returns null when the header is missing (e.g. the file was hand-edited).
+ * Returns `Option.none` when the header is missing (e.g. the file was hand-edited).
  */
-export function parseVersionFromDeclaration(content: string): string | null {
-  for (const line of content.split(/\r?\n/)) {
-    if (line.startsWith(VOIDHASH_VERSION_COMMENT_PREFIX)) {
-      return line.slice(VOIDHASH_VERSION_COMMENT_PREFIX.length).trim();
-    }
-  }
-  return null;
-}
+export const parseVersionFromDeclaration = (content: string): Option.Option<string> =>
+  Arr.findFirst(content.split(/\r?\n/), (line) =>
+    line.startsWith(VOIDHASH_VERSION_COMMENT_PREFIX)
+      ? Option.some(line.slice(VOIDHASH_VERSION_COMMENT_PREFIX.length).trim())
+      : Option.none(),
+  );
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";

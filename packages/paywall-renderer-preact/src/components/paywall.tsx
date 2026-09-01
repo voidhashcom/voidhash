@@ -1,4 +1,6 @@
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import * as Match from "effect/Match";
+import { createElement, Fragment } from "preact";
 
 import type { ComponentArtifacts } from "../component-artifacts";
 import { PaywallProvider } from "../context/paywall-context";
@@ -12,16 +14,20 @@ import { View } from "./view";
 
 interface PaywallProps {
   snapshot: SnapshotNode;
-  componentArtifacts?: ComponentArtifacts | undefined;
+  componentArtifacts?: ComponentArtifacts;
   /** Locale to resolve localized content against (undefined → default locale). */
-  locale?: string | undefined;
+  locale?: string;
 }
 
 export function Paywall({ snapshot, componentArtifacts, locale }: PaywallProps) {
-  return (
-    <PaywallProvider componentArtifacts={componentArtifacts} locale={locale} snapshot={snapshot}>
-      <Node node={snapshot} />
-    </PaywallProvider>
+  return createElement(
+    PaywallProvider,
+    {
+      children: createElement(Node, { node: snapshot }),
+      componentArtifacts,
+      locale,
+      snapshot,
+    },
   );
 }
 
@@ -48,41 +54,27 @@ function UnknownNode({ node }: { node: { type?: unknown } }) {
 
 function Node({ node }: { node: SnapshotNode }) {
   // Unknown-type nodes from newer payloads may not carry children at all.
-  const children = (node.children ?? []).map((child) => <Node key={child.id} node={child} />);
+  const children = (node.children ?? []).map((child) =>
+    createElement(Node, { key: child.id, node: child }),
+  );
 
-  switch (node.type) {
-    case "root": {
-      return <>{children}</>;
-    }
-    case "screen": {
-      return <Screen node={node}>{children}</Screen>;
-    }
-    case "view": {
-      return <View node={node}>{children}</View>;
-    }
-    case "scrollView": {
-      return <ScrollView node={node}>{children}</ScrollView>;
-    }
-    case "text": {
-      return <Text node={node} />;
-    }
-    case "shape": {
-      return <Shape node={node}>{children}</Shape>;
-    }
-    case "path": {
-      return <Path node={node} />;
-    }
-    case "component": {
-      return <ComponentInstance node={node}>{children}</ComponentInstance>;
-    }
+  return Match.value(node).pipe(
+    Match.when({ type: "root" }, () => createElement(Fragment, null, children)),
+    Match.when({ type: "screen" }, (node) => createElement(Screen, { children, node })),
+    Match.when({ type: "view" }, (node) => createElement(View, { children, node })),
+    Match.when({ type: "scrollView" }, (node) =>
+      createElement(ScrollView, { children, node }),
+    ),
+    Match.when({ type: "text" }, (node) => createElement(Text, { node })),
+    Match.when({ type: "shape" }, (node) => createElement(Shape, { children, node })),
+    Match.when({ type: "path" }, (node) => createElement(Path, { node })),
+    Match.when({ type: "component" }, (node) =>
+      createElement(ComponentInstance, { children, node }),
+    ),
     // Non-visual nodes: the code-component library and its definitions live in
     // the document tree but never render (source only).
-    case "library":
-    case "codeComponent": {
-      return null;
-    }
-    default: {
-      return <UnknownNode node={node} />;
-    }
-  }
+    Match.when({ type: "library" }, () => null),
+    Match.when({ type: "codeComponent" }, () => null),
+    Match.orElse((node) => <UnknownNode node={node} />),
+  );
 }

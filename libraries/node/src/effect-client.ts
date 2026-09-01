@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
 
 import type { VoidhashNodeClientOptions } from "./types";
 import { makeEntitlements, type VoidhashEntitlementsEffectNamespace } from "./entitlements";
@@ -14,12 +15,14 @@ export type VoidhashNodeEffectClient = FilterSdkGroup<GeneratedVoidhashNodeEffec
   readonly eventCapture: VoidhashEventCaptureEffectNamespace;
 };
 
+const runtime = ManagedRuntime.make(Layer.empty);
+
 /**
  * Builds the Effect-flavoured SDK. Throws `VoidhashNodeConfigurationError` when
  * the options are invalid.
  */
 export const createVoidhashSdk = (options: VoidhashNodeClientOptions): VoidhashNodeEffectClient => {
-  const generated = Effect.runSync(makeGeneratedClients(options));
+  const generated = runtime.runSync(makeGeneratedClients(options));
   const client = filterSdkGroup(generated.core);
 
   return {

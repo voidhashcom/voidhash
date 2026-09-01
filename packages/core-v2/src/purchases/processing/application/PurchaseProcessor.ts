@@ -1,4 +1,7 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import {
   CancelSubscriptionInput,
@@ -25,9 +28,13 @@ import {
   type PurchaseStateStoreShape,
 } from "../../application/ports/PurchaseStateStore.ts";
 
-export type PurchaseProcessorShape = PurchaseStateStoreShape;
+export type PurchaseProcessorShape = {
+  readonly [Method in keyof PurchaseStateStoreShape]: (
+    input: unknown,
+  ) => ReturnType<PurchaseStateStoreShape[Method]>;
+};
 
-const makePurchaseProcessor = Effect.gen(function* () {
+const makePurchaseProcessor = Effect.fn("makePurchaseProcessor")(function* () {
   const store = yield* PurchaseStateStore;
   const decodeAction = <S extends Schema.Top>(schema: S, input: unknown) =>
     Schema.decodeUnknownEffect(schema)(input).pipe(
@@ -76,7 +83,7 @@ const makePurchaseProcessor = Effect.gen(function* () {
     transferPurchase: (input) =>
       decodeAction(TransferPurchaseInput, input).pipe(Effect.flatMap(store.transferPurchase)),
   } satisfies PurchaseProcessorShape;
-});
+})();
 
 export class PurchaseProcessor extends Context.Service<PurchaseProcessor, PurchaseProcessorShape>()(
   "@voidhash/core-v2/purchases/PurchaseProcessor",

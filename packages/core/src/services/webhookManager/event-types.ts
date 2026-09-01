@@ -1,3 +1,4 @@
+import * as R from "effect/Record";
 import { constant } from "@voidhash/lib/lang";
 
 export const WebhookEventTypes = constant({
@@ -14,7 +15,7 @@ export const WebhookEventTypes = constant({
 
 export type WebhookEventType = (typeof WebhookEventTypes)[keyof typeof WebhookEventTypes];
 
-export const ALL_WEBHOOK_EVENTS = Object.values(WebhookEventTypes);
+export const ALL_WEBHOOK_EVENTS = R.values(WebhookEventTypes);
 
 export const isValidWebhookEvent = (event: string): event is WebhookEventType =>
   ALL_WEBHOOK_EVENTS.some((known) => known === event);

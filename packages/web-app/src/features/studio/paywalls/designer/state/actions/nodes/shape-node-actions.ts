@@ -1,5 +1,6 @@
 import type { Primitive } from "@voidhash/mimic-core";
 import { parseSvg, type ShapeNode } from "@voidhash/mimic-schema";
+import * as Option from "effect/Option";
 import { Effect } from "effect";
 
 import { commander } from "../../designer-commander";
@@ -54,8 +55,8 @@ export const createShapeFromSvg = commander.undoableAction<
             svgSource: params.svgSource,
             viewBox: parsed.viewBox,
             style: {
-              width: parsed.width ?? parsed.viewBox.width,
-              height: parsed.height ?? parsed.viewBox.height,
+              width: Option.getOrElse(parsed.width, () => parsed.viewBox.width),
+              height: Option.getOrElse(parsed.height, () => parsed.viewBox.height),
             },
           });
 
@@ -65,7 +66,7 @@ export const createShapeFromSvg = commander.undoableAction<
               type: "path",
               name: path.name,
               d: path.d,
-              transform: path.transform ?? undefined,
+              transform: Option.getOrUndefined(path.transform),
               style: {
                 fillColor: path.fillColor,
                 fillEnabled: path.fillEnabled,

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Errors for the development-sandbox surface (`/api/v1/development/*`). The

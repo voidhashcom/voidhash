@@ -1,4 +1,7 @@
-import React, { useCallback, useMemo } from "react";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
+import React from "react";
 
 import type { VoidhashClient } from "../../client";
 import type { Product } from "../../core/entities/product";
@@ -8,12 +11,12 @@ import useAsyncFunction from "./use-async-function";
 
 export function productsHookFactory(
   client: VoidhashClient,
-  vhContext: React.Context<VoidhashContext | null>,
+  vhContext: React.Context<Option.Option<VoidhashContext>>,
 ) {
   function useProducts() {
-    const voidhashContext = React.useContext(vhContext);
+    const voidhashContext = React.useContext(vhContext).valueOrUndefined;
 
-    const getProductsCallback = useCallback(() => client.getProducts(), []);
+    const getProductsCallback = React.useCallback(() => client.getProducts(), []);
 
     const {
       data: products,
@@ -23,30 +26,25 @@ export function productsHookFactory(
       enabled: voidhashContext?.isInitialized,
     });
 
-    const getProduct = useCallback(
-      (productSlug: ProductSlug): Product | null => {
+    const getProduct = React.useCallback(
+      (productSlug: ProductSlug): Option.Option<Product> => {
         if (!products) {
-          return null;
+          return Option.none();
         }
-        // ProductSlug is `string` at runtime; the index access is safe.
-        return (products as Record<string, Product | null>)[String(productSlug)] ?? null;
+        return products[String(productSlug)] ?? Option.none();
       },
       [products],
     );
 
-    const toList = useCallback(
+    const toList = React.useCallback(
       (): Product[] =>
-        products
-          ? (Object.values(products) as Array<Product | null>).filter(
-              (product): product is Product => product !== null,
-            )
-          : [],
+        products ? Arr.getSomes(R.values(products)) : [],
       [products],
     );
 
-    const data = useMemo(
+    const data = React.useMemo(
       () => ({
-        ...products,
+        bySlug: products ?? {},
         get: getProduct,
         toList,
       }),
@@ -54,10 +52,7 @@ export function productsHookFactory(
     );
 
     return {
-      data: data as Record<ProductSlug, Product | null> & {
-        get: typeof getProduct;
-        toList: typeof toList;
-      },
+      data,
       error,
       isLoading,
     };

@@ -1,5 +1,6 @@
 import type { HybridObject } from "react-native-nitro-modules";
 
+import type { NitroNullable } from "../NitroNullable";
 import type { GoogleBillingOneTimePurchaseOfferDetails } from "./GoogleBillingOneTimePurchaseOfferDetails.nitro";
 import type { GoogleBillingSubscriptionOfferDetails } from "./GoogleBillingSubscriptionOfferDetails.nitro";
 
@@ -12,6 +13,6 @@ export interface GoogleBillingProductDetail extends HybridObject<{ android: "kot
   readonly platform: string;
   readonly currency: string;
   readonly displayPrice: string;
-  readonly subscriptionOfferDetails?: GoogleBillingSubscriptionOfferDetails[] | null;
-  readonly oneTimePurchaseOfferDetails?: GoogleBillingOneTimePurchaseOfferDetails | null;
+  readonly subscriptionOfferDetails?: NitroNullable<GoogleBillingSubscriptionOfferDetails[]>;
+  readonly oneTimePurchaseOfferDetails?: NitroNullable<GoogleBillingOneTimePurchaseOfferDetails>;
 }

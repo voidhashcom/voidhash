@@ -1,5 +1,8 @@
-import type { Effect, Option, Schema } from "effect";
-import { Context, Schema as EffectSchema } from "effect";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
+import type * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
+import * as EffectSchema from "effect/Schema";
 
 import type { PlatformRuntime } from "./PlatformRuntime.ts";
 

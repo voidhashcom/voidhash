@@ -1,4 +1,10 @@
-import { DateTime, Option, Schema } from "effect";
+import * as Str from "effect/String";
+import * as Arr from "effect/Array";
+import * as DateTime from "effect/DateTime";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+import * as Order from "effect/Order";
+import * as Schema from "effect/Schema";
 
 import { ProcessorPersonEventV1, ProcessorPersonIdentityEventV1 } from "../../domain/Ingest.ts";
 import type { AnalyticsEventV1 } from "../../../domain/AnalyticsEvent.ts";
@@ -10,12 +16,15 @@ import type { AnalyticsWriteBatch } from "../../../application/ports/AnalyticsSt
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
 
-const toNullableString = (value: string | undefined) => {
-  if (typeof value === "string" && value.trim().length > 0) {
-    return value;
-  }
-  return null;
-};
+const toNullableString = (value: Option.Option<string>) =>
+  Option.match(value, {
+    onNone: () => null,
+    onSome: (text) => (Str.isNonEmpty(text.trim()) ? text : null),
+  });
+
+class InvalidTimestampError extends Schema.TaggedErrorClass<InvalidTimestampError>(
+  "InvalidTimestampError",
+)("InvalidTimestampError", { message: Schema.String, value: Schema.String }) {}
 
 export const toFlag = (value: boolean): 0 | 1 => {
   if (value) {
@@ -27,8 +36,7 @@ export const toFlag = (value: boolean): 0 | 1 => {
 export const toClickhouseTimestamp = (value: string): string => {
   const parsed = DateTime.make(value);
   if (Option.isNone(parsed)) {
-    // oxlint-disable-next-line effect/noThrowStatement, effect/noNewError -- synchronous ClickHouse row mapper used inside plain object literals (see the row builders below); it has no Effect channel, and an unparseable timestamp at this point is a defect.
-    throw new Error(`Invalid timestamp: ${value}`);
+    throw new InvalidTimestampError({ message: `Invalid timestamp: ${value}`, value });
   }
   const date = DateTime.toDateUtc(parsed.value);
   const pad = (part: number, length = 2) => String(part).padStart(length, "0");
@@ -77,11 +85,11 @@ export const toPersonRow = (
   changed_at: toClickhouseTimestamp(event.changedAt),
   organization_id: organizationId,
   person_id: event.personId,
-  email: toNullableString(event.email),
+  email: toNullableString(Option.fromNullishOr(event.email)),
   is_archived: toFlag(event.isArchived),
-  merged_into_person_id: toNullableString(event.mergedIntoPersonId),
-  name: toNullableString(event.name),
-  primary_distinct_id: toNullableString(event.primaryDistinctId),
+  merged_into_person_id: toNullableString(Option.fromNullishOr(event.mergedIntoPersonId)),
+  name: toNullableString(Option.fromNullishOr(event.name)),
+  primary_distinct_id: toNullableString(Option.fromNullishOr(event.primaryDistinctId)),
   project_id: event.projectId,
   traits: encodeJson(event.traits),
   version: event.version,
@@ -96,7 +104,7 @@ export const toPersonIdentityRow = (
   person_id: event.personId,
   distinct_id: event.distinctId,
   is_deleted: toFlag(event.isDeleted),
-  previous_distinct_id: toNullableString(event.previousDistinctId),
+  previous_distinct_id: toNullableString(Option.fromNullishOr(event.previousDistinctId)),
   project_id: event.projectId,
   version: event.version,
 });
@@ -123,23 +131,26 @@ const writePart = (kind: string, ...values: ReadonlyArray<string | number>) => {
 const dedupeRevenueEventsWithinBatch = (
   events: ReadonlyArray<typeof AnalyticsEventV1.Type>,
 ): ReadonlyArray<typeof AnalyticsEventV1.Type> => {
-  const seen = new Set<string>();
-  const deduped: Array<typeof AnalyticsEventV1.Type> = [];
-  for (const event of events) {
+  const initial: {
+    readonly seen: HashSet.HashSet<string>;
+    readonly deduped: ReadonlyArray<typeof AnalyticsEventV1.Type>;
+  } = { seen: HashSet.empty(), deduped: [] };
+  const result = Arr.reduce(events, initial, (state, event) => {
     if (
       event.sourceTopic !== REVENUE_TRUSTED_SOURCE_TOPIC ||
       !isReservedRevenueEventName(event.eventName)
     ) {
-      deduped.push(event);
-      continue;
+      return { ...state, deduped: [...state.deduped, event] };
     }
     const key = writePart("event", event.projectId, event.eventId);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(event);
-  }
-  if (deduped.length === events.length) return events;
-  return deduped;
+    if (HashSet.has(state.seen, key)) return state;
+    return {
+      deduped: [...state.deduped, event],
+      seen: HashSet.add(state.seen, key),
+    };
+  });
+  if (result.deduped.length === events.length) return events;
+  return result.deduped;
 };
 
 /** Map one logical analytics write to a single-partition ClickHouse record block. */
@@ -158,9 +169,10 @@ export const toAnalyticsWriteBatchRows = (
     ...batch.personIdentityEvents.map((event) =>
       writePart("identity", event.projectId, event.distinctId, event.version),
     ),
-  ].sort();
-  if (writeParts.length === 0) return [];
-  const writeId = writeParts.join("|");
+  ];
+  const sortedWriteParts = Arr.sort(writeParts, Order.String);
+  if (Arr.isReadonlyArrayEmpty(sortedWriteParts)) return [];
+  const writeId = sortedWriteParts.join("|");
   const writeTimestamp =
     events[0]?.processedAt.toISOString() ??
     batch.personEvents[0]?.changedAt ??

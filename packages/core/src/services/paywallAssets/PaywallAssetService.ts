@@ -1,5 +1,10 @@
 import { constant } from "@voidhash/lib/lang";
-import { Cause, Context, Effect, Layer, Schema } from "effect";
+import * as Cause from "effect/Cause";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { Db, desc, eq, paywallAsset } from "@voidhash/db";
 
@@ -38,8 +43,8 @@ export interface PaywallAssetRow {
   readonly url: string;
   readonly contentType: string;
   readonly sizeBytes: number;
-  readonly width: number | null;
-  readonly height: number | null;
+  readonly width: Option.Option<number>;
+  readonly height: Option.Option<number>;
   readonly createdAt: Date;
 }
 
@@ -62,8 +67,8 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
       const publicFileStore = yield* PublicFileStore;
 
       /** Assert the session is a member of `organizationId`, else fail forbidden. */
-      const assertMember = (organizationId: string) =>
-        Effect.gen(function* () {
+      const assertMember = Effect.fn("PaywallAssetService.assertMember")(
+        function* (organizationId: string) {
           const session = yield* AuthSession;
           if (!isSessionOrganizationMember(session, organizationId)) {
             return yield* Effect.fail(
@@ -72,7 +77,8 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
               }),
             );
           }
-        });
+        },
+      );
 
       const rowToAsset = (row: typeof paywallAsset.$inferSelect): PaywallAssetRow => ({
         id: row.id,
@@ -81,8 +87,8 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
         url: row.url,
         contentType: row.contentType,
         sizeBytes: row.sizeBytes,
-        width: row.width,
-        height: row.height,
+        width: Option.fromNullishOr(row.width),
+        height: Option.fromNullishOr(row.height),
         createdAt: row.createdAt,
       });
 
@@ -92,8 +98,8 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
           readonly name: string;
           readonly contentType: string;
           readonly imageBase64: string;
-          readonly width?: number | null;
-          readonly height?: number | null;
+          readonly width?: Option.Option<number>;
+          readonly height?: Option.Option<number>;
         }) {
           yield* Effect.annotateCurrentSpan("voidhash.organization.id", input.organizationId);
           yield* assertMember(input.organizationId);
@@ -114,7 +120,11 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
             return rowToAsset(existing[0]);
           }
 
-          yield* publicFileStore.putObject({ key, body: bytes, contentType: input.contentType });
+          yield* publicFileStore.putObject({
+            key,
+            body: bytes,
+            contentType: Option.some(input.contentType),
+          });
           const url = publicFileStore.publicUrl(key);
 
           const id = generateId("paywallAsset");
@@ -128,12 +138,18 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
               url,
               contentType: input.contentType,
               sizeBytes: bytes.length,
-              width: input.width ?? null,
-              height: input.height ?? null,
+              width: Option.getOrNull(input.width ?? Option.none()),
+              height: Option.getOrNull(input.height ?? Option.none()),
             })
             .returning();
 
-          return rowToAsset(inserted[0]!);
+          const insertedRow = inserted[0];
+          if (insertedRow === undefined) {
+            return yield* Effect.fail(
+              new PaywallAssetServiceError({ message: "Paywall asset insert returned no row." }),
+            );
+          }
+          return rowToAsset(insertedRow);
         },
         (effect) =>
           effect.pipe(
@@ -166,8 +182,8 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
       );
 
       /** Load a row by id or fail not-found. */
-      const findRow = (assetId: string) =>
-        Effect.gen(function* () {
+      const findRow = Effect.fn("PaywallAssetService.findRow")(
+        function* (assetId: string) {
           const rows = yield* db
             .select()
             .from(paywallAsset)
@@ -178,7 +194,8 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
             return yield* Effect.fail(new PaywallAssetNotFoundError({ assetId }));
           }
           return row;
-        });
+        },
+      );
 
       const rename = Effect.fn("renamePaywallAsset")(
         function* (input: { readonly assetId: string; readonly name: string }) {
@@ -189,7 +206,11 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
             .set({ name: input.name.slice(0, 255) })
             .where(eq(paywallAsset.id, input.assetId))
             .returning();
-          return rowToAsset(updated[0]!);
+          const updatedRow = updated[0];
+          if (updatedRow === undefined) {
+            return yield* Effect.fail(new PaywallAssetNotFoundError({ assetId: input.assetId }));
+          }
+          return rowToAsset(updatedRow);
         },
         (effect) =>
           effect.pipe(
@@ -209,19 +230,25 @@ export class PaywallAssetService extends Context.Service<PaywallAssetService>()(
 
           // Best-effort object cleanup, scoped to keys we own for this org (the
           // `key` unique index guarantees no other row references this object).
-          if (isOwnedPaywallAssetUrl(row.url, row.organizationId, publicFileStore.publicBaseUrl)) {
+          if (
+            isOwnedPaywallAssetUrl(
+              Option.some(row.url),
+              row.organizationId,
+              publicFileStore.publicBaseUrl,
+            )
+          ) {
             const key = paywallAssetKeyFromUrl(
               row.url,
               row.organizationId,
               publicFileStore.publicBaseUrl,
             );
-            if (key !== null) {
+            if (Option.isSome(key)) {
               yield* publicFileStore
-                .deleteObject(key)
+                .deleteObject(key.value)
                 .pipe(
                   Effect.catchCause((cause) =>
                     Effect.logWarning(
-                      `Failed to delete paywall asset object ${key}: ${Cause.pretty(cause)}`,
+                      `Failed to delete paywall asset object ${key.value}: ${Cause.pretty(cause)}`,
                     ),
                   ),
                 );

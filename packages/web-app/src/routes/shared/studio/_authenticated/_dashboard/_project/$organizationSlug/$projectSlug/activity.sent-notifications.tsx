@@ -296,7 +296,7 @@ function SendDetailsPanel({ send, projectId, onClose }: SendDetailsPanelProps) {
         </Section>
 
         <Section title="Message">
-          {send.messagePurged ? (
+          {send.isMessagePurged ? (
             <div className="px-4 py-2 text-muted-foreground/70 text-xs">
               The message payload has been purged.
             </div>

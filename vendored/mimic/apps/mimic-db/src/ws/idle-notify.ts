@@ -1,4 +1,7 @@
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
 
 /**
  * Wire message emitted when an edited document becomes idle. The sequence is
@@ -9,6 +12,7 @@ export const MimicDocumentIdleMessage = Schema.Struct({
   documentId: Schema.String,
   seq: Schema.Number,
 });
+export type MimicDocumentIdleMessage = typeof MimicDocumentIdleMessage.Type;
 
 export type MimicDocumentIdleMessageType = typeof MimicDocumentIdleMessage.Type;
 
@@ -23,7 +27,7 @@ export const IDLE_NOTIFIED_SEQ_KEY = "idleNotify:notifiedSeq";
  * The entity storage subset the idle-notify logic needs.
  */
 export interface IdleNotifyStorage {
-  readonly get: (key: string) => Effect.Effect<number | undefined>;
+  readonly get: (key: string) => Effect.Effect<Option.Option<number>>;
   readonly put: (key: string, value: number) => Effect.Effect<void>;
   readonly setAlarm: (scheduledTime: number) => Effect.Effect<void>;
 }
@@ -80,16 +84,16 @@ export const makeIdleNotifier = (deps: IdleNotifyDeps): IdleNotifier => {
   const recordDirty = (seq: number): Effect.Effect<void> =>
     deps.storage.put(IDLE_DIRTY_SEQ_KEY, seq);
 
-  const readSeqs = Effect.gen(function* () {
-    const dirty = (yield* deps.storage.get(IDLE_DIRTY_SEQ_KEY)) ?? 0;
-    const notified = (yield* deps.storage.get(IDLE_NOTIFIED_SEQ_KEY)) ?? 0;
+  const readSeqs = Effect.fn("readSeqs")(function* () {
+    const dirty = Option.getOrElse(yield* deps.storage.get(IDLE_DIRTY_SEQ_KEY), () => 0);
+    const notified = Option.getOrElse(yield* deps.storage.get(IDLE_NOTIFIED_SEQ_KEY), () => 0);
     return { dirty, notified };
   });
 
   const onLastAuthenticatedClose = (): Effect.Effect<void> =>
     Effect.gen(function* () {
       if (deps.authenticatedCount() > 0) return;
-      const { dirty, notified } = yield* readSeqs;
+      const { dirty, notified } = yield* readSeqs();
       if (dirty <= notified) return;
       // Overwrites any existing alarm — the latest disconnect wins, coalescing
       // rapid connect/disconnect churn into a single debounced notification.
@@ -101,7 +105,7 @@ export const makeIdleNotifier = (deps: IdleNotifyDeps): IdleNotifier => {
       // A collaborator reconnected during the debounce window; their eventual
       // disconnect re-arms the alarm, so do nothing now.
       if (deps.authenticatedCount() > 0) return;
-      const { dirty, notified } = yield* readSeqs;
+      const { dirty, notified } = yield* readSeqs();
       if (dirty <= notified) return;
 
       const published = yield* Effect.result(
@@ -111,7 +115,7 @@ export const makeIdleNotifier = (deps: IdleNotifyDeps): IdleNotifier => {
           seq: dirty,
         }),
       );
-      if (published._tag === "Failure") {
+      if (Result.isFailure(published)) {
         yield* Effect.logError(
           `mimic idle-notify publish failed for ${deps.collectionId}:${deps.documentId}`,
           published.failure,

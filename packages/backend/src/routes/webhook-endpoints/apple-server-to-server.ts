@@ -20,12 +20,16 @@ import {
   AppStorePaymentProviderService,
   AppStorePaymentProviderServiceError,
 } from "@voidhash/core-v2";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import { appleServerToServerIngressRoute } from "./manifest.ts";
+import { hasTag } from "../../runtime-boundary.ts";
 
-const AppleServerToServerPathParamsSchema = Schema.Struct({
+const AppleServerToServerPathParams = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
 });
 
@@ -35,12 +39,12 @@ const AppleServerToServerPathParamsSchema = Schema.Struct({
  * `@voidhash/app-store-server-sdk`; inlined here so the new package
  * doesn't have to depend on that SDK just to decode the envelope.
  */
-const AppleServerNotificationBodySchema = Schema.Struct({
+const AppleServerNotificationBody = Schema.Struct({
   signedPayload: Schema.String,
 });
 
 const decodeAppleServerNotificationBody = Schema.decodeUnknownEffect(
-  AppleServerNotificationBodySchema,
+  AppleServerNotificationBody,
 );
 
 const invalidPayloadResponse = HttpServerResponse.json(
@@ -48,19 +52,19 @@ const invalidPayloadResponse = HttpServerResponse.json(
   { status: 400 },
 );
 
-const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
+const registerAppleServerToServerNotificationRoute = Effect.fn("registerAppleServerToServerNotificationRoute")(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(
     appleServerToServerIngressRoute.method,
     appleServerToServerIngressRoute.path,
-    Effect.gen(function* () {
+    Effect.fn("registerAppleServerToServerNotificationRoute")(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(
-        HttpRouter.schemaPathParams(AppleServerToServerPathParamsSchema),
+        HttpRouter.schemaPathParams(AppleServerToServerPathParams),
       );
 
-      if (pathParamsResult._tag === "Failure") {
+      if (hasTag(pathParamsResult, "Failure")) {
         return yield* invalidPayloadResponse;
       }
 
@@ -68,7 +72,7 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
         request.json.pipe(Effect.flatMap(decodeAppleServerNotificationBody)),
       );
 
-      if (bodyResult._tag === "Failure") {
+      if (hasTag(bodyResult, "Failure")) {
         return yield* invalidPayloadResponse;
       }
 
@@ -86,7 +90,7 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
       });
 
       return yield* HttpServerResponse.json({ received: true }, { status: 202 });
-    }).pipe(
+    })().pipe(
       // The real handler resolves terminal failures (signature/verification/
       // parse/app-identifier mismatches) to `{ accepted: true, handled: false }`
       // — those reach the 202 ack above so Apple stops retrying. An
@@ -99,7 +103,7 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
       Effect.catchTag(
         "AppStorePaymentProviderServiceError",
         (error: AppStorePaymentProviderServiceError) =>
-          Effect.gen(function* () {
+          Effect.fn("registerAppleServerToServerNotificationRoute")(function* () {
             if (error.kind === "not_found") {
               yield* Effect.logWarning(
                 "Apple server-to-server notification rejected: configuration not found",
@@ -118,20 +122,20 @@ const registerAppleServerToServerNotificationRoute = Effect.gen(function* () {
               { error: "Apple server notification processing failed", received: false },
               { status: 500 },
             );
-          }),
+          })(),
       ),
       Effect.catch((error) =>
-        Effect.gen(function* () {
+        Effect.fn("registerAppleServerToServerNotificationRoute")(function* () {
           yield* Effect.logError("Apple server-to-server notification error", error);
           return yield* HttpServerResponse.json(
             { error: "Apple server notification processing failed" },
             { status: 500 },
           );
-        }),
+        })(),
       ),
     ),
   );
-});
+})();
 
 export const AppleServerToServerNotificationRouteLayer = Layer.effectDiscard(
   registerAppleServerToServerNotificationRoute,

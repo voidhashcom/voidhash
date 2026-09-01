@@ -1,4 +1,13 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Order from "effect/Order";
 import type { AuthSession } from "@voidhash/rpc";
 
 import {
@@ -34,7 +43,7 @@ import { isRevenueMoneyEventName } from "../../domain/InternalAnalyticsEvents.ts
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
 const QUERY_EVENT_LIMIT = 100_000;
-const HISTORY_INSIGHTS: ReadonlySet<typeof BuiltInInsightId.Type> = new Set([
+const HISTORY_INSIGHTS = HashSet.make(
   "builtin/mrr",
   "builtin/arr",
   "builtin/mrr_growth_rate",
@@ -49,7 +58,7 @@ const HISTORY_INSIGHTS: ReadonlySet<typeof BuiltInInsightId.Type> = new Set([
   "builtin/subscriber_lifetime_value",
   "builtin/trial_conversions",
   "builtin/trial_conversion_rate",
-]);
+);
 
 export class AnalyticsQueryError extends Schema.TaggedErrorClass<AnalyticsQueryError>(
   "AnalyticsQueryError",
@@ -66,6 +75,7 @@ export const AnalyticsInsightQueryResult = Schema.Struct({
   resolvedTimeRange: Schema.Struct({ start: Schema.Date, end: Schema.Date }),
   result: AnalyticsInsightResult,
 });
+export type AnalyticsInsightQueryResult = typeof AnalyticsInsightQueryResult.Type;
 
 export const AnalyticsEventListItem = Schema.Struct({
   captureId: Schema.String,
@@ -83,6 +93,7 @@ export const AnalyticsEventListItem = Schema.Struct({
   source: Schema.Literals(["internal", "revenue", "sdk"]),
   timestamp: Schema.Date,
 });
+export type AnalyticsEventListItem = typeof AnalyticsEventListItem.Type;
 
 export const ExperimentAnalyticsVariant = Schema.Struct({
   conversionRate: Schema.Number,
@@ -91,6 +102,7 @@ export const ExperimentAnalyticsVariant = Schema.Struct({
   revenueUsd: Schema.Number,
   variantKey: Schema.String,
 });
+export type ExperimentAnalyticsVariant = typeof ExperimentAnalyticsVariant.Type;
 
 const listItem = (event: typeof StoredAnalyticsEvent.Type) =>
   ({
@@ -176,7 +188,7 @@ export type AnalyticsQueryFailure =
 
 const MAX_QUERIES_PER_BATCH = 20;
 
-const makeAnalyticsQuery = Effect.gen(function* () {
+const makeAnalyticsQuery = Effect.fn("makeAnalyticsQuery")(function* () {
   const authorizer = yield* AnalyticsAuthorizer;
   const config = yield* AnalyticsConfig;
   const store = yield* AnalyticsStore;
@@ -189,7 +201,7 @@ const makeAnalyticsQuery = Effect.gen(function* () {
   ) =>
     Effect.gen(function* () {
       const insight = yield* getBuiltInInsight(query.insightId);
-      yield* ensureNoBreakdowns(query.breakdowns);
+      yield* ensureNoBreakdowns(Option.fromNullishOr(query.breakdowns));
       if (query.limit !== undefined) {
         return yield* new InvalidAnalyticsQueryError({
           message: "Limit is not supported for metric insights",
@@ -218,7 +230,7 @@ const makeAnalyticsQuery = Effect.gen(function* () {
           limit: QUERY_EVENT_LIMIT + 1,
           order: "asc",
           projectIds: compiledFilter.projectIds,
-          ...(!HISTORY_INSIGHTS.has(query.insightId) && { start: resolvedTimeRange.start }),
+          ...(!HashSet.has(HISTORY_INSIGHTS, query.insightId) && { start: resolvedTimeRange.start }),
         })
         .pipe(Effect.mapError(portError));
       if (events.length > QUERY_EVENT_LIMIT) {
@@ -236,8 +248,8 @@ const makeAnalyticsQuery = Effect.gen(function* () {
         start: resolvedTimeRange.start,
       });
       let summaryValue = sumDataPoints(series);
-      if (RATE_INSIGHTS.has(query.insightId)) summaryValue = avgDataPoints(series);
-      else if (STOCK_INSIGHTS.has(query.insightId))
+      if (HashSet.has(RATE_INSIGHTS, query.insightId)) summaryValue = avgDataPoints(series);
+      else if (HashSet.has(STOCK_INSIGHTS, query.insightId))
         summaryValue = series[series.length - 1]?.value ?? 0;
       return {
         insightId: query.insightId,
@@ -247,7 +259,7 @@ const makeAnalyticsQuery = Effect.gen(function* () {
           kind: "metric",
           sparkline: series,
           summary: {
-            ...(CURRENCY_INSIGHTS.has(query.insightId) && { currency: "USD" }),
+            ...(HashSet.has(CURRENCY_INSIGHTS, query.insightId) && { currency: "USD" }),
             value: summaryValue,
           },
         },
@@ -264,7 +276,9 @@ const makeAnalyticsQuery = Effect.gen(function* () {
           message: `At most ${MAX_QUERIES_PER_BATCH} insight queries are allowed per batch`,
         });
       }
-      return yield* Effect.forEach(queries, (query) => run(availableProjectIds, query));
+      return yield* Effect.forEach(queries, (query) => run(availableProjectIds, query), {
+        concurrency: 1,
+      });
     });
 
   const identityKey = (event: typeof StoredAnalyticsEvent.Type) =>
@@ -273,7 +287,7 @@ const makeAnalyticsQuery = Effect.gen(function* () {
   const revenueUsd = (event: typeof StoredAnalyticsEvent.Type) => {
     if (!isRevenueMoneyEventName(event.eventName)) return 0;
     const value = event.properties.grossAmountUsd ?? event.properties.amountUsd;
-    if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+    if (!P.isNumber(value) || !Number.isFinite(value)) return 0;
     return value / 100;
   };
 
@@ -298,52 +312,72 @@ const makeAnalyticsQuery = Effect.gen(function* () {
             message: `The selected time range contains more than ${QUERY_EVENT_LIMIT} events; narrow the range instead of relying on partial results`,
           });
         }
-        const exposures = new Map<
-          string,
-          { readonly timestamp: Date; readonly variantKey: string }
-        >();
-        for (const event of events) {
-          if (event.eventName !== "$experiment.exposed") continue;
-          if (event.properties.experimentId !== request.experimentId) continue;
-          if (typeof event.properties.variantKey !== "string") continue;
+        const exposures = Arr.reduce(
+          events,
+          HashMap.empty<string, { readonly timestamp: Date; readonly variantKey: string }>(),
+          (all, event) => {
+          if (event.eventName !== "$experiment.exposed") return all;
+          if (event.properties.experimentId !== request.experimentId) return all;
+          if (!P.isString(event.properties.variantKey)) return all;
           const key = identityKey(event);
-          const current = exposures.get(key);
-          if (!current || event.eventTimestamp < current.timestamp) {
-            exposures.set(key, {
+          const current = HashMap.get(all, key);
+          if (Option.isNone(current) || event.eventTimestamp < current.value.timestamp) {
+            return HashMap.set(all, key, {
               timestamp: event.eventTimestamp,
               variantKey: event.properties.variantKey,
             });
           }
-        }
-        const results = new Map<
-          string,
-          { conversions: Set<string>; exposures: number; revenueUsd: number }
-        >();
-        for (const exposure of exposures.values()) {
-          const current = results.get(exposure.variantKey);
-          if (current) current.exposures += 1;
-          else {
-            results.set(exposure.variantKey, {
-              conversions: new Set(),
-              exposures: 1,
-              revenueUsd: 0,
+          return all;
+        });
+        const initialResults = Arr.reduce(
+          Arr.fromIterable(HashMap.values(exposures)),
+          HashMap.empty<
+            string,
+            { conversions: HashSet.HashSet<string>; exposures: number; revenueUsd: number }
+          >(),
+          (all, exposure) => {
+            const current = HashMap.get(all, exposure.variantKey);
+            return HashMap.set(all, exposure.variantKey, {
+              conversions: Option.match(current, {
+                onNone: () => HashSet.empty(),
+                onSome: (value) => value.conversions,
+              }),
+              exposures: Option.match(current, {
+                onNone: () => 1,
+                onSome: (value) => value.exposures + 1,
+              }),
+              revenueUsd: Option.match(current, {
+                onNone: () => 0,
+                onSome: (value) => value.revenueUsd,
+              }),
             });
-          }
-        }
-        for (const event of events) {
+          },
+        );
+        const results = Arr.reduce(events, initialResults, (all, event) => {
           const key = identityKey(event);
-          const exposure = exposures.get(key);
-          if (!exposure || event.eventTimestamp < exposure.timestamp) continue;
-          const result = results.get(exposure.variantKey);
-          if (!result) continue;
-          if (event.eventName === request.primaryMetricEventName) result.conversions.add(key);
-          result.revenueUsd += revenueUsd(event);
-        }
+          const exposure = HashMap.get(exposures, key);
+          if (Option.isNone(exposure) || event.eventTimestamp < exposure.value.timestamp) return all;
+          const result = HashMap.get(all, exposure.value.variantKey);
+          if (Option.isNone(result)) return all;
+          return HashMap.set(all, exposure.value.variantKey, {
+            conversions:
+              event.eventName === request.primaryMetricEventName
+                ? HashSet.add(result.value.conversions, key)
+                : result.value.conversions,
+            exposures: result.value.exposures,
+            revenueUsd: result.value.revenueUsd + revenueUsd(event),
+          });
+        });
         return {
-          variants: [...results.entries()]
-            .sort(([left], [right]) => left.localeCompare(right))
+          variants: Arr.sort(
+            Arr.fromIterable(results),
+            Order.mapInput(
+              Order.String,
+              (entry: readonly [string, { conversions: HashSet.HashSet<string>; exposures: number; revenueUsd: number }]) => entry[0],
+            ),
+          )
             .map(([variantKey, result]) => {
-              const conversions = result.conversions.size;
+              const conversions = HashSet.size(result.conversions);
               let conversionRate = 0;
               if (result.exposures > 0) conversionRate = conversions / result.exposures;
               return {
@@ -396,7 +430,7 @@ const makeAnalyticsQuery = Effect.gen(function* () {
         Effect.flatMap(() => runMany([request.projectId], request.queries)),
       ),
   } satisfies AnalyticsQueryShape;
-});
+})();
 
 /** Analytics query use case whose implementation dependencies are supplied by layers. */
 export class AnalyticsQuery extends Context.Service<AnalyticsQuery, AnalyticsQueryShape>()(

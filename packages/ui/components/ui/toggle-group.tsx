@@ -32,8 +32,10 @@ function ToggleGroup({
   ...props
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
   VariantProps<typeof toggleVariants> & {
-    spacing?: number;
+  spacing?: number;
   }) {
+  const rootStyle: React.CSSProperties & { "--gap": number } = { "--gap": spacing };
+
   return (
     <ToggleGroupPrimitive.Root
       className={cn(
@@ -44,7 +46,7 @@ function ToggleGroup({
       data-slot="toggle-group"
       data-spacing={spacing}
       data-variant={variant}
-      style={{ "--gap": spacing } as React.CSSProperties}
+      style={rootStyle}
       {...props}
     >
       <ToggleGroupContext.Provider value={{ size, spacing, variant }}>

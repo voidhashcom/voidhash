@@ -10,7 +10,8 @@
  * confirmation step. Uses `Layer.provide` (not `provideMerge`) so only the
  * public tag is exposed.
  */
-import { Effect, Layer } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 
 import {
   StripePaymentProviderService,

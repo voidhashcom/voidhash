@@ -1,5 +1,6 @@
 import type { SchemaObject } from "@voidhash/mimic-core";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import type { ControlStoreApi, SchemaVersionRecord } from "./store.ts";
 
@@ -21,7 +22,7 @@ export interface CollectionContext {
 export interface SchemaProviderApi {
   readonly getCollectionContext: (
     collectionId: string,
-  ) => Effect.Effect<CollectionContext | undefined>;
+  ) => Effect.Effect<Option.Option<CollectionContext>>;
 }
 
 /** SchemaProvider reading directly from the configured `ControlStore`. */
@@ -29,17 +30,17 @@ export const makeControlStoreSchemaProvider = (control: ControlStoreApi): Schema
   getCollectionContext: (collectionId) =>
     Effect.gen(function* () {
       const collection = yield* control.findCollectionById(collectionId);
-      if (!collection) return undefined;
-      const database = yield* control.findDatabaseById(collection.databaseId);
-      if (!database) return undefined;
+      if (Option.isNone(collection)) return Option.none();
+      const database = yield* control.findDatabaseById(collection.value.databaseId);
+      if (Option.isNone(database)) return Option.none();
       const versions = yield* control.listSchemaVersions(collectionId);
-      return {
+      return Option.some({
         collectionId,
-        databaseName: database.name,
-        collectionName: collection.name,
-        schemaJson: collection.schemaJson,
-        schemaVersion: collection.schemaVersion,
+        databaseName: database.value.name,
+        collectionName: collection.value.name,
+        schemaJson: collection.value.schemaJson,
+        schemaVersion: collection.value.schemaVersion,
         versions,
-      };
+      });
     }),
 });

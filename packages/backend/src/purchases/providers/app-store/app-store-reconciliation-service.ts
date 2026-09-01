@@ -34,11 +34,17 @@ import {
 } from "@voidhash/app-store-server-sdk";
 import {
   type PaymentProviderConfiguration as DbPaymentProviderConfiguration,
+  Db,
   type Project as DbProject,
   ProviderEnvironment,
   type ProviderEnvironmentValue,
 } from "@voidhash/db";
-import { Effect, Layer, Option, Schema, Context } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
 
 import { constant } from "@voidhash/lib/lang";
 
@@ -81,7 +87,7 @@ export class AppStoreReconciliationConfigurationNotFoundError extends Schema.Tag
   paymentProviderConfigurationId: Schema.String,
 }) {}
 
-const make = Effect.gen(function* () {
+const make = Effect.fn("make")(function* () {
   const queries = yield* AppStorePaymentProviderServiceQueries;
   const appStorePaymentProvider = yield* AppStorePaymentProvider;
 
@@ -264,11 +270,13 @@ const make = Effect.gen(function* () {
      * (including refunded / revoked ones) — that's what reconciliation needs
      * to converge on the same state the live event stream would have built.
      */
-    let revision = Option.none<string>();
-    let hasMore = true;
     let resolvedEnvironment: ProviderEnvironmentValue = ProviderEnvironment.Production;
 
-    while (hasMore) {
+    const processHistoryPage: (
+      revision: Option.Option<string>,
+    ) => Effect.Effect<void, unknown, Db> = Effect.fn("processAppStoreHistoryPage")(function* (
+      revision: Option.Option<string>,
+    ) {
       const { environment, historyResponse } =
         yield* sdkContext.getTransactionHistoryWithEnvironmentFallback(
           input.originalTransactionId,
@@ -293,13 +301,13 @@ const make = Effect.gen(function* () {
         historyResponse.signedTransactions,
         () => noSignedTransactions,
       );
-      for (const signed of signedTransactions) {
+      yield* Effect.forEach(signedTransactions, Effect.fn("replayHistoricalTransaction")(function* (signed) {
         const decoded = yield* sdkContext
           .decodeSignedTransaction(signed, environment)
           .pipe(Effect.option);
         if (Option.isNone(decoded)) {
           report.eventsFailed++;
-          continue;
+          return;
         }
         const outcome = yield* _replayHistoricalTransaction({
           configuration,
@@ -336,10 +344,12 @@ const make = Effect.gen(function* () {
             originalTransactionId: input.originalTransactionId,
           });
         }
+      }), { concurrency: 1 });
+      if (Option.getOrElse(historyResponse.hasMore, () => false)) {
+        return yield* processHistoryPage(historyResponse.revision);
       }
-      hasMore = Option.getOrElse(historyResponse.hasMore, () => false);
-      revision = historyResponse.revision;
-    }
+    });
+    yield* processHistoryPage(Option.none());
 
     /**
      * Subscription status snapshot — the authoritative source for the
@@ -354,20 +364,21 @@ const make = Effect.gen(function* () {
       );
     const statusProviderEnvironment = providerEnvironmentFor(statusEnvironment);
 
-    const subscriptionGroups = Option.getOrElse(statusResponse.data, () => []);
-    for (const group of subscriptionGroups) {
-      const lastTransactions = Option.getOrElse(group.lastTransactions, () => []);
-      for (const item of lastTransactions) {
-        if (Option.isNone(item.status)) continue;
+    const statusItems = Arr.flatMap(
+      Option.getOrElse(statusResponse.data, () => []),
+      (group) => Option.getOrElse(group.lastTransactions, () => []),
+    );
+    yield* Effect.forEach(statusItems, Effect.fn("replayStatusSnapshot")(function* (item) {
+        if (Option.isNone(item.status)) return;
         const status = item.status.value;
-        if (Option.isNone(item.signedTransactionInfo)) continue;
+        if (Option.isNone(item.signedTransactionInfo)) return;
         const signedTransactionInfo = item.signedTransactionInfo.value;
         const decoded = yield* sdkContext
           .decodeSignedTransaction(signedTransactionInfo, statusEnvironment)
           .pipe(Effect.option);
         if (Option.isNone(decoded)) {
           report.eventsFailed++;
-          continue;
+          return;
         }
         /**
          * Best-effort decode of the per-status `signedRenewalInfo` so the
@@ -430,7 +441,7 @@ const make = Effect.gen(function* () {
             originalTransactionId: input.originalTransactionId,
           });
         }
-      }
+    }), { concurrency: 1 });
       /**
        * `AutoRenewStatus` is decoded above when `signedRenewalInfo` is
        * present (Option.some(...) in `decodedRenewalInfo`). Mapping it
@@ -438,7 +449,6 @@ const make = Effect.gen(function* () {
        * `_replayStatusSnapshot`; the live `DID_CHANGE_RENEWAL_STATUS`
        * webhook still covers it today.
        */
-    }
 
     yield* Effect.logInfo("App Store reconciliation: complete", {
       ...report,
@@ -457,7 +467,7 @@ const make = Effect.gen(function* () {
   return constant({
     reconcileOriginalTransaction,
   });
-});
+})();
 
 /** Empty history page, typed so `Option.getOrElse` keeps its element type. */
 const noSignedTransactions: ReadonlyArray<string> = [];
@@ -472,7 +482,7 @@ const providerEnvironmentFor = (environment: string): ProviderEnvironmentValue =
  * ACTIVE status is a no-op (the history walk covers renewals) — the replay
  * returns nothing for it, which counts as already-up-to-date for telemetry.
  */
-const idempotentFlag = (result: { readonly idempotent?: boolean } | null | undefined): boolean =>
+const idempotentFlag = (result: { readonly idempotent?: boolean } | typeof Schema.Null.Type | typeof Schema.Undefined.Type): boolean =>
   result?.idempotent ?? true;
 
 export class AppStoreReconciliationService extends Context.Service<AppStoreReconciliationService>()(

@@ -1,4 +1,7 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import {
   PaymentProviderProductOperations,
@@ -23,7 +26,8 @@ const DeleteInput = Schema.Struct({ id: Id });
 
 export type PaymentProviderProductServiceShape = PaymentProviderProductOperationsShape;
 
-const makePaymentProviderProductService = Effect.gen(function* () {
+const makePaymentProviderProductService = Effect.fn("makePaymentProviderProductService")(
+  function* () {
   const operations = yield* PaymentProviderProductOperations;
   const invalid = (error: unknown) =>
     new PaymentProviderProductServiceError({ cause: String(error) });
@@ -65,7 +69,8 @@ const makePaymentProviderProductService = Effect.gen(function* () {
         Effect.flatMap(operations.updatePaymentProviderProduct),
       ),
   } satisfies PaymentProviderProductServiceShape;
-});
+  },
+)();
 
 export class PaymentProviderProductService extends Context.Service<
   PaymentProviderProductService,

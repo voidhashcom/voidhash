@@ -1,17 +1,43 @@
 import type { VariableValue } from "./snapshot-types";
 import type { SnapshotNode } from "./types";
 
-export type VariableStore = Map<string, VariableValue>;
+/** A small mutable compatibility surface for renderer variable maps. */
+export class VariableMap<K, V> implements Iterable<readonly [K, V]> {
+  private readonly values: Map<K, V>;
 
-/**
- * Read-only variable lookup accepted by the evaluator, state resolver and
- * action executor. A plain {@link VariableStore} satisfies it; chain-aware
- * consumers pass {@link createChainVariableReader} output instead.
- */
+  constructor(entries: Iterable<readonly [K, V]> = []) {
+    this.values = new Map(entries);
+  }
+
+  get(key: K) {
+    return this.values.get(key);
+  }
+
+  has(key: K): boolean {
+    return this.values.has(key);
+  }
+
+  set(key: K, value: V): this {
+    this.values.set(key, value);
+    return this;
+  }
+
+  get size(): number {
+    return this.values.size;
+  }
+
+  [Symbol.iterator](): Iterator<readonly [K, V]> {
+    return this.values[Symbol.iterator]();
+  }
+}
+
+export class VariableStore extends VariableMap<string, VariableValue> {}
+
+/** Read-only variable lookup accepted by evaluators and action execution. */
 export type VariableReader = Pick<VariableStore, "get">;
 
 /** Bidirectional map between array entry IDs and variable internal IDs. */
-export type VariableAliases = Map<string, string>;
+export class VariableAliases extends VariableMap<string, string> {}
 
 export interface VariableCollection {
   store: VariableStore;
@@ -19,120 +45,83 @@ export interface VariableCollection {
 }
 
 /** Per-node variable data returned by `collectVariables`. */
-export type NodeVariableMap = Map<string, VariableCollection>;
+export class NodeVariableMap extends VariableMap<string, VariableCollection> {}
 
-/**
- * Collects all variables from the snapshot tree, scoped by node ID.
- *
- * Each node with `localVariables` gets its own `VariableStore` and `VariableAliases`.
- * This prevents collisions when a node is duplicated (copied nodes share the same
- * internal variable IDs but have different node IDs).
- */
+/** Collect variables from the snapshot tree, scoped by node ID. */
 export function collectVariables(root: SnapshotNode): NodeVariableMap {
-  const map: NodeVariableMap = new Map();
-  collectFromNode(root, map);
-  return map;
+  const variables = new NodeVariableMap();
+  collectFromNode(root, variables);
+  return variables;
 }
 
-/**
- * Per-node variable stores plus parent links for ancestor-scoped (lexical)
- * resolution. A variable declared on a node is visible to that node and all
- * of its descendants; internal variable ids are not globally unique, so
- * lookups must walk the ancestor chain instead of flat-merging stores.
- */
+/** Per-node variable stores plus parent links for lexical resolution. */
 export interface VariableScopes {
   stores: NodeVariableMap;
-  parents: Map<string, string | null>;
+  parents: VariableMap<string, string | undefined>;
 }
 
-/**
- * Collects per-node variable stores (same shape as {@link collectVariables})
- * together with parent links for every node in the snapshot tree.
- */
+/** Collect variable stores and parent links for every snapshot node. */
 export function collectVariableScopes(root: SnapshotNode): VariableScopes {
-  const scopes: VariableScopes = { stores: new Map(), parents: new Map() };
-  collectScopesFromNode(root, null, scopes);
+  const scopes: VariableScopes = { stores: new NodeVariableMap(), parents: new VariableMap() };
+  collectScopesFromNode(root, undefined, scopes);
   return scopes;
 }
 
 function collectScopesFromNode(
   node: SnapshotNode,
-  parentId: string | null,
+  parentId: string | undefined,
   scopes: VariableScopes,
 ): void {
   scopes.parents.set(node.id, parentId);
-  collectFromNode(node, scopes.stores);
-  for (const child of node.children) {
-    collectScopesFromNode(child, node.id, scopes);
-  }
+  collectFromNode(node, scopes.stores, false);
+  node.children.forEach((child) => collectScopesFromNode(child, node.id, scopes));
 }
 
-/**
- * Finds the nearest node in the ancestor chain (own node first, then nearest
- * ancestor first) whose store declares `variableId`. This is the node a
- * `set-variable` write must target.
- */
+/** Find the nearest ancestor store that declares a variable. */
 export function findDeclaringNodeInChain(
-  parents: ReadonlyMap<string, string | null>,
-  getStore: (nodeId: string) => VariableStore | undefined,
+  parents: VariableMap<string, string | undefined>,
+  getStore: (nodeId: string) => ReturnType<VariableMap<string, VariableStore>["get"]>,
   nodeId: string,
   variableId: string,
-): string | undefined {
+) {
   const visited = new Set<string>();
-  let current: string | null = nodeId;
-  while (current !== null && !visited.has(current)) {
+  let current: string | undefined = nodeId;
+  while (current !== undefined && !visited.has(current)) {
     visited.add(current);
-    if (getStore(current)?.has(variableId)) {
-      return current;
-    }
-    current = parents.get(current) ?? null;
+    if (getStore(current)?.has(variableId)) return current;
+    current = parents.get(current);
   }
   return undefined;
 }
 
-/**
- * Creates a {@link VariableReader} that resolves ids through the ancestor
- * chain of `nodeId` (own store first, then nearest ancestor first). `getStore`
- * is read lazily on every lookup, so live store snapshots (e.g. renderer
- * state) stay current.
- */
+/** Create a reader that resolves variables through a node's ancestor chain. */
 export function createChainVariableReader(
-  parents: ReadonlyMap<string, string | null>,
-  getStore: (nodeId: string) => VariableStore | undefined,
+  parents: VariableMap<string, string | undefined>,
+  getStore: (nodeId: string) => ReturnType<VariableMap<string, VariableStore>["get"]>,
   nodeId: string,
 ): VariableReader {
   return {
-    get: (variableId: string) => {
+    get: (variableId) => {
       const declaringNodeId = findDeclaringNodeInChain(parents, getStore, nodeId, variableId);
-      if (declaringNodeId === undefined) {
-        return undefined;
-      }
-      return getStore(declaringNodeId)?.get(variableId);
+      return declaringNodeId === undefined ? undefined : getStore(declaringNodeId)?.get(variableId);
     },
   };
 }
 
-function collectFromNode(node: SnapshotNode, map: NodeVariableMap): void {
-  // Unknown-type nodes from newer payloads may carry no data at all.
+function collectFromNode(node: SnapshotNode, map: NodeVariableMap, descend = true): void {
   const data = node.data;
-  if (data !== undefined && "localVariables" in data && data.localVariables.length > 0) {
-    const store: VariableStore = new Map();
-    const aliases: VariableAliases = new Map();
-    for (const entry of data.localVariables) {
-      const variable = entry.value;
-      if (variable?.id === undefined || variable.value === undefined) {
-        continue;
-      }
-      store.set(variable.id, variable.value);
-      store.set(entry.id, variable.value);
-      aliases.set(entry.id, variable.id);
-      aliases.set(variable.id, entry.id);
-    }
-    if (store.size > 0) {
-      map.set(node.id, { store, aliases });
-    }
+  if (data !== undefined && "localVariables" in data) {
+    const collection = data.localVariables.reduce<VariableCollection>(
+      (current, entry) => {
+        const variable = entry.value;
+        if (variable?.id === undefined || variable.value === undefined) return current;
+        current.store.set(variable.id, variable.value).set(entry.id, variable.value);
+        current.aliases.set(entry.id, variable.id).set(variable.id, entry.id);
+        return current;
+      },
+      { store: new VariableStore(), aliases: new VariableAliases() },
+    );
+    if (collection.store.size > 0) map.set(node.id, collection);
   }
-  for (const child of node.children) {
-    collectFromNode(child, map);
-  }
+  if (descend) node.children.forEach((child) => collectFromNode(child, map));
 }

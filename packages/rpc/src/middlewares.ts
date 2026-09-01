@@ -1,11 +1,8 @@
 import { RpcMiddleware } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { AuthSession } from "./auth.ts";
-import {
-  RpcAuthenticationError,
-  RpcNotAuthenticatedError,
-} from "./errors/common.ts";
+import { RpcAuthenticationError, RpcNotAuthenticatedError } from "./errors/common.ts";
 
 export class AuthMiddleware extends RpcMiddleware.Service<
   AuthMiddleware,

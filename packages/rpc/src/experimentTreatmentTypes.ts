@@ -1,3 +1,7 @@
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
 /**
  * Experiment treatment-type registry — the extensibility seam for the A/B
  * testing system. Each entry declares a kind of "change" an experiment can make
@@ -16,7 +20,7 @@
  * language helpers) so it can be imported from the frontend (`apps/www`), the
  * backend, and `@voidhash/core`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { constant } from "@voidhash/lib/lang";
 
@@ -30,11 +34,11 @@ export type ExperimentSurface = "paywall_location" | "notification_flow" | "auto
  * shipping a new version updates the running test like it updates every other
  * placement.
  */
-export const PaywallLocationTreatmentConfigSchema = Schema.Struct({
+export const PaywallLocationTreatmentConfig = Schema.Struct({
   paywallLocationId: Schema.String,
   paywallId: Schema.String,
 });
-export type PaywallLocationTreatmentConfig = typeof PaywallLocationTreatmentConfigSchema.Type;
+export type PaywallLocationTreatmentConfig = typeof PaywallLocationTreatmentConfig.Type;
 
 /**
  * The runtime payload compiled onto a backing feature-flag variant and returned
@@ -52,18 +56,18 @@ export interface ExperimentVariantPayload {
   >;
 }
 
-const isPaywallLocationTreatmentConfig = Schema.is(PaywallLocationTreatmentConfigSchema);
+const isPaywallLocationTreatmentConfig = Schema.is(PaywallLocationTreatmentConfig);
 
 const paywallLocationTreatment = constant({
   type: "paywall_location",
   name: "Paywall at a location",
   surface: "paywall_location",
-  configSchema: PaywallLocationTreatmentConfigSchema,
+  configSchema: PaywallLocationTreatmentConfig,
   // Configs arrive as `unknown` from the treatment rows (see
   // `compileVariantPayload`), so each entry narrows its own config shape at the
   // registry seam rather than the caller bridging the union.
   compileToVariantPayload: (configs: readonly unknown[]): Partial<ExperimentVariantPayload> => ({
-    byLocation: Object.fromEntries(
+    byLocation: R.fromEntries(
       configs
         .filter(isPaywallLocationTreatmentConfig)
         .map((c) => [c.paywallLocationId, { paywallId: c.paywallId }]),
@@ -95,18 +99,19 @@ export const isTreatmentType = (t: string): t is TreatmentType =>
 export const compileVariantPayload = (
   treatments: ReadonlyArray<{ readonly treatmentType: string; readonly config: unknown }>,
 ): ExperimentVariantPayload => {
-  const payload: ExperimentVariantPayload = {};
-  const byType = new Map<TreatmentType, unknown[]>();
-  for (const t of treatments) {
-    if (!isTreatmentType(t.treatmentType)) continue;
-    const arr = byType.get(t.treatmentType) ?? [];
-    arr.push(t.config);
-    byType.set(t.treatmentType, arr);
-  }
-  for (const [type, configs] of byType) {
-    Object.assign(payload, EXPERIMENT_TREATMENT_TYPES[type].compileToVariantPayload(configs));
-  }
-  return payload;
+  const byType = Arr.reduce(
+    treatments,
+    HashMap.empty<TreatmentType, ReadonlyArray<unknown>>(),
+    (groups, treatment) => {
+      if (!isTreatmentType(treatment.treatmentType)) return groups;
+      const configs = Option.getOrElse(HashMap.get(groups, treatment.treatmentType), () => []);
+      return HashMap.set(groups, treatment.treatmentType, [...configs, treatment.config]);
+    },
+  );
+  return HashMap.reduce(byType, {}, (payload, configs, type) => ({
+    ...payload,
+    ...EXPERIMENT_TREATMENT_TYPES[type].compileToVariantPayload(configs),
+  }));
 };
 
 /** Decode + validate a treatment config against its type's schema. */

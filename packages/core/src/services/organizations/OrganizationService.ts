@@ -1,6 +1,12 @@
 import { SLUG_BLACKLIST } from "@voidhash/lib";
 import { causeMessage, constant } from "@voidhash/lib/lang";
-import { Cause, Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Cause from "effect/Cause";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -54,50 +60,49 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
        * nullable field so key sessions never emit `"null"` attributes. Ids /
        * pseudonymous distinct ids only — never the email/name (§5).
        */
-      const annotateActor = (session: typeof AuthSession.Service) =>
-        Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan("voidhash.auth.method", session.method);
-          if (session.user?.id) {
-            yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
-          }
-          if (session.user?.workosUserId) {
-            yield* Effect.annotateCurrentSpan("voidhash.user.external_id", session.user.workosUserId);
-          }
-          if (session.person?.distinctId) {
-            yield* Effect.annotateCurrentSpan(
-              "voidhash.person.distinct_id",
-              session.person.distinctId,
-            );
-          }
-        });
-
-      const checkSlugAvailable = (slug: string) =>
-        Effect.gen(function* () {
-          const existing = yield* db.query.organization.findFirst({ where: { slug } });
-          return existing === undefined;
-        });
-
-      const resolveWorkosUserIdForSession = (sessionUser: {
-        readonly email: string;
-        readonly workosUserId: string | null;
-      }) =>
-        Effect.gen(function* () {
-          if (sessionUser.workosUserId) {
-            return sessionUser.workosUserId;
-          }
-
-          const workosUser = yield* workosOrgPort.findUserByEmail(sessionUser.email);
-          if (workosUser) {
-            return workosUser.id;
-          }
-
-          return yield* Effect.fail(
-            new OrganizationServiceError({
-              cause:
-                "Cannot create an organization without an authenticated WorkOS user (api-key sessions cannot create orgs).",
-            }),
+      const annotateActor = Effect.fn("OrganizationService.annotateActor")(function* (
+        session: typeof AuthSession.Service,
+      ) {
+        yield* Effect.annotateCurrentSpan("voidhash.auth.method", session.method);
+        if (session.user?.id) {
+          yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
+        }
+        if (session.user?.workosUserId) {
+          yield* Effect.annotateCurrentSpan("voidhash.user.external_id", session.user.workosUserId);
+        }
+        if (session.person?.distinctId) {
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.person.distinct_id",
+            session.person.distinctId,
           );
-        });
+        }
+      });
+
+      const checkSlugAvailable = Effect.fn("OrganizationService.checkSlugAvailable")(function* (
+        slug: string,
+      ) {
+        const existing = yield* db.query.organization.findFirst({ where: { slug } });
+        return existing === undefined;
+      });
+
+      const resolveWorkosUserIdForSession = Effect.fn(
+        "OrganizationService.resolveWorkosUserIdForSession",
+      )(function* (sessionUser: {
+        readonly email: string;
+        readonly workosUserId: Option.Option<string>;
+      }) {
+        if (Option.isSome(sessionUser.workosUserId)) return sessionUser.workosUserId.value;
+
+        const workosUser = yield* workosOrgPort.findUserByEmail(sessionUser.email);
+        if (Option.isSome(workosUser)) return workosUser.value.id;
+
+        return yield* Effect.fail(
+          new OrganizationServiceError({
+            cause:
+              "Cannot create an organization without an authenticated WorkOS user (api-key sessions cannot create orgs).",
+          }),
+        );
+      });
 
       const getOrganizationById = Effect.fn("getOrganizationById")(
         function* (id: string) {
@@ -177,16 +182,31 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
               }),
             );
           }
-          const workosUserId = yield* resolveWorkosUserIdForSession(sessionUser);
+          const workosUserId = yield* resolveWorkosUserIdForSession({
+            email: sessionUser.email,
+            workosUserId: Option.fromNullishOr(sessionUser.workosUserId),
+          });
 
           const baseSlug = createSlug(input.name);
-          let slug = baseSlug;
-          if (SLUG_BLACKLIST.includes(baseSlug)) {
-            slug = `${baseSlug}-${createShortId()}`;
-          }
-          while (!(yield* checkSlugAvailable(slug))) {
-            slug = `${baseSlug}-${createShortId()}`;
-          }
+          const initialSlug = SLUG_BLACKLIST.includes(baseSlug)
+            ? `${baseSlug}-${createShortId()}`
+            : baseSlug;
+          type CheckSlugEffect = ReturnType<typeof checkSlugAvailable>;
+          const findAvailableSlug: (
+            candidate: string,
+          ) => Effect.Effect<
+            string,
+            Effect.Error<CheckSlugEffect>,
+            Effect.Services<CheckSlugEffect>
+          > = (candidate) =>
+            checkSlugAvailable(candidate).pipe(
+              Effect.flatMap((available) =>
+                available
+                  ? Effect.succeed(candidate)
+                  : Effect.suspend(() => findAvailableSlug(`${baseSlug}-${createShortId()}`)),
+              ),
+            );
+          const slug = yield* findAvailableSlug(initialSlug);
 
           const orgId = generateId("organization");
           yield* Effect.annotateCurrentSpan("voidhash.organization.id", orgId);
@@ -240,8 +260,8 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           // Local mirror in a single transaction. On failure, compensate by
           // tearing down the WorkOS org so we don't leave an orphan.
           yield* db
-            .transaction((tx) =>
-              Effect.gen(function* () {
+            .transaction(
+              Effect.fn("OrganizationService.createOrganization.transaction")(function* (tx) {
                 yield* tx.insert(organization).values({
                   createdAt: now,
                   id: orgId,
@@ -380,7 +400,11 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
           const sha256 = yield* avatarSha256Hex(bytes);
           const key = deriveAvatarKey("organization", input.organizationId, sha256, ext);
 
-          yield* publicFileStore.putObject({ key, body: bytes, contentType: input.contentType });
+          yield* publicFileStore.putObject({
+            key,
+            body: bytes,
+            contentType: Option.some(input.contentType),
+          });
           const logoUrl = publicFileStore.publicUrl(key);
 
           yield* db
@@ -389,15 +413,19 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
             .where(eq(organization.id, input.organizationId));
 
           // Best-effort cleanup of the superseded object (only our own keys).
-          if (org.logo !== null && isOwnedAvatarUrl(org.logo, publicFileStore.publicBaseUrl)) {
-            const oldKey = avatarKeyFromUrl(org.logo, publicFileStore.publicBaseUrl);
-            if (oldKey !== null && oldKey !== key) {
+          const existingLogo = Option.fromNullishOr(org.logo);
+          if (isOwnedAvatarUrl(existingLogo, publicFileStore.publicBaseUrl)) {
+            const oldKey = Option.flatMap(existingLogo, (logo) =>
+              avatarKeyFromUrl(logo, publicFileStore.publicBaseUrl),
+            );
+            if (Option.isSome(oldKey) && oldKey.value !== key) {
+              const oldKeyValue = oldKey.value;
               yield* publicFileStore
-                .deleteObject(oldKey)
+                .deleteObject(oldKeyValue)
                 .pipe(
                   Effect.catchCause((cause) =>
                     Effect.logWarning(
-                      `Failed to delete superseded avatar object ${oldKey}: ${Cause.pretty(cause)}`,
+                      `Failed to delete superseded avatar object ${String(oldKeyValue)}: ${Cause.pretty(cause)}`,
                     ),
                   ),
                 );
@@ -441,15 +469,19 @@ export class OrganizationService extends Context.Service<OrganizationService>()(
             .set({ logo: null })
             .where(eq(organization.id, input.organizationId));
 
-          if (org.logo !== null && isOwnedAvatarUrl(org.logo, publicFileStore.publicBaseUrl)) {
-            const oldKey = avatarKeyFromUrl(org.logo, publicFileStore.publicBaseUrl);
-            if (oldKey !== null) {
+          const existingLogo = Option.fromNullishOr(org.logo);
+          if (isOwnedAvatarUrl(existingLogo, publicFileStore.publicBaseUrl)) {
+            const oldKey = Option.flatMap(existingLogo, (logo) =>
+              avatarKeyFromUrl(logo, publicFileStore.publicBaseUrl),
+            );
+            if (Option.isSome(oldKey)) {
+              const oldKeyValue = oldKey.value;
               yield* publicFileStore
-                .deleteObject(oldKey)
+                .deleteObject(oldKeyValue)
                 .pipe(
                   Effect.catchCause((cause) =>
                     Effect.logWarning(
-                      `Failed to delete superseded avatar object ${oldKey}: ${Cause.pretty(cause)}`,
+                      `Failed to delete superseded avatar object ${String(oldKeyValue)}: ${Cause.pretty(cause)}`,
                     ),
                   ),
                 );

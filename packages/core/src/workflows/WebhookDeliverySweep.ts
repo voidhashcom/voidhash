@@ -1,6 +1,10 @@
+import * as Arr from "effect/Array";
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
 import * as Workflow from "@voidhash/platform/Workflow";
-import { DateTime, Duration, Effect, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import {
   Db,
@@ -83,20 +87,22 @@ export const WebhookDeliverySweepRegistration = WorkflowRegistration.make(Webhoo
           )
           .limit(SWEEP_BATCH_SIZE);
 
-        let redispatchedCount = 0;
-        for (const candidate of candidates) {
-          yield* Workflow.dispatchAndForget(DeliverWebhook, {
-            attemptNumber: candidate.attemptCount + 1,
-            deliveryId: candidate.id,
-            endpointId: candidate.endpointId,
-            eventType: candidate.eventType,
-            payload: candidate.payload,
-            url: candidate.url,
-          });
-          redispatchedCount++;
-        }
+        yield* Effect.forEach(
+          candidates,
+          (candidate) =>
+            Workflow.dispatchAndForget(DeliverWebhook, {
+              attemptNumber: candidate.attemptCount + 1,
+              deliveryId: candidate.id,
+              endpointId: candidate.endpointId,
+              eventType: candidate.eventType,
+              payload: candidate.payload,
+              url: candidate.url,
+            }),
+          { concurrency: 1, discard: true },
+        );
+        const redispatchedCount = candidates.length;
 
-        if (candidates.length > 0) {
+        if (Arr.isReadonlyArrayNonEmpty(candidates)) {
           yield* Effect.logWarning("webhook delivery sweep re-dispatched stalled deliveries", {
             candidateCount: candidates.length,
             redispatchedCount,

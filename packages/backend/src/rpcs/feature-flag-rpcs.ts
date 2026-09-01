@@ -15,7 +15,8 @@ import {
   RpcFeatureFlagServiceError,
   RpcFeatureFlagTargetNotFoundError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 const toRpcFeatureFlagVariant = (variant: FeatureFlagVariant) => ({
   archivedAt: variant.archivedAt,
@@ -34,9 +35,11 @@ const toRpcFeatureFlag = (
     readonly variants: ReadonlyArray<FeatureFlagVariant>;
   },
 ) => {
-  const { key, name: _name, variants, ...rest } = flag;
+  const { enabled, internal, key, name: _name, variants, ...rest } = flag;
   return {
     ...rest,
+    isEnabled: enabled,
+    isInternal: internal,
     slug: key,
     variants: variants.map(toRpcFeatureFlagVariant),
   };
@@ -45,9 +48,11 @@ const toRpcFeatureFlag = (
 const toRpcFeatureFlagListItem = (
   flag: FeatureFlag & { readonly variantCount: number; readonly variants?: undefined },
 ) => {
-  const { key, name: _name, variants: _variants, ...rest } = flag;
+  const { enabled, internal, key, name: _name, variants: _variants, ...rest } = flag;
   return {
     ...rest,
+    isEnabled: enabled,
+    isInternal: internal,
     slug: key,
   };
 };
@@ -163,22 +168,30 @@ export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
               Effect.fail(new RpcFeatureFlagServiceError({ cause: error.cause })),
           }),
         ),
-      UpdateFeatureFlag: ({ slug, ...input }) =>
-        service.updateFlag({ ...input, key: slug }).pipe(
-          Effect.map(toRpcFeatureFlag),
-          Effect.catchTags({
-            ActionForbiddenError: (error) =>
-              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
-            AuditLogPortError: (error) =>
-              Effect.fail(new RpcAuditLogServiceError({ cause: error.cause })),
-            FeatureFlagKeyAlreadyExistsError: (error) =>
-              Effect.fail(new RpcFeatureFlagKeyAlreadyExistsError({ key: error.key })),
-            FeatureFlagNotFoundError: (error) =>
-              Effect.fail(new RpcFeatureFlagNotFoundError({ message: error.message })),
-            FeatureFlagServiceError: (error) =>
-              Effect.fail(new RpcFeatureFlagServiceError({ cause: error.cause })),
-          }),
-        ),
+      UpdateFeatureFlag: ({ description, slug, ...input }) =>
+        service
+          .updateFlag({
+            ...input,
+            ...(description === undefined
+              ? {}
+              : { description: Option.fromNullishOr(description) }),
+            key: slug,
+          })
+          .pipe(
+            Effect.map(toRpcFeatureFlag),
+            Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+              AuditLogPortError: (error) =>
+                Effect.fail(new RpcAuditLogServiceError({ cause: error.cause })),
+              FeatureFlagKeyAlreadyExistsError: (error) =>
+                Effect.fail(new RpcFeatureFlagKeyAlreadyExistsError({ key: error.key })),
+              FeatureFlagNotFoundError: (error) =>
+                Effect.fail(new RpcFeatureFlagNotFoundError({ message: error.message })),
+              FeatureFlagServiceError: (error) =>
+                Effect.fail(new RpcFeatureFlagServiceError({ cause: error.cause })),
+            }),
+          ),
       UpdateFeatureFlagVariants: (input) =>
         service
           .updateCustomerFlagVariants({
@@ -197,19 +210,26 @@ export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
                 Effect.fail(new RpcFeatureFlagServiceError({ cause: error.cause })),
             }),
           ),
-      UpsertFeatureFlagOverride: (input) =>
-        service.upsertOverride(input).pipe(
-          Effect.catchTags({
-            ActionForbiddenError: (error) =>
-              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
-            AuditLogPortError: (error) =>
-              Effect.fail(new RpcAuditLogServiceError({ cause: error.cause })),
-            FeatureFlagNotFoundError: (error) =>
-              Effect.fail(new RpcFeatureFlagNotFoundError({ message: error.message })),
-            FeatureFlagServiceError: (error) =>
-              Effect.fail(new RpcFeatureFlagServiceError({ cause: error.cause })),
-          }),
-        ),
+      UpsertFeatureFlagOverride: ({ forcedEnabled, ...input }) =>
+        service
+          .upsertOverride({
+            ...input,
+            ...(forcedEnabled === undefined
+              ? {}
+              : { forcedEnabled: Option.fromNullishOr(forcedEnabled) }),
+          })
+          .pipe(
+            Effect.catchTags({
+              ActionForbiddenError: (error) =>
+                Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+              AuditLogPortError: (error) =>
+                Effect.fail(new RpcAuditLogServiceError({ cause: error.cause })),
+              FeatureFlagNotFoundError: (error) =>
+                Effect.fail(new RpcFeatureFlagNotFoundError({ message: error.message })),
+              FeatureFlagServiceError: (error) =>
+                Effect.fail(new RpcFeatureFlagServiceError({ cause: error.cause })),
+            }),
+          ),
       UpsertFeatureFlagTarget: (input) =>
         service.upsertTarget(input).pipe(
           Effect.catchTags({

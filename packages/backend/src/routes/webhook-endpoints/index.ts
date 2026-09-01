@@ -12,7 +12,7 @@
  * the tie — that every route module in this directory is in the manifest, and
  * that each one registers exactly its manifest entry.
  */
-import { Layer } from "effect";
+import * as Layer from "effect/Layer";
 
 import { AppleServerToServerNotificationRouteLayer } from "./apple-server-to-server.ts";
 import { GooglePlayRtdnNotificationRouteLayer } from "./google-play-rtdn.ts";

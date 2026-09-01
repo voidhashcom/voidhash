@@ -1,6 +1,11 @@
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
 import { PurchaseType } from "@voidhash/lib";
 import { pick } from "@voidhash/lib/lang";
-import { Brand, Option, Predicate } from "effect";
+import * as Brand from "effect/Brand";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import type * as Schema from "effect/Schema";
 
 import {
   PurchaseActionContext,
@@ -15,20 +20,22 @@ import {
 } from "../../domain/PurchaseProcessing.ts";
 
 /** Money columns required to reconstruct a transaction's domain value. */
+type StoredNull = typeof Schema.Null.Type;
+
 export interface StoredTransactionMoneyFields {
   readonly currency: string;
-  readonly storefront: string | null;
+  readonly storefront: string | StoredNull;
   readonly grossAmount: number;
   readonly storeCommissionAmount: number;
   readonly taxAmount: number;
   readonly proceedsAmount: number;
   readonly proceedsAfterTaxAmount: number;
-  readonly grossAmountUsd: number | null;
-  readonly storeCommissionAmountUsd: number | null;
-  readonly taxAmountUsd: number | null;
-  readonly proceedsAmountUsd: number | null;
-  readonly proceedsAfterTaxAmountUsd: number | null;
-  readonly exchangeRate: number | null;
+  readonly grossAmountUsd: number | StoredNull;
+  readonly storeCommissionAmountUsd: number | StoredNull;
+  readonly taxAmountUsd: number | StoredNull;
+  readonly proceedsAmountUsd: number | StoredNull;
+  readonly proceedsAfterTaxAmountUsd: number | StoredNull;
+  readonly exchangeRate: number | StoredNull;
 }
 
 const minor = Brand.nominal<typeof MinorAmount.Type>();
@@ -82,21 +89,20 @@ export const moneyFromStoredTransaction = (
 
 /** Unwraps nested infrastructure errors to their most specific available cause. */
 export const describePurchaseErrorCause = (error: unknown): string => {
-  let current = error;
-  let description = String(current);
-  for (let depth = 0; depth < 4; depth++) {
-    if (!Predicate.hasProperty(current, "cause") || current.cause == null) return description;
-    current = current.cause;
-    description = String(current);
-  }
-  return description;
+  const describe = (current: unknown, depth: number): string => {
+    if (depth === 4 || !P.hasProperty(current, "cause") || current.cause == null) {
+      return String(current);
+    }
+    return describe(current.cause, depth + 1);
+  };
+  return describe(error, 0);
 };
 
 /** Classifies a purchase result without changing its domain-level ignored predicate. */
 export const purchaseProcessingResultKind = (result: PurchaseProcessingResult) => {
   if (result.idempotent) return "idempotent";
   if (
-    result.analyticsEventIds.length === 0 &&
+    Arr.isReadonlyArrayEmpty(result.analyticsEventIds) &&
     Option.isNone(result.purchaseId) &&
     Option.isNone(result.subscriptionId) &&
     Option.isNone(result.transactionId)
@@ -107,7 +113,7 @@ export const purchaseProcessingResultKind = (result: PurchaseProcessingResult) =
 };
 
 const compactSpanAttributes = (attributes: Record<string, unknown>) =>
-  Object.fromEntries(Object.entries(attributes).filter(([, value]) => value !== undefined));
+  R.fromEntries(R.toEntries(attributes).filter(([, value]) => value !== undefined));
 
 const optionSpanAttribute = <A>(
   value: Option.Option<A>,

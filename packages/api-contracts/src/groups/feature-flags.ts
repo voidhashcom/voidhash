@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/httpapi";
 
 import {
@@ -59,11 +59,7 @@ export const FeatureFlagsGroup = HttpApiGroup.make("feature_flags")
     HttpApiEndpoint.get("getFeatureFlag", "/:featureFlagId", {
       params: { featureFlagId: Schema.String },
       success: FeatureFlag,
-      error: [
-        ApiActionForbiddenError,
-        ApiFeatureFlagNotFoundError,
-        ApiFeatureFlagServiceError,
-      ],
+      error: [ApiActionForbiddenError, ApiFeatureFlagNotFoundError, ApiFeatureFlagServiceError],
     }),
   )
   .add(
@@ -133,11 +129,7 @@ export const FeatureFlagOverridesGroup = HttpApiGroup.make("feature_flag_overrid
     HttpApiEndpoint.get("listFeatureFlagOverrides", "/", {
       query: ListFeatureFlagOverridesParams,
       success: paginated(FeatureFlagOverride),
-      error: [
-        ApiActionForbiddenError,
-        ApiFeatureFlagNotFoundError,
-        ApiFeatureFlagServiceError,
-      ],
+      error: [ApiActionForbiddenError, ApiFeatureFlagNotFoundError, ApiFeatureFlagServiceError],
     }),
   )
   .add(

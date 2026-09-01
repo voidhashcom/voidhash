@@ -21,7 +21,9 @@ import {
   subscriptions,
   transactions,
 } from "@voidhash/db";
-import { Effect, Layer, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 const portError = (message: string) => (cause: unknown) =>
   new PurchasePortError({ cause, message });
@@ -166,9 +168,10 @@ export const makeDbPurchaseStateRepository = (
     }).pipe(Effect.mapError(portError("failed to insert purchase projection"))),
   insertSubscriptionIfAbsent: (input) =>
     Effect.gen(function* () {
+      const { isCancelAtPeriodEnd, ...subscription } = input;
       yield* db
         .insert(subscriptions)
-        .values(input)
+        .values({ ...subscription, cancelAtPeriodEnd: isCancelAtPeriodEnd })
         .onConflictDoNothing({
           target: [
             subscriptions.paymentProviderConfigurationProductId,
@@ -294,9 +297,14 @@ export const makeDbPurchaseStateRepository = (
   },
   updateSubscriptionIfFresher: (input) => {
     const { id, occurredAt, ...patch } = input;
+    const { isCancelAtPeriodEnd, ...subscriptionPatch } = patch;
     return db
       .update(subscriptions)
-      .set({ ...patch, lastEventOccurredAt: occurredAt })
+      .set({
+        ...subscriptionPatch,
+        ...(isCancelAtPeriodEnd === undefined ? {} : { cancelAtPeriodEnd: isCancelAtPeriodEnd }),
+        lastEventOccurredAt: occurredAt,
+      })
       .where(
         and(
           eq(subscriptions.id, id),

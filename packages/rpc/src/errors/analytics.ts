@@ -4,7 +4,7 @@
  * service error. Class names and `_tag` values are namespaced with `Rpc` /
  * `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Time range parameters were rejected during normalisation. */
 export class RpcInvalidTimeRangeError extends Schema.TaggedErrorClass<RpcInvalidTimeRangeError>(

@@ -1,13 +1,14 @@
 import { Prompt } from "effect/unstable/cli";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 import { createOrganization } from "./create-organization";
+import * as Arr from "effect/Array";
 
 export const selectOrganization = (
   organizations: readonly { id: string; slug: string; name: string }[],
 ) =>
   Effect.gen(function* selectOrganization() {
-    if (organizations.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(organizations)) {
       return yield* createOrganization();
     }
     const organizationSlug = yield* Prompt.run(

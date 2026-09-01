@@ -1,4 +1,13 @@
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Str from "effect/String";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
+import * as Schema from "effect/Schema";
 
 import {
   type ExperimentTreatmentConfig,
@@ -44,39 +53,25 @@ export class ExperimentServiceError extends Schema.TaggedErrorClass<ExperimentSe
   "ExperimentServiceError",
 )("ExperimentServiceError", { cause: Schema.String }) {}
 
-/**
- * A variant as supplied to `saveSetup`: the arm, its weight, and the paywall
- * placements it serves. `id` is present for variants that already exist and
- * absent for newly added ones.
- */
-/** Wraps an optional value into a (possibly empty) single-element list. */
-const optionalList = <A>(value: A | null | undefined): ReadonlyArray<A> => {
-  if (value === null || value === undefined) return [];
-  return [value];
-};
-
 /** A single-key object when the value is set, otherwise nothing to spread. */
 const optionalField = <K extends string, A>(
   key: K,
-  value: A | null | undefined,
-): Partial<Record<K, A>> => {
-  const field: Partial<Record<K, A>> = {};
-  if (!value) return field;
-  field[key] = value;
-  return field;
-};
+  value: Option.Option<A>,
+): Partial<Record<K, A>> =>
+  Option.match(value, {
+    onNone: () => ({}),
+    onSome: (some) => R.singleton(key, some),
+  });
 
 /** Copies a readonly list into a mutable one, mapping an absent list to `null`. */
-const toMutableList = <A>(values: ReadonlyArray<A> | null | undefined): A[] | null => {
-  if (!values) return null;
-  return [...values];
-};
+const toMutableList = <A>(values: Option.Option<ReadonlyArray<A>>) =>
+  Option.match(values, { onNone: () => null, onSome: (items) => [...items] });
 
 /** The `archivedAt` predicate for a list query, unless archived rows are wanted. */
 const archivedFilter = (
-  includeArchived: boolean | undefined,
+  includeArchived: Option.Option<boolean>,
 ): { archivedAt?: { isNull: true } } => {
-  if (includeArchived) return {};
+  if (Option.getOrElse(includeArchived, () => false)) return {};
   return { archivedAt: { isNull: true } };
 };
 
@@ -122,65 +117,68 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
      * enforces sum===10000 and unique keys). Self-contained error-wise: only
      * `EffectDrizzleQueryError` (from its own read) escapes untranslated.
      */
-    const syncVariantsToFlag = (experimentId: string) =>
-      Effect.gen(function* () {
-        const experiment = yield* db.query.experiments.findFirst({
-          where: { id: experimentId },
-          with: {
-            variants: { where: { archivedAt: { isNull: true } } },
-            treatments: { where: { archivedAt: { isNull: true } } },
-          },
-        });
-        if (!experiment) {
-          return yield* Effect.fail(
-            new ExperimentServiceError({
-              cause: `Experiment ${experimentId} not found during sync`,
-            }),
-          );
-        }
-        const treatmentsByVariant = new Map<
-          string,
-          Array<{ treatmentType: string; config: unknown }>
-        >();
-        for (const t of experiment.treatments) {
-          const arr = treatmentsByVariant.get(t.variantId) ?? [];
-          arr.push({ treatmentType: t.treatmentType, config: t.config });
-          treatmentsByVariant.set(t.variantId, arr);
-        }
-        // Flag variants are keyed by the experiment variant's id — the one
-        // identifier that is stable across renames, so bucketed subjects stay
-        // in their arm no matter how the arm is relabelled.
-        const variants = experiment.variants.map((v) => ({
-          key: v.id,
-          name: v.name,
-          weightBps: v.weightBps,
-          payload: compileVariantPayload(treatmentsByVariant.get(v.id) ?? []),
-        }));
-        yield* featureFlagService
-          .updateFlagVariants({ featureFlagId: experiment.featureFlagId, variants })
-          .pipe(
-            Effect.catchTags({
-              ActionForbiddenError: toServiceError,
-              AuditLogPortError: toServiceError,
-              FeatureFlagNotFoundError: toServiceError,
-              FeatureFlagServiceError: toServiceError,
-            }),
-          );
+    const syncVariantsToFlag = Effect.fn("ExperimentService.syncVariantsToFlag")(function* (
+      experimentId: string,
+    ) {
+      const experiment = yield* db.query.experiments.findFirst({
+        where: { id: experimentId },
+        with: {
+          variants: { where: { archivedAt: { isNull: true } } },
+          treatments: { where: { archivedAt: { isNull: true } } },
+        },
       });
+      if (!experiment) {
+        return yield* Effect.fail(
+          new ExperimentServiceError({
+            cause: `Experiment ${experimentId} not found during sync`,
+          }),
+        );
+      }
+      const treatmentsByVariant = experiment.treatments.reduce(
+        (grouped, treatment) =>
+          HashMap.modifyAt(grouped, treatment.variantId, (current) =>
+            Option.some([
+              ...Option.getOrElse(current, () => []),
+              { treatmentType: treatment.treatmentType, config: treatment.config },
+            ]),
+          ),
+        HashMap.empty<string, Array<{ treatmentType: string; config: unknown }>>(),
+      );
+      // Flag variants are keyed by the experiment variant's id — the one
+      // identifier that is stable across renames, so bucketed subjects stay
+      // in their arm no matter how the arm is relabelled.
+      const variants = experiment.variants.map((v) => ({
+        key: v.id,
+        name: v.name,
+        weightBps: v.weightBps,
+        payload: compileVariantPayload(
+          Option.getOrElse(HashMap.get(treatmentsByVariant, v.id), () => []),
+        ),
+      }));
+      yield* featureFlagService
+        .updateFlagVariants({ featureFlagId: experiment.featureFlagId, variants })
+        .pipe(
+          Effect.catchTags({
+            ActionForbiddenError: toServiceError,
+            AuditLogPortError: toServiceError,
+            FeatureFlagNotFoundError: toServiceError,
+            FeatureFlagServiceError: toServiceError,
+          }),
+        );
+    });
 
     /** Load an experiment (no relations) or fail with not-found. */
-    const loadExperiment = (id: string) =>
-      Effect.gen(function* () {
-        const experiment = yield* db.query.experiments.findFirst({ where: { id } });
-        if (!experiment) {
-          return yield* Effect.fail(new ExperimentNotFoundError({ experimentId: id }));
-        }
-        return experiment;
-      });
+    const loadExperiment = Effect.fn("ExperimentService.loadExperiment")(function* (id: string) {
+      const experiment = yield* db.query.experiments.findFirst({ where: { id } });
+      if (!experiment) {
+        return yield* Effect.fail(new ExperimentNotFoundError({ experimentId: id }));
+      }
+      return experiment;
+    });
 
     /** Load an experiment with variants + treatments + backing flag. */
-    const loadExperimentWithRelations = (id: string) =>
-      Effect.gen(function* () {
+    const loadExperimentWithRelations = Effect.fn("ExperimentService.loadExperimentWithRelations")(
+      function* (id: string) {
         const experiment = yield* db.query.experiments.findFirst({
           where: { id },
           with: {
@@ -193,19 +191,22 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           return yield* Effect.fail(new ExperimentNotFoundError({ experimentId: id }));
         }
         return experiment;
-      });
+      },
+    );
 
     /** Distinct paywall-location ids targeted by any of the experiment's treatments. */
     const targetLocationIds = (
       treatments: ReadonlyArray<{ treatmentType: string; config: ExperimentTreatmentConfig }>,
     ): string[] => {
-      const ids = new Set<string>();
-      for (const t of treatments) {
-        if (t.treatmentType === "paywall_location") {
-          ids.add(t.config.paywallLocationId);
-        }
-      }
-      return [...ids];
+      return [
+        ...treatments.reduce(
+          (ids, treatment) =>
+            treatment.treatmentType === "paywall_location"
+              ? HashSet.add(ids, treatment.config.paywallLocationId)
+              : ids,
+          HashSet.empty<string>(),
+        ),
+      ];
     };
 
     /**
@@ -254,8 +255,8 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           version: 1,
         };
 
-        yield* db.transaction((tx) =>
-          Effect.gen(function* () {
+        yield* db.transaction(
+          Effect.fn("ExperimentService.createExperiment.transaction")(function* (tx) {
             yield* tx.insert(experiments).values(newExperiment);
             // Seed a control + treatment arm at an even 50/50 split.
             yield* tx.insert(experimentVariants).values([
@@ -329,7 +330,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         const rows = yield* db.query.experiments.findMany({
           where: {
             projectId: input.projectId,
-            ...archivedFilter(input.includeArchived),
+            ...archivedFilter(Option.fromUndefinedOr(input.includeArchived)),
           },
           with: {
             treatments: { where: { archivedAt: { isNull: true } } },
@@ -360,10 +361,10 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       function* (input: {
         readonly id: string;
         readonly name?: string;
-        readonly description?: string | null;
-        readonly hypothesis?: string | null;
-        readonly primaryMetricEventName?: string | null;
-        readonly secondaryMetricEventNames?: ReadonlyArray<string> | null;
+        readonly description?: Option.Option<string>;
+        readonly hypothesis?: Option.Option<string>;
+        readonly primaryMetricEventName?: Option.Option<string>;
+        readonly secondaryMetricEventNames?: Option.Option<ReadonlyArray<string>>;
         readonly variants?: ReadonlyArray<SaveVariantInput>;
       }) {
         const session = yield* AuthSession;
@@ -408,37 +409,37 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
               }),
             );
           }
-          for (const v of input.variants) {
-            if (v.name.trim().length === 0) {
-              return yield* Effect.fail(
-                new ExperimentValidationError({ message: "Every variant needs a name" }),
-              );
-            }
-            const locationIds = new Set<string>();
-            for (const t of v.treatments) {
-              if (locationIds.has(t.paywallLocationId)) {
-                return yield* Effect.fail(
-                  new ExperimentValidationError({
-                    message: `Variant '${v.name}' has two paywalls for the same location`,
-                  }),
-                );
-              }
-              locationIds.add(t.paywallLocationId);
-            }
+          const unnamed = input.variants.find((variant) => Str.isEmpty(variant.name.trim()));
+          if (unnamed) {
+            return yield* Effect.fail(
+              new ExperimentValidationError({ message: "Every variant needs a name" }),
+            );
+          }
+          const duplicateLocations = input.variants.find((variant) => {
+            const ids = variant.treatments.map((treatment) => treatment.paywallLocationId);
+            return HashSet.size(HashSet.fromIterable(ids)) !== ids.length;
+          });
+          if (duplicateLocations) {
+            return yield* Effect.fail(
+              new ExperimentValidationError({
+                message: `Variant '${duplicateLocations.name}' has two paywalls for the same location`,
+              }),
+            );
           }
         }
 
         const updates: Record<string, unknown> = { updatedByUserId: session?.user?.id ?? null };
         if (input.name !== undefined) updates.name = input.name;
-        if (input.description !== undefined) updates.description = input.description;
-        if (input.hypothesis !== undefined) updates.hypothesis = input.hypothesis;
+        if (input.description !== undefined)
+          updates.description = Option.getOrNull(input.description);
+        if (input.hypothesis !== undefined) updates.hypothesis = Option.getOrNull(input.hypothesis);
         if (input.primaryMetricEventName !== undefined)
-          updates.primaryMetricEventName = input.primaryMetricEventName;
+          updates.primaryMetricEventName = Option.getOrNull(input.primaryMetricEventName);
         if (input.secondaryMetricEventNames !== undefined)
           updates.secondaryMetricEventNames = toMutableList(input.secondaryMetricEventNames);
 
-        yield* db.transaction((tx) =>
-          Effect.gen(function* () {
+        yield* db.transaction(
+          Effect.fn("ExperimentService.saveSetup.transaction")(function* (tx) {
             yield* tx.update(experiments).set(updates).where(eq(experiments.id, input.id));
 
             if (!input.variants) {
@@ -447,57 +448,73 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             const existing = yield* tx.query.experimentVariants.findMany({
               where: { experimentId: input.id, archivedAt: { isNull: true } },
             });
-            const existingIds = new Set(existing.map((v) => v.id));
-            for (const v of input.variants) {
-              if (v.id && !existingIds.has(v.id)) {
-                return yield* Effect.fail(new ExperimentVariantNotFoundError({ variantId: v.id }));
-              }
+            const existingIds = HashSet.fromIterable(existing.map((variant) => variant.id));
+            const missingVariant = input.variants.find(
+              (variant) => variant.id && !HashSet.has(existingIds, variant.id),
+            );
+            if (missingVariant?.id) {
+              return yield* Effect.fail(
+                new ExperimentVariantNotFoundError({ variantId: missingVariant.id }),
+              );
             }
 
             // Upsert by id so surviving variants keep their identity (and the
             // traffic already bucketed into them); removed variants disappear
             // together with their placements.
-            const keptIds = new Set(
-              input.variants.flatMap((v) => optionalList(v.id)),
+            const keptIds = HashSet.fromIterable(
+              input.variants.flatMap((variant) =>
+                Option.toArray(Option.fromUndefinedOr(variant.id)),
+              ),
             );
-            for (const ex of existing) {
-              if (!keptIds.has(ex.id)) {
-                yield* tx.delete(experimentVariants).where(eq(experimentVariants.id, ex.id));
-              }
-            }
+            yield* Effect.forEach(
+              existing.filter((variant) => !HashSet.has(keptIds, variant.id)),
+              (variant) =>
+                tx.delete(experimentVariants).where(eq(experimentVariants.id, variant.id)),
+              { concurrency: 1, discard: true },
+            );
             // Placements are replaced wholesale — the matrix is the full
             // picture, so diffing row-by-row buys nothing.
             yield* tx
               .delete(experimentTreatments)
               .where(eq(experimentTreatments.experimentId, input.id));
 
-            for (const v of input.variants) {
-              let variantId = v.id;
-              if (variantId) {
-                yield* tx
-                  .update(experimentVariants)
-                  .set({ name: v.name, isControl: v.isControl, weightBps: v.weightBps })
-                  .where(eq(experimentVariants.id, variantId));
-              } else {
-                variantId = generateId("experimentVariant");
-                yield* tx.insert(experimentVariants).values({
-                  id: variantId,
-                  experimentId: input.id,
-                  name: v.name,
-                  isControl: v.isControl,
-                  weightBps: v.weightBps,
-                });
-              }
-              for (const treatment of v.treatments) {
-                yield* tx.insert(experimentTreatments).values({
-                  id: generateId("experimentTreatment"),
-                  experimentId: input.id,
-                  variantId,
-                  treatmentType: "paywall_location",
-                  config: { ...treatment },
-                });
-              }
-            }
+            yield* Effect.forEach(
+              input.variants,
+              Effect.fn("ExperimentService.saveSetup.saveVariant")(function* (variant) {
+                const variantId = Option.getOrElse(Option.fromUndefinedOr(variant.id), () =>
+                  generateId("experimentVariant"),
+                );
+                yield* variant.id
+                  ? tx
+                      .update(experimentVariants)
+                      .set({
+                        name: variant.name,
+                        isControl: variant.isControl,
+                        weightBps: variant.weightBps,
+                      })
+                      .where(eq(experimentVariants.id, variantId))
+                  : tx.insert(experimentVariants).values({
+                      id: variantId,
+                      experimentId: input.id,
+                      name: variant.name,
+                      isControl: variant.isControl,
+                      weightBps: variant.weightBps,
+                    });
+                yield* Effect.forEach(
+                  variant.treatments,
+                  (treatment) =>
+                    tx.insert(experimentTreatments).values({
+                      id: generateId("experimentTreatment"),
+                      experimentId: input.id,
+                      variantId,
+                      treatmentType: "paywall_location",
+                      config: { ...treatment },
+                    }),
+                  { concurrency: 1, discard: true },
+                );
+              }),
+              { concurrency: 1, discard: true },
+            );
           }),
         );
 
@@ -548,50 +565,57 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         // Treatments follow a paywall's active published release, so a paywall
         // that was never published would leave its cell dark — refuse to start
         // until everything placed in the matrix is actually servable.
-        const paywallIds = new Set<string>();
-        for (const treatment of experiment.treatments) {
-          if (treatment.treatmentType === "paywall_location") {
-            paywallIds.add(treatment.config.paywallId);
-          }
-        }
-        for (const paywallId of paywallIds) {
-          const release = yield* db.query.paywallReleases.findFirst({
-            where: { paywallId, isActive: true, status: ReleaseStatus.released },
-          });
-          if (!release) {
-            const paywall = yield* db.query.paywalls.findFirst({ where: { id: paywallId } });
-            return yield* Effect.fail(
-              new ExperimentValidationError({
-                message: `Paywall "${paywall?.name ?? paywallId}" has no published version yet`,
-              }),
-            );
-          }
-        }
+        const paywallIds = HashSet.fromIterable(
+          experiment.treatments
+            .filter((treatment) => treatment.treatmentType === "paywall_location")
+            .map((treatment) => treatment.config.paywallId),
+        );
+        yield* Effect.forEach(
+          paywallIds,
+          Effect.fn("ExperimentService.startExperiment.validatePaywall")(function* (paywallId) {
+            const release = yield* db.query.paywallReleases.findFirst({
+              where: { paywallId, isActive: true, status: ReleaseStatus.released },
+            });
+            if (!release) {
+              const paywall = yield* db.query.paywalls.findFirst({ where: { id: paywallId } });
+              return yield* Effect.fail(
+                new ExperimentValidationError({
+                  message: `Paywall "${paywall?.name ?? paywallId}" has no published version yet`,
+                }),
+              );
+            }
+          }),
+          { concurrency: 1, discard: true },
+        );
 
         // Mutual exclusion: refuse to start if any target location is already
         // running a DIFFERENT experiment. A plain paywall_release showing is
         // clobbered (this is the "launch experiment here" action).
-        for (const locationId of locationIds) {
-          const active = yield* db.query.paywallLocationShowings.findFirst({
-            where: { paywallLocationId: locationId, endedAt: { isNull: true } },
-          });
-          if (
-            active &&
-            active.type === PaywallLocationShowingType.featureFlag &&
-            active.featureFlagId
-          ) {
-            const otherFlag = yield* db.query.featureFlags.findFirst({
-              where: { id: active.featureFlagId },
+        yield* Effect.forEach(
+          locationIds,
+          Effect.fn("ExperimentService.startExperiment.validateLocation")(function* (locationId) {
+            const active = yield* db.query.paywallLocationShowings.findFirst({
+              where: { paywallLocationId: locationId, endedAt: { isNull: true } },
             });
-            if (otherFlag?.ownerId && otherFlag.ownerId !== experiment.id) {
-              return yield* Effect.fail(
-                new ExperimentValidationError({
-                  message: `Paywall location ${locationId} is already running another experiment`,
-                }),
-              );
+            if (
+              active &&
+              active.type === PaywallLocationShowingType.featureFlag &&
+              active.featureFlagId
+            ) {
+              const otherFlag = yield* db.query.featureFlags.findFirst({
+                where: { id: active.featureFlagId },
+              });
+              if (otherFlag?.ownerId && otherFlag.ownerId !== experiment.id) {
+                return yield* Effect.fail(
+                  new ExperimentValidationError({
+                    message: `Paywall location ${locationId} is already running another experiment`,
+                  }),
+                );
+              }
             }
-          }
-        }
+          }),
+          { concurrency: 1, discard: true },
+        );
 
         yield* featureFlagService
           .setInternalFlagState({
@@ -607,30 +631,37 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           );
 
         const now = yield* DateTime.nowAsDate;
-        yield* db.transaction((tx) =>
-          Effect.gen(function* () {
-            for (const locationId of locationIds) {
-              yield* tx
-                .update(paywallLocationShowings)
-                .set({ endedAt: now })
-                .where(
-                  and(
-                    eq(paywallLocationShowings.paywallLocationId, locationId),
-                    isNull(paywallLocationShowings.endedAt),
+        yield* db.transaction(
+          Effect.fn("ExperimentService.startExperiment.transaction")(function* (tx) {
+            yield* Effect.forEach(
+              locationIds,
+              (locationId) =>
+                tx
+                  .update(paywallLocationShowings)
+                  .set({ endedAt: now })
+                  .where(
+                    and(
+                      eq(paywallLocationShowings.paywallLocationId, locationId),
+                      isNull(paywallLocationShowings.endedAt),
+                    ),
+                  )
+                  .pipe(
+                    Effect.andThen(
+                      tx.insert(paywallLocationShowings).values({
+                        id: generateId("paywallLocationShowing"),
+                        projectId: experiment.projectId,
+                        paywallLocationId: locationId,
+                        type: PaywallLocationShowingType.featureFlag,
+                        paywallId: null,
+                        paywallReleaseId: null,
+                        featureFlagId: experiment.featureFlagId,
+                        startedAt: now,
+                        createdByUserId: session?.user?.id ?? null,
+                      }),
+                    ),
                   ),
-                );
-              yield* tx.insert(paywallLocationShowings).values({
-                id: generateId("paywallLocationShowing"),
-                projectId: experiment.projectId,
-                paywallLocationId: locationId,
-                type: PaywallLocationShowingType.featureFlag,
-                paywallId: null,
-                paywallReleaseId: null,
-                featureFlagId: experiment.featureFlagId,
-                startedAt: now,
-                createdByUserId: session?.user?.id ?? null,
-              });
-            }
+              { concurrency: 1, discard: true },
+            );
             yield* tx
               .update(experiments)
               .set({ status: ExperimentStatus.running, startedAt: now })
@@ -719,16 +750,21 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         // paywall_release showing so no location is ever left dangling.
         const locationIds = targetLocationIds(experiment.treatments);
         const configForLocation = (locationId: string) => {
-          const pick = (variantId: string | undefined) =>
-            experiment.treatments.find(
-              (t) =>
-                t.variantId === variantId &&
-                t.treatmentType === "paywall_location" &&
-                t.config.paywallLocationId === locationId,
+          const pick = (variantId: Option.Option<string>) =>
+            Option.flatMap(variantId, (id) =>
+              Option.fromUndefinedOr(
+                experiment.treatments.find(
+                  (treatment) =>
+                    treatment.variantId === id &&
+                    treatment.treatmentType === "paywall_location" &&
+                    treatment.config.paywallLocationId === locationId,
+                ),
+              ),
             );
-          const chosen = pick(winner?.id) ?? pick(control?.id);
-          if (!chosen) return null;
-          return chosen.config;
+          return Option.orElse(
+            pick(Option.map(Option.fromUndefinedOr(winner), (variant) => variant.id)),
+            () => pick(Option.map(Option.fromUndefinedOr(control), (variant) => variant.id)),
+          ).pipe(Option.map((chosen) => chosen.config));
         };
 
         // Stop assignment first.
@@ -742,47 +778,54 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           );
 
         const now = yield* DateTime.nowAsDate;
-        yield* db.transaction((tx) =>
-          Effect.gen(function* () {
-            for (const locationId of locationIds) {
-              yield* tx
-                .update(paywallLocationShowings)
-                .set({ endedAt: now })
-                .where(
-                  and(
-                    eq(paywallLocationShowings.paywallLocationId, locationId),
-                    isNull(paywallLocationShowings.endedAt),
-                  ),
-                );
-              const config = configForLocation(locationId);
-              if (config) {
-                // Treatments name a paywall, not a release (legacy rows still
-                // pin one) — promote whatever its active published version is
-                // right now, or leave the location empty rather than pin
-                // something unpublished.
-                const releaseId =
-                  config.paywallReleaseId ??
-                  (yield* tx.query.paywallReleases.findFirst({
-                    where: {
-                      paywallId: config.paywallId,
-                      isActive: true,
-                      status: ReleaseStatus.released,
-                    },
-                  }))?.id;
-                if (releaseId) {
-                  yield* tx.insert(paywallLocationShowings).values({
-                    id: generateId("paywallLocationShowing"),
-                    projectId: experiment.projectId,
-                    paywallLocationId: locationId,
-                    type: PaywallLocationShowingType.paywallRelease,
-                    paywallId: config.paywallId,
-                    paywallReleaseId: releaseId,
-                    featureFlagId: null,
-                    startedAt: now,
-                  });
-                }
-              }
-            }
+        yield* db.transaction(
+          Effect.fn("ExperimentService.concludeExperiment.transaction")(function* (tx) {
+            yield* Effect.forEach(
+              locationIds,
+              Effect.fn("ExperimentService.concludeExperiment.promoteLocation")(
+                function* (locationId) {
+                  yield* tx
+                    .update(paywallLocationShowings)
+                    .set({ endedAt: now })
+                    .where(
+                      and(
+                        eq(paywallLocationShowings.paywallLocationId, locationId),
+                        isNull(paywallLocationShowings.endedAt),
+                      ),
+                    );
+                  const configOption = configForLocation(locationId);
+                  if (Option.isSome(configOption)) {
+                    const config = configOption.value;
+                    // Treatments name a paywall, not a release (legacy rows still
+                    // pin one) — promote whatever its active published version is
+                    // right now, or leave the location empty rather than pin
+                    // something unpublished.
+                    const releaseId =
+                      config.paywallReleaseId ??
+                      (yield* tx.query.paywallReleases.findFirst({
+                        where: {
+                          paywallId: config.paywallId,
+                          isActive: true,
+                          status: ReleaseStatus.released,
+                        },
+                      }))?.id;
+                    if (releaseId) {
+                      yield* tx.insert(paywallLocationShowings).values({
+                        id: generateId("paywallLocationShowing"),
+                        projectId: experiment.projectId,
+                        paywallLocationId: locationId,
+                        type: PaywallLocationShowingType.paywallRelease,
+                        paywallId: config.paywallId,
+                        paywallReleaseId: releaseId,
+                        featureFlagId: null,
+                        startedAt: now,
+                      });
+                    }
+                  }
+                },
+              ),
+              { concurrency: 1, discard: true },
+            );
             yield* tx
               .update(experiments)
               .set({
@@ -893,8 +936,8 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           where: {
             projectId: input.projectId,
             archivedAt: { isNull: true },
-            ...optionalField("id", input.experimentId),
-            ...optionalField("featureFlagId", input.featureFlagId),
+            ...optionalField("id", Option.fromUndefinedOr(input.experimentId)),
+            ...optionalField("featureFlagId", Option.fromUndefinedOr(input.featureFlagId)),
           },
           with: {
             featureFlag: true,

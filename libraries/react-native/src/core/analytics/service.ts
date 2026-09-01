@@ -1,8 +1,19 @@
-import {
-  make as makeEventCaptureClient,
-  type VoidhashEventCaptureClient,
-} from "@voidhash/generated-clients/event-capture";
-import { Duration, Effect, Latch, Layer, Ref, Schedule, Context } from "effect";
+import * as P from "effect/Predicate";
+import { make as makeEventCaptureClient } from "@voidhash/generated-clients/event-capture";
+import * as Arr from "effect/Array";
+import * as Clock from "effect/Clock";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as HashSet from "effect/HashSet";
+import * as Latch from "effect/Latch";
+import * as Layer from "effect/Layer";
+import * as MutableRef from "effect/MutableRef";
+import * as Option from "effect/Option";
+import * as Ref from "effect/Ref";
+import * as Schedule from "effect/Schedule";
+import * as Str from "effect/String";
+import * as Context from "effect/Context";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CacheManager } from "../caching/cache-manager";
@@ -16,6 +27,8 @@ import {
   getAnalyticsStandardizedProperties,
   mapQueuedAnalyticsEventToIngestEvent,
 } from "./utils";
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 const ANALYTICS_BATCH_SIZE = 20;
 const ANALYTICS_FLUSH_INTERVAL_MS = 5000;
@@ -26,50 +39,35 @@ const MAX_ANALYTICS_RETRY_DELAY_MS = 30_000;
  * 429/500/503 are also retryable but reach the catch handlers as their typed
  * counterparts and so don't go through the status-set fallback.
  */
-const RETRYABLE_HTTP_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+const RETRYABLE_HTTP_STATUS_CODES = HashSet.fromIterable([408, 429, 500, 502, 503, 504]);
 const ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY = "voidhash:analytics:last-seen-app-release";
 
 interface AppReleaseInfo {
-  readonly appBuild: string | null;
-  readonly appVersion: string | null;
+  readonly appBuild: string;
+  readonly appVersion: string;
 }
 
-const toNullableString = (value: unknown): string | null => {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+const toReleaseString = (value: unknown): string => {
+  if (value === null || value === undefined) return "";
+  if (P.isString(value)) return value;
+  if (P.isNumber(value) || P.isBoolean(value) || P.isBigInt(value)) {
     return String(value);
   }
-  return JSON.stringify(value);
-};
-
-const toAppReleaseInfo = (value: AppReleaseInfo | undefined | null): AppReleaseInfo | null => {
-  if (!value) return null;
-  return {
-    appBuild: value.appBuild,
-    appVersion: value.appVersion,
-  };
+  return effectEncodeJson(value);
 };
 
 const getAnalyticsRetryDelayMs = (attempts: number) =>
   Math.min(1000 * 2 ** Math.max(attempts - 1, 0), MAX_ANALYTICS_RETRY_DELAY_MS);
 
-const parseRetryAfterMs = (value: string | null | undefined): number | undefined => {
-  if (!value) {
-    return undefined;
-  }
-
+const parseRetryAfterMs = (value: string, now: number): Option.Option<number> => {
   const retryAfterSeconds = Number(value);
   if (!Number.isNaN(retryAfterSeconds) && retryAfterSeconds >= 0) {
-    return Math.ceil(retryAfterSeconds * 1000);
+    return Option.some(Math.ceil(retryAfterSeconds * 1000));
   }
 
-  const retryAt = Date.parse(value);
-  if (Number.isNaN(retryAt)) {
-    return undefined;
-  }
-
-  return Math.max(retryAt - Date.now(), 0);
+  return Option.map(DateTime.make(value), (retryAt) =>
+    Math.max(DateTime.toEpochMillis(retryAt) - now, 0),
+  );
 };
 
 /**
@@ -107,27 +105,24 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
       const queueRef = yield* Ref.make<ReadonlyArray<QueuedAnalyticsEvent>>([]);
       const latch = yield* Latch.make(false);
       const sessionId = getNonce();
-      const getStandardizedProperties = getAnalyticsStandardizedProperties();
-      let flushCallback: (() => void) | null = null;
+      const getStandardizedProperties = yield* Effect.cached(getAnalyticsStandardizedProperties);
+      const flushCallbackRef = MutableRef.make(Option.none<() => void>());
 
       // The ingest endpoint lives on the same host as the API but under the
       // `/i/v1/...` path prefix. The generated client owns the path, so we
       // only need to inject the base origin via `prependUrl`. `ingestUrl`
       // remains as an override for local/test ingest servers.
       const ingestBaseUrl = sdkConfiguration.ingestUrl ?? sdkConfiguration.baseUrl;
-      const eventCaptureClient = makeEventCaptureClient(
-        httpClient as VoidhashEventCaptureClient["httpClient"],
-        {
-          transformClient: (client) =>
-            Effect.succeed(
-              client.pipe(
-                HttpClient.mapRequest((request) =>
-                  HttpClientRequest.prependUrl(request, ingestBaseUrl),
-                ),
+      const eventCaptureClient = makeEventCaptureClient(httpClient, {
+        transformClient: (client) =>
+          Effect.succeed(
+            client.pipe(
+              HttpClient.mapRequest((request) =>
+                HttpClientRequest.prependUrl(request, ingestBaseUrl),
               ),
             ),
-        },
-      );
+          ),
+      });
 
       const failNonRetryable = (status: number) =>
         Effect.fail(
@@ -148,13 +143,12 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
           }),
         );
 
-      const sendAnalyticsEvents = (
-        events: ReadonlyArray<AnalyticsIngestEvent>,
-      ): Effect.Effect<void, AnalyticsSendFailure> =>
-        Effect.gen(function* () {
-          if (events.length === 0) return;
+      const sendAnalyticsEvents = Effect.fn("AnalyticsService.sendAnalyticsEvents")(
+        function* (events: ReadonlyArray<AnalyticsIngestEvent>) {
+          if (Arr.isReadonlyArrayEmpty(events)) return;
 
           const distinctId = yield* identityManager.getDistinctId();
+          const sentAt = yield* DateTime.now;
           yield* eventCaptureClient.eventCaptureBatch({
             payload: {
               events: events.map((event) => ({
@@ -166,48 +160,55 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
                 timestamp: event.event_ts,
                 uuid: event.event_id,
               })),
-              sent_at: new Date().toISOString(),
+              sent_at: DateTime.formatIso(sentAt),
               // A distributed client holds no secret key, so ingest authorizes
               // on the publishable token in the body.
               token: sdkConfiguration.publishableKey,
             },
           });
-        }).pipe(
-          Effect.catchTags({
-            CaptureDependencyUnavailableError: (err) => failRetryable(err.response.status),
-            CaptureInternalServerError: (err) => failRetryable(err.response.status),
-            // The 400 is now a typed contract error rather than an untagged
-            // `EventCaptureBatch400`.
-            CaptureInvalidRequestError: (err) => failNonRetryable(err.response.status),
-            CapturePayloadTooLargeError: (err) => failNonRetryable(err.response.status),
-            CaptureRateLimitedError: (err) =>
-              failRetryable(
-                err.response.status,
-                parseRetryAfterMs(err.response.headers["retry-after"]) ??
-                  err.data.retry_after_ms ??
-                  undefined,
-              ),
-            CaptureUnauthorizedError: (err) => failNonRetryable(err.response.status),
-          }),
-          // Unmapped status codes (e.g. 408/502/504) surface as
-          // `HttpClientError`; treat network errors and the retryable subset
-          // as retryable, everything else as non-retryable.
-          Effect.catchTag("HttpClientError", (cause) => {
-            const status = cause.response?.status;
-            if (status === undefined) {
-              return Effect.fail(
-                new AnalyticsSendFailure({
-                  cause,
-                  message: "Analytics request failed",
-                  retryable: true,
-                }),
+        },
+        Effect.catchTags({
+          CaptureDependencyUnavailableError: (err) => failRetryable(err.response.status),
+          CaptureInternalServerError: (err) => failRetryable(err.response.status),
+          // The 400 is now a typed contract error rather than an untagged
+          // `EventCaptureBatch400`.
+          CaptureInvalidRequestError: (err) => failNonRetryable(err.response.status),
+          CapturePayloadTooLargeError: (err) => failNonRetryable(err.response.status),
+          CaptureRateLimitedError: (err) =>
+            Effect.fn("AnalyticsService.handleRateLimit")(function* () {
+              const now = yield* Clock.currentTimeMillis;
+              const headerDelay = Option.flatMap(
+                Option.fromNullishOr(err.response.headers["retry-after"]),
+                (value) => parseRetryAfterMs(value, now),
               );
-            }
-            return RETRYABLE_HTTP_STATUS_CODES.has(status)
-              ? failRetryable(status)
-              : failNonRetryable(status);
-          }),
-        );
+              return yield* failRetryable(
+                err.response.status,
+                Option.getOrUndefined(
+                  Option.orElse(headerDelay, () => Option.fromNullishOr(err.data.retry_after_ms)),
+                ),
+              );
+            })(),
+          CaptureUnauthorizedError: (err) => failNonRetryable(err.response.status),
+        }),
+        // Unmapped status codes (e.g. 408/502/504) surface as
+        // `HttpClientError`; treat network errors and the retryable subset
+        // as retryable, everything else as non-retryable.
+        Effect.catchTag("HttpClientError", (cause) => {
+          const status = cause.response?.status;
+          if (status === undefined) {
+            return Effect.fail(
+              new AnalyticsSendFailure({
+                cause,
+                message: "Analytics request failed",
+                retryable: true,
+              }),
+            );
+          }
+          return HashSet.has(RETRYABLE_HTTP_STATUS_CODES, status)
+            ? failRetryable(status)
+            : failNonRetryable(status);
+        }),
+      );
 
       // Inline retry wrapper used by the queue-draining `flush()` path. Public
       // `sendAnalyticsEvents` stays single-shot so callers can implement their
@@ -244,39 +245,44 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
       // failure handling: success means no further action, retryable failure
       // re-inserts via `postponeQueuedBatch`, and non-retryable failure leaves
       // them dropped.
-      const takeDueBatch = () =>
+      const takeDueBatch = (now: number) =>
         Ref.modify(queueRef, (queue) => {
-          const now = Date.now();
-          const batch: QueuedAnalyticsEvent[] = [];
-          let cutoff = 0;
-
-          for (const event of queue) {
-            if (event.availableAt > now) break;
-            batch.push(event);
-            cutoff += 1;
-            if (batch.length >= ANALYTICS_BATCH_SIZE) break;
-          }
-
-          const remaining = batch.length === 0 ? queue : queue.slice(cutoff);
-          return [batch as ReadonlyArray<QueuedAnalyticsEvent>, remaining];
+          const initial: {
+            readonly batch: ReadonlyArray<QueuedAnalyticsEvent>;
+            readonly stopped: boolean;
+          } = { batch: [], stopped: false };
+          const { batch } = Arr.reduce(queue, initial, (state, event) => {
+            if (
+              state.stopped ||
+              event.availableAt > now ||
+              state.batch.length >= ANALYTICS_BATCH_SIZE
+            ) {
+              return { ...state, stopped: true };
+            }
+            return { batch: [...state.batch, event], stopped: false };
+          });
+          return [batch, queue.slice(batch.length)];
         });
 
-      const processQueuedBatch = (
+      const processQueuedBatch: (
         queuedBatch: ReadonlyArray<QueuedAnalyticsEvent>,
         standardizedProperties: Record<string, unknown>,
-      ): Effect.Effect<void> => {
+      ) => Effect.Effect<void> = Effect.fn("AnalyticsService.processQueuedBatch")(function* (
+        queuedBatch: ReadonlyArray<QueuedAnalyticsEvent>,
+        standardizedProperties: Record<string, unknown>,
+      ) {
         const ingestBatch = queuedBatch.map((event) =>
           mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties, sessionId),
         );
 
-        return sendWithInlineRetry(ingestBatch).pipe(
+        yield* sendWithInlineRetry(ingestBatch).pipe(
           Effect.catchTag("AnalyticsSendFailure", (failure) => {
             if (failure.status === 413 && queuedBatch.length > 1) {
               const midpoint = Math.ceil(queuedBatch.length / 2);
-              return Effect.gen(function* () {
+              return Effect.fn("AnalyticsService.splitOversizedBatch")(function* () {
                 yield* processQueuedBatch(queuedBatch.slice(0, midpoint), standardizedProperties);
                 yield* processQueuedBatch(queuedBatch.slice(midpoint), standardizedProperties);
-              });
+              })();
             }
 
             if (failure.status === 413) {
@@ -286,10 +292,13 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             }
 
             if (failure.retryable) {
-              const delayMs =
-                failure.retryAfterMs ??
-                getAnalyticsRetryDelayMs((queuedBatch[0]?.attempts ?? 0) + 1);
-              return postponeQueuedBatch(queuedBatch, Date.now() + delayMs);
+              return Effect.fn("AnalyticsService.postponeFailedBatch")(function* () {
+                const now = yield* Clock.currentTimeMillis;
+                const delayMs =
+                  failure.retryAfterMs ??
+                  getAnalyticsRetryDelayMs((queuedBatch[0]?.attempts ?? 0) + 1);
+                yield* postponeQueuedBatch(queuedBatch, now + delayMs);
+              })();
             }
 
             return Effect.logWarning("Dropping analytics batch after non-retryable response", {
@@ -298,100 +307,109 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             });
           }),
         );
-      };
+      });
 
-      const capture = (eventName: string, properties: Record<string, unknown> = {}) =>
-        Effect.sync(() => {
-          const normalized = eventName.trim();
-          if (!normalized) return;
-          const queued = createQueuedAnalyticsEvent(normalized, properties);
-          // Direct mutation inside `Effect.sync` is safe: the Effect runtime
-          // guarantees no other fiber crosses this sync boundary.
-          const next = [...queueRef.ref.current, queued];
-          queueRef.ref.current = next;
-          if (next.length >= ANALYTICS_BATCH_SIZE) {
-            // Wake the flush daemon immediately rather than waiting for the tick.
-            latch.openUnsafe();
-            flushCallback?.();
-          }
-        });
+      const capture = Effect.fn("AnalyticsService.capture")(function* (
+        eventName: string,
+        properties: Record<string, unknown> = {},
+      ) {
+        const normalized = eventName.trim();
+        if (!normalized) return;
+        const queued = yield* createQueuedAnalyticsEvent(normalized, properties);
+        const next = yield* Ref.updateAndGet(queueRef, (queue) => [...queue, queued]);
+        if (next.length >= ANALYTICS_BATCH_SIZE) {
+          // Wake the flush daemon immediately rather than waiting for the tick.
+          latch.openUnsafe();
+          Option.getOrElse(MutableRef.get(flushCallbackRef), () => () => undefined)();
+        }
+      });
 
-      const flush = () =>
-        Effect.gen(function* () {
-          const standardizedProperties = yield* getStandardizedProperties();
+      const flush = Effect.fn("AnalyticsService.flush")(function* () {
+        const standardizedProperties = yield* getStandardizedProperties;
 
-          let batch = yield* takeDueBatch();
-          while (batch.length > 0) {
+        const drain: () => Effect.Effect<void> = Effect.fn("AnalyticsService.drainQueue")(
+          function* () {
+            const now = yield* Clock.currentTimeMillis;
+            const batch = yield* takeDueBatch(now);
+            if (Arr.isReadonlyArrayEmpty(batch)) return;
             yield* processQueuedBatch(batch, standardizedProperties);
-            batch = yield* takeDueBatch();
-          }
-        });
+            yield* drain();
+          },
+        );
+        yield* drain();
+      });
 
-      const transferEvents = (
+      const transferEvents = Effect.fn("AnalyticsService.transferEvents")(function* (
         events: ReadonlyArray<{
           eventName: string;
           properties: Record<string, unknown>;
         }>,
-      ) =>
-        Effect.sync(() => {
-          const additions: QueuedAnalyticsEvent[] = [];
-          for (const event of events) {
-            const normalized = event.eventName.trim();
-            if (!normalized) continue;
-            additions.push(createQueuedAnalyticsEvent(normalized, event.properties));
-          }
-          if (additions.length === 0) return;
-          queueRef.ref.current = [...queueRef.ref.current, ...additions];
+      ) {
+        const additions = yield* Effect.forEach(
+          events.filter((event) => Str.isNonEmpty(event.eventName.trim())),
+          (event) => createQueuedAnalyticsEvent(event.eventName.trim(), event.properties),
+          { concurrency: 1 },
+        );
+        if (Arr.isReadonlyArrayEmpty(additions)) return;
+        yield* Ref.update(queueRef, (queue) => [...queue, ...additions]);
+      });
+
+      const captureAutomaticStartupEvents = Effect.fn(
+        "AnalyticsService.captureAutomaticStartupEvents",
+      )(function* () {
+        const standardizedProps = yield* getStandardizedProperties;
+        const currentAppRelease: AppReleaseInfo = {
+          appBuild: toReleaseString(standardizedProps.$app_build),
+          appVersion: toReleaseString(standardizedProps.$app_version),
+        };
+
+        // If reading the cached release fails, fall back to recording the
+        // session as a fresh `$app_opened`. Captures still flow through the
+        // same queue so the failure mode is "lose the install/update event,"
+        // not "drop the session start."
+        const cachedRelease = yield* cacheManager
+          .get<AppReleaseInfo>(ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY)
+          .pipe(Effect.orElseSucceed(() => Option.none()));
+        const previousAppRelease = Option.map(cachedRelease, (hit) => hit.value);
+        const releaseEvent = Option.match(previousAppRelease, {
+          onNone: () => Option.some(AUTOMATIC_EVENTS.APP_INSTALLED),
+          onSome: (previous) =>
+            previous.appBuild !== currentAppRelease.appBuild ||
+            previous.appVersion !== currentAppRelease.appVersion
+              ? Option.some(AUTOMATIC_EVENTS.APP_UPDATED)
+              : Option.none(),
         });
-
-      const captureAutomaticStartupEvents = () =>
-        Effect.gen(function* () {
-          const standardizedProps = yield* getStandardizedProperties();
-          const currentAppRelease: AppReleaseInfo = {
-            appBuild: toNullableString(standardizedProps.$app_build),
-            appVersion: toNullableString(standardizedProps.$app_version),
-          };
-
-          // If reading the cached release fails, fall back to recording the
-          // session as a fresh `$app_opened`. Captures still flow through the
-          // same queue so the failure mode is "lose the install/update event,"
-          // not "drop the session start."
-          const cachedRelease = yield* cacheManager
-            .get<AppReleaseInfo>(ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY)
-            .pipe(Effect.orElseSucceed(() => null));
-          const previousAppRelease = toAppReleaseInfo(cachedRelease?.value);
-
-          const additions: QueuedAnalyticsEvent[] = [];
-          if (!previousAppRelease) {
-            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_INSTALLED, {}));
-          } else if (
-            previousAppRelease.appBuild !== currentAppRelease.appBuild ||
-            previousAppRelease.appVersion !== currentAppRelease.appVersion
-          ) {
-            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_UPDATED, {}));
-          }
-          additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_OPENED, {}));
-
-          queueRef.ref.current = [...queueRef.ref.current, ...additions];
-
-          yield* cacheManager
-            .set(ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY, currentAppRelease)
-            .pipe(Effect.orElseSucceed(() => undefined));
+        const eventNames = Option.match(releaseEvent, {
+          onNone: () => [AUTOMATIC_EVENTS.APP_OPENED],
+          onSome: (eventName) => [eventName, AUTOMATIC_EVENTS.APP_OPENED],
         });
+        const additions = yield* Effect.forEach(
+          eventNames,
+          (eventName) => createQueuedAnalyticsEvent(eventName, {}),
+          { concurrency: 1 },
+        );
+        yield* Ref.update(queueRef, (queue) => [...queue, ...additions]);
+
+        yield* cacheManager
+          .set(ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY, currentAppRelease)
+          .pipe(Effect.orElseSucceed(() => undefined));
+      });
 
       // Background flush daemon: wakes on either the 5s tick or a threshold
       // signal from `capture`, then fires the registered callback so the outer
       // wrapper can route the flush through its single-flight guard. Forked
       // into the service scope — interrupted automatically on runtime dispose.
       const daemon = Effect.forever(
-        Effect.gen(function* () {
+        Effect.fn("AnalyticsService.flushDaemonTick")(function* () {
           yield* Effect.race(
             Effect.sleep(Duration.millis(ANALYTICS_FLUSH_INTERVAL_MS)),
             latch.await,
           );
           yield* latch.close;
-          yield* Effect.sync(() => flushCallback?.());
-        }),
+          yield* Effect.sync(() =>
+            Option.getOrElse(MutableRef.get(flushCallbackRef), () => () => undefined)(),
+          );
+        })(),
       );
       yield* Effect.forkScoped(daemon);
 
@@ -400,10 +418,10 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
         captureAutomaticStartupEvents,
         flush,
         getQueueLength: () => queueRef.ref.current.length,
-        getStandardizedProperties: () => getStandardizedProperties(),
+        getStandardizedProperties: () => getStandardizedProperties,
         sendAnalyticsEvents,
         setFlushCallback: (cb: () => void) => {
-          flushCallback = cb;
+          MutableRef.set(flushCallbackRef, Option.some(cb));
         },
         transferEvents,
       } as const;

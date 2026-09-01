@@ -1,36 +1,37 @@
-import { Effect, Layer, Context } from "effect";
+import * as R from "effect/Record";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 
 import { CacheManager } from "../caching/cache-manager";
 import type { Product } from "../entities/product";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
 import type { ProductSlug } from "../schema/registry";
 import type { RuntimeProductDefinition, RuntimeSchema } from "../schema/runtime";
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
- * Map of product slugs to the resolved native subscription product (or `null`
+ * Map of product slugs to the resolved native subscription product (or `None`
  * when the underlying store SDK doesn't know about that product on this
  * platform).
  */
-export type ProductsBySlug = Record<ProductSlug, Product | null>;
+export type ProductsBySlug = Readonly<Record<ProductSlug, Option.Option<Product>>>;
 
 const NATIVE_PRODUCTS_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 
 const generateCacheKeyFromProductDefinitions = (
   productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
-) => `native-products:${JSON.stringify(productDefinitions)}`;
+) => `native-products:${effectEncodeJson(productDefinitions)}`;
 
 const mapNativeProductsToProductMap = (
   productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
   nativeProducts: Product[],
 ): ProductsBySlug => {
-  const productMap = {} as Record<string, Product | null>;
-
-  for (const slug of Object.keys(productDefinitions)) {
-    const nativeProduct = nativeProducts.find((candidate) => candidate.slug === slug);
-    productMap[slug] = nativeProduct ?? null;
-  }
-
-  return productMap as ProductsBySlug;
+  return R.map(productDefinitions, (_definition, slug) =>
+    Option.fromNullishOr(nativeProducts.find((candidate) => candidate.slug === slug)),
+  );
 };
 
 /**
@@ -45,37 +46,37 @@ export class ProductService extends Context.Service<ProductService>()(
       const cacheManager = yield* CacheManager;
       const paymentAdapter = yield* PaymentAdapter;
 
-      const loadProductsCached = (
+      const loadProductsCached = Effect.fn("ProductService.loadProductsCached")(function* (
         productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
-      ) =>
-        Effect.gen(function* () {
-          const cacheKey = generateCacheKeyFromProductDefinitions(productDefinitions);
-          const cached = yield* cacheManager.get<Product[]>(cacheKey);
-          if (cached && !(cached.isStale || cached.isExpired)) {
-            yield* Effect.logDebug("Products fetched from cache", {
-              products: cached.value,
-            });
-            return cached.value;
-          }
-
-          const nativeProducts = yield* paymentAdapter.getProducts(productDefinitions);
-          yield* Effect.logDebug("Products fetched from native adapter", {
-            products: nativeProducts,
+      ) {
+        const cacheKey = generateCacheKeyFromProductDefinitions(productDefinitions);
+        const cached = yield* cacheManager.get<Product[]>(cacheKey);
+        if (Option.isSome(cached) && !(cached.value.isStale || cached.value.isExpired)) {
+          yield* Effect.logDebug("Products fetched from cache", {
+            products: cached.value.value,
           });
+          return cached.value.value;
+        }
 
-          yield* cacheManager.set(cacheKey, nativeProducts, {
-            ttl: NATIVE_PRODUCTS_CACHE_TTL_MS,
-          });
-
-          return nativeProducts;
+        const nativeProducts = yield* paymentAdapter.getProducts(productDefinitions);
+        yield* Effect.logDebug("Products fetched from native adapter", {
+          products: nativeProducts,
         });
 
-      const getProducts = (schema: RuntimeSchema) =>
-        Effect.gen(function* () {
-          const productDefinitions = schema.products;
-          const nativeProducts = yield* loadProductsCached(productDefinitions);
-          return mapNativeProductsToProductMap(productDefinitions, nativeProducts);
+        yield* cacheManager.set(cacheKey, nativeProducts, {
+          ttl: NATIVE_PRODUCTS_CACHE_TTL_MS,
         });
+
+        return nativeProducts;
+      });
+
+      const getProducts = Effect.fn("ProductService.getProducts")(function* (
+        schema: RuntimeSchema,
+      ) {
+        const productDefinitions = schema.products;
+        const nativeProducts = yield* loadProductsCached(productDefinitions);
+        return mapNativeProductsToProductMap(productDefinitions, nativeProducts);
+      });
 
       return { getProducts } as const;
     }),

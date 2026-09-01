@@ -10,7 +10,7 @@
  * mis-parsing them as identifiers, and so they can never be used as aliases.
  */
 import { pick } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as HashSet from "effect/HashSet";
 
 import type { Pos } from "./ast/VoidQlAst.ts";
 import { VoidQlComplexityError, VoidQlSyntaxError } from "./errors.ts";
@@ -20,8 +20,9 @@ import { VoidQlComplexityError, VoidQlSyntaxError } from "./errors.ts";
  * surfaced as a defect run synchronously, which rethrows the very instance;
  * `compileVoidQl` catches it and re-types it into the compile-error channel.
  */
-const raise = (error: VoidQlComplexityError | VoidQlSyntaxError) =>
-  Effect.runSync(Effect.die(error));
+const raise = (error: VoidQlComplexityError | VoidQlSyntaxError): never => {
+  throw error;
+};
 
 export type TokenKind = "ident" | "kw" | "string" | "number" | "op" | "eof";
 
@@ -38,7 +39,7 @@ export interface Token {
 }
 
 /** Structural keywords with a grammar production in the supported query surface. */
-const ALLOWED_KEYWORDS = new Set([
+const ALLOWED_KEYWORDS = HashSet.make(
   "select",
   "distinct",
   "all",
@@ -101,14 +102,14 @@ const ALLOWED_KEYWORDS = new Set([
   "like",
   "ilike",
   "exists",
-]);
+);
 
 /**
  * Reserved words with **no production** — deferred constructs and permanently
  * denied statements. Tokenised so the parser fails closed with a teachable parse
  * error instead of accepting and rejecting the construct later.
  */
-const FORBIDDEN_KEYWORDS = new Set([
+const FORBIDDEN_KEYWORDS = HashSet.make(
   "settings",
   "set",
   "format",
@@ -141,12 +142,13 @@ const FORBIDDEN_KEYWORDS = new Set([
   "use",
   "outfile",
   "infile",
-]);
+);
 
-const KEYWORDS = new Set([...ALLOWED_KEYWORDS, ...FORBIDDEN_KEYWORDS]);
+const KEYWORDS = HashSet.union(ALLOWED_KEYWORDS, FORBIDDEN_KEYWORDS);
 
 /** Exposed so the parser can classify a `kw` token without re-deriving the set. */
-export const isForbiddenKeyword = (lower: string): boolean => FORBIDDEN_KEYWORDS.has(lower);
+export const isForbiddenKeyword = (lower: string): boolean =>
+  HashSet.has(FORBIDDEN_KEYWORDS, lower);
 
 const MAX_TOKENS = 50_000;
 
@@ -168,7 +170,7 @@ export const lex = (text: string): readonly Token[] => {
   const pos = () => ({ line, col, offset }) satisfies Pos;
 
   const advance = () => {
-    const c = text[offset]!;
+    const c = text[offset] ?? "";
     offset += 1;
     if (c === "\n") {
       line += 1;
@@ -196,19 +198,25 @@ export const lex = (text: string): readonly Token[] => {
       }),
     );
 
-  while (offset < text.length) {
+  const scan = (): void => {
+    if (offset >= text.length) return;
     const c = peek();
 
     // whitespace
     if (c === " " || c === "\t" || c === "\r" || c === "\n") {
       advance();
-      continue;
+      return scan();
     }
 
     // line comment
     if (c === "-" && peek(1) === "-") {
-      while (offset < text.length && peek() !== "\n") advance();
-      continue;
+      const skipLineComment = (): void => {
+        if (offset >= text.length || peek() === "\n") return;
+        advance();
+        skipLineComment();
+      };
+      skipLineComment();
+      return scan();
     }
 
     // block comment
@@ -216,18 +224,19 @@ export const lex = (text: string): readonly Token[] => {
       const start = pos();
       advance();
       advance();
-      let closed = false;
-      while (offset < text.length) {
+      const consumeBlockComment = (): boolean => {
+        if (offset >= text.length) return false;
         if (peek() === "*" && peek(1) === "/") {
           advance();
           advance();
-          closed = true;
-          break;
+          return true;
         }
         advance();
-      }
+        return consumeBlockComment();
+      };
+      const closed = consumeBlockComment();
       if (!closed) fail(start, "Unterminated block comment.");
-      continue;
+      return scan();
     }
 
     // string literal — single-quoted, '' escapes a quote, no backslash escaping
@@ -235,23 +244,24 @@ export const lex = (text: string): readonly Token[] => {
       const start = pos();
       advance();
       let value = "";
-      let closed = false;
-      while (offset < text.length) {
+      const consumeString = (): boolean => {
+        if (offset >= text.length) return false;
         const ch = advance();
         if (ch === "'") {
           if (peek() === "'") {
             advance();
             value += "'";
-            continue;
+            return consumeString();
           }
-          closed = true;
-          break;
+          return true;
         }
         value += ch;
-      }
+        return consumeString();
+      };
+      const closed = consumeString();
       if (!closed) fail(start, "Unterminated string literal.");
       push({ kind: "string", text: value, value, start, end: pos() });
-      continue;
+      return scan();
     }
 
     // number literal
@@ -259,18 +269,23 @@ export const lex = (text: string): readonly Token[] => {
       const start = pos();
       let raw = "";
       let isFloat = false;
-      while (offset < text.length && isDigit(peek())) raw += advance();
+      const consumeDigits = (): void => {
+        if (offset >= text.length || !isDigit(peek())) return;
+        raw += advance();
+        consumeDigits();
+      };
+      consumeDigits();
       if (peek() === ".") {
         isFloat = true;
         raw += advance();
-        while (offset < text.length && isDigit(peek())) raw += advance();
+        consumeDigits();
       }
       if (peek() === "e" || peek() === "E") {
         isFloat = true;
         raw += advance();
         if (peek() === "+" || peek() === "-") raw += advance();
         if (!isDigit(peek())) fail(start, "Malformed exponent in number literal.");
-        while (offset < text.length && isDigit(peek())) raw += advance();
+        consumeDigits();
       }
       // A trailing identifier char immediately after a number is illegal (e.g. `1abc`).
       if (isIdentStart(peek())) fail(start, "Invalid number literal.");
@@ -284,21 +299,26 @@ export const lex = (text: string): readonly Token[] => {
         start,
         end: pos(),
       });
-      continue;
+      return scan();
     }
 
     // identifier or keyword
     if (isIdentStart(c)) {
       const start = pos();
       let raw = "";
-      while (offset < text.length && isIdentPart(peek())) raw += advance();
+      const consumeIdentifier = (): void => {
+        if (offset >= text.length || !isIdentPart(peek())) return;
+        raw += advance();
+        consumeIdentifier();
+      };
+      consumeIdentifier();
       const lower = raw.toLowerCase();
-      if (KEYWORDS.has(lower)) {
+      if (HashSet.has(KEYWORDS, lower)) {
         push({ kind: "kw", text: lower, start, end: pos() });
       } else {
         push({ kind: "ident", text: raw, start, end: pos() });
       }
-      continue;
+      return scan();
     }
 
     // operators / punctuation
@@ -308,16 +328,18 @@ export const lex = (text: string): readonly Token[] => {
       advance();
       advance();
       push({ kind: "op", text: pick(two === "<>", "!=", two), start, end: pos() });
-      continue;
+      return scan();
     }
     if ("=<>+-*/%(),.;".includes(c)) {
       advance();
       push({ kind: "op", text: c, start, end: pos() });
-      continue;
+      return scan();
     }
 
     fail(start, `Unexpected character '${c}'.`);
-  }
+  };
+
+  scan();
 
   push({ kind: "eof", text: "", start: pos(), end: pos() });
   return tokens;

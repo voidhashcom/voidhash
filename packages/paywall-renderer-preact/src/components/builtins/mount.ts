@@ -15,7 +15,7 @@ export interface MountBuiltinPreviewOptions {
   props: ComponentSnapshotNode["data"]["props"];
 }
 
-const EMPTY_VARIABLES: VariableReader = new Map();
+const EMPTY_VARIABLES: VariableReader = { get: () => undefined };
 
 /**
  * Mounts a built-in component as a small preact island inside an arbitrary
@@ -31,7 +31,7 @@ const EMPTY_VARIABLES: VariableReader = new Map();
 export function mountBuiltinPreview(
   container: HTMLElement,
   options: MountBuiltinPreviewOptions,
-): (() => void) | undefined {
+) {
   const renderer = BUILTIN_RENDERERS[options.slug];
   if (!renderer) {
     return undefined;

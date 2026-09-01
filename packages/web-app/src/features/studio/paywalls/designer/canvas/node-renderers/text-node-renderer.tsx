@@ -2,6 +2,7 @@ import { resolveText } from "@voidhash/mimic-schema";
 import { buildTextStyles, type TextSnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { useCallback, useEffect, useRef } from "react";
 import { useStore } from "zustand/react";
+import * as Option from "effect/Option";
 
 import {
   selectNode,
@@ -44,7 +45,7 @@ export function TextNodeRenderer({
   const isFocused = editingNodeId === node.id;
   // `null` (default locale) resolves byte-for-byte to today's `node.data.text`.
   const isBaseLocale = activeLocale === null || activeLocale === defaultLocale;
-  const resolvedText = resolveText(node.data, activeLocale, defaultLocale);
+  const resolvedText = resolveText(node.data, Option.fromNullishOr(activeLocale), defaultLocale);
   // A non-default locale that resolves back to the base text has no override —
   // dim it in place so untranslated content is scannable without shifting layout.
   const isMissingTranslation = !isBaseLocale && resolvedText === node.data.text;

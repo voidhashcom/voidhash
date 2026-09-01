@@ -1,3 +1,4 @@
+import * as R from "effect/Record";
 /**
  * Vite plugin that compiles the paywall hydration runtime at build time.
  *
@@ -14,13 +15,17 @@
  */
 
 import * as esbuild from "esbuild";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Plugin } from "vite";
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
+
 
 const packageRootUrl = new URL("..", import.meta.url);
-const packageRoot = fileURLToPath(packageRootUrl);
-const entryPoint = fileURLToPath(new URL("src/runtime/hydrate.tsx", packageRootUrl));
-const placeholderModule = fileURLToPath(new URL("src/templates/runtime-bundle.ts", packageRootUrl));
+const packageRoot = decodeURIComponent(packageRootUrl.pathname);
+const entryPoint = decodeURIComponent(new URL("src/runtime/hydrate.tsx", packageRootUrl).pathname);
+const placeholderModule = decodeURIComponent(
+  new URL("src/templates/runtime-bundle.ts", packageRootUrl).pathname,
+);
 
 interface RuntimeBundle {
   code: string;
@@ -47,12 +52,12 @@ async function buildRuntimeBundle(): Promise<RuntimeBundle> {
   });
 
   const bundle = result.outputFiles[0].text;
-  const watchFiles = Object.keys(result.metafile.inputs)
+  const watchFiles = R.keys(result.metafile.inputs)
     .filter((input) => !input.includes("node_modules"))
-    .map((input) => fileURLToPath(new URL(input, packageRootUrl)));
+    .map((input) => decodeURIComponent(new URL(input, packageRootUrl).pathname));
 
   return {
-    code: `export function getRuntimeBundle() {\n  return ${JSON.stringify(bundle)};\n}\n`,
+    code: `export function getRuntimeBundle() {\n  return ${effectEncodeJson(bundle)};\n}\n`,
     watchFiles,
   };
 }
@@ -67,13 +72,11 @@ export function paywallRuntimeBundlePlugin(): Plugin {
     enforce: "pre",
     async transform(_code, id) {
       const [file] = id.split("?");
-      if (fileURLToPath(pathToFileURL(file)) !== placeholderModule) {
+      if (file !== placeholderModule) {
         return null;
       }
       const { code, watchFiles } = await buildRuntimeBundle();
-      for (const watchFile of watchFiles) {
-        this.addWatchFile(watchFile);
-      }
+      watchFiles.forEach((watchFile) => this.addWatchFile(watchFile));
       return { code, map: null };
     },
   };

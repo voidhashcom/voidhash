@@ -1,4 +1,7 @@
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
 
 import { CacheManager } from "../caching/cache-manager";
 import { ApiClient } from "../networking/api-client";
@@ -12,7 +15,7 @@ import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 export interface PersonAttributes {
   email?: string;
   name?: string;
-  [k: string]: string | number | boolean | null | undefined;
+  [k: string]: unknown;
 }
 
 /**
@@ -25,18 +28,20 @@ export const splitReservedAttributes = (attributes: PersonAttributes) => {
   return {
     email,
     name,
-    traits: rest as Record<string, unknown>,
+    traits: rest,
   };
 };
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("makePersonAttributeManager")(function* effect() {
   const cacheManager = yield* CacheManager;
   const apiClient = yield* ApiClient;
 
   const getPersonAttributes = (distinctId: string) =>
     cacheManager
       .get<PersonAttributes>(generatePersonAttributesCacheKey(distinctId))
-      .pipe(Effect.map((attributes) => attributes?.value ?? null));
+      .pipe(
+        Effect.map(Option.match({ onNone: () => null, onSome: (attributes) => attributes.value })),
+      );
 
   const cacheAttributes = (distinctId: string, attributes: PersonAttributes) =>
     cacheManager.set(generatePersonAttributesCacheKey(distinctId), attributes);
@@ -77,9 +82,9 @@ const make = Effect.gen(function* effect() {
 
 export class PersonAttributeManager extends Context.Service<
   PersonAttributeManager,
-  Effect.Success<typeof make>
+  Effect.Success<ReturnType<typeof make>>
 >()("rn-voidhash/PersonAttributeManager") {
-  static Default = Layer.effect(PersonAttributeManager, make).pipe(
+  static Default = Layer.effect(PersonAttributeManager, make()).pipe(
     Layer.provide(CacheManager.Default),
   );
 }

@@ -5,7 +5,9 @@ import {
   type NodeType,
 } from "@voidhash/mimic-schema";
 import { getBuiltinComponent, listBuiltinComponents } from "@voidhash/paywall-builtins";
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import { runSync } from "./runtime-boundary.ts";
+import * as Schema from "effect/Schema";
 
 import {
   acceptanceOf,
@@ -18,6 +20,27 @@ import {
 } from "./mimic-introspection.ts";
 import { deriveEnabledFlagsForNodeInput, deriveEnabledFlagsForSet } from "./style-group-flags.ts";
 import type { DocumentEdit, NodeInput } from "./surfaces.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as Str from "effect/String";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
+
+interface MutableIndex<K, V> {
+  readonly get: (key: K) => V | void;
+  readonly set: (key: K, value: V) => void;
+}
+
+const makeMutableIndex = <K, V>(): MutableIndex<K, V> => {
+  const backing = MutableHashMap.empty<K, V>();
+  return {
+    get: (key) => Option.getOrUndefined(MutableHashMap.get(backing, key)),
+    set: (key, value) => {
+      MutableHashMap.set(backing, key, value);
+    },
+  };
+};
 
 /**
  * The minimal tree the {@link validateDocumentEdits} validator reads. Both the
@@ -36,7 +59,7 @@ const toJsonText = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /** A non-null, non-array object (a mimic `style` / update `set` shape). */
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+  return value !== null && P.isObject(value) && !Array.isArray(value);
 }
 
 export interface EditableDocumentNode {
@@ -140,7 +163,7 @@ export function validateDocumentEdits(
   const errors: DocumentEditError[] = [];
   const byId = indexById(tree);
 
-  if (edits.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(edits)) {
     return {
       ok: false,
       errors: [
@@ -156,79 +179,74 @@ export function validateDocumentEdits(
   const normalized: NormalizedDocumentEdit[] = [];
 
   edits.forEach((edit, editIndex) => {
-    switch (edit.op) {
-      case "insert": {
-        const parent = requireNode(byId, edit.parentId, editIndex, "unknownParent", errors);
-        if (parent) {
+    if (edit.op === "insert") {
+      const parent = requireNode(byId, edit.parentId, editIndex, "unknownParent", errors);
+      if (parent) {
+        const normalizedIndex = clampIndex(edit.index, parent.children?.length ?? 0);
+        validateChildType(edit.node.type, parent.type, editIndex, errors);
+        validateNodeInput(edit.node, editIndex, `node`, errors);
+        normalized.push({
+          ...edit,
+          index: normalizedIndex,
+          node: deriveEnabledFlagsForNodeInput(edit.node),
+        });
+      }
+      return;
+    }
+    if (edit.op === "update") {
+      const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
+      if (node) {
+        validateSet(node.type, edit.set, editIndex, errors);
+        const set = deriveEnabledFlagsForSet(node.type, edit.set);
+        if (set === edit.set) normalized.push(edit);
+        else normalized.push({ ...edit, set });
+      }
+      return;
+    }
+    if (edit.op === "move") {
+      const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
+      const parent = requireNode(byId, edit.parentId, editIndex, "unknownParent", errors);
+      if (node && parent && validateMutableTarget(node, tree.id, "move", editIndex, errors)) {
+        validateChildType(node.type, parent.type, editIndex, errors);
+        if (isSelfOrDescendant(node, edit.parentId)) {
+          errors.push({
+            editIndex,
+            code: "moveCycle",
+            nodeId: edit.nodeId,
+            message: `Cannot move node \`${edit.nodeId}\` into itself or its own descendant \`${edit.parentId}\` — that would create a cycle.`,
+          });
+        } else {
           const normalizedIndex = clampIndex(edit.index, parent.children?.length ?? 0);
-          validateChildType(edit.node.type, parent.type, editIndex, errors);
-          validateNodeInput(edit.node, editIndex, `node`, errors);
-          normalized.push({
-            ...edit,
-            index: normalizedIndex,
-            node: deriveEnabledFlagsForNodeInput(edit.node),
-          });
+          normalized.push({ ...edit, index: normalizedIndex });
         }
-        break;
       }
-      case "update": {
-        const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
-        if (node) {
-          validateSet(node.type, edit.set, editIndex, errors);
-          const set = deriveEnabledFlagsForSet(node.type, edit.set);
-          if (set === edit.set) normalized.push(edit);
-          else normalized.push({ ...edit, set });
-        }
-        break;
+      return;
+    }
+    if (edit.op === "remove") {
+      const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
+      if (node && validateMutableTarget(node, tree.id, "remove", editIndex, errors)) {
+        normalized.push(edit);
       }
-      case "move": {
-        const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
-        const parent = requireNode(byId, edit.parentId, editIndex, "unknownParent", errors);
-        if (node && parent) {
-          if (validateMutableTarget(node, tree.id, "move", editIndex, errors)) {
-            validateChildType(node.type, parent.type, editIndex, errors);
-            if (isSelfOrDescendant(node, edit.parentId)) {
-              errors.push({
-                editIndex,
-                code: "moveCycle",
-                nodeId: edit.nodeId,
-                message: `Cannot move node \`${edit.nodeId}\` into itself or its own descendant \`${edit.parentId}\` — that would create a cycle.`,
-              });
-            } else {
-              const normalizedIndex = clampIndex(edit.index, parent.children?.length ?? 0);
-              normalized.push({ ...edit, index: normalizedIndex });
-            }
-          }
-        }
-        break;
-      }
-      case "remove": {
-        const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
-        if (node && validateMutableTarget(node, tree.id, "remove", editIndex, errors)) {
-          normalized.push(edit);
-        }
-        break;
-      }
-      case "replaceChildren": {
-        const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
-        if (node && validateMutableTarget(node, tree.id, "replaceChildren", editIndex, errors)) {
-          edit.children.forEach((child, childIdx) => {
-            validateChildType(child.type, node.type, editIndex, errors);
-            validateNodeInput(child, editIndex, `children[${childIdx}]`, errors);
-          });
-          normalized.push({
-            ...edit,
-            children: edit.children.map(deriveEnabledFlagsForNodeInput),
-          });
-        }
-        break;
+      return;
+    }
+    if (edit.op === "replaceChildren") {
+      const node = requireNode(byId, edit.nodeId, editIndex, "unknownNode", errors);
+      if (node && validateMutableTarget(node, tree.id, "replaceChildren", editIndex, errors)) {
+        edit.children.forEach((child, childIdx) => {
+          validateChildType(child.type, node.type, editIndex, errors);
+          validateNodeInput(child, editIndex, `children[${childIdx}]`, errors);
+        });
+        normalized.push({
+          ...edit,
+          children: edit.children.map(deriveEnabledFlagsForNodeInput),
+        });
       }
     }
   });
 
   validateNonOverlapping(edits, byId, errors);
 
-  if (errors.length > 0) return { ok: false, errors };
+  if (Arr.isReadonlyArrayNonEmpty(errors)) return { ok: false, errors };
   return { ok: true, edits: normalized };
 }
 
@@ -275,7 +293,7 @@ function validateMutableTarget(
  * identity): `nodeId` for update/move/remove/replaceChildren, `null` for `insert`
  * (an insert creates fresh nodes and only reads its parent, so it never overlaps).
  */
-function targetOf(edit: DocumentEdit): string | null {
+function targetOf(edit: DocumentEdit): string | typeof Schema.Null.Type {
   if (edit.op === "insert") return null;
   return edit.nodeId;
 }
@@ -289,11 +307,11 @@ function targetOf(edit: DocumentEdit): string | null {
  */
 function validateNonOverlapping(
   edits: readonly DocumentEdit[],
-  byId: Map<string, EditableDocumentNode>,
+  byId: MutableIndex<string, EditableDocumentNode>,
   errors: DocumentEditError[],
 ): void {
   // (a) the same node id targeted more than once.
-  const seen = new Map<string, number>();
+  const seen = makeMutableIndex<string, number>();
   edits.forEach((edit, editIndex) => {
     const target = targetOf(edit);
     if (target === null) return;
@@ -318,10 +336,10 @@ function validateNonOverlapping(
   edits.forEach((edit, editIndex) => {
     const target = targetOf(edit);
     if (target === null) return;
-    for (const { edit: other, editIndex: otherIndex } of wholesale) {
-      if (otherIndex === editIndex) continue;
+    Arr.forEach(wholesale, ({ edit: other, editIndex: otherIndex }) => {
+      if (otherIndex === editIndex) return;
       const otherTarget = targetOf(other);
-      if (otherTarget === null || otherTarget === target) continue;
+      if (otherTarget === null || otherTarget === target) return;
       const otherNode = byId.get(otherTarget);
       // `replaceChildren` drops the DESCENDANTS of its target (its children), while
       // `remove` drops the target itself too — but a target equal to the removed
@@ -335,7 +353,7 @@ function validateNonOverlapping(
           message: `Edit ${editIndex} targets node \`${target}\`, which is inside the subtree edit ${otherIndex} ${wholesaleVerb(other)} (\`${otherTarget}\`). Removal already includes descendants, so this overlap is redundant and makes undo ambiguous — drop the inner edit, or split them into separate edit_paywall calls.`,
         });
       }
-    }
+    });
   });
 }
 
@@ -347,10 +365,9 @@ function wholesaleVerb(edit: DocumentEdit): string {
 
 /** Whether `candidateId` is a PROPER descendant of `node` (excludes `node` itself). */
 function isProperDescendant(node: EditableDocumentNode, candidateId: string): boolean {
-  for (const child of node.children ?? []) {
-    if (child.id === candidateId || isProperDescendant(child, candidateId)) return true;
-  }
-  return false;
+  return (node.children ?? []).some(
+    (child) => child.id === candidateId || isProperDescendant(child, candidateId),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -358,11 +375,11 @@ function isProperDescendant(node: EditableDocumentNode, candidateId: string): bo
 // ---------------------------------------------------------------------------
 
 /** Build an id → node map from the tree (depth-first). */
-function indexById(root: EditableDocumentNode): Map<string, EditableDocumentNode> {
-  const map = new Map<string, EditableDocumentNode>();
+function indexById(root: EditableDocumentNode): MutableIndex<string, EditableDocumentNode> {
+  const map = makeMutableIndex<string, EditableDocumentNode>();
   const walk = (node: EditableDocumentNode) => {
     map.set(node.id, node);
-    for (const child of node.children ?? []) walk(child);
+    Arr.forEach(node.children ?? [], (child) => { walk(child); });
   };
   walk(root);
   return map;
@@ -370,12 +387,12 @@ function indexById(root: EditableDocumentNode): Map<string, EditableDocumentNode
 
 /** Resolve a node by id, pushing a structured error (and returning `null`) if absent. */
 function requireNode(
-  byId: Map<string, EditableDocumentNode>,
+  byId: MutableIndex<string, EditableDocumentNode>,
   id: string,
   editIndex: number,
   code: "unknownNode" | "unknownParent",
   errors: DocumentEditError[],
-): EditableDocumentNode | null {
+): EditableDocumentNode | typeof Schema.Null.Type {
   const node = byId.get(id);
   if (node) return node;
   errors.push({
@@ -396,14 +413,11 @@ function missingNodeLabel(code: "unknownNode" | "unknownParent"): string {
 /** Whether `candidateParentId` is `node` itself or lies within `node`'s subtree. */
 function isSelfOrDescendant(node: EditableDocumentNode, candidateParentId: string): boolean {
   if (node.id === candidateParentId) return true;
-  for (const child of node.children ?? []) {
-    if (isSelfOrDescendant(child, candidateParentId)) return true;
-  }
-  return false;
+  return (node.children ?? []).some((child) => isSelfOrDescendant(child, candidateParentId));
 }
 
 /** Clamp an index into `[0, childCount]` (append when omitted / past the end). */
-function clampIndex(index: number | undefined, childCount: number): number {
+function clampIndex(index: number | void, childCount: number): number {
   if (index === undefined) return childCount;
   if (index < 0) return 0;
   return Math.min(index, childCount);
@@ -438,7 +452,7 @@ function allowedChildrenOf(parentType: string): readonly NodeType[] {
 /** The containment error text: the allowed child set, or "cannot contain children". */
 function illegalChildMessage(childType: string, parentType: string): string {
   const allowed = allowedChildrenOf(parentType);
-  if (allowed.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(allowed)) {
     return `Node type \`${parentType}\` cannot contain children (attempted to add \`${childType}\`).`;
   }
   return `Node type \`${childType}\` cannot be a child of \`${parentType}\`. Allowed children of \`${parentType}\`: [${allowed.join(", ")}].`;
@@ -490,27 +504,27 @@ function validateNodeInput(
 
   // `name` and `children` are structural; everything else is node data validated
   // against the node type's schema (style is nested).
-  for (const [key, value] of Object.entries(node)) {
-    if (key === "type" || key === "name" || key === "children") continue;
+  Arr.forEach(R.toEntries(node), ([key, value]) => {
+    if (key === "type" || key === "name" || key === "children") return;
     validateDataField(type, key, value, editIndex, `${path}.${key}`, errors);
-  }
+  });
 
-  for (const child of node.children ?? []) {
+  Arr.forEach(node.children ?? [], (child) => {
     // Child's own type legality against THIS node is checked by the caller path
     // (validateChildType) when it descends; here we validate the child's fields.
     if (isInsertableNodeType(child.type)) {
       validateNodeInput(child, editIndex, `${path}.children`, errors);
     }
-  }
+  });
 }
 
 /**
  * A non-empty string field of a node input, else `undefined` (trimmed empty
  * strings and non-strings count as absent).
  */
-function nonEmptyString(node: NodeInput, key: string): string | undefined {
+function nonEmptyString(node: NodeInput, key: string): string | void {
   const value = node[key];
-  if (typeof value === "string" && value.trim().length > 0) return value;
+  if (P.isString(value) && Str.isNonEmpty(value.trim())) return value;
   return undefined;
 }
 
@@ -565,8 +579,8 @@ function validateComponentIdentity(
  */
 function validateBuiltinIdentity(
   node: NodeInput,
-  slug: string | undefined,
-  componentPath: string | undefined,
+  slug: string | void,
+  componentPath: string | void,
   editIndex: number,
   path: string,
   errors: DocumentEditError[],
@@ -592,9 +606,9 @@ function validateBuiltinIdentity(
   const version = node["componentVersion"];
   const offenders: string[] = [];
   if (componentPath !== undefined) offenders.push("componentPath");
-  if (typeof version === "number" && version !== 0) offenders.push("componentVersion");
+  if (P.isNumber(version) && version !== 0) offenders.push("componentVersion");
   if (nonEmptyString(node, "contentHash") !== undefined) offenders.push("contentHash");
-  if (offenders.length > 0) {
+  if (Arr.isReadonlyArrayNonEmpty(offenders)) {
     errors.push({
       editIndex,
       code: "missingComponentIdentity",
@@ -624,10 +638,10 @@ function validateSet(
   errors: DocumentEditError[],
 ): void {
   if (!isNodeType(type)) return;
-  for (const [key, value] of Object.entries(set)) {
-    if (key === "name") continue;
+  Arr.forEach(R.toEntries(set), ([key, value]) => {
+    if (key === "name") return;
     validateDataField(type, key, value, editIndex, key, errors);
-  }
+  });
 }
 
 /**
@@ -691,7 +705,7 @@ function validateStyle(
     });
     return;
   }
-  for (const [styleKey, styleValue] of Object.entries(value)) {
+  Arr.forEach(R.toEntries(value), ([styleKey, styleValue]) => {
     const fieldSchema = styleSchema.fields[styleKey];
     if (!fieldSchema) {
       errors.push(
@@ -704,10 +718,10 @@ function validateStyle(
           "style field",
         ),
       );
-      continue;
+      return;
     }
     validateScalar(fieldSchema, styleValue, editIndex, `${path}.${styleKey}`, errors);
-  }
+  });
 }
 
 /**
@@ -729,7 +743,7 @@ function validateScalar(
 
   // Closed enum: value must be one of the literals.
   const isClosedEnum =
-    acc.literals.length > 0 && !acc.acceptsNumber && !acc.acceptsBoolean && !acc.acceptsString;
+    Arr.isReadonlyArrayNonEmpty(acc.literals) && !acc.acceptsNumber && !acc.acceptsBoolean && !acc.acceptsString;
   if (isClosedEnum) {
     if (!includesLiteral(acc.literals, value)) {
       errors.push({
@@ -761,7 +775,7 @@ function validateScalar(
   }
 
   // Regex-constrained strings (e.g. RGBA colors): the value must match.
-  if (typeof value === "string" && acc.regexes.length > 0) {
+  if (P.isString(value) && Arr.isReadonlyArrayNonEmpty(acc.regexes)) {
     const matches = acc.regexes.some((r) => safeRegexTest(r.pattern, r.flags, value));
     if (!matches) {
       errors.push({
@@ -789,7 +803,7 @@ function literalList(literals: readonly (string | number | boolean)[]): string {
 
 /** The trailing "(or one of [...])" clause of a family-mismatch message, when there are literals. */
 function literalAlternatives(literals: readonly (string | number | boolean)[]): string {
-  if (literals.length === 0) return "";
+  if (Arr.isReadonlyArrayEmpty(literals)) return "";
   return ` (or one of [${literalList(literals)}])`;
 }
 
@@ -829,7 +843,7 @@ function invalidNodeTypeMessage(type: string): string {
 }
 
 /** Render an optional did-you-mean suggestion, or the empty string when there is none. */
-function suffixed(suggestion: string | undefined, render: (suggestion: string) => string): string {
+function suffixed(suggestion: string | void, render: (suggestion: string) => string): string {
   if (suggestion === undefined) return "";
   return render(suggestion);
 }
@@ -840,9 +854,9 @@ function isInsertableNodeType(type: string): type is NodeType {
 
 /** The scalar family of a runtime value, for family-mismatch errors. */
 function valueFamily(value: unknown): "number" | "boolean" | "string" | "other" {
-  if (typeof value === "number" && Number.isFinite(value)) return "number";
-  if (typeof value === "boolean") return "boolean";
-  if (typeof value === "string") return "string";
+  if (P.isNumber(value) && Number.isFinite(value)) return "number";
+  if (P.isBoolean(value)) return "boolean";
+  if (P.isString(value)) return "string";
   return "other";
 }
 
@@ -850,17 +864,19 @@ function valueFamily(value: unknown): "number" | "boolean" | "string" | "other" 
 function describeValue(value: unknown): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
-  if (typeof value === "string") return toJsonText(value);
+  if (P.isString(value)) return toJsonText(value);
   if (Array.isArray(value)) return "an array";
-  if (typeof value === "object") return "an object";
+  if (P.isObject(value)) return "an object";
   // oxlint-disable-next-line typescript/no-base-to-string -- every object-typed case (null, arrays, objects) has already returned above, so only primitives reach here; the rule cannot see that narrowing off `unknown`. Adding a JSON.stringify branch would change the error-message text these edits are asserted on.
   return String(value);
 }
 
 /** Test a serialized regex safely; a malformed pattern rejects rather than throws. */
-function safeRegexTest(pattern: string, flags: string | undefined, value: string): boolean {
-  return Effect.runSync(
-    Effect.try(() => new RegExp(pattern, flags).test(value)).pipe(
+function safeRegexTest(pattern: string, flags: string | void, value: string): boolean {
+  return runSync(
+    Effect.try(() =>
+      (flags === undefined ? new RegExp(pattern) : new RegExp(pattern, flags)).test(value),
+    ).pipe(
       Effect.orElseSucceed(() => false),
     ),
   );
@@ -871,16 +887,16 @@ function safeRegexTest(pattern: string, flags: string | undefined, value: string
  * candidate is close enough (distance ≤ 3 and < half the key length) to be a
  * useful "did you mean". Powers the did-you-mean suggestions.
  */
-function nearestField(key: string, candidates: readonly string[]): string | undefined {
-  let best: string | undefined;
+function nearestField(key: string, candidates: readonly string[]): string | void {
+  let best: string | void = undefined;
   let bestDistance = Infinity;
-  for (const candidate of candidates) {
+  Arr.forEach(candidates, (candidate) => {
     const distance = levenshtein(key.toLowerCase(), candidate.toLowerCase());
     if (distance < bestDistance) {
       bestDistance = distance;
       best = candidate;
     }
-  }
+  });
   const threshold = Math.min(3, Math.floor(key.length / 2) + 1);
   if (best !== undefined && bestDistance <= threshold) return best;
   return undefined;
@@ -888,18 +904,21 @@ function nearestField(key: string, candidates: readonly string[]): string | unde
 
 /** Classic iterative Levenshtein edit distance. */
 function levenshtein(a: string, b: string): number {
-  const rows = a.length + 1;
-  const cols = b.length + 1;
-  const dist = Array.from({ length: cols }, (_, index) => index);
-  for (let i = 1; i < rows; i++) {
-    let prev = dist[0]!;
-    dist[0] = i;
-    for (let j = 1; j < cols; j++) {
-      const temp = dist[j]!;
-      if (a[i - 1] === b[j - 1]) dist[j] = prev;
-      else dist[j] = 1 + Math.min(prev, temp, dist[j - 1]!);
-      prev = temp;
-    }
-  }
-  return dist[cols - 1]!;
+  const initialRow = Array.from({ length: b.length + 1 }, (_, index) => index);
+  const finalRow = Arr.reduce(
+    Arr.range(1, a.length),
+    initialRow,
+    (previousRow, rowIndex) =>
+      Arr.reduce(Arr.range(1, b.length), [rowIndex], (currentRow, columnIndex) => {
+        const diagonal = Arr.getUnsafe(previousRow, columnIndex - 1);
+        const above = Arr.getUnsafe(previousRow, columnIndex);
+        const left = Arr.getUnsafe(currentRow, columnIndex - 1);
+        const distance =
+          a[rowIndex - 1] === b[columnIndex - 1]
+            ? diagonal
+            : 1 + Math.min(diagonal, above, left);
+        return [...currentRow, distance];
+      }),
+  );
+  return Arr.getUnsafe(finalRow, b.length);
 }

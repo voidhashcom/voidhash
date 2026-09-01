@@ -1,5 +1,7 @@
 import type { AuthSession } from "@voidhash/rpc";
-import { Context, Schema, type Effect } from "effect";
+import * as Context from "effect/Context";
+import * as Schema from "effect/Schema";
+import type * as Effect from "effect/Effect";
 
 import type { Purchase } from "../../domain/Purchase.ts";
 import type { PurchasePortError } from "./PurchasePortError.ts";
@@ -12,7 +14,7 @@ export interface PurchasePersonRecord {
 export interface PurchaseQueryStoreShape {
   readonly findPerson: (
     personId: string,
-  ) => Effect.Effect<PurchasePersonRecord | undefined, PurchasePortError>;
+  ) => Effect.Effect<PurchasePersonRecord | typeof Schema.Undefined.Type, PurchasePortError>;
   readonly listPersonPurchases: (input: {
     readonly personId: string;
     readonly providerEnvironments: ReadonlyArray<1 | 2 | 3>;

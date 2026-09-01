@@ -1,4 +1,9 @@
-import { Context, Effect, Layer, Option } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import type * as Schema from "effect/Schema";
 
 import {
   EntitlementSync,
@@ -9,7 +14,7 @@ import {
   PurchaseUnitOfWork,
   type PurchaseLedgerReservation,
   type PurchaseLedgerWriteStoreShape,
-  type PurchasePortError,
+  PurchasePortError,
   type PurchaseRecord,
   type PurchaseStateRepositoryShape,
   type PurchaseTransactionRecord,
@@ -46,13 +51,13 @@ import {
 } from "../domain/WebhookEventMapper.ts";
 
 type Action = typeof PurchaseActionContext.Type;
-type WebhookBuilder = (() => WebhookLifecycleEvent) | null;
+type WebhookBuilder = (() => WebhookLifecycleEvent) | typeof Schema.Null.Type;
 
 interface ResolvedContext {
   readonly configurationProduct: {
     readonly id: string;
     readonly productId: string;
-    readonly productSlug: string | null;
+    readonly productSlug: string | typeof Schema.Null.Type;
     readonly providerProductKey: string;
   };
   readonly distinctId: string;
@@ -92,7 +97,7 @@ const emptyResult = (personId: string) =>
     transactionId: Option.none(),
   });
 
-const makePurchaseRefundStateMachine = Effect.gen(function* () {
+const makePurchaseRefundStateMachine = Effect.fn("makePurchaseRefundStateMachine")(function* () {
   const ids = yield* PurchaseIdGenerator;
   const repository = yield* PurchaseStateRepository;
   const unitOfWork = yield* PurchaseUnitOfWork;
@@ -165,10 +170,13 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
           cause: `Revenue product mapping ${input.action.paymentProviderConfigurationProductId} is missing or outside project ${input.action.projectId}`,
         });
       }
-      const [token, distinctId] = yield* Effect.all([
-        input.repository.findPublicApiToken(input.action.projectId),
-        input.repository.resolveDistinctId(input.context.personId),
-      ]);
+      const [token, distinctId] = yield* Effect.all(
+        [
+          input.repository.findPublicApiToken(input.action.projectId),
+          input.repository.resolveDistinctId(input.context.personId),
+        ],
+        { concurrency: 1 },
+      );
       const events = input.buildEvents({
         distinctId,
         idempotencyKey: input.action.idempotencyKey,
@@ -193,7 +201,7 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
     context: ResolvedContext,
   ) => {
     if (Option.isNone(action.providerTransactionId)) {
-      return Effect.succeed<PurchaseTransactionRecord | undefined>(undefined);
+      return Effect.succeed<PurchaseTransactionRecord | typeof Schema.Undefined.Type>(undefined);
     }
     return txRepository.findTransactionByProviderTransactionId({
       paymentProviderConfigurationProductId: context.configurationProduct.id,
@@ -210,7 +218,9 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
     context: ResolvedContext,
   ) => {
     const key = providerKey(action);
-    if (Option.isNone(key)) return Effect.succeed<PurchaseRecord | undefined>(undefined);
+    if (Option.isNone(key)) {
+      return Effect.succeed<PurchaseRecord | typeof Schema.Undefined.Type>(undefined);
+    }
     return txRepository.findPurchaseByProviderKey({
       paymentProviderConfigurationProductId: context.configurationProduct.id,
       providerKey: key.value,
@@ -222,7 +232,7 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
   ) =>
     effect.pipe(
       Effect.mapError((error): PurchaseProcessingError => {
-        if (error._tag === "PurchasePortError") {
+        if (error instanceof PurchasePortError) {
           return new PurchaseProcessingServiceError({ cause: describePurchaseErrorCause(error) });
         }
         return error;
@@ -250,7 +260,7 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
             const ledger = yield* PurchaseLedgerWriteStore;
             const entitlements = yield* EntitlementSync;
             const claim = yield* reserve(ledger, input);
-            if (claim._tag === "duplicate") return { event: null, result: claim.result };
+            if (P.hasProperty(claim, "result")) return { event: null, result: claim.result };
 
             if (input.partialRefundMoney !== undefined) {
               const partialRefundMoney = input.partialRefundMoney;
@@ -406,7 +416,7 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
             const ledger = yield* PurchaseLedgerWriteStore;
             const entitlements = yield* EntitlementSync;
             const claim = yield* reserve(ledger, input);
-            if (claim._tag === "duplicate") return claim.result;
+            if (P.hasProperty(claim, "result")) return claim.result;
             const purchase = yield* findPurchase(txRepository, input, context);
             if (purchase === undefined) {
               const result = emptyResult(context.personId);
@@ -499,7 +509,7 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
             const ledger = yield* PurchaseLedgerWriteStore;
             const entitlements = yield* EntitlementSync;
             const claim = yield* reserve(ledger, input);
-            if (claim._tag === "duplicate") return claim.result;
+            if (P.hasProperty(claim, "result")) return claim.result;
             const transaction = yield* findTransaction(txRepository, input, context);
             const purchase = yield* findPurchase(txRepository, input, context);
             if (Option.isNone(input.providerTransactionId)) {
@@ -599,7 +609,7 @@ const makePurchaseRefundStateMachine = Effect.gen(function* () {
     reverseRefund,
     revokePurchase,
   } satisfies PurchaseRefundStateMachineShape;
-});
+})();
 
 /** Core state-machine slice for refunds, refund reversals, and purchase revocations. */
 export class PurchaseRefundStateMachine extends Context.Service<

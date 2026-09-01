@@ -1,4 +1,6 @@
-import { Context, type Effect } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Schema from "effect/Schema";
 
 import type {
   CapturedEventV1,
@@ -12,7 +14,10 @@ export interface ProcessorProjectRepositoryShape {
   /** Returns no project when the captured credential can no longer be resolved. */
   readonly resolve: (
     capturedEvent: typeof CapturedEventV1.Type,
-  ) => Effect.Effect<typeof ResolvedProcessorProject.Type | undefined, AnalyticsPortError>;
+  ) => Effect.Effect<
+    typeof ResolvedProcessorProject.Type | typeof Schema.Undefined.Type,
+    AnalyticsPortError
+  >;
 }
 
 /** Resolves authoritative project data while processing a captured event. */

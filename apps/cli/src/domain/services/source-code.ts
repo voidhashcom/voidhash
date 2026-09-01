@@ -1,5 +1,10 @@
 import { constant } from "@voidhash/lib/lang";
-import { Effect, FileSystem, Layer, Path, Schema, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Layer from "effect/Layer";
+import * as Path from "effect/Path";
+import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
 
 import { safeRegister } from "../../utils/js-loading/js-file-loading";
 import { relativePathPrefixFromDepth } from "../../utils/source-code";
@@ -13,13 +18,15 @@ import {
   PackageJsonNotFoundError,
   VoidhashConfigNotFoundError,
 } from "../errors/source-code";
-import { PackageJsonSchema } from "../schema/package-json";
-import { VoidhashConfigSchema } from "../schema/voidhash-config";
+import { PackageJson } from "../schema/package-json";
+import { VoidhashConfig } from "../schema/voidhash-config";
+import * as P from "effect/Predicate";
+import * as Option from "effect/Option";
 
 /** Decodes the raw `package.json` text into the validated manifest. */
-const PackageJsonJson = Schema.fromJsonString(PackageJsonSchema);
+const PackageJsonJson = Schema.fromJsonString(PackageJson);
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("make")(function* effect() {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
 
@@ -32,7 +39,7 @@ const make = Effect.gen(function* effect() {
    * @returns The source code language.
    */
   const detectSrcLanguage = () =>
-    Effect.gen(function* detectSrcLanguage() {
+    Effect.fn("detectSrcLanguage")(function* detectSrcLanguage() {
       // Check if tsconfig.json exists
       const tsconfigPath = path.resolve("./tsconfig.json");
       const tsconfigExists = yield* fs.exists(tsconfigPath);
@@ -40,7 +47,7 @@ const make = Effect.gen(function* effect() {
         return "ts";
       }
       return "js";
-    });
+    })();
 
   // ===================================
   // Monorepo
@@ -52,9 +59,9 @@ const make = Effect.gen(function* effect() {
    * @returns The root path of the monorepo.
    */
   const detectMonorepoRootPath = (maxDepth = 10) =>
-    Effect.gen(function* detectMonorepoRootPath() {
+    Effect.fn("detectMonorepoRootPath")(function* detectMonorepoRootPath() {
       const checkIsMonorepoRoot = (depth: number) =>
-        Effect.gen(function* checkIsMonorepoRoot() {
+        Effect.fn("checkIsMonorepoRoot")(function* checkIsMonorepoRoot() {
           const pathPrefix = relativePathPrefixFromDepth(depth);
 
           // Check for monorepo indicators
@@ -73,23 +80,25 @@ const make = Effect.gen(function* effect() {
             const packageJson = yield* loadPackageJson(pathPrefix);
             hasWorkspacesField =
               (packageJson.workspaces !== undefined && Array.isArray(packageJson.workspaces)) ||
-              (packageJson.workspaces !== undefined && typeof packageJson.workspaces === "object");
+              (packageJson.workspaces !== undefined && P.isObject(packageJson.workspaces));
           }
 
           return isPnpmWorkspace || isYarnWorkspaces || isTurboRoot || hasWorkspacesField;
-        });
+        })();
 
-      // Check current directory and traverse up
-      for (let depth = 0; depth <= maxDepth; depth++) {
-        const isMonorepoRoot = yield* checkIsMonorepoRoot(depth);
-        if (isMonorepoRoot) {
-          const pathPrefix = relativePathPrefixFromDepth(depth);
-          return path.resolve(pathPrefix);
-        }
-      }
+      const findMonorepoRoot = (depth: number): Effect.Effect<Option.Option<string>, unknown> =>
+        depth > maxDepth
+          ? Effect.succeed(Option.none())
+          : checkIsMonorepoRoot(depth).pipe(
+              Effect.flatMap((isMonorepoRoot) =>
+                isMonorepoRoot
+                  ? Effect.succeed(Option.some(path.resolve(relativePathPrefixFromDepth(depth))))
+                  : findMonorepoRoot(depth + 1),
+              ),
+            );
 
-      return null; // No monorepo root found
-    });
+      return yield* findMonorepoRoot(0);
+    })();
 
   // ===================================
   // Package JSON
@@ -101,7 +110,7 @@ const make = Effect.gen(function* effect() {
    * @returns The package.json file.
    */
   const loadPackageJson = (basePath = "./") =>
-    Effect.gen(function* loadPackageJson() {
+    Effect.fn("loadPackageJson")(function* loadPackageJson() {
       const packageJsonPath = path.resolve(basePath, "package.json");
       const packageJsonExists = yield* fs.exists(packageJsonPath);
       if (!packageJsonExists) {
@@ -123,7 +132,7 @@ const make = Effect.gen(function* effect() {
           ),
         ),
       );
-    }).pipe(
+    })().pipe(
       Effect.catchTag("PlatformError", (e) =>
         Effect.fail(
           new FailedToLoadPackageJsonError({
@@ -144,7 +153,7 @@ const make = Effect.gen(function* effect() {
    * @returns The package manager.
    */
   const detectPackageManager = (pathPrefix = "./") =>
-    Effect.gen(function* detectPackageManager() {
+    Effect.fn("detectPackageManager")(function* detectPackageManager() {
       // npm
       const packageLockPath = path.resolve(pathPrefix, "package-lock.json");
       const packageLockExists = yield* fs.exists(packageLockPath);
@@ -178,7 +187,7 @@ const make = Effect.gen(function* effect() {
           message: "No package manager found in this directory.",
         }),
       );
-    }).pipe(
+    })().pipe(
       Effect.catchTag("PlatformError", (e) =>
         Effect.fail(
           new FailedToDetectPackageManagerError({
@@ -203,21 +212,21 @@ const make = Effect.gen(function* effect() {
    * @returns {Effect.Effect<string, never, FileSystem | Path>} An Effect that yields the resolved source directory path.
    */
   const retrieveSrcDir = () =>
-    Effect.gen(function* retrieveSrcDir() {
+    Effect.fn("retrieveSrcDir")(function* retrieveSrcDir() {
       const srcDir = path.resolve("./src");
       const srcDirExists = yield* fs.exists(srcDir);
       if (srcDirExists) {
         return srcDir;
       }
       return path.resolve("./");
-    });
+    })();
 
   // ===================================
   // Voidhash Config
   // ===================================
 
   const loadVoidhashConfig = () =>
-    Effect.gen(function* loadVoidhashConfig() {
+    Effect.fn("loadVoidhashConfig")(function* loadVoidhashConfig() {
       const possibleVoidhashConfigPaths = [
         path.resolve("./voidhash.config.ts"),
         path.resolve("./voidhash.config.js"),
@@ -227,10 +236,10 @@ const make = Effect.gen(function* effect() {
 
       const existingPaths = yield* Effect.all(
         possibleVoidhashConfigPaths.map((path) =>
-          Effect.gen(function* existingPaths() {
+          Effect.fn("existingPaths")(function* existingPaths() {
             const exists = yield* fs.exists(path);
             return { exists, path };
-          }),
+          })(),
         ),
         {
           concurrency: "unbounded",
@@ -252,8 +261,8 @@ const make = Effect.gen(function* effect() {
       const required = require(absolutePath);
       unregister();
       const content = required.default ?? required;
-      return yield* Schema.decodeUnknownEffect(VoidhashConfigSchema)(content);
-    }).pipe(
+      return yield* Schema.decodeUnknownEffect(VoidhashConfig)(content);
+    })().pipe(
       Effect.catchTags({
         FailedToLoadJsFileError: (e) =>
           Effect.fail(
@@ -280,10 +289,10 @@ const make = Effect.gen(function* effect() {
     );
 
   const deleteVoidhashConfig = () =>
-    Effect.gen(function* deleteVoidhashConfig() {
+    Effect.fn("deleteVoidhashConfig")(function* deleteVoidhashConfig() {
       const voidhashConfigPath = path.resolve("./voidhash.config.ts");
       yield* fs.remove(voidhashConfigPath);
-    });
+    })();
 
   return constant({
     deleteVoidhashConfig,
@@ -294,7 +303,7 @@ const make = Effect.gen(function* effect() {
     loadVoidhashConfig,
     retrieveSrcDir,
   });
-});
+})();
 
 type SourceCodeShape = Effect.Success<typeof make>;
 

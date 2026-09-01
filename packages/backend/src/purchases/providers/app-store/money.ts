@@ -22,13 +22,16 @@ import {
 } from "@voidhash/app-store-server-sdk";
 import { getStorefrontVatRateBps, parseISO4217CurrencyCode } from "@voidhash/lib/constants";
 import { pick } from "@voidhash/lib/lang";
-import { DateTime, Effect, Option } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { PurchaseProcessingMoney, PurchaseProcessingMoneyUsd } from "@voidhash/core-v2";
 import { CurrencyCode, ExchangeRate, MinorAmount } from "@voidhash/core-v2";
 import type { DbError } from "@voidhash/db";
 
 import { FX_RATE_PRECISION, type FxRateLookup, type FxRateServiceError } from "@voidhash/core-v2";
+import * as Schema from "effect/Schema";
 
 /** Apple's `price` field on a decoded JWS is in milliunits (10× minor units). */
 const APPLE_PRICE_DENOMINATOR = 10;
@@ -51,12 +54,12 @@ const ONE_YEAR_MS = Math.round(365.25 * 24 * 60 * 60 * 1_000);
  */
 export interface AppleCommissionConfiguration {
   readonly appleSmallBusinessProgramStartDate?: string;
-  readonly appleSmallBusinessProgramHasEndDate: boolean;
+  readonly hasAppleSmallBusinessProgramEndDate: boolean;
   readonly appleSmallBusinessProgramEndDate?: string;
 }
 
 /** Parses an operator-supplied date string, returning `undefined` when unparseable. */
-const parseConfiguredDate = (value: string): Date | undefined => {
+const parseConfiguredDate = (value: string): Date | typeof Schema.Undefined.Type => {
   const parsed = DateTime.make(value);
   if (Option.isNone(parsed)) return undefined;
   return DateTime.toDateUtc(parsed.value);
@@ -71,7 +74,7 @@ const isSmallBusinessProgramActiveAt = (
   const start = parseConfiguredDate(startStr);
   if (!start) return false;
   if (at < start) return false;
-  if (!config.appleSmallBusinessProgramHasEndDate) return true;
+  if (!config.hasAppleSmallBusinessProgramEndDate) return true;
   const endStr = config.appleSmallBusinessProgramEndDate;
   if (!endStr) return true;
   const end = parseConfiguredDate(endStr);
@@ -125,7 +128,7 @@ export const estimateAppleTaxAmount = (input: {
   readonly grossAmount: number;
   readonly storefront: Option.Option<string>;
 }): number => {
-  const rateBps = getStorefrontVatRateBps(Option.getOrUndefined(input.storefront));
+  const rateBps = getStorefrontVatRateBps(input.storefront);
   if (rateBps <= 0) return 0;
   // tax = gross × rate / (1 + rate); rate is `rateBps / 10_000` so
   // tax = gross × rateBps / (10_000 + rateBps).

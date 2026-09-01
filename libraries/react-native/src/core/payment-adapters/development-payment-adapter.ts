@@ -1,4 +1,8 @@
-import { Effect, Layer } from "effect";
+import * as R from "effect/Record";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { Alert, Platform } from "react-native";
 
 import { Product, SubscriptionProduct } from "../entities/product";
@@ -7,14 +11,11 @@ import type { RuntimeProductDefinition } from "../schema/runtime";
 import { FailedToBuyProductError, FailedToGetProductsError, UserCancelledError } from "./errors";
 import { PaymentAdapter } from "./payment-adapter";
 
-const transactionId = () => {
-  const cryptoObject = globalThis.crypto as { randomUUID?: () => string } | undefined;
-  return cryptoObject?.randomUUID?.() ?? `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-};
+const transactionId = () => globalThis.crypto.randomUUID();
 
-const makeProduct = (definition: RuntimeProductDefinition): Product | null => {
+const makeProduct = (definition: RuntimeProductDefinition): Option.Option<Product> => {
   const configuration = definition.configuration.providers.development;
-  if (!configuration) return null;
+  if (!configuration) return Option.none();
   const args = [
     definition.id ?? definition.slug,
     definition.slug,
@@ -29,13 +30,17 @@ const makeProduct = (definition: RuntimeProductDefinition): Product | null => {
   ] as const;
   const options = { providerProductId: configuration.productId };
   if (definition.type === "subscription") {
-    return new SubscriptionProduct(...args, configuration.period, options);
+    return Option.some(new SubscriptionProduct(...args, configuration.period, options));
   }
-  return new Product(...args, options);
+  return Option.some(new Product(...args, options));
 };
 
-const buyProduct = (product: Product, quantity = 1) =>
-  Effect.callback<Transaction, UserCancelledError | FailedToBuyProductError>((resume) => {
+const buyProduct = Effect.fn("DevelopmentPaymentAdapter.buyProduct")(function* (
+  product: Product,
+  quantity = 1,
+) {
+  const purchaseTimestamp = yield* Clock.currentTimeMillis;
+  return yield* Effect.callback<Transaction, UserCancelledError | FailedToBuyProductError>((resume) => {
     let selected = false;
     const cancel = () => {
       if (selected) return;
@@ -64,7 +69,7 @@ const buyProduct = (product: Product, quantity = 1) =>
                       id,
                       id,
                       product.providerProductId ?? product.slug,
-                      Date.now(),
+                      purchaseTimestamp,
                       quantity,
                       true,
                       product.platform,
@@ -81,6 +86,7 @@ const buyProduct = (product: Product, quantity = 1) =>
       { cancelable: true, onDismiss: cancel },
     );
   });
+});
 
 export const DevelopmentPaymentAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase: () => Effect.void,
@@ -89,7 +95,7 @@ export const DevelopmentPaymentAdapter = Layer.succeed(PaymentAdapter, {
   getPendingTransactions: () => Effect.succeed([]),
   getProducts: (definitions) =>
     Effect.try({
-      try: () => Object.values(definitions).flatMap((definition) => makeProduct(definition) ?? []),
+      try: () => R.values(definitions).flatMap((definition) => Option.toArray(makeProduct(definition))),
       catch: (cause) =>
         new FailedToGetProductsError({ cause, message: "Failed to build development products" }),
     }),

@@ -10,24 +10,25 @@
  * internal storage format. We use a flat JSON shape with nullable strings to
  * keep payloads small and inspectable in DB clients.
  */
-import { Option, Schema } from "effect";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { PurchaseProcessingResult } from "../../domain/PurchaseProcessing.ts";
 
 /** The flat, nullable-string storage shape written to (and read back from) the outbox row. */
-const EncodedPurchaseProcessingResultSchema = Schema.Struct({
+const EncodedPurchaseProcessingResult = Schema.Struct({
   personId: Schema.String,
   purchaseId: Schema.NullOr(Schema.String),
   subscriptionId: Schema.NullOr(Schema.String),
   transactionId: Schema.NullOr(Schema.String),
   changedGrantIds: Schema.Array(Schema.String),
   analyticsEventIds: Schema.Array(Schema.String),
-  idempotent: Schema.Boolean,
-});
+  isIdempotent: Schema.Boolean,
+}).pipe(Schema.encodeKeys({ isIdempotent: "idempotent" }));
 
-type EncodedPurchaseProcessingResult = typeof EncodedPurchaseProcessingResultSchema.Type;
+type EncodedPurchaseProcessingResult = typeof EncodedPurchaseProcessingResult.Encoded;
 
-const decodeEncodedResult = Schema.decodeUnknownSync(EncodedPurchaseProcessingResultSchema);
+const decodeEncodedResult = Schema.decodeUnknownSync(EncodedPurchaseProcessingResult);
 
 /** Encodes the result to a JSON-friendly object suitable for the outbox row. */
 export const encodePurchaseProcessingResult = (
@@ -48,14 +49,14 @@ export const encodePurchaseProcessingResult = (
  * one already produced the canonical operational state.
  */
 export const decodePurchaseProcessingResult = (encoded: unknown): PurchaseProcessingResult => {
-  const e = decodeEncodedResult(encoded);
+  const decoded = decodeEncodedResult(encoded);
   return new PurchaseProcessingResult({
-    analyticsEventIds: e.analyticsEventIds,
-    changedGrantIds: e.changedGrantIds,
+    analyticsEventIds: decoded.analyticsEventIds,
+    changedGrantIds: decoded.changedGrantIds,
     idempotent: true,
-    personId: e.personId,
-    purchaseId: Option.fromNullishOr(e.purchaseId),
-    subscriptionId: Option.fromNullishOr(e.subscriptionId),
-    transactionId: Option.fromNullishOr(e.transactionId),
+    personId: decoded.personId,
+    purchaseId: Option.fromNullishOr(decoded.purchaseId),
+    subscriptionId: Option.fromNullishOr(decoded.subscriptionId),
+    transactionId: Option.fromNullishOr(decoded.transactionId),
   });
 };

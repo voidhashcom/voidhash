@@ -1,3 +1,6 @@
+import * as Str from "effect/String";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
 import { entryValue } from "./entry.ts";
 import { languageSubtag } from "./locale-tag.ts";
 import type {
@@ -12,14 +15,16 @@ import type {
 
 /** The enabled locale tags for a config: the implicit default plus the extras. */
 function enabledLocaleTags(config: LocalizationConfig): string[] {
-  const tags = [config.defaultLocale];
-  for (const entry of config.locales) {
-    const value = entryValue<{ tag: string } | undefined>(entry);
-    if (value !== undefined && value.tag.length > 0) {
-      tags.push(value.tag);
-    }
-  }
-  return tags;
+  return Arr.prepend(
+    Arr.flatMap(config.locales, (entry) => {
+      const value = entryValue(entry);
+      if (value !== undefined && Str.isNonEmpty(value.tag)) {
+        return [value.tag];
+      }
+      return [];
+    }),
+    config.defaultLocale,
+  );
 }
 
 /**
@@ -31,24 +36,15 @@ function enabledLocaleTags(config: LocalizationConfig): string[] {
  * `config.defaultLocale` when nothing matches. Matching is case-insensitive; the
  * enabled tag is returned in its stored casing.
  */
-export function resolveLocale(
-  preferred: readonly string[],
-  config: LocalizationConfig,
-): string {
+export function resolveLocale(preferred: readonly string[], config: LocalizationConfig): string {
   const enabled = enabledLocaleTags(config);
-  const enabledLower = enabled.map((tag) => tag.toLowerCase());
-  for (const raw of preferred) {
+  const matches = Arr.flatMap(preferred, (raw) => {
     const want = raw.toLowerCase();
-    const exact = enabledLower.indexOf(want);
-    if (exact !== -1) {
-      return enabled[exact]!;
-    }
-    const prefix = enabledLower.indexOf(languageSubtag(want));
-    if (prefix !== -1) {
-      return enabled[prefix]!;
-    }
-  }
-  return config.defaultLocale;
+    const exact = Arr.findFirst(enabled, (tag) => tag.toLowerCase() === want);
+    const prefix = Arr.findFirst(enabled, (tag) => tag.toLowerCase() === languageSubtag(want));
+    return Arr.fromOption(Option.orElse(exact, () => prefix));
+  });
+  return Option.getOrElse(Arr.head(matches), () => config.defaultLocale);
 }
 
 /**
@@ -61,35 +57,47 @@ export function resolveLocale(
  */
 export function resolveText(
   data: LocalizableTextData,
-  locale: string | null | undefined,
+  locale: Option.Option<string>,
   defaultLocale: string,
 ): string {
   const base = data.text;
   const entries = data.localized;
-  if (locale == null || locale === defaultLocale || entries === undefined || entries.length === 0) {
+  if (
+    Option.isNone(locale) ||
+    locale.value === defaultLocale ||
+    entries === undefined ||
+    Arr.isReadonlyArrayEmpty(entries)
+  ) {
     return base;
   }
-  const want = locale.toLowerCase();
+  const want = locale.value.toLowerCase();
   const lang = languageSubtag(want);
-  let prefixMatch: string | undefined;
-  for (const entry of entries) {
-    const value = entryValue(entry);
-    if (value === undefined) {
-      continue;
-    }
-    const override = value.overrides?.text;
-    if (override === undefined || override === "") {
-      continue;
-    }
-    const entryLocale = value.locale.toLowerCase();
-    if (entryLocale === want) {
-      return override;
-    }
-    if (prefixMatch === undefined && entryLocale === lang) {
-      prefixMatch = override;
-    }
-  }
-  return prefixMatch ?? base;
+  const matches = Arr.reduce(
+    entries,
+    { exact: Option.none<string>(), prefix: Option.none<string>() },
+    (matches, entry) => {
+      const value = entryValue(entry);
+      if (value === undefined) {
+        return matches;
+      }
+      const override = value.overrides?.text;
+      if (override === undefined || override === "") {
+        return matches;
+      }
+      const entryLocale = value.locale.toLowerCase();
+      if (entryLocale === want && Option.isNone(matches.exact)) {
+        return { ...matches, exact: Option.some(override) };
+      }
+      if (entryLocale === lang && Option.isNone(matches.prefix)) {
+        return { ...matches, prefix: Option.some(override) };
+      }
+      return matches;
+    },
+  );
+  return Option.getOrElse(
+    Option.orElse(matches.exact, () => matches.prefix),
+    () => base,
+  );
 }
 
 /**
@@ -100,35 +108,50 @@ export function resolveText(
  */
 export function resolveBackgroundImage(
   data: LocalizableImageData,
-  locale: string | null | undefined,
+  locale: Option.Option<string>,
   defaultLocale: string,
 ): BackgroundImageSnapshot {
   const base = data.style.backgroundImage;
   const entries = data.localized;
-  if (locale == null || locale === defaultLocale || entries === undefined || entries.length === 0) {
+  if (
+    Option.isNone(locale) ||
+    locale.value === defaultLocale ||
+    entries === undefined ||
+    Arr.isReadonlyArrayEmpty(entries)
+  ) {
     return base;
   }
-  const want = locale.toLowerCase();
+  const want = locale.value.toLowerCase();
   const lang = languageSubtag(want);
-  let prefixMatch: BackgroundImageSnapshot | undefined;
-  for (const entry of entries) {
-    const value = entryValue(entry);
-    if (value === undefined) {
-      continue;
-    }
-    const override = value.overrides?.backgroundImage;
-    if (override === undefined) {
-      continue;
-    }
-    const entryLocale = value.locale.toLowerCase();
-    if (entryLocale === want) {
-      return override;
-    }
-    if (prefixMatch === undefined && entryLocale === lang) {
-      prefixMatch = override;
-    }
-  }
-  return prefixMatch ?? base;
+  const matches = Arr.reduce(
+    entries,
+    {
+      exact: Option.none<BackgroundImageSnapshot>(),
+      prefix: Option.none<BackgroundImageSnapshot>(),
+    },
+    (matches, entry) => {
+      const value = entryValue(entry);
+      if (value === undefined) {
+        return matches;
+      }
+      const override = value.overrides?.backgroundImage;
+      if (override === undefined) {
+        return matches;
+      }
+      const entryLocale = value.locale.toLowerCase();
+      if (entryLocale === want && Option.isNone(matches.exact)) {
+        return { ...matches, exact: Option.some(override) };
+      }
+      if (entryLocale === lang && Option.isNone(matches.prefix)) {
+        return { ...matches, prefix: Option.some(override) };
+      }
+      return matches;
+    },
+  );
+  return Option.getOrElse(
+    Option.orElse(matches.exact, () => matches.prefix),
+    () => base,
+  );
 }
 
 /**
@@ -140,38 +163,48 @@ export function resolveBackgroundImage(
  */
 export function resolveComponentPropValue(
   propEntry: LocalizableComponentProp,
-  locale: string | null | undefined,
+  locale: Option.Option<string>,
   defaultLocale: string,
 ): ComponentPropBindingSnapshot {
   const binding = propEntry.value;
   const entries = propEntry.localizedValues;
   if (
     binding.type !== "literal" ||
-    locale == null ||
-    locale === defaultLocale ||
+    Option.isNone(locale) ||
+    locale.value === defaultLocale ||
     entries === undefined ||
-    entries.length === 0
+    Arr.isReadonlyArrayEmpty(entries)
   ) {
     return binding;
   }
-  const want = locale.toLowerCase();
+  const want = locale.value.toLowerCase();
   const lang = languageSubtag(want);
-  let prefixMatch: ComponentPropValueSnapshot | undefined;
-  for (const entry of entries) {
-    const value = entryValue(entry);
-    if (value === undefined) {
-      continue;
-    }
-    const entryLocale = value.locale.toLowerCase();
-    if (entryLocale === want) {
-      return { type: "literal", value: value.value };
-    }
-    if (prefixMatch === undefined && entryLocale === lang) {
-      prefixMatch = value.value;
-    }
-  }
-  if (prefixMatch === undefined) {
-    return binding;
-  }
-  return { type: "literal", value: prefixMatch };
+  const matches = Arr.reduce(
+    entries,
+    {
+      exact: Option.none<ComponentPropValueSnapshot>(),
+      prefix: Option.none<ComponentPropValueSnapshot>(),
+    },
+    (matches, entry) => {
+      const value = entryValue(entry);
+      if (value === undefined) {
+        return matches;
+      }
+      const entryLocale = value.locale.toLowerCase();
+      if (entryLocale === want && Option.isNone(matches.exact)) {
+        return { ...matches, exact: Option.some(value.value) };
+      }
+      if (entryLocale === lang && Option.isNone(matches.prefix)) {
+        return { ...matches, prefix: Option.some(value.value) };
+      }
+      return matches;
+    },
+  );
+  return Option.match(
+    Option.orElse(matches.exact, () => matches.prefix),
+    {
+      onNone: () => binding,
+      onSome: (value) => ({ type: "literal", value }),
+    },
+  );
 }

@@ -20,7 +20,8 @@
 import { parseISO4217CurrencyCode } from "@voidhash/lib/constants";
 import type { DbError } from "@voidhash/db";
 import { pick } from "@voidhash/lib/lang";
-import { Effect, Option } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 import { PurchaseProcessingMoney, PurchaseProcessingMoneyUsd } from "@voidhash/core-v2";
 import {
@@ -31,6 +32,7 @@ import {
   type FxRateLookup,
   type FxRateServiceError,
 } from "@voidhash/core-v2";
+import * as Schema from "effect/Schema";
 
 const convertToUsd = (amount: number, rate: number): number =>
   Math.round((amount * rate) / FX_RATE_PRECISION);
@@ -89,7 +91,7 @@ export const buildStripeMoney = (input: {
   readonly grossMinor: number;
   readonly currency: string;
   readonly taxMinor: number;
-  readonly feeMinor: number | undefined;
+  readonly feeMinor: number | typeof Schema.Undefined.Type;
   readonly occurredAt: Date;
   readonly fxRateService: FxRateLookupShape;
 }) =>

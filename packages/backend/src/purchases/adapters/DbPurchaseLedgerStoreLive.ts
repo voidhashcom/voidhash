@@ -19,7 +19,11 @@ import {
   sql,
 } from "@voidhash/db";
 import { generateId } from "@voidhash/core/utils/generate-id";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
 
 const portError = (message: string) => (cause: unknown) =>
   new PurchasePortError({ cause, message });
@@ -46,7 +50,7 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
       claim: (options) =>
         db
           .transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("claim")(function* () {
               const workerId = generateId("purchaseLedger");
               const releasedRows = yield* tx
                 .update(purchaseLedger)
@@ -82,7 +86,7 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
                 .limit(options.batchSize)
                 .for("update", { skipLocked: true });
 
-              if (candidates.length > 0) {
+              if (Arr.isReadonlyArrayNonEmpty(candidates)) {
                 yield* tx
                   .update(purchaseLedger)
                   .set({
@@ -111,7 +115,7 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
                 Schema.Array(PurchaseLedgerClaimedRow),
               )(claimed);
               return { rows, staleClaimsReleased: releasedRows.length };
-            }),
+            })(),
           )
           .pipe(Effect.mapError(portError("failed to claim purchase ledger rows"))),
 
@@ -163,7 +167,7 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
           .pipe(Effect.asVoid, Effect.mapError(portError("failed to retry a purchase ledger row"))),
 
       listDeadLetters: (input) =>
-        Effect.gen(function* () {
+        Effect.fn("listDeadLetters")(function* () {
           const rows = yield* db
             .select({
               attemptCount: purchaseLedger.attemptCount,
@@ -194,10 +198,10 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
             ),
             total: Number(totals[0]?.count ?? 0),
           };
-        }).pipe(Effect.mapError(portError("failed to list dead-lettered purchase ledger rows"))),
+        })().pipe(Effect.mapError(portError("failed to list dead-lettered purchase ledger rows"))),
 
       requeueDeadLetters: ({ ids }) => {
-        if (ids.length === 0) return Effect.succeed(0);
+        if (Arr.isReadonlyArrayEmpty(ids)) return Effect.succeed(0);
         if (ids.length > MAX_PURCHASE_LEDGER_REQUEUE_IDS) {
           return Effect.fail(
             new PurchasePortError({
@@ -231,7 +235,7 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
       sweepTransientDeadLetters: ({ limit, minimumDeadLetterAgeSeconds }) =>
         db
           .transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("sweepTransientDeadLetters")(function* () {
               const candidates = yield* tx
                 .select({ id: purchaseLedger.id })
                 .from(purchaseLedger)
@@ -249,9 +253,8 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
                 .limit(limit)
                 .for("update", { skipLocked: true });
 
-              let requeuedCount = 0;
-              if (candidates.length > 0) {
-                const requeued = yield* tx
+              const requeued = Arr.isReadonlyArrayNonEmpty(candidates)
+                ? yield* tx
                   .update(purchaseLedger)
                   .set({
                     attemptCount: 0,
@@ -269,9 +272,9 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
                       ),
                     ),
                   )
-                  .returning({ id: purchaseLedger.id });
-                requeuedCount = requeued.length;
-              }
+                  .returning({ id: purchaseLedger.id })
+                : [];
+              const requeuedCount = Arr.length(requeued);
 
               const deadLetters = yield* tx
                 .select({ count: sql<number>`count(*)` })
@@ -280,14 +283,14 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
               const pending = yield* tx
                 .select({
                   count: sql<number>`count(*)`,
-                  oldest: sql<Date | null>`min(${purchaseLedger.createdAt})`,
+                  oldest: sql<Date | typeof Schema.Null.Type>`min(${purchaseLedger.createdAt})`,
                 })
                 .from(purchaseLedger)
                 .where(eq(purchaseLedger.status, PurchaseLedgerStatus.Pending));
               const overdue = yield* tx
                 .select({
                   count: sql<number>`count(*)`,
-                  oldest: sql<Date | null>`min(COALESCE(${purchaseLedger.nextAttemptAt}, ${purchaseLedger.createdAt}))`,
+                  oldest: sql<Date | typeof Schema.Null.Type>`min(COALESCE(${purchaseLedger.nextAttemptAt}, ${purchaseLedger.createdAt}))`,
                 })
                 .from(purchaseLedger)
                 .where(
@@ -304,21 +307,18 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
               const overduePendingCount = Number(overdue[0]?.count ?? 0);
               const oldestOverdue = overdue[0]?.oldest;
               const now = yield* DateTime.nowAsDate;
-              let oldestPendingAgeSeconds = 0;
-              if (pendingCount > 0 && oldest !== null && oldest !== undefined) {
-                oldestPendingAgeSeconds = Math.max(0, (now.getTime() - oldest.getTime()) / 1_000);
-              }
-              let oldestOverdueAgeSeconds = 0;
-              if (
+              const oldestPendingAgeSeconds = pendingCount > 0 && oldest !== null && oldest !== undefined
+                ? Math.max(0, (now.getTime() - oldest.getTime()) / 1_000)
+                : 0;
+              const oldestOverdueAgeSeconds =
                 overduePendingCount > 0 &&
                 oldestOverdue !== null &&
                 oldestOverdue !== undefined
-              ) {
-                oldestOverdueAgeSeconds = Math.max(
+                  ? Math.max(
                   0,
                   (now.getTime() - oldestOverdue.getTime()) / 1_000,
-                );
-              }
+                )
+                  : 0;
 
               return {
                 deadLetterCount: Number(deadLetters[0]?.count ?? 0),
@@ -329,7 +329,7 @@ export const DbPurchaseLedgerStoreLive = Layer.effect(
                 requeuedCount,
                 transientCandidateCount: candidates.length,
               };
-            }),
+            })(),
           )
           .pipe(Effect.mapError(portError("failed to sweep purchase ledger dead letters"))),
     });

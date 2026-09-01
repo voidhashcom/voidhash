@@ -1,6 +1,10 @@
+import * as Arr from "effect/Array";
 import { causeMessage } from "@voidhash/lib/lang";
 import type { Value } from "@voidhash/mimic-core";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 
 import type { PresenceEntry } from "../app/hostService.ts";
 import {
@@ -30,7 +34,7 @@ export interface SessionAttachment {
   readonly connectionId: string;
   readonly collectionId: string;
   readonly documentId: string;
-  readonly origin: string | null;
+  readonly origin: Option.Option<string>;
   /** Epoch ms of the upgrade; drives the remaining auth deadline after hibernation. */
   readonly connectedAt?: number;
   authenticated: boolean;
@@ -64,7 +68,7 @@ export interface DocumentPresenceStore {
 export interface DocumentSessionContext<TSocket> {
   readonly registry: SessionRegistry<TSocket>;
   readonly presence: DocumentPresenceStore;
-  readonly getAttachment: (socket: TSocket) => SessionAttachment | null;
+  readonly getAttachment: (socket: TSocket) => Option.Option<SessionAttachment>;
   readonly setAttachment: (socket: TSocket, attachment: SessionAttachment) => void;
   readonly send: (socket: TSocket, message: ServerMessage) => Effect.Effect<void>;
   readonly close: (socket: TSocket, code: number, reason: string) => Effect.Effect<void>;
@@ -122,7 +126,7 @@ export const broadcastToAuthenticated = <TSocket>(
 ): Effect.Effect<void> =>
   Effect.forEach(ctx.registry.authenticated(), (socket) => ctx.send(socket, message), {
     discard: true,
-  });
+   concurrency: 1});
 
 /**
  * Handles one client WebSocket frame of the document protocol. Pre-auth
@@ -135,109 +139,106 @@ export const handleDocumentSocketMessage = <TSocket>(
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
     yield* ctx.presence.prune();
-    const attachment = ctx.getAttachment(socket);
-    if (!attachment) return;
+    const attachmentOption = ctx.getAttachment(socket);
+    if (Option.isNone(attachmentOption)) return;
+    const attachment = attachmentOption.value;
     const message = yield* parseClientMessage(raw);
 
-    switch (message.type) {
-      case "auth": {
-        const result = yield* Effect.result(ctx.authenticate(message.token, attachment));
-        if (result._tag === "Failure") {
-          yield* ctx.send(socket, authResultFailure("Invalid document token"));
-          return;
-        }
-        const loaded = yield* Effect.result(ctx.loadDocument());
-        if (loaded._tag === "Failure") {
-          // Never answer auth with success but no snapshot — the client would
-          // hang not-ready forever. Closing lets its reconnect loop retry
-          // transient load failures.
+    yield* Match.value(message).pipe(
+      Match.when({ type: "auth" }, (auth) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.result(ctx.authenticate(auth.token, attachment));
+          if (Result.isFailure(result)) {
+            yield* ctx.send(socket, authResultFailure("Invalid document token"));
+            return;
+          }
+          const loaded = yield* Effect.result(ctx.loadDocument());
+          if (Result.isFailure(loaded)) {
+            yield* ctx.send(
+              socket,
+              errorMessage(`Failed to load document: ${loaded.failure.message}`),
+            );
+            yield* ctx.close(socket, 1011, "Document load failed");
+            return;
+          }
+          const next: SessionAttachment = {
+            ...attachment,
+            authenticated: true,
+            permission: result.success.permission,
+            tokenId: result.success.tokenId,
+          };
+          ctx.setAttachment(socket, next);
+          ctx.registry.promote(next.connectionId, socket);
           yield* ctx.send(
             socket,
-            errorMessage(`Failed to load document: ${loaded.failure.message}`),
+            authResultSuccess(result.success.tokenId, result.success.permission),
           );
-          yield* ctx.close(socket, 1011, "Document load failed");
-          return;
-        }
-        const next: SessionAttachment = {
-          ...attachment,
-          authenticated: true,
-          permission: result.success.permission,
-          tokenId: result.success.tokenId,
-        };
-        ctx.setAttachment(socket, next);
-        ctx.registry.promote(next.connectionId, socket);
-        yield* ctx.send(
-          socket,
-          authResultSuccess(result.success.tokenId, result.success.permission),
-        );
-        yield* ctx.send(socket, snapshotMessage(loaded.success.value, loaded.success.version));
-        yield* ctx.send(
-          socket,
-          presenceSnapshotMessage(next.connectionId, yield* ctx.presence.snapshot()),
-        );
-        return;
-      }
-      case "ping":
-        yield* ctx.send(socket, pong());
-        return;
-      case "request_snapshot": {
-        if (!attachment.authenticated) return;
-        const loaded = yield* Effect.result(ctx.loadDocument());
-        if (loaded._tag === "Success") {
           yield* ctx.send(socket, snapshotMessage(loaded.success.value, loaded.success.version));
-        }
-        return;
-      }
-      case "presence_set": {
-        if (!attachment.authenticated || attachment.permission !== "write") return;
-        const entry: PresenceEntry = {
-          data: message.data,
-          userId: attachment.tokenId,
-        };
-        yield* ctx.presence.set(attachment.connectionId, entry);
-        ctx.setAttachment(socket, { ...attachment, presence: entry });
-        yield* broadcastToAuthenticated(
-          ctx,
-          presenceUpdateMessage(attachment.connectionId, message.data, attachment.tokenId),
-        );
-        return;
-      }
-      case "presence_clear": {
-        if (!attachment.authenticated) return;
-        yield* ctx.presence.remove(attachment.connectionId);
-        const { presence: _presence, ...next } = attachment;
-        ctx.setAttachment(socket, next);
-        yield* broadcastToAuthenticated(ctx, presenceRemoveMessage(attachment.connectionId));
-        return;
-      }
-      case "submit": {
-        if (!attachment.authenticated) {
-          yield* ctx.send(socket, errorMessage("Not authenticated", message.transaction.id));
-          return;
-        }
-        if (attachment.permission !== "write") {
           yield* ctx.send(
             socket,
-            errorMessage("Write permission required", message.transaction.id),
+            presenceSnapshotMessage(next.connectionId, yield* ctx.presence.snapshot()),
           );
-          return;
-        }
-        const envelope = decodeTransactionEnvelope(message.transaction);
-        const result = yield* ctx.submitTransaction(envelope);
-        if (result.accepted) {
-          // `version` is `newSeq + 1`; the document's current sequence after the
-          // accepted transaction is one less.
-          if (ctx.onAccepted) yield* ctx.onAccepted(result.version - 1);
-          yield* broadcastToAuthenticated(ctx, transactionMessage(envelope, result.version));
-        } else {
-          yield* ctx.send(
-            socket,
-            errorMessage(result.reason ?? "Transaction rejected", envelope.id),
+        }),
+      ),
+      Match.when({ type: "ping" }, () => ctx.send(socket, pong())),
+      Match.when({ type: "request_snapshot" }, () =>
+        Effect.gen(function* () {
+          if (!attachment.authenticated) return;
+          const loaded = yield* Effect.result(ctx.loadDocument());
+          if (Result.isSuccess(loaded)) {
+            yield* ctx.send(socket, snapshotMessage(loaded.success.value, loaded.success.version));
+          }
+        }),
+      ),
+      Match.when({ type: "presence_set" }, (presence) =>
+        Effect.gen(function* () {
+          if (!attachment.authenticated || attachment.permission !== "write") return;
+          const entry: PresenceEntry = { data: presence.data, userId: attachment.tokenId };
+          yield* ctx.presence.set(attachment.connectionId, entry);
+          ctx.setAttachment(socket, { ...attachment, presence: entry });
+          yield* broadcastToAuthenticated(
+            ctx,
+            presenceUpdateMessage(attachment.connectionId, presence.data, attachment.tokenId),
           );
-        }
-        return;
-      }
-    }
+        }),
+      ),
+      Match.when({ type: "presence_clear" }, () =>
+        Effect.gen(function* () {
+          if (!attachment.authenticated) return;
+          yield* ctx.presence.remove(attachment.connectionId);
+          const { presence: _presence, ...next } = attachment;
+          ctx.setAttachment(socket, next);
+          yield* broadcastToAuthenticated(ctx, presenceRemoveMessage(attachment.connectionId));
+        }),
+      ),
+      Match.when({ type: "submit" }, (submit) =>
+        Effect.gen(function* () {
+          if (!attachment.authenticated) {
+            yield* ctx.send(socket, errorMessage("Not authenticated", submit.transaction.id));
+            return;
+          }
+          if (attachment.permission !== "write") {
+            yield* ctx.send(
+              socket,
+              errorMessage("Write permission required", submit.transaction.id),
+            );
+            return;
+          }
+          const envelope = decodeTransactionEnvelope(submit.transaction);
+          const result = yield* ctx.submitTransaction(envelope);
+          if (result.accepted) {
+            if (ctx.onAccepted) yield* ctx.onAccepted(result.version - 1);
+            yield* broadcastToAuthenticated(ctx, transactionMessage(envelope, result.version));
+          } else {
+            yield* ctx.send(
+              socket,
+              errorMessage(result.reason ?? "Transaction rejected", envelope.id),
+            );
+          }
+        }),
+      ),
+      Match.exhaustive,
+    );
   }).pipe(Effect.catch((error) => ctx.send(socket, errorMessage(causeMessage(error)))));
 
 /**
@@ -250,8 +251,9 @@ export const handleDocumentSocketClose = <TSocket>(
   socket: TSocket,
 ): Effect.Effect<void, unknown> =>
   Effect.gen(function* () {
-    const attachment = ctx.getAttachment(socket);
-    if (!attachment) return;
+    const attachmentOption = ctx.getAttachment(socket);
+    if (Option.isNone(attachmentOption)) return;
+    const attachment = attachmentOption.value;
     ctx.registry.remove(attachment.connectionId);
     const hadPresence = yield* ctx.presence.remove(attachment.connectionId);
     if (hadPresence) {
@@ -260,7 +262,7 @@ export const handleDocumentSocketClose = <TSocket>(
     // The closing socket was removed above; if no authenticated sockets remain,
     // the collaborative session has gone idle. Only authenticated sockets count
     // — pending pre-auth sockets never edited the document.
-    if (ctx.onLastAuthenticatedClose && ctx.registry.authenticated().length === 0) {
+    if (ctx.onLastAuthenticatedClose && !Arr.isReadonlyArrayNonEmpty(ctx.registry.authenticated())) {
       yield* ctx.onLastAuthenticatedClose();
     }
   });

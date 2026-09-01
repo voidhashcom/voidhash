@@ -4,13 +4,17 @@ import {
   type DurableEntityHostShape,
   type DurableEntitySession,
 } from "@voidhash/platform/DurableEntity";
-import { Effect, Layer, Semaphore } from "effect";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Semaphore from "effect/Semaphore";
 
 interface MemoryEntityState {
   readonly lock: Semaphore.Semaphore;
-  readonly values: Map<string, unknown>;
-  readonly sessions: Map<string, DurableEntitySession>;
-  alarm: number | undefined;
+  values: HashMap.HashMap<string, unknown>;
+  sessions: HashMap.HashMap<string, DurableEntitySession>;
+  alarm: Option.Option<number>;
 }
 
 const entityKey = (type: string, id: string): string => `${type}\u0000${id}`;
@@ -21,19 +25,19 @@ const entityKey = (type: string, id: string): string => `${type}\u0000${id}`;
  * use independent semaphores and may run concurrently.
  */
 export const makeMemoryDurableEntityHost = (): DurableEntityHostShape => {
-  const states = new Map<string, MemoryEntityState>();
+  let states = HashMap.empty<string, MemoryEntityState>();
 
   const stateFor = (type: string, id: string): MemoryEntityState => {
     const key = entityKey(type, id);
-    let state = states.get(key);
+    let state = Option.getOrUndefined(HashMap.get(states, key));
     if (!state) {
       state = {
         lock: Semaphore.makeUnsafe(1),
-        values: new Map(),
-        sessions: new Map(),
-        alarm: undefined,
+        values: HashMap.empty(),
+        sessions: HashMap.empty(),
+        alarm: Option.none(),
       };
-      states.set(key, state);
+      states = HashMap.set(states, key, state);
     }
     return state;
   };
@@ -44,22 +48,29 @@ export const makeMemoryDurableEntityHost = (): DurableEntityHostShape => {
         const state = stateFor(address.type, address.id);
         const context: DurableEntityContext = {
           address,
+          sql: Option.none(),
           keyValue: {
-            get: (key) => Effect.sync(() => state.values.get(key)),
-            put: (key, value) => Effect.sync(() => void state.values.set(key, value)),
-            delete: (key) => Effect.sync(() => void state.values.delete(key)),
+            get: (key) => Effect.sync(() => HashMap.get(state.values, key)),
+            put: (key, value) =>
+              Effect.sync(() => void (state.values = HashMap.set(state.values, key, value))),
+            delete: (key) =>
+              Effect.sync(() => void (state.values = HashMap.remove(state.values, key))),
           },
           alarm: {
             get: Effect.sync(() => state.alarm),
-            set: (scheduledTime) => Effect.sync(() => void (state.alarm = scheduledTime)),
-            delete: Effect.sync(() =>  (state.alarm = undefined)),
+            set: (scheduledTime) =>
+              Effect.sync(() => void (state.alarm = Option.some(scheduledTime))),
+            delete: Effect.sync(() => void (state.alarm = Option.none())),
           },
           sessions: {
-            get: (sessionId) => Effect.sync(() => state.sessions.get(sessionId)),
-            list: Effect.sync(() => [...state.sessions.values()]),
+            get: (sessionId) => Effect.sync(() => HashMap.get(state.sessions, sessionId)),
+            list: Effect.sync(() => Array.from(HashMap.values(state.sessions))),
             attach: (session) =>
-              Effect.sync(() => void state.sessions.set(session.id, session)),
-            remove: (sessionId) => Effect.sync(() => void state.sessions.delete(sessionId)),
+              Effect.sync(
+                () => void (state.sessions = HashMap.set(state.sessions, session.id, session)),
+              ),
+            remove: (sessionId) =>
+              Effect.sync(() => void (state.sessions = HashMap.remove(state.sessions, sessionId))),
           },
         };
         return state.lock.withPermit(Effect.suspend(() => operation(context)));

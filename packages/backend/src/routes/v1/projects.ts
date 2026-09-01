@@ -9,7 +9,7 @@ import { ProjectNotFoundError } from "@voidhash/core/domain/project/Project";
 import { ProjectService } from "@voidhash/core/services";
 import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -40,7 +40,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "projects",
     return handlers
       .handle("createProject", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProjectsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, USER_ONLY);
             const project = yield* projectService.createProject({
@@ -49,7 +49,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "projects",
             });
             const created = new Project(project);
             return yield* createdResponse(Project, created, `/projects/${created.id}`);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -62,12 +62,12 @@ export const ProjectsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "projects",
       )
       .handle("getProjectById", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProjectsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, USER_OR_SECRET_KEY);
             const projectId = yield* resolveRequestProjectId(authSession, params.projectId);
             return yield* requireProject(projectId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -80,7 +80,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "projects",
       )
       .handle("updateProject", ({ params, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProjectsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, USER_ONLY);
             const projectId = yield* resolveRequestProjectId(authSession, params.projectId);
@@ -88,7 +88,7 @@ export const ProjectsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "projects",
               yield* projectService.updateProject({ id: projectId, name: payload.name });
             }
             return yield* requireProject(projectId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -102,12 +102,12 @@ export const ProjectsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "projects",
       )
       .handle("deleteProject", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("ProjectsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, USER_ONLY);
             const projectId = yield* resolveRequestProjectId(authSession, params.projectId);
             return yield* projectService.deleteProject({ id: projectId });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

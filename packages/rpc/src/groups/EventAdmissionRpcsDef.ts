@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import { RpcEventAdmissionServiceError } from "../errors/EventAdmission.ts";
@@ -8,10 +8,10 @@ import { AuthMiddleware } from "../middlewares.ts";
 /** One built-in event entry resolved against a project's stored overrides. */
 export const BuiltinEventAdmission = Schema.Struct({
   /** The edition's code default, shown when the project has no override. */
-  defaultEnabled: Schema.Boolean,
+  isDefaultEnabled: Schema.Boolean,
   description: Schema.String,
   /** Effective state: `override ?? defaultEnabled`. */
-  enabled: Schema.Boolean,
+  isEnabled: Schema.Boolean,
   /** Every event name this entry admits (the revenue entry covers 19). */
   eventNames: Schema.Array(Schema.String),
   key: Schema.String,
@@ -20,13 +20,15 @@ export const BuiltinEventAdmission = Schema.Struct({
   override: Schema.NullOr(Schema.Boolean),
   /** Rendered inline in settings when turning the entry off breaks a feature. */
   warning: Schema.NullOr(Schema.String),
-});
+}).pipe(Schema.encodeKeys({ isDefaultEnabled: "defaultEnabled", isEnabled: "enabled" }));
+export type BuiltinEventAdmission = typeof BuiltinEventAdmission.Type;
 
 /** A project's complete event admission policy. */
 export const EventAdmissionPolicy = Schema.Struct({
   builtinEvents: Schema.Array(BuiltinEventAdmission),
   customEventBlocklist: Schema.Array(Schema.String),
 });
+export type EventAdmissionPolicy = typeof EventAdmissionPolicy.Type;
 
 const policyError = Schema.Union([RpcEventAdmissionServiceError, RpcActionForbiddenError]);
 

@@ -1,15 +1,16 @@
+import * as Schema from "effect/Schema";
 import { AnalyticsEvent, VoidhashV1Api } from "@voidhash/api-contracts";
 import { ApiActionForbiddenError, ApiAnalyticsServiceError } from "@voidhash/api-contracts/errors";
 import { AnalyticsQuery } from "@voidhash/core-v2";
 import { decodeCursor, encodeCursor, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
 
 /** Resolves an optional opaque cursor to the `eventId` it points at. */
-const toAfterEventId = (cursor: string | undefined) => {
+const toAfterEventId = (cursor: string | typeof Schema.Undefined.Type) => {
   if (cursor === undefined) return Effect.succeed(undefined);
   return decodeCursor(cursor);
 };
@@ -20,7 +21,7 @@ export const EventsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "events", (ha
 
     return handlers.handle("listEvents", ({ query }) =>
       bridgeAuthSession(
-        Effect.gen(function* () {
+        Effect.fn("EventsGroupLive")(function* () {
           const authSession = yield* AuthSession;
           yield* requireCredential(authSession, ["user", "secret-key"]);
           const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -51,12 +52,12 @@ export const EventsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "events", (ha
               }),
           );
           const last = events[events.length - 1];
-          let endCursor: string | null = null;
+          let endCursor: string | typeof Schema.Null.Type = null;
           if (page.hasNextPage && last !== undefined) {
             endCursor = encodeCursor(last.eventId);
           }
           return { data: events, pageInfo: { endCursor, hasNextPage: page.hasNextPage } };
-        }),
+        })(),
       ).pipe(
         Effect.catchTags({
           ActionForbiddenError: (e) =>

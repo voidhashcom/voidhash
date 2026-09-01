@@ -51,7 +51,11 @@ import { Db } from "@voidhash/db";
 import type { ProductTypeValue, SubscriptionDurationValue } from "@voidhash/lib";
 import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import { constant } from "@voidhash/lib/lang";
-import { DateTime, Effect, Option, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Inspectable from "effect/Inspectable";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
@@ -59,6 +63,9 @@ import { HttpApiBuilder } from "effect/unstable/httpapi";
 import { bridgeAuthSession, getPersonMetadataFromSdkHeaders } from "../../ApiMiddlewares.ts";
 import { schemaNotModifiedResponse, schemaResponseHeaders } from "./schema.ts";
 import { DevelopmentPaymentProviderService } from "../../purchases/providers/development/DevelopmentPaymentProviderService.ts";
+import * as Arr from "effect/Array";
+import { MutableMap } from "../../collection-boundary.ts";
+import { assumeType } from "../../runtime-boundary.ts";
 
 const toSdkCurrentSubscription = (current: SdkPersonSnapshot["subscriptions"]["current"]) => {
   if (!current) return null;
@@ -71,26 +78,31 @@ const toSdkCurrentSubscription = (current: SdkPersonSnapshot["subscriptions"]["c
 };
 
 /** Copies an optional record payload, keeping "absent" distinct from "empty". */
-const optionalRecordCopy = <T extends object>(value: T | null | undefined): T | undefined => {
+const optionalRecordCopy = <T extends object>(
+  value: T | typeof Schema.Null.Type | typeof Schema.Undefined.Type,
+): T | typeof Schema.Undefined.Type => {
   if (!value) return undefined;
   return { ...value };
 };
 
 /** Copies an optional readonly list into the mutable shape the services expect. */
-const optionalListCopy = <T>(value: ReadonlyArray<T> | null | undefined): T[] | undefined => {
+const optionalListCopy = <T>(
+  value: ReadonlyArray<T> | typeof Schema.Null.Type | typeof Schema.Undefined.Type,
+): T[] | typeof Schema.Undefined.Type => {
   if (!value) return undefined;
   return [...value];
 };
 
 const optionalClientEventId = (
-  clientEventId: string | null | undefined,
+  clientEventId: string | typeof Schema.Null.Type | typeof Schema.Undefined.Type,
 ): { clientEventId?: string } => {
   if (!clientEventId) return {};
   return { clientEventId };
 };
 
 const asProductType = (value: any): ProductTypeValue => value;
-const asSubscriptionDuration = (value: any): SubscriptionDurationValue | null => value;
+const asSubscriptionDuration = (value: any): SubscriptionDurationValue | typeof Schema.Null.Type =>
+  value;
 
 const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
   new SdkPerson({
@@ -239,7 +251,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("identifyPerson", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const session = yield* AuthSession;
             const project = session?.projects[0];
             if (!project) {
@@ -262,13 +274,13 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
 
             const snapshot = yield* sdkService.identifyPerson({
               distinctId: payload.distinctId,
-              email: payload.email ?? null,
-              name: payload.name ?? null,
+              email: Option.fromNullishOr(payload.email),
+              name: Option.fromNullishOr(payload.name),
               traits: optionalRecordCopy(payload.traits),
             });
 
             return toSdkPerson(snapshot);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             AuthenticationError: (e) =>
@@ -285,7 +297,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("syncPersonAttributes", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const req = yield* HttpServerRequest.HttpServerRequest;
             const parsedHeaders = yield* Schema.decodeUnknownEffect(SdkHeaders)(req.headers).pipe(
               Effect.mapError((error) => new ApiSdkValidationError({ message: error.message })),
@@ -301,7 +313,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               ...optionalClientEventId(payload.clientEventId),
             });
             return toSdkPerson(result.snapshot);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             AuthenticationError: (e) =>
@@ -316,7 +328,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("syncTransaction", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const req = yield* HttpServerRequest.HttpServerRequest;
             const parsedHeaders = yield* Schema.decodeUnknownEffect(SdkHeaders)(req.headers).pipe(
               Effect.mapError((error) => new ApiSdkValidationError({ message: error.message })),
@@ -331,16 +343,20 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             // fetch handler; pin it to a concrete `Effect` so the outer
             // `catchTags` matches the underlying tags and `R` stays `never`.
             // oxlint-disable-next-line effect/noAs -- see the comment above: `satisfies` cannot narrow `R` back to `never`, and the pin is exactly what keeps the payment services from escaping into the worker's fetch handler.
-            yield* sdkService.submitPurchaseTransaction(
-              mapSdkTransactionSubmission(payload, clientBundleId),
-            ) as Effect.Effect<
-              unknown,
-              AuthenticationError | SdkValidationError | SdkServiceError,
-              never
-            >;
+            yield* assumeType<
+              Effect.Effect<
+                unknown,
+                AuthenticationError | SdkValidationError | SdkServiceError,
+                never
+              >
+            >(
+              sdkService.submitPurchaseTransaction(
+                mapSdkTransactionSubmission(payload, clientBundleId),
+              ),
+            );
 
             return new SdkSyncTransactionResponse({ accepted: true });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             AuthenticationError: (e) =>
@@ -353,7 +369,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("developmentPurchase", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const req = yield* HttpServerRequest.HttpServerRequest;
             const parsedHeaders = yield* Schema.decodeUnknownEffect(SdkHeaders)(req.headers).pipe(
               Effect.mapError((error) => new ApiSdkValidationError({ message: error.message })),
@@ -396,7 +412,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               accepted: true,
               warning: result.warning,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             DevelopmentPaymentProviderServiceError: (error) =>
@@ -406,7 +422,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("resolvePaywall", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const session = yield* AuthSession;
             const project = session?.projects[0];
             if (!project) {
@@ -419,7 +435,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             // Resolve the subject the same way `evaluateFeatureFlags` does so an
             // experiment-backed location buckets on a stable identity.
             const distinctId = session?.person?.distinctId ?? undefined;
-            let personId: string | undefined;
+            let personId: string | typeof Schema.Undefined.Type;
             if (distinctId) {
               const mapping = yield* dbService.query.personIdentities.findFirst({
                 where: { distinctId, projectId },
@@ -433,28 +449,32 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               personId,
               distinctId,
             });
-            if (resolved === null) {
-              return null;
-            }
+            if (Option.isNone(resolved)) return null;
 
-            const exposure = resolved.exposure;
-            const exposureDistinctId = exposure?.distinctId ?? exposure?.personId;
-            if (exposure && exposureDistinctId) {
+            const exposure = resolved.value.exposure;
+            const exposureDistinctId = Option.flatMap(exposure, (value) =>
+              Option.orElse(value.distinctId, () => value.personId),
+            );
+            if (Option.isSome(exposure) && Option.isSome(exposureDistinctId)) {
               const analyticsDelivery = yield* Effect.serviceOption(AnalyticsDelivery);
               if (Option.isSome(analyticsDelivery)) {
-                const eventId = `experiment:${exposure.experimentId.length}:${exposure.experimentId}:${exposureDistinctId.length}:${exposureDistinctId}:${exposure.variantKey}`;
+                const variantKey = Inspectable.toStringUnknown(
+                  exposure.value.variantKey,
+                  undefined,
+                );
+                const eventId = `experiment:${exposure.value.experimentId.length}:${exposure.value.experimentId}:${exposureDistinctId.value.length}:${exposureDistinctId.value}:${variantKey}`;
                 yield* dispatchInternalAnalyticsEvent({
-                  context: { locationId: resolved.location.id },
-                  distinctId: exposureDistinctId,
+                  context: { locationId: resolved.value.location.id },
+                  distinctId: exposureDistinctId.value,
                   eventId,
                   eventName: "$experiment.exposed",
                   occurredAt: yield* DateTime.nowAsDate,
                   organizationId: project.organizationId,
-                  personId: exposure.personId,
+                  personId: Option.getOrNull(exposure.value.personId),
                   projectId,
                   properties: {
-                    experimentId: exposure.experimentId,
-                    variantKey: exposure.variantKey,
+                    experimentId: exposure.value.experimentId,
+                    variantKey: exposure.value.variantKey,
                   },
                   token: "internal:experiment",
                 }).pipe(
@@ -462,7 +482,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
                   Effect.catchCause((cause) =>
                     Effect.logWarning("failed to record experiment exposure", {
                       cause,
-                      experimentId: exposure.experimentId,
+                      experimentId: exposure.value.experimentId,
                       projectId,
                     }),
                   ),
@@ -470,11 +490,28 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               }
             }
 
+            const showing = resolved.value.showing;
             return new SdkResolvedPaywall({
-              location: resolved.location,
-              showing: new SdkResolvedPaywallShowing(resolved.showing),
+              location: resolved.value.location,
+              showing: new SdkResolvedPaywallShowing({
+                id: showing.id,
+                paywall: Option.getOrNull(showing.paywall),
+                paywallId: Option.getOrNull(showing.paywallId),
+                paywallRelease: Option.getOrNull(
+                  Option.map(showing.paywallRelease, (release) => ({
+                    htmlUrl: release.htmlUrl,
+                    publishedAt: Option.getOrNull(release.publishedAt),
+                    releaseId: release.releaseId,
+                    runtime: Option.getOrNull(release.runtime),
+                    version: release.version,
+                  })),
+                ),
+                paywallReleaseId: Option.getOrNull(showing.paywallReleaseId),
+                startedAt: showing.startedAt,
+                type: showing.type,
+              }),
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             EffectDrizzleQueryError: (e) =>
@@ -485,12 +522,12 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
         ),
       )
       .handle("getSdkSchema", () =>
-        Effect.gen(function* () {
+        Effect.fn("SdkGroupLive")(function* () {
           const req = yield* HttpServerRequest.HttpServerRequest;
           const ifNoneMatch = HttpHeaders.get(req.headers, "if-none-match");
 
           return yield* bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("SdkGroupLive")(function* () {
               const session = yield* AuthSession;
               const projectId = session?.projects[0]?.id;
               if (!projectId) {
@@ -506,7 +543,9 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               const dbProducts = yield* dbService.query.products.findMany({
                 where: { projectId },
               });
-              const dbProductBySlug = new Map(dbProducts.map((product) => [product.slug, product]));
+              const dbProductBySlug = new MutableMap(
+                dbProducts.map((product) => [product.slug, product]),
+              );
 
               const notModified = schemaNotModifiedResponse(
                 Option.getOrUndefined(ifNoneMatch),
@@ -517,31 +556,31 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               }
 
               const perks: Record<string, SdkSchemaPerk> = {};
-              for (const perk of schema.perks) {
+              Arr.forEach(schema.perks, (perk) => {
                 perks[perk.slug] = new SdkSchemaPerk(perk);
-              }
+              });
 
               const locations: Record<string, SdkSchemaLocation> = {};
-              for (const location of schema.locations) {
+              Arr.forEach(schema.locations, (location) => {
                 locations[location.slug] = new SdkSchemaLocation(location);
-              }
+              });
 
               const products: Record<string, SdkSchemaProduct> = {};
-              for (const product of schema.products) {
+              Arr.forEach(schema.products, (product) => {
                 const perksRecord: Record<string, true> = {};
-                for (const perkSlug of product.perks) {
+                Arr.forEach(product.perks, (perkSlug) => {
                   perksRecord[perkSlug] = true;
-                }
+                });
                 const providers: {
                   appleAppStore?: Record<string, unknown>;
                   googlePlay?: Record<string, unknown>;
                 } = {};
-                for (const provider of product.providers) {
+                Arr.forEach(product.providers, (provider) => {
                   providers[provider.providerId] = provider.configuration;
-                }
+                });
                 const dbProduct = dbProductBySlug.get(product.slug);
                 if (!dbProduct) {
-                  continue;
+                  return;
                 }
                 const developmentPrice = getDevelopmentPrice(
                   asProductType(dbProduct.type),
@@ -570,15 +609,15 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
                   slug: product.slug,
                   type: product.type,
                 });
-              }
+              });
 
               return yield* HttpServerResponse.schemaJson(SdkSchema)(
                 new SdkSchema({ locations, perks, products, version: schema.version }),
                 { headers: schemaResponseHeaders(schema.version) },
               ).pipe(Effect.orDie);
-            }),
+            })(),
           );
-        }).pipe(
+        })().pipe(
           Effect.catchTags({
             EffectDrizzleQueryError: (e) =>
               Effect.fail(new ApiSchemaServiceError({ cause: String(e.cause) })),
@@ -588,7 +627,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("evaluateFeatureFlags", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const session = yield* AuthSession;
             const projectId = session?.projects[0]?.id;
             if (!projectId) {
@@ -599,7 +638,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
 
             const distinctId = session?.person?.distinctId ?? undefined;
 
-            let personId: string | undefined;
+            let personId: string | typeof Schema.Undefined.Type;
             if (distinctId) {
               const mapping = yield* dbService.query.personIdentities.findFirst({
                 where: { distinctId, projectId },
@@ -625,7 +664,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
                   }),
               ),
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             FeatureFlagServiceError: (e) => Effect.fail(new ApiSdkServiceError({ cause: e.cause })),
@@ -636,7 +675,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("registerDevice", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const session = yield* AuthSession;
             const project = session?.projects[0];
             if (!project) {
@@ -689,7 +728,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               previousPushDeviceTokenId: payload.previousPushDeviceTokenId,
             });
             return new RegisterDeviceResponse({ pushDeviceTokenId });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             PersonServiceError: (e) =>
@@ -703,7 +742,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("refreshDevice", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const session = yield* AuthSession;
             const project = session?.projects[0];
             if (!project) {
@@ -750,7 +789,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               pushDeviceTokenId: payload.pushDeviceTokenId,
               newPlatformToken: payload.platformToken,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             PersonServiceError: (e) =>
@@ -764,7 +803,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
       )
       .handle("unregisterDevice", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("SdkGroupLive")(function* () {
             const session = yield* AuthSession;
             const project = session?.projects[0];
             if (!project) {
@@ -809,7 +848,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               callerPersonId,
               pushDeviceTokenId: payload.pushDeviceTokenId,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             PersonServiceError: (e) =>

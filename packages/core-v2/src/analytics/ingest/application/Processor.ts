@@ -1,4 +1,9 @@
-import { Context, Crypto, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Crypto from "effect/Crypto";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import {
   analyticsEventFromProcessed,
@@ -155,6 +160,7 @@ export const ProcessResult = Schema.Struct({
   status: Schema.Literals(["dead-lettered", "stored"]),
   inserted: Schema.Int,
 });
+export type ProcessResult = typeof ProcessResult.Type;
 
 /** Analytics processing capabilities shared by inline and queued transports. */
 interface AnalyticsProcessorShape {
@@ -163,7 +169,7 @@ interface AnalyticsProcessorShape {
   ) => Effect.Effect<typeof ProcessResult.Type, AnalyticsProcessorError>;
 }
 
-const makeAnalyticsProcessor = Effect.gen(function* () {
+const makeAnalyticsProcessor = Effect.fn("makeAnalyticsProcessor")(function* () {
   const config = yield* AnalyticsConfig;
   const deadLetters = yield* AnalyticsDeadLetterStore;
   const identity = yield* AnalyticsIdentityResolver;
@@ -218,7 +224,7 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
         if (!project || project.projectId !== record.capturedEvent.projectId) {
           return yield* reject("project_not_found", "failed to resolve processor project policy");
         }
-        if (!project.policy.processorEnabled) {
+        if (!project.policy.isProcessorEnabled) {
           return yield* reject("policy_rejected", "processor is disabled for the project");
         }
         if (
@@ -269,7 +275,7 @@ const makeAnalyticsProcessor = Effect.gen(function* () {
         return { inserted, status: "stored" };
       }),
   } satisfies AnalyticsProcessorShape;
-});
+})();
 
 /** Processor use case whose implementation dependencies are supplied by layers. */
 export class AnalyticsProcessor extends Context.Service<

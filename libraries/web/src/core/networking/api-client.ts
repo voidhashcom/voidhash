@@ -7,7 +7,10 @@ import {
   type SdkResolvePaywallBody,
   type SdkSyncPersonAttributesBody,
 } from "@voidhash/generated-clients";
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { SdkConfiguration } from "../sdk-configuration";
@@ -17,30 +20,30 @@ interface WebFeatureFlagsResponse {
     readonly enabled: boolean;
     readonly key: string;
     readonly payload: unknown;
-    readonly variantKey: string | null;
+    readonly variantKey: Option.Option<string>;
   }>;
 }
 
 export interface WebSdkHeaders {
   readonly "x-client-bundle-id": string;
-  readonly "x-client-locale"?: string | undefined;
-  readonly "x-client-version"?: string | undefined;
+  readonly "x-client-locale"?: string;
+  readonly "x-client-version"?: string;
   readonly "x-distinct-id": string;
   readonly "x-is-backgrounded": "false" | "true";
   readonly "x-is-debug-build": "false" | "true";
   readonly "x-nonce": string;
   readonly "x-observer-mode": "false" | "true";
   readonly "x-platform": string;
-  readonly "x-platform-brand"?: string | undefined;
-  readonly "x-platform-device"?: string | undefined;
+  readonly "x-platform-brand"?: string;
+  readonly "x-platform-device"?: string;
   readonly "x-platform-flavor": "browser" | "native";
-  readonly "x-platform-flavor-version"?: string | undefined;
-  readonly "x-platform-version"?: string | undefined;
-  readonly "x-preferred-locales"?: string | undefined;
+  readonly "x-platform-flavor-version"?: string;
+  readonly "x-platform-version"?: string;
+  readonly "x-preferred-locales"?: string;
   readonly "x-publishable-key": string;
   readonly "x-sdk": "web" | "react-native";
   readonly "x-sdk-version": string;
-  readonly "x-storefront"?: string | undefined;
+  readonly "x-storefront"?: string;
 }
 
 /** SDK headers as produced by the platform provider, before identity is known. */
@@ -69,7 +72,7 @@ const normalizeFeatureFlagsResponse = (
     enabled: flag.enabled,
     key: flag.key,
     payload: null,
-    variantKey: flag.variantKey,
+    variantKey: Option.fromNullishOr(flag.variantKey),
   })),
 });
 
@@ -109,7 +112,7 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
   },
 });
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("makeApiClient")(function* effect() {
   const config = yield* SdkConfiguration;
   const httpClient = yield* HttpClient.HttpClient;
   return bindWebSdkClient(
@@ -126,8 +129,11 @@ const make = Effect.gen(function* effect() {
   );
 });
 
-export class ApiClient extends Context.Service<ApiClient, Effect.Success<typeof make>>()(
+export class ApiClient extends Context.Service<
+  ApiClient,
+  Effect.Success<ReturnType<typeof make>>
+>()(
   "web-voidhash/ApiClient",
 ) {
-  static Default = Layer.effect(ApiClient, make);
+  static Default = Layer.effect(ApiClient, make());
 }

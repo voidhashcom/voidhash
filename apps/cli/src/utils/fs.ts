@@ -1,9 +1,12 @@
 import { Prompt } from "effect/unstable/cli";
-import { Data, Effect, FileSystem } from "effect";
+import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Schema from "effect/Schema";
 
-export class FileExistsError extends Data.TaggedError("FileExistsError")<{
-  readonly message: string;
-}> {}
+export class FileExistsError extends Schema.TaggedErrorClass<FileExistsError>("FileExistsError")(
+  "FileExistsError",
+  { message: Schema.String },
+) {}
 
 /**
  * Asserts that a file can be created at the given path.

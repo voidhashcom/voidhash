@@ -23,14 +23,18 @@ import {
   GooglePlayPaymentProviderServiceError,
 } from "@voidhash/core-v2";
 import { pick } from "@voidhash/lib/lang";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import { GooglePubSubPushVerifier } from "../../GooglePubSubPushVerifier.ts";
 
 import { googlePlayRtdnIngressRoute } from "./manifest.ts";
+import { hasTag } from "../../runtime-boundary.ts";
 
-const GooglePlayRtdnPathParamsSchema = Schema.Struct({
+const GooglePlayRtdnPathParams = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
 });
 
@@ -39,19 +43,19 @@ const invalidPayloadResponse = HttpServerResponse.json(
   { status: 400 },
 );
 
-const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
+const registerGooglePlayRtdnNotificationRoute = Effect.fn("registerGooglePlayRtdnNotificationRoute")(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(
     googlePlayRtdnIngressRoute.method,
     googlePlayRtdnIngressRoute.path,
-    Effect.gen(function* () {
+    Effect.fn("registerGooglePlayRtdnNotificationRoute")(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(
-        HttpRouter.schemaPathParams(GooglePlayRtdnPathParamsSchema),
+        HttpRouter.schemaPathParams(GooglePlayRtdnPathParams),
       );
 
-      if (pathParamsResult._tag === "Failure") {
+      if (hasTag(pathParamsResult, "Failure")) {
         return yield* invalidPayloadResponse;
       }
 
@@ -59,7 +63,7 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
       const authenticationResult = yield* Effect.result(
         pubSubPushVerifier.verify(request.headers.authorization),
       );
-      if (authenticationResult._tag === "Failure") {
+      if (hasTag(authenticationResult, "Failure")) {
         const error = authenticationResult.failure;
         const status = pick(error.kind === "misconfigured", 503, 401);
         yield* Effect.logWarning("Google Play RTDN caller authentication failed", {
@@ -75,7 +79,7 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
       // The Pub/Sub envelope shape is validated inside the service (it owns the
       // base64/RTDN decode); here we only need the parsed JSON body.
       const bodyResult = yield* Effect.result(request.json);
-      if (bodyResult._tag === "Failure") {
+      if (hasTag(bodyResult, "Failure")) {
         return yield* invalidPayloadResponse;
       }
 
@@ -95,7 +99,7 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
 
       // 200 acks the Pub/Sub delivery (terminal + handled outcomes both ack).
       return yield* HttpServerResponse.json({ received: true }, { status: 200 });
-    }).pipe(
+    })().pipe(
       // The service folds terminal/business outcomes into a success value. A
       // `GooglePlayPaymentProviderServiceError` with `kind: "not_found"` means
       // the configuration/project is gone (deleted or never existed) — answer
@@ -105,7 +109,7 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
       Effect.catchTag(
         "GooglePlayPaymentProviderServiceError",
         (error: GooglePlayPaymentProviderServiceError) =>
-          Effect.gen(function* () {
+          Effect.fn("registerGooglePlayRtdnNotificationRoute")(function* () {
             if (error.kind === "not_found") {
               yield* Effect.logWarning(
                 "Google Play RTDN notification rejected: configuration not found",
@@ -124,20 +128,20 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
               { error: "Google Play RTDN processing failed", received: false },
               { status: 500 },
             );
-          }),
+          })(),
       ),
       Effect.catch((error) =>
-        Effect.gen(function* () {
+        Effect.fn("registerGooglePlayRtdnNotificationRoute")(function* () {
           yield* Effect.logError("Google Play RTDN notification error", error);
           return yield* HttpServerResponse.json(
             { error: "Google Play RTDN processing failed" },
             { status: 500 },
           );
-        }),
+        })(),
       ),
     ),
   );
-});
+})();
 
 export const GooglePlayRtdnNotificationRouteLayer = Layer.effectDiscard(
   registerGooglePlayRtdnNotificationRoute,

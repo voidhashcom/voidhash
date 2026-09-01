@@ -1,6 +1,8 @@
 import type { Command, SchemaObject, Value } from "@voidhash/mimic-core";
 import type { DatabasePermission, DocumentPermission } from "@voidhash/mimic-server/rpc";
-import { Context, type Effect } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
 
 // =============================================================================
 // Control-plane records — owned by the configured control entity store.
@@ -18,7 +20,7 @@ export interface CollectionRecord {
   readonly name: string;
   readonly schemaJson: SchemaObject;
   readonly schemaVersion: number;
-  readonly migrationVersion: number | null;
+  readonly migrationVersion: Option.Option<number>;
 }
 
 /** A persisted legacy schema version retained for source-free reconciliation. */
@@ -26,7 +28,7 @@ export interface SchemaVersionRecord {
   readonly collectionId: string;
   readonly version: number;
   readonly schemaJson: SchemaObject;
-  readonly dataMigrationSource: string | null;
+  readonly dataMigrationSource: Option.Option<string>;
 }
 
 export interface UserRecord {
@@ -51,14 +53,14 @@ export interface TokenRecord {
   readonly permission: DocumentPermission;
   readonly origins: readonly string[];
   readonly expiresAtMs: number;
-  readonly usedAt: number | null;
+  readonly usedAt: Option.Option<number>;
 }
 
 /** Lightweight index of which documents exist in which collection. */
 export interface DocumentIndexRecord {
   readonly documentId: string;
   readonly collectionId: string;
-  readonly deletedAt: number | null;
+  readonly deletedAt: Option.Option<number>;
 }
 
 /**
@@ -70,17 +72,17 @@ export interface DocumentIndexRecord {
 export interface ControlStoreApi {
   // databases
   readonly createDatabase: (record: DatabaseRecord) => Effect.Effect<void>;
-  readonly findDatabaseById: (id: string) => Effect.Effect<DatabaseRecord | undefined>;
-  readonly findDatabaseByName: (name: string) => Effect.Effect<DatabaseRecord | undefined>;
+  readonly findDatabaseById: (id: string) => Effect.Effect<Option.Option<DatabaseRecord>>;
+  readonly findDatabaseByName: (name: string) => Effect.Effect<Option.Option<DatabaseRecord>>;
   readonly listDatabases: () => Effect.Effect<readonly DatabaseRecord[]>;
   readonly deleteDatabase: (id: string) => Effect.Effect<void>;
   // collections
   readonly createCollection: (record: CollectionRecord) => Effect.Effect<void>;
-  readonly findCollectionById: (id: string) => Effect.Effect<CollectionRecord | undefined>;
+  readonly findCollectionById: (id: string) => Effect.Effect<Option.Option<CollectionRecord>>;
   readonly findCollectionByName: (
     databaseId: string,
     name: string,
-  ) => Effect.Effect<CollectionRecord | undefined>;
+  ) => Effect.Effect<Option.Option<CollectionRecord>>;
   readonly listCollectionsByDatabase: (
     databaseId: string,
   ) => Effect.Effect<readonly CollectionRecord[]>;
@@ -100,14 +102,14 @@ export interface ControlStoreApi {
   readonly findSchemaVersion: (
     collectionId: string,
     version: number,
-  ) => Effect.Effect<SchemaVersionRecord | undefined>;
+  ) => Effect.Effect<Option.Option<SchemaVersionRecord>>;
   readonly listSchemaVersions: (
     collectionId: string,
   ) => Effect.Effect<readonly SchemaVersionRecord[]>;
   // users
   readonly createUser: (record: UserRecord) => Effect.Effect<void>;
-  readonly findUserById: (id: string) => Effect.Effect<UserRecord | undefined>;
-  readonly findUserByUsername: (username: string) => Effect.Effect<UserRecord | undefined>;
+  readonly findUserById: (id: string) => Effect.Effect<Option.Option<UserRecord>>;
+  readonly findUserByUsername: (username: string) => Effect.Effect<Option.Option<UserRecord>>;
   readonly listUsers: () => Effect.Effect<readonly UserRecord[]>;
   readonly deleteUser: (id: string) => Effect.Effect<void>;
   readonly updateUserPasswordHash: (id: string, passwordHash: string) => Effect.Effect<void>;
@@ -116,19 +118,19 @@ export interface ControlStoreApi {
   readonly findGrant: (
     userId: string,
     databaseId: string,
-  ) => Effect.Effect<GrantRecord | undefined>;
+  ) => Effect.Effect<Option.Option<GrantRecord>>;
   readonly removeGrant: (userId: string, databaseId: string) => Effect.Effect<void>;
   readonly listGrants: () => Effect.Effect<readonly GrantRecord[]>;
   readonly listGrantsByUser: (userId: string) => Effect.Effect<readonly GrantRecord[]>;
   // document tokens
   readonly createToken: (record: TokenRecord) => Effect.Effect<void>;
-  readonly findTokenByHash: (tokenHash: string) => Effect.Effect<TokenRecord | undefined>;
+  readonly findTokenByHash: (tokenHash: string) => Effect.Effect<Option.Option<TokenRecord>>;
   readonly markTokenUsed: (id: string, usedAt: number) => Effect.Effect<void>;
   // document index
   readonly registerDocument: (documentId: string, collectionId: string) => Effect.Effect<void>;
   readonly findDocumentIndex: (
     documentId: string,
-  ) => Effect.Effect<DocumentIndexRecord | undefined>;
+  ) => Effect.Effect<Option.Option<DocumentIndexRecord>>;
   readonly listDocumentsByCollection: (
     collectionId: string,
   ) => Effect.Effect<readonly DocumentIndexRecord[]>;
@@ -146,10 +148,10 @@ export class ControlStore extends Context.Service<ControlStore, ControlStoreApi>
 export interface DocumentMeta {
   readonly collectionId: string;
   readonly schemaVersion: number;
-  readonly migrationVersion: number | null;
+  readonly migrationVersion: Option.Option<number>;
   readonly currentSeq: number;
   readonly snapshotSeq: number;
-  readonly deletedAt: number | null;
+  readonly deletedAt: Option.Option<number>;
 }
 
 export interface SnapshotRow {
@@ -169,14 +171,14 @@ export interface CommandRow {
  * in-memory implementations without changing the document engine.
  */
 export interface DocumentStoreApi {
-  readonly readMeta: () => Effect.Effect<DocumentMeta | undefined>;
+  readonly readMeta: () => Effect.Effect<Option.Option<DocumentMeta>>;
   readonly initialize: (
     collectionId: string,
     value: Value,
     schemaVersion: number,
-    migrationVersion: number | null,
+    migrationVersion: Option.Option<number>,
   ) => Effect.Effect<void>;
-  readonly loadLatestSnapshot: () => Effect.Effect<SnapshotRow | undefined>;
+  readonly loadLatestSnapshot: () => Effect.Effect<Option.Option<SnapshotRow>>;
   readonly listCommandsAfter: (seq: number) => Effect.Effect<readonly CommandRow[]>;
   readonly appendCommands: (
     fromSeq: number,
@@ -188,7 +190,7 @@ export interface DocumentStoreApi {
     seq: number,
     value: Value,
     schemaVersion: number,
-    migrationVersion: number | null,
+    migrationVersion: Option.Option<number>,
   ) => Effect.Effect<void>;
   readonly setMeta: (
     patch: Partial<

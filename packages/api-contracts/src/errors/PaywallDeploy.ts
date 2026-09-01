@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic paywall deploy service error */
 export class ApiPaywallDeployServiceError extends Schema.TaggedErrorClass<ApiPaywallDeployServiceError>()(

@@ -97,7 +97,7 @@ const getSessionFallbackUser = (user: SessionUser) =>
   ({
     createdAt: toDate(user.createdAt),
     email: user.email,
-    emailVerified: user.emailVerified,
+    isEmailVerified: user.emailVerified,
     id: user.externalId ?? user.id,
     image: user.profilePictureUrl ?? null,
     name: getSessionUserName(user),

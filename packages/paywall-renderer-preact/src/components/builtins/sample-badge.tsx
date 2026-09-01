@@ -1,3 +1,4 @@
+import * as P from "effect/Predicate";
 import type { BuiltinRendererProps } from "./types";
 
 const BADGE_STYLES: Record<string, string | number> = {
@@ -20,6 +21,6 @@ const BADGE_STYLES: Record<string, string | number> = {
  * `@voidhash/paywall-builtins`; REMOVE both before go-live.
  */
 export function SampleBadge({ props }: BuiltinRendererProps) {
-  const label = typeof props.label === "string" ? props.label : "New";
+  const label = P.isString(props.label) ? props.label : "New";
   return <span style={BADGE_STYLES}>{label}</span>;
 }

@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import * as Layer from "effect/Layer";
 import { WorkflowEngine } from "effect/unstable/workflow";
 
 import * as EffectWorkflowRunner from "./EffectWorkflowRunner.ts";

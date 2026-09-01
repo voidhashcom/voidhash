@@ -1,4 +1,7 @@
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import type { LocalUserIdentity } from "../../domain/auth/LocalUserSession.ts";
 import type { ValidatedJwt } from "./AuthTokenVerifier.ts";
@@ -24,12 +27,12 @@ export interface IdentityProviderShape {
 
   /**
    * Authenticates the provider's session cookie carried by `headers`. Resolves
-   * to `null` when no valid session is present, which callers treat as
+   * to `Option.none()` when no valid session is present, which callers treat as
    * "not authenticated" rather than as a failure.
    */
   readonly authenticateSessionCookie: (
     headers: Headers,
-  ) => Effect.Effect<LocalUserIdentity | null, IdentityProviderError>;
+  ) => Effect.Effect<Option.Option<LocalUserIdentity>, IdentityProviderError>;
 
   /**
    * Resolves a verified bearer token into a full identity. The WorkOS adapter

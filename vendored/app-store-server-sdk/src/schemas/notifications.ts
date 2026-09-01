@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import {
   ConsumptionRequestReasonSchema,
   EnvironmentSchema,
@@ -11,7 +11,7 @@ import {
  * The app metadata and the signed renewal and transaction information.
  * @see https://developer.apple.com/documentation/appstoreservernotifications/data
  */
-export const DataSchema = Schema.Struct({
+export const DataCodec = Schema.Struct({
   /** The server environment that the notification applies to. */
   environment: Schema.OptionFromOptionalKey(Schema.Union([EnvironmentSchema, Schema.String])),
 
@@ -38,14 +38,15 @@ export const DataSchema = Schema.Struct({
     Schema.Union([ConsumptionRequestReasonSchema, Schema.String]),
   ),
 });
+export type DataCodec = typeof DataCodec.Type;
 
-export type Data = Schema.Schema.Type<typeof DataSchema>;
+export type Data = Schema.Schema.Type<typeof DataCodec>;
 
 /**
  * The payload data for a subscription-renewal-date extension notification.
  * @see https://developer.apple.com/documentation/appstoreservernotifications/summary
  */
-export const SummarySchema = Schema.Struct({
+export const SummaryCodec = Schema.Struct({
   /** The server environment that the notification applies to. */
   environment: Schema.OptionFromOptionalKey(Schema.Union([EnvironmentSchema, Schema.String])),
 
@@ -70,14 +71,15 @@ export const SummarySchema = Schema.Struct({
   /** The count of subscriptions that fail to receive a renewal-date extension. */
   failedCount: Schema.OptionFromOptionalKey(Schema.Number),
 });
+export type SummaryCodec = typeof SummaryCodec.Type;
 
-export type Summary = Schema.Schema.Type<typeof SummarySchema>;
+export type Summary = Schema.Schema.Type<typeof SummaryCodec>;
 
 /**
  * The payload data that contains an external purchase token.
  * @see https://developer.apple.com/documentation/appstoreservernotifications/externalpurchasetoken
  */
-export const ExternalPurchaseTokenSchema = Schema.Struct({
+export const ExternalPurchaseTokenCodec = Schema.Struct({
   /** The field that uniquely identifies the external purchase token. */
   externalPurchaseId: Schema.OptionFromOptionalKey(Schema.String),
 
@@ -90,14 +92,15 @@ export const ExternalPurchaseTokenSchema = Schema.Struct({
   /** The bundle identifier of an app. */
   bundleId: Schema.OptionFromOptionalKey(Schema.String),
 });
+export type ExternalPurchaseTokenCodec = typeof ExternalPurchaseTokenCodec.Type;
 
-export type ExternalPurchaseToken = Schema.Schema.Type<typeof ExternalPurchaseTokenSchema>;
+export type ExternalPurchaseToken = Schema.Schema.Type<typeof ExternalPurchaseTokenCodec>;
 
 /**
  * The object that contains the app metadata and signed app transaction information.
  * @see https://developer.apple.com/documentation/appstoreservernotifications/appdata
  */
-export const AppDataSchema = Schema.Struct({
+export const AppDataCodec = Schema.Struct({
   /** The unique identifier of the app that the notification applies to. */
   appAppleId: Schema.OptionFromOptionalKey(Schema.Number),
 
@@ -110,14 +113,15 @@ export const AppDataSchema = Schema.Struct({
   /** App transaction information signed by the App Store, in JWS format. */
   signedAppTransactionInfo: Schema.OptionFromOptionalKey(Schema.String),
 });
+export type AppDataCodec = typeof AppDataCodec.Type;
 
-export type AppData = Schema.Schema.Type<typeof AppDataSchema>;
+export type AppData = Schema.Schema.Type<typeof AppDataCodec>;
 
 /**
  * A decoded payload containing the version 2 notification data.
  * @see https://developer.apple.com/documentation/appstoreservernotifications/responsebodyv2decodedpayload
  */
-export const ResponseBodyV2DecodedPayloadSchema = Schema.Struct({
+export const ResponseBodyV2DecodedPayloadCodec = Schema.Struct({
   /** The in-app purchase event for which the App Store sends this notification. */
   notificationType: Schema.OptionFromOptionalKey(
     Schema.Union([NotificationTypeV2Schema, Schema.String]),
@@ -130,7 +134,7 @@ export const ResponseBodyV2DecodedPayloadSchema = Schema.Struct({
   notificationUUID: Schema.OptionFromOptionalKey(Schema.String),
 
   /** The object that contains the app metadata and signed renewal and transaction information. */
-  data: Schema.OptionFromOptionalKey(DataSchema),
+  data: Schema.OptionFromOptionalKey(DataCodec),
 
   /** A string that indicates the notification's version number. */
   version: Schema.OptionFromOptionalKey(Schema.String),
@@ -139,33 +143,49 @@ export const ResponseBodyV2DecodedPayloadSchema = Schema.Struct({
   signedDate: Schema.OptionFromOptionalKey(Schema.Number),
 
   /** The summary data for subscription-renewal-date extension notifications. */
-  summary: Schema.OptionFromOptionalKey(SummarySchema),
+  summary: Schema.OptionFromOptionalKey(SummaryCodec),
 
   /** The external purchase token data. */
-  externalPurchaseToken: Schema.OptionFromOptionalKey(ExternalPurchaseTokenSchema),
+  externalPurchaseToken: Schema.OptionFromOptionalKey(ExternalPurchaseTokenCodec),
 
   /** The app metadata and signed app transaction information (for RESCIND_CONSENT). */
-  appData: Schema.OptionFromOptionalKey(AppDataSchema),
+  appData: Schema.OptionFromOptionalKey(AppDataCodec),
 });
+export type ResponseBodyV2DecodedPayloadCodec = typeof ResponseBodyV2DecodedPayloadCodec.Type;
 
 export type ResponseBodyV2DecodedPayload = Schema.Schema.Type<
-  typeof ResponseBodyV2DecodedPayloadSchema
+  typeof ResponseBodyV2DecodedPayloadCodec
 >;
 
 /**
  * Decode a ResponseBodyV2DecodedPayload from an unknown value.
  */
-export const decodeResponseBodyV2DecodedPayload = Schema.decodeUnknownEffect(
-  ResponseBodyV2DecodedPayloadSchema,
+const decodeResponseBodyV2DecodedPayloadEffect = Schema.decodeUnknownEffect(
+  ResponseBodyV2DecodedPayloadCodec,
 );
+
+/** Decode a ResponseBodyV2DecodedPayload from an unknown value. */
+export function decodeResponseBodyV2DecodedPayload(
+  ...args: Parameters<typeof decodeResponseBodyV2DecodedPayloadEffect>
+): ReturnType<typeof decodeResponseBodyV2DecodedPayloadEffect> {
+  return decodeResponseBodyV2DecodedPayloadEffect(...args);
+}
 
 /**
  * The raw signed notification payload received from Apple.
  * @see https://developer.apple.com/documentation/appstoreservernotifications/responsebodyv2
  */
-export const ResponseBodyV2Schema = Schema.Struct({
+export const ResponseBodyV2Codec = Schema.Struct({
   /** A cryptographically signed payload, in JWS format. */
   signedPayload: Schema.String,
 });
+export type ResponseBodyV2Codec = typeof ResponseBodyV2Codec.Type;
 
-export type ResponseBodyV2 = Schema.Schema.Type<typeof ResponseBodyV2Schema>;
+export type ResponseBodyV2 = Schema.Schema.Type<typeof ResponseBodyV2Codec>;
+
+export { DataCodec as DataSchema };
+export { SummaryCodec as SummarySchema };
+export { ExternalPurchaseTokenCodec as ExternalPurchaseTokenSchema };
+export { AppDataCodec as AppDataSchema };
+export { ResponseBodyV2DecodedPayloadCodec as ResponseBodyV2DecodedPayloadSchema };
+export { ResponseBodyV2Codec as ResponseBodyV2Schema };

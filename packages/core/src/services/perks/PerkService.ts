@@ -1,5 +1,8 @@
 import { constant } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import { PerkNotFoundError, PerkSlugAlreadyExistsError } from "../../domain/perk/Perk.ts";

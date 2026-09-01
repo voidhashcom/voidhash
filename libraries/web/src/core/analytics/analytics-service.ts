@@ -1,4 +1,16 @@
-import { Clock, Context, DateTime, Effect, Fiber, Layer, Schema } from "effect";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Exit from "effect/Exit";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import type { CaptureAcceptedResponse } from "@voidhash/generated-clients/event-capture";
 
@@ -13,7 +25,11 @@ import type { AnalyticsRequestEvent, QueuedAnalyticsEvent } from "./contracts";
 
 const QUEUE_KEY = "analytics:queue";
 const MAX_INGEST_BATCH_SIZE = 100;
-const RETRYABLE_ERROR_CODES = new Set(["rate_limited", "dependency_unavailable", "internal_error"]);
+const RETRYABLE_ERROR_CODES = HashSet.fromIterable([
+  "rate_limited",
+  "dependency_unavailable",
+  "internal_error",
+]);
 const getBackoffMs = (attempts: number) => Math.min(1000 * 2 ** Math.max(attempts - 1, 0), 30_000);
 
 const ANALYTICS_SEND_FAILURE: { readonly _tag: "AnalyticsSendFailure" } = {
@@ -29,13 +45,13 @@ const estimateEventBytes = (event: QueuedAnalyticsEvent) =>
   new TextEncoder().encode(encodeJson(event.payload)).byteLength;
 
 const buildIdSet = (events: ReadonlyArray<QueuedAnalyticsEvent>) =>
-  new Set(events.map((event) => event.id));
+  HashSet.fromIterable(events.map((event) => event.id));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 const optionalNumber = (value: unknown) => {
-  if (typeof value === "number") {
+  if (P.isNumber(value)) {
     return value;
   }
   return undefined;
@@ -45,39 +61,32 @@ const isCaptureAcceptedResponse = (value: unknown): value is CaptureAcceptedResp
   if (!isRecord(value)) {
     return false;
   }
-  return typeof value.accepted === "number" && typeof value.rejected === "number";
+  return P.isNumber(value.accepted) && P.isNumber(value.rejected);
 };
 
 const extractCaptureError = (input: {
   data?: unknown;
   status: number;
-}): { code: string; retry_after_ms?: number } | null => {
-  if (isRecord(input.data) && typeof input.data.code === "string") {
-    return {
+}): Option.Option<{ code: string; retry_after_ms?: number }> => {
+  if (isRecord(input.data) && P.isString(input.data.code)) {
+    return Option.some({
       code: input.data.code,
       retry_after_ms: optionalNumber(input.data.retry_after_ms),
-    };
+    });
   }
 
-  switch (input.status) {
-    case 400:
-      return { code: "invalid_request" };
-    case 401:
-      return { code: "unauthorized" };
-    case 413:
-      return { code: "payload_too_large" };
-    case 429:
-      return { code: "rate_limited" };
-    case 500:
-      return { code: "internal_error" };
-    case 503:
-      return { code: "dependency_unavailable" };
-    default:
-      return null;
-  }
+  return Match.value(input.status).pipe(
+    Match.when(400, () => Option.some({ code: "invalid_request" })),
+    Match.when(401, () => Option.some({ code: "unauthorized" })),
+    Match.when(413, () => Option.some({ code: "payload_too_large" })),
+    Match.when(429, () => Option.some({ code: "rate_limited" })),
+    Match.when(500, () => Option.some({ code: "internal_error" })),
+    Match.when(503, () => Option.some({ code: "dependency_unavailable" })),
+    Match.orElse(() => Option.none()),
+  );
 };
 
-const make = Effect.gen(function* effect() {
+const make = Effect.fn("makeAnalyticsService")(function* effect() {
   const cacheManager = yield* CacheManager;
   const config = yield* SdkConfiguration;
   const eventBus = yield* EventBusProvider;
@@ -88,49 +97,61 @@ const make = Effect.gen(function* effect() {
   // Mutable queue state
   let events: QueuedAnalyticsEvent[] = [];
   let isLoaded = false;
-  let flushTickerFiber: Fiber.Fiber<never, never> | null = null;
+  let flushTickerFiber = Option.none<Fiber.Fiber<never, never>>();
 
   // Queue persistence
   const loadQueue = () =>
     Effect.gen(function* loadQueue() {
       if (isLoaded) return;
       const cached = yield* cacheManager.get<QueuedAnalyticsEvent[]>(QUEUE_KEY);
-      events = cached?.value ?? [];
+      events = Option.match(cached, { onNone: () => [], onSome: (hit) => hit.value });
       isLoaded = true;
     });
 
   const persistQueue = () => cacheManager.set(QUEUE_KEY, events);
 
   // Queue operations
-  const dropEvents = (ids: ReadonlySet<string>) => {
-    events = events.filter((event) => !ids.has(event.id));
+  const dropEvents = (ids: HashSet.HashSet<string>) => {
+    events = events.filter((event) => !HashSet.has(ids, event.id));
   };
 
-  const postponeEvents = (ids: ReadonlySet<string>, nextAvailableAt: number) => {
+  const postponeEvents = (ids: HashSet.HashSet<string>, nextAvailableAt: number) => {
     events = events.map((event) => {
-      if (!ids.has(event.id)) return event;
+      if (!HashSet.has(ids, event.id)) return event;
       return { ...event, attempts: event.attempts + 1, availableAt: nextAvailableAt };
     });
   };
 
   const peekBatch = (input: { maxBatchBytes: number; maxBatchSize: number; now: number }) => {
     const dueEvents = events.filter((event) => event.availableAt <= input.now);
-    if (dueEvents.length === 0) return [];
+    if (Arr.isReadonlyArrayEmpty(dueEvents)) return [];
 
     const firstDistinctId = dueEvents[0]?.payload.distinct_id;
-    const selected: QueuedAnalyticsEvent[] = [];
-    let totalBytes = 0;
-
-    for (const event of dueEvents) {
-      if (event.payload.distinct_id !== firstDistinctId) break;
+    const initial: {
+      readonly selected: ReadonlyArray<QueuedAnalyticsEvent>;
+      readonly stopped: boolean;
+      readonly totalBytes: number;
+    } = { selected: [], stopped: false, totalBytes: 0 };
+    const result = Arr.reduce(dueEvents, initial, (state, event) => {
+      if (state.stopped || event.payload.distinct_id !== firstDistinctId) {
+        return { ...state, stopped: true };
+      }
       const nextBytes = estimateEventBytes(event);
-      if (selected.length > 0 && totalBytes + nextBytes > input.maxBatchBytes) break;
-      selected.push(event);
-      totalBytes += nextBytes;
-      if (selected.length >= input.maxBatchSize) break;
-    }
+      if (
+        Arr.isReadonlyArrayNonEmpty(state.selected) &&
+        state.totalBytes + nextBytes > input.maxBatchBytes
+      ) {
+        return { ...state, stopped: true };
+      }
+      const selected = [...state.selected, event];
+      return {
+        selected,
+        stopped: selected.length >= input.maxBatchSize,
+        totalBytes: state.totalBytes + nextBytes,
+      };
+    });
 
-    return selected;
+    return result.selected;
   };
 
   const buildBatchRequest = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
@@ -173,12 +194,12 @@ const make = Effect.gen(function* effect() {
   const sendBatch = (
     batch: ReadonlyArray<QueuedAnalyticsEvent>,
     options?: { keepalive?: boolean },
-  ): Effect.Effect<AnalyticsFlushResult | null> =>
+  ): Effect.Effect<Option.Option<AnalyticsFlushResult>> =>
     Effect.gen(function* sendBatchEffect() {
-      if (batch.length === 0) return null;
+    if (Arr.isReadonlyArrayEmpty(batch)) return Option.none();
 
       const distinctId = batch[0]?.payload.distinct_id;
-      if (!distinctId) return null;
+      if (!distinctId) return Option.none();
 
       const batchPayloads = batch.map((entry) => entry.payload);
       const ids = buildIdSet(batch);
@@ -186,23 +207,23 @@ const make = Effect.gen(function* effect() {
       // keepalive sends are best-effort and fire-and-forget
       if (options?.keepalive) {
         const result = yield* Effect.exit(sendBatchKeepalive(batchPayloads));
-        if (result._tag === "Success") {
+        if (Exit.isSuccess(result)) {
           dropEvents(ids);
           yield* persistQueue();
         }
-        return null;
+        return Option.none();
       }
 
       const result = yield* Effect.exit(sendBatchViaClient(batchPayloads));
 
-      if (result._tag === "Success") {
+      if (Exit.isSuccess(result)) {
         if (result.value.status === 202) {
           const capture = result.value.data;
           if (!isCaptureAcceptedResponse(capture)) {
             const retryAt = yield* Clock.currentTimeMillis;
             postponeEvents(ids, retryAt + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
             yield* persistQueue();
-            return null;
+            return Option.none();
           }
 
           dropEvents(ids);
@@ -215,46 +236,47 @@ const make = Effect.gen(function* effect() {
           if (flushResult.rejected > 0) {
             eventBus.emit("analytics-partial-rejection", flushResult);
           }
-          return flushResult;
+          return Option.some(flushResult);
         }
 
         const error = extractCaptureError(result.value);
 
-        if (error?.code === "payload_too_large") {
+        if (Option.isSome(error) && error.value.code === "payload_too_large") {
           return yield* handlePayloadTooLarge(batch, options);
         }
 
-        if (error && RETRYABLE_ERROR_CODES.has(error.code)) {
+        if (Option.isSome(error) && HashSet.has(RETRYABLE_ERROR_CODES, error.value.code)) {
           const retryAt = yield* Clock.currentTimeMillis;
           postponeEvents(
             ids,
-            retryAt + (error.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1)),
+            retryAt +
+              (error.value.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1)),
           );
           yield* persistQueue();
-          return null;
+          return Option.none();
         }
 
-        if (error) {
+        if (Option.isSome(error)) {
           dropEvents(ids);
           yield* persistQueue();
           eventBus.emit("error", {
-            message: `Dropping analytics batch after non-retryable ${error.code} response.`,
+            message: `Dropping analytics batch after non-retryable ${error.value.code} response.`,
             source: "analytics",
           });
-          return null;
+          return Option.none();
         }
       }
 
       const retryAt = yield* Clock.currentTimeMillis;
       postponeEvents(ids, retryAt + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
       yield* persistQueue();
-      return null;
+      return Option.none();
     });
 
   const handlePayloadTooLarge = (
     batch: ReadonlyArray<QueuedAnalyticsEvent>,
     options?: { keepalive?: boolean },
-  ): Effect.Effect<AnalyticsFlushResult | null> =>
+  ): Effect.Effect<Option.Option<AnalyticsFlushResult>> =>
     Effect.gen(function* handlePayloadTooLargeEffect() {
       if (batch.length === 1) {
         dropEvents(buildIdSet(batch));
@@ -264,21 +286,25 @@ const make = Effect.gen(function* effect() {
           source: "analytics",
         });
         const dropped: AnalyticsFlushResult = { accepted: 0, rejected: 1 };
-        return dropped;
+        return Option.some(dropped);
       }
 
       const midpoint = Math.ceil(batch.length / 2);
       const first = yield* sendBatch(batch.slice(0, midpoint), options);
       const second = yield* sendBatch(batch.slice(midpoint), options);
 
-      if (!first && !second) return null;
+      if (Option.isNone(first) && Option.isNone(second)) return Option.none();
+
+      const firstValue = Option.getOrUndefined(first);
+      const secondValue = Option.getOrUndefined(second);
+      const requestId = secondValue?.requestId ?? firstValue?.requestId;
 
       const merged: AnalyticsFlushResult = {
-        accepted: (first?.accepted ?? 0) + (second?.accepted ?? 0),
-        rejected: (first?.rejected ?? 0) + (second?.rejected ?? 0),
-        requestId: second?.requestId ?? first?.requestId,
+        accepted: (firstValue?.accepted ?? 0) + (secondValue?.accepted ?? 0),
+        rejected: (firstValue?.rejected ?? 0) + (secondValue?.rejected ?? 0),
+        ...(requestId ? { requestId } : {}),
       };
-      return merged;
+      return Option.some(merged);
     });
 
   // Public API
@@ -295,9 +321,15 @@ const make = Effect.gen(function* effect() {
       yield* loadQueue();
 
       const distinctId = identityManager.getDistinctId();
-      if (!distinctId) return;
+      if (Option.isNone(distinctId)) return;
 
-      const event = createAnalyticsEvent(platform, distinctId, eventName, properties, options);
+      const event = yield* createAnalyticsEvent(
+        platform,
+        distinctId.value,
+        eventName,
+        properties,
+        options,
+      );
       const availableAt = yield* Clock.currentTimeMillis;
 
       events.push({
@@ -320,7 +352,7 @@ const make = Effect.gen(function* effect() {
       return events.length;
     });
 
-  const flush = (options?: { keepalive?: boolean }): Effect.Effect<AnalyticsFlushResult | null> =>
+  const flush = (options?: { keepalive?: boolean }): Effect.Effect<Option.Option<AnalyticsFlushResult>> =>
     Effect.gen(function* flushEffect() {
       yield* loadQueue();
       const now = yield* Clock.currentTimeMillis;
@@ -329,7 +361,7 @@ const make = Effect.gen(function* effect() {
         maxBatchSize: Math.min(config.analytics.maxBatchSize, MAX_INGEST_BATCH_SIZE),
         now,
       });
-      if (batch.length === 0) return null;
+      if (Arr.isReadonlyArrayEmpty(batch)) return Option.none();
       return yield* sendBatch(batch, options);
     });
 
@@ -342,16 +374,18 @@ const make = Effect.gen(function* effect() {
     }),
   );
 
-  const start = () => {
-    if (flushTickerFiber) return;
-    flushTickerFiber = Effect.runFork(flushTicker);
-  };
+  const start = () =>
+    Effect.gen(function* startFlushTicker() {
+      if (Option.isSome(flushTickerFiber)) return;
+      flushTickerFiber = Option.some(yield* Effect.forkDetach(flushTicker));
+    });
 
-  const stop = () => {
-    if (!flushTickerFiber) return;
-    Effect.runFork(Fiber.interrupt(flushTickerFiber));
-    flushTickerFiber = null;
-  };
+  const stop = () =>
+    Effect.gen(function* stopFlushTicker() {
+      if (Option.isNone(flushTickerFiber)) return;
+      yield* Fiber.interrupt(flushTickerFiber.value);
+      flushTickerFiber = Option.none();
+    });
 
   const getQueueLength = () =>
     Effect.gen(function* getQueueLength() {
@@ -370,7 +404,7 @@ const make = Effect.gen(function* effect() {
 
 export class AnalyticsService extends Context.Service<
   AnalyticsService,
-  Effect.Success<typeof make>
+  Effect.Success<ReturnType<typeof make>>
 >()("web-voidhash/AnalyticsService") {
-  static Default = Layer.effect(AnalyticsService, make);
+  static Default = Layer.effect(AnalyticsService, make());
 }

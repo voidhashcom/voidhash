@@ -46,7 +46,10 @@ export const setDevelopmentPurchasesEnabledOptions = () =>
     mutationFn: (input: { enabled: boolean; projectId: string }) =>
       VoidhashRpc.request((rpc) =>
         rpc
-          .SetDevelopmentPurchasesEnabled(input)
+          .SetDevelopmentPurchasesEnabled({
+            isEnabled: input.enabled,
+            projectId: input.projectId,
+          })
           .pipe(RpcClient.withHeaders({ "x-environment": "development" })),
       ),
     mutationKey: ["development-mode", "enabled"],

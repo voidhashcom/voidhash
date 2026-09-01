@@ -1,3 +1,5 @@
+import * as Schema from "effect/Schema";
+import { unsafeDefined } from "../../runtime-boundary.ts";
 /**
  * The workspace virtual filesystem the `bash` tool executes over: read-only
  * projections of the project's paywall workspace mounted over a writable
@@ -15,10 +17,15 @@
  */
 import { serializeDocument, type SnapshotDocumentNode } from "@voidhash/ai-shared";
 import { fileNameFromDocRelative } from "@voidhash/paywall-workspace";
-import { Effect, Formatter } from "effect";
+import * as Effect from "effect/Effect";
+import { runPromise } from "../../runtime-boundary.ts";
+import * as Formatter from "effect/Formatter";
 import { InMemoryFs, MountableFs, type IFileSystem } from "just-bash/browser";
 
 import { LazyReadOnlyFs, type ReadOnlyDirEntry, type ReadOnlyDirProvider } from "./readonly-fs.ts";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import { MutableMap } from "../../collection-boundary.ts";
 
 /** One paywall of the scoped project, as listed by the workspace service. */
 export interface WorkspaceVfsPaywall {
@@ -39,10 +46,10 @@ export interface PaywallVfsFiles {
  */
 export interface WorkspaceVfsSources {
   listPaywalls(): Promise<ReadonlyArray<WorkspaceVfsPaywall>>;
-  readPaywall(paywallId: string): Promise<PaywallVfsFiles | null>;
+  readPaywall(paywallId: string): Promise<PaywallVfsFiles | typeof Schema.Null.Type>;
 }
 
-const cleanedDocument = (root: SnapshotDocumentNode | null): unknown => {
+const cleanedDocument = (root: SnapshotDocumentNode | typeof Schema.Null.Type): unknown => {
   if (root === null) {
     return null;
   }
@@ -56,7 +63,7 @@ const componentFilesOf = (
     return [];
   }
   const data = node.data ?? {};
-  if (typeof data.path !== "string" || typeof data.source !== "string") {
+  if (!P.isString(data.path) || !P.isString(data.source)) {
     return [];
   }
   return [{ fileName: fileNameFromDocRelative(data.path), source: data.source }];
@@ -67,7 +74,7 @@ const componentFilesOf = (
  * document JSON plus the local `codeComponent` sources (walked from the
  * singleton `library` node) named by their `<name>.tsx` file basename.
  */
-export const paywallVfsFiles = (root: SnapshotDocumentNode | null): PaywallVfsFiles => {
+export const paywallVfsFiles = (root: SnapshotDocumentNode | typeof Schema.Null.Type): PaywallVfsFiles => {
   const cleaned = cleanedDocument(root);
   const library = (root?.children ?? []).find((child) => child.type === "library");
   const components = (library?.children ?? []).flatMap(componentFilesOf);
@@ -90,7 +97,7 @@ const pathSegments = (relPath: string): ReadonlyArray<string> => {
 // The provider contract is promise-typed (just-bash calls it directly), and
 // `Promise.resolve` is not available under the Effect lint preset — an already
 // completed Effect gives the same synchronously-settled promise.
-const resolved = <A>(value: A): Promise<A> => Effect.runPromise(Effect.succeed(value));
+const resolved = <A>(value: A): Promise<A> => runPromise(Effect.succeed(value));
 
 /**
  * `/paywalls` provider: one directory per paywall id. The listing and each
@@ -100,8 +107,8 @@ const resolved = <A>(value: A): Promise<A> => Effect.runPromise(Effect.succeed(v
  * listing is the project-scope gate.
  */
 export class PaywallsProvider implements ReadOnlyDirProvider {
-  private listing: Promise<ReadonlyArray<WorkspaceVfsPaywall>> | undefined;
-  private readonly files = new Map<string, Promise<PaywallVfsFiles | null>>();
+  private listing: Promise<ReadonlyArray<WorkspaceVfsPaywall>> | typeof Schema.Undefined.Type;
+  private readonly files = new MutableMap<string, Promise<PaywallVfsFiles | typeof Schema.Null.Type>>();
   private readonly sources: WorkspaceVfsSources;
 
   constructor(sources: WorkspaceVfsSources) {
@@ -113,8 +120,8 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
     return this.listing;
   }
 
-  private filesOf(paywallId: string): Promise<PaywallVfsFiles | null> {
-    return this.list().then((paywalls): Promise<PaywallVfsFiles | null> | null => {
+  private filesOf(paywallId: string): Promise<PaywallVfsFiles | typeof Schema.Null.Type> {
+    return this.list().then((paywalls): Promise<PaywallVfsFiles | typeof Schema.Null.Type> | typeof Schema.Null.Type => {
       if (!paywalls.some((paywall) => paywall.paywallId === paywallId)) {
         return null;
       }
@@ -128,15 +135,15 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
     });
   }
 
-  readdir(relPath: string): Promise<ReadonlyArray<ReadOnlyDirEntry> | null> {
+  readdir(relPath: string): Promise<ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type> {
     const segments = pathSegments(relPath);
-    if (segments.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(segments)) {
       return this.list().then((paywalls): ReadonlyArray<ReadOnlyDirEntry> =>
         paywalls.map((paywall) => ({ name: paywall.paywallId, kind: "dir" })),
       );
     }
     if (segments.length === 1) {
-      return this.filesOf(segments[0]!).then((files): ReadonlyArray<ReadOnlyDirEntry> | null => {
+      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type => {
         if (files === null) {
           return null;
         }
@@ -147,7 +154,7 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
       });
     }
     if (segments.length === 2 && segments[1] === COMPONENTS_DIR) {
-      return this.filesOf(segments[0]!).then((files): ReadonlyArray<ReadOnlyDirEntry> | null => {
+      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadonlyArray<ReadOnlyDirEntry> | typeof Schema.Null.Type => {
         if (files === null) {
           return null;
         }
@@ -157,13 +164,13 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
     return resolved(null);
   }
 
-  stat(relPath: string): Promise<ReadOnlyStat | null> {
+  stat(relPath: string): Promise<ReadOnlyStat | typeof Schema.Null.Type> {
     const segments = pathSegments(relPath);
-    if (segments.length === 0) {
+    if (Arr.isReadonlyArrayEmpty(segments)) {
       return resolved<ReadOnlyStat>({ kind: "dir" });
     }
     if (segments.length === 1) {
-      return this.filesOf(segments[0]!).then((files): ReadOnlyStat | null => {
+      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadOnlyStat | typeof Schema.Null.Type => {
         if (files === null) {
           return null;
         }
@@ -171,7 +178,7 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
       });
     }
     if (segments.length === 2) {
-      return this.filesOf(segments[0]!).then((files): ReadOnlyStat | null => {
+      return this.filesOf(unsafeDefined(segments[0])).then((files): ReadOnlyStat | typeof Schema.Null.Type => {
         if (files === null) {
           return null;
         }
@@ -185,8 +192,8 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
       });
     }
     if (segments.length === 3 && segments[1] === COMPONENTS_DIR) {
-      return this.componentSource(segments[0]!, segments[2]!).then(
-        (source): ReadOnlyStat | null => {
+      return this.componentSource(unsafeDefined(segments[0]), unsafeDefined(segments[2])).then(
+        (source): ReadOnlyStat | typeof Schema.Null.Type => {
           if (source === null) {
             return null;
           }
@@ -197,10 +204,10 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
     return resolved(null);
   }
 
-  readFile(relPath: string): Promise<string | null> {
+  readFile(relPath: string): Promise<string | typeof Schema.Null.Type> {
     const segments = pathSegments(relPath);
     if (segments.length === 2 && segments[1] === DOCUMENT_FILE) {
-      return this.filesOf(segments[0]!).then((files): string | null => {
+      return this.filesOf(unsafeDefined(segments[0])).then((files): string | typeof Schema.Null.Type => {
         if (files === null) {
           return null;
         }
@@ -208,13 +215,13 @@ export class PaywallsProvider implements ReadOnlyDirProvider {
       });
     }
     if (segments.length === 3 && segments[1] === COMPONENTS_DIR) {
-      return this.componentSource(segments[0]!, segments[2]!);
+      return this.componentSource(unsafeDefined(segments[0]), unsafeDefined(segments[2]));
     }
     return resolved(null);
   }
 
-  private componentSource(paywallId: string, fileName: string): Promise<string | null> {
-    return this.filesOf(paywallId).then((files): string | null => {
+  private componentSource(paywallId: string, fileName: string): Promise<string | typeof Schema.Null.Type> {
+    return this.filesOf(paywallId).then((files): string | typeof Schema.Null.Type => {
       const component = files?.components.find((candidate) => candidate.fileName === fileName);
       return component?.source ?? null;
     });

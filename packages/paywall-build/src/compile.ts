@@ -1,5 +1,8 @@
 import { causeMessage } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as Option from "effect/Option";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 import { error, info } from "./diagnostics.ts";
 import type { ResolvedComponent } from "./imports.ts";
@@ -9,7 +12,7 @@ import type { BuildCapabilities, BuildDiagnosticInput, CompileOutcome } from "./
 export interface CompiledComponent {
   readonly component: ResolvedComponent;
   /** Compiled CJS code, or `null` when compilation was skipped or failed. */
-  readonly code: string | null;
+  readonly code: Option.Option<string>;
 }
 
 /** The compile stage output. */
@@ -54,7 +57,7 @@ export function compileComponents(
   components: readonly ResolvedComponent[],
   caps: BuildCapabilities,
 ): Promise<CompileResult> {
-  return Effect.runPromise(compileComponentsEffect(components, caps));
+  return EffectRuntime.runPromise(compileComponentsEffect(components, caps));
 }
 
 /** The compile stage as an Effect; {@link compileComponents} runs it. */
@@ -66,49 +69,56 @@ function compileComponentsEffect(
     const diagnostics: BuildDiagnostic[] = [];
     const compile = caps.compile;
     if (!compile) {
-      if (components.length > 0) {
-        diagnostics.push(
-          info(
-            components[0]!.path,
-            "compile",
-            "No compile capability provided — components are not compiled; manifests fall back to cache or 'unknown'.",
+      Arr.match(components, {
+        onEmpty: () => undefined,
+        onNonEmpty: ([first]) =>
+          diagnostics.push(
+            info(
+              first.path,
+              "compile",
+              "No compile capability provided — components are not compiled; manifests fall back to cache or 'unknown'.",
+            ),
           ),
-        );
-      }
+      });
       return {
-        compiled: components.map((component) => ({ component, code: null })),
+        compiled: components.map((component) => ({ component, code: Option.none() })),
         diagnostics,
       };
     }
 
-    const compiled: CompiledComponent[] = [];
-    for (const component of components) {
-      // A capability failure is recorded for that file only — the rest still compile.
-      const outcome: CompileOutcome | null = yield* Effect.tryPromise({
-        try: () => compile(component.source),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.match({
-          onSuccess: (value) => value,
-          onFailure: (cause) => {
-            diagnostics.push(error(component.path, "compile", causeMessage(cause)));
-            return null;
-          },
-        }),
-      );
-      if (outcome === null) {
-        compiled.push({ component, code: null });
-        continue;
-      }
-      if ("diagnostics" in outcome) {
-        for (const diagnostic of outcome.diagnostics) {
-          diagnostics.push(fromCapability(component.path, "compile", diagnostic));
-        }
-        compiled.push({ component, code: null });
-        continue;
-      }
-      compiled.push({ component, code: outcome.code });
-    }
+    const compiled = yield* Effect.forEach(
+      components,
+      (component) =>
+        Effect.tryPromise({
+          try: () => compile(component.source),
+          catch: (cause) => cause,
+        }).pipe(
+          Effect.match({
+            onSuccess: Option.some,
+            onFailure: (cause) => {
+              diagnostics.push(error(component.path, "compile", causeMessage(cause)));
+              return Option.none<CompileOutcome>();
+            },
+          }),
+          Effect.map(
+            Option.match({
+              onNone: () => ({ component, code: Option.none<string>() }),
+              onSome: (outcome) => {
+                if ("diagnostics" in outcome) {
+                  diagnostics.push(
+                    ...outcome.diagnostics.map((diagnostic) =>
+                      fromCapability(component.path, "compile", diagnostic),
+                    ),
+                  );
+                  return { component, code: Option.none<string>() };
+                }
+                return { component, code: Option.some(outcome.code) };
+              },
+            }),
+          ),
+        ),
+      { concurrency: 1 },
+    );
     return { compiled, diagnostics };
   });
 }

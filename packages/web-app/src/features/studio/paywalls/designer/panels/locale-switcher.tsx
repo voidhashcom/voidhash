@@ -11,6 +11,7 @@ import {
   Separator,
 } from "@voidhash/ui";
 import { CheckIcon, GlobeIcon, LanguagesIcon, PlusIcon, XIcon } from "lucide-react";
+import * as Option from "effect/Option";
 import { useMemo, useState } from "react";
 import { useStore } from "zustand/react";
 
@@ -68,7 +69,10 @@ export function LocaleSwitcher() {
     [enabledSet],
   );
 
-  const canonicalDraft = draftTag.trim() === "" ? null : canonicalizeLocaleTag(draftTag.trim());
+  const canonicalDraft =
+    draftTag.trim() === ""
+      ? null
+      : Option.getOrNull(canonicalizeLocaleTag(draftTag.trim()));
   const draftIsAddable =
     canonicalDraft !== null &&
     canonicalDraft !== info.defaultLocale &&
@@ -80,7 +84,7 @@ export function LocaleSwitcher() {
   };
 
   const handleAdd = (tag: string) => {
-    const canonical = canonicalizeLocaleTag(tag.trim());
+    const canonical = Option.getOrNull(canonicalizeLocaleTag(tag.trim()));
     if (canonical === null || canonical === info.defaultLocale || info.locales.includes(canonical)) {
       return;
     }

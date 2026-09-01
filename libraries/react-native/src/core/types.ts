@@ -8,7 +8,7 @@ export interface RequestInitEsque {
   /**
    * Sets the request's body.
    */
-  body?: FormData | ReadableStream | string | null;
+  body?: RequestInit["body"];
 
   /**
    * Sets the request's associated headers.
@@ -38,7 +38,7 @@ export interface ResponseEsque {
   json: <T = unknown>() => Promise<T>;
   text: () => Promise<string>;
   blob: () => Promise<Blob>;
-  body: ReadableStream | null;
+  body: Response["body"];
 
   headers: Headers;
 
@@ -59,16 +59,16 @@ export type FetchEsque = (
 // API
 export interface PersonResponse {
   personId: string;
-  name: null;
-  email: null;
-  distinctId: null;
+  name: Option.Option<string>;
+  email: Option.Option<string>;
+  distinctId: Option.Option<string>;
 }
 
 export interface PaywallProduct {
   paywallProductId: string;
   productId: string;
   displayName: string;
-  price: null | number;
+  price: Option.Option<number>;
   nativePurchaseAvailable: boolean;
   webCheckoutAvailable: boolean;
 }
@@ -80,8 +80,8 @@ export interface ConfigurationResponse {
       paywallProductId: string;
       productId: string;
       displayName: string;
-      nativePaymentProviderConfigurationProductId: string | null;
-      defaultWebCheckoutPaymentProviderConfigurationProductId: string | null;
+      nativePaymentProviderConfigurationProductId: Option.Option<string>;
+      defaultWebCheckoutPaymentProviderConfigurationProductId: Option.Option<string>;
       paymentProviderConfigurationProducts: {
         paymentProviderConfigurationProductId: string;
         paymentProviderConfigurationId: string;
@@ -107,3 +107,4 @@ export interface CheckoutSessionResponse {
   checkoutSessionId: string;
   checkoutUrl: string;
 }
+import type * as Option from "effect/Option";

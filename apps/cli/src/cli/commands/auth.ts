@@ -1,5 +1,5 @@
 import { Command } from "effect/unstable/cli";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 import { loginCommand } from "./auth-login";
 import { logoutCommand } from "./auth-logout";

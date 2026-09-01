@@ -7,12 +7,12 @@
  * taxonomy.
  */
 import { constant } from "@voidhash/lib/lang";
-import { REVENUE_MONEY_EVENT_NAMES } from "../../../../domain/InternalAnalyticsEvents.ts";
+import { REVENUE_MONEY_EVENT_NAME_LIST } from "../../../../domain/InternalAnalyticsEvents.ts";
 
 import { buildEventsLower, eventsTable } from "./events.ts";
 import type { CatalogColumn, CatalogTable } from "./types.ts";
 
-const REVENUE_EVENT_NAMES = constant([...REVENUE_MONEY_EVENT_NAMES]);
+const REVENUE_EVENT_NAMES = constant([...REVENUE_MONEY_EVENT_NAME_LIST]);
 
 // Code-derived constants only (event names + JSON keys) — safe to splice.
 const EVENT_NAME_FILTER = `event_name IN (${REVENUE_EVENT_NAMES.map((n) => `'${n}'`).join(", ")})`;

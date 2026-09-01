@@ -1,4 +1,6 @@
 import type { ComponentManifest } from "@voidhash/paywalls/schema";
+import type * as HashMap from "effect/HashMap";
+import type * as Option from "effect/Option";
 import type { BuildDiagnostic } from "./diagnostics.ts";
 
 /**
@@ -7,7 +9,7 @@ import type { BuildDiagnostic } from "./diagnostics.ts";
  * component (so a cache hit can still degrade a status to `unknown` explicitly).
  */
 export interface CachedManifest {
-  readonly manifest: ComponentManifest | null;
+  readonly manifest: Option.Option<ComponentManifest>;
 }
 
 /** A row the build offers to the manifest cache after a fresh extraction. */
@@ -46,7 +48,7 @@ export interface BuildDiagnosticInput {
 /** The optional manifest cache seam. */
 export interface ManifestCache {
   /** Resolve cached manifests for a set of source hashes (misses omitted). */
-  get(hashes: readonly string[]): Promise<Map<string, CachedManifest>>;
+  get(hashes: readonly string[]): Promise<HashMap.HashMap<string, CachedManifest>>;
   /** Record a freshly extracted manifest. Best-effort — never fails the build. */
   record(row: ManifestCacheRow): Promise<void>;
 }
@@ -97,7 +99,7 @@ export interface ComponentArtifact {
   /** SHA-256 hex of `source`. */
   readonly sourceHash: string;
   /** The validated §2 manifest, or `null` when unknown. */
-  readonly manifest: ComponentManifest | null;
+  readonly manifest: Option.Option<ComponentManifest>;
   /** `ready` ⇒ manifest resolved; `unknown` ⇒ not extractable this build. */
   readonly status: ComponentStatus;
 }

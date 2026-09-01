@@ -1,3 +1,4 @@
+import * as Str from "effect/String";
 /**
  * Minimal Slack Web API client — a thin wrapper over `chat.postMessage`
  * (https://slack.com/api/chat.postMessage). Built for the in-app feedback relay,
@@ -16,7 +17,11 @@
  * don't error when Slack simply isn't configured.
  */
 import { causeMessage } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { FetchHttpClient, HttpBody, HttpClient } from "effect/unstable/http";
 
 /** Slack Web API base URL. */
@@ -37,7 +42,7 @@ const encodePostMessageBody = Schema.encodeSync(
  * `chat.postMessage` response body. Slack signals logical failures with HTTP 200
  * plus `{ ok: false, error }`, so the body is decoded rather than trusted.
  */
-const slackResponseSchema = Schema.fromJsonString(
+const slackResponse = Schema.fromJsonString(
   Schema.Struct({
     error: Schema.optional(Schema.String),
     ok: Schema.optional(Schema.Boolean),
@@ -115,11 +120,11 @@ export const createSlackClient = (config: {
           message: "Slack chat.postMessage failed",
         });
       }
-      if (text.length === 0) {
+      if (Str.isEmpty(text)) {
         return;
       }
       // Slack signals logical failures in the JSON body with `ok: false`.
-      const body = yield* Schema.decodeUnknownEffect(slackResponseSchema)(text);
+      const body = yield* Schema.decodeUnknownEffect(slackResponse)(text);
       if (body.ok === false) {
         return yield* new SlackClientError({
           cause: `Slack error: ${body.error ?? "unknown"}`,
@@ -154,10 +159,10 @@ export const slackClientLayer = (config: SlackConfig): Layer.Layer<SlackClientTa
   Layer.effect(SlackClientTag)(
     Effect.gen(function* () {
       const botToken = yield* config.botToken;
-      let defaultChannel: string | undefined;
-      if (config.defaultChannel) {
-        defaultChannel = yield* config.defaultChannel;
-      }
-      return createSlackClient({ botToken, defaultChannel });
+      const defaultChannel = yield* Option.match(Option.fromNullishOr(config.defaultChannel), {
+        onNone: () => Effect.succeed(Option.none<string>()),
+        onSome: (channel) => Effect.map(channel, Option.some),
+      });
+      return createSlackClient({ botToken, defaultChannel: Option.getOrUndefined(defaultChannel) });
     }),
   );

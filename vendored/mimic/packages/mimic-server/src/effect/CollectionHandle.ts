@@ -1,4 +1,7 @@
-import { Effect, Predicate } from "effect";
+import * as Effect from "effect/Effect";
+import * as HashSet from "effect/HashSet";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 import type { Value } from "@voidhash/mimic-core";
 import { Primitive } from "@voidhash/mimic-core";
 
@@ -11,14 +14,12 @@ import type {
   SnapshotFor,
 } from "./types.ts";
 
-const VALUE_KINDS: ReadonlySet<string> = new Set([
-  "string",
-  "number",
-  "boolean",
-  "object",
-  "array",
-  "tree",
-]);
+const VALUE_KINDS = HashSet.make("string", "number", "boolean", "object", "array", "tree");
+
+class InvalidDocumentValueError extends Schema.TaggedErrorClass<InvalidDocumentValueError>()(
+  "InvalidDocumentValueError",
+  { message: Schema.String },
+) {}
 
 /**
  * Wire document values cross the RPC boundary as `unknown` (see
@@ -26,13 +27,11 @@ const VALUE_KINDS: ReadonlySet<string> = new Set([
  * so checking the discriminant is enough to narrow an incoming payload.
  */
 const isValue = (value: unknown): value is Value =>
-  Predicate.hasProperty(value, "kind") &&
-  Predicate.isString(value.kind) &&
-  VALUE_KINDS.has(value.kind);
+  P.hasProperty(value, "kind") && P.isString(value.kind) && HashSet.has(VALUE_KINDS, value.kind);
 
 const toValue = (value: unknown): Value => {
   if (isValue(value)) return value;
-  return Effect.runSync(Effect.die(new Error("Document value is not a mimic value")));
+  throw new InvalidDocumentValueError({ message: "Document value is not a mimic value" });
 };
 
 const decodeSnapshot = <TPrimitive extends Primitive.AnyPrimitive>(

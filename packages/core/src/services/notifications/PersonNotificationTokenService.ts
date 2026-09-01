@@ -1,5 +1,13 @@
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import {
   and,
@@ -26,8 +34,8 @@ export interface ActivePushDevice {
   readonly platform: string;
   readonly provider: string;
   readonly platformToken: string;
-  readonly bundleId: string | null;
-  readonly environment: string | null;
+  readonly bundleId: Option.Option<string>;
+  readonly environment: Option.Option<string>;
 }
 
 /** Shared empty result for a send that targets no canonical person. */
@@ -49,70 +57,68 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
       const db = yield* Db;
 
       /** Idempotent on `(personId, pushDeviceTokenId)`; REVIVES a soft-deleted link. */
-      const link = (
+      const link = Effect.fn("PersonNotificationTokenService.link")(function* (
         tx: DbTransaction,
         input: {
           readonly projectId: string;
           readonly personId: string;
           readonly pushDeviceTokenId: string;
         },
-      ) =>
-        Effect.gen(function* () {
-          const existing = yield* tx.query.pushPersonDeviceTokens.findFirst({
-            where: { personId: input.personId, pushDeviceTokenId: input.pushDeviceTokenId },
-          });
-          if (existing) {
-            yield* tx
-              .update(pushPersonDeviceTokens)
-              .set({ deletedAt: null, updatedAt: yield* DateTime.nowAsDate })
-              .where(eq(pushPersonDeviceTokens.id, existing.id));
-            return;
-          }
-          yield* tx.insert(pushPersonDeviceTokens).values({
-            id: generateId("personPushDeviceToken"),
-            projectId: input.projectId,
-            personId: input.personId,
-            pushDeviceTokenId: input.pushDeviceTokenId,
-          });
+      ) {
+        const existing = yield* tx.query.pushPersonDeviceTokens.findFirst({
+          where: { personId: input.personId, pushDeviceTokenId: input.pushDeviceTokenId },
         });
+        if (existing) {
+          yield* tx
+            .update(pushPersonDeviceTokens)
+            .set({ deletedAt: null, updatedAt: yield* DateTime.nowAsDate })
+            .where(eq(pushPersonDeviceTokens.id, existing.id));
+          return;
+        }
+        yield* tx.insert(pushPersonDeviceTokens).values({
+          id: generateId("personPushDeviceToken"),
+          projectId: input.projectId,
+          personId: input.personId,
+          pushDeviceTokenId: input.pushDeviceTokenId,
+        });
+      });
 
       /** Soft-delete the caller's link (unregister / opt-out). */
-      const unlink = (
+      const unlink = Effect.fn("PersonNotificationTokenService.unlink")(function* (
         tx: DbTransaction,
         input: {
           readonly projectId: string;
           readonly personId: string;
           readonly pushDeviceTokenId: string;
         },
-      ) =>
-        Effect.gen(function* () {
-          const now = yield* DateTime.nowAsDate;
-          return yield* tx
-            .update(pushPersonDeviceTokens)
-            .set({ deletedAt: now, updatedAt: now })
-            .where(
-              and(
-                eq(pushPersonDeviceTokens.projectId, input.projectId),
-                eq(pushPersonDeviceTokens.personId, input.personId),
-                eq(pushPersonDeviceTokens.pushDeviceTokenId, input.pushDeviceTokenId),
-              ),
-            );
-        });
+      ) {
+        const now = yield* DateTime.nowAsDate;
+        return yield* tx
+          .update(pushPersonDeviceTokens)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(
+            and(
+              eq(pushPersonDeviceTokens.projectId, input.projectId),
+              eq(pushPersonDeviceTokens.personId, input.personId),
+              eq(pushPersonDeviceTokens.pushDeviceTokenId, input.pushDeviceTokenId),
+            ),
+          );
+      });
 
       /**
        * Ownership TRANSFER (last-registration-wins): soft-delete every ACTIVE
        * link to this device that belongs to a DIFFERENT person, preventing
        * cross-user notification leak.
        */
-      const unlinkOtherOwners = (
-        tx: DbTransaction,
-        input: {
-          readonly projectId: string;
-          readonly pushDeviceTokenId: string;
-          readonly keepPersonId: string;
-        },
-      ) =>
-        Effect.gen(function* () {
+      const unlinkOtherOwners = Effect.fn("PersonNotificationTokenService.unlinkOtherOwners")(
+        function* (
+          tx: DbTransaction,
+          input: {
+            readonly projectId: string;
+            readonly pushDeviceTokenId: string;
+            readonly keepPersonId: string;
+          },
+        ) {
           const now = yield* DateTime.nowAsDate;
           return yield* tx
             .update(pushPersonDeviceTokens)
@@ -125,7 +131,8 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
                 isNull(pushPersonDeviceTokens.deletedAt),
               ),
             );
-        });
+        },
+      );
 
       /** Active-link lookup for ownership assertion (refresh / unregister). */
       const findActiveLink = (
@@ -174,7 +181,7 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
             "voidhash.push.canonical_person_count",
             canonicalPersonIds.length,
           );
-          if (canonicalPersonIds.length === 0) {
+          if (Arr.isReadonlyArrayEmpty(canonicalPersonIds)) {
             return NO_ACTIVE_DEVICES;
           }
 
@@ -183,7 +190,10 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
             where: { projectId, mergedIntoPersonId: { in: [...canonicalPersonIds] } },
           });
           const personIds = [
-            ...new Set([...canonicalPersonIds, ...loserRows.map((person) => person.id)]),
+            ...HashSet.fromIterable([
+              ...canonicalPersonIds,
+              ...loserRows.map((person) => person.id),
+            ]),
           ];
 
           const rows = yield* db.query.pushPersonDeviceTokens.findMany({
@@ -192,24 +202,31 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
           });
 
           // Suspenders: drop invalidated devices, dedupe by (personId, platformToken).
-          const deduped = new Map<string, ActivePushDevice>();
-          for (const row of rows) {
-            const device = row.deviceToken;
-            if (!device || device.deletedAt || device.invalidatedAt) {
-              continue;
-            }
-            deduped.set(`${row.personId}:${device.platformToken}`, {
-              personId: row.personId,
-              pushDeviceTokenId: device.id,
-              platform: device.platform,
-              provider: device.provider,
-              platformToken: device.platformToken,
-              bundleId: device.bundleId,
-              environment: device.environment,
-            });
-          }
-          yield* Effect.annotateCurrentSpan("voidhash.push.device_count", deduped.size);
-          const devices: ReadonlyArray<ActivePushDevice> = [...deduped.values()];
+          const deduped = Arr.reduce(
+            rows,
+            HashMap.empty<string, ActivePushDevice>(),
+            (devices, row) => {
+              const device = Option.fromNullishOr(row.deviceToken);
+              if (
+                Option.isNone(device) ||
+                device.value.deletedAt !== null ||
+                device.value.invalidatedAt !== null
+              ) {
+                return devices;
+              }
+              return HashMap.set(devices, `${row.personId}:${device.value.platformToken}`, {
+                personId: row.personId,
+                pushDeviceTokenId: device.value.id,
+                platform: device.value.platform,
+                provider: device.value.provider,
+                platformToken: device.value.platformToken,
+                bundleId: Option.fromNullishOr(device.value.bundleId),
+                environment: Option.fromNullishOr(device.value.environment),
+              });
+            },
+          );
+          yield* Effect.annotateCurrentSpan("voidhash.push.device_count", HashMap.size(deduped));
+          const devices: ReadonlyArray<ActivePushDevice> = [...HashMap.values(deduped)];
           return devices;
         },
         (effect) =>
@@ -229,34 +246,35 @@ export class PersonNotificationTokenService extends Context.Service<PersonNotifi
        * transaction, exactly like `personIdentities.personId` is re-pointed.
        * The send-time loader ALSO expands the loser set (belt-and-suspenders).
        */
-      const repointLinksToSurvivor = (
+      const repointLinksToSurvivor = Effect.fn(
+        "PersonNotificationTokenService.repointLinksToSurvivor",
+      )(function* (
         tx: DbTransaction,
         input: {
           readonly projectId: string;
           readonly loserPersonIds: ReadonlyArray<string>;
           readonly survivorPersonId: string;
         },
-      ) =>
-        Effect.gen(function* () {
-          if (input.loserPersonIds.length === 0) {
-            return;
-          }
-          // NOT EXISTS skips devices the survivor already owns: the
-          // (person_id, push_device_token_id) unique index is global (ignores
-          // deleted_at), so a bare re-point would raise a unique violation. A
-          // skipped colliding loser link stays reachable via the send-time
-          // merged-loser expansion (belt-and-suspenders).
-          yield* tx
-            .update(pushPersonDeviceTokens)
-            .set({ personId: input.survivorPersonId, updatedAt: yield* DateTime.nowAsDate })
-            .where(
-              and(
-                eq(pushPersonDeviceTokens.projectId, input.projectId),
-                inArray(pushPersonDeviceTokens.personId, [...input.loserPersonIds]),
-                sql`not exists (select 1 from push_person_device_token s where s.person_id = ${input.survivorPersonId} and s.push_device_token_id = push_person_device_token.push_device_token_id)`,
-              ),
-            );
-        });
+      ) {
+        if (Arr.isReadonlyArrayEmpty(input.loserPersonIds)) {
+          return;
+        }
+        // NOT EXISTS skips devices the survivor already owns: the
+        // (person_id, push_device_token_id) unique index is global (ignores
+        // deleted_at), so a bare re-point would raise a unique violation. A
+        // skipped colliding loser link stays reachable via the send-time
+        // merged-loser expansion (belt-and-suspenders).
+        yield* tx
+          .update(pushPersonDeviceTokens)
+          .set({ personId: input.survivorPersonId, updatedAt: yield* DateTime.nowAsDate })
+          .where(
+            and(
+              eq(pushPersonDeviceTokens.projectId, input.projectId),
+              inArray(pushPersonDeviceTokens.personId, [...input.loserPersonIds]),
+              sql`not exists (select 1 from push_person_device_token s where s.person_id = ${input.survivorPersonId} and s.push_device_token_id = push_person_device_token.push_device_token_id)`,
+            ),
+          );
+      });
 
       return constant({
         countActiveOwners,

@@ -1,14 +1,14 @@
-import { Context } from "effect";
+import * as Context from "effect/Context";
 
 export interface PlatformInfo {
-  appBuild: string | undefined;
-  appName: string | undefined;
-  bundleId: string | null;
+  appBuild?: string;
+  appName?: string;
+  bundleId?: string;
   locales: { languageTag: string }[];
   systemVersion: string;
   deviceName: string;
   deviceBrand: string;
-  appVersion: string | undefined;
+  appVersion?: string;
   isDebugBuild: boolean;
   platform: "ios" | "android" | "unknown";
 }

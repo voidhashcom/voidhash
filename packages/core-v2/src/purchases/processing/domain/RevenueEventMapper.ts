@@ -17,7 +17,8 @@
  * `REVENUE_MONEY_EVENT_NAMES` therefore yields net revenue with no
  * per-event-type branching downstream.
  */
-import { Option } from "effect";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
 
 import {
   REVENUE_TRUSTED_SOURCE_TOPIC,
@@ -79,54 +80,10 @@ interface CommonAnalyticsFields {
   readonly providerWebhookNotificationId: Option.Option<string>;
 }
 
-interface RevenuePropertiesBase {
-  readonly paymentProviderConfigurationId: string;
-  readonly paymentProviderConfigurationProductId: string;
-  readonly productId: string;
-  readonly providerProductKey: string;
-  readonly providerEnvironment: number;
-  readonly providerEventType: string;
-  readonly providerId: string;
-  readonly providerSubscriptionId: string | null;
-  readonly providerTransactionId: string | null;
-  readonly providerWebhookNotificationId: string | null;
-  readonly source: string;
-}
-
-interface MoneyProperties {
-  readonly amount?: number | null;
-  readonly amountUsd?: number | null;
-  readonly currency?: string;
-  readonly storefront?: string | null;
-  readonly grossAmount?: number | null;
-  readonly storeCommissionAmount?: number | null;
-  readonly taxAmount?: number | null;
-  readonly proceedsAmount?: number | null;
-  readonly proceedsAfterTaxAmount?: number | null;
-  readonly grossAmountUsd?: number | null;
-  readonly storeCommissionAmountUsd?: number | null;
-  readonly taxAmountUsd?: number | null;
-  readonly proceedsAmountUsd?: number | null;
-  readonly proceedsAfterTaxAmountUsd?: number | null;
-  readonly exchangeRate?: number | null;
-}
-
-interface EventEnvelope {
-  readonly context: Record<string, unknown>;
-  readonly distinctId: string;
-  readonly eventId: string;
-  readonly occurredAt: Date;
-  readonly organizationId: string;
-  readonly personId: string;
-  readonly projectId: string;
-  readonly token: string;
-  readonly transactionId: string | null;
-}
-
 const revenuePropertiesBase = (
   input: CommonAnalyticsFields,
   cfg: RevenueAnalyticsMapperContext,
-): RevenuePropertiesBase => ({
+) => ({
   paymentProviderConfigurationId: input.paymentProviderConfigurationId,
   paymentProviderConfigurationProductId: input.paymentProviderConfigurationProductId,
   productId: cfg.productId,
@@ -153,7 +110,7 @@ const revenuePropertiesBase = (
 const signedMoneyProperties = (
   money: Option.Option<PurchaseProcessingMoney>,
   sign: 1 | -1,
-): MoneyProperties =>
+) =>
   Option.match(money, {
     onNone: () => ({}),
     onSome: (m) => {
@@ -161,28 +118,24 @@ const signedMoneyProperties = (
       // `+ 0` collapses the `-0` that `(-1) * 0` produces, so a zero-valued
       // refund never emits a negative zero into the in-memory event.
       const signed = (n: number) => sign * n + 0;
-      const signedUsd = (n: number | undefined) => {
-        if (n === undefined) {
-          return null;
-        }
-        return sign * n + 0;
-      };
+      const signedUsd = (n: Option.Option<number>) =>
+        Option.match(n, { onNone: () => null, onSome: (value) => sign * value + 0 });
       return {
         amount: signed(m.grossAmount),
-        amountUsd: signedUsd(usd?.grossAmount),
+        amountUsd: signedUsd(Option.fromNullishOr(usd?.grossAmount)),
         currency: m.currency,
         exchangeRate: usd?.exchangeRate ?? null,
         grossAmount: signed(m.grossAmount),
-        grossAmountUsd: signedUsd(usd?.grossAmount),
+        grossAmountUsd: signedUsd(Option.fromNullishOr(usd?.grossAmount)),
         proceedsAfterTaxAmount: signed(m.proceedsAfterTaxAmount),
-        proceedsAfterTaxAmountUsd: signedUsd(usd?.proceedsAfterTaxAmount),
+        proceedsAfterTaxAmountUsd: signedUsd(Option.fromNullishOr(usd?.proceedsAfterTaxAmount)),
         proceedsAmount: signed(m.proceedsAmount),
-        proceedsAmountUsd: signedUsd(usd?.proceedsAmount),
+        proceedsAmountUsd: signedUsd(Option.fromNullishOr(usd?.proceedsAmount)),
         storeCommissionAmount: signed(m.storeCommissionAmount),
-        storeCommissionAmountUsd: signedUsd(usd?.storeCommissionAmount),
+        storeCommissionAmountUsd: signedUsd(Option.fromNullishOr(usd?.storeCommissionAmount)),
         storefront: Option.getOrNull(m.storefront),
         taxAmount: signed(m.taxAmount),
-        taxAmountUsd: signedUsd(usd?.taxAmount),
+        taxAmountUsd: signedUsd(Option.fromNullishOr(usd?.taxAmount)),
       };
     },
   });
@@ -203,9 +156,9 @@ const buildEnvelope = (input: {
   readonly eventName: string;
   readonly occurredAt: Date;
   readonly personId: string;
-  readonly transactionId: string | null;
+  readonly transactionId: Option.Option<string> | string;
   readonly cfg: RevenueAnalyticsMapperContext;
-}): EventEnvelope => ({
+}) => ({
   context: baseContext(),
   distinctId: input.cfg.distinctId,
   eventId: deterministicAnalyticsEventId({
@@ -218,7 +171,10 @@ const buildEnvelope = (input: {
   personId: input.personId,
   projectId: input.cfg.projectId,
   token: input.cfg.token,
-  transactionId: input.transactionId,
+  transactionId:
+    P.isString(input.transactionId)
+      ? input.transactionId
+      : Option.getOrNull(input.transactionId),
 });
 
 /**
@@ -319,7 +275,7 @@ export const toCanceledAnalyticsInputs = (
         eventName: "$subscription.canceled",
         occurredAt: input.canceledAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.canceled",
       properties: {
@@ -346,7 +302,7 @@ export const toExpiredAnalyticsInputs = (
         eventName: "$subscription.expired",
         occurredAt: input.expiredAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.expired",
       properties: revenuePropertiesBase(input, cfg),
@@ -380,7 +336,7 @@ export const toRevokedAnalyticsInputs = (
         eventName: "$subscription.canceled",
         occurredAt: input.revokedAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.canceled",
       properties: {
@@ -439,7 +395,7 @@ export const toRefundedAnalyticsInputs = (
       eventName: "$purchase.refunded",
       occurredAt: input.refundedAt,
       personId: result.personId,
-      transactionId: Option.getOrNull(input.providerTransactionId),
+      transactionId: input.providerTransactionId,
     }),
     eventName: "$purchase.refunded",
     properties: {
@@ -465,7 +421,7 @@ export const toPurchaseRevokedAnalyticsInputs = (
       eventName: "$purchase.revoked",
       occurredAt: input.revokedAt,
       personId: result.personId,
-      transactionId: Option.getOrNull(input.providerTransactionId),
+      transactionId: input.providerTransactionId,
     }),
     eventName: "$purchase.revoked",
     properties: {
@@ -496,7 +452,7 @@ export const toRefundReversedAnalyticsInputs = (
       eventName: "$subscription.refund_reversed",
       occurredAt: input.reversedAt,
       personId: result.personId,
-      transactionId: Option.getOrNull(input.providerTransactionId),
+      transactionId: input.providerTransactionId,
     }),
     eventName: "$subscription.refund_reversed",
     properties: {
@@ -524,7 +480,7 @@ export const toBillingRetryAnalyticsInputs = (
         eventName: "$subscription.billing_retry",
         occurredAt: input.occurredAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.billing_retry",
       properties: {
@@ -553,7 +509,7 @@ export const toExtendedAnalyticsInputs = (
         eventName: "$subscription.extended",
         occurredAt: input.occurredAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.extended",
       properties: {
@@ -582,7 +538,7 @@ export const toRenewalPreferenceChangeAnalyticsInputs = (
         eventName: "$subscription.product_changed",
         occurredAt: input.occurredAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.product_changed",
       properties: {
@@ -611,7 +567,7 @@ export const toOfferRedeemedAnalyticsInputs = (
         eventName: "$subscription.offer_redeemed",
         occurredAt: input.occurredAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.offer_redeemed",
       properties: {
@@ -647,7 +603,7 @@ export const toPriceIncreaseAnalyticsInputs = (
         eventName: "$subscription.price_increase_pending",
         occurredAt: input.occurredAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.price_increase_pending",
       properties: {
@@ -674,7 +630,7 @@ export const toAutoRenewResumedAnalyticsInputs = (
         eventName: "$subscription.auto_renew_resumed",
         occurredAt: input.occurredAt,
         personId: result.personId,
-        transactionId: null,
+        transactionId: Option.none(),
       }),
       eventName: "$subscription.auto_renew_resumed",
       properties: revenuePropertiesBase(input, cfg),

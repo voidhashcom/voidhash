@@ -1,10 +1,13 @@
 import type { RenderResult, SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import { createElement } from "preact";
 import render from "preact-render-to-string";
 
 import type { ComponentArtifacts } from "./component-artifacts";
 import { Paywall } from "./components/paywall";
 import { generateDocument, type PaywallMetadata } from "./templates/document-template";
 import { generateRuntimeScript } from "./templates/runtime-script";
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 /**
  * Options for body-only paywall rendering.
@@ -25,11 +28,11 @@ export function renderPaywall(
   options: RenderPaywallOptions = {},
 ): RenderResult {
   const body = render(
-    <Paywall
-      componentArtifacts={options.componentArtifacts}
-      locale={options.locale}
-      snapshot={snapshot}
-    />,
+    createElement(Paywall, {
+      componentArtifacts: options.componentArtifacts,
+      locale: options.locale,
+      snapshot,
+    }),
   );
   const html = wrapInDocument(body);
   return { html };
@@ -105,7 +108,7 @@ export function renderPaywallToHtml(
 
   // Server-render the paywall to HTML
   const body = render(
-    <Paywall componentArtifacts={componentArtifacts} locale={locale} snapshot={snapshot} />,
+    createElement(Paywall, { componentArtifacts, locale, snapshot }),
   );
 
   // Serialize the hydration payload. Bare snapshots stay the wire shape when
@@ -114,7 +117,7 @@ export function renderPaywallToHtml(
   // strings, where `\u003c` is an equivalent escape — JSON.parse round-trips
   // it losslessly while keeping `</script>` out of the embedded block.
   const useWrapper = componentArtifacts !== undefined || locale !== undefined;
-  const payloadJson = JSON.stringify(
+  const payloadJson = effectEncodeJson(
     useWrapper ? { componentArtifacts, locale, snapshot } : snapshot,
   ).replace(/</g, "\\u003c");
 

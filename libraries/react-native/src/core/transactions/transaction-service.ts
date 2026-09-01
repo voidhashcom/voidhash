@@ -1,4 +1,14 @@
-import { Cause, Context, Deferred, Effect, Exit, Layer } from "effect";
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
+import * as Cause from "effect/Cause";
+import * as Context from "effect/Context";
+import * as Deferred from "effect/Deferred";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as HashMap from "effect/HashMap";
+import * as Layer from "effect/Layer";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
 
 import { CacheManager } from "../caching/cache-manager";
 import type { Product } from "../entities/product";
@@ -47,7 +57,7 @@ const resolveTransactionProductSlug = (
   transaction: Transaction,
   productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
 ) => {
-  const matchedProduct = Object.values(productDefinitions).find((productDefinition) => {
+  const matchedProduct = R.values(productDefinitions).find((productDefinition) => {
     if (productDefinition.slug === transaction.productId) {
       return true;
     }
@@ -69,7 +79,7 @@ const resolveTransactionProductDefinition = (
   transaction: Transaction,
   productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
 ) =>
-  Object.values(productDefinitions).find((productDefinition) => {
+  R.values(productDefinitions).find((productDefinition) => {
     if (productDefinition.slug === transaction.productId) {
       return true;
     }
@@ -132,9 +142,9 @@ export class TransactionService extends Context.Service<TransactionService>()(
       const paymentAdapter = yield* PaymentAdapter;
       const sdkConfiguration = yield* SdkConfiguration;
 
-      const inFlightTransactions = new Map<string, InFlightTransaction>();
+      const inFlightTransactions = MutableHashMap.empty<string, InFlightTransaction>();
 
-      const refreshPerson = Effect.gen(function* () {
+      const refreshPerson = Effect.fn("TransactionService.refreshPerson")(function* () {
         const distinctId = yield* identityManager.getDistinctId();
         yield* personInfoManager.getPerson(distinctId, "fetch");
       });
@@ -144,25 +154,24 @@ export class TransactionService extends Context.Service<TransactionService>()(
        * terminal state in the cache. Never syncs — the caller has already done
        * that.
        */
-      const finalizeWithStore = (
+      const finalizeWithStore = Effect.fn("TransactionService.finalizeWithStore")(function* (
         transaction: Transaction,
         schema: RuntimeSchema,
         processedCacheKey: string,
-      ) =>
-        Effect.gen(function* () {
-          if (transaction.store !== "development" && !transaction.isAcknowledged) {
-            yield* paymentAdapter.acknowledgePurchase(
-              transaction,
-              resolveTransactionProductDefinition(transaction, schema.products)?.type,
-            );
-          }
-
-          yield* cacheManager.set(
-            processedCacheKey,
-            { backendAccepted: true, storeFinalized: true },
-            { ttl: PROCESSED_TRANSACTION_TTL_MS },
+      ) {
+        if (transaction.store !== "development" && !transaction.isAcknowledged) {
+          yield* paymentAdapter.acknowledgePurchase(
+            transaction,
+            resolveTransactionProductDefinition(transaction, schema.products)?.type,
           );
-        });
+        }
+
+        yield* cacheManager.set(
+          processedCacheKey,
+          { backendAccepted: true, storeFinalized: true },
+          { ttl: PROCESSED_TRANSACTION_TTL_MS },
+        );
+      });
 
       /**
        * Runs the store finish that an already-completed processing skipped
@@ -215,15 +224,20 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
           const transactionProcessingKey = buildTransactionProcessingKey(transaction);
           const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
-          const existing = inFlightTransactions.get(transactionProcessingKey);
-          if (existing) {
+          const existing = MutableHashMap.get(inFlightTransactions, transactionProcessingKey);
+          if (Option.isSome(existing)) {
             if (readOnlyOverride !== false) {
-              return Deferred.await(existing.deferred);
+              return Deferred.await(existing.value.deferred);
             }
 
-            existing.ownerClaimed = true;
-            return Effect.flatMap(Deferred.await(existing.deferred), () =>
-              finalizeSkippedStoreFinalization(transaction, schema, existing, processedCacheKey),
+            existing.value.ownerClaimed = true;
+            return Effect.flatMap(Deferred.await(existing.value.deferred), () =>
+              finalizeSkippedStoreFinalization(
+                transaction,
+                schema,
+                existing.value,
+                processedCacheKey,
+              ),
             );
           }
 
@@ -233,78 +247,80 @@ export class TransactionService extends Context.Service<TransactionService>()(
             ownerClaimed: readOnlyOverride === false,
             storeFinalizationPending: false,
           };
-          inFlightTransactions.set(transactionProcessingKey, entry);
+          MutableHashMap.set(inFlightTransactions, transactionProcessingKey, entry);
 
-          const execution = Effect.gen(function* () {
-            const cachedTransaction = yield* cacheManager.get<boolean | TransactionProcessingState>(
-              processedCacheKey,
-            );
-            const cachedState =
-              cachedTransaction && !cachedTransaction.isExpired
-                ? cachedTransaction.value === true
+          const execution = Effect.fn("TransactionService.processTransactionExecution")(
+            function* () {
+              const cachedTransaction = yield* cacheManager.get<
+                boolean | TransactionProcessingState
+              >(processedCacheKey);
+              const cachedState = Option.isSome(cachedTransaction)
+                ? cachedTransaction.value.value === true
                   ? { backendAccepted: true, storeFinalized: true }
-                  : cachedTransaction.value === false
+                  : cachedTransaction.value.value === false
                     ? undefined
-                    : cachedTransaction.value
+                    : cachedTransaction.value.value
                 : undefined;
 
-            if (cachedState?.storeFinalized) {
-              return;
-            }
-
-            if (
-              transaction.store !== "development" &&
-              transaction.platform === "android" &&
-              !transaction.purchaseToken
-            ) {
-              yield* Effect.logWarning(
-                "Skipping observed Android transaction without purchase token",
-                {
-                  transactionId: transaction.transactionId,
-                },
-              );
-              return;
-            }
-
-            if (!cachedState?.backendAccepted) {
-              const commonHeaders = yield* getCommonSdkHeaders();
-              const distinctId = yield* identityManager.getDistinctId();
-
-              const headers = { ...commonHeaders, "x-distinct-id": distinctId };
-              if (transaction.store === "development") {
-                yield* apiClient.sdk.developmentPurchase({
-                  headers,
-                  payload: {
-                    devTransactionId: transaction.transactionId,
-                    productSlug: resolveTransactionProductSlug(transaction, schema.products),
-                    purchaseDate: transaction.purchaseDate,
-                    quantity: transaction.quantity,
-                  },
-                });
-              } else {
-                yield* apiClient.sdk.syncTransaction({
-                  headers,
-                  payload: mapTransactionToSyncPayload(transaction, schema.products),
-                });
+              if (cachedState?.storeFinalized) {
+                return;
               }
 
-              yield* cacheManager.set(
-                processedCacheKey,
-                {
-                  backendAccepted: true,
-                  storeFinalized: transaction.store === "development" || transaction.isAcknowledged,
-                },
-                { ttl: PROCESSED_TRANSACTION_TTL_MS },
-              );
-            }
+              if (
+                transaction.store !== "development" &&
+                transaction.platform === "android" &&
+                !transaction.purchaseToken
+              ) {
+                yield* Effect.logWarning(
+                  "Skipping observed Android transaction without purchase token",
+                  {
+                    transactionId: transaction.transactionId,
+                  },
+                );
+                return;
+              }
 
-            if (!entry.ownerClaimed && (readOnlyOverride ?? sdkConfiguration.readOnly)) {
-              entry.storeFinalizationPending = true;
-              return;
-            }
+              if (!cachedState?.backendAccepted) {
+                const commonHeaders = yield* getCommonSdkHeaders();
+                const distinctId = yield* identityManager.getDistinctId();
 
-            yield* finalizeWithStore(transaction, schema, processedCacheKey);
-          });
+                const headers = { ...commonHeaders, "x-distinct-id": distinctId };
+                if (transaction.store === "development") {
+                  yield* apiClient.sdk.developmentPurchase({
+                    headers,
+                    payload: {
+                      devTransactionId: transaction.transactionId,
+                      productSlug: resolveTransactionProductSlug(transaction, schema.products),
+                      purchaseDate: transaction.purchaseDate,
+                      quantity: transaction.quantity,
+                    },
+                  });
+                } else {
+                  yield* apiClient.sdk.syncTransaction({
+                    headers,
+                    payload: mapTransactionToSyncPayload(transaction, schema.products),
+                  });
+                }
+
+                yield* cacheManager.set(
+                  processedCacheKey,
+                  {
+                    backendAccepted: true,
+                    storeFinalized:
+                      transaction.store === "development" || transaction.isAcknowledged,
+                  },
+                  { ttl: PROCESSED_TRANSACTION_TTL_MS },
+                );
+              }
+
+              if (!entry.ownerClaimed && (readOnlyOverride ?? sdkConfiguration.readOnly)) {
+                entry.storeFinalizationPending = true;
+                return;
+              }
+
+              yield* finalizeWithStore(transaction, schema, processedCacheKey);
+            },
+          )();
 
           return Effect.exit(execution).pipe(
             Effect.tap((exit) => Deferred.done(deferred, exit)),
@@ -313,80 +329,89 @@ export class TransactionService extends Context.Service<TransactionService>()(
             ),
             Effect.ensuring(
               Effect.sync(() => {
-                inFlightTransactions.delete(transactionProcessingKey);
+                MutableHashMap.remove(inFlightTransactions, transactionProcessingKey);
               }),
             ),
           );
         });
 
-      const reconcileObservedTransactions = (schema: RuntimeSchema) =>
-        Effect.gen(function* () {
-          const [pendingTransactions, purchasedTransactions] = yield* Effect.all([
-            paymentAdapter.getPendingTransactions(),
-            paymentAdapter.getPurchaseHistory(true),
-          ]);
+      const reconcileObservedTransactions = Effect.fn(
+        "TransactionService.reconcileObservedTransactions",
+      )(function* (schema: RuntimeSchema) {
+        const [pendingTransactions, purchasedTransactions] = yield* Effect.all(
+          [paymentAdapter.getPendingTransactions(), paymentAdapter.getPurchaseHistory(true)],
+          { concurrency: 1 },
+        );
 
-          const observedTransactionsByKey = new Map<string, Transaction>();
-          for (const transaction of [...pendingTransactions, ...purchasedTransactions]) {
-            observedTransactionsByKey.set(buildTransactionProcessingKey(transaction), transaction);
-          }
-
-          const failures = [];
-          for (const transaction of observedTransactionsByKey.values()) {
-            if (
-              resolveTransactionProductDefinition(transaction, schema.products)?.type ===
-              "one-time-consumable"
-            ) {
-              continue;
-            }
-            const exit = yield* Effect.exit(processTransaction(transaction, schema));
-            if (Exit.isFailure(exit)) {
+        const observedTransactionsByKey = HashMap.fromIterable(
+          [...pendingTransactions, ...purchasedTransactions].map(
+            (transaction) => [buildTransactionProcessingKey(transaction), transaction] as const,
+          ),
+        );
+        const failures = Arr.getSomes(
+          yield* Effect.forEach(
+            HashMap.values(observedTransactionsByKey),
+            Effect.fn("TransactionService.reconcileTransaction")(function* (transaction) {
+              if (
+                resolveTransactionProductDefinition(transaction, schema.products)?.type ===
+                "one-time-consumable"
+              ) {
+                return Option.none();
+              }
+              const exit = yield* Effect.exit(processTransaction(transaction, schema));
+              if (Exit.isSuccess(exit)) return Option.none();
               const error = Cause.squash(exit.cause);
-              failures.push({ error, transactionId: transaction.transactionId });
               yield* Effect.logWarning("Failed to process observed transaction", {
                 error,
                 transactionId: transaction.transactionId,
               });
-            }
-          }
+              return Option.some({ error, transactionId: transaction.transactionId });
+            }),
+            { concurrency: 1 },
+          ),
+        );
 
-          if (failures.length > 0) {
-            return yield* Effect.fail(
-              new ReconcileTransactionsError({
-                failures,
-                message: `Failed to restore ${failures.length} transactions`,
-              }),
-            );
-          }
-        });
-
-      const processObservedTransaction = (transaction: Transaction, schema: RuntimeSchema) =>
-        Effect.gen(function* () {
-          yield* processTransaction(transaction, schema);
-          yield* refreshPerson;
-        });
-
-      const reconcileObservedTransactionsAndRefresh = (schema: RuntimeSchema) =>
-        Effect.gen(function* () {
-          yield* reconcileObservedTransactions(schema);
-          yield* refreshPerson;
-        });
-
-      const purchase = (product: Product, schema: RuntimeSchema) =>
-        Effect.gen(function* () {
-          // Pinned at purchase start: a purchase this SDK owns must still be
-          // finished with the store even if the app flips to observer mode
-          // while the store sheet is open.
-          const readOnlyAtPurchaseStart = sdkConfiguration.readOnly;
-          const distinctId = yield* identityManager.getDistinctId();
-          const transaction = yield* paymentAdapter.buyProduct(
-            product,
-            undefined,
-            deriveAccountToken(distinctId),
+        if (Arr.isReadonlyArrayNonEmpty(failures)) {
+          return yield* Effect.fail(
+            new ReconcileTransactionsError({
+              failures,
+              message: `Failed to restore ${failures.length} transactions`,
+            }),
           );
-          yield* processTransaction(transaction, schema, readOnlyAtPurchaseStart);
-          yield* refreshPerson;
-        });
+        }
+      });
+
+      const processObservedTransaction = Effect.fn("TransactionService.processObservedTransaction")(
+        function* (transaction: Transaction, schema: RuntimeSchema) {
+          yield* processTransaction(transaction, schema);
+          yield* refreshPerson();
+        },
+      );
+
+      const reconcileObservedTransactionsAndRefresh = Effect.fn(
+        "TransactionService.reconcileObservedTransactionsAndRefresh",
+      )(function* (schema: RuntimeSchema) {
+        yield* reconcileObservedTransactions(schema);
+        yield* refreshPerson();
+      });
+
+      const purchase = Effect.fn("TransactionService.purchase")(function* (
+        product: Product,
+        schema: RuntimeSchema,
+      ) {
+        // Pinned at purchase start: a purchase this SDK owns must still be
+        // finished with the store even if the app flips to observer mode
+        // while the store sheet is open.
+        const readOnlyAtPurchaseStart = sdkConfiguration.readOnly;
+        const distinctId = yield* identityManager.getDistinctId();
+        const transaction = yield* paymentAdapter.buyProduct(
+          product,
+          undefined,
+          deriveAccountToken(distinctId),
+        );
+        yield* processTransaction(transaction, schema, readOnlyAtPurchaseStart);
+        yield* refreshPerson();
+      });
 
       const restorePurchases = reconcileObservedTransactionsAndRefresh;
 

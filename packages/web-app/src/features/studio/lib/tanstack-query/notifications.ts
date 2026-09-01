@@ -28,7 +28,13 @@ export const updatePushNotificationConfigurationOptions = () =>
       enabled: boolean;
       name: string;
       configuration: Record<string, unknown>;
-    }) => VoidhashRpc.request((rpc) => rpc.UpdatePushNotificationConfiguration(variables)),
+    }) =>
+      VoidhashRpc.request((rpc) =>
+        rpc.UpdatePushNotificationConfiguration({
+          ...variables,
+          isEnabled: variables.enabled,
+        }),
+      ),
     mutationKey: ["updatePushNotificationConfiguration"],
   });
 

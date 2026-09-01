@@ -1,5 +1,6 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import { FxRates, FxRateSync } from "@voidhash/core-v2";
 
@@ -15,10 +16,10 @@ export const FxRateSyncRegistration = WorkflowRegistration.make(FxRateSync, {
       const refreshedCount = yield* ctx.step({
         name: `refresh-latest-${input.runId}`,
         success: Schema.Number,
-        execute: Effect.gen(function* () {
+        execute: Effect.fn("execute")(function* () {
           const fxRate = yield* FxRates;
           return yield* fxRate.refreshLatest();
-        }).pipe(
+        })().pipe(
           Effect.tap((count) =>
             Effect.logInfo(`FxRateSyncWorkflow refreshed ${count} rate(s)`, input),
           ),

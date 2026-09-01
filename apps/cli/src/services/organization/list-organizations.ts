@@ -1,24 +1,25 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 import { ApiClient } from "../../utils/api-client";
 import { OrganizationServiceError } from "./errors";
+import * as P from "effect/Predicate";
 
 const hasNestedTag = (
   error: unknown,
   outerTag: string,
   innerTag: string,
 ): error is { readonly _tag: string; readonly data: { readonly _tag: string } } =>
-  typeof error === "object" &&
+  P.isObject(error) &&
   error !== null &&
   "_tag" in error &&
   error._tag === outerTag &&
   "data" in error &&
-  typeof error.data === "object" &&
+  P.isObject(error.data) &&
   error.data !== null &&
   "_tag" in error.data &&
   error.data._tag === innerTag;
 
-export const listOrganizations = Effect.gen(function* listOrganizations() {
+export const listOrganizations = Effect.fn("listOrganizations")(function* listOrganizations() {
   const client = yield* ApiClient;
   return Effect.fn("listOrganizations")(
     function* listOrganizations(input: { name: string }) {
@@ -48,4 +49,4 @@ export const listOrganizations = Effect.gen(function* listOrganizations() {
         }),
       ),
   );
-});
+})();

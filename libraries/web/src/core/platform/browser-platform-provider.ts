@@ -1,22 +1,32 @@
-import { Crypto, Effect, Random } from "effect";
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Crypto from "effect/Crypto";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
+import * as Option from "effect/Option";
+import * as PlatformError from "effect/PlatformError";
+import * as Random from "effect/Random";
+import * as Result from "effect/Result";
 
 import { SDK_VERSION } from "../constants";
 import type { WebSdkHeadersWithoutDistinctId } from "../networking/api-client";
 
-const trimUndefined = (entries: Record<string, unknown>) =>
-  Object.fromEntries(Object.entries(entries).filter(([, value]) => typeof value !== "undefined"));
+const runtime = ManagedRuntime.make(Layer.empty);
 
-const safeUrl = (value: string | undefined) => {
+const trimUndefined = (entries: Record<string, unknown>) =>
+  R.fromEntries(R.toEntries(entries).filter(([, value]) => !P.isUndefined(value)));
+
+const safeUrl = (value?: string) => {
   if (!value) {
-    return null;
+    return Option.none();
   }
 
-  return Effect.runSync(
-    Effect.try({
+  return Result.try({
       try: () => new URL(value),
-      catch: () => null,
-    }).pipe(Effect.orElseSucceed(() => null)),
-  );
+      catch: (error) => error,
+    }).pipe(Result.getSuccess);
 };
 
 /** Renders a boolean as the `"true"` / `"false"` literal the SDK headers expect. */
@@ -29,7 +39,7 @@ const booleanHeader = (value: boolean) => {
 };
 
 const optionalNavigator = () => {
-  if (typeof navigator === "undefined") {
+  if (P.isUndefined(navigator)) {
     return undefined;
   }
 
@@ -37,7 +47,7 @@ const optionalNavigator = () => {
 };
 
 const optionalScreen = () => {
-  if (typeof screen === "undefined") {
+  if (P.isUndefined(screen)) {
     return undefined;
   }
 
@@ -45,7 +55,7 @@ const optionalScreen = () => {
 };
 
 const optionalViewport = () => {
-  if (typeof window === "undefined") {
+  if (P.isUndefined(window)) {
     return undefined;
   }
 
@@ -56,7 +66,7 @@ const optionalViewport = () => {
 };
 
 const optionalPageTitle = () => {
-  if (typeof document === "undefined") {
+  if (P.isUndefined(document)) {
     return undefined;
   }
 
@@ -78,7 +88,16 @@ const HEX_DIGITS = "0123456789abcdef";
 const webCrypto = Crypto.make({
   digest: (algorithm, data) =>
     // oxlint-disable-next-line effect/noGlobals -- this module IS the browser platform boundary: Effect ships no browser Crypto layer, so the WebCrypto global is what backs Crypto.make here (see the webCrypto doc comment above).
-    Effect.promise(() => crypto.subtle.digest(algorithm, new Uint8Array(data))).pipe(
+    Effect.tryPromise({
+      try: () => crypto.subtle.digest(algorithm, new Uint8Array(data)),
+      catch: (cause) =>
+        PlatformError.systemError({
+          _tag: "Unknown",
+          cause,
+          method: "digest",
+          module: "WebCrypto",
+        }),
+    }).pipe(
       Effect.map((buffer) => new Uint8Array(buffer)),
     ),
   // oxlint-disable-next-line effect/noGlobals -- this module IS the browser platform boundary: Effect ships no browser Crypto layer, and the identifiers this feeds must stay unpredictable, so the ambient Random service is deliberately not used (see the webCrypto doc comment above).
@@ -87,7 +106,7 @@ const webCrypto = Crypto.make({
 
 const hasWebCrypto = () =>
   // oxlint-disable-next-line effect/noGlobals -- feature detection for the WebCrypto tier: it must probe the ambient global directly, before any Crypto layer can be chosen.
-  typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function";
+  !P.isUndefined(crypto) && P.hasProperty(crypto, "getRandomValues");
 
 /**
  * Generates an RFC 4122 version 4 UUID.
@@ -98,47 +117,50 @@ const hasWebCrypto = () =>
  */
 const randomUuid = Effect.suspend(() => {
   if (hasWebCrypto()) {
-    return webCrypto.randomUUIDv4.pipe(Effect.catchCause(() => fallbackUuid));
+    return webCrypto.randomUUIDv4.pipe(Effect.catchCause(() => fallbackUuid()));
   }
 
-  return fallbackUuid;
+  return fallbackUuid();
 });
 
-const fallbackUuid = Effect.gen(function* generateFallbackUuid() {
-  const digits: string[] = [];
-  for (let index = 0; index < 32; index += 1) {
-    const digit = yield* Random.nextIntBetween(0, HEX_DIGITS.length, { halfOpen: true });
-    digits.push(HEX_DIGITS[digit] ?? "0");
-  }
+const fallbackUuid = Effect.fn("generateFallbackUuid")(function* generateFallbackUuid() {
+  const digits = yield* Effect.forEach(
+    Arr.range(0, 31),
+    () =>
+      Random.nextIntBetween(0, HEX_DIGITS.length, { halfOpen: true }).pipe(
+        Effect.map((digit) => HEX_DIGITS[digit] ?? "0"),
+      ),
+    { concurrency: 1 },
+  );
 
   // Version nibble is fixed to 4 and the variant nibble to 8..b, per RFC 4122.
-  digits[12] = "4";
   const variant = yield* Random.nextIntBetween(8, 12, { halfOpen: true });
-  digits[16] = HEX_DIGITS[variant] ?? "8";
-
-  const hex = digits.join("");
+  const variantDigit = HEX_DIGITS[variant] ?? "8";
+  const hex = digits
+    .map((digit, index) => (index === 12 ? "4" : index === 16 ? variantDigit : digit))
+    .join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 });
 
 export class BrowserPlatformProvider {
   private getCurrentUrl() {
-    if (typeof window === "undefined") {
-      return null;
+    if (P.isUndefined(window)) {
+      return Option.none();
     }
 
     return safeUrl(window.location.href);
   }
 
   private getReferrerUrl() {
-    if (typeof document === "undefined") {
-      return null;
+    if (P.isUndefined(document)) {
+      return Option.none();
     }
 
     return safeUrl(document.referrer);
   }
 
   private isDebugBuild() {
-    if (typeof window === "undefined") {
+    if (P.isUndefined(window)) {
       return false;
     }
 
@@ -156,15 +178,15 @@ export class BrowserPlatformProvider {
     return trimUndefined({
       locale: navigatorRef?.language,
       page_title: optionalPageTitle(),
-      referrer_origin: referrerUrl?.origin,
-      referrer_path: referrerUrl?.pathname,
+      referrer_origin: Option.getOrUndefined(Option.map(referrerUrl, (url) => url.origin)),
+      referrer_path: Option.getOrUndefined(Option.map(referrerUrl, (url) => url.pathname)),
       screen_height: screenRef?.height,
       screen_width: screenRef?.width,
       sdk: "web",
       sdk_version: SDK_VERSION,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      url_origin: currentUrl?.origin,
-      url_path: currentUrl?.pathname,
+      url_origin: Option.getOrUndefined(Option.map(currentUrl, (url) => url.origin)),
+      url_path: Option.getOrUndefined(Option.map(currentUrl, (url) => url.pathname)),
       user_agent: navigatorRef?.userAgent,
       viewport_height: viewport?.viewportHeight,
       viewport_width: viewport?.viewportWidth,
@@ -200,6 +222,6 @@ export class BrowserPlatformProvider {
   }
 
   randomId() {
-    return Effect.runSync(randomUuid);
+    return runtime.runSync(randomUuid);
   }
 }

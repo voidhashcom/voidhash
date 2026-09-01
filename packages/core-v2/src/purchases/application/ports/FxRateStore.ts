@@ -1,4 +1,6 @@
-import { Context, type Effect } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import type * as Option from "effect/Option";
 
 import type { FxRateLookup, FxRateWrite } from "../../fx/domain/FxRate.ts";
 import type { PurchasePortError } from "./PurchasePortError.ts";
@@ -7,12 +9,12 @@ export interface FxRateStoreShape {
   readonly findExact: (input: {
     readonly asOfDate: Date;
     readonly currency: string;
-  }) => Effect.Effect<FxRateLookup | undefined, PurchasePortError>;
+  }) => Effect.Effect<Option.Option<FxRateLookup>, PurchasePortError>;
   readonly findMostRecent: (input: {
     readonly currency: string;
     readonly from: Date;
     readonly to: Date;
-  }) => Effect.Effect<FxRateLookup | undefined, PurchasePortError>;
+  }) => Effect.Effect<Option.Option<FxRateLookup>, PurchasePortError>;
   readonly hasAny: () => Effect.Effect<boolean, PurchasePortError>;
   /** Writes are held to the tighter {@link FxRateWrite} contract; reads are not. */
   readonly persist: (rates: ReadonlyArray<FxRateWrite>) => Effect.Effect<void, PurchasePortError>;

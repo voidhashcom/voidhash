@@ -1,7 +1,13 @@
 import { NodeServices } from "@effect/platform-node";
-import { fileURLToPath } from "node:url";
 
-import { Effect, FileSystem, Path, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
+import * as Path from "effect/Path";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
 import { Client } from "pg";
 import type { QueryResult, QueryResultRow } from "pg";
 
@@ -48,32 +54,28 @@ const query = <Row extends QueryResultRow = QueryResultRow>(
 
 const collectMigrations = (
   directory: URL,
-): Effect.Effect<
-  ReadonlyArray<MigrationFile>,
-  unknown,
-  FileSystem.FileSystem | Path.Path
-> =>
+): Effect.Effect<ReadonlyArray<MigrationFile>, unknown, FileSystem.FileSystem | Path.Path> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const root = fileURLToPath(directory);
+    const root = yield* path.fromFileUrl(directory);
     const entries = yield* fs.readDirectory(root);
-    const migrations: MigrationFile[] = [];
+    const migrations = yield* Effect.forEach(
+      Arr.sort(entries, Str.Order),
+      Effect.fn("collectMigration")(function* (entry) {
+        const entryPath = path.join(root, entry);
+        const info = yield* fs.stat(entryPath);
+        if (info.type !== "Directory") return Option.none<MigrationFile>();
 
-    for (const entry of [...entries].sort((a, b) => a.localeCompare(b))) {
-      const entryPath = path.join(root, entry);
-      const info = yield* fs.stat(entryPath);
-      if (info.type !== "Directory") continue;
+        const migrationPath = path.join(entryPath, "migration.sql");
+        const exists = yield* fs.exists(migrationPath);
+        if (!exists) return Option.none<MigrationFile>();
 
-      // A directory without a `migration.sql` is simply not a migration.
-      const migrationPath = path.join(entryPath, "migration.sql");
-      const exists = yield* fs.exists(migrationPath);
-      if (!exists) continue;
-
-      migrations.push({ name: entry, sql: yield* fs.readFileString(migrationPath) });
-    }
-
-    return migrations;
+        return Option.some({ name: entry, sql: yield* fs.readFileString(migrationPath) });
+      }),
+      { concurrency: 1 },
+    );
+    return Arr.getSomes(migrations);
   });
 
 const nextSequenceFrom = (rows: ReadonlyArray<{ readonly id: string }>): number =>
@@ -117,25 +119,25 @@ const applyPending = (
       client,
       `SELECT id, name FROM ${migrationsTable}`,
     );
-    const appliedNames = new Set(appliedRows.rows.map(({ name }) => name));
-    let nextSequence = nextSequenceFrom(appliedRows.rows);
-    const applied: string[] = [];
-
-    for (const migration of migrations) {
-      if (appliedNames.has(migration.name)) continue;
-      yield* applyMigration(client, migration, nextSequence).pipe(
-        Effect.mapError(
-          (cause) =>
-            new AppDatabaseMigrationError({
-              cause: String(cause),
-              migrationName: migration.name,
-              operation: "apply",
-            }),
+    const appliedNames = HashSet.fromIterable(appliedRows.rows.map(({ name }) => name));
+    const pending = migrations.filter((migration) => !HashSet.has(appliedNames, migration.name));
+    const nextSequence = nextSequenceFrom(appliedRows.rows);
+    yield* Effect.forEach(
+      pending,
+      (migration, index) =>
+        applyMigration(client, migration, nextSequence + index).pipe(
+          Effect.mapError(
+            (cause) =>
+              new AppDatabaseMigrationError({
+                cause: String(cause),
+                migrationName: migration.name,
+                operation: "apply",
+              }),
+          ),
         ),
-      );
-      nextSequence += 1;
-      applied.push(migration.name);
-    }
+      { concurrency: 1 },
+    );
+    const applied = pending.map((migration) => migration.name);
 
     return { applied, skipped: migrations.length - applied.length };
   }).pipe(
@@ -168,8 +170,7 @@ const runMigrations = (
       options.directory ?? defaultMigrationsDirectory,
     ).pipe(
       Effect.mapError(
-        (cause) =>
-          new AppDatabaseMigrationError({ cause: String(cause), operation: "discover" }),
+        (cause) => new AppDatabaseMigrationError({ cause: String(cause), operation: "discover" }),
       ),
     );
     const lockName = options.lockName ?? `${config.databaseName}:voidhash-app-migrations`;
@@ -188,8 +189,7 @@ const runMigrations = (
         ),
       ),
       () => applyPending(client, migrations),
-      () =>
-        Effect.ignore(query(client, "SELECT pg_advisory_unlock(hashtext($1))", [lockName])),
+      () => Effect.ignore(query(client, "SELECT pg_advisory_unlock(hashtext($1))", [lockName])),
     ).pipe(Effect.ensuring(Effect.ignore(Effect.tryPromise(() => client.end()))));
   });
 

@@ -1,4 +1,7 @@
-import { Option, Schema } from "effect";
+import * as Str from "effect/String";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { CurrencyCode, ExchangeRate, MinorAmount } from "./Money.ts";
 
@@ -8,6 +11,7 @@ import { CurrencyCode, ExchangeRate, MinorAmount } from "./Money.ts";
  * historical notifications.
  */
 export const PurchaseEventSource = Schema.Literals(["sdk", "webhook", "reconciliation"]);
+export type PurchaseEventSource = typeof PurchaseEventSource.Type;
 
 /**
  * Same five amounts as {@link PurchaseProcessingMoney} converted to the
@@ -84,12 +88,12 @@ export class PurchaseProcessingResult extends Schema.TaggedClass<PurchaseProcess
   /** Whether the provider deliberately accepted the event without applying purchase state. */
   isIgnored(): boolean {
     return (
-      this.personId.length === 0 &&
+      Str.isEmpty(this.personId) &&
       Option.isNone(this.purchaseId) &&
       Option.isNone(this.subscriptionId) &&
       Option.isNone(this.transactionId) &&
-      this.changedGrantIds.length === 0 &&
-      this.analyticsEventIds.length === 0
+      Arr.isReadonlyArrayEmpty(this.changedGrantIds) &&
+      Arr.isReadonlyArrayEmpty(this.analyticsEventIds)
     );
   }
 }

@@ -8,14 +8,16 @@ import * as Cloudflare from "alchemy/Cloudflare";
 import type { RuntimeContext } from "alchemy/RuntimeContext";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 
 export type CloudflarePublicR2Bucket = Effect.Success<Cloudflare.R2.ReadWriteBucketClient["raw"]>;
 
 /** R2 `put` options for an optional content type — omitted entirely when absent. */
-const putOptions = (contentType: string | undefined) => {
-  if (contentType === undefined) return undefined;
-  return { httpMetadata: { contentType } };
-};
+const putOptions = (contentType: Option.Option<string>) =>
+  Option.match(contentType, {
+    onNone: () => undefined,
+    onSome: (value) => ({ httpMetadata: { contentType: value } }),
+  });
 
 /** Creates the public-file port from an already-resolved R2 binding. */
 export const makePublicFileStore = (
@@ -36,16 +38,18 @@ export const makePublicFileStore = (
     publicBaseUrl,
     publicUrl: (key) => `${publicBaseUrl}/files/${key}`,
     putObject: ({ key, body, contentType }) =>
-      tryR2("put", () => raw.put(key, body, putOptions(contentType))).pipe(Effect.asVoid),
+      tryR2("put", () => raw.put(key, body, putOptions(contentType))).pipe(
+        Effect.asVoid,
+      ),
     getObject: (key) =>
       Effect.gen(function* () {
         const object = yield* tryR2("get", () => raw.get(key));
-        if (object === null) return null;
+        if (object === null) return Option.none();
         const buffer = yield* tryR2("get", () => object.arrayBuffer());
-        return {
+        return Option.some({
           body: new Uint8Array(buffer),
-          contentType: object.httpMetadata?.contentType ?? null,
-        };
+          contentType: Option.fromNullishOr(object.httpMetadata?.contentType),
+        });
       }),
     deleteObject: (key) => tryR2("delete", () => raw.delete(key)).pipe(Effect.asVoid),
   };
@@ -86,13 +90,13 @@ export const makePublicFileStoreLive = (
 
     return Layer.effect(
       PublicFileStore,
-      Effect.gen(function* () {
+      Effect.fn("makePublicFileStoreLive")(function* () {
         // The native `R2Bucket` runtime object rather than the Effect wrapper:
         // its R2Object properties (`httpMetadata`) live on workerd prototypes,
         // which the wrapper's object spread would lose.
         const raw = yield* client.raw;
 
         return makePublicFileStore(raw, publicBaseUrl);
-      }),
+      })(),
     );
   });

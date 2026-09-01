@@ -1,4 +1,9 @@
-import { SendNotificationBody, SendNotificationResponse, VoidhashV1Api } from "@voidhash/api-contracts";
+import * as Schema from "effect/Schema";
+import {
+  SendNotificationBody,
+  SendNotificationResponse,
+  VoidhashV1Api,
+} from "@voidhash/api-contracts";
 import {
   ApiActionForbiddenError,
   ApiAuthServiceError,
@@ -16,7 +21,8 @@ import {
 import { decodeCursor, encodeCursor, resolveRequestProjectId } from "@voidhash/core/utils";
 import { PushNotificationSendStatus } from "@voidhash/db";
 import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -24,6 +30,8 @@ import {
   bridgeAuthSession,
   requireCredential,
 } from "../../ApiMiddlewares.ts";
+import * as Arr from "effect/Array";
+import * as Match from "effect/Match";
 
 /**
  * Dispatch and send history are both management surfaces; a publishable key
@@ -32,36 +40,34 @@ import {
 const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
 
 /** Resolves an optional opaque cursor to the row id it points at. */
-const toAfterId = (cursor: string | undefined) => {
-  if (cursor === undefined) return Effect.succeed(undefined);
-  return decodeCursor(cursor);
+const toAfterId = (cursor: string | typeof Schema.Undefined.Type) => {
+  return Option.match(Option.fromNullishOr(cursor), {
+    onNone: () => Effect.succeed(Option.none<string>()),
+    onSome: (value) => Effect.map(decodeCursor(value), Option.some),
+  });
 };
 
 /** Builds the wire `pageInfo` from a keyset page's cursor state. */
-const toPageInfo = (page: { readonly endCursorId: string | null; readonly hasNextPage: boolean }) => {
-  let endCursor: string | null = null;
-  if (page.hasNextPage && page.endCursorId !== null) {
-    endCursor = encodeCursor(page.endCursorId);
-  }
+const toPageInfo = (page: {
+  readonly endCursorId: Option.Option<string>;
+  readonly hasNextPage: boolean;
+}) => {
+  const endCursor: string | typeof Schema.Null.Type = page.hasNextPage
+    ? Option.map(page.endCursorId, encodeCursor).pipe(Option.getOrNull)
+    : null;
   return { endCursor, hasNextPage: page.hasNextPage };
 };
 
 /** Map the numeric send roll-up status to the API's string enum. */
 const sendStatusToString = (status: number): SendNotificationResponse["status"] => {
-  switch (status) {
-    case PushNotificationSendStatus.InProgress:
-      return "in_progress";
-    case PushNotificationSendStatus.Succeeded:
-      return "succeeded";
-    case PushNotificationSendStatus.PartialFailed:
-      return "partial_failed";
-    case PushNotificationSendStatus.Failed:
-      return "failed";
-    case PushNotificationSendStatus.NoRecipients:
-      return "no_recipients";
-    default:
-      return "pending";
-  }
+  return Match.value(status).pipe(
+    Match.when(PushNotificationSendStatus.InProgress, (): "in_progress" => "in_progress"),
+    Match.when(PushNotificationSendStatus.Succeeded, (): "succeeded" => "succeeded"),
+    Match.when(PushNotificationSendStatus.PartialFailed, (): "partial_failed" => "partial_failed"),
+    Match.when(PushNotificationSendStatus.Failed, (): "failed" => "failed"),
+    Match.when(PushNotificationSendStatus.NoRecipients, (): "no_recipients" => "no_recipients"),
+    Match.orElse((): "pending" => "pending"),
+  );
 };
 
 /**
@@ -89,9 +95,9 @@ export const NotificationsGroupLive = HttpApiBuilder.group(
        */
       const dispatch = (
         payload: typeof SendNotificationBody.Type,
-        idempotencyKey: string | undefined,
+        idempotencyKey: string | typeof Schema.Undefined.Type,
       ) =>
-        Effect.gen(function* () {
+        Effect.fn("dispatch")(function* () {
           const session = yield* AuthSession;
           // Server-side only: a publishable (client-embedded) key must NEVER be
           // able to push to arbitrary persons in its project. Require a
@@ -131,7 +137,7 @@ export const NotificationsGroupLive = HttpApiBuilder.group(
 
           const personIds = payload.personIds ?? [];
           const distinctIds = payload.distinctIds ?? [];
-          if (personIds.length === 0 && distinctIds.length === 0) {
+          if (Arr.isReadonlyArrayEmpty(personIds) && Arr.isReadonlyArrayEmpty(distinctIds)) {
             return yield* Effect.fail(
               new ApiPushDeviceValidationError({
                 message: "at least one of personIds or distinctIds is required",
@@ -163,7 +169,7 @@ export const NotificationsGroupLive = HttpApiBuilder.group(
             status: sendStatusToString(result.status),
             unresolvedDistinctIds: [...result.unresolvedDistinctIds],
           });
-        });
+        })();
 
       return handlers.handle("createNotification", ({ headers, payload }) =>
         bridgeAuthSession(
@@ -199,18 +205,24 @@ export const NotificationSendsGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("listNotificationSends", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("NotificationSendsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
               const after = yield* toAfterId(query.cursor);
               const page = yield* sendHistory.listSendsPage({
                 after,
-                limit: query.limit,
+                limit: Option.fromNullishOr(query.limit),
                 projectId,
               });
-              return { data: page.sends, pageInfo: toPageInfo(page) };
-            }),
+              return {
+                data: page.sends.map(({ messagePurged, ...send }) => ({
+                  ...send,
+                  isMessagePurged: messagePurged,
+                })),
+                pageInfo: toPageInfo(page),
+              };
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (error) =>
@@ -222,20 +234,20 @@ export const NotificationSendsGroupLive = HttpApiBuilder.group(
         )
         .handle("listNotificationSendDeliveries", ({ params, query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("NotificationSendsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
               const after = yield* toAfterId(query.cursor);
               const page = yield* sendHistory.getSendDeliveriesPage({
                 after,
-                limit: query.limit,
+                limit: Option.fromNullishOr(query.limit),
                 projectId,
                 sendId: params.sendId,
-                status: query.status,
+                status: Option.fromNullishOr(query.status),
               });
               return { data: page.deliveries, pageInfo: toPageInfo(page) };
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (error) =>

@@ -2,7 +2,7 @@
  * User errors — typed errors returned by user RPCs. Class names and `_tag`
  * values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * Catch-all user service error. Wraps any non-typed infrastructural failure

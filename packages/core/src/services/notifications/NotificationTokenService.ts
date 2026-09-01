@@ -1,4 +1,10 @@
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import * as Str from "effect/String";
 
 import { constant } from "@voidhash/lib/lang";
 
@@ -30,9 +36,9 @@ export class NotificationTokenServiceError extends Schema.TaggedErrorClass<Notif
   "NotificationTokenServiceError",
 )("NotificationTokenServiceError", { cause: Schema.String }) {}
 
-const DevicePlatformSchema = Schema.Literals(["ios", "android"]);
-const PushDeliveryProviderKindSchema = Schema.Literals(["fcm", "apns"]);
-const PushEnvironmentSchema = Schema.Literals(["sandbox", "production"]);
+const DevicePlatformDefinition = Schema.Literals(["ios", "android"]);
+const PushDeliveryProviderKindDefinition = Schema.Literals(["fcm", "apns"]);
+const PushEnvironmentDefinition = Schema.Literals(["sandbox", "production"]);
 
 /**
  * Decodes a free-form `varchar` column into the union type the rest of the
@@ -56,21 +62,24 @@ const decodeColumn = <A>(
 
 /** Nullable `environment` column -> the optional APNs environment. */
 const decodeEnvironment = (
-  environment: string | null,
-): Effect.Effect<"sandbox" | "production" | undefined, NotificationTokenServiceError> => {
-  if (environment === null) return Effect.succeed(undefined);
-  return decodeColumn(PushEnvironmentSchema, "environment", environment);
-};
+  environment: Option.Option<string>,
+): Effect.Effect<Option.Option<PushEnvironment>, NotificationTokenServiceError> =>
+  Option.match(environment, {
+    onNone: () => Effect.succeed(Option.none()),
+    onSome: (value) =>
+      decodeColumn(PushEnvironmentDefinition, "environment", value).pipe(Effect.map(Option.some)),
+  });
 
 /**
  * Builds the relational filter for the `environment` half of the dedup key.
  * `environment` is either null (fcm) or a value (apns), never `''`, so an exact
  * match mirrors the unique index.
  */
-const environmentFilter = (environment: string | null) => {
-  if (environment === null) return constant({ environment: { isNull: true } });
-  return { environment };
-};
+const environmentFilter = (environment: Option.Option<string>) =>
+  Option.match(environment, {
+    onNone: () => constant({ environment: { isNull: true } }),
+    onSome: (value) => ({ environment: value }),
+  });
 
 /**
  * The UUID seam: the ONLY component that mints, stores, and dereferences
@@ -111,7 +120,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
           yield* Effect.annotateCurrentSpan("voidhash.push.provider", input.provider);
           yield* Effect.annotateCurrentSpan("voidhash.push.platform", input.platform);
 
-          if (input.platformToken.length === 0) {
+          if (Str.isEmpty(input.platformToken)) {
             return yield* Effect.fail(
               new InvalidPushMessageError({ message: "platformToken must not be empty" }),
             );
@@ -124,11 +133,11 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
             );
           }
 
-          const environment = input.environment ?? null;
-          const bundleId = input.bundleId ?? null;
+          const environment = Option.fromNullishOr(input.environment);
+          const bundleId = Option.fromNullishOr(input.bundleId);
 
           const pushDeviceTokenId = yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("NotificationTokenService.registerTransaction")(function* () {
               const now = yield* DateTime.nowAsDate;
               // Match the dedup key (projectId, provider, platformToken,
               // coalesce(environment,'')).
@@ -141,14 +150,13 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                 },
               });
 
-              let deviceId: string;
+              const deviceId = existing ? existing.id : generateId("pushDeviceToken");
               if (existing) {
-                deviceId = existing.id;
                 yield* tx
                   .update(pushDeviceTokens)
                   .set({
                     platform: input.platform,
-                    bundleId,
+                    bundleId: Option.getOrNull(bundleId),
                     invalidatedAt: null,
                     invalidationReason: null,
                     deletedAt: null,
@@ -156,15 +164,14 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                   })
                   .where(eq(pushDeviceTokens.id, existing.id));
               } else {
-                deviceId = generateId("pushDeviceToken");
                 yield* tx.insert(pushDeviceTokens).values({
                   id: deviceId,
                   projectId: input.projectId,
                   platform: input.platform,
                   provider: input.provider,
                   platformToken: input.platformToken,
-                  bundleId,
-                  environment,
+                  bundleId: Option.getOrNull(bundleId),
+                  environment: Option.getOrNull(environment),
                 });
               }
 
@@ -205,7 +212,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
               }
 
               return deviceId;
-            }),
+            })(),
           );
 
           yield* Effect.annotateCurrentSpan("voidhash.push.device_token_id", pushDeviceTokenId);
@@ -246,7 +253,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
           );
 
           yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("NotificationTokenService.refreshTransaction")(function* () {
               const ownership = yield* links.findActiveLink(tx, {
                 projectId: input.projectId,
                 personId: input.callerPersonId,
@@ -268,7 +275,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                     eq(pushDeviceTokens.projectId, input.projectId),
                   ),
                 );
-            }),
+            })(),
           );
           yield* auditLog
             .append({
@@ -304,7 +311,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
           );
 
           yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("NotificationTokenService.unregisterTransaction")(function* () {
               const ownership = yield* links.findActiveLink(tx, {
                 projectId: input.projectId,
                 personId: input.callerPersonId,
@@ -336,7 +343,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                     ),
                   );
               }
-            }),
+            })(),
           );
           yield* auditLog
             .append({
@@ -366,7 +373,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
       const resolveForDelivery = Effect.fn("resolveForDelivery")(
         function* (input: { readonly projectId: string; readonly pushDeviceTokenId: string }) {
           return yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("NotificationTokenService.resolveForDeliveryTransaction")(function* () {
               const device = yield* tx.query.pushDeviceTokens.findFirst({
                 where: {
                   id: input.pushDeviceTokenId,
@@ -381,26 +388,26 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                 );
               }
               const platform: DevicePlatform = yield* decodeColumn(
-                DevicePlatformSchema,
+                DevicePlatformDefinition,
                 "platform",
                 device.platform,
               );
               const provider: PushDeliveryProviderKind = yield* decodeColumn(
-                PushDeliveryProviderKindSchema,
+                PushDeliveryProviderKindDefinition,
                 "provider",
                 device.provider,
               );
-              const environment: PushEnvironment | undefined = yield* decodeEnvironment(
-                device.environment,
+              const environment = yield* decodeEnvironment(
+                Option.fromNullishOr(device.environment),
               );
               return {
                 platform,
                 provider,
                 platformToken: device.platformToken,
                 bundleId: device.bundleId ?? undefined,
-                environment,
+                environment: Option.getOrUndefined(environment),
               };
-            }),
+            })(),
           );
         },
         (effect) =>
@@ -433,7 +440,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
           );
 
           yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("NotificationTokenService.invalidateTransaction")(function* () {
               const device = yield* tx.query.pushDeviceTokens.findFirst({
                 where: { id: input.pushDeviceTokenId, projectId: input.projectId },
               });
@@ -456,7 +463,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                     eq(pushDeviceTokens.projectId, input.projectId),
                   ),
                 );
-            }),
+            })(),
           );
         },
         (effect) =>
@@ -477,27 +484,30 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
           yield* Effect.annotateCurrentSpan("voidhash.person.id", input.personId);
 
           yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+            Effect.fn("NotificationTokenService.invalidateAllTransaction")(function* () {
               const now = yield* DateTime.nowAsDate;
               const personLinks = yield* tx.query.pushPersonDeviceTokens.findMany({
                 where: { projectId: input.projectId, personId: input.personId },
               });
-              for (const personLink of personLinks) {
-                yield* tx
-                  .update(pushDeviceTokens)
-                  .set({
-                    invalidatedAt: now,
-                    invalidationReason: "person-deleted",
-                    deletedAt: now,
-                    updatedAt: now,
-                  })
-                  .where(
-                    and(
-                      eq(pushDeviceTokens.id, personLink.pushDeviceTokenId),
-                      eq(pushDeviceTokens.projectId, input.projectId),
+              yield* Effect.forEach(
+                personLinks,
+                (personLink) =>
+                  tx
+                    .update(pushDeviceTokens)
+                    .set({
+                      invalidatedAt: now,
+                      invalidationReason: "person-deleted",
+                      deletedAt: now,
+                      updatedAt: now,
+                    })
+                    .where(
+                      and(
+                        eq(pushDeviceTokens.id, personLink.pushDeviceTokenId),
+                        eq(pushDeviceTokens.projectId, input.projectId),
+                      ),
                     ),
-                  );
-              }
+                { concurrency: 1, discard: true },
+              );
               yield* tx
                 .update(pushPersonDeviceTokens)
                 .set({ deletedAt: now, updatedAt: now })
@@ -508,7 +518,7 @@ export class NotificationTokenService extends Context.Service<NotificationTokenS
                     isNull(pushPersonDeviceTokens.deletedAt),
                   ),
                 );
-            }),
+            })(),
           );
         },
         (effect) =>

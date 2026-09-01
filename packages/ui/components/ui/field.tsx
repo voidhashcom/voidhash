@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import * as React from "react";
+import * as Arr from "effect/Array";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../../lib/utils";
@@ -168,9 +169,9 @@ function FieldError({
   errors,
   ...props
 }: React.ComponentProps<"div"> & {
-  errors?: Array<{ message?: string } | undefined>;
+  errors?: Array<{ message?: string }>;
 }) {
-  const content = useMemo(() => {
+  const content = React.useMemo(() => {
     if (children) {
       return children;
     }
@@ -179,7 +180,10 @@ function FieldError({
       return null;
     }
 
-    const uniqueErrors = [...new Map(errors.map((error) => [error?.message, error])).values()];
+    const uniqueErrors = Arr.dedupeWith(
+      errors,
+      (left, right) => left.message === right.message,
+    );
 
     if (uniqueErrors?.length == 1) {
       return uniqueErrors[0]?.message;

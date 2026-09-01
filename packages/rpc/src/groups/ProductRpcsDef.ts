@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -15,6 +15,7 @@ export const ProductType = Schema.Union([
   Schema.Literal("one-time"),
   Schema.Literal("one-time-consumable"),
 ]);
+export type ProductType = typeof ProductType.Type;
 
 export const Product = Schema.Struct({
   duration: Schema.NullOr(Schema.Number),
@@ -24,6 +25,7 @@ export const Product = Schema.Struct({
   slug: Schema.String,
   type: ProductType,
 });
+export type Product = typeof Product.Type;
 
 export class ProductRpcsDef extends RpcGroup.make(
   Rpc.make("ListProducts", {

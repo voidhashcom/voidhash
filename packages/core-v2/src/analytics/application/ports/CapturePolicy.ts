@@ -1,4 +1,6 @@
-import { Context, type Effect, Schema } from "effect";
+import * as Context from "effect/Context";
+import type * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import { CaptureProjectPolicy } from "../../ingest/domain/Ingest.ts";
 import type { AnalyticsPortError } from "./AnalyticsPortError.ts";
@@ -9,6 +11,7 @@ export const ResolvedCaptureProject = Schema.Struct({
   projectId: Schema.String,
   policy: CaptureProjectPolicy,
 });
+export type ResolvedCaptureProject = typeof ResolvedCaptureProject.Type;
 
 /** Credential lookup capabilities required by capture. */
 export interface CaptureCredentialRepositoryShape {
@@ -17,7 +20,10 @@ export interface CaptureCredentialRepositoryShape {
     /** Whether `lookupKey` is a public credential rather than a secret credential lookup. */
     readonly isPublic: boolean;
     readonly lookupKey: string;
-  }) => Effect.Effect<typeof ResolvedCaptureProject.Type | undefined, AnalyticsPortError>;
+  }) => Effect.Effect<
+    typeof ResolvedCaptureProject.Type | typeof Schema.Undefined.Type,
+    AnalyticsPortError
+  >;
 }
 
 /** Resolves public or secret capture credentials to their project policy. */

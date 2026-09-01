@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -31,6 +31,7 @@ export const WebhookEndpoint = Schema.Struct({
   ]),
   url: Schema.String,
 });
+export type WebhookEndpoint = typeof WebhookEndpoint.Type;
 
 /**
  * A webhook endpoint plus its plaintext signing secret. Returned only by
@@ -41,6 +42,7 @@ export const WebhookEndpointWithSecret = Schema.Struct({
   ...WebhookEndpoint.fields,
   secret: Schema.String,
 });
+export type WebhookEndpointWithSecret = typeof WebhookEndpointWithSecret.Type;
 
 export const WebhookDelivery = Schema.Struct({
   attemptCount: Schema.Number,
@@ -61,6 +63,7 @@ export const WebhookDelivery = Schema.Struct({
   ]),
   webhookEndpointId: Schema.String,
 });
+export type WebhookDelivery = typeof WebhookDelivery.Type;
 
 export const WebhookDeliveryAttempt = Schema.Struct({
   attemptNumber: Schema.Number,
@@ -70,8 +73,9 @@ export const WebhookDeliveryAttempt = Schema.Struct({
   id: Schema.String,
   responseBody: Schema.NullOr(Schema.String),
   statusCode: Schema.NullOr(Schema.Number),
-  succeeded: Schema.Boolean,
-});
+  isSucceeded: Schema.Boolean,
+}).pipe(Schema.encodeKeys({ isSucceeded: "succeeded" }));
+export type WebhookDeliveryAttempt = typeof WebhookDeliveryAttempt.Type;
 
 export const WebhookDeliveryWithAttempts = Schema.Struct({
   attemptCount: Schema.Number,
@@ -93,6 +97,7 @@ export const WebhookDeliveryWithAttempts = Schema.Struct({
   ]),
   webhookEndpointId: Schema.String,
 });
+export type WebhookDeliveryWithAttempts = typeof WebhookDeliveryWithAttempts.Type;
 
 export class WebhookRpcsDef extends RpcGroup.make(
   Rpc.make("ListWebhookEndpoints", {

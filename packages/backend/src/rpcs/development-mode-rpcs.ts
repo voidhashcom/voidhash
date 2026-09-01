@@ -9,7 +9,7 @@ import {
   RpcActionForbiddenError,
   RpcDevelopmentModeServiceError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 /**
  * Refuses any request that is not explicitly development traffic — the RPC
@@ -18,7 +18,7 @@ import { Effect } from "effect";
  * must opt in with `x-environment: development` before any simulated
  * purchase can be created, read or wiped.
  */
-const requireDevelopmentEnvironment = Effect.gen(function* () {
+const requireDevelopmentEnvironment = Effect.fn("requireDevelopmentEnvironment")(function* () {
   const environment = yield* RequestEnvironmentMode;
   if (environment.name !== "development") {
     return yield* Effect.fail(
@@ -27,7 +27,7 @@ const requireDevelopmentEnvironment = Effect.gen(function* () {
       }),
     );
   }
-});
+})();
 
 const mapErrors = <A, R>(
   effect: Effect.Effect<A, ActionForbiddenError | DevelopmentPaymentProviderServiceError, R>,
@@ -47,12 +47,22 @@ export const DevelopmentModeRpcsLive = DevelopmentModeRpcsDef.toLayer(
     const service = yield* DevelopmentPaymentProviderService;
     return {
       ApplyDevelopmentLifecycleAction: (input) => mapErrors(service.applyLifecycleAction(input)),
-      GetDevelopmentModeState: (input) => mapErrors(service.getDevelopmentState(input)),
+      GetDevelopmentModeState: (input) =>
+        mapErrors(service.getDevelopmentState(input)).pipe(
+          Effect.map(({ developmentPurchasesEnabled, ...state }) => ({
+            ...state,
+            isDevelopmentPurchasesEnabled: developmentPurchasesEnabled,
+          })),
+        ),
       GetDevelopmentModeSettings: ({ projectId }) =>
-        mapErrors(service.getDevelopmentSettings(projectId)),
+        mapErrors(service.getDevelopmentSettings(projectId)).pipe(
+          Effect.map(({ developmentPurchasesEnabled }) => ({
+            isDevelopmentPurchasesEnabled: developmentPurchasesEnabled,
+          })),
+        ),
       ResetDevelopmentData: ({ projectId }) => mapErrors(service.resetDevelopmentData(projectId)),
-      SetDevelopmentPurchasesEnabled: (input) =>
-        mapErrors(service.setDevelopmentPurchasesEnabled(input)),
+      SetDevelopmentPurchasesEnabled: ({ isEnabled, projectId }) =>
+        mapErrors(service.setDevelopmentPurchasesEnabled({ enabled: isEnabled, projectId })),
     };
   }),
 );

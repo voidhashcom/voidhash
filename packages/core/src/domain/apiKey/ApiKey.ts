@@ -4,7 +4,7 @@
  * `ApiKey` aggregate can be added here later when the entity gains behaviour
  * beyond CRUD.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * API key row not found in the database.

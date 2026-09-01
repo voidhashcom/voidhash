@@ -5,7 +5,7 @@ import {
   RpcUserServiceError,
   UserRpcsDef,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 
 export const UserRpcsLive = UserRpcsDef.toLayer(
   Effect.gen(function* UserRpcsLive() {
@@ -13,6 +13,10 @@ export const UserRpcsLive = UserRpcsDef.toLayer(
     return {
       CurrentUser: () =>
         userService.getUser().pipe(
+          Effect.map(({ emailVerified, ...user }) => ({
+            ...user,
+            isEmailVerified: emailVerified,
+          })),
           Effect.catchTags({
             AuthenticationError: (error) =>
               Effect.fail(

@@ -1,5 +1,5 @@
 import { ChevronLeft, Ellipsis } from "lucide-react";
-import type { ComponentProps, CSSProperties, ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "../lib/utils";
 
@@ -43,7 +43,7 @@ export function Phone({
   url,
   ...props
 }: PhoneProps) {
-  const sizing: CSSProperties | undefined = fitHeight
+  const sizing = fitHeight
     ? { aspectRatio: PHONE_ASPECT_RATIO, ...style }
     : style;
 

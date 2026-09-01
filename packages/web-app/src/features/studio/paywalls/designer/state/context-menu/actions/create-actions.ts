@@ -3,6 +3,7 @@
  */
 
 import { canCreateLayoutChildren } from "@voidhash/mimic-schema";
+import * as Option from "effect/Option";
 
 import { createScrollViewNode, createTextNode, createViewNode } from "../../actions";
 import { nodePassesSlotGate } from "../../utils/component-children";
@@ -44,7 +45,7 @@ function canAddChildren(ctx: ContextMenuContext): boolean {
 
   // Must be a node type that can host layout primitives.
   const type = selectedNodeTypes[0];
-  if (!canCreateLayoutChildren(type)) {
+  if (!canCreateLayoutChildren(Option.fromUndefinedOr(type))) {
     return false;
   }
 

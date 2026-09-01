@@ -2,7 +2,7 @@
  * Project errors — typed errors returned by project RPCs. Class names and
  * `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Project row not found in the database. */
 export class RpcProjectNotFoundError extends Schema.TaggedErrorClass<RpcProjectNotFoundError>(

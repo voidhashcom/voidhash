@@ -13,7 +13,11 @@
  */
 import { type MoneyType, initializeSdk } from "@voidhash/google-play-server-sdk";
 import { constant } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Option } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 type GooglePlaySdkClient = Effect.Success<ReturnType<Effect.Success<typeof initializeSdk>>>;
 
@@ -31,11 +35,11 @@ export type GooglePlayServerApiClientFactoryInput = Parameters<
 /** Supplies a Play API client for a configuration when overridden. */
 export type GooglePlayServerApiClientFactory = (
   input: GooglePlayServerApiClientFactoryInput,
-) => GooglePlayServerApiClient | undefined;
+) => GooglePlayServerApiClient | typeof Schema.Undefined.Type;
 
 /** Optional Play API client factory override for hermetic runtime composition. */
 export const GooglePlayServerApiClientFactoryOverride = Context.Reference<
-  GooglePlayServerApiClientFactory | undefined
+  GooglePlayServerApiClientFactory | typeof Schema.Undefined.Type
 >("@voidhash/backend/purchases/GooglePlayServerApiClientFactoryOverride", {
   defaultValue: () => undefined,
 });
@@ -105,7 +109,7 @@ export const buildGooglePlaySdkContext = (
       readonly basePlanId: Option.Option<string>;
       readonly regionCode: Option.Option<string>;
     }): Effect.Effect<Option.Option<MoneyType>> =>
-      Effect.gen(function* () {
+      Effect.fn("resolveSubscriptionRegionalPrice")(function* () {
         if (Option.isNone(input.regionCode)) {
           return Option.none<MoneyType>();
         }
@@ -138,7 +142,7 @@ export const buildGooglePlaySdkContext = (
           (candidate) => candidate.regionCode === regionCode,
         );
         return Option.fromNullishOr(regionalConfig?.price);
-      });
+      })();
 
     return constant({
       getProductV2,

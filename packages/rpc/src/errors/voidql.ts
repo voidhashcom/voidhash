@@ -5,7 +5,7 @@
  * defect) is mapped to {@link RpcVoidQlExecutionError} so clients never see its
  * reason — uniform opaque envelopes starve side-channels (§7 L7, §13).
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Query text could not be tokenised/parsed. */
 export class RpcVoidQlSyntaxError extends Schema.TaggedErrorClass<RpcVoidQlSyntaxError>(

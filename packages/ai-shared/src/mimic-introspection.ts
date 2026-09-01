@@ -11,7 +11,13 @@ import {
   ViewNode,
   type NodeType,
 } from "@voidhash/mimic-schema";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import { runSync } from "./runtime-boundary.ts";
+import * as P from "effect/Predicate";
+import * as R from "effect/Record";
+import * as Arr from "effect/Array";
+import * as MutableHashMap from "effect/MutableHashMap";
+import * as Option from "effect/Option";
 
 /**
  * Schema-derived introspection over the live mimic node primitives. This module
@@ -76,7 +82,7 @@ export interface FieldsSchema {
 }
 
 /** Whether a serialized schema carries a `fields` map (i.e. is a struct schema). */
-function hasFields(schema: SerializedSchema | undefined): schema is SerializedSchema & FieldsSchema {
+function hasFields(schema: SerializedSchema | void): schema is SerializedSchema & FieldsSchema {
   return schema !== undefined && "fields" in schema;
 }
 
@@ -87,17 +93,17 @@ export function nodeDataSchema(type: NodeType): FieldsSchema {
 }
 
 /** The serialized schema of one top-level data field (e.g. `name`, `text`, `style`) of a node type. */
-export function nodeDataFieldSchema(type: NodeType, field: string): SerializedSchema | undefined {
+export function nodeDataFieldSchema(type: NodeType, field: string): SerializedSchema | void {
   return nodeDataSchema(type).fields[field];
 }
 
 /** The ordered set of legal top-level data field names for a node type. */
 export function nodeDataFields(type: NodeType): readonly string[] {
-  return Object.keys(nodeDataSchema(type).fields);
+  return R.keys(nodeDataSchema(type).fields);
 }
 
 /** The serialized `style` sub-struct schema for a node type, or `undefined` if it has no style. */
-export function nodeStyleSchema(type: NodeType): FieldsSchema | undefined {
+export function nodeStyleSchema(type: NodeType): FieldsSchema | void {
   const style = nodeDataSchema(type).fields["style"];
   if (hasFields(style)) return style;
   return undefined;
@@ -105,7 +111,7 @@ export function nodeStyleSchema(type: NodeType): FieldsSchema | undefined {
 
 /** The ordered set of legal style field names for a node type (empty if it has no style). */
 export function nodeStyleFields(type: NodeType): readonly string[] {
-  return Object.keys(nodeStyleSchema(type)?.fields ?? {});
+  return R.keys(nodeStyleSchema(type)?.fields ?? {});
 }
 
 /**
@@ -120,9 +126,9 @@ export function unwrapEntries(value: unknown): unknown {
   }
   if (isObjectLike(value)) {
     const out: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
+    Arr.forEach(R.toEntries(value), ([key, item]) => {
       out[key] = unwrapEntries(item);
-    }
+    });
     return out;
   }
   return value;
@@ -130,7 +136,7 @@ export function unwrapEntries(value: unknown): unknown {
 
 /** A non-null object (arrays included — callers handle those first). */
 function isObjectLike(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
+  return value !== null && P.isObject(value);
 }
 
 /** Whether an array element is an ordered CRDT entry envelope `{ id, pos, value }`. */
@@ -147,11 +153,11 @@ function unwrapEntry(item: unknown): unknown {
 /** {@link unwrapEntries} over a record, preserving the record shape for callers. */
 function unwrapRecord(record: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(record)) out[key] = unwrapEntries(item);
+  Arr.forEach(R.toEntries(record), ([key, item]) => { out[key] = unwrapEntries(item); });
   return out;
 }
 
-const defaultsCache = new Map<NodeType, Record<string, unknown>>();
+const defaultsCache = MutableHashMap.empty<NodeType, Record<string, unknown>>();
 
 /**
  * The defaults-filled, envelope-unwrapped `data` snapshot for a node type,
@@ -167,18 +173,18 @@ const defaultsCache = new Map<NodeType, Record<string, unknown>>();
  * (which include `library`/`codeComponent`/`component` nodes).
  */
 export function nodeDefaultData(type: NodeType): Record<string, unknown> {
-  const cached = defaultsCache.get(type);
+  const cached = Option.getOrUndefined(MutableHashMap.get(defaultsCache, type));
   if (cached) return cached;
   const prim = NODE_PRIMS[type];
   // The encode of `{}` throws for node types with a REQUIRED-no-default field; those
   // degrade to an empty defaults map rather than failing the whole serialization.
-  const unwrapped = Effect.runSync(
+  const unwrapped = runSync(
     Effect.try((): Record<string, unknown> => {
       const decoded: Record<string, unknown> = prim.data.decode(prim.data.encode({}));
       return unwrapRecord(decoded);
     }).pipe(Effect.orElseSucceed((): Record<string, unknown> => ({}))),
   );
-  defaultsCache.set(type, unwrapped);
+  MutableHashMap.set(defaultsCache, type, unwrapped);
   return unwrapped;
 }
 
@@ -228,7 +234,7 @@ function variantsOf(schema: SerializedSchema): readonly SerializedSchema[] {
 function literalsOf(schema: SerializedSchema): readonly (string | number | boolean)[] {
   if (!("value" in schema)) return [];
   const value = schema.value;
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+  if (P.isString(value) || P.isNumber(value) || P.isBoolean(value)) {
     return [value];
   }
   return [];
@@ -240,39 +246,28 @@ export function acceptanceOf(schema: SerializedSchema): Acceptance {
   // so unknown mimic schema kinds don't break the union; that widens the
   // per-member fields, so the optional members are read through the guarded
   // accessors below rather than off the narrowed union.
-  switch (schema.kind) {
-    case "number":
-      return { ...EMPTY_ACCEPTANCE, acceptsNumber: true };
-    case "boolean":
-      return { ...EMPTY_ACCEPTANCE, acceptsBoolean: true };
-    case "string": {
-      const regexes = validatorsOf(schema).flatMap((validator) => {
-        if (validator.kind !== "regex" || typeof validator.pattern !== "string") return [];
-        return [{ pattern: validator.pattern, flags: validator.flags }];
-      });
-      return { ...EMPTY_ACCEPTANCE, acceptsString: true, regexes };
-    }
-    case "literal":
-      return { ...EMPTY_ACCEPTANCE, literals: literalsOf(schema) };
-    case "either": {
-      const merged = variantsOf(schema).map(acceptanceOf);
-      return {
-        acceptsNumber: merged.some((m) => m.acceptsNumber),
-        acceptsBoolean: merged.some((m) => m.acceptsBoolean),
-        acceptsString: merged.some((m) => m.acceptsString),
-        literals: merged.flatMap((m) => m.literals),
-        isStructured: merged.some((m) => m.isStructured),
-        regexes: merged.flatMap((m) => m.regexes),
-      };
-    }
-    case "object":
-    case "array":
-      return { ...EMPTY_ACCEPTANCE, isStructured: true };
-    default:
-      // Unknown/unsupported kind — treat as structured so we don't reject it on a
-      // scalar-family basis (validation of unknown kinds is a no-op by design).
-      return { ...EMPTY_ACCEPTANCE, isStructured: true };
+  if (schema.kind === "number") return { ...EMPTY_ACCEPTANCE, acceptsNumber: true };
+  if (schema.kind === "boolean") return { ...EMPTY_ACCEPTANCE, acceptsBoolean: true };
+  if (schema.kind === "string") {
+    const regexes = validatorsOf(schema).flatMap((validator) => {
+      if (validator.kind !== "regex" || !P.isString(validator.pattern)) return [];
+      return [{ pattern: validator.pattern, flags: validator.flags }];
+    });
+    return { ...EMPTY_ACCEPTANCE, acceptsString: true, regexes };
   }
+  if (schema.kind === "literal") return { ...EMPTY_ACCEPTANCE, literals: literalsOf(schema) };
+  if (schema.kind === "either") {
+    const merged = variantsOf(schema).map(acceptanceOf);
+    return {
+      acceptsNumber: merged.some((m) => m.acceptsNumber),
+      acceptsBoolean: merged.some((m) => m.acceptsBoolean),
+      acceptsString: merged.some((m) => m.acceptsString),
+      literals: merged.flatMap((m) => m.literals),
+      isStructured: merged.some((m) => m.isStructured),
+      regexes: merged.flatMap((m) => m.regexes),
+    };
+  }
+  return { ...EMPTY_ACCEPTANCE, isStructured: true };
 }
 
 /**
@@ -282,7 +277,7 @@ export function acceptanceOf(schema: SerializedSchema): Acceptance {
  */
 export function expectedTypeLabel(schema: SerializedSchema): string {
   const acc = acceptanceOf(schema);
-  if (acc.literals.length > 0 && !acc.acceptsNumber && !acc.acceptsBoolean && !acc.acceptsString) {
+  if (Arr.isReadonlyArrayNonEmpty(acc.literals) && !acc.acceptsNumber && !acc.acceptsBoolean && !acc.acceptsString) {
     return "enum";
   }
   if (acc.isStructured) return "object";
@@ -290,6 +285,6 @@ export function expectedTypeLabel(schema: SerializedSchema): string {
   if (acc.acceptsNumber) families.push("number");
   if (acc.acceptsString) families.push("string");
   if (acc.acceptsBoolean) families.push("boolean");
-  if (acc.literals.length > 0) families.push("literal");
+  if (Arr.isReadonlyArrayNonEmpty(acc.literals)) families.push("literal");
   return families.join(" | ") || "unknown";
 }

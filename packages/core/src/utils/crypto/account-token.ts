@@ -29,7 +29,9 @@
  * the OSS SDK), so this is deterministic pseudonymization, not encryption:
  * someone holding a candidate distinctId can confirm it maps to a token.
  */
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import { subtle } from "uncrypto";
 
 /**
  * Fixed derivation namespace. Provenance (reproducible, but the literal is
@@ -51,18 +53,15 @@ export const ACCOUNT_TOKEN_SERVICE_ID = "voidhash-account-token";
 
 const uuidToBytes = (uuid: string): Uint8Array => {
   const hex = uuid.replace(/-/g, "");
-  const bytes = new Uint8Array(16);
-  for (let i = 0; i < 16; i++) {
-    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
+  return Uint8Array.from(Arr.range(0, 15), (index) =>
+    Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16),
+  );
 };
 
 const bytesToUuid = (bytes: Uint8Array): string => {
-  let hex = "";
-  for (let i = 0; i < 16; i++) {
-    hex += (bytes[i] ?? 0).toString(16).padStart(2, "0");
-  }
+  const hex = Arr.range(0, 15)
+    .map((index) => (bytes[index] ?? 0).toString(16).padStart(2, "0"))
+    .join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
@@ -79,8 +78,7 @@ export const uuidV5 = (namespaceUuid: string, name: string): Effect.Effect<strin
     inputBytes.set(namespaceBytes, 0);
     inputBytes.set(nameBytes, namespaceBytes.length);
     const digest = new Uint8Array(
-      // oxlint-disable-next-line effect/noGlobals -- Effect v4's `Crypto` is a Context.Service with no platform-neutral layer in the `effect` barrel (only Node/Browser/Bun, none Workers-safe), and this UUIDv5 helper must run on workerd.
-      yield* Effect.promise(() => crypto.subtle.digest("SHA-1", input)),
+      yield* promiseOrDie(() => subtle.digest("SHA-1", input)),
     );
     const uuidBytes = digest.slice(0, 16);
     uuidBytes[6] = ((uuidBytes[6] ?? 0) & 0x0f) | 0x50;
@@ -95,3 +93,4 @@ export const uuidV5 = (namespaceUuid: string, name: string): Effect.Effect<strin
  */
 export const deriveAccountToken = (distinctId: string): Effect.Effect<string> =>
   uuidV5(VOIDHASH_ACCOUNT_TOKEN_NAMESPACE, distinctId);
+import { promiseOrDie } from "../../effect-boundary.ts";

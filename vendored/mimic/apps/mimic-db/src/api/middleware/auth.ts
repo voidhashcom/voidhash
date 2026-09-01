@@ -1,6 +1,7 @@
-import { Buffer } from "node:buffer";
-
-import { Effect, Layer } from "effect";
+import * as Encoding from "effect/Encoding";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { AuthMiddleware, CurrentUser, UnauthorizedError } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag } from "../../app/hostService.ts";
@@ -11,17 +12,27 @@ interface BasicCredentials {
 }
 
 const parseBasicAuth = (
-  header: string | undefined,
+  header: Option.Option<string>,
 ): Effect.Effect<BasicCredentials, UnauthorizedError> =>
   Effect.gen(function* () {
-    if (!header?.startsWith("Basic ")) {
+    if (Option.isNone(header) || !header.value.startsWith("Basic ")) {
       return yield* new UnauthorizedError({
         code: "unauthorized",
         message: "Authentication required. Provide Authorization: Basic header.",
       });
     }
 
-    const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
+    const decoded = yield* Effect.fromResult(
+      Encoding.decodeBase64String(header.value.slice(6)),
+    ).pipe(
+      Effect.mapError(
+        () =>
+          new UnauthorizedError({
+            code: "unauthorized",
+            message: "Invalid Basic auth header format",
+          }),
+      ),
+    );
     const separator = decoded.indexOf(":");
     if (separator <= 0) {
       return yield* new UnauthorizedError({
@@ -52,7 +63,7 @@ export const AuthMiddlewareLive = Layer.effect(AuthMiddleware)(
     return (effect, { headers }) =>
       Effect.gen(function* () {
         const auth = headers["authorization"] ?? headers["Authorization"];
-        const { username, password } = yield* parseBasicAuth(auth);
+        const { username, password } = yield* parseBasicAuth(Option.fromUndefinedOr(auth));
         const user = yield* host.authenticateBasic(username, password);
         return yield* Effect.provideService(effect, CurrentUser, user);
       });

@@ -4,24 +4,26 @@
  * experiment event and validates the combined trusted stream here.
  */
 import { constant } from "@voidhash/lib/lang";
-import { Schema } from "effect";
+import * as HashSet from "effect/HashSet";
+import * as Schema from "effect/Schema";
 
 import {
   isReservedRevenueEventName,
   REVENUE_TRUSTED_SOURCE_TOPIC,
-  RevenueEventSchema,
+  RevenueEvent,
 } from "../../purchases/contract/RevenueEvents.ts";
 
 export * from "../../purchases/contract/RevenueEvents.ts";
 
 /** Event names explicitly exempt from the SDK capture quota. */
-export const TRUST_BYPASS_QUOTA: ReadonlySet<string> = new Set<string>();
+export const TRUST_BYPASS_QUOTA = HashSet.empty<string>();
 
 /** Returns whether the event's trust class or name bypasses capture quota. */
 export const shouldBypassQuota = (input: {
   readonly trustClass?: string;
   readonly eventName: string;
-}) => input.trustClass === "trusted-revenue" || TRUST_BYPASS_QUOTA.has(input.eventName);
+}) =>
+  input.trustClass === "trusted-revenue" || HashSet.has(TRUST_BYPASS_QUOTA, input.eventName);
 
 /** Trusted source topic for server-emitted experiment exposures. */
 export const EXPERIMENT_TRUSTED_SOURCE_TOPIC = constant("experiment.trusted.v1");
@@ -40,7 +42,7 @@ export const isTrustedInternalAnalyticsEventSource = (input: {
     input.sourceTopic === EXPERIMENT_TRUSTED_SOURCE_TOPIC);
 
 /** Server-emitted experiment assignment recorded when a paywall is resolved. */
-export const ExperimentExposedSchema = Schema.Struct({
+export const ExperimentExposed = Schema.Struct({
   context: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   distinctId: Schema.String,
   eventId: Schema.String,
@@ -55,17 +57,17 @@ export const ExperimentExposedSchema = Schema.Struct({
   }),
   token: Schema.String,
 });
+export type ExperimentExposed = typeof ExperimentExposed.Type;
 
 /** All server-trusted internal analytics events accepted by the processor. */
-export const InternalAnalyticsEventSchema = Schema.Union([
-  ExperimentExposedSchema,
-  RevenueEventSchema,
-]);
+export const InternalAnalyticsEvent = Schema.Union([ExperimentExposed, RevenueEvent]);
+export type InternalAnalyticsEvent = typeof InternalAnalyticsEvent.Type;
 
 /** Maps an internal event to the trusted source topic stamped on its envelope. */
-export const sourceTopicForInternalAnalyticsEvent = (
-  event: typeof InternalAnalyticsEventSchema.Type,
-) => {
+export const sourceTopicForInternalAnalyticsEvent = (event: typeof InternalAnalyticsEvent.Type) => {
   if (event.eventName === "$experiment.exposed") return EXPERIMENT_TRUSTED_SOURCE_TOPIC;
   return REVENUE_TRUSTED_SOURCE_TOPIC;
 };
+
+export { ExperimentExposed as ExperimentExposedSchema };
+export { InternalAnalyticsEvent as InternalAnalyticsEventSchema };

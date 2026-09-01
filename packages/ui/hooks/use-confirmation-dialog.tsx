@@ -1,6 +1,7 @@
 "use client";
-import { Effect } from "effect";
-import { useCallback, useState } from "react";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as React from "react";
 
 import {
   AlertDialog,
@@ -25,9 +26,9 @@ export interface ConfirmDialogConfig {
 }
 // Custom hook to manage the confirmation dialog
 export function useConfirmDialog() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [resolveCallback, setResolveCallback] = useState<((resolve: boolean) => void) | null>(null);
-  const [dialogConfig, setDialogConfig] = useState<ConfirmDialogConfig>({
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [resolveCallback, setResolveCallback] = React.useState<(resolve: boolean) => void>();
+  const [dialogConfig, setDialogConfig] = React.useState<ConfirmDialogConfig>({
     cancelText: "Cancel",
     confirmInput: undefined,
     confirmText: "Confirm",
@@ -35,10 +36,10 @@ export function useConfirmDialog() {
     title: "",
   });
 
-  const openDialog = useCallback((config: ConfirmDialogConfig) => {
+  const openDialog = React.useCallback((config: ConfirmDialogConfig) => {
     setIsOpen(true);
     setDialogConfig(config);
-    return Effect.runPromise(
+    return EffectRuntime.runPromise(
       Effect.callback<boolean>((resume) => {
         setResolveCallback(() => (value: boolean) => {
           resume(Effect.succeed(value));
@@ -47,18 +48,18 @@ export function useConfirmDialog() {
     );
   }, []);
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = React.useCallback(() => {
     resolveCallback?.(true);
     setIsOpen(false);
   }, [resolveCallback]);
 
-  const handleCancel = useCallback(() => {
+  const handleCancel = React.useCallback(() => {
     setIsOpen(false);
     resolveCallback?.(false);
   }, [resolveCallback]);
 
-  const ConfirmationDialog = useCallback(() => {
-    const [confirmInput, setConfirmInput] = useState<string | undefined>();
+  const ConfirmationDialog = React.useCallback(() => {
+    const [confirmInput, setConfirmInput] = React.useState<string>();
     return (
       <AlertDialog open={isOpen}>
         <AlertDialogContent>

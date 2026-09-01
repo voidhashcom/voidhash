@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import {
   RpcAnalyticsServiceError,
@@ -16,6 +16,7 @@ import { SavedVoidQlInsight } from "./VoidQlRpcsDef.ts";
 export const AnalyticsContext = Schema.Struct({
   organizationId: Schema.String,
 });
+export type AnalyticsContext = typeof AnalyticsContext.Type;
 export type AnalyticsContextType = typeof AnalyticsContext.Type;
 
 export const AnalyticsGranularity = Schema.Union([
@@ -26,6 +27,7 @@ export const AnalyticsGranularity = Schema.Union([
   Schema.Literal("quarter"),
   Schema.Literal("year"),
 ]);
+export type AnalyticsGranularity = typeof AnalyticsGranularity.Type;
 export type AnalyticsGranularityType = typeof AnalyticsGranularity.Type;
 
 export const AnalyticsTimeRangePreset = Schema.Union([
@@ -38,6 +40,7 @@ export const AnalyticsTimeRangePreset = Schema.Union([
   Schema.Literal("qtd"),
   Schema.Literal("ytd"),
 ]);
+export type AnalyticsTimeRangePreset = typeof AnalyticsTimeRangePreset.Type;
 
 export const AnalyticsTimeRange = Schema.Union([
   Schema.Struct({
@@ -49,9 +52,11 @@ export const AnalyticsTimeRange = Schema.Union([
     start: Schema.Date,
   }),
 ]);
+export type AnalyticsTimeRange = typeof AnalyticsTimeRange.Type;
 export type AnalyticsTimeRangeType = typeof AnalyticsTimeRange.Type;
 
 export const AnalyticsFieldRef = Schema.String;
+export type AnalyticsFieldRef = typeof AnalyticsFieldRef.Type;
 export type AnalyticsFieldRefType = typeof AnalyticsFieldRef.Type;
 
 const AnalyticsFieldValuePrimitive = Schema.Union([
@@ -65,6 +70,7 @@ export const AnalyticsFieldValue = Schema.Union([
   AnalyticsFieldValuePrimitive,
   Schema.Array(AnalyticsFieldValuePrimitive),
 ]);
+export type AnalyticsFieldValue = typeof AnalyticsFieldValue.Type;
 export type AnalyticsFieldValueType = typeof AnalyticsFieldValue.Type;
 
 export const AnalyticsFilterPredicate = Schema.Struct({
@@ -84,6 +90,7 @@ export const AnalyticsFilterPredicate = Schema.Struct({
   type: Schema.Literal("predicate"),
   value: Schema.optional(AnalyticsFieldValue),
 });
+export type AnalyticsFilterPredicate = typeof AnalyticsFilterPredicate.Type;
 
 export type AnalyticsFilterType =
   | typeof AnalyticsFilterPredicate.Type
@@ -116,6 +123,7 @@ export const AnalyticsFilter: AnalyticsFilterCodec = Schema.Union([
     type: Schema.Literal("not"),
   }),
 ]);
+export type AnalyticsFilter = typeof AnalyticsFilter.Type;
 
 export const AnalyticsBreakdown = Schema.Struct({
   field: AnalyticsFieldRef,
@@ -124,6 +132,7 @@ export const AnalyticsBreakdown = Schema.Struct({
   ),
   order: Schema.optional(Schema.Union([Schema.Literal("asc"), Schema.Literal("desc")])),
 });
+export type AnalyticsBreakdown = typeof AnalyticsBreakdown.Type;
 export type AnalyticsBreakdownType = typeof AnalyticsBreakdown.Type;
 
 export const AnalyticsActor = Schema.Union([
@@ -133,6 +142,7 @@ export const AnalyticsActor = Schema.Union([
     property: Schema.String.check(Schema.isMaxLength(128)),
   }),
 ]);
+export type AnalyticsActor = typeof AnalyticsActor.Type;
 export type AnalyticsActorType = typeof AnalyticsActor.Type;
 
 const AnalyticsCohortIds = Schema.Array(Schema.String).check(Schema.isMaxLength(20));
@@ -145,6 +155,7 @@ export const CustomAnalyticsInsightKind = Schema.Union([
   Schema.Literal("stickiness"),
   Schema.Literal("lifecycle"),
 ]);
+export type CustomAnalyticsInsightKind = typeof CustomAnalyticsInsightKind.Type;
 export type CustomAnalyticsInsightKindType = typeof CustomAnalyticsInsightKind.Type;
 
 export const AnalyticsEventSeries = Schema.Struct({
@@ -167,12 +178,14 @@ export const AnalyticsEventSeries = Schema.Struct({
   label: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
   mathProperty: Schema.optional(Schema.String.check(Schema.isMaxLength(128))),
 });
+export type AnalyticsEventSeries = typeof AnalyticsEventSeries.Type;
 export type AnalyticsEventSeriesType = typeof AnalyticsEventSeries.Type;
 
 export const AnalyticsTrendsComparison = Schema.Union([
   Schema.Literal("previous_period"),
   Schema.Literal("previous_year"),
 ]);
+export type AnalyticsTrendsComparison = typeof AnalyticsTrendsComparison.Type;
 export type AnalyticsTrendsComparisonType = typeof AnalyticsTrendsComparison.Type;
 
 export const AnalyticsTrendsFormula = Schema.Struct({
@@ -180,6 +193,7 @@ export const AnalyticsTrendsFormula = Schema.Struct({
   key: Schema.String.check(Schema.isMaxLength(64)),
   label: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
 });
+export type AnalyticsTrendsFormula = typeof AnalyticsTrendsFormula.Type;
 export type AnalyticsTrendsFormulaType = typeof AnalyticsTrendsFormula.Type;
 
 export const TrendsInsightQuery = Schema.Struct({
@@ -204,6 +218,7 @@ export const TrendsInsightQuery = Schema.Struct({
   ),
   timeRange: AnalyticsTimeRange,
 });
+export type TrendsInsightQuery = typeof TrendsInsightQuery.Type;
 export type TrendsInsightQueryType = typeof TrendsInsightQuery.Type;
 
 export const FunnelStep = Schema.Struct({
@@ -212,6 +227,7 @@ export const FunnelStep = Schema.Struct({
   key: Schema.String.check(Schema.isMaxLength(64)),
   label: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
 });
+export type FunnelStep = typeof FunnelStep.Type;
 
 export const FunnelsInsightQuery = Schema.Struct({
   actor: Schema.optional(AnalyticsActor),
@@ -230,6 +246,7 @@ export const FunnelsInsightQuery = Schema.Struct({
   steps: Schema.NonEmptyArray(FunnelStep),
   timeRange: AnalyticsTimeRange,
 });
+export type FunnelsInsightQuery = typeof FunnelsInsightQuery.Type;
 export type FunnelsInsightQueryType = typeof FunnelsInsightQuery.Type;
 
 export const RetentionInsightQuery = Schema.Struct({
@@ -249,6 +266,7 @@ export const RetentionInsightQuery = Schema.Struct({
   start: AnalyticsEventSeries,
   timeRange: AnalyticsTimeRange,
 });
+export type RetentionInsightQuery = typeof RetentionInsightQuery.Type;
 export type RetentionInsightQueryType = typeof RetentionInsightQuery.Type;
 
 export const PathsInsightQuery = Schema.Struct({
@@ -275,6 +293,7 @@ export const PathsInsightQuery = Schema.Struct({
   startEventName: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
   timeRange: AnalyticsTimeRange,
 });
+export type PathsInsightQuery = typeof PathsInsightQuery.Type;
 export type PathsInsightQueryType = typeof PathsInsightQuery.Type;
 
 export const StickinessInsightQuery = Schema.Struct({
@@ -307,6 +326,7 @@ export const StickinessInsightQuery = Schema.Struct({
   series: Schema.NonEmptyArray(AnalyticsEventSeries),
   timeRange: AnalyticsTimeRange,
 });
+export type StickinessInsightQuery = typeof StickinessInsightQuery.Type;
 export type StickinessInsightQueryType = typeof StickinessInsightQuery.Type;
 
 export const LifecycleInsightQuery = Schema.Struct({
@@ -334,6 +354,7 @@ export const LifecycleInsightQuery = Schema.Struct({
   timeRange: AnalyticsTimeRange,
   valueMode: Schema.optional(Schema.Union([Schema.Literal("count"), Schema.Literal("percentage")])),
 });
+export type LifecycleInsightQuery = typeof LifecycleInsightQuery.Type;
 export type LifecycleInsightQueryType = typeof LifecycleInsightQuery.Type;
 
 export const CustomAnalyticsInsightQuery = Schema.Union([
@@ -344,6 +365,7 @@ export const CustomAnalyticsInsightQuery = Schema.Union([
   StickinessInsightQuery,
   LifecycleInsightQuery,
 ]);
+export type CustomAnalyticsInsightQuery = typeof CustomAnalyticsInsightQuery.Type;
 export type CustomAnalyticsInsightQueryType = typeof CustomAnalyticsInsightQuery.Type;
 
 export const SavedAnalyticsInsight = Schema.Struct({
@@ -358,6 +380,7 @@ export const SavedAnalyticsInsight = Schema.Struct({
   projectId: Schema.String,
   updatedAt: Schema.Date,
 });
+export type SavedAnalyticsInsight = typeof SavedAnalyticsInsight.Type;
 export type SavedAnalyticsInsightType = typeof SavedAnalyticsInsight.Type;
 
 export const AnalyticsTrendSeriesResult = Schema.Struct({
@@ -377,11 +400,13 @@ export const AnalyticsTrendSeriesResult = Schema.Struct({
     }),
   ),
 });
+export type AnalyticsTrendSeriesResult = typeof AnalyticsTrendSeriesResult.Type;
 
 export const QueryCustomAnalyticsInsightRequest = Schema.Struct({
   definition: CustomAnalyticsInsightQuery,
   projectId: Schema.String,
 });
+export type QueryCustomAnalyticsInsightRequest = typeof QueryCustomAnalyticsInsightRequest.Type;
 export type QueryCustomAnalyticsInsightRequestType = typeof QueryCustomAnalyticsInsightRequest.Type;
 
 export const QueryCustomAnalyticsPersonsRequest = Schema.Struct({
@@ -400,6 +425,7 @@ export const QueryCustomAnalyticsPersonsRequest = Schema.Struct({
   projectId: Schema.String,
   timeRange: AnalyticsTimeRange,
 });
+export type QueryCustomAnalyticsPersonsRequest = typeof QueryCustomAnalyticsPersonsRequest.Type;
 export type QueryCustomAnalyticsPersonsRequestType = typeof QueryCustomAnalyticsPersonsRequest.Type;
 
 export const AnalyticsDrilldownPerson = Schema.Struct({
@@ -409,11 +435,13 @@ export const AnalyticsDrilldownPerson = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   personId: Schema.String,
 });
+export type AnalyticsDrilldownPerson = typeof AnalyticsDrilldownPerson.Type;
 
 export const QueryCustomAnalyticsPersonsResponse = Schema.Struct({
   people: Schema.Array(AnalyticsDrilldownPerson),
   resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
 });
+export type QueryCustomAnalyticsPersonsResponse = typeof QueryCustomAnalyticsPersonsResponse.Type;
 export type QueryCustomAnalyticsPersonsResponseType =
   typeof QueryCustomAnalyticsPersonsResponse.Type;
 
@@ -423,6 +451,7 @@ export const AnalyticsTrendsInsightResult = Schema.Struct({
   resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
   series: Schema.Array(AnalyticsTrendSeriesResult),
 });
+export type AnalyticsTrendsInsightResult = typeof AnalyticsTrendsInsightResult.Type;
 
 export const AnalyticsFunnelStepResult = Schema.Struct({
   conversionRate: Schema.Number,
@@ -433,12 +462,14 @@ export const AnalyticsFunnelStepResult = Schema.Struct({
   label: Schema.String,
   step: Schema.Number,
 });
+export type AnalyticsFunnelStepResult = typeof AnalyticsFunnelStepResult.Type;
 
 export const AnalyticsFunnelBreakdownResult = Schema.Struct({
   breakdownValue: Schema.String,
   steps: Schema.Array(AnalyticsFunnelStepResult),
   totalConversionRate: Schema.Number,
 });
+export type AnalyticsFunnelBreakdownResult = typeof AnalyticsFunnelBreakdownResult.Type;
 
 export const AnalyticsFunnelsInsightResult = Schema.Struct({
   breakdowns: Schema.optional(Schema.Array(AnalyticsFunnelBreakdownResult)),
@@ -447,18 +478,21 @@ export const AnalyticsFunnelsInsightResult = Schema.Struct({
   steps: Schema.Array(AnalyticsFunnelStepResult),
   totalConversionRate: Schema.Number,
 });
+export type AnalyticsFunnelsInsightResult = typeof AnalyticsFunnelsInsightResult.Type;
 
 export const AnalyticsRetentionCell = Schema.Struct({
   count: Schema.Number,
   interval: Schema.Number,
   rate: Schema.Number,
 });
+export type AnalyticsRetentionCell = typeof AnalyticsRetentionCell.Type;
 
 export const AnalyticsRetentionCohort = Schema.Struct({
   cells: Schema.Array(AnalyticsRetentionCell),
   cohortSize: Schema.Number,
   cohortStart: Schema.Date,
 });
+export type AnalyticsRetentionCohort = typeof AnalyticsRetentionCohort.Type;
 
 export const AnalyticsRetentionInsightResult = Schema.Struct({
   cohorts: Schema.Array(AnalyticsRetentionCohort),
@@ -466,17 +500,20 @@ export const AnalyticsRetentionInsightResult = Schema.Struct({
   period: Schema.Union([Schema.Literal("day"), Schema.Literal("week"), Schema.Literal("month")]),
   resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
 });
+export type AnalyticsRetentionInsightResult = typeof AnalyticsRetentionInsightResult.Type;
 
 export const AnalyticsStickinessBucket = Schema.Struct({
   count: Schema.Number,
   intervals: Schema.Number,
 });
+export type AnalyticsStickinessBucket = typeof AnalyticsStickinessBucket.Type;
 
 export const AnalyticsStickinessSeriesResult = Schema.Struct({
   buckets: Schema.Array(AnalyticsStickinessBucket),
   key: Schema.String,
   label: Schema.String,
 });
+export type AnalyticsStickinessSeriesResult = typeof AnalyticsStickinessSeriesResult.Type;
 
 export const AnalyticsStickinessInsightResult = Schema.Struct({
   computation: Schema.Union([Schema.Literal("exact"), Schema.Literal("cumulative")]),
@@ -490,6 +527,7 @@ export const AnalyticsStickinessInsightResult = Schema.Struct({
   resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
   series: Schema.Array(AnalyticsStickinessSeriesResult),
 });
+export type AnalyticsStickinessInsightResult = typeof AnalyticsStickinessInsightResult.Type;
 
 export const AnalyticsPathsLink = Schema.Struct({
   averageTransitionSeconds: Schema.Number,
@@ -499,6 +537,7 @@ export const AnalyticsPathsLink = Schema.Struct({
   target: Schema.String,
   targetStep: Schema.Number,
 });
+export type AnalyticsPathsLink = typeof AnalyticsPathsLink.Type;
 
 export const AnalyticsPathsInsightResult = Schema.Struct({
   kind: Schema.Literal("paths"),
@@ -507,6 +546,7 @@ export const AnalyticsPathsInsightResult = Schema.Struct({
   resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
   sessionGapSeconds: Schema.Number,
 });
+export type AnalyticsPathsInsightResult = typeof AnalyticsPathsInsightResult.Type;
 
 export const AnalyticsLifecycleStatusSeries = Schema.Struct({
   points: Schema.Array(
@@ -522,6 +562,7 @@ export const AnalyticsLifecycleStatusSeries = Schema.Struct({
     Schema.Literal("dormant"),
   ]),
 });
+export type AnalyticsLifecycleStatusSeries = typeof AnalyticsLifecycleStatusSeries.Type;
 
 export const AnalyticsLifecycleInsightResult = Schema.Struct({
   granularity: Schema.Union([
@@ -534,6 +575,7 @@ export const AnalyticsLifecycleInsightResult = Schema.Struct({
   resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
   series: Schema.Array(AnalyticsLifecycleStatusSeries),
 });
+export type AnalyticsLifecycleInsightResult = typeof AnalyticsLifecycleInsightResult.Type;
 
 export const QueryCustomAnalyticsInsightResponse = Schema.Union([
   AnalyticsTrendsInsightResult,
@@ -543,15 +585,18 @@ export const QueryCustomAnalyticsInsightResponse = Schema.Union([
   AnalyticsStickinessInsightResult,
   AnalyticsLifecycleInsightResult,
 ]);
+export type QueryCustomAnalyticsInsightResponse = typeof QueryCustomAnalyticsInsightResponse.Type;
 export type QueryCustomAnalyticsInsightResponseType =
   typeof QueryCustomAnalyticsInsightResponse.Type;
 
 export const ListAnalyticsInsightsRequest = Schema.Struct({
   projectId: Schema.String,
 });
+export type ListAnalyticsInsightsRequest = typeof ListAnalyticsInsightsRequest.Type;
 export const ListAnalyticsInsightsResponse = Schema.Struct({
   insights: Schema.Array(SavedAnalyticsInsight),
 });
+export type ListAnalyticsInsightsResponse = typeof ListAnalyticsInsightsResponse.Type;
 
 export const CreateAnalyticsInsightRequest = Schema.Struct({
   definition: CustomAnalyticsInsightQuery,
@@ -559,6 +604,7 @@ export const CreateAnalyticsInsightRequest = Schema.Struct({
   name: Schema.String.check(Schema.isMaxLength(255)),
   projectId: Schema.String,
 });
+export type CreateAnalyticsInsightRequest = typeof CreateAnalyticsInsightRequest.Type;
 
 export const UpdateAnalyticsInsightRequest = Schema.Struct({
   definition: Schema.optional(CustomAnalyticsInsightQuery),
@@ -566,6 +612,7 @@ export const UpdateAnalyticsInsightRequest = Schema.Struct({
   id: Schema.String,
   name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
 });
+export type UpdateAnalyticsInsightRequest = typeof UpdateAnalyticsInsightRequest.Type;
 
 export const AnalyticsDashboardItemLayout = Schema.Struct({
   height: Schema.Number.check(Schema.isGreaterThan(0)),
@@ -573,6 +620,7 @@ export const AnalyticsDashboardItemLayout = Schema.Struct({
   x: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
   y: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
 });
+export type AnalyticsDashboardItemLayout = typeof AnalyticsDashboardItemLayout.Type;
 export type AnalyticsDashboardItemLayoutType = typeof AnalyticsDashboardItemLayout.Type;
 
 export const AnalyticsInsightDashboardItem = Schema.Struct({
@@ -582,6 +630,7 @@ export const AnalyticsInsightDashboardItem = Schema.Struct({
   layout: AnalyticsDashboardItemLayout,
   position: Schema.Number,
 });
+export type AnalyticsInsightDashboardItem = typeof AnalyticsInsightDashboardItem.Type;
 
 export const AnalyticsVoidQlDashboardItem = Schema.Struct({
   id: Schema.String,
@@ -590,11 +639,13 @@ export const AnalyticsVoidQlDashboardItem = Schema.Struct({
   position: Schema.Number,
   query: SavedVoidQlInsight,
 });
+export type AnalyticsVoidQlDashboardItem = typeof AnalyticsVoidQlDashboardItem.Type;
 
 export const AnalyticsDashboardItem = Schema.Union([
   AnalyticsInsightDashboardItem,
   AnalyticsVoidQlDashboardItem,
 ]);
+export type AnalyticsDashboardItem = typeof AnalyticsDashboardItem.Type;
 
 export const AnalyticsDashboard = Schema.Struct({
   createdAt: Schema.Date,
@@ -607,31 +658,37 @@ export const AnalyticsDashboard = Schema.Struct({
   projectId: Schema.String,
   updatedAt: Schema.Date,
 });
+export type AnalyticsDashboard = typeof AnalyticsDashboard.Type;
 export type AnalyticsDashboardType = typeof AnalyticsDashboard.Type;
 
 export const ListAnalyticsDashboardsRequest = Schema.Struct({
   projectId: Schema.String,
 });
+export type ListAnalyticsDashboardsRequest = typeof ListAnalyticsDashboardsRequest.Type;
 export const ListAnalyticsDashboardsResponse = Schema.Struct({
   dashboards: Schema.Array(AnalyticsDashboard),
 });
+export type ListAnalyticsDashboardsResponse = typeof ListAnalyticsDashboardsResponse.Type;
 
 export const CreateAnalyticsDashboardRequest = Schema.Struct({
   description: Schema.optional(Schema.String.check(Schema.isMaxLength(4000))),
   name: Schema.String.check(Schema.isMaxLength(255)),
   projectId: Schema.String,
 });
+export type CreateAnalyticsDashboardRequest = typeof CreateAnalyticsDashboardRequest.Type;
 
 export const DuplicateAnalyticsDashboardRequest = Schema.Struct({
   id: Schema.String,
   name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
 });
+export type DuplicateAnalyticsDashboardRequest = typeof DuplicateAnalyticsDashboardRequest.Type;
 
 export const UpdateAnalyticsDashboardRequest = Schema.Struct({
   description: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(4000)))),
   id: Schema.String,
   name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
 });
+export type UpdateAnalyticsDashboardRequest = typeof UpdateAnalyticsDashboardRequest.Type;
 
 export const PutAnalyticsDashboardItemRequest = Schema.Struct({
   dashboardId: Schema.String,
@@ -642,11 +699,14 @@ export const PutAnalyticsDashboardItemRequest = Schema.Struct({
     Schema.Struct({ id: Schema.String, kind: Schema.Literal("voidql") }),
   ]),
 });
+export type PutAnalyticsDashboardItemRequest = typeof PutAnalyticsDashboardItemRequest.Type;
 
 export const ReorderAnalyticsDashboardItemsRequest = Schema.Struct({
   dashboardId: Schema.String,
   itemIds: Schema.NonEmptyArray(Schema.String).check(Schema.isMaxLength(100)),
 });
+export type ReorderAnalyticsDashboardItemsRequest =
+  typeof ReorderAnalyticsDashboardItemsRequest.Type;
 
 export const AnalyticsCohort = Schema.Struct({
   createdAt: Schema.Date,
@@ -660,12 +720,15 @@ export const AnalyticsCohort = Schema.Struct({
   projectId: Schema.String,
   updatedAt: Schema.Date,
 });
+export type AnalyticsCohort = typeof AnalyticsCohort.Type;
 export type AnalyticsCohortType = typeof AnalyticsCohort.Type;
 
 export const ListAnalyticsCohortsRequest = Schema.Struct({ projectId: Schema.String });
+export type ListAnalyticsCohortsRequest = typeof ListAnalyticsCohortsRequest.Type;
 export const ListAnalyticsCohortsResponse = Schema.Struct({
   cohorts: Schema.Array(AnalyticsCohort),
 });
+export type ListAnalyticsCohortsResponse = typeof ListAnalyticsCohortsResponse.Type;
 
 export const CreateAnalyticsCohortRequest = Schema.Struct({
   description: Schema.optional(Schema.String.check(Schema.isMaxLength(4000))),
@@ -673,6 +736,7 @@ export const CreateAnalyticsCohortRequest = Schema.Struct({
   name: Schema.String.check(Schema.isMaxLength(255)),
   projectId: Schema.String,
 });
+export type CreateAnalyticsCohortRequest = typeof CreateAnalyticsCohortRequest.Type;
 
 export const UpdateAnalyticsCohortRequest = Schema.Struct({
   description: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(4000)))),
@@ -680,6 +744,7 @@ export const UpdateAnalyticsCohortRequest = Schema.Struct({
   memberPersonIds: Schema.optional(Schema.Array(Schema.String).check(Schema.isMaxLength(10_000))),
   name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
 });
+export type UpdateAnalyticsCohortRequest = typeof UpdateAnalyticsCohortRequest.Type;
 
 export const BuiltInInsightId = Schema.Union([
   Schema.Literal("builtin/revenue"),
@@ -703,6 +768,7 @@ export const BuiltInInsightId = Schema.Union([
   Schema.Literal("builtin/trial_conversions"),
   Schema.Literal("builtin/trial_conversion_rate"),
 ]);
+export type BuiltInInsightId = typeof BuiltInInsightId.Type;
 export type BuiltInInsightIdType = typeof BuiltInInsightId.Type;
 
 export const AnalyticsInsightQuery = Schema.Struct({
@@ -715,23 +781,27 @@ export const AnalyticsInsightQuery = Schema.Struct({
   limit: Schema.optional(Schema.Number),
   timeRange: AnalyticsTimeRange,
 });
+export type AnalyticsInsightQuery = typeof AnalyticsInsightQuery.Type;
 export type AnalyticsInsightQueryType = typeof AnalyticsInsightQuery.Type;
 
 export const QueryAnalyticsInsightsRequest = Schema.Struct({
   queries: Schema.NonEmptyArray(AnalyticsInsightQuery),
 });
+export type QueryAnalyticsInsightsRequest = typeof QueryAnalyticsInsightsRequest.Type;
 export type QueryAnalyticsInsightsRequestType = typeof QueryAnalyticsInsightsRequest.Type;
 
 export const AnalyticsDataPoint = Schema.Struct({
   timestamp: Schema.Date,
   value: Schema.Number,
 });
+export type AnalyticsDataPoint = typeof AnalyticsDataPoint.Type;
 export type AnalyticsDataPointType = typeof AnalyticsDataPoint.Type;
 
 export const AnalyticsSummary = Schema.Struct({
   currency: Schema.optional(Schema.String),
   value: Schema.Number,
 });
+export type AnalyticsSummary = typeof AnalyticsSummary.Type;
 export type AnalyticsSummaryType = typeof AnalyticsSummary.Type;
 
 export const AnalyticsMetricResult = Schema.Struct({
@@ -739,30 +809,35 @@ export const AnalyticsMetricResult = Schema.Struct({
   sparkline: Schema.Array(AnalyticsDataPoint),
   summary: AnalyticsSummary,
 });
+export type AnalyticsMetricResult = typeof AnalyticsMetricResult.Type;
 
 export const AnalyticsTimeseriesResult = Schema.Struct({
   kind: Schema.Literal("timeseries"),
   series: Schema.Array(AnalyticsDataPoint),
   summary: AnalyticsSummary,
 });
+export type AnalyticsTimeseriesResult = typeof AnalyticsTimeseriesResult.Type;
 
 export const AnalyticsBreakdownRow = Schema.Struct({
   key: Schema.String,
   label: Schema.String,
   value: Schema.Number,
 });
+export type AnalyticsBreakdownRow = typeof AnalyticsBreakdownRow.Type;
 
 export const AnalyticsBreakdownResult = Schema.Struct({
   kind: Schema.Literal("breakdown"),
   rows: Schema.Array(AnalyticsBreakdownRow),
   summary: Schema.optional(AnalyticsSummary),
 });
+export type AnalyticsBreakdownResult = typeof AnalyticsBreakdownResult.Type;
 
 export const AnalyticsInsightResult = Schema.Union([
   AnalyticsMetricResult,
   AnalyticsTimeseriesResult,
   AnalyticsBreakdownResult,
 ]);
+export type AnalyticsInsightResult = typeof AnalyticsInsightResult.Type;
 export type AnalyticsInsightResultType = typeof AnalyticsInsightResult.Type;
 
 export const AnalyticsInsightResponseItem = Schema.Struct({
@@ -774,11 +849,13 @@ export const AnalyticsInsightResponseItem = Schema.Struct({
   }),
   result: AnalyticsInsightResult,
 });
+export type AnalyticsInsightResponseItem = typeof AnalyticsInsightResponseItem.Type;
 export type AnalyticsInsightResponseItemType = typeof AnalyticsInsightResponseItem.Type;
 
 export const QueryAnalyticsInsightsResponse = Schema.Struct({
   results: Schema.Array(AnalyticsInsightResponseItem),
 });
+export type QueryAnalyticsInsightsResponse = typeof QueryAnalyticsInsightsResponse.Type;
 export type QueryAnalyticsInsightsResponseType = typeof QueryAnalyticsInsightsResponse.Type;
 
 export const RecentAnalyticsEvent = Schema.Struct({
@@ -801,18 +878,21 @@ export const RecentAnalyticsEvent = Schema.Struct({
   /** The event's own client-reported timestamp; may differ from `receivedAt` under clock skew. */
   timestamp: Schema.Date,
 });
+export type RecentAnalyticsEvent = typeof RecentAnalyticsEvent.Type;
 export type RecentAnalyticsEventType = typeof RecentAnalyticsEvent.Type;
 
 export const ListRecentAnalyticsEventsRequest = Schema.Struct({
   limit: Schema.optional(Schema.Number),
   projectId: Schema.String,
 });
+export type ListRecentAnalyticsEventsRequest = typeof ListRecentAnalyticsEventsRequest.Type;
 export type ListRecentAnalyticsEventsRequestType = typeof ListRecentAnalyticsEventsRequest.Type;
 
 export const ListRecentAnalyticsEventsResponse = Schema.Struct({
   events: Schema.Array(RecentAnalyticsEvent),
   hasMore: Schema.Boolean,
 });
+export type ListRecentAnalyticsEventsResponse = typeof ListRecentAnalyticsEventsResponse.Type;
 export type ListRecentAnalyticsEventsResponseType = typeof ListRecentAnalyticsEventsResponse.Type;
 
 export class AnalyticsRpcsDef extends RpcGroup.make(
@@ -876,7 +956,9 @@ export class AdvancedAnalyticsRpcsDef extends RpcGroup.make(
   Rpc.make("DeleteAnalyticsInsight", {
     error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
     payload: Schema.Struct({ id: Schema.String }),
-    success: Schema.Struct({ deleted: Schema.Boolean }),
+    success: Schema.Struct({ isDeleted: Schema.Boolean }).pipe(
+      Schema.encodeKeys({ isDeleted: "deleted" }),
+    ),
   }),
   Rpc.make("ListAnalyticsCohorts", {
     error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
@@ -896,7 +978,9 @@ export class AdvancedAnalyticsRpcsDef extends RpcGroup.make(
   Rpc.make("DeleteAnalyticsCohort", {
     error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
     payload: Schema.Struct({ id: Schema.String }),
-    success: Schema.Struct({ deleted: Schema.Boolean }),
+    success: Schema.Struct({ isDeleted: Schema.Boolean }).pipe(
+      Schema.encodeKeys({ isDeleted: "deleted" }),
+    ),
   }),
   Rpc.make("ListAnalyticsDashboards", {
     error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
@@ -921,7 +1005,9 @@ export class AdvancedAnalyticsRpcsDef extends RpcGroup.make(
   Rpc.make("DeleteAnalyticsDashboard", {
     error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
     payload: Schema.Struct({ id: Schema.String }),
-    success: Schema.Struct({ deleted: Schema.Boolean }),
+    success: Schema.Struct({ isDeleted: Schema.Boolean }).pipe(
+      Schema.encodeKeys({ isDeleted: "deleted" }),
+    ),
   }),
   Rpc.make("PutAnalyticsDashboardItem", {
     error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),

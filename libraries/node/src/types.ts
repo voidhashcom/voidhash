@@ -10,5 +10,5 @@ export type VoidhashNodeClientOptions = {
   baseUrl?: string;
   /** Overrides the event ingest origin. Defaults to `https://ingest.voidhash.com`. */
   ingestUrl?: string;
-  headers?: Record<string, string | undefined>;
+  headers?: Record<string, string>;
 };

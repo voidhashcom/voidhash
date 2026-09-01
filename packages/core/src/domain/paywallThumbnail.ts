@@ -1,3 +1,5 @@
+import * as Option from "effect/Option";
+
 /**
  * Public URL + object-key helpers for paywall thumbnails, mirroring the
  * ownership guards in {@link file://./paywallAssetImage.ts}. Thumbnails live in
@@ -19,13 +21,14 @@ export const derivePaywallThumbnailKey = (projectId: string, paywallId: string):
  * against deleting external URLs and against deleting another paywall's object.
  */
 export const isOwnedPaywallThumbnailUrl = (
-  url: string | null,
+  url: Option.Option<string>,
   projectId: string,
   paywallId: string,
   publicBaseUrl: string,
 ): boolean =>
-  url !== null &&
-  url.startsWith(`${publicBaseUrl}/files/paywall-thumbnails/${projectId}/${paywallId}/`);
+  Option.exists(url, (value) =>
+    value.startsWith(`${publicBaseUrl}/files/paywall-thumbnails/${projectId}/${paywallId}/`),
+  );
 
 /**
  * Extracts the object key from one of our public paywall-thumbnail URLs when it
@@ -37,14 +40,14 @@ export const paywallThumbnailKeyFromUrl = (
   projectId: string,
   paywallId: string,
   publicBaseUrl: string,
-): string | null => {
+): Option.Option<string> => {
   const prefix = `${publicBaseUrl}/files/`;
   if (!url.startsWith(prefix)) {
-    return null;
+    return Option.none();
   }
   const key = url.slice(prefix.length).split(/[?#]/, 1)[0];
   if (key?.startsWith(`paywall-thumbnails/${projectId}/${paywallId}/`)) {
-    return key;
+    return Option.some(key);
   }
-  return null;
+  return Option.none();
 };

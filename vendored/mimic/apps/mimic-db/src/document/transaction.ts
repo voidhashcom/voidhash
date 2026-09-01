@@ -1,5 +1,5 @@
 import type { Command, Value } from "@voidhash/mimic-core";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 export interface TransactionActor {
   readonly userId?: string;
@@ -29,7 +29,7 @@ export interface SubmitTransactionResponse {
  */
 const CommandFromWire = Schema.declare<Command>((_value): _value is Command => true);
 
-export const TransactionEnvelopeSchema = Schema.Struct({
+export const TransactionEnvelopeCodec = Schema.Struct({
   id: Schema.String,
   baseVersion: Schema.Number,
   commands: Schema.Array(CommandFromWire),
@@ -41,16 +41,18 @@ export const TransactionEnvelopeSchema = Schema.Struct({
     }),
   ),
 });
+export type TransactionEnvelopeCodec = typeof TransactionEnvelopeCodec.Type;
 
-export const SubmitTransactionResponseSchema = Schema.Struct({
-  accepted: Schema.Boolean,
+export const SubmitTransactionResponseCodec = Schema.Struct({
+  isAccepted: Schema.Boolean,
   version: Schema.Number,
   transactionId: Schema.String,
   reason: Schema.optional(Schema.String),
-});
+}).pipe(Schema.encodeKeys({ isAccepted: "accepted" }));
+export type SubmitTransactionResponseCodec = typeof SubmitTransactionResponseCodec.Type;
 
 export const decodeTransactionEnvelope = (input: unknown): TransactionEnvelope =>
-  Schema.decodeUnknownSync(TransactionEnvelopeSchema)(input);
+  Schema.decodeUnknownSync(TransactionEnvelopeCodec)(input);
 
 /**
  * Same rationale as {@link CommandFromWire} for document and presence values:
@@ -61,4 +63,14 @@ export const decodeTransactionEnvelope = (input: unknown): TransactionEnvelope =
 const ValueFromWire = Schema.declare<Value>((_value): _value is Value => true);
 
 /** Carries an opaque wire value into the structured `Value` type. */
-export const decodeDocumentValue = Schema.decodeUnknownSync(ValueFromWire);
+const decodeDocumentValueSync = Schema.decodeUnknownSync(ValueFromWire);
+
+/** Decode an opaque document value from an unknown wire value. */
+export function decodeDocumentValue(
+  ...args: Parameters<typeof decodeDocumentValueSync>
+): ReturnType<typeof decodeDocumentValueSync> {
+  return decodeDocumentValueSync(...args);
+}
+
+export { TransactionEnvelopeCodec as TransactionEnvelopeSchema };
+export { SubmitTransactionResponseCodec as SubmitTransactionResponseSchema };

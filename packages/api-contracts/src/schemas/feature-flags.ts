@@ -3,21 +3,24 @@
  * shapes served by `FeatureFlagRpcsDef` — the row column `key` is exposed as
  * `slug` and the variant column `name` as `label`, matching the RPC surface.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 
 /** Value type a flag resolves to. `boolean` flags carry no payload. */
 export const FeatureFlagType = Schema.Literals(["boolean", "string", "number", "json"]);
+export type FeatureFlagType = typeof FeatureFlagType.Type;
 
 /**
  * Identity a target or override is keyed on:
  * `1` person id, `2` distinct id, `3` email, `4` external id.
  */
 export const FeatureFlagIdentityType = Schema.Literals([1, 2, 3, 4]);
+export type FeatureFlagIdentityType = typeof FeatureFlagIdentityType.Type;
 
 /** Target list semantics: `1` allow-list, `2` deny-list. */
 export const FeatureFlagListType = Schema.Literals([1, 2]);
+export type FeatureFlagListType = typeof FeatureFlagListType.Type;
 
 export class FeatureFlagVariant extends Schema.Class<FeatureFlagVariant>("FeatureFlagVariant")({
   archivedAt: Schema.NullOr(Schema.Date),
@@ -95,6 +98,7 @@ export const ListFeatureFlagsParams = Schema.Struct({
   includeArchived: Schema.optional(Schema.Literals(["true", "false"])),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListFeatureFlagsParams" });
+export type ListFeatureFlagsParams = typeof ListFeatureFlagsParams.Type;
 
 /** Query parameters accepted by `GET /feature-flag-overrides`. */
 export const ListFeatureFlagOverridesParams = Schema.Struct({
@@ -104,6 +108,7 @@ export const ListFeatureFlagOverridesParams = Schema.Struct({
   identityValue: Schema.optional(Schema.String),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListFeatureFlagOverridesParams" });
+export type ListFeatureFlagOverridesParams = typeof ListFeatureFlagOverridesParams.Type;
 
 /** Query parameters accepted by `GET /feature-flag-targets`. */
 export const ListFeatureFlagTargetsParams = Schema.Struct({
@@ -112,6 +117,7 @@ export const ListFeatureFlagTargetsParams = Schema.Struct({
   listType: Schema.optional(Schema.FiniteFromString),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "ListFeatureFlagTargetsParams" });
+export type ListFeatureFlagTargetsParams = typeof ListFeatureFlagTargetsParams.Type;
 
 export class CreateFeatureFlagBody extends Schema.Class<CreateFeatureFlagBody>(
   "CreateFeatureFlagBody",

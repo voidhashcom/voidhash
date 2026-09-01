@@ -6,6 +6,8 @@ import type {
 } from "../component-bindings/index.ts";
 import type { ComponentNodeData } from "../nodes/component-node.ts";
 import type { localizationConfigSchema } from "../nodes/root-node.ts";
+import type { TextNodeData } from "../nodes/text-node.ts";
+import type { ViewNodeData } from "../nodes/view-node.ts";
 import type { backgroundImage } from "../styles/index.ts";
 
 /**
@@ -14,12 +16,20 @@ import type { backgroundImage } from "../styles/index.ts";
  */
 export type MaybeEntry<T> = T | Primitive.ArrayEntrySnapshot<T>;
 
+type ArrayElement<A> = A extends readonly (infer T)[] ? T : never;
+type EntryValue<E> = E extends Primitive.ArrayEntrySnapshot<infer V> ? V : E;
+type ComponentPropSnapshot = NonNullable<
+  EntryValue<ArrayElement<ComponentNodeData["data"]["props"]>>
+>;
+
 /**
  * Document-wide localization config as decoded from the root node. `locales`
  * entries are CRDT-entry-wrapped in the decoded snapshot; use the resolvers
  * (or {@link MaybeEntry} unwrapping) rather than reading `.tag` directly.
  */
-export type LocalizationConfig = NonNullable<Primitive.InferSnapshot<typeof localizationConfigSchema>>;
+export type LocalizationConfig = NonNullable<
+  Primitive.InferSnapshot<typeof localizationConfigSchema>
+>;
 
 /** Decoded whole-value background image (`url` + `resizeMode`). */
 export type BackgroundImageSnapshot = NonNullable<Primitive.InferSnapshot<typeof backgroundImage>>;
@@ -35,43 +45,36 @@ export type ComponentPropBindingSnapshot = NonNullable<
 >;
 
 /** Decoded value of a single text `localized` entry. */
-export interface LocalizedTextOverride {
-  readonly locale: string;
-  readonly overrides?: { readonly text?: string };
-}
+export type LocalizedTextOverride = NonNullable<
+  EntryValue<ArrayElement<NonNullable<TextNodeData["data"]["localized"]>>>
+>;
 
 /** Decoded value of a single view/screen `localized` entry. */
-export interface LocalizedImageOverride {
-  readonly locale: string;
-  readonly overrides?: { readonly backgroundImage?: BackgroundImageSnapshot };
-}
+export type LocalizedImageOverride = NonNullable<
+  EntryValue<ArrayElement<NonNullable<ViewNodeData["data"]["localized"]>>>
+>;
 
 /** Decoded value of a single component-prop `localizedValues` entry. */
-export interface LocalizedPropOverride {
-  readonly locale: string;
-  readonly value: ComponentPropValueSnapshot;
-}
-
-// Decoded array entries can transiently hold `undefined` values (a struct that
-// decodes to undefined), so the array element types admit `| undefined` and the
-// resolvers skip such entries.
+export type LocalizedPropOverride = NonNullable<
+  EntryValue<ArrayElement<NonNullable<ComponentPropSnapshot["localizedValues"]>>>
+>;
 
 /** Minimal decoded text-node data the text resolver reads. */
 export interface LocalizableTextData {
   readonly text: string;
-  readonly localized?: readonly MaybeEntry<LocalizedTextOverride | undefined>[];
+  readonly localized?: TextNodeData["data"]["localized"];
 }
 
 /** Minimal decoded view/screen-node data the background-image resolver reads. */
 export interface LocalizableImageData {
   readonly style: { readonly backgroundImage: BackgroundImageSnapshot };
-  readonly localized?: readonly MaybeEntry<LocalizedImageOverride | undefined>[];
+  readonly localized?: ViewNodeData["data"]["localized"];
 }
 
 /** Minimal decoded component-prop entry the prop-value resolver reads. */
 export interface LocalizableComponentProp {
   readonly value: ComponentPropBindingSnapshot;
-  readonly localizedValues?: readonly MaybeEntry<LocalizedPropOverride | undefined>[];
+  readonly localizedValues?: ComponentPropSnapshot["localizedValues"];
 }
 
 /** A descriptor for a component prop that can carry localized overrides. */
@@ -114,7 +117,5 @@ export interface CollectLocalizableSlotsOptions {
    * mimic-schema is manifest-agnostic, so callers supply this from the resolved
    * component manifest. Props not returned here are skipped.
    */
-  readonly getLocalizableProps?: (
-    node: ComponentNodeData,
-  ) => readonly LocalizablePropDescriptor[];
+  readonly getLocalizableProps?: (node: ComponentNodeData) => readonly LocalizablePropDescriptor[];
 }

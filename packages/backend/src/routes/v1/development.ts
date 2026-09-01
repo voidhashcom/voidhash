@@ -8,7 +8,7 @@ import { DevelopmentPaymentProviderService } from "../../purchases/providers/dev
 import { RequestEnvironmentMode } from "@voidhash/core-v2";
 import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -27,7 +27,7 @@ const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "sec
  * fail-closed: a caller must opt in with `x-environment: development` before a
  * single simulated purchase can be created, read or wiped.
  */
-const requireDevelopmentEnvironment = Effect.gen(function* () {
+const requireDevelopmentEnvironment = Effect.fn("requireDevelopmentEnvironment")(function* () {
   const environment = yield* RequestEnvironmentMode;
   if (environment.name !== "development") {
     return yield* Effect.fail(
@@ -36,7 +36,7 @@ const requireDevelopmentEnvironment = Effect.gen(function* () {
       }),
     );
   }
-});
+})();
 
 /**
  * Development sandbox routes (`/api/v1/development/*`). Simulated purchases,
@@ -51,14 +51,14 @@ export const DevelopmentGroupLive = HttpApiBuilder.group(VoidhashV1Api, "develop
     return handlers
       .handle("getDevelopmentSettings", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("DevelopmentGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* requireDevelopmentEnvironment;
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             const settings = yield* service.getDevelopmentSettings(projectId);
-            return { developmentPurchasesEnabled: settings.developmentPurchasesEnabled };
-          }),
+            return { isDevelopmentPurchasesEnabled: settings.developmentPurchasesEnabled };
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -70,18 +70,18 @@ export const DevelopmentGroupLive = HttpApiBuilder.group(VoidhashV1Api, "develop
       )
       .handle("updateDevelopmentSettings", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("DevelopmentGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* requireDevelopmentEnvironment;
             const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
             yield* service.setDevelopmentPurchasesEnabled({
-              enabled: payload.developmentPurchasesEnabled,
+              enabled: payload.isDevelopmentPurchasesEnabled,
               projectId,
             });
             const settings = yield* service.getDevelopmentSettings(projectId);
-            return { developmentPurchasesEnabled: settings.developmentPurchasesEnabled };
-          }),
+            return { isDevelopmentPurchasesEnabled: settings.developmentPurchasesEnabled };
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -93,7 +93,7 @@ export const DevelopmentGroupLive = HttpApiBuilder.group(VoidhashV1Api, "develop
       )
       .handle("getDevelopmentState", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("DevelopmentGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* requireDevelopmentEnvironment;
@@ -103,12 +103,12 @@ export const DevelopmentGroupLive = HttpApiBuilder.group(VoidhashV1Api, "develop
               projectId,
             });
             return {
-              developmentPurchasesEnabled: state.developmentPurchasesEnabled,
+              isDevelopmentPurchasesEnabled: state.developmentPurchasesEnabled,
               grants: state.grants,
               purchases: state.purchases,
               subscriptions: state.subscriptions,
             };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -120,7 +120,7 @@ export const DevelopmentGroupLive = HttpApiBuilder.group(VoidhashV1Api, "develop
       )
       .handle("applyDevelopmentLifecycleAction", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("DevelopmentGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* requireDevelopmentEnvironment;
@@ -133,7 +133,7 @@ export const DevelopmentGroupLive = HttpApiBuilder.group(VoidhashV1Api, "develop
               targetType: payload.targetType,
             });
             return { actionId: payload.actionId };
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -145,13 +145,13 @@ export const DevelopmentGroupLive = HttpApiBuilder.group(VoidhashV1Api, "develop
       )
       .handle("resetDevelopmentData", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("DevelopmentGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
             yield* requireDevelopmentEnvironment;
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
             return yield* service.resetDevelopmentData(projectId);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

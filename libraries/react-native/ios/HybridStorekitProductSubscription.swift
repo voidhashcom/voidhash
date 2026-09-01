@@ -18,9 +18,9 @@ class HybridStorekitProductSubscription: HybridStorekitProductSubscriptionSpec {
         return .second(HybridStorekitProductOffer(offer: offer))
     }
 
-    var promotionalOffers: [Variant_NullType__any_HybridStorekitProductOfferSpec_] {
+    var promotionalOffers: [NitroNullable] {
         return subscription.promotionalOffers.map { offer in
-            Variant_NullType__any_HybridStorekitProductOfferSpec_.second(
+            NitroNullable.second(
                 HybridStorekitProductOffer(offer: offer)
             )
         }

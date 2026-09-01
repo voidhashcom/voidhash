@@ -1,5 +1,14 @@
-import { Console, Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Clock from "effect/Clock";
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as Console from "effect/Console";
+import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
 import { HttpClient } from "effect/unstable/http";
+import * as Schema from "effect/Schema";
+const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 const MAX_BODY_PREVIEW_BYTES = 2_048;
 const MAX_VALUE_PREVIEW_CHARS = 1_024;
@@ -16,139 +25,121 @@ const truncate = (value: string, maxLength: number) =>
   value.length <= maxLength ? value : `${value.slice(0, maxLength)}...<truncated>`;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 const isSensitiveHeader = (name: string) =>
   SENSITIVE_HEADER_PATTERNS.some((pattern) => pattern.test(name));
 
 const sanitizeHeaders = (headers: Record<string, string>): Record<string, string> => {
-  const sanitized: Record<string, string> = {};
-
-  for (const [name, value] of Object.entries(headers)) {
-    sanitized[name] = isSensitiveHeader(name)
-      ? "[REDACTED]"
-      : truncate(value, MAX_VALUE_PREVIEW_CHARS);
-  }
-
-  return sanitized;
-};
-
-const isTextLikeContentType = (contentType: string | undefined) =>
-  typeof contentType === "string"
-    ? /json|text\/|xml|x-www-form-urlencoded/i.test(contentType)
-    : false;
-
-const decodeUtf8Preview = (bytes: Uint8Array) => {
-  const limited = bytes.slice(0, MAX_BODY_PREVIEW_BYTES);
-  return Effect.runSync(
-    Effect.try(() => {
-      if (typeof TextDecoder !== "undefined") {
-        return truncate(new TextDecoder().decode(limited), MAX_VALUE_PREVIEW_CHARS);
-      }
-
-      let fallback = "";
-      for (const byte of limited) {
-        fallback += String.fromCharCode(byte);
-      }
-      return truncate(fallback, MAX_VALUE_PREVIEW_CHARS);
-    }).pipe(Effect.orElseSucceed(() => "<unable to decode request body>")),
+  return R.map(headers, (value, name) =>
+    isSensitiveHeader(name) ? "[REDACTED]" : truncate(value, MAX_VALUE_PREVIEW_CHARS),
   );
 };
 
+const isTextLikeContentType = (contentType: Option.Option<string>) =>
+  Option.exists(contentType, (value) => /json|text\/|xml|x-www-form-urlencoded/i.test(value));
+
+const decodeUtf8Preview = (bytes: Uint8Array) => {
+  const limited = bytes.slice(0, MAX_BODY_PREVIEW_BYTES);
+  return Effect.try(() => {
+    if (!P.isUndefined(TextDecoder)) {
+      return truncate(new TextDecoder().decode(limited), MAX_VALUE_PREVIEW_CHARS);
+    }
+
+    const fallback = Arr.fromIterable(limited)
+      .map((byte) => String.fromCharCode(byte))
+      .join("");
+    return truncate(fallback, MAX_VALUE_PREVIEW_CHARS);
+  }).pipe(Effect.orElseSucceed(() => "<unable to decode request body>"));
+};
+
 const summarizeBody = (body: unknown) => {
-  if (!isRecord(body) || typeof body._tag !== "string") {
-    return undefined;
+  if (!isRecord(body) || !P.isString(body._tag)) {
+    return Effect.succeed(undefined);
   }
 
-  if (body._tag === "Empty") {
-    return { type: "Empty" };
-  }
-
-  if (body._tag === "FormData") {
-    return { type: "FormData" };
-  }
-
-  if (body._tag === "Stream") {
-    return {
-      type: "Stream",
-      contentLength: typeof body.contentLength === "number" ? body.contentLength : null,
-      contentType: typeof body.contentType === "string" ? body.contentType : null,
-    };
-  }
-
-  if (body._tag === "Raw") {
-    const value = body.body;
-    if (typeof value === "string") {
-      return {
-        preview: truncate(value, MAX_VALUE_PREVIEW_CHARS),
+  return Match.value(body._tag).pipe(
+    Match.when("Empty", () => Effect.succeed({ type: "Empty" })),
+    Match.when("FormData", () => Effect.succeed({ type: "FormData" })),
+    Match.when("Stream", () =>
+      Effect.succeed({
+        type: "Stream",
+        contentLength: P.isNumber(body.contentLength) ? body.contentLength : null,
+        contentType: P.isString(body.contentType) ? body.contentType : null,
+      }),
+    ),
+    Match.when("Raw", () => {
+      const value = body.body;
+      if (P.isString(value)) {
+        return Effect.succeed({
+          preview: truncate(value, MAX_VALUE_PREVIEW_CHARS),
+          type: "Raw",
+        });
+      }
+      return Effect.try(() => ({
+        preview: truncate(effectEncodeJson(value), MAX_VALUE_PREVIEW_CHARS),
         type: "Raw",
-      };
-    }
-
-    return Effect.runSync(
-      Effect.try(() => ({
-        preview: truncate(JSON.stringify(value), MAX_VALUE_PREVIEW_CHARS),
-        type: "Raw",
-      })).pipe(Effect.orElseSucceed(() => ({ preview: "<unserializable body>", type: "Raw" }))),
-    );
-  }
-
-  if (body._tag === "Uint8Array") {
-    const contentType = typeof body.contentType === "string" ? body.contentType : undefined;
-    const bytes = body.body;
-
-    if (!(bytes instanceof Uint8Array)) {
-      return {
-        contentLength: typeof body.contentLength === "number" ? body.contentLength : null,
-        contentType: contentType ?? null,
-        type: "Uint8Array",
-      };
-    }
-
-    return {
-      contentLength: bytes.byteLength,
-      contentType: contentType ?? null,
-      preview: isTextLikeContentType(contentType) ? decodeUtf8Preview(bytes) : "<binary payload>",
-      type: "Uint8Array",
-    };
-  }
-
-  return { type: body._tag };
+      })).pipe(Effect.orElseSucceed(() => ({ preview: "<unserializable body>", type: "Raw" })));
+    }),
+    Match.when("Uint8Array", () => {
+      const contentType = Option.liftPredicate(body.contentType, P.isString);
+      const bytes = body.body;
+      if (!P.isUint8Array(bytes)) {
+        return Effect.succeed({
+          contentLength: P.isNumber(body.contentLength) ? body.contentLength : null,
+          contentType: Option.getOrNull(contentType),
+          type: "Uint8Array",
+        });
+      }
+      return Effect.gen(function* () {
+        const preview = isTextLikeContentType(contentType)
+          ? yield* decodeUtf8Preview(bytes)
+          : "<binary payload>";
+        return {
+          contentLength: bytes.byteLength,
+          contentType: Option.getOrNull(contentType),
+          preview,
+          type: "Uint8Array",
+        };
+      });
+    }),
+    Match.orElse((type) => Effect.succeed({ type })),
+  );
 };
 
 const summarizeError = (error: unknown) => {
   if (!isRecord(error)) {
     return {
-      message: error instanceof Error ? error.message : String(error),
+      message: P.isError(error) ? error.message : String(error),
     };
   }
 
   const summary: Record<string, unknown> = {};
-  if (typeof error._tag === "string") {
+  if (P.isString(error._tag)) {
     summary.tag = error._tag;
   }
-  if (typeof error.message === "string") {
+  if (P.isString(error.message)) {
     summary.message = error.message;
   }
-  if (typeof error.reason === "string") {
+  if (P.isString(error.reason)) {
     summary.reason = error.reason;
   }
-  if (isRecord(error.response) && typeof error.response.status === "number") {
+  if (isRecord(error.response) && P.isNumber(error.response.status)) {
     summary.status = error.response.status;
   }
 
-  if (Object.keys(summary).length > 0) return summary;
-  return { message: error instanceof Error ? error.message : JSON.stringify(error) };
+  if (Arr.isReadonlyArrayNonEmpty(R.keys(summary))) return summary;
+  return { message: P.isError(error) ? error.message : effectEncodeJson(error) };
 };
 
 export const withHttpDebugLogging = (client: HttpClient.HttpClient) =>
   client.pipe(
     HttpClient.transform((effect, request) => {
-      const startedAt = Date.now();
-
       return Effect.gen(function* debugHttpRequest() {
+        const startedAt = yield* Clock.currentTimeMillis;
+        const body = yield* summarizeBody(request.body);
         yield* Console.debug("[voidhash:http] request", {
-          body: summarizeBody(request.body),
+          body,
           headers: sanitizeHeaders(request.headers),
           method: request.method,
           url: request.url,
@@ -156,20 +147,26 @@ export const withHttpDebugLogging = (client: HttpClient.HttpClient) =>
 
         return yield* effect.pipe(
           Effect.tap((response) =>
-            Console.debug("[voidhash:http] response", {
-              durationMs: Date.now() - startedAt,
-              headers: sanitizeHeaders(response.headers),
-              method: request.method,
-              status: response.status,
-              url: request.url,
+            Effect.gen(function* () {
+              const finishedAt = yield* Clock.currentTimeMillis;
+              yield* Console.debug("[voidhash:http] response", {
+                durationMs: finishedAt - startedAt,
+                headers: sanitizeHeaders(response.headers),
+                method: request.method,
+                status: response.status,
+                url: request.url,
+              });
             }),
           ),
           Effect.tapError((error) =>
-            Console.error("[voidhash:http] error", {
-              durationMs: Date.now() - startedAt,
-              error: summarizeError(error),
-              method: request.method,
-              url: request.url,
+            Effect.gen(function* () {
+              const finishedAt = yield* Clock.currentTimeMillis;
+              yield* Console.error("[voidhash:http] error", {
+                durationMs: finishedAt - startedAt,
+                error: summarizeError(error),
+                method: request.method,
+                url: request.url,
+              });
             }),
           ),
         );

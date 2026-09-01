@@ -1,5 +1,7 @@
+import * as P from "effect/Predicate";
 import { causeMessage } from "@voidhash/lib/lang";
-import { Data, Effect, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 
 import type { Value } from "@voidhash/mimic-core";
 import type { PresenceEntry } from "../app/hostService.ts";
@@ -105,9 +107,9 @@ export type ServerMessage =
   | PresenceSnapshotMessage;
 
 /** A client frame that is not valid JSON. Never leaves the socket handler. */
-export class MalformedClientMessageError extends Data.TaggedError("MalformedClientMessageError")<{
-  readonly message: string;
-}> {}
+export class MalformedClientMessageError extends Schema.TaggedErrorClass<MalformedClientMessageError>(
+  "MalformedClientMessageError",
+)("MalformedClientMessageError", { message: Schema.String }) {}
 
 /**
  * The wire codec for client frames. Message shape is *not* validated here:
@@ -123,7 +125,7 @@ const ServerMessageToJson = Schema.fromJsonString(
 );
 
 const decodeText = (data: string | Uint8Array): string => {
-  if (typeof data === "string") return data;
+  if (P.isString(data)) return data;
   return new TextDecoder().decode(data);
 };
 

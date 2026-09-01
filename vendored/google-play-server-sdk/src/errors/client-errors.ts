@@ -1,12 +1,14 @@
-import { Data, Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /**
  * General error from the Google Play Server API
  */
-export class GooglePlayGeneralError extends Data.TaggedError("GooglePlayGeneralError")<{
-  readonly message: string;
-  readonly cause: unknown;
-}> {}
+export class GooglePlayGeneralError extends Schema.TaggedErrorClass<GooglePlayGeneralError>(
+  "GooglePlayGeneralError",
+)("GooglePlayGeneralError", {
+  cause: Schema.optional(Schema.Unknown),
+  message: Schema.String,
+}) {}
 
 /**
  * Purchase has already been acknowledged

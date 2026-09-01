@@ -1,3 +1,9 @@
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as HashSet from "effect/HashSet";
+import * as Option from "effect/Option";
 /**
  * Static, execution-free extraction of a §2 component manifest from a
  * `defineComponent(...)` source file.
@@ -26,14 +32,19 @@
  * counts, a `Slot` mention in a string or comment does not. Anything outside
  * the closed grammar returns diagnostics — never a partial guess.
  */
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
 import ts from "typescript";
 import { causeMessage, pick } from "@voidhash/lib/lang";
 import { COMPONENT_MANIFEST_VERSION } from "@voidhash/paywalls/schema";
 import type { ExtractOutcome } from "./types.ts";
 
 /** The product-reading runtime hooks that imply `hostData: ["products"]`. */
-const PRODUCT_HOOKS = new Set(["usePaywallProducts", "useSelectedProduct", "usePaywallConfig"]);
+const PRODUCT_HOOKS = HashSet.fromIterable([
+  "usePaywallProducts",
+  "useSelectedProduct",
+  "usePaywallConfig",
+]);
 
 /** The SDK root specifier whose import bindings the render scan resolves. */
 const SDK_SPECIFIER = "@voidhash/paywalls";
@@ -45,29 +56,32 @@ const SDK_SPECIFIER = "@voidhash/paywalls";
  * `P.Slot` references the `Slot` export).
  */
 interface SdkBindings {
-  readonly named: ReadonlyMap<string, string>;
-  readonly namespaces: ReadonlySet<string>;
+  readonly named: HashMap.HashMap<string, string>;
+  readonly namespaces: HashSet.HashSet<string>;
 }
 
 /** Collect the SDK import bindings declared by a source file. */
 function sdkBindingsOf(file: ts.SourceFile): SdkBindings {
-  const named = new Map<string, string>();
-  const namespaces = new Set<string>();
-  for (const statement of file.statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
+  return file.statements.reduce<SdkBindings>((collected, statement) => {
+    if (!ts.isImportDeclaration(statement)) return collected;
     const spec = statement.moduleSpecifier;
-    if (!ts.isStringLiteral(spec) || spec.text !== SDK_SPECIFIER) continue;
+    if (!ts.isStringLiteral(spec) || spec.text !== SDK_SPECIFIER) return collected;
     const bindings = statement.importClause?.namedBindings;
-    if (!bindings) continue;
+    if (!bindings) return collected;
     if (ts.isNamedImports(bindings)) {
-      for (const element of bindings.elements) {
-        named.set(element.name.text, element.propertyName?.text ?? element.name.text);
-      }
-    } else if (ts.isNamespaceImport(bindings)) {
-      namespaces.add(bindings.name.text);
+      return {
+        ...collected,
+        named: bindings.elements.reduce(
+          (named, element) =>
+            HashMap.set(named, element.name.text, element.propertyName?.text ?? element.name.text),
+          collected.named,
+        ),
+      };
     }
-  }
-  return { named, namespaces };
+    return ts.isNamespaceImport(bindings)
+      ? { ...collected, namespaces: HashSet.add(collected.namespaces, bindings.name.text) }
+      : collected;
+  }, { named: HashMap.empty(), namespaces: HashSet.empty() });
 }
 
 /**
@@ -77,12 +91,12 @@ function sdkBindingsOf(file: ts.SourceFile): SdkBindings {
  */
 function isSdkExportRef(expr: ts.Node, exported: string, bindings: SdkBindings): boolean {
   if (ts.isIdentifier(expr)) {
-    return bindings.named.get(expr.text) === exported;
+    return HashMap.get(bindings.named, expr.text).valueOrUndefined === exported;
   }
   if (ts.isPropertyAccessExpression(expr)) {
     return (
       ts.isIdentifier(expr.expression) &&
-      bindings.namespaces.has(expr.expression.text) &&
+      HashSet.has(bindings.namespaces, expr.expression.text) &&
       expr.name.text === exported
     );
   }
@@ -110,12 +124,9 @@ function scanRenderUsage(
       usage.slot = true;
     }
     if (ts.isCallExpression(node)) {
-      for (const hook of PRODUCT_HOOKS) {
-        if (isSdkExportRef(node.expression, hook, bindings)) {
-          usage.productHook = true;
-          break;
-        }
-      }
+      usage.productHook ||= HashSet.some(PRODUCT_HOOKS, (hook) =>
+        isSdkExportRef(node.expression, hook, bindings),
+      );
     }
     ts.forEachChild(node, visit);
   };
@@ -152,7 +163,7 @@ class StaticExtractError extends Error {}
  * into diagnostics.
  */
 function bail(detail: string): never {
-  return Effect.runSync(
+  return EffectRuntime.runSync(
     Effect.die(
       new StaticExtractError(
         `${detail} Keep \`defineComponent\` declarative — props/actions must be a literal ` +
@@ -165,11 +176,9 @@ function bail(detail: string): never {
 
 /** Unwrap `x as T` and `(x)` wrappers around an expression. */
 function unwrap(expr: ts.Expression): ts.Expression {
-  let node: ts.Expression = expr;
-  while (ts.isAsExpression(node) || ts.isParenthesizedExpression(node)) {
-    node = node.expression;
-  }
-  return node;
+  return ts.isAsExpression(expr) || ts.isParenthesizedExpression(expr)
+    ? unwrap(expr.expression)
+    : expr;
 }
 
 /** A literal string/number/boolean/null value, or `bail` for anything else. */
@@ -225,20 +234,23 @@ function decomposeChain(expr: ts.Expression): {
   base: ts.CallExpression;
   modifiers: ts.CallExpression[];
 } {
-  const modifiers: ts.CallExpression[] = [];
-  let node = unwrap(expr);
-  while (
-    ts.isCallExpression(node) &&
-    ts.isPropertyAccessExpression(node.expression) &&
-    !isFactoryRoot(node.expression)
-  ) {
-    modifiers.unshift(node);
-    node = unwrap(node.expression.expression);
-  }
-  if (!ts.isCallExpression(node)) {
-    return bail("A prop must be a `p.*()` builder call.");
-  }
-  return { base: node, modifiers };
+  const visit = (
+    node: ts.Expression,
+    modifiers: ts.CallExpression[],
+  ): { base: ts.CallExpression; modifiers: ts.CallExpression[] } => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      !isFactoryRoot(node.expression)
+    ) {
+      return visit(unwrap(node.expression.expression), [node, ...modifiers]);
+    }
+    if (!ts.isCallExpression(node)) {
+      return bail("A prop must be a `p.*()` builder call.");
+    }
+    return { base: node, modifiers };
+  };
+  return visit(unwrap(expr), []);
 }
 
 /**
@@ -269,31 +281,22 @@ function resolvePropBuilder(expr: ts.Expression): StaticPropSchema {
 
   const schema: StaticPropSchema = { kind, hasDefault: false, optional: false };
 
-  switch (kind) {
-    case "select": {
-      const arg = base.arguments[0];
-      if (arg === undefined) bail("`p.select(...)` requires an options array.");
-      schema.options = stringLiteralArray(arg, "`p.select(...)` options");
-      break;
-    }
-    case "ref": {
-      const arg = base.arguments[0];
-      if (arg === undefined) return bail("`p.ref(...)` requires a string refType literal.");
-      const value = literalValue(arg);
-      if (typeof value !== "string") return bail("`p.ref(...)` requires a string refType literal.");
-      schema.refType = value;
-      break;
-    }
-    case "array": {
-      const arg = base.arguments[0];
-      if (arg === undefined) bail("`p.array(...)` requires an item builder.");
-      const item = resolvePropBuilder(arg);
-      if (item.kind === "array") bail("`p.array(...)` items must be a non-array prop kind.");
-      schema.item = item;
-      break;
-    }
-    default:
-      break;
+  if (kind === "select") {
+    const arg = base.arguments[0];
+    if (arg === undefined) bail("`p.select(...)` requires an options array.");
+    schema.options = stringLiteralArray(arg, "`p.select(...)` options");
+  } else if (kind === "ref") {
+    const arg = base.arguments[0];
+    if (arg === undefined) return bail("`p.ref(...)` requires a string refType literal.");
+    const value = literalValue(arg);
+    if (!P.isString(value)) return bail("`p.ref(...)` requires a string refType literal.");
+    schema.refType = value;
+  } else if (kind === "array") {
+    const arg = base.arguments[0];
+    if (arg === undefined) bail("`p.array(...)` requires an item builder.");
+    const item = resolvePropBuilder(arg);
+    if (item.kind === "array") bail("`p.array(...)` items must be a non-array prop kind.");
+    schema.item = item;
   }
 
   applyPropModifiers(schema, modifiers);
@@ -302,46 +305,35 @@ function resolvePropBuilder(expr: ts.Expression): StaticPropSchema {
 
 /** Apply the chained `.label()/.default()/.optional()/.editor()/.localizable()` modifiers. */
 function applyPropModifiers(schema: StaticPropSchema, modifiers: ts.CallExpression[]): void {
-  for (const modifier of modifiers) {
+  modifiers.forEach((modifier) => {
     const access = modifier.expression;
     if (!ts.isPropertyAccessExpression(access)) {
-      return bail("A prop modifier must be a method call.");
+      bail("A prop modifier must be a method call.");
     }
     const name = access.name.text;
-    switch (name) {
-      case "label": {
-        const value = literalValue(requireArg(modifier, "`.label(...)`"));
-        if (typeof value !== "string") bail("`.label(...)` requires a string literal.");
-        schema.label = value;
-        break;
+    if (name === "label") {
+      const value = literalValue(requireArg(modifier, "`.label(...)`"));
+      if (!P.isString(value)) bail("`.label(...)` requires a string literal.");
+      schema.label = value;
+    } else if (name === "default") {
+      schema.defaultValue = literalValue(requireArg(modifier, "`.default(...)`"));
+      schema.hasDefault = true;
+    } else if (name === "editor") {
+      const value = literalValue(requireArg(modifier, "`.editor(...)`"));
+      if (!P.isString(value)) bail("`.editor(...)` requires a string literal.");
+      schema.editor = value;
+    } else if (name === "optional") {
+      schema.optional = true;
+    } else if (name === "localizable") {
+      if (modifier.arguments[0] !== undefined) bail("`.localizable()` takes no arguments.");
+      if (schema.kind !== "string" && schema.kind !== "image") {
+        bail(`\`.localizable()\` is only valid on \`p.string()\`/\`p.image()\` props, not \`${schema.kind}\`.`);
       }
-      case "default": {
-        schema.defaultValue = literalValue(requireArg(modifier, "`.default(...)`"));
-        schema.hasDefault = true;
-        break;
-      }
-      case "editor": {
-        const value = literalValue(requireArg(modifier, "`.editor(...)`"));
-        if (typeof value !== "string") bail("`.editor(...)` requires a string literal.");
-        schema.editor = value;
-        break;
-      }
-      case "optional": {
-        schema.optional = true;
-        break;
-      }
-      case "localizable": {
-        if (modifier.arguments.length > 0) bail("`.localizable()` takes no arguments.");
-        if (schema.kind !== "string" && schema.kind !== "image") {
-          bail(`\`.localizable()\` is only valid on \`p.string()\`/\`p.image()\` props, not \`${schema.kind}\`.`);
-        }
-        schema.localizable = true;
-        break;
-      }
-      default:
-        bail(`Unknown prop modifier \`.${name}(...)\`.`);
+      schema.localizable = true;
+    } else {
+      bail(`Unknown prop modifier \`.${name}(...)\`.`);
     }
-  }
+  });
 }
 
 /** The single argument of a modifier call, or `bail` when absent. */
@@ -352,7 +344,7 @@ function requireArg(call: ts.CallExpression, label: string): ts.Expression {
 }
 
 const isJsonScalar = (value: unknown): value is string | number | boolean =>
-  typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+  P.isString(value) || P.isNumber(value) || P.isBoolean(value);
 
 /** Defaults survive only when JSON-serializable losslessly (runtime parity). */
 function serializableDefault(value: unknown): unknown {
@@ -460,30 +452,26 @@ function blockReturnObject(block: ts.Block, field: string): ts.Expression {
 
 /** Resolve the `props` object into per-name static prop schemas. */
 function resolveProps(objectExpr: ts.ObjectLiteralExpression): Record<string, StaticPropSchema> {
-  const props: Record<string, StaticPropSchema> = {};
-  for (const member of objectExpr.properties) {
+  return objectExpr.properties.reduce<Record<string, StaticPropSchema>>((props, member) => {
     if (!ts.isPropertyAssignment(member)) {
       return bail("Each prop must be a `name: p.*()` assignment.");
     }
     const name = propertyName(member);
-    props[name] = resolvePropBuilder(member.initializer);
-  }
-  return props;
+    return { ...props, [name]: resolvePropBuilder(member.initializer) };
+  }, {});
 }
 
 /** Resolve the `actions` object into per-name payload shapes. */
 function resolveActions(
   objectExpr: ts.ObjectLiteralExpression,
 ): Record<string, { payload: Record<string, { kind: string }> }> {
-  const actions: Record<string, { payload: Record<string, { kind: string }> }> = {};
-  for (const member of objectExpr.properties) {
+  return objectExpr.properties.reduce<Record<string, { payload: Record<string, { kind: string }> }>>((actions, member) => {
     if (!ts.isPropertyAssignment(member)) {
       return bail("Each action must be a `name: a.action(...)` assignment.");
     }
     const name = propertyName(member);
-    actions[name] = { payload: resolveActionPayload(member.initializer) };
-  }
-  return actions;
+    return { ...actions, [name]: { payload: resolveActionPayload(member.initializer) } };
+  }, {});
 }
 
 /** Resolve one `a.action(...)` call into its payload field-kind map. */
@@ -502,15 +490,13 @@ function resolveActionPayload(expr: ts.Expression): Record<string, { kind: strin
   if (!ts.isObjectLiteralExpression(arg)) {
     return bail("`a.action(...)` payload must be an object literal of `a.string/number/boolean()`.");
   }
-  const payload: Record<string, { kind: string }> = {};
-  for (const member of arg.properties) {
+  return arg.properties.reduce<Record<string, { kind: string }>>((payload, member) => {
     if (!ts.isPropertyAssignment(member)) {
       return bail("An action payload field must be a `name: a.<kind>()` assignment.");
     }
     const name = propertyName(member);
-    payload[name] = { kind: actionPayloadKind(member.initializer) };
-  }
-  return payload;
+    return { ...payload, [name]: { kind: actionPayloadKind(member.initializer) } };
+  }, {});
 }
 
 /** The scalar kind of an `a.string()/a.number()/a.boolean()` payload builder. */
@@ -590,51 +576,33 @@ function resolveDefinition(call: ts.CallExpression, bindings: SdkBindings): Reso
     slot: false,
     usesProductHook: false,
   };
-  let renderNode: ts.Node | undefined;
+  let renderNode = Option.none<ts.Node>();
 
-  for (const member of object.properties) {
+  object.properties.forEach((member) => {
     const name = propertyName(member);
-    switch (name) {
-      case "title":
-        resolved.title = asStringField(member, "title");
-        break;
-      case "description":
-        resolved.description = asStringField(member, "description");
-        break;
-      case "props":
-        resolved.props = resolveProps(builderArrowBody(builderField(member, "props"), "props"));
-        break;
-      case "actions":
-        resolved.actions = resolveActions(
-          builderArrowBody(builderField(member, "actions"), "actions"),
-        );
-        break;
-      case "previews": {
-        if (ts.isPropertyAssignment(member)) {
-          resolved.previewNames = previewNamesOf(member.initializer);
-          resolved.previewsDeclareProducts = previewsDeclareProducts(member.initializer);
-        }
-        break;
-      }
-      case "render": {
-        if (ts.isPropertyAssignment(member)) {
-          renderNode = member.initializer;
-          break;
-        }
-        renderNode = member;
-        break;
-      }
-      default:
-        // `panel` and any other declarative field do not affect the manifest.
-        break;
+    if (name === "title") {
+      resolved.title = asStringField(member, "title");
+    } else if (name === "description") {
+      resolved.description = asStringField(member, "description");
+    } else if (name === "props") {
+      resolved.props = resolveProps(builderArrowBody(builderField(member, "props"), "props"));
+    } else if (name === "actions") {
+      resolved.actions = resolveActions(
+        builderArrowBody(builderField(member, "actions"), "actions"),
+      );
+    } else if (name === "previews" && ts.isPropertyAssignment(member)) {
+      resolved.previewNames = previewNamesOf(member.initializer);
+      resolved.previewsDeclareProducts = previewsDeclareProducts(member.initializer);
+    } else if (name === "render") {
+      renderNode = Option.some(ts.isPropertyAssignment(member) ? member.initializer : member);
     }
-  }
+  });
 
-  if (renderNode) {
-    const usage = scanRenderUsage(renderNode, bindings);
+  Option.map(renderNode, (node) => {
+    const usage = scanRenderUsage(node, bindings);
     resolved.slot = usage.slot;
     resolved.usesProductHook = usage.productHook;
-  }
+  });
   return resolved;
 }
 
@@ -654,7 +622,7 @@ function asStringField(member: ts.ObjectLiteralElementLike, field: string): stri
     return bail(`\`${field}\` must be a string literal.`);
   }
   const value = literalValue(member.initializer);
-  if (typeof value !== "string") bail(`\`${field}\` must be a string literal.`);
+  if (!P.isString(value)) bail(`\`${field}\` must be a string literal.`);
   return value;
 }
 
@@ -664,39 +632,40 @@ function asStringField(member: ts.ObjectLiteralElementLike, field: string): stri
  * `export default defineComponent({...})`, a const-bound identifier exported as
  * default, and `export { X as default }`. Returns `null` when none is found.
  */
-function findDefaultExportedDefineComponent(file: ts.SourceFile): ts.CallExpression | null {
-  const isDefineCall = (expr: ts.Expression | undefined): ts.CallExpression | null => {
-    if (!expr) return null;
-    const node = unwrap(expr);
+function findDefaultExportedDefineComponent(file: ts.SourceFile): Option.Option<ts.CallExpression> {
+  const isDefineCall = (expr: Option.Option<ts.Expression>): Option.Option<ts.CallExpression> => {
+    if (Option.isNone(expr)) return Option.none();
+    const node = unwrap(expr.value);
     if (
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
       node.expression.text === "defineComponent"
     ) {
-      return node;
+      return Option.some(node);
     }
-    return null;
+    return Option.none();
   };
 
   // `const X = defineComponent(...)` bindings, for indirect default exports.
-  const bindings = new Map<string, ts.CallExpression>();
-  for (const statement of file.statements) {
-    if (!ts.isVariableStatement(statement)) continue;
-    for (const decl of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(decl.name)) continue;
-      const call = isDefineCall(decl.initializer);
-      if (call) bindings.set(decl.name.text, call);
-    }
-  }
+  const bindings = file.statements.reduce((collected, statement) => {
+    if (!ts.isVariableStatement(statement)) return collected;
+    return statement.declarationList.declarations.reduce((current, declaration) => {
+      if (!ts.isIdentifier(declaration.name)) return current;
+      const bindingName = declaration.name.text;
+      return Option.match(isDefineCall(Option.fromUndefinedOr(declaration.initializer)), {
+        onNone: () => current,
+        onSome: (call) => HashMap.set(current, bindingName, call),
+      });
+    }, collected);
+  }, HashMap.empty<string, ts.CallExpression>());
 
-  for (const statement of file.statements) {
+  return Option.firstSomeOf(file.statements.map((statement) => {
     // `export default defineComponent(...)` / `export default X`
     if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
-      const direct = isDefineCall(statement.expression);
-      if (direct) return direct;
+      const direct = isDefineCall(Option.some(statement.expression));
+      if (Option.isSome(direct)) return direct;
       if (ts.isIdentifier(statement.expression)) {
-        const bound = bindings.get(statement.expression.text);
-        if (bound) return bound;
+        return HashMap.get(bindings, statement.expression.text);
       }
     }
     // `export { X as default }`
@@ -705,15 +674,14 @@ function findDefaultExportedDefineComponent(file: ts.SourceFile): ts.CallExpress
       statement.exportClause &&
       ts.isNamedExports(statement.exportClause)
     ) {
-      for (const element of statement.exportClause.elements) {
-        if (element.name.text !== "default") continue;
+      return Option.firstSomeOf(statement.exportClause.elements.map((element) => {
+        if (element.name.text !== "default") return Option.none<ts.CallExpression>();
         const local = element.propertyName?.text ?? element.name.text;
-        const bound = bindings.get(local);
-        if (bound) return bound;
-      }
+        return HashMap.get(bindings, local);
+      }));
     }
-  }
-  return null;
+    return Option.none<ts.CallExpression>();
+  }));
 }
 
 /**
@@ -744,7 +712,7 @@ export function staticExtractManifest(source: string, fileName = "component.tsx"
   );
 
   const call = findDefaultExportedDefineComponent(file);
-  if (!call) {
+  if (Option.isNone(call)) {
     return {
       diagnostics: [
         {
@@ -758,9 +726,9 @@ export function staticExtractManifest(source: string, fileName = "component.tsx"
 
   // `bail` aborts the recursive descent with a raised StaticExtractError; this
   // boundary turns any such abort back into author-facing diagnostics.
-  return Effect.runSync(
+  return EffectRuntime.runSync(
     Effect.try({
-      try: () => lowerDefinition(call, file),
+      try: () => lowerDefinition(call.value, file),
       catch: (cause) => cause,
     }).pipe(
       Effect.match({
@@ -777,18 +745,15 @@ export function staticExtractManifest(source: string, fileName = "component.tsx"
 function lowerDefinition(call: ts.CallExpression, file: ts.SourceFile): Record<string, unknown> {
   const resolved = resolveDefinition(call, sdkBindingsOf(file));
 
-  const props: Record<string, unknown> = {};
-  for (const [name, schema] of Object.entries(resolved.props)) {
+  const props = R.toEntries(resolved.props).reduce<Record<string, unknown>>((manifestProps, [name, schema]) => {
     assertUsableName(name);
     assertSelectHasOptions(name, schema);
-    props[name] = toManifestProp(schema);
-  }
-  for (const name of Object.keys(resolved.actions)) {
-    assertUsableName(name);
-  }
+    return { ...manifestProps, [name]: toManifestProp(schema) };
+  }, {});
+  R.keys(resolved.actions).forEach(assertUsableName);
 
   const usesProducts =
-    Object.values(resolved.props).some(
+    R.values(resolved.props).some(
       (schema) => schema.kind === "ref" && schema.refType === "product",
     ) ||
     resolved.previewsDeclareProducts ||
@@ -800,11 +765,10 @@ function lowerDefinition(call: ts.CallExpression, file: ts.SourceFile): Record<s
   manifest.props = props;
   manifest.actions = resolved.actions;
   manifest.slot = resolved.slot;
-  manifest.previewStates = pick(
-    resolved.previewNames.length > 0,
-    resolved.previewNames,
-    ["default"],
-  );
+  manifest.previewStates = Arr.match(resolved.previewNames, {
+    onEmpty: () => ["default"],
+    onNonEmpty: (names) => names,
+  });
   manifest.hostData = pick(usesProducts, ["products"], []);
   return manifest;
 }
@@ -821,9 +785,16 @@ function assertUsableName(name: string): void {
 
 /** Rejects `p.select([])` (options must be non-empty), including array items. */
 function assertSelectHasOptions(name: string, schema: StaticPropSchema): void {
-  const empty = (s: StaticPropSchema | undefined): boolean =>
-    s?.kind === "select" && (s.options === undefined || s.options.length === 0);
-  if (empty(schema) || (schema.kind === "array" && empty(schema.item))) {
+  const empty = (candidate: StaticPropSchema): boolean =>
+    candidate.kind === "select" &&
+    Option.match(Option.fromUndefinedOr(candidate.options), {
+      onNone: () => true,
+      onSome: (options) => Arr.match(options, { onEmpty: () => true, onNonEmpty: () => false }),
+    });
+  if (
+    empty(schema) ||
+    (schema.kind === "array" && Option.exists(Option.fromUndefinedOr(schema.item), empty))
+  ) {
     bail(`prop "${name}" declares \`p.select([])\` with no options — select props need at least one option.`);
   }
 }

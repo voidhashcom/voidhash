@@ -41,7 +41,7 @@ export function WebhookDeliveryAttemptTimeline({ attempts }: WebhookDeliveryAtte
             <div
               className={cn(
                 "absolute left-0 top-1.5 h-4 w-4 rounded-full border-2 bg-background",
-                attempt.succeeded ? "border-green-500" : "border-destructive",
+                attempt.isSucceeded ? "border-green-500" : "border-destructive",
               )}
             />
 
@@ -50,7 +50,7 @@ export function WebhookDeliveryAttemptTimeline({ attempts }: WebhookDeliveryAtte
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-medium">Attempt #{attempt.attemptNumber}</p>
-                  {attempt.succeeded ? (
+                  {attempt.isSucceeded ? (
                     <Badge variant="default">Success</Badge>
                   ) : (
                     <Badge variant="destructive">Failed</Badge>

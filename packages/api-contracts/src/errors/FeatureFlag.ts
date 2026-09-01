@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Generic feature flag service error */
 export class ApiFeatureFlagServiceError extends Schema.TaggedErrorClass<ApiFeatureFlagServiceError>()(

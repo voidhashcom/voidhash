@@ -1,5 +1,10 @@
+import * as R from "effect/Record";
 import { constant, pick } from "@voidhash/lib/lang";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import {
   Db,
@@ -61,14 +66,12 @@ const deliveryStatusLabel = (status: number): string => DELIVERY_STATUS_LABELS[s
 /**
  * Resolves a wire-level delivery-status label back to the numeric column value
  * so a status filter can be pushed into SQL. Unknown labels resolve to
- * `undefined`, which callers treat as a filter matching no rows.
+ * `None`, which callers treat as a filter matching no rows.
  */
-const deliveryStatusValueForLabel = (label: string): number | undefined => {
-  for (const [value, knownLabel] of Object.entries(DELIVERY_STATUS_LABELS)) {
-    if (knownLabel === label) return Number(value);
-  }
-  return undefined;
-};
+const deliveryStatusValueForLabel = (label: string): Option.Option<number> =>
+  R.findFirst(DELIVERY_STATUS_LABELS, (knownLabel) => knownLabel === label).pipe(
+    Option.map(([value]) => Number(value)),
+  );
 
 /** Shapes a `push_notification_send` row for the read surface. */
 const toSendItem = (row: typeof pushNotificationSends.$inferSelect) => ({
@@ -208,8 +211,8 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
        */
       const listSendsPage = Effect.fn("notifications.listSendsPage")(
         function* (input: {
-          readonly after?: string | undefined;
-          readonly limit?: number | undefined;
+          readonly after: Option.Option<string>;
+          readonly limit: Option.Option<number>;
           readonly projectId: string;
         }) {
           const session = yield* AuthSession;
@@ -222,36 +225,47 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
             `User ${session?.user?.id} is not authorized to access notification sends for project ${input.projectId}`,
           );
 
-          const limit = Math.min(input.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
-          const conditions = [eq(pushNotificationSends.projectId, input.projectId)];
-
-          if (input.after !== undefined) {
-            const anchorRows = yield* db
-              .select({ createdAt: pushNotificationSends.createdAt, id: pushNotificationSends.id })
-              .from(pushNotificationSends)
-              .where(
-                and(
-                  eq(pushNotificationSends.projectId, input.projectId),
-                  eq(pushNotificationSends.id, input.after),
-                ),
-              )
-              .limit(1);
-            const cursorRow = anchorRows[0];
-            // The cursor names a row that is no longer visible; replaying page
-            // one would look like a scroll that never terminates.
-            if (cursorRow === undefined) {
-              return yield* Effect.fail(
-                new ActionForbiddenError({
-                  message: "Pagination cursor no longer refers to a known item.",
-                }),
+          const limit = Math.min(
+            Option.getOrElse(input.limit, () => DEFAULT_PAGE_SIZE),
+            MAX_PAGE_SIZE,
+          );
+          const cursorCondition = yield* Option.match(input.after, {
+            onNone: () => Effect.succeed(Option.none()),
+            onSome: Effect.fn("notifications.listSendsPage.resolveCursor")(function* (after) {
+              const anchorRows = yield* db
+                .select({
+                  createdAt: pushNotificationSends.createdAt,
+                  id: pushNotificationSends.id,
+                })
+                .from(pushNotificationSends)
+                .where(
+                  and(
+                    eq(pushNotificationSends.projectId, input.projectId),
+                    eq(pushNotificationSends.id, after),
+                  ),
+                )
+                .limit(1);
+              const cursorRow = anchorRows[0];
+              // The cursor names a row that is no longer visible; replaying page
+              // one would look like a scroll that never terminates.
+              if (cursorRow === undefined) {
+                return yield* Effect.fail(
+                  new ActionForbiddenError({
+                    message: "Pagination cursor no longer refers to a known item.",
+                  }),
+                );
+              }
+              // Row-value comparison: strictly "older than the cursor row", with
+              // the id breaking ties between rows sharing a timestamp.
+              return Option.some(
+                sql`(${pushNotificationSends.createdAt}, ${pushNotificationSends.id}) < (${cursorRow.createdAt}::timestamptz, ${cursorRow.id}::text)`,
               );
-            }
-            // Row-value comparison: strictly "older than the cursor row", with
-            // the id breaking ties between rows sharing a timestamp.
-            conditions.push(
-              sql`(${pushNotificationSends.createdAt}, ${pushNotificationSends.id}) < (${cursorRow.createdAt}::timestamptz, ${cursorRow.id}::text)`,
-            );
-          }
+            }),
+          });
+          const conditions = [
+            eq(pushNotificationSends.projectId, input.projectId),
+            ...Option.toArray(cursorCondition),
+          ];
 
           // One row beyond the page answers `hasNextPage` without a COUNT.
           const rows = yield* db
@@ -264,10 +278,9 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
           const hasNextPage = rows.length > limit;
           const pageRows = rows.slice(0, limit);
           const lastRow = pageRows[pageRows.length - 1];
-          let endCursorId: string | null = null;
-          if (hasNextPage && lastRow !== undefined) {
-            endCursorId = lastRow.id;
-          }
+          const endCursorId = hasNextPage
+            ? Option.fromNullishOr(lastRow).pipe(Option.map((row) => row.id))
+            : Option.none();
           return { endCursorId, hasNextPage, sends: pageRows.map(toSendItem) };
         },
         (effect) =>
@@ -288,11 +301,11 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
        */
       const getSendDeliveriesPage = Effect.fn("notifications.getSendDeliveriesPage")(
         function* (input: {
-          readonly after?: string | undefined;
-          readonly limit?: number | undefined;
+          readonly after: Option.Option<string>;
+          readonly limit: Option.Option<number>;
           readonly projectId: string;
           readonly sendId: string;
-          readonly status?: string | undefined;
+          readonly status: Option.Option<string>;
         }) {
           const session = yield* AuthSession;
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
@@ -319,49 +332,58 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
             );
           }
 
-          const limit = Math.min(input.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+          const limit = Math.min(
+            Option.getOrElse(input.limit, () => DEFAULT_PAGE_SIZE),
+            MAX_PAGE_SIZE,
+          );
+          const statusValue = Option.flatMap(input.status, deliveryStatusValueForLabel);
+          if (Option.isSome(input.status) && Option.isNone(statusValue)) {
+            return { deliveries: [], endCursorId: Option.none<string>(), hasNextPage: false };
+          }
+          const statusCondition = Option.map(statusValue, (value) =>
+            eq(pushNotificationDeliveries.status, value),
+          );
+          const cursorCondition = yield* Option.match(input.after, {
+            onNone: () => Effect.succeed(Option.none()),
+            onSome: Effect.fn("notifications.getSendDeliveriesPage.resolveCursor")(
+              function* (after) {
+                const anchorRows = yield* db
+                  .select({
+                    createdAt: pushNotificationDeliveries.createdAt,
+                    id: pushNotificationDeliveries.id,
+                  })
+                  .from(pushNotificationDeliveries)
+                  .where(
+                    and(
+                      eq(pushNotificationDeliveries.pushNotificationSendId, input.sendId),
+                      eq(pushNotificationDeliveries.projectId, input.projectId),
+                      eq(pushNotificationDeliveries.id, after),
+                    ),
+                  )
+                  .limit(1);
+                const cursorRow = anchorRows[0];
+                // The cursor names a row that is no longer visible; replaying page
+                // one would look like a scroll that never terminates.
+                if (cursorRow === undefined) {
+                  return yield* Effect.fail(
+                    new ActionForbiddenError({
+                      message: "Pagination cursor no longer refers to a known item.",
+                    }),
+                  );
+                }
+                // Ascending walk, so the page starts strictly after the cursor row.
+                return Option.some(
+                  sql`(${pushNotificationDeliveries.createdAt}, ${pushNotificationDeliveries.id}) > (${cursorRow.createdAt}::timestamptz, ${cursorRow.id}::text)`,
+                );
+              },
+            ),
+          });
           const conditions = [
             eq(pushNotificationDeliveries.pushNotificationSendId, input.sendId),
             eq(pushNotificationDeliveries.projectId, input.projectId),
+            ...Option.toArray(statusCondition),
+            ...Option.toArray(cursorCondition),
           ];
-          if (input.status !== undefined) {
-            const statusValue = deliveryStatusValueForLabel(input.status);
-            if (statusValue === undefined) {
-              return { deliveries: [], endCursorId: null, hasNextPage: false };
-            }
-            conditions.push(eq(pushNotificationDeliveries.status, statusValue));
-          }
-
-          if (input.after !== undefined) {
-            const anchorRows = yield* db
-              .select({
-                createdAt: pushNotificationDeliveries.createdAt,
-                id: pushNotificationDeliveries.id,
-              })
-              .from(pushNotificationDeliveries)
-              .where(
-                and(
-                  eq(pushNotificationDeliveries.pushNotificationSendId, input.sendId),
-                  eq(pushNotificationDeliveries.projectId, input.projectId),
-                  eq(pushNotificationDeliveries.id, input.after),
-                ),
-              )
-              .limit(1);
-            const cursorRow = anchorRows[0];
-            // The cursor names a row that is no longer visible; replaying page
-            // one would look like a scroll that never terminates.
-            if (cursorRow === undefined) {
-              return yield* Effect.fail(
-                new ActionForbiddenError({
-                  message: "Pagination cursor no longer refers to a known item.",
-                }),
-              );
-            }
-            // Ascending walk, so the page starts strictly after the cursor row.
-            conditions.push(
-              sql`(${pushNotificationDeliveries.createdAt}, ${pushNotificationDeliveries.id}) > (${cursorRow.createdAt}::timestamptz, ${cursorRow.id}::text)`,
-            );
-          }
 
           // One row beyond the page answers `hasNextPage` without a COUNT.
           const rows = yield* db
@@ -374,10 +396,9 @@ export class PushNotificationSendService extends Context.Service<PushNotificatio
           const hasNextPage = rows.length > limit;
           const pageRows = rows.slice(0, limit);
           const lastRow = pageRows[pageRows.length - 1];
-          let endCursorId: string | null = null;
-          if (hasNextPage && lastRow !== undefined) {
-            endCursorId = lastRow.id;
-          }
+          const endCursorId = hasNextPage
+            ? Option.fromNullishOr(lastRow).pipe(Option.map((row) => row.id))
+            : Option.none();
           return { deliveries: pageRows.map(toDeliveryItem), endCursorId, hasNextPage };
         },
         (effect) =>

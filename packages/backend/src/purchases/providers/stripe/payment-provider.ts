@@ -41,7 +41,12 @@ import {
   PersonOrigin,
 } from "@voidhash/db";
 import { ProductType } from "@voidhash/lib/constants";
-import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { HttpClient } from "effect/unstable/http/HttpClient";
 
 import { constant } from "@voidhash/lib/lang";
@@ -55,7 +60,7 @@ import {
 import { PersonIdentityService } from "@voidhash/core/services/personIdentity/PersonIdentityService";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
 import { generateId } from "@voidhash/core/utils";
-import { globalConfigurationSchema } from "./config-provider.ts";
+import { globalConfiguration as globalConfigurationSchema } from "./config-provider.ts";
 import {
   StripePaymentProviderProductNotMappedError,
   StripePaymentProviderTransactionNotFoundError,
@@ -89,6 +94,9 @@ import {
 import { buildStripeMoney } from "./money.ts";
 import { StripePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import { buildStripeContext, type StripeContext, type StripeMode } from "./sdk-context.ts";
+import * as P from "effect/Predicate";
+import * as Str from "effect/String";
+import { recoverAll } from "../../../runtime-boundary.ts";
 
 /** Re-export so importers of the Stripe config schema can reach it from the engine module. */
 export { globalConfigurationSchema };
@@ -110,8 +118,8 @@ export interface StripeRecordInput {
   readonly source: "webhook" | "reconciliation";
 }
 
-const fromUnixSeconds = (seconds: number | null | undefined, fallback: Date): Date => {
-  if (typeof seconds === "number") return dateFromUnixSeconds(seconds);
+const fromUnixSeconds = (seconds: number | typeof Schema.Null.Type | typeof Schema.Undefined.Type, fallback: Date): Date => {
+  if (P.isNumber(seconds)) return dateFromUnixSeconds(seconds);
   return fallback;
 };
 
@@ -120,7 +128,7 @@ const invoiceEventType = (isCreate: boolean): StripePurchaseProcessingEventType 
   return "renewal";
 };
 
-const purchaseTypeForProduct = (productType: number | undefined): "consumable" | "one-time" => {
+const purchaseTypeForProduct = (productType: number | typeof Schema.Undefined.Type): "consumable" | "one-time" => {
   if (productType === ProductType.OneTimeConsumable) return "consumable";
   return "one-time";
 };
@@ -128,8 +136,8 @@ const purchaseTypeForProduct = (productType: number | undefined): "consumable" |
 const dateFromUnixSeconds = (seconds: number): Date =>
   DateTime.toDateUtc(DateTime.makeUnsafe(seconds * 1000));
 
-const optionalDateFromUnixSeconds = (seconds: number | null | undefined): Date | undefined => {
-  if (typeof seconds === "number") return dateFromUnixSeconds(seconds);
+const optionalDateFromUnixSeconds = (seconds: number | typeof Schema.Null.Type | typeof Schema.Undefined.Type): Date | typeof Schema.Undefined.Type => {
+  if (P.isNumber(seconds)) return dateFromUnixSeconds(seconds);
   return undefined;
 };
 
@@ -156,7 +164,7 @@ const makeIgnored = (): PurchaseProcessingResult =>
     transactionId: Option.none(),
   });
 
-const make = Effect.gen(function* () {
+const make = Effect.fn("make")(function* () {
   const queries = yield* StripePaymentProviderServiceQueries;
   const personIdentityService = yield* PersonIdentityService;
   const purchaseProcessingService = yield* PurchaseProcessor;
@@ -188,7 +196,7 @@ const make = Effect.gen(function* () {
       secretCrypto.decrypt(parsed.live.webhookSecret),
       secretCrypto.decrypt(parsed.test.secretKey),
       secretCrypto.decrypt(parsed.test.webhookSecret),
-    ]);
+    ], { concurrency: 1 });
     return buildStripeContext({
       httpClient,
       liveSecretKey,
@@ -232,8 +240,8 @@ const make = Effect.gen(function* () {
    */
   const _resolveStripePerson = Effect.fn("_resolveStripePerson")(function* (input: {
     readonly projectId: string;
-    readonly distinctId: string | undefined;
-    readonly customerId: string | undefined;
+    readonly distinctId: string | typeof Schema.Undefined.Type;
+    readonly customerId: string | typeof Schema.Undefined.Type;
     readonly providerEnvironment: ProviderEnvironmentValue;
     readonly occurredAt: Date;
   }) {
@@ -359,25 +367,25 @@ const make = Effect.gen(function* () {
     readonly currency: string;
     readonly taxMinor: number;
     readonly occurredAt: Date;
-    readonly chargeId: string | undefined;
-    readonly paymentIntentId: string | undefined;
+    readonly chargeId: string | typeof Schema.Undefined.Type;
+    readonly paymentIntentId: string | typeof Schema.Undefined.Type;
     readonly stripeContext: StripeContext;
     readonly mode: StripeMode;
   }) =>
-    Effect.gen(function* () {
+    Effect.fn("_buildMoneyWithFee")(function* () {
       const chargeId =
         input.chargeId ??
-        (yield* Effect.gen(function* () {
+        (yield* Effect.fn("chargeId")(function* () {
           if (!input.paymentIntentId) return undefined;
           return yield* input.stripeContext.fetchPaymentIntentLatestChargeId({
             mode: input.mode,
             paymentIntentId: input.paymentIntentId,
           });
-        }));
-      const feeMinor = yield* Effect.gen(function* () {
+        })());
+      const feeMinor = yield* Effect.fn("feeMinor")(function* () {
         if (!chargeId) return undefined;
         return yield* input.stripeContext.fetchChargeFeeMinor({ chargeId, mode: input.mode });
-      });
+      })();
       return yield* buildStripeMoney({
         currency: input.currency,
         feeMinor,
@@ -386,7 +394,7 @@ const make = Effect.gen(function* () {
         occurredAt: input.occurredAt,
         taxMinor: input.taxMinor,
       });
-    });
+    })();
 
   // ==================== Record methods ====================
 
@@ -526,17 +534,17 @@ const make = Effect.gen(function* () {
   ) {
     const subscription = yield* decodeStripeObject(StripeSubscription)(input.event.data.object);
     const previousAttributes = input.event.data.previous_attributes;
-    const previous: typeof StripeSubscriptionPreviousAttributes.Type = yield* Effect.gen(
+    const previous: typeof StripeSubscriptionPreviousAttributes.Type = yield* Effect.fn("previous")(
       function* () {
         if (!previousAttributes) return {};
         return yield* decodeStripeObject(StripeSubscriptionPreviousAttributes)(
           previousAttributes,
         ).pipe(
-          Effect.catch(() => Effect.succeed<typeof StripeSubscriptionPreviousAttributes.Type>({})),
+          recoverAll((): typeof StripeSubscriptionPreviousAttributes.Type => ({})),
         );
       },
-    );
-    const cancelChanged = typeof previous.cancel_at_period_end === "boolean";
+    )();
+    const cancelChanged = P.isBoolean(previous.cancel_at_period_end);
     const itemsChanged = previous.items !== undefined || previous.plan !== undefined;
     if (!cancelChanged && !itemsChanged) {
       return makeIgnored();
@@ -750,10 +758,10 @@ const make = Effect.gen(function* () {
    * no transaction matches — nothing to refund.
    */
   const _resolveRefundTarget = Effect.fn("_resolveRefundTarget")(function* (input: {
-    readonly candidateKeys: ReadonlyArray<string | null | undefined>;
+    readonly candidateKeys: ReadonlyArray<string | typeof Schema.Null.Type | typeof Schema.Undefined.Type>;
   }) {
     const candidateKeys = input.candidateKeys.filter(
-      (key): key is string => typeof key === "string" && key.length > 0,
+      (key): key is string => P.isString(key) && Str.isNonEmpty(key),
     );
     return yield* queries.findTransactionByAnyStoreTransactionId({
       storeTransactionIds: candidateKeys,
@@ -762,12 +770,12 @@ const make = Effect.gen(function* () {
 
   const refundNotFound = (
     eventId: string,
-    candidateKeys: ReadonlyArray<string | null | undefined>,
+    candidateKeys: ReadonlyArray<string | typeof Schema.Null.Type | typeof Schema.Undefined.Type>,
   ) =>
     Effect.fail(
       new StripePaymentProviderTransactionNotFoundError({
         candidateKeys: candidateKeys.filter(
-          (key): key is string => typeof key === "string" && key.length > 0,
+          (key): key is string => P.isString(key) && Str.isNonEmpty(key),
         ),
         eventId,
       }),
@@ -1003,7 +1011,7 @@ const make = Effect.gen(function* () {
     recordSubscriptionDeleted,
     recordSubscriptionUpdated,
   });
-});
+})();
 
 export type { StripeContext };
 

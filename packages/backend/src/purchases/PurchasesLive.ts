@@ -1,5 +1,5 @@
 import { FxRates, PurchaseLedgerWorker, PurchaseProcessor, PurchaseQuery } from "@voidhash/core-v2";
-import { Layer } from "effect";
+import * as Layer from "effect/Layer";
 import { DbPurchaseStateStoreLive } from "./adapters/DbPurchaseStateStore.ts";
 import { DbPurchaseLedgerStoreLive } from "./adapters/DbPurchaseLedgerStoreLive.ts";
 import { PurchaseQueryPortsLive } from "./adapters/DbPurchaseQueryStoreLive.ts";

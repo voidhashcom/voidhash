@@ -1,5 +1,12 @@
+import * as Arr from "effect/Array";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as HashSet from "effect/HashSet";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import { NotificationConfigNotEnabledError } from "../../domain/notifications/PushNotificationConfiguration.ts";
 import {
@@ -98,8 +105,8 @@ export class NotificationSendingService extends Context.Service<NotificationSend
           const configs = yield* db.query.pushNotificationConfigs.findMany({
             where: { projectId: input.projectId, enabled: true, deletedAt: { isNull: true } },
           });
-          const enabledProviders = new Set(configs.map((config) => config.providerId));
-          if (enabledProviders.size === 0) {
+          const enabledProviders = HashSet.fromIterable(configs.map((config) => config.providerId));
+          if (HashSet.size(enabledProviders) === 0) {
             return yield* Effect.fail(
               new NotificationConfigNotEnabledError({
                 message: "no enabled push notification configuration for this project",
@@ -109,25 +116,32 @@ export class NotificationSendingService extends Context.Service<NotificationSend
 
           // 3. Resolve distinct ids to canonical persons (never creating one).
           const distinctIds = input.distinctIds ?? [];
-          const resolvedPersonIds: Array<string> = [];
-          const unresolvedDistinctIds: Array<string> = [];
-          for (const distinctId of distinctIds) {
-            const resolution = yield* personIdentity.resolveDistinctId({
-              projectId: input.projectId,
-              distinctId,
-              shouldCreatePerson: false,
-              eventTimestamp: yield* DateTime.nowAsDate,
-              setAttributes: {},
-              setOnceAttributes: {},
-            });
-            if (resolution.identity.personId) {
-              resolvedPersonIds.push(resolution.identity.personId);
-            } else {
-              unresolvedDistinctIds.push(distinctId);
-            }
-          }
+          const resolutions = yield* Effect.forEach(
+            distinctIds,
+            Effect.fn("NotificationSendingService.resolveDistinctId")(function* (distinctId) {
+              const resolution = yield* personIdentity.resolveDistinctId({
+                projectId: input.projectId,
+                distinctId,
+                shouldCreatePerson: false,
+                eventTimestamp: yield* DateTime.nowAsDate,
+                setAttributes: {},
+                setOnceAttributes: {},
+              });
+              return {
+                distinctId,
+                personId: Option.fromNullishOr(resolution.identity.personId),
+              };
+            }),
+            { concurrency: 1 },
+          );
+          const resolvedPersonIds = resolutions.flatMap((resolution) =>
+            Option.toArray(resolution.personId),
+          );
+          const unresolvedDistinctIds = resolutions
+            .filter((resolution) => Option.isNone(resolution.personId))
+            .map((resolution) => resolution.distinctId);
           const canonicalPersonIds = [
-            ...new Set([...(input.personIds ?? []), ...resolvedPersonIds]),
+            ...HashSet.fromIterable([...(input.personIds ?? []), ...resolvedPersonIds]),
           ];
 
           // 4. Load their active devices; keep only those routed to an enabled
@@ -140,15 +154,24 @@ export class NotificationSendingService extends Context.Service<NotificationSend
             input.projectId,
             canonicalPersonIds,
           );
-          const enabledDevices = devices.filter((device) => enabledProviders.has(device.provider));
-          const seenDeviceIds = new Set<string>();
-          const deliverable = enabledDevices.filter((device) => {
-            if (seenDeviceIds.has(device.pushDeviceTokenId)) {
-              return false;
-            }
-            seenDeviceIds.add(device.pushDeviceTokenId);
-            return true;
-          });
+          const enabledDevices = devices.filter((device) =>
+            HashSet.has(enabledProviders, device.provider),
+          );
+          const emptyDeliveryState: {
+            readonly devices: ReadonlyArray<(typeof enabledDevices)[number]>;
+            readonly seen: HashSet.HashSet<string>;
+          } = { devices: [], seen: HashSet.empty() };
+          const deliverable = Arr.reduce(
+            enabledDevices,
+            emptyDeliveryState,
+            (state, device) =>
+              HashSet.has(state.seen, device.pushDeviceTokenId)
+                ? state
+                : {
+                    devices: [...state.devices, device],
+                    seen: HashSet.add(state.seen, device.pushDeviceTokenId),
+                  },
+          ).devices;
           const skippedCount = devices.length - deliverable.length;
           const deliveries = deliverable.map((device) => ({
             deliveryId: generateId("pushNotificationDelivery"),
@@ -162,7 +185,7 @@ export class NotificationSendingService extends Context.Service<NotificationSend
           const status = initialSendStatus(deliverable.length);
           const now = yield* DateTime.nowAsDate;
           const completion: { completedAt?: Date } = {};
-          if (deliverable.length === 0) {
+          if (Arr.isReadonlyArrayEmpty(deliverable)) {
             completion.completedAt = now;
           }
 
@@ -171,9 +194,9 @@ export class NotificationSendingService extends Context.Service<NotificationSend
           // back to the winner's row as an idempotent replay instead of surfacing
           // a 500. A re-read that finds no such row means the failure was genuine,
           // so re-raise it.
-          const idempotentReplay: SendNotificationResult | null = yield* db
+          const idempotentReplay: Option.Option<SendNotificationResult> = yield* db
             .transaction((tx) =>
-              Effect.gen(function* () {
+              Effect.fn("NotificationSendingService.persistSend")(function* () {
                 yield* tx.insert(pushNotificationSends).values({
                   id: sendId,
                   projectId: input.projectId,
@@ -189,52 +212,53 @@ export class NotificationSendingService extends Context.Service<NotificationSend
                   skippedCount,
                   ...completion,
                 });
-                for (const delivery of deliveries) {
-                  yield* tx.insert(pushNotificationDeliveries).values({
-                    id: delivery.deliveryId,
-                    pushNotificationSendId: sendId,
-                    projectId: input.projectId,
-                    personId: delivery.device.personId,
-                    pushDeviceTokenId: delivery.device.pushDeviceTokenId,
-                    provider: delivery.device.provider,
-                    status: PushNotificationDeliveryStatus.Pending,
-                    attemptCount: 0,
-                    maxAttempts: 5,
-                  });
-                }
-              }),
+                yield* Effect.forEach(
+                  deliveries,
+                  (delivery) =>
+                    tx.insert(pushNotificationDeliveries).values({
+                      id: delivery.deliveryId,
+                      pushNotificationSendId: sendId,
+                      projectId: input.projectId,
+                      personId: delivery.device.personId,
+                      pushDeviceTokenId: delivery.device.pushDeviceTokenId,
+                      provider: delivery.device.provider,
+                      status: PushNotificationDeliveryStatus.Pending,
+                      attemptCount: 0,
+                      maxAttempts: 5,
+                    }),
+                  { concurrency: 1, discard: true },
+                );
+              })(),
             )
             .pipe(
-              Effect.as<SendNotificationResult | null>(null),
-              Effect.catch((error) => {
+              Effect.as<Option.Option<SendNotificationResult>>(Option.none()),
+              Effect.catch(Effect.fn("NotificationSendingService.recoverIdempotentSend")(function* (error) {
                 const idempotencyKey = input.idempotencyKey;
                 if (idempotencyKey === undefined) {
-                  return Effect.fail(error);
+                  return yield* Effect.fail(error);
                 }
-                return Effect.gen(function* () {
-                  const existing = yield* db.query.pushNotificationSends.findFirst({
-                    where: { projectId: input.projectId, idempotencyKey },
-                  });
-                  if (!existing) {
-                    return yield* Effect.fail(error);
-                  }
-                  return {
+                const existing = yield* db.query.pushNotificationSends.findFirst({
+                  where: { projectId: input.projectId, idempotencyKey },
+                });
+                if (!existing) {
+                  return yield* Effect.fail(error);
+                }
+                return Option.some({
                     pushNotificationSendId: existing.id,
                     deviceCount: existing.deviceCount,
                     status: existing.status,
                     unresolvedDistinctIds: existing.unresolvedDistinctIds,
-                  } satisfies SendNotificationResult;
-                });
-              }),
+                  } satisfies SendNotificationResult);
+              })),
             );
-          if (idempotentReplay) {
+          if (Option.isSome(idempotentReplay)) {
             yield* Effect.annotateCurrentSpan("voidhash.push.idempotent_replay", true);
-            return idempotentReplay;
+            return idempotentReplay.value;
           }
 
           // 6. Enqueue (outside the DB transaction). A dispatch failure surfaces
           //    to the caller — the rows exist and a retry/backfill could re-enqueue.
-          if (deliveries.length > 0) {
+          if (Arr.isReadonlyArrayNonEmpty(deliveries)) {
             yield* dispatch
               .dispatch(
                 deliveries.map((delivery) => ({

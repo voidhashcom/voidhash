@@ -17,10 +17,13 @@ import {
 } from "@voidhash/api-contracts/event-capture";
 import { AnalyticsCapture } from "@voidhash/core-v2";
 import { generateId } from "@voidhash/core/utils/generate-id";
-import { DateTime, Effect } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
 import * as HttpEffect from "effect/unstable/http/HttpEffect";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
 
 /**
  * Extract the originating client IP from the request headers. Cloudflare
@@ -28,8 +31,8 @@ import * as HttpApiBuilder from "effect/unstable/httpapi/HttpApiBuilder";
  * matters for local `wrangler dev` requests.
  */
 const extractClientIp = (
-  headers: Readonly<Record<string, string | undefined>>,
-): string | undefined => {
+  headers: Readonly<Record<string, string | typeof Schema.Undefined.Type>>,
+): string | typeof Schema.Undefined.Type => {
   const cfIp = headers["cf-connecting-ip"]?.trim();
   if (cfIp) return cfIp;
 
@@ -55,8 +58,8 @@ const extractClientIp = (
  * response stays uniform.
  */
 const resolveCaptureToken = (
-  payloadToken: string | undefined,
-  headers: Readonly<Record<string, string | undefined>>,
+  payloadToken: string | typeof Schema.Undefined.Type,
+  headers: Readonly<Record<string, string | typeof Schema.Undefined.Type>>,
 ): Effect.Effect<string, CaptureUnauthorizedError> => {
   const bodyToken = payloadToken?.trim();
   if (bodyToken && /^vh_sk_\w+$/.test(bodyToken)) {
@@ -92,7 +95,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
       const captureService = yield* AnalyticsCapture;
       return handlers
         .handle("capture", ({ request, payload }) =>
-          Effect.gen(function* () {
+          Effect.fn("EventCaptureGroupLive")(function* () {
             const requestId = generateId("request");
             yield* appendRequestIdHeader(requestId);
             const receivedAt = yield* DateTime.nowAsDate;
@@ -113,8 +116,8 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
               })
               .pipe(
                 Effect.catchTag("CaptureRateLimitedError", (error) =>
-                  Effect.gen(function* () {
-                    if (typeof error.retry_after_ms === "number") {
+                  Effect.fn("result")(function* () {
+                    if (P.isNumber(error.retry_after_ms)) {
                       yield* appendRetryAfterHeader(error.retry_after_ms);
                     }
                     return yield* Effect.fail(
@@ -123,7 +126,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                         error: error.error,
                       }),
                     );
-                  }),
+                  })(),
                 ),
                 Effect.catchTag("AnalyticsCaptureError", () =>
                   Effect.fail(
@@ -147,10 +150,10 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
               accepted: result.accepted,
               rejected: result.rejected,
             });
-          }),
+          })(),
         )
         .handle("batch", ({ request, payload }) =>
-          Effect.gen(function* () {
+          Effect.fn("EventCaptureGroupLive")(function* () {
             const requestId = generateId("request");
             yield* appendRequestIdHeader(requestId);
             const receivedAt = yield* DateTime.nowAsDate;
@@ -171,8 +174,8 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
               })
               .pipe(
                 Effect.catchTag("CaptureRateLimitedError", (error) =>
-                  Effect.gen(function* () {
-                    if (typeof error.retry_after_ms === "number") {
+                  Effect.fn("result")(function* () {
+                    if (P.isNumber(error.retry_after_ms)) {
                       yield* appendRetryAfterHeader(error.retry_after_ms);
                     }
                     return yield* Effect.fail(
@@ -181,7 +184,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
                         error: error.error,
                       }),
                     );
-                  }),
+                  })(),
                 ),
                 Effect.catchTag("AnalyticsCaptureError", () =>
                   Effect.fail(
@@ -205,7 +208,7 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
               accepted: result.accepted,
               rejected: result.rejected,
             });
-          }),
+          })(),
         );
     }),
 );

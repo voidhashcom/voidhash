@@ -10,7 +10,9 @@ import {
   RpcPaymentProviderConfigurationValidationError,
 } from "@voidhash/rpc";
 import { constant } from "@voidhash/lib/lang";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as P from "effect/Predicate";
+import * as Match from "effect/Match";
 
 /** Structural view of the service errors these RPCs re-map onto wire errors. */
 interface TaggedErrorLike {
@@ -20,7 +22,7 @@ interface TaggedErrorLike {
 }
 
 const isTaggedErrorLike = (error: unknown): error is TaggedErrorLike =>
-  typeof error === "object" && error !== null;
+  P.isObject(error) && error !== null;
 
 const taggedErrorFields = (error: unknown): TaggedErrorLike => {
   if (isTaggedErrorLike(error)) return error;
@@ -32,26 +34,39 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
     const paymentProviderConfigurationService = yield* PaymentProviderConfigurationService;
     const mapUpdateError = (error: unknown) => {
       const tagged = taggedErrorFields(error);
-      switch (tagged._tag) {
-        case "PurchaseActionForbiddenError":
-          return new RpcActionForbiddenError({ message: tagged.message ?? "" });
-        case "PaymentProviderConfigurationKeyUnavailableError":
-          return new RpcPaymentProviderConfigurationKeyUnavailableError({
-            message: tagged.message ?? "",
-          });
-        case "PaymentProviderConfigurationNotFoundError":
-          return new RpcPaymentProviderConfigurationNotFoundError({
-            message: tagged.message ?? "",
-          });
-        case "PaymentProviderConfigurationValidationError":
-          return new RpcPaymentProviderConfigurationValidationError({
-            cause: String(tagged.cause ?? error),
-          });
-        default:
-          return new RpcPaymentProviderConfigurationServiceError({
-            cause: String(tagged.cause ?? error),
-          });
-      }
+      return Match.value(tagged).pipe(
+        Match.when(
+          { _tag: "PurchaseActionForbiddenError" },
+          () => new RpcActionForbiddenError({ message: tagged.message ?? "" }),
+        ),
+        Match.when(
+          { _tag: "PaymentProviderConfigurationKeyUnavailableError" },
+          () =>
+            new RpcPaymentProviderConfigurationKeyUnavailableError({
+              message: tagged.message ?? "",
+            }),
+        ),
+        Match.when(
+          { _tag: "PaymentProviderConfigurationNotFoundError" },
+          () =>
+            new RpcPaymentProviderConfigurationNotFoundError({
+              message: tagged.message ?? "",
+            }),
+        ),
+        Match.when(
+          { _tag: "PaymentProviderConfigurationValidationError" },
+          () =>
+            new RpcPaymentProviderConfigurationValidationError({
+              cause: String(tagged.cause ?? error),
+            }),
+        ),
+        Match.orElse(
+          () =>
+            new RpcPaymentProviderConfigurationServiceError({
+              cause: String(tagged.cause ?? error),
+            }),
+        ),
+      );
     };
     return {
       CreatePaymentProviderConfiguration: (input) =>
@@ -108,11 +123,13 @@ export const PaymentProviderConfigurationRpcsLive = PaymentProviderConfiguration
               Effect.fail(new RpcPaymentProviderConfigurationServiceError({ cause: error.cause })),
           }),
         ),
-      UpdatePaymentProviderConfiguration: (input) =>
-        paymentProviderConfigurationService.updatePaymentProviderConfiguration(input).pipe(
-          Effect.map((result) => constant({ id: result.id })),
-          Effect.mapError(mapUpdateError),
-        ),
+      UpdatePaymentProviderConfiguration: ({ isEnabled, ...input }) =>
+        paymentProviderConfigurationService
+          .updatePaymentProviderConfiguration({ ...input, enabled: isEnabled })
+          .pipe(
+            Effect.map((result) => constant({ id: result.id })),
+            Effect.mapError(mapUpdateError),
+          ),
     };
   }),
 );

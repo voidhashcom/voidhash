@@ -1,3 +1,5 @@
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
 import { CatalogSqlSchema, catalog } from "./catalog/brand.ts";
 
 export type ParamValue = string | number | boolean | readonly string[];
@@ -16,22 +18,22 @@ export const par = (chType: string, value: ParamValue): SqlPiece => ({
   value,
 });
 
+const emptyRenderedSql: { readonly sql: string; readonly binds: readonly ParamValue[] } = {
+  sql: "",
+  binds: [],
+};
+
 /** Render verified IR to ClickHouse SQL and its ordered bind list. */
 export const renderDebugSql = (
   pieces: readonly SqlPiece[],
-): { readonly sql: string; readonly binds: readonly ParamValue[] } => {
-  let sql = "";
-  const binds: ParamValue[] = [];
-  for (const piece of pieces) {
+): { readonly sql: string; readonly binds: readonly ParamValue[] } =>
+  Arr.reduce(pieces, emptyRenderedSql, (rendered, piece) => {
     if (piece.kind === "sql") {
-      sql += piece.text;
-      continue;
+      return { ...rendered, sql: rendered.sql + piece.text };
     }
-    binds.push(piece.value);
-    sql += `{p${binds.length}: ${piece.chType}}`;
-  }
-  return { sql, binds };
-};
+    const binds = [...rendered.binds, piece.value];
+    return { sql: `${rendered.sql}{p${binds.length}: ${piece.chType}}`, binds };
+  });
 
 export interface VoidQlStatement {
   readonly sql: string;
@@ -43,6 +45,6 @@ export const toStatement = (pieces: readonly SqlPiece[]): VoidQlStatement => {
   const rendered = renderDebugSql(pieces);
   return {
     sql: rendered.sql,
-    params: Object.fromEntries(rendered.binds.map((value, index) => [`p${index + 1}`, value])),
+    params: R.fromEntries(rendered.binds.map((value, index) => [`p${index + 1}`, value])),
   };
 };

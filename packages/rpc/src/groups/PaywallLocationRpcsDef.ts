@@ -1,5 +1,5 @@
 import { Rpc, RpcGroup } from "effect/unstable/rpc";
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
@@ -15,12 +15,14 @@ export const RpcPaywallLocationShowingType = Schema.Union([
   Schema.Literal("paywall_release"),
   Schema.Literal("feature_flag"),
 ]);
+export type RpcPaywallLocationShowingType = typeof RpcPaywallLocationShowingType.Type;
 
 export const RpcPaywallLocationShowingPaywall = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   slug: Schema.String,
 });
+export type RpcPaywallLocationShowingPaywall = typeof RpcPaywallLocationShowingPaywall.Type;
 
 export const RpcPaywallLocationShowingPaywallRelease = Schema.Struct({
   htmlUrl: Schema.String,
@@ -28,6 +30,8 @@ export const RpcPaywallLocationShowingPaywallRelease = Schema.Struct({
   releaseId: Schema.String,
   version: Schema.Number,
 });
+export type RpcPaywallLocationShowingPaywallRelease =
+  typeof RpcPaywallLocationShowingPaywallRelease.Type;
 
 export const RpcPaywallLocationShowing = Schema.Struct({
   createdAt: Schema.NullOr(Schema.Date),
@@ -45,6 +49,7 @@ export const RpcPaywallLocationShowing = Schema.Struct({
   type: RpcPaywallLocationShowingType,
   updatedAt: Schema.NullOr(Schema.Date),
 });
+export type RpcPaywallLocationShowing = typeof RpcPaywallLocationShowing.Type;
 
 export const RpcPaywallLocation = Schema.Struct({
   activeShowing: Schema.NullOr(RpcPaywallLocationShowing),
@@ -57,6 +62,7 @@ export const RpcPaywallLocation = Schema.Struct({
   slug: Schema.String,
   updatedAt: Schema.NullOr(Schema.Date),
 });
+export type RpcPaywallLocation = typeof RpcPaywallLocation.Type;
 
 const commonError = Schema.Union([RpcActionForbiddenError, RpcPaywallLocationServiceError]);
 

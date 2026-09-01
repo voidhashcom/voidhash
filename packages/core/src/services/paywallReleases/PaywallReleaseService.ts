@@ -12,7 +12,14 @@ import {
   paywallReleases,
 } from "@voidhash/db";
 import { constant } from "@voidhash/lib/lang";
-import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as R from "effect/Record";
+import * as Schema from "effect/Schema";
 
 import { AuditLogPort } from "../auditLog/AuditLogPort.ts";
 import {
@@ -121,21 +128,25 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
         return { paywall, session };
       });
 
-      const loadComponentTrees = (snapshot: unknown) =>
-        Effect.gen(function* () {
-          const trees: Record<string, Record<string, unknown>> = {};
-          for (const contentHash of collectDeployedComponentContentHashes(snapshot)) {
+      const loadComponentTrees = Effect.fn("PaywallReleaseService.loadComponentTrees")(function* (
+        snapshot: unknown,
+      ) {
+        const entries = yield* Effect.forEach(
+          collectDeployedComponentContentHashes(snapshot),
+          Effect.fn("PaywallReleaseService.loadComponentTree")(function* (contentHash) {
             const object = yield* store.getObject(
               componentServingPreviewKey(contentHash, PREVIEW_STATE),
             );
-            if (object === null) continue;
-            const decoded = Option.getOrNull(decodeJson(new TextDecoder().decode(object.body)));
-            if (decoded !== null) {
-              trees[contentHash] = { [PREVIEW_STATE]: decoded };
-            }
-          }
-          return trees;
-        });
+            return Option.flatMap(object, (value) =>
+              Option.map(decodeJson(new TextDecoder().decode(value.body)), (decoded) =>
+                constant([contentHash, { [PREVIEW_STATE]: decoded }] as const),
+              ),
+            );
+          }),
+          { concurrency: 1 },
+        );
+        return R.fromEntries(Arr.flatMap(entries, Option.toArray));
+      });
 
       const createRelease = Effect.fn("createPaywallRelease")(
         function* (paywallId: string) {
@@ -176,7 +187,7 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
           const s3Key = paywallServingHtmlKey(contentHash);
           yield* store.putObject({
             body,
-            contentType: "text/html; charset=utf-8",
+            contentType: Option.some("text/html; charset=utf-8"),
             key: s3Key,
           });
 
@@ -279,8 +290,8 @@ export class PaywallReleaseService extends Context.Service<PaywallReleaseService
           });
           const releaseId = existing?.id ?? generateId("paywallRelease");
 
-          yield* db.transaction((tx) =>
-            Effect.gen(function* () {
+          yield* db.transaction(
+            Effect.fn("PaywallReleaseService.publishReleaseTransaction")(function* (tx) {
               yield* tx
                 .update(paywallReleases)
                 .set({ isActive: false })

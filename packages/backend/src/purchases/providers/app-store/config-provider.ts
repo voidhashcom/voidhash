@@ -14,11 +14,14 @@
  * same methods — so there is a single source of truth for what a valid stored
  * configuration looks like and where the secret key is encrypted.
  *
- * This module owns the configuration schema (`globalConfigurationSchema` /
- * `productConfigurationSchema`); the engine imports them from here. Keeping the
+ * This module owns the configuration schema (`globalConfiguration` /
+ * `productConfiguration`); the engine imports them from here. Keeping the
  * dependency one-directional (engine → config-provider) avoids an import cycle.
  */
-import { Effect, Layer, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Inspectable from "effect/Inspectable";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import {
   AppStorePaymentProvider,
@@ -27,20 +30,22 @@ import {
   SubscriptionTransferMode,
 } from "@voidhash/core-v2";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
+import * as P from "effect/Predicate";
 
 /**
  * Reads a key off an as-yet-unvalidated configuration bag, rendering it the way
  * the previous `${bag.key ?? ""}` interpolation did (absent/null ⇒ empty).
  */
 const configurationField = (configuration: unknown, key: string): string => {
-  if (typeof configuration !== "object" || configuration === null) return "";
+  if (!P.isObject(configuration) || configuration === null) return "";
   if (!(key in configuration)) return "";
-  return String(Reflect.get(configuration, key) ?? "");
+  const value = Reflect.get(configuration, key);
+  return value === null || value === undefined ? "" : Inspectable.toStringUnknown(value, undefined);
 };
 
 const APP_APPLE_ID_PATTERN = /^[1-9]\d{0,14}$/;
 
-export const globalConfigurationSchema = Schema.Struct({
+export const globalConfiguration = Schema.Struct({
   appAppleId: Schema.String.check(Schema.isPattern(APP_APPLE_ID_PATTERN)),
   bundleId: Schema.String.check(Schema.isMinLength(1)),
   inAppPurchaseKeyIssuerId: Schema.String.check(Schema.isMinLength(1)),
@@ -51,11 +56,11 @@ export const globalConfigurationSchema = Schema.Struct({
   appStoreConnectApiVendorNumber: Schema.String.check(Schema.isMinLength(1)),
   appleServerNotificationForwardingUrl: Schema.String,
   appleSmallBusinessProgramStartDate: Schema.optional(Schema.String),
-  appleSmallBusinessProgramHasEndDate: Schema.Boolean,
+  hasAppleSmallBusinessProgramEndDate: Schema.Boolean,
   appleSmallBusinessProgramEndDate: Schema.optional(Schema.String),
   storeKitSubscriptionOfferKey: Schema.optional(Schema.String),
   storeKitTestingFrameworkCertificate: Schema.optional(Schema.String),
-  trackNewPurchasesFromAppleServerNotifications: Schema.Boolean,
+  shouldTrackNewPurchasesFromAppleServerNotifications: Schema.Boolean,
   /**
    * Policy applied when an App Store transaction is restored under a
    * different identified person than the one currently bound to its
@@ -73,14 +78,26 @@ export const globalConfigurationSchema = Schema.Struct({
    * that need history Apple holds from before the SDK boundary.
    */
   enableFirstSeenReconciliation: Schema.optional(Schema.Boolean),
-});
+}).pipe(
+  Schema.encodeKeys({
+    hasAppleSmallBusinessProgramEndDate: "appleSmallBusinessProgramHasEndDate",
+    shouldTrackNewPurchasesFromAppleServerNotifications:
+      "trackNewPurchasesFromAppleServerNotifications",
+  }),
+);
 
-export const productConfigurationSchema = Schema.Struct({
+export const productConfiguration = Schema.Struct({
   productId: Schema.String,
 });
 
-export type AppStoreGlobalConfiguration = Schema.Schema.Type<typeof globalConfigurationSchema>;
-export type AppStoreProductConfiguration = Schema.Schema.Type<typeof productConfigurationSchema>;
+export type globalConfiguration = typeof globalConfiguration.Type;
+export type productConfiguration = typeof productConfiguration.Type;
+
+export type AppStoreGlobalConfiguration = Schema.Schema.Type<typeof globalConfiguration>;
+export type AppStoreStoredGlobalConfiguration = Schema.Codec.Encoded<typeof globalConfiguration>;
+export type AppStoreProductConfiguration = Schema.Schema.Type<typeof productConfiguration>;
+
+const encodeGlobalConfiguration = Schema.encodeSync(globalConfiguration);
 
 /**
  * Config-write surface of the App Store provider. Structurally a typed
@@ -93,13 +110,13 @@ export interface AppStoreConfigProvider {
   readonly id: "apple-app-store";
   readonly title: string;
   readonly type: "native";
-  readonly defaultGlobalConfiguration: () => Effect.Effect<AppStoreGlobalConfiguration>;
+  readonly defaultGlobalConfiguration: () => Effect.Effect<AppStoreStoredGlobalConfiguration>;
   readonly defaultProductConfiguration: () => Effect.Effect<AppStoreProductConfiguration>;
   readonly createGlobalKey: (configuration: Record<string, unknown>) => Effect.Effect<string>;
   readonly createProductKey: (configuration: Record<string, unknown>) => Effect.Effect<string>;
   readonly validateGlobalConfiguration: (configuration: Record<string, unknown>) => Effect.Effect<
     {
-      readonly parsedConfiguration: AppStoreGlobalConfiguration;
+      readonly parsedConfiguration: AppStoreStoredGlobalConfiguration;
       readonly paymentProviderKey: string;
     },
     PaymentProviderConfigurationValidationError
@@ -150,7 +167,7 @@ export const makeAppStoreConfigProvider = (
   createProductKey: (configuration) =>
     Effect.succeed(configurationField(configuration, "productId")),
   validateGlobalConfiguration: (configuration) =>
-    Schema.decodeUnknownEffect(globalConfigurationSchema)(configuration).pipe(
+    Schema.decodeUnknownEffect(globalConfiguration)(configuration).pipe(
       Effect.mapError(
         (error) => new PaymentProviderConfigurationValidationError({ cause: error.message }),
       ),
@@ -162,7 +179,10 @@ export const makeAppStoreConfigProvider = (
         // as a defect (500) rather than mislabel it a validation error.
         secretCrypto.encrypt(parsedConfiguration.inAppPurchasePrivateKey).pipe(
           Effect.map((inAppPurchasePrivateKey) => ({
-            parsedConfiguration: { ...parsedConfiguration, inAppPurchasePrivateKey },
+            parsedConfiguration: encodeGlobalConfiguration({
+              ...parsedConfiguration,
+              inAppPurchasePrivateKey,
+            }),
             paymentProviderKey: `${parsedConfiguration.bundleId}`,
           })),
           Effect.orDie,
@@ -170,7 +190,7 @@ export const makeAppStoreConfigProvider = (
       ),
     ),
   validateProductConfiguration: (configuration) =>
-    Schema.decodeUnknownEffect(productConfigurationSchema)(configuration).pipe(
+    Schema.decodeUnknownEffect(productConfiguration)(configuration).pipe(
       Effect.mapError(
         (error) => new PaymentProviderProductValidationError({ message: error.message }),
       ),

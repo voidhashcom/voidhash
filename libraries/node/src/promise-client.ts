@@ -1,4 +1,8 @@
-import { Effect } from "effect";
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as ManagedRuntime from "effect/ManagedRuntime";
 
 import {
   createVoidhashSdk as createVoidhashEffectSdk,
@@ -6,23 +10,27 @@ import {
 } from "./effect-client";
 import type { VoidhashNodeClientOptions } from "./types";
 
-type RuntimePromisifyClient<TClient> = {
+type StringRecord = Readonly<Record<string, unknown>>;
+
+const runtime = ManagedRuntime.make(Layer.empty);
+
+type RuntimePromisifyClient<TClient extends StringRecord> = {
   readonly [Key in keyof TClient]: TClient[Key] extends (
     ...args: infer Args
   ) => Effect.Effect<infer Result, infer _Error, infer _Requirements>
     ? (...args: Args) => Promise<Result>
     : TClient[Key] extends object
-      ? RuntimePromisifyClient<TClient[Key]>
+      ? RuntimePromisifyClient<TClient[Key] & StringRecord>
       : TClient[Key];
 };
 
 const isEffectMethod = (
   value: unknown,
 ): value is (...parameters: Array<unknown>) => Effect.Effect<unknown> =>
-  typeof value === "function";
+  P.isFunction(value);
 
-const isNestedNamespace = (value: unknown): value is object =>
-  typeof value === "object" && value !== null;
+const isNestedNamespace = (value: unknown): value is StringRecord =>
+  P.isObject(value) && value !== null;
 
 /**
  * Recursively mirrors an Effect client, replacing every Effect-returning method
@@ -30,13 +38,13 @@ const isNestedNamespace = (value: unknown): value is object =>
  * {@link RuntimePromisifyClient}, which the untyped runtime walk below cannot
  * express, so the public signature is declared as an overload.
  */
-function promisifyClient<TClient extends object>(client: TClient): RuntimePromisifyClient<TClient>;
-function promisifyClient(client: object): unknown {
-  const entries = Object.entries(client).map(([key, value]): [string, unknown] => {
+function promisifyClient<TClient extends StringRecord>(client: TClient): RuntimePromisifyClient<TClient>;
+function promisifyClient<TClient extends StringRecord>(client: TClient): unknown {
+  const entries = R.toEntries(client).map(([key, value]): [string, unknown] => {
     if (isEffectMethod(value)) {
       return [
         key,
-        (...args: Array<unknown>) => Effect.runPromise(Reflect.apply(value, client, args)),
+        (...args: Array<unknown>) => runtime.runPromise(value.apply(client, args)),
       ];
     }
 
@@ -47,7 +55,7 @@ function promisifyClient(client: object): unknown {
     return [key, value];
   });
 
-  return Object.fromEntries(entries);
+  return R.fromEntries(entries);
 }
 
 export type VoidhashNodeClient = RuntimePromisifyClient<VoidhashNodeEffectClient>;

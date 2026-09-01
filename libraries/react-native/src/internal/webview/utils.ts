@@ -1,10 +1,10 @@
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
 import type { PaywallWebViewSource } from "../../specs/PaywallWebView.nitro";
 import type { PaywallWebViewProps } from "./types";
 
-export function wrapNitroCallback<T extends Function | undefined>(
-  callback: T,
-): { f: T } | undefined {
-  if (!callback) {
+export function wrapNitroCallback<T>(callback: T) {
+  if (!P.isFunction(callback)) {
     return undefined;
   }
 
@@ -13,22 +13,26 @@ export function wrapNitroCallback<T extends Function | undefined>(
 
 export function normalizeSource(
   source?: PaywallWebViewProps["source"],
-): PaywallWebViewSource | undefined {
-  if (!source || typeof source === "number") {
+) {
+  if (!source || P.isNumber(source)) {
     return undefined;
   }
 
-  if (source.headers && !Array.isArray(source.headers)) {
+  const { headers, ...rest } = source;
+  if (headers && !Array.isArray(headers)) {
     return {
-      ...source,
-      headers: Object.entries(source.headers).map(([name, value]) => ({
+      ...rest,
+      headers: R.toEntries(headers).map(([name, value]) => ({
         name,
         value,
       })),
-    };
+    } satisfies PaywallWebViewSource;
   }
 
-  return source as PaywallWebViewSource;
+  return {
+    ...rest,
+    headers,
+  } satisfies PaywallWebViewSource;
 }
 
 export function createNativeEvent<TEvent>(nativeEvent: TEvent): { nativeEvent: TEvent } {

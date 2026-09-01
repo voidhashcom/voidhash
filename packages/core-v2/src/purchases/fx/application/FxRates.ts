@@ -1,4 +1,12 @@
-import { Cache, Context, DateTime, Duration, Effect, Layer, Option, Schema } from "effect";
+import * as P from "effect/Predicate";
+import * as Cache from "effect/Cache";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import {
   FxRateSource,
@@ -38,7 +46,7 @@ export interface FxRatesShape {
 const fromEpochMillis = (millis: number): Date => DateTime.toDateUtc(DateTime.makeUnsafe(millis));
 
 const toUtcDay = (date: Date): Date =>
-  fromEpochMillis(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  DateTime.toDateUtc(DateTime.startOf(DateTime.makeUnsafe(date), "day"));
 
 const cacheKey = (currency: string, asOfDate: Date) => `${currency}:${asOfDate.getTime()}`;
 
@@ -55,20 +63,20 @@ const isFxRateWrite = Schema.is(FxRateWrite);
 const serviceError = (error: unknown) => {
   if (error instanceof FxRateServiceError) return error;
   let cause = String(error);
-  if (typeof error === "object" && error !== null && "message" in error) {
+  if (P.isObject(error) && error !== null && "message" in error) {
     cause = String(error.message);
   }
   return new FxRateServiceError({ cause });
 };
 
-const makeFxRates = Effect.gen(function* () {
+const makeFxRates = Effect.fn("makeFxRates")(function* () {
   const source = yield* FxRateSource;
   const store = yield* FxRateStore;
 
   const loadRate = ({ asOfDate, currency }: { asOfDate: Date; currency: string }) =>
     store.findExact({ asOfDate, currency }).pipe(
       Effect.flatMap((exact) => {
-        if (exact) return Effect.succeed(Option.some(exact));
+        if (Option.isSome(exact)) return Effect.succeed(exact);
         return store
           .findMostRecent({
             currency,
@@ -77,12 +85,12 @@ const makeFxRates = Effect.gen(function* () {
           })
           .pipe(
             Effect.map((rate) => {
-              if (rate === undefined) return Option.none<FxRateLookup>();
+              if (Option.isNone(rate)) return Option.none<FxRateLookup>();
               return Option.some({
-                asOfDate: rate.asOfDate,
-                currency: rate.currency,
-                rate: rate.rate,
-                source: `${rate.source}:carry_forward`,
+                asOfDate: rate.value.asOfDate,
+                currency: rate.value.currency,
+                rate: rate.value.rate,
+                source: `${rate.value.source}:carry_forward`,
               });
             }),
           );
@@ -111,7 +119,7 @@ const makeFxRates = Effect.gen(function* () {
       yield* Effect.forEach(
         writes,
         (rate) => Cache.set(cache, cacheKey(rate.currency, rate.asOfDate), Option.some(rate)),
-        { discard: true },
+        { discard: true, concurrency: 1 },
       );
       return writes.length;
     }).pipe(Effect.mapError(serviceError), Effect.withSpan("FxRates.refreshLatest"));
@@ -148,7 +156,7 @@ const makeFxRates = Effect.gen(function* () {
       ),
     refreshLatest,
   } satisfies FxRatesShape;
-});
+})();
 
 export class FxRates extends Context.Service<FxRates, FxRatesShape>()(
   "@voidhash/core-v2/purchases/FxRates",

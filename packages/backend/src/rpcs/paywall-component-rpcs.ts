@@ -4,7 +4,8 @@ import {
   RpcActionForbiddenError,
   RpcPaywallDeployServiceError,
 } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 
 export const PaywallComponentRpcsLive = PaywallComponentRpcsDef.toLayer(
   Effect.gen(function* () {
@@ -22,6 +23,12 @@ export const PaywallComponentRpcsLive = PaywallComponentRpcsDef.toLayer(
         ),
       ListPaywallComponents: ({ projectId }) =>
         deployService.listComponents({ projectId }).pipe(
+          Effect.map((components) =>
+            components.map((component) => ({
+              ...component,
+              title: Option.getOrNull(component.title),
+            })),
+          ),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),

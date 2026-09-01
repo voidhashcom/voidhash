@@ -1,4 +1,8 @@
-import { Effect, Layer, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { FailedToFetchSchemaError } from "../../errors";
@@ -7,7 +11,8 @@ import { ApiClient } from "../networking/api-client";
 import { PlatformProvider } from "../platform/platform-provider";
 import { schemaAtom } from "../reactivity/client-state";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
-import type { RuntimeSchema } from "./runtime";
+import { RuntimeSchemaValue } from "./runtime";
+import type { RuntimeSchema, RuntimeSchemaEncoded } from "./runtime";
 
 /**
  * 30 days. Covers long offline gaps (user reopens the app after a month)
@@ -21,8 +26,7 @@ const SCHEMA_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const generateSchemaCacheKey = (appVersion: string) => `schema:${appVersion}`;
 
 const toFetchError = (cause: unknown): FailedToFetchSchemaError => {
-  const errorCause = cause instanceof Error ? cause : new Error(String(cause));
-  return new FailedToFetchSchemaError("Failed to fetch schema at init", { cause: errorCause });
+  return new FailedToFetchSchemaError("Failed to fetch schema at init", { cause });
 };
 
 interface ResolveSchemaArgs {
@@ -50,27 +54,31 @@ export class SchemaManager extends Context.Service<SchemaManager>()("rn-voidhash
     const atomRegistry = yield* AtomRegistry.AtomRegistry;
 
     const publishSchema = (schema: RuntimeSchema) => {
-      atomRegistry.set(schemaAtom, schema);
+      atomRegistry.set(schemaAtom, Option.some(schema));
     };
 
-    const fetchFromServer = (distinctId: string) =>
-      Effect.gen(function* () {
-        const commonHeaders = yield* getCommonSdkHeaders();
-        return yield* apiClient.sdk.getSchema({
-          headers: {
-            ...commonHeaders,
-            "x-distinct-id": distinctId,
-          },
-        });
+    const fetchFromServer = Effect.fn("SchemaManager.fetchFromServer")(function* (
+      distinctId: string,
+    ) {
+      const commonHeaders = yield* getCommonSdkHeaders();
+      return yield* apiClient.sdk.getSchema({
+        headers: {
+          ...commonHeaders,
+          "x-distinct-id": distinctId,
+        },
       });
+    });
 
-    const cacheAndPublish = (cacheKey: string, schema: RuntimeSchema) =>
-      Effect.gen(function* () {
-        yield* cacheManager.set(cacheKey, schema, {
-          ttl: SCHEMA_CACHE_TTL_MS,
-        });
-        publishSchema(schema);
+    const cacheAndPublish = Effect.fn("SchemaManager.cacheAndPublish")(function* (
+      cacheKey: string,
+      schema: RuntimeSchema,
+    ) {
+      const encoded = yield* Schema.encodeEffect(RuntimeSchemaValue)(schema).pipe(Effect.orDie);
+      yield* cacheManager.set(cacheKey, encoded, {
+        ttl: SCHEMA_CACHE_TTL_MS,
       });
+      publishSchema(schema);
+    });
 
     /**
      * Fork a background refresh that outlives `init()`'s scope.
@@ -94,48 +102,55 @@ export class SchemaManager extends Context.Service<SchemaManager>()("rn-voidhash
         Effect.forkDetach({ startImmediately: true }),
       );
 
-    const resolveSchema = ({ distinctId, internalSchema }: ResolveSchemaArgs) =>
-      Effect.gen(function* () {
-        // Test/internal escape hatch — never hit the cache or network.
-        if (internalSchema) {
-          publishSchema(internalSchema);
-          return internalSchema;
-        }
+    const resolveSchema = Effect.fn("SchemaManager.resolveSchema")(function* ({
+      distinctId,
+      internalSchema,
+    }: ResolveSchemaArgs) {
+      // Test/internal escape hatch — never hit the cache or network.
+      if (internalSchema) {
+        publishSchema(internalSchema);
+        return internalSchema;
+      }
 
-        const { appVersion } = platformProvider;
+      const { appVersion } = platformProvider;
 
-        // No app version means we can't safely key the cache (features in
-        // a future build could reference items missing from the cached
-        // schema). Skip the cache entirely and always fetch synchronously;
-        // a failure is fatal.
-        if (!appVersion) {
-          yield* Effect.logWarning(
-            "[voidhash] No appVersion available — skipping schema cache and fetching synchronously.",
-          );
-          const schema = yield* fetchFromServer(distinctId).pipe(Effect.mapError(toFetchError));
-          publishSchema(schema);
-          return schema;
-        }
-
-        const cacheKey = generateSchemaCacheKey(appVersion);
-        const cached = yield* cacheManager.get<RuntimeSchema>(cacheKey);
-
-        // Cache hit: serve immediately and unconditionally revalidate in
-        // the background. `CacheManager.get` already drops expired
-        // entries before returning, so any non-null hit is fresh enough
-        // to serve.
-        if (cached) {
-          publishSchema(cached.value);
-          yield* scheduleBackgroundRefresh(cacheKey, distinctId);
-          return cached.value;
-        }
-
-        // Cache miss (including expired-and-dropped entries). Synchronous
-        // fetch — failures are fatal.
+      // No app version means we can't safely key the cache (features in
+      // a future build could reference items missing from the cached
+      // schema). Skip the cache entirely and always fetch synchronously;
+      // a failure is fatal.
+      if (!appVersion) {
+        yield* Effect.logWarning(
+          "[voidhash] No appVersion available — skipping schema cache and fetching synchronously.",
+        );
         const schema = yield* fetchFromServer(distinctId).pipe(Effect.mapError(toFetchError));
-        yield* cacheAndPublish(cacheKey, schema);
+        publishSchema(schema);
         return schema;
+      }
+
+      const cacheKey = generateSchemaCacheKey(appVersion);
+      const cached = yield* cacheManager.get<RuntimeSchemaEncoded>(cacheKey);
+      const decodedCached = yield* Option.match(cached, {
+        onNone: () => Effect.succeed(Option.none<RuntimeSchema>()),
+        onSome: (entry) =>
+          Effect.option(Schema.decodeUnknownEffect(RuntimeSchemaValue)(entry.value)),
       });
+
+      // Cache hit: serve immediately and unconditionally revalidate in
+      // the background. `CacheManager.get` already drops expired
+      // entries before returning, so any non-null hit is fresh enough
+      // to serve.
+      if (Option.isSome(decodedCached)) {
+        publishSchema(decodedCached.value);
+        yield* scheduleBackgroundRefresh(cacheKey, distinctId);
+        return decodedCached.value;
+      }
+
+      // Cache miss (including expired-and-dropped entries). Synchronous
+      // fetch — failures are fatal.
+      const schema = yield* fetchFromServer(distinctId).pipe(Effect.mapError(toFetchError));
+      yield* cacheAndPublish(cacheKey, schema);
+      return schema;
+    });
 
     return { resolveSchema } as const;
   }),

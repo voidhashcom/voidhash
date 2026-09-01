@@ -59,12 +59,13 @@ export {
   collectVariableScopes,
   createChainVariableReader,
   findDeclaringNodeInChain,
-  type NodeVariableMap,
-  type VariableAliases,
+  NodeVariableMap,
+  VariableAliases,
+  VariableMap,
+  VariableStore,
   type VariableCollection,
   type VariableReader,
   type VariableScopes,
-  type VariableStore,
 } from "./variables";
 
 // Evaluator

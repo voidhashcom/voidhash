@@ -1,4 +1,5 @@
-import { Layer, Context } from "effect";
+import * as Layer from "effect/Layer";
+import * as Context from "effect/Context";
 
 import { BrowserPlatformProvider } from "./browser-platform-provider";
 

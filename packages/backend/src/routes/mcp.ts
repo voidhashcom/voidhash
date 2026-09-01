@@ -1,3 +1,4 @@
+import { unsafeDefined } from "../runtime-boundary.ts";
 /**
  * Model Context Protocol endpoint — `POST /api/mcp` (streamable HTTP, STATELESS).
  *
@@ -26,7 +27,12 @@ import {
   makeInternalProjectAuthSession,
   type AnyAuthSession,
 } from "@voidhash/core/domain/auth/Auth";
-import { Cause, Effect, Layer, Option, Result, Schema } from "effect";
+import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as HttpHeaders from "effect/unstable/http/Headers";
 
@@ -40,6 +46,9 @@ import {
 import { findMcpTool } from "../mcp/tool-manifest.ts";
 import type { WorkspaceToolScope } from "../ai/workspace-tools.ts";
 import { McpOAuth } from "../McpOAuth.ts";
+import * as Str from "effect/String";
+import * as Arr from "effect/Array";
+import { recoverAll } from "../runtime-boundary.ts";
 
 const forwardedOrigin = (request: HttpServerRequest.HttpServerRequest): string => {
   const host = request.headers.host ?? "localhost";
@@ -47,13 +56,11 @@ const forwardedOrigin = (request: HttpServerRequest.HttpServerRequest): string =
   return `${protocol}://${host}`;
 };
 
-const requestOrigin = (
-  request: HttpServerRequest.HttpServerRequest,
-): Effect.Effect<string> =>
+const requestOrigin = (request: HttpServerRequest.HttpServerRequest): Effect.Effect<string> =>
   Effect.try({
     try: () => new URL(request.originalUrl).origin,
     catch: (cause) => cause,
-  }).pipe(Effect.catch(() => Effect.succeed(forwardedOrigin(request))));
+  }).pipe(recoverAll(() => forwardedOrigin(request)));
 
 /** AuthKit discovery challenge returned by the protected MCP resource. */
 export const mcpBearerChallenge = (origin: string): string =>
@@ -68,7 +75,7 @@ const jsonRpcErrorResponse = (status: number, code: number, message: string) =>
   HttpServerResponse.json({ jsonrpc: "2.0", id: null, error: { code, message } }, { status });
 
 /** Extract a `Bearer <token>` credential from the `authorization` header. */
-const bearerToken = (headers: HttpHeaders.Headers): string | undefined => {
+const bearerToken = (headers: HttpHeaders.Headers): string | typeof Schema.Undefined.Type => {
   const value = Option.getOrUndefined(HttpHeaders.get(headers, "authorization"));
   if (value === undefined) {
     return undefined;
@@ -80,13 +87,16 @@ const bearerToken = (headers: HttpHeaders.Headers): string | undefined => {
   return match[1].trim();
 };
 
-const headerValue = (headers: HttpHeaders.Headers, name: string): string | undefined => {
+const headerValue = (
+  headers: HttpHeaders.Headers,
+  name: string,
+): string | typeof Schema.Undefined.Type => {
   const value = Option.getOrUndefined(HttpHeaders.get(headers, name));
   if (value === undefined) {
     return undefined;
   }
   const trimmed = value.trim();
-  if (trimmed.length === 0) {
+  if (Str.isEmpty(trimmed)) {
     return undefined;
   }
   return trimmed;
@@ -95,7 +105,7 @@ const headerValue = (headers: HttpHeaders.Headers, name: string): string | undef
 /** Selects an authorized MCP project without allowing a user key to widen its session. */
 export const selectMcpProject = <Project extends { readonly id: string; readonly slug: string }>(
   projects: ReadonlyArray<Project>,
-  selector: string | undefined,
+  selector: string | typeof Schema.Undefined.Type,
 ):
   | { readonly ok: true; readonly project: Project }
   | { readonly ok: false; readonly status: 400 | 403; readonly message: string } => {
@@ -113,9 +123,9 @@ export const selectMcpProject = <Project extends { readonly id: string; readonly
     return { ok: true, project };
   }
   if (projects.length === 1) {
-    return { ok: true, project: projects[0]! };
+    return { ok: true, project: unsafeDefined(projects[0]) };
   }
-  if (projects.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(projects)) {
     return {
       ok: false,
       status: 403,
@@ -160,7 +170,7 @@ const makeCallTool =
 const decodeJsonBody = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
 
 /** Handle a single stateless `POST /api/mcp` JSON-RPC message. */
-const handlePost = Effect.gen(function* () {
+const handlePost = Effect.fn("handlePost")(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest;
   const origin = yield* requestOrigin(request);
   const challenge = mcpBearerChallenge(origin);
@@ -228,8 +238,8 @@ const handlePost = Effect.gen(function* () {
     const userSession = localUserSessions.toUserSession(
       localUser,
       { organizations: [organization], projects: [selection.project] },
-      null,
-      identity.id,
+      Option.none(),
+      Option.some(identity.id),
     );
     session = userSession;
     scope = { projectId: selection.project.id };
@@ -274,10 +284,13 @@ const handlePost = Effect.gen(function* () {
       const userSession = localUserSessions.toUserSession(
         validatedUser.success.user,
         access,
-        null,
-        null,
+        Option.none(),
+        Option.none(),
       );
-      session = { ...userSession, projects: [selection.project] };
+      session = {
+        ...userSession,
+        projects: userSession.projects.filter((project) => project.id === selection.project.id),
+      };
       scope = { projectId: selection.project.id };
     }
   }
@@ -300,7 +313,7 @@ const handlePost = Effect.gen(function* () {
 
   // 3. Dispatch the message against the authenticated project scope. The tool
   //    effects are AuthSession-bound; provide the constructed scoped session.
-  const response: JsonRpcResponse | null = yield* handleMcpMessage(
+  const response: JsonRpcResponse | typeof Schema.Null.Type = yield* handleMcpMessage(
     parsed.message,
     makeCallTool(scope),
   ).pipe(Effect.provideService(AuthSession, session));
@@ -310,7 +323,7 @@ const handlePost = Effect.gen(function* () {
     return HttpServerResponse.empty({ status: 202 });
   }
   return yield* HttpServerResponse.json(response);
-});
+})();
 
 /** `GET`/`DELETE` on the stateless endpoint: no stream, no session → 405. */
 const methodNotAllowed = HttpServerResponse.json(
@@ -322,23 +335,23 @@ const methodNotAllowed = HttpServerResponse.json(
   { status: 405, headers: { allow: "POST" } },
 );
 
-const registerMcpRoute = Effect.gen(function* () {
+const registerMcpRoute = Effect.fn("registerMcpRoute")(function* () {
   const router = yield* HttpRouter.HttpRouter;
   yield* router.add(
     "POST",
     "/api/mcp",
     handlePost.pipe(
       Effect.catchCause((cause) =>
-        Effect.gen(function* () {
+        Effect.fn("registerMcpRoute")(function* () {
           yield* Effect.logError(`MCP request error: ${Cause.pretty(cause)}`);
           return yield* jsonRpcErrorResponse(500, JsonRpcErrorCode.InternalError, "Internal error");
-        }),
+        })(),
       ),
     ),
   );
   yield* router.add("GET", "/api/mcp", methodNotAllowed);
   yield* router.add("DELETE", "/api/mcp", methodNotAllowed);
-});
+})();
 
 /**
  * Registers `POST /api/mcp` (+ 405 on GET/DELETE). The request-scoped

@@ -20,12 +20,16 @@
  * The kind→status mapping is driven by `StripePaymentProviderServiceError.kind`.
  */
 import { StripePaymentProviderService, StripePaymentProviderServiceError } from "@voidhash/core-v2";
-import { DateTime, Effect, Layer, Schema } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import { stripeIngressRoute } from "./manifest.ts";
+import { hasTag } from "../../runtime-boundary.ts";
 
-const StripeWebhookPathParamsSchema = Schema.Struct({
+const StripeWebhookPathParams = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
 });
 
@@ -41,18 +45,18 @@ const webhookErrorStatus = (kind: StripePaymentProviderServiceError["kind"]): nu
   return 500;
 };
 
-const registerStripeWebhookRoute = Effect.gen(function* () {
+const registerStripeWebhookRoute = Effect.fn("registerStripeWebhookRoute")(function* () {
   const router = yield* HttpRouter.HttpRouter;
 
   yield* router.add(
     stripeIngressRoute.method,
     stripeIngressRoute.path,
-    Effect.gen(function* () {
+    Effect.fn("registerStripeWebhookRoute")(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
       const pathParamsResult = yield* Effect.result(
-        HttpRouter.schemaPathParams(StripeWebhookPathParamsSchema),
+        HttpRouter.schemaPathParams(StripeWebhookPathParams),
       );
-      if (pathParamsResult._tag === "Failure") {
+      if (hasTag(pathParamsResult, "Failure")) {
         return yield* invalidPayloadResponse;
       }
 
@@ -85,11 +89,11 @@ const registerStripeWebhookRoute = Effect.gen(function* () {
       });
 
       return yield* HttpServerResponse.json({ received: true }, { status: 200 });
-    }).pipe(
+    })().pipe(
       Effect.catchTag(
         "StripePaymentProviderServiceError",
         (error: StripePaymentProviderServiceError) =>
-          Effect.gen(function* () {
+          Effect.fn("registerStripeWebhookRoute")(function* () {
             const status = webhookErrorStatus(error.kind);
             yield* Effect.logWarning("Stripe webhook processing failed", {
               cause: error.cause,
@@ -100,19 +104,19 @@ const registerStripeWebhookRoute = Effect.gen(function* () {
               { error: "Stripe webhook processing failed", received: false },
               { status },
             );
-          }),
+          })(),
       ),
       Effect.catch((error) =>
-        Effect.gen(function* () {
+        Effect.fn("registerStripeWebhookRoute")(function* () {
           yield* Effect.logError("Stripe webhook error", error);
           return yield* HttpServerResponse.json(
             { error: "Stripe webhook processing failed" },
             { status: 500 },
           );
-        }),
+        })(),
       ),
     ),
   );
-});
+})();
 
 export const StripeWebhookNotificationRouteLayer = Layer.effectDiscard(registerStripeWebhookRoute);

@@ -3,7 +3,7 @@
  * override, target not found / key conflicts) plus the catch-all service
  * error. Class names and `_tag` values are namespaced with `Rpc` / `Rpc/`.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Feature-flag row not found. */
 export class RpcFeatureFlagNotFoundError extends Schema.TaggedErrorClass<RpcFeatureFlagNotFoundError>(

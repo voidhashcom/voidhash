@@ -35,7 +35,7 @@ export function DevelopmentModeSettings({ projectId }: { projectId: string }) {
         <SettingsRow
           control={
             <Switch
-              checked={settings.data?.developmentPurchasesEnabled ?? false}
+              checked={settings.data?.isDevelopmentPurchasesEnabled ?? false}
               disabled={settings.isPending || enabledMutation.isPending}
               onCheckedChange={(enabled) => enabledMutation.mutate({ enabled, projectId })}
             />

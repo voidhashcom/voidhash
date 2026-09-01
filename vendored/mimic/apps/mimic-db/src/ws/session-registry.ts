@@ -1,4 +1,6 @@
-import { Clock, Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
 
 /** Timer seam so tests can drive the auth deadline deterministically. */
 export interface SessionRegistryTimers {
@@ -35,7 +37,7 @@ export interface SessionRegistry<TSocket> {
     connectionId: string,
     socket: TSocket,
     authenticated: boolean,
-    connectedAt: number | undefined,
+    connectedAt: Option.Option<number>,
   ): void;
   /** Moves a socket into the authenticated set and cancels its deadline. */
   promote(connectionId: string, socket: TSocket): void;
@@ -46,36 +48,33 @@ export interface SessionRegistry<TSocket> {
 }
 
 const defaultTimers: SessionRegistryTimers = {
-  now: () => Effect.runSync(Clock.currentTimeMillis),
+  now: () => Clock.Clock.defaultValue().currentTimeMillisUnsafe(),
   schedule: (fn, ms) => {
-    const fiber = Effect.runFork(
-      Effect.gen(function* () {
-        yield* Effect.sleep(ms);
-        fn();
-      }),
-    );
-    return () => fiber.interruptUnsafe();
+    const timeout = globalThis.setTimeout(fn, ms);
+    return () => globalThis.clearTimeout(timeout);
   },
 };
 
-const elapsedSince = (timers: SessionRegistryTimers, connectedAt: number | undefined): number => {
-  if (connectedAt === undefined) return 0;
-  return timers.now() - connectedAt;
-};
+const elapsedSince = (timers: SessionRegistryTimers, connectedAt: Option.Option<number>): number =>
+  Option.match(connectedAt, {
+    onNone: () => 0,
+    onSome: (connected) => timers.now() - connected,
+  });
 
 export const makeSessionRegistry = <TSocket>(
   options: SessionRegistryOptions<TSocket>,
 ): SessionRegistry<TSocket> => {
   const timers = options.timers ?? defaultTimers;
-  const sessions = new Map<string, TSocket>();
-  const pendingDeadlines = new Map<string, () => void>();
+  let sessions = HashMap.empty<string, TSocket>();
+  let pendingDeadlines = HashMap.empty<string, () => void>();
 
   const armDeadline = (connectionId: string, socket: TSocket, deadlineMs: number): void => {
-    pendingDeadlines.get(connectionId)?.();
-    pendingDeadlines.set(
+    Option.getOrElse(HashMap.get(pendingDeadlines, connectionId), () => () => {})();
+    pendingDeadlines = HashMap.set(
+      pendingDeadlines,
       connectionId,
       timers.schedule(() => {
-        pendingDeadlines.delete(connectionId);
+        pendingDeadlines = HashMap.remove(pendingDeadlines, connectionId);
         options.close(socket);
       }, deadlineMs),
     );
@@ -89,7 +88,7 @@ export const makeSessionRegistry = <TSocket>(
     trackPending,
     restore: (connectionId, socket, authenticated, connectedAt) => {
       if (authenticated) {
-        sessions.set(connectionId, socket);
+        sessions = HashMap.set(sessions, connectionId, socket);
         return;
       }
       const remaining = options.authDeadlineMs - elapsedSince(timers, connectedAt);
@@ -100,15 +99,16 @@ export const makeSessionRegistry = <TSocket>(
       armDeadline(connectionId, socket, remaining);
     },
     promote: (connectionId, socket) => {
-      pendingDeadlines.get(connectionId)?.();
-      pendingDeadlines.delete(connectionId);
-      sessions.set(connectionId, socket);
+      Option.getOrElse(HashMap.get(pendingDeadlines, connectionId), () => () => {})();
+      pendingDeadlines = HashMap.remove(pendingDeadlines, connectionId);
+      sessions = HashMap.set(sessions, connectionId, socket);
     },
     remove: (connectionId) => {
-      pendingDeadlines.get(connectionId)?.();
-      pendingDeadlines.delete(connectionId);
-      sessions.delete(connectionId);
+      Option.getOrElse(HashMap.get(pendingDeadlines, connectionId), () => () => {})();
+      pendingDeadlines = HashMap.remove(pendingDeadlines, connectionId);
+      sessions = HashMap.remove(sessions, connectionId);
     },
-    authenticated: () => [...sessions.values()].filter(options.isAuthenticated),
+    authenticated: () => Arr.filter(HashMap.values(sessions), options.isAuthenticated),
   };
 };
+import * as Clock from "effect/Clock";

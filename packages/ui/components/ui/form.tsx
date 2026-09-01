@@ -1,8 +1,8 @@
 "use client";
 
-import { Effect } from "effect";
 
 import type { Label as LabelPrimitive } from "radix-ui";
+import * as Option from "effect/Option";
 
 import { Slot } from "radix-ui";
 import * as React from "react";
@@ -28,7 +28,7 @@ interface FormFieldContextValue<
   name: TName;
 }
 
-const FormFieldContext = React.createContext<FormFieldContextValue>({} as FormFieldContextValue);
+const FormFieldContext = React.createContext<Option.Option<FormFieldContextValue>>(Option.none());
 
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
@@ -36,23 +36,25 @@ const FormField = <
 >({
   ...props
 }: ControllerProps<TFieldValues, TName>) => (
-  <FormFieldContext.Provider value={{ name: props.name }}>
+  <FormFieldContext.Provider value={Option.some({ name: props.name })}>
     <Controller {...props} />
   </FormFieldContext.Provider>
 );
 
 const useFormField = () => {
-  const fieldContext = React.useContext(FormFieldContext);
-  const itemContext = React.useContext(FormItemContext);
+  const fieldContextOption = React.useContext(FormFieldContext);
+  const itemContextOption = React.useContext(FormItemContext);
+  if (Option.isNone(fieldContextOption)) {
+    throw new TypeError("useFormField should be used within <FormField>");
+  }
+  if (Option.isNone(itemContextOption)) {
+    throw new TypeError("useFormField should be used within <FormItem>");
+  }
+  const fieldContext = fieldContextOption.value;
+  const itemContext = itemContextOption.value;
   const { getFieldState } = useFormContext();
   const formState = useFormState({ name: fieldContext.name });
   const fieldState = getFieldState(fieldContext.name, formState);
-
-  if (!fieldContext) {
-    return Effect.runSync(
-      Effect.die(new Error("useFormField should be used within <FormField>")),
-    );
-  }
 
   const { id } = itemContext;
 
@@ -70,13 +72,13 @@ interface FormItemContextValue {
   id: string;
 }
 
-const FormItemContext = React.createContext<FormItemContextValue>({} as FormItemContextValue);
+const FormItemContext = React.createContext<Option.Option<FormItemContextValue>>(Option.none());
 
 function FormItem({ className, ...props }: React.ComponentProps<"div">) {
   const id = React.useId();
 
   return (
-    <FormItemContext.Provider value={{ id }}>
+    <FormItemContext.Provider value={Option.some({ id })}>
       <div className={cn("grid gap-2", className)} data-slot="form-item" {...props} />
     </FormItemContext.Provider>
   );

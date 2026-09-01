@@ -1,4 +1,7 @@
-import { Effect } from "effect";
+import * as Arr from "effect/Array";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as Result from "effect/Result";
 import { causeMessage } from "@voidhash/lib/lang";
 import { isSchemaError, validate, validateValue } from "@voidhash/mimic-core";
 import type { Path } from "@voidhash/mimic-core";
@@ -10,43 +13,35 @@ import type {
 } from "./types.ts";
 
 const pathToString = (path: Path): string => {
-  if (path.length === 0) {
+  if (!Arr.isReadonlyArrayNonEmpty(path)) {
     return "root";
   }
-  const segments = path.map((segment) => {
-    switch (segment.kind) {
-      case "field":
-        return segment.key;
-      case "item":
-      case "node":
-        return segment.id;
-    }
-  });
+  const segments = path.map((segment) =>
+    Match.value(segment).pipe(
+      Match.when({ kind: "field" }, ({ key }) => key),
+      Match.when({ kind: "item" }, ({ id }) => id),
+      Match.when({ kind: "node" }, ({ id }) => id),
+      Match.exhaustive,
+    ),
+  );
   return `root.${segments.join(".")}`;
 };
 
 const toIssue = (error: unknown): SchemaMigrationIssue => {
   if (isSchemaError(error)) {
-    let code: SchemaMigrationIssue["code"] = "invalid-value";
-    switch (error.code) {
-      case "missing_required":
-        code = "required-field-without-default";
-        break;
-      case "tree_invalid_root_type":
-      case "tree_invalid_child_type":
-      case "tree_unknown_variant":
-        code = "invalid-tree";
-        break;
-      case "type_mismatch":
-      case "literal_mismatch":
-      case "union_no_match":
-      case "either_no_match":
-        code = "incompatible-type";
-        break;
-      case "validator_failed":
-        code = "invalid-value";
-        break;
-    }
+    const code: SchemaMigrationIssue["code"] = Match.value(error.code).pipe(
+      Match.when("missing_required", () => "required-field-without-default" as const),
+      Match.when("tree_invalid_root_type", () => "invalid-tree" as const),
+      Match.when("tree_invalid_child_type", () => "invalid-tree" as const),
+      Match.when("tree_unknown_variant", () => "invalid-tree" as const),
+      Match.when("type_mismatch", () => "incompatible-type" as const),
+      Match.when("literal_mismatch", () => "incompatible-type" as const),
+      Match.when("union_no_match", () => "incompatible-type" as const),
+      Match.when("either_no_match", () => "incompatible-type" as const),
+      Match.when("validator_failed", () => "invalid-value" as const),
+      Match.when("invalid_schema", () => "invalid-value" as const),
+      Match.exhaustive,
+    );
 
     return {
       code,
@@ -65,30 +60,28 @@ const toIssue = (error: unknown): SchemaMigrationIssue => {
 export const reconcileMigrationValue = (
   options: ReconcileMigrationValueOptions,
 ): ReconcileMigrationValueResult =>
-  Effect.runSync(
-    Effect.try({
-      try: (): ReconcileMigrationValueResult => {
-        validateValue(options.value);
-        const normalized = validate(options.oldSchema, options.value);
-        if (normalized === undefined) {
-          return {
-            ok: false,
-            error: {
-              code: "missing-value",
-              path: "root",
-              message: "Old schema sanitized the input value to undefined",
-            },
-          };
-        }
-
+  Result.try({
+    try: (): ReconcileMigrationValueResult => {
+      validateValue(options.value);
+      const normalized = validate(options.oldSchema, options.value);
+      if (normalized === undefined) {
         return {
-          ok: true,
-          value: validate(options.newSchema, normalized),
+          ok: false,
+          error: {
+            code: "missing-value",
+            path: "root",
+            message: "Old schema sanitized the input value to undefined",
+          },
         };
-      },
-      catch: (error): ReconcileMigrationValueResult => ({
-        ok: false,
-        error: toIssue(error),
-      }),
-    }).pipe(Effect.catch((result) => Effect.succeed(result))),
-  );
+      }
+
+      return {
+        ok: true,
+        value: Option.fromUndefinedOr(validate(options.newSchema, normalized)),
+      };
+    },
+    catch: (error): ReconcileMigrationValueResult => ({
+      ok: false,
+      error: toIssue(error),
+    }),
+  }).pipe(Result.match({ onFailure: (result) => result, onSuccess: (result) => result }));

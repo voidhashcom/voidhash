@@ -1,4 +1,7 @@
-import { Effect, Schema } from "effect";
+import * as P from "effect/Predicate";
+import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
 
 import { AnalyticsDeadLetterStore } from "../../../application/ports.ts";
 import {
@@ -18,6 +21,7 @@ export const AnalyticsQueueRecord = Schema.Struct({
   partition: Schema.optional(Schema.Int),
   topic: Schema.String,
 });
+export type AnalyticsQueueRecord = typeof AnalyticsQueueRecord.Type;
 
 /**
  * Decode a provider queue record and run it through the common processor. A
@@ -29,10 +33,10 @@ export const consumeAnalyticsQueueRecord = (input: unknown) =>
   Effect.gen(function* () {
     const record = yield* Schema.decodeUnknownEffect(AnalyticsQueueRecord)(input);
     const decoded = yield* Effect.result(Schema.decodeUnknownEffect(CapturedEventV1)(record.body));
-    if (decoded._tag === "Failure") {
+    if (Result.isFailure(decoded)) {
       const deadLetters = yield* AnalyticsDeadLetterStore;
       let rawValue = "";
-      if (typeof record.body === "string") {
+      if (P.isString(record.body)) {
         rawValue = record.body;
       } else {
         rawValue = encodeJson(record.body);

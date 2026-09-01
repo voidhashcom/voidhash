@@ -1,11 +1,16 @@
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
-import { Data, Effect } from "effect";
+import * as Effect from "effect/Effect";
+import { runPromise } from "./RuntimeBoundary.ts";
 import { Type } from "typebox";
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
 
 /** Raised when the model asks for a skill the source does not expose. */
-export class UnknownSkillError extends Data.TaggedError("UnknownSkillError")<{
-  readonly message: string;
-}> {}
+export class UnknownSkillError extends Schema.TaggedErrorClass<UnknownSkillError>("UnknownSkillError")(
+  "UnknownSkillError",
+  { message: Schema.String },
+) {}
 
 /** Metadata disclosed to an agent before a skill body is loaded. */
 export interface SkillMetadata {
@@ -16,13 +21,13 @@ export interface SkillMetadata {
 /** Runtime-neutral source of progressively disclosed agent skills. */
 export interface SkillSource {
   readonly list: () => ReadonlyArray<SkillMetadata>;
-  readonly read: (name: string) => string | undefined;
+  readonly read: (name: string) => Option.Option<string>;
 }
 
 /** Renders Pi-compatible skill metadata for inclusion in a system prompt. */
 export const renderSkillDisclosure = (source: SkillSource): string => {
   const skills = source.list();
-  if (skills.length === 0) return "";
+  if (Arr.isReadonlyArrayEmpty(skills)) return "";
   const entries = skills
     .map(
       ({ name, description }) =>
@@ -47,14 +52,14 @@ export const makeReadSkillTool = (
     "Read the complete instructions for one available skill. Call this before using a relevant skill.",
   parameters: ReadSkillParameters,
   execute: (_toolCallId, input) =>
-    Effect.runPromise(
+    runPromise(
       Effect.gen(function* () {
         const body = source.read(input.name);
-        if (body === undefined) {
+        if (Option.isNone(body)) {
           return yield* new UnknownSkillError({ message: `Unknown skill: ${input.name}` });
         }
         const result: AgentToolResult<{ readonly name: string }> = {
-          content: [{ type: "text", text: body }],
+          content: [{ type: "text", text: body.value }],
           details: { name: input.name },
         };
         return result;

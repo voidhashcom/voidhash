@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 import { PageParams } from "../Pagination.ts";
 import { PersonTraits } from "../Schema.ts";
@@ -16,6 +16,7 @@ export const PersonListParams = Schema.Struct({
   email: Schema.optional(Schema.String),
   projectId: Schema.optional(Schema.String),
 }).annotate({ identifier: "PersonListParams" });
+export type PersonListParams = typeof PersonListParams.Type;
 
 /**
  * Body of `POST /persons`. Adds the explicit `projectId` every project-scoped

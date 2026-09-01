@@ -1,13 +1,10 @@
-/*
- * This whole module is mimic-db's synchronous `process.env` configuration
- * adapter: `getConfig()` / `getCorsAllowedOrigins()` are plain functions called
- * from synchronous platform entry points (including the pre-runtime bootstrap
- * path) before any Effect runtime exists, so `Config` is not reachable here.
- * Every `process.env` read in the file is that one deliberate choice, hence a
- * single file-scoped directive rather than eight identical line directives.
- */
-// oxlint-disable effect/noGlobals -- synchronous process.env config adapter; callers read it from synchronous positions before any Effect runtime exists (see block comment above).
 import { constant } from "@voidhash/lib/lang";
+import * as Config from "effect/Config";
+import * as ConfigProvider from "effect/ConfigProvider";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Redacted from "effect/Redacted";
 
 /**
  * Runtime configuration for mimic-db.
@@ -38,12 +35,14 @@ export interface MimicConfig {
    * connection URLs. `undefined` when `MIMIC_PUBLIC_BASE_URL` is unset or
    * blank — callers then derive scheme/host from the incoming request.
    */
-  readonly publicBaseUrl: string | undefined;
+  readonly publicBaseUrl: Option.Option<string>;
 }
 
-const positiveInt = (value: string | undefined, fallback: number): number => {
-  if (!value || value.trim() === "") return fallback;
-  const parsed = Number.parseInt(value, 10);
+const positiveInt = (value: Option.Option<string>, fallback: number): number => {
+  const parsed = Number.parseInt(
+    Option.getOrElse(value, () => ""),
+    10,
+  );
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return parsed;
 };
@@ -57,22 +56,51 @@ const DEFAULT_CORS_ORIGINS = constant([
   "http://localhost:3003",
 ]);
 
-export const getCorsAllowedOrigins = (): readonly string[] => {
-  const env = process.env.CORS_ORIGINS?.trim();
-  if (!env) return DEFAULT_CORS_ORIGINS;
-  return env
+const parseCorsAllowedOrigins = (env: Option.Option<string>): readonly string[] =>
+  Option.getOrElse(env, () => "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-};
 
-export const getConfig = (): MimicConfig => ({
-  rootUsername: process.env.ROOT_USERNAME?.trim() || "root",
-  rootPassword: process.env.ROOT_PASSWORD ?? "password",
-  corsOrigins: getCorsAllowedOrigins(),
-  snapshotEveryCommands: positiveInt(process.env.MIMIC_DOCUMENT_SNAPSHOT_EVERY_COMMANDS, 100),
-  heartbeatMs: positiveInt(process.env.MIMIC_DOCUMENT_HEARTBEAT_MS, 30_000),
-  presenceTtlMs: positiveInt(process.env.MIMIC_DOCUMENT_PRESENCE_TTL_MS, 75_000),
-  idleNotifyDebounceMs: positiveInt(process.env.MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS, 15_000),
-  publicBaseUrl: process.env.MIMIC_PUBLIC_BASE_URL?.trim() || undefined,
-});
+const configEffect = Effect.gen(function* () {
+  const corsOrigins = yield* Config.option(Config.string("CORS_ORIGINS"));
+  const snapshotEveryCommands = yield* Config.option(
+    Config.string("MIMIC_DOCUMENT_SNAPSHOT_EVERY_COMMANDS"),
+  );
+  const heartbeatMs = yield* Config.option(Config.string("MIMIC_DOCUMENT_HEARTBEAT_MS"));
+  const presenceTtlMs = yield* Config.option(Config.string("MIMIC_DOCUMENT_PRESENCE_TTL_MS"));
+  const idleNotifyDebounceMs = yield* Config.option(
+    Config.string("MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS"),
+  );
+  const publicBaseUrl = yield* Config.option(Config.string("MIMIC_PUBLIC_BASE_URL"));
+  const configuredCorsOrigins = Option.filter(corsOrigins, (value) => value.trim() !== "");
+  return {
+    rootUsername: yield* Config.string("ROOT_USERNAME").pipe(
+      Config.map((value) => value.trim() || "root"),
+      Config.withDefault("root"),
+    ),
+    rootPassword: Redacted.value(
+      yield* Config.redacted("ROOT_PASSWORD").pipe(Config.withDefault(Redacted.make("password"))),
+    ),
+    corsOrigins: Option.isSome(configuredCorsOrigins)
+      ? parseCorsAllowedOrigins(configuredCorsOrigins)
+      : DEFAULT_CORS_ORIGINS,
+    snapshotEveryCommands: positiveInt(snapshotEveryCommands, 100),
+    heartbeatMs: positiveInt(heartbeatMs, 30_000),
+    presenceTtlMs: positiveInt(presenceTtlMs, 75_000),
+    idleNotifyDebounceMs: positiveInt(idleNotifyDebounceMs, 15_000),
+    publicBaseUrl: Option.filter(
+      Option.map(publicBaseUrl, (value) => value.trim()),
+      (value) => value !== "",
+    ),
+  } satisfies MimicConfig;
+}).pipe(Effect.orDie);
+
+const loadConfig = (): MimicConfig =>
+  EffectRuntime.runSync(
+    configEffect.pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv()))),
+  );
+
+export const getCorsAllowedOrigins = (): readonly string[] => loadConfig().corsOrigins;
+
+export const getConfig = (): MimicConfig => loadConfig();

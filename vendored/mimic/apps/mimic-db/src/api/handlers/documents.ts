@@ -1,11 +1,9 @@
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import { CurrentUser, DocumentsRpcs } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag } from "../../app/hostService.ts";
-import {
-  decodeDocumentValue,
-  decodeTransactionEnvelope,
-} from "../../document/transaction.ts";
+import { decodeDocumentValue, decodeTransactionEnvelope } from "../../document/transaction.ts";
 
 export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
   Effect.gen(function* () {
@@ -16,7 +14,7 @@ export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
           const user = yield* CurrentUser;
           const databaseId = yield* host.databaseIdForCollection(collectionId);
           yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
-          return yield* host.createDocument(collectionId, id, value);
+          return yield* host.createDocument(collectionId, Option.fromUndefinedOr(id), value);
         }),
       GetDocument: ({ collectionId, documentId }) =>
         Effect.gen(function* () {
@@ -40,11 +38,12 @@ export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
           // The wire schema treats commands as opaque JSON; the host service is
           // typed against the structured `Command[]` shape from mimic-core and
           // validates the command shape internally as it applies them.
-          return yield* host.submitTransaction(
+          const result = yield* host.submitTransaction(
             collectionId,
             documentId,
             decodeTransactionEnvelope(transaction),
           );
+          return { ...result, isAccepted: result.accepted };
         }),
       OpenDocumentConnection: ({ collectionId, documentId, connectionId, presence, leaseMs }) =>
         Effect.gen(function* () {
@@ -94,13 +93,14 @@ export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
           const user = yield* CurrentUser;
           const databaseId = yield* host.databaseIdForCollection(collectionId);
           yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
-          return yield* host.submitConnectionTransaction(
+          const result = yield* host.submitConnectionTransaction(
             collectionId,
             documentId,
             connectionId,
             decodeTransactionEnvelope(transaction),
             leaseMs,
           );
+          return { ...result, isAccepted: result.accepted };
         }),
       DeleteDocument: ({ collectionId, documentId }) =>
         Effect.gen(function* () {

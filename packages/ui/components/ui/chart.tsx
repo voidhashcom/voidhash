@@ -1,5 +1,9 @@
 "use client";
-import { Effect } from "effect";
+
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as Str from "effect/String";
+import * as Option from "effect/Option";
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
@@ -15,10 +19,10 @@ const INITIAL_DIMENSION = { width: 320, height: 200 } as const;
  * types `dataKey` as string | number | accessor function; an accessor has no
  * meaningful key, so it falls through to the default.
  */
-function payloadKey(nameKey: string | undefined, dataKey: unknown): string {
+function payloadKey(dataKey: unknown, nameKey?: string): string {
   if (nameKey) return nameKey;
-  if (typeof dataKey === "string" && dataKey.length > 0) return dataKey;
-  if (typeof dataKey === "number") return dataKey.toString();
+  if (P.isString(dataKey) && Str.isNonEmpty(dataKey)) return dataKey;
+  if (P.isNumber(dataKey)) return dataKey.toString();
   return "value";
 }
 
@@ -36,18 +40,16 @@ interface ChartContextProps {
   config: ChartConfig;
 }
 
-const ChartContext = React.createContext<ChartContextProps | null>(null);
+const ChartContext = React.createContext<Option.Option<ChartContextProps>>(Option.none());
 
 function useChart() {
   const context = React.useContext(ChartContext);
 
-  if (!context) {
-    return Effect.runSync(
-      Effect.die(new Error("useChart must be used within a <ChartContainer />")),
-    );
+  if (Option.isNone(context)) {
+    throw new TypeError("useChart must be used within a <ChartContainer />");
   }
 
-  return context;
+  return context.value;
 }
 
 function ChartContainer({
@@ -69,7 +71,7 @@ function ChartContainer({
   const chartId = `chart-${id || uniqueId.replaceAll(":", "")}`;
 
   return (
-    <ChartContext.Provider value={{ config }}>
+    <ChartContext.Provider value={Option.some({ config })}>
       <div
         className={cn(
           "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-hidden [&_.recharts-surface]:outline-hidden",
@@ -89,7 +91,7 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color);
+  const colorConfig = R.toEntries(config).filter(([, config]) => config.theme || config.color);
 
   if (!colorConfig.length) {
     return null;
@@ -98,13 +100,14 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
+        __html: R.toEntries(THEMES)
           .map(
             ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+    const color =
+      (theme === "dark" ? itemConfig.theme?.dark : itemConfig.theme?.light) || itemConfig.color;
     return color ? `  --color-${key}: ${color};` : null;
   })
   .join("\n")}
@@ -152,8 +155,8 @@ function ChartTooltipContent({
     const key = `${labelKey || item?.dataKey || item?.name || "value"}`;
     const itemConfig = getPayloadConfigFromPayload(config, item, key);
     const value =
-      !labelKey && typeof label === "string"
-        ? config[label as keyof typeof config]?.label || label
+      !labelKey && P.isString(label)
+        ? config[label]?.label || label
         : itemConfig?.label;
 
     if (labelFormatter) {
@@ -190,6 +193,13 @@ function ChartTooltipContent({
             const key = `${nameKey || item.name || item.dataKey || "value"}`;
             const itemConfig = getPayloadConfigFromPayload(config, item, key);
             const indicatorColor = color || item.payload.fill || item.color;
+            const indicatorStyle: React.CSSProperties &
+              Partial<Record<`--color-${string}`, string>> = indicatorColor
+              ? {
+                  "--color-bg": indicatorColor,
+                  "--color-border": indicatorColor,
+                }
+              : {};
 
             return (
               <div
@@ -218,12 +228,7 @@ function ChartTooltipContent({
                               "w-1": indicator === "line",
                             },
                           )}
-                          style={
-                            {
-                              "--color-bg": indicatorColor,
-                              "--color-border": indicatorColor,
-                            } as React.CSSProperties
-                          }
+                          style={indicatorStyle}
                         />
                       )
                     )}
@@ -285,7 +290,7 @@ function ChartLegendContent({
       {payload
         .filter((item) => item.type !== "none")
         .map((item) => {
-          const key = payloadKey(nameKey, item.dataKey);
+          const key = payloadKey(item.dataKey, nameKey);
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
 
           return (
@@ -315,28 +320,27 @@ function ChartLegendContent({
 
 // Helper to extract item config from a payload.
 function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key: string) {
-  if (typeof payload !== "object" || payload === null) {
+  if (!P.isObject(payload) || payload === null) {
     return;
   }
 
   const payloadPayload =
-    "payload" in payload && typeof payload.payload === "object" && payload.payload !== null
+    "payload" in payload && P.isObject(payload.payload) && payload.payload !== null
       ? payload.payload
       : undefined;
 
   let configLabelKey: string = key;
 
-  if (key in payload && typeof payload[key as keyof typeof payload] === "string") {
-    configLabelKey = payload[key as keyof typeof payload] as string;
-  } else if (
-    payloadPayload &&
-    key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
-  ) {
-    configLabelKey = payloadPayload[key as keyof typeof payloadPayload] as string;
+  const payloadValue: unknown = Reflect.get(payload, key);
+  const nestedPayloadValue: unknown = payloadPayload ? Reflect.get(payloadPayload, key) : undefined;
+
+  if (P.isString(payloadValue)) {
+    configLabelKey = payloadValue;
+  } else if (P.isString(nestedPayloadValue)) {
+    configLabelKey = nestedPayloadValue;
   }
 
-  return configLabelKey in config ? config[configLabelKey] : config[key as keyof typeof config];
+  return config[configLabelKey] ?? config[key];
 }
 
 export {

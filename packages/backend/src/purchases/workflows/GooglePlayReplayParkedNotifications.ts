@@ -1,5 +1,7 @@
 import * as WorkflowRegistration from "@voidhash/platform/WorkflowRegistration";
-import { Effect, Layer, Schema } from "effect";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import { GooglePlayWebhookHandlerService } from "../providers/google-play/webhook-handler-service.ts";
 import { GooglePlayReplayParkedNotifications } from "@voidhash/core-v2";

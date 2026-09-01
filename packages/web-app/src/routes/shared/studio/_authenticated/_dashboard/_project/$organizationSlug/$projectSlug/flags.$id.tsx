@@ -81,7 +81,7 @@ function FlagDetailPage() {
   const { data: flag } = useSuspenseQuery(getFeatureFlagOptions({ id: id as string }));
 
   const isArchived = flag.archivedAt != null;
-  const isReadOnly = flag.internal || isArchived;
+  const isReadOnly = flag.isInternal || isArchived;
 
   return (
     <FlagDraftProvider flag={flag} readOnly={isReadOnly}>
@@ -89,7 +89,7 @@ function FlagDetailPage() {
         <PageHeader
           className="px-2"
           rightActions={
-            flag.internal ? undefined : (
+            flag.isInternal ? undefined : (
               <FlagDetailActionsMenu flagId={flag.id} isArchived={isArchived} />
             )
           }
@@ -114,7 +114,7 @@ function FlagDetailPage() {
               </BreadcrumbList>
             </Breadcrumb>
             {isArchived && <Badge variant="secondary">Archived</Badge>}
-            {flag.internal && (
+            {flag.isInternal && (
               <Badge variant="outline">
                 <FlaskConicalIcon className="mr-1 size-3" />
                 Internal
@@ -128,7 +128,7 @@ function FlagDetailPage() {
             <div className="space-y-10 lg:col-span-8">
               <FlagDetailHeader flagType={flag.type} slug={flag.slug} />
 
-              {flag.internal && (
+              {flag.isInternal && (
                 <Alert>
                   <InfoIcon className="size-4" />
                   <AlertDescription>

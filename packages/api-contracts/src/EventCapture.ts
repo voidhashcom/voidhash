@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/httpapi";
 
 const CaptureErrorResponseFields = {
@@ -12,56 +12,26 @@ const DateValidFromString = Schema.DateFromString;
 
 // export { CaptureAcceptedResponse, CaptureBatchRequest, CaptureErrorCode, CaptureErrorResponse };
 // export { CaptureEvent, CaptureSdkRequestMetadata };
-export type EventPropertiesFieldPrimitive = string | number | boolean | null;
-export type EventPropertiesField =
-  | EventPropertiesFieldPrimitive
-  | ReadonlyArray<EventPropertiesField>
-  | {
-      readonly [key: string]: EventPropertiesField;
-    };
+export const EventPropertiesField = Schema.Json;
+export type EventPropertiesField = typeof EventPropertiesField.Type;
+export const EventProperties = Schema.Record(Schema.String, EventPropertiesField);
+export type EventProperties = typeof EventProperties.Type;
 
-export const EventPropertiesField: Schema.Codec<EventPropertiesField> = Schema.Union([
-  Schema.String,
-  Schema.Finite,
-  Schema.Boolean,
-  Schema.Null,
-  Schema.Array(Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesField)),
-  Schema.Record(
-    Schema.String,
-    Schema.suspend((): Schema.Codec<EventPropertiesField> => EventPropertiesField),
-  ),
-]);
-export const EventPropertiesSchema = Schema.Record(Schema.String, EventPropertiesField);
-
-export type EventContextFieldPrimitive = string | number | boolean | null;
-export type EventContextField =
-  | EventContextFieldPrimitive
-  | ReadonlyArray<EventContextField>
-  | {
-      readonly [key: string]: EventContextField;
-    };
-export const EventContextField: Schema.Codec<EventContextField> = Schema.Union([
-  Schema.String,
-  Schema.Finite,
-  Schema.Boolean,
-  Schema.Null,
-  Schema.Array(Schema.suspend((): Schema.Codec<EventContextField> => EventContextField)),
-  Schema.Record(
-    Schema.String,
-    Schema.suspend((): Schema.Codec<EventContextField> => EventContextField),
-  ),
-]);
-export const EventContextSchema = Schema.Record(Schema.String, EventContextField);
+export const EventContextField = Schema.Json;
+export type EventContextField = typeof EventContextField.Type;
+export const EventContext = Schema.Record(Schema.String, EventContextField);
+export type EventContext = typeof EventContext.Type;
 
 export const CaptureEvent = Schema.Struct({
   uuid: Schema.NonEmptyString,
   event: Schema.NonEmptyString,
-  context: EventContextSchema,
-  properties: EventPropertiesSchema,
+  context: EventContext,
+  properties: EventProperties,
   distinct_id: Schema.NonEmptyString,
   session_id: Schema.optional(Schema.NonEmptyString),
   timestamp: DateValidFromString,
 });
+export type CaptureEvent = typeof CaptureEvent.Type;
 
 /**
  * The project credential authorizing the capture.
@@ -96,12 +66,14 @@ export const CaptureSingleRequest = Schema.Struct({
   sent_at: DateValidFromString,
   token: CaptureToken,
 });
+export type CaptureSingleRequest = typeof CaptureSingleRequest.Type;
 
 export const CaptureBatchRequest = Schema.Struct({
   events: Schema.NonEmptyArray(CaptureEvent),
   sent_at: DateValidFromString,
   token: CaptureToken,
 });
+export type CaptureBatchRequest = typeof CaptureBatchRequest.Type;
 
 export class CaptureAcceptedResponse extends Schema.Class<CaptureAcceptedResponse>(
   "CaptureAcceptedResponse",
@@ -211,3 +183,6 @@ export const EventCaptureApi = HttpApi.make("EventCaptureApi").add(
     )
     .prefix("/i/v1"),
 );
+
+export { EventProperties as EventPropertiesSchema };
+export { EventContext as EventContextSchema };

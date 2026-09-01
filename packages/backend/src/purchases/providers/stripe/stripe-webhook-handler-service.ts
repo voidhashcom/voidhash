@@ -9,7 +9,15 @@
  * is shared verbatim with the App Store path.
  */
 import { generateId } from "@voidhash/core/utils";
-import { DateTime, Effect, Layer, Match, Option, Predicate, Schema, Context } from "effect";
+import * as Arr from "effect/Array";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as P from "effect/Predicate";
+import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
 
 import { constant, stringOr } from "@voidhash/lib/lang";
 
@@ -28,11 +36,13 @@ import { StripePaymentProvider, type StripeRecordInput } from "./payment-provide
 import { StripePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
 import type { StripeContext, StripeMode } from "./sdk-context.ts";
 import { ProviderEnvironment, type ProviderEnvironmentValue } from "@voidhash/db";
+import { MutableSet } from "../../../collection-boundary.ts";
+import { hasTag } from "../../../runtime-boundary.ts";
 
 const truncateResultNote = (note: string): string => note.slice(0, 500);
 
 /** Tags `handled` collapses into a terminal "failed" ledger row (permanent, don't retry). */
-const TERMINAL_RECORD_FAILURE_TAGS = new Set<string>([
+const TERMINAL_RECORD_FAILURE_TAGS = new MutableSet<string>([
   "StripePurchaseProcessingIdempotencyKeyDerivationError",
   "InvalidISO4217CurrencyCodeError",
 ]);
@@ -55,8 +65,8 @@ const decodeParkedStripeEnvelope = Schema.decodeUnknownOption(ParkedStripeEnvelo
 
 const resolveParkedStripePayload = (
   parkedRawPayload: unknown,
-): { readonly rawBody: string; readonly verifiedMode?: StripeMode } | undefined => {
-  if (typeof parkedRawPayload === "string") return { rawBody: parkedRawPayload };
+): { readonly rawBody: string; readonly verifiedMode?: StripeMode } | typeof Schema.Undefined.Type => {
+  if (P.isString(parkedRawPayload)) return { rawBody: parkedRawPayload };
   const envelope = decodeParkedStripeEnvelope(parkedRawPayload);
   if (Option.isSome(envelope)) return envelope.value;
   return undefined;
@@ -64,13 +74,13 @@ const resolveParkedStripePayload = (
 
 /** Coerces `error[key]` to a string, falling back when the property is absent. */
 const propertyOr = <K extends string>(error: unknown, key: K, fallback: string): string => {
-  if (Predicate.hasProperty(error, key)) return String(error[key]);
+  if (P.hasProperty(error, key)) return String(error[key]);
   return fallback;
 };
 
 /** Reads `error[key]` when it is a string, falling back otherwise. */
 const stringPropertyOr = <K extends string>(error: unknown, key: K, fallback: string): string => {
-  if (Predicate.hasProperty(error, key)) return stringOr(error[key], fallback);
+  if (P.hasProperty(error, key)) return stringOr(error[key], fallback);
   return fallback;
 };
 
@@ -87,7 +97,7 @@ const providerEnvironmentForMode = (mode: StripeMode): ProviderEnvironmentValue 
 
 /** The wire-dedup ledger `result` for this delivery. */
 const ledgerResultOf = (
-  terminalResult: "failed" | undefined,
+  terminalResult: "failed" | typeof Schema.Undefined.Type,
   handled: boolean,
 ): "failed" | "applied" | "ignored" => {
   if (terminalResult) return terminalResult;
@@ -96,8 +106,8 @@ const ledgerResultOf = (
 };
 
 const isTerminalRecordFailure = (error: unknown): boolean =>
-  Predicate.hasProperty(error, "_tag") &&
-  typeof error._tag === "string" &&
+  P.hasProperty(error, "_tag") &&
+  P.isString(error._tag) &&
   TERMINAL_RECORD_FAILURE_TAGS.has(error._tag);
 
 /**
@@ -130,8 +140,8 @@ const toStripeServiceError = (error: unknown): StripePaymentProviderServiceError
 
 const describeRecordFailure = (error: unknown): string => {
   if (
-    Predicate.hasProperty(error, "_tag") &&
-    error._tag === "StripePurchaseProcessingIdempotencyKeyDerivationError"
+    P.hasProperty(error, "_tag") &&
+    hasTag(error, "StripePurchaseProcessingIdempotencyKeyDerivationError")
   ) {
     const eventType = propertyOr(error, "eventType", "unknown");
     const missingField = propertyOr(error, "missingField", "unknown");
@@ -196,7 +206,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           // legacy parked rows that predate the envelope format.
           const resolveEvent = () => {
             if (input.isReplay) {
-              return Effect.gen(function* () {
+              return Effect.fn("resolveEvent")(function* () {
                 const parsed = yield* decodeJsonBody(input.rawBody).pipe(
                   Effect.mapError(
                     (error) =>
@@ -210,7 +220,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
                   event: decoded,
                   mode: input.verifiedMode ?? stripeModeFromLivemode(decoded.livemode),
                 };
-              });
+              })();
             }
             return stripeContext.verifyAndDecodeEvent({
               rawBody: input.rawBody,
@@ -224,10 +234,10 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           yield* Effect.annotateCurrentSpan("voidhash.webhook.id", event.id);
 
           const providerEnvironment = providerEnvironmentForMode(mode);
-          let providerOccurredAt = input.receivedAt;
-          if (event.created !== undefined) {
-            providerOccurredAt = DateTime.toDateUtc(DateTime.makeUnsafe(event.created * 1_000));
-          }
+          const providerOccurredAt =
+            event.created === undefined
+              ? input.receivedAt
+              : DateTime.toDateUtc(DateTime.makeUnsafe(event.created * 1_000));
 
           const ack = (handled: boolean): StripeAcceptWebhookEventResult => ({
             accepted: true,
@@ -236,21 +246,23 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
             handled,
           });
 
-          let terminalLedgerResult: "failed" | undefined;
-          let terminalLedgerResultNote: string | null = null;
+          const terminalLedger: {
+            result: "failed" | typeof Schema.Undefined.Type;
+            resultNote: string | typeof Schema.Null.Type;
+          } = { result: undefined, resultNote: null };
 
           const markTerminalRecordFailure = (reason: string) =>
-            Effect.gen(function* () {
-              terminalLedgerResult = "failed";
-              terminalLedgerResultNote = truncateResultNote(reason);
+            Effect.fn("markTerminalRecordFailure")(function* () {
+              terminalLedger.result = "failed";
+              terminalLedger.resultNote = truncateResultNote(reason);
               yield* Effect.annotateCurrentSpan({ "stripe.webhook_result": "failed" });
               yield* Effect.logWarning("Stripe webhook record failed permanently", {
                 eventId: event.id,
                 eventType: event.type,
-                resultNote: terminalLedgerResultNote,
+                resultNote: terminalLedger.resultNote,
               });
               return ack(false);
-            });
+            })();
 
           const recordInput: StripeRecordInput = {
             configuration,
@@ -283,10 +295,10 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               Effect.map((result) => ack(!result.isIgnored())),
               Effect.catchIf(
                 (error): error is StripePaymentProviderProductNotMappedError =>
-                  Predicate.hasProperty(error, "_tag") &&
-                  error._tag === "StripePaymentProviderProductNotMappedError",
+                  P.hasProperty(error, "_tag") &&
+                  hasTag(error, "StripePaymentProviderProductNotMappedError"),
                 (error) =>
-                  Effect.gen(function* () {
+                  Effect.fn("handled")(function* () {
                     yield* Effect.annotateCurrentSpan({
                       "stripe.webhook_result": "parked_pending_product_mapping",
                     });
@@ -313,14 +325,14 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
                       source: "webhook",
                     });
                     return ack(true);
-                  }),
+                  })(),
               ),
               Effect.catchIf(
                 (error): error is StripePaymentProviderTransactionNotFoundError =>
-                  Predicate.hasProperty(error, "_tag") &&
-                  error._tag === "StripePaymentProviderTransactionNotFoundError",
+                  P.hasProperty(error, "_tag") &&
+                  hasTag(error, "StripePaymentProviderTransactionNotFoundError"),
                 (error) =>
-                  Effect.gen(function* () {
+                  Effect.fn("handled")(function* () {
                     if (input.isReplay) {
                       return ack(false);
                     }
@@ -347,7 +359,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
                       source: "webhook",
                     });
                     return ack(true);
-                  }),
+                  })(),
               ),
               Effect.catchIf(isTerminalRecordFailure, (error) =>
                 markTerminalRecordFailure(describeRecordFailure(error)),
@@ -386,7 +398,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           // routing. UNIQUE on (configurationId, event.id) makes a duplicate
           // delivery a no-op insert and leaves an earlier parked row's result
           // untouched.
-          const ledgerResult = ledgerResultOf(terminalLedgerResult, matchResult.handled);
+          const ledgerResult = ledgerResultOf(terminalLedger.result, matchResult.handled);
           yield* queries.insertNotificationProcessedIfAbsent({
             id: generateId("paymentProviderNotification"),
             notificationSubtype: null,
@@ -397,7 +409,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
             paymentProviderConfigurationId: input.paymentProviderConfigurationId,
             providerId: "stripe",
             result: ledgerResult,
-            resultNote: terminalLedgerResultNote,
+            resultNote: terminalLedger.resultNote,
             source: "webhook",
           });
 
@@ -416,9 +428,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
         "replayParkedTransactionNotifications",
       )(function* (input: { readonly paymentProviderConfigurationId: string }) {
         const parked = yield* queries.findParkedTransactionNotifications(input);
-        let appliedCount = 0;
-        let failedCount = 0;
-        for (const row of parked) {
+        const results = yield* Effect.forEach(parked, Effect.fn("replayParkedStripeTransaction")(function* (row) {
           const parkedPayload = resolveParkedStripePayload(row.parkedRawPayload);
           if (parkedPayload === undefined) {
             yield* queries.markParkedNotificationResolved({
@@ -426,8 +436,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               result: "failed",
               resultNote: "parked_raw_payload missing or malformed",
             });
-            failedCount++;
-            continue;
+            return { appliedCount: 0, failedCount: 1 };
           }
           const replayed = yield* acceptWebhookEvent({
             isReplay: true,
@@ -448,19 +457,21 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               result: "applied",
               resultNote: null,
             });
-            appliedCount++;
+            return { appliedCount: 1, failedCount: 0 };
           } else {
-            let resultNote: string;
-            if (replayed.ok) resultNote = "original transaction is still unavailable";
-            else resultNote = replayed.error;
+            const resultNote = replayed.ok ? "original transaction is still unavailable" : replayed.error;
             yield* queries.markParkedNotificationAttempted({
               id: row.id,
               resultNote,
             });
-            failedCount++;
+            return { appliedCount: 0, failedCount: 1 };
           }
-        }
-        return { appliedCount, failedCount, totalParked: parked.length };
+        }), { concurrency: 1 });
+        return {
+          appliedCount: Arr.reduce(results, 0, (count, result) => count + result.appliedCount),
+          failedCount: Arr.reduce(results, 0, (count, result) => count + result.failedCount),
+          totalParked: Arr.length(parked),
+        };
       });
 
       /**
@@ -488,9 +499,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
           paymentProviderConfigurationId: input.paymentProviderConfigurationId,
           providerProductKey: input.providerProductKey,
         });
-        let appliedCount = 0;
-        let failedCount = 0;
-        for (const row of parked) {
+        const results = yield* Effect.forEach(parked, Effect.fn("replayParkedStripeProduct")(function* (row) {
           const parkedPayload = resolveParkedStripePayload(row.parkedRawPayload);
           if (parkedPayload === undefined) {
             yield* queries.markParkedNotificationResolved({
@@ -498,8 +507,7 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               result: "failed",
               resultNote: "parked_raw_payload missing or malformed",
             });
-            failedCount++;
-            continue;
+            return { appliedCount: 0, failedCount: 1 };
           }
           const receivedAt = yield* DateTime.nowAsDate;
           const replayed = yield* acceptWebhookEvent({
@@ -521,18 +529,18 @@ export class StripeWebhookHandlerService extends Context.Service<StripeWebhookHa
               result: "applied",
               resultNote: null,
             });
-            appliedCount++;
+            return { appliedCount: 1, failedCount: 0 };
           } else {
-            let resultNote: string;
-            if (replayed.ok) resultNote = "replay completed without applying purchase state";
-            else resultNote = replayed.error;
+            const resultNote = replayed.ok ? "replay completed without applying purchase state" : replayed.error;
             yield* queries.markParkedNotificationAttempted({
               id: row.id,
               resultNote,
             });
-            failedCount++;
+            return { appliedCount: 0, failedCount: 1 };
           }
-        }
+        }), { concurrency: 1 });
+        const appliedCount = Arr.reduce(results, 0, (count, result) => count + result.appliedCount);
+        const failedCount = Arr.reduce(results, 0, (count, result) => count + result.failedCount);
         const dependent = yield* replayParkedTransactionNotifications({
           paymentProviderConfigurationId: input.paymentProviderConfigurationId,
         });

@@ -1,3 +1,5 @@
+import * as Schema from "effect/Schema";
+import * as Arr from "effect/Array";
 import {
   createdResponse,
   PaymentProviderProduct,
@@ -13,7 +15,8 @@ import {
 import { PaymentProviderProductService } from "@voidhash/core-v2";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
+import * as Order from "effect/Order";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import {
@@ -21,12 +24,13 @@ import {
   bridgeAuthSession,
   requireCredential,
 } from "../../ApiMiddlewares.ts";
+import * as P from "effect/Predicate";
 
 /** Catalog wiring is a management concern; publishable keys are rejected. */
 const MANAGEMENT_CREDENTIALS: ReadonlyArray<ApiCredentialMethod> = ["user", "secret-key"];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 const toConfiguration = (value: unknown): Record<string, unknown> => {
   if (isRecord(value)) return value;
@@ -35,13 +39,13 @@ const toConfiguration = (value: unknown): Record<string, unknown> => {
 
 interface ProviderProductRow {
   readonly configuration: unknown;
-  readonly createdAt: Date | null;
+  readonly createdAt: Date | typeof Schema.Null.Type;
   readonly id: string;
   readonly isActive: boolean;
   readonly paymentProviderConfigurationId: string;
   readonly productId: string;
   readonly providerProductKey: string;
-  readonly updatedAt: Date | null;
+  readonly updatedAt: Date | typeof Schema.Null.Type;
 }
 
 /** Single-mapping projection; the collection listing cannot supply these fields. */
@@ -66,7 +70,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
       return handlers
         .handle("listPaymentProviderProducts", ({ query }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderProductsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -79,7 +83,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
                   (query.paymentProviderConfigurationId === undefined ||
                     row.paymentProviderConfigurationId === query.paymentProviderConfigurationId),
               );
-              const sorted = [...matching].sort((a, b) => a.id.localeCompare(b.id));
+              const sorted = Arr.sortWith([...matching], (item) => item.id, Order.String);
               const page = yield* paginate(sorted, (row) => row.id, query);
               return {
                 data: page.data.map(
@@ -94,7 +98,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
                 ),
                 pageInfo: page.pageInfo,
               };
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -108,7 +112,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
         )
         .handle("createPaymentProviderProduct", ({ payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderProductsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const created = yield* service.createPaymentProviderProduct({
@@ -123,7 +127,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
                 detail,
                 `/payment-provider-products/${detail.id}`,
               );
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -141,12 +145,12 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
         )
         .handle("getPaymentProviderProduct", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderProductsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               const row = yield* service.getProviderProductById(params.mappingId);
               return toDetail(row);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -164,7 +168,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
         )
         .handle("updatePaymentProviderProduct", ({ params, payload }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderProductsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               yield* service.updatePaymentProviderProduct({
@@ -173,7 +177,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
               });
               const row = yield* service.getProviderProductById(params.mappingId);
               return toDetail(row);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -191,11 +195,11 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
         )
         .handle("deletePaymentProviderProduct", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderProductsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               return yield* service.deletePaymentProviderProduct({ id: params.mappingId });
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>
@@ -211,7 +215,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
         )
         .handle("activatePaymentProviderProduct", ({ params }) =>
           bridgeAuthSession(
-            Effect.gen(function* () {
+            Effect.fn("PaymentProviderProductsGroupLive")(function* () {
               const authSession = yield* AuthSession;
               yield* requireCredential(authSession, MANAGEMENT_CREDENTIALS);
               // The natural key the service expects already lives on the row,
@@ -224,7 +228,7 @@ export const PaymentProviderProductsGroupLive = HttpApiBuilder.group(
               });
               const row = yield* service.getProviderProductById(params.mappingId);
               return toDetail(row);
-            }),
+            })(),
           ).pipe(
             Effect.catchTags({
               ActionForbiddenError: (e) =>

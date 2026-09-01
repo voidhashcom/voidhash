@@ -9,13 +9,14 @@ import {
 import { AnalyticsQuery } from "@voidhash/core-v2";
 import { resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
+import * as Schema from "effect/Schema";
 
 /** Breakdowns arrive as a readonly wire array; the insight engine takes a mutable copy. */
-const toBreakdowns = <B>(breakdowns: ReadonlyArray<B> | undefined): Array<B> | undefined => {
+const toBreakdowns = <B>(breakdowns: ReadonlyArray<B> | typeof Schema.Undefined.Type): Array<B> | typeof Schema.Undefined.Type => {
   if (!breakdowns) return undefined;
   return [...breakdowns];
 };
@@ -26,7 +27,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "analytics
 
     return handlers.handle("queryInsights", ({ payload }) =>
       bridgeAuthSession(
-        Effect.gen(function* () {
+        Effect.fn("AnalyticsGroupLive")(function* () {
           const authSession = yield* AuthSession;
           yield* requireCredential(authSession, ["user", "secret-key"]);
           const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -43,7 +44,7 @@ export const AnalyticsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "analytics
             })),
           });
           return new QueryInsightsResult({ results });
-        }),
+        })(),
       ).pipe(
         Effect.catchTags({
           ActionForbiddenError: (e) =>

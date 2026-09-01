@@ -1,77 +1,66 @@
-import { Data } from "effect";
+import * as Schema from "effect/Schema";
 
-export class NativeAdapterNotInitializedError extends Data.TaggedError(
+export class NativeAdapterNotInitializedError extends Schema.TaggedErrorClass<NativeAdapterNotInitializedError>()(
   "NativeAdapterNotInitializedError",
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToInitializeNativeAdapterError extends Data.TaggedError(
+export class FailedToInitializeNativeAdapterError extends Schema.TaggedErrorClass<FailedToInitializeNativeAdapterError>()(
   "FailedToInitializeNativeAdapterError",
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToEndNativeAdapterError extends Data.TaggedError(
+export class FailedToEndNativeAdapterError extends Schema.TaggedErrorClass<FailedToEndNativeAdapterError>()(
   "FailedToEndNativeAdapterError",
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToGetProductsError extends Data.TaggedError("FailedToGetProductsError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FailedToGetProductsError extends Schema.TaggedErrorClass<FailedToGetProductsError>()(
+  "FailedToGetProductsError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToBuyProductError extends Data.TaggedError("FailedToBuyProductError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FailedToBuyProductError extends Schema.TaggedErrorClass<FailedToBuyProductError>()(
+  "FailedToBuyProductError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class UserCancelledError extends Data.TaggedError("UserCancelledError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class UserCancelledError extends Schema.TaggedErrorClass<UserCancelledError>()(
+  "UserCancelledError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class PurchasePendingError extends Data.TaggedError("PurchasePendingError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class PurchasePendingError extends Schema.TaggedErrorClass<PurchasePendingError>()(
+  "PurchasePendingError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToAcknowledgePurchaseError extends Data.TaggedError(
+export class FailedToAcknowledgePurchaseError extends Schema.TaggedErrorClass<FailedToAcknowledgePurchaseError>()(
   "FailedToAcknowledgePurchaseError",
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class GetPurchaseHistoryError extends Data.TaggedError("GetPurchaseHistoryError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class GetPurchaseHistoryError extends Schema.TaggedErrorClass<GetPurchaseHistoryError>()(
+  "GetPurchaseHistoryError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class GetPendingTransactionsError extends Data.TaggedError("GetPendingTransactionsError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class GetPendingTransactionsError extends Schema.TaggedErrorClass<GetPendingTransactionsError>()(
+  "GetPendingTransactionsError",
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToPresentCodeRedemptionSheetError extends Data.TaggedError(
+export class FailedToPresentCodeRedemptionSheetError extends Schema.TaggedErrorClass<FailedToPresentCodeRedemptionSheetError>()(
   "FailedToPresentCodeRedemptionSheetError",
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class FailedToShowManageSubscriptionsError extends Data.TaggedError(
+export class FailedToShowManageSubscriptionsError extends Schema.TaggedErrorClass<FailedToShowManageSubscriptionsError>()(
   "FailedToShowManageSubscriptionsError",
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+  { cause: Schema.optional(Schema.Unknown), message: Schema.String },
+) {}
 
-export class ProductNotFoundError extends Data.TaggedError("ProductNotFoundError")<{
-  readonly message: string;
-}> {}
+export class ProductNotFoundError extends Schema.TaggedErrorClass<ProductNotFoundError>()(
+  "ProductNotFoundError",
+  { message: Schema.String },
+) {}

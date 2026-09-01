@@ -18,7 +18,12 @@ import {
   type Subscription,
 } from "@voidhash/db";
 import { ProductType, type ProductTypeValue, type SubscriptionDurationValue } from "@voidhash/lib";
-import { Context, DateTime, Effect, Layer, Option, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import type { PurchaseProcessingResult } from "@voidhash/core-v2";
 import { generateId } from "@voidhash/core/utils/generate-id";
@@ -30,6 +35,8 @@ import {
   getDevelopmentPrice,
   makeDevelopmentMoney,
 } from "@voidhash/core-v2";
+import * as Arr from "effect/Array";
+import { MutableMap } from "../../../collection-boundary.ts";
 
 export class DevelopmentPaymentProviderServiceError extends Schema.TaggedErrorClass<DevelopmentPaymentProviderServiceError>(
   "DevelopmentPaymentProviderServiceError",
@@ -37,11 +44,11 @@ export class DevelopmentPaymentProviderServiceError extends Schema.TaggedErrorCl
 
 export interface DevelopmentPurchaseResult {
   readonly result: PurchaseProcessingResult;
-  readonly warning: string | null;
+  readonly warning: string | typeof Schema.Null.Type;
 }
 
 const asProductType = (value: any): ProductTypeValue => value;
-const asDuration = (value: any): SubscriptionDurationValue | null => value;
+const asDuration = (value: any): SubscriptionDurationValue | typeof Schema.Null.Type => value;
 
 /** Synthetic payment provider used by debug SDK builds. */
 export class DevelopmentPaymentProviderService extends Context.Service<DevelopmentPaymentProviderService>()(
@@ -54,11 +61,11 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
 
       const ensureConfigurationProduct = (projectId: string, product: Product) =>
         db.transaction((tx) =>
-          Effect.gen(function* () {
-            let configuration = yield* tx.query.paymentProviderConfigurations.findFirst({
+          Effect.fn("ensureConfigurationProduct")(function* () {
+            const existingConfiguration = yield* tx.query.paymentProviderConfigurations.findFirst({
               where: { projectId, providerId: "development", deletedAt: { isNull: true } },
             });
-            if (!configuration) {
+            if (!existingConfiguration) {
               yield* tx
                 .insert(paymentProviderConfigurations)
                 .values({
@@ -71,10 +78,11 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                   providerId: "development",
                 })
                 .onConflictDoNothing();
-              configuration = yield* tx.query.paymentProviderConfigurations.findFirst({
-                where: { projectId, providerId: "development", deletedAt: { isNull: true } },
-              });
             }
+            const configuration = existingConfiguration ??
+              (yield* tx.query.paymentProviderConfigurations.findFirst({
+                where: { projectId, providerId: "development", deletedAt: { isNull: true } },
+              }));
             if (!configuration) {
               return yield* Effect.fail(
                 new DevelopmentPaymentProviderServiceError({
@@ -83,14 +91,14 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
               );
             }
 
-            let mapping = yield* tx.query.paymentProviderConfigurationProducts.findFirst({
+            const existingMapping = yield* tx.query.paymentProviderConfigurationProducts.findFirst({
               where: {
                 paymentProviderConfigurationId: configuration.id,
                 productId: product.id,
                 providerProductKey: product.slug,
               },
             });
-            if (!mapping) {
+            if (!existingMapping) {
               yield* tx
                 .insert(paymentProviderConfigurationProducts)
                 .values({
@@ -102,14 +110,15 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                   providerProductKey: product.slug,
                 })
                 .onConflictDoNothing();
-              mapping = yield* tx.query.paymentProviderConfigurationProducts.findFirst({
+            }
+            const mapping = existingMapping ??
+              (yield* tx.query.paymentProviderConfigurationProducts.findFirst({
                 where: {
                   paymentProviderConfigurationId: configuration.id,
                   productId: product.id,
                   providerProductKey: product.slug,
                 },
-              });
-            }
+              }));
             if (!mapping) {
               return yield* Effect.fail(
                 new DevelopmentPaymentProviderServiceError({
@@ -118,7 +127,7 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
               );
             }
             return { configuration, mapping };
-          }),
+          })(),
         );
 
       const processSdkPurchase = Effect.fn("development.processSdkPurchase")(
@@ -215,33 +224,24 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
             receivedAt: now,
             source: "sdk",
           } satisfies typeof PurchaseActionContext.Type;
-          let pricedQuantity = 1;
-          if (product.type === ProductType.OneTimeConsumable) {
-            pricedQuantity = quantity;
-          }
+          const pricedQuantity = product.type === ProductType.OneTimeConsumable ? quantity : 1;
           const money = Option.some(makeDevelopmentMoney(price.amount * pricedQuantity));
-          let result: PurchaseProcessingResult;
-          if (product.type === ProductType.Subscription) {
-            result = yield* purchaseProcessing.startSubscription({
+          const result: PurchaseProcessingResult = product.type === ProductType.Subscription
+            ? yield* purchaseProcessing.startSubscription({
               ...context,
               expiresAt: Option.some(addDevelopmentBillingPeriod(input.purchaseDate, price)),
               isTrial: false,
               money,
               purchasedAt: input.purchaseDate,
               startsAt: input.purchaseDate,
-            });
-          } else {
-            let purchaseType: "consumable" | "one-time" = "one-time";
-            if (product.type === ProductType.OneTimeConsumable) {
-              purchaseType = "consumable";
-            }
-            result = yield* purchaseProcessing.completeOneTimePurchase({
+            })
+            : yield* purchaseProcessing.completeOneTimePurchase({
               ...context,
               money,
               purchasedAt: input.purchaseDate,
-              purchaseType,
+              purchaseType:
+                product.type === ProductType.OneTimeConsumable ? "consumable" : "one-time",
             });
-          }
           return { result, warning: price.warning } satisfies DevelopmentPurchaseResult;
         },
         (effect) =>
@@ -281,7 +281,7 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
             db.query.persons.findFirst({
               where: { id: input.personId, projectId: input.projectId },
             }),
-          ]);
+          ], { concurrency: 1 });
           if (!project || !person) {
             return yield* Effect.fail(
               new DevelopmentPaymentProviderServiceError({
@@ -329,9 +329,9 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                     eq(paymentProviderConfigurations.providerId, "development"),
                   ),
                 ),
-            ]);
-          const productById = new Map(catalogProducts.map((product) => [product.id, product]));
-          const productIdByMappingId = new Map(
+            ], { concurrency: 1 });
+          const productById = new MutableMap(catalogProducts.map((product) => [product.id, product]));
+          const productIdByMappingId = new MutableMap(
             mappings.map((mapping) => [mapping.id, mapping.productId]),
           );
           const productDetails = (mappingId: string) => {
@@ -446,17 +446,14 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
               new DevelopmentPaymentProviderServiceError({ message: "Project not found" }),
             );
           }
-          let subscriptionTarget: Subscription | undefined;
-          let purchaseTarget: Purchase | undefined;
-          if (input.targetType === "subscription") {
-            subscriptionTarget = yield* db.query.subscriptions.findFirst({
-              where: { id: input.targetId },
-            });
-          } else {
-            purchaseTarget = yield* db.query.purchases.findFirst({
-              where: { id: input.targetId },
-            });
-          }
+          const subscriptionTarget: Subscription | typeof Schema.Undefined.Type =
+            input.targetType === "subscription"
+              ? yield* db.query.subscriptions.findFirst({ where: { id: input.targetId } })
+              : undefined;
+          const purchaseTarget: Purchase | typeof Schema.Undefined.Type =
+            input.targetType === "purchase"
+              ? yield* db.query.purchases.findFirst({ where: { id: input.targetId } })
+              : undefined;
           const target = subscriptionTarget ?? purchaseTarget;
           if (!target || target.providerEnvironment !== ProviderEnvironment.Development) {
             return yield* Effect.fail(
@@ -480,7 +477,7 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
               where: { id: mapping.paymentProviderConfigurationId },
             }),
             db.query.products.findFirst({ where: { id: mapping.productId } }),
-          ]);
+          ], { concurrency: 1 });
           if (
             !configuration ||
             configuration.providerId !== "development" ||
@@ -500,10 +497,10 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
               new DevelopmentPaymentProviderServiceError({ message: "Target has no transaction" }),
             );
           }
-          let providerSubscriptionId = Option.none<string>();
-          if (subscriptionTarget) {
-            providerSubscriptionId = Option.some(subscriptionTarget.storeSubscriptionId);
-          }
+          const providerSubscriptionId = Option.map(
+            Option.fromNullishOr(subscriptionTarget),
+            (target) => target.storeSubscriptionId,
+          );
           const context = {
             idempotencyKey: `dev:${input.targetId}:${input.action}:${input.actionId}`,
             occurredAt: now,
@@ -575,10 +572,10 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
               asProductType(product.type),
               asDuration(product.duration),
             );
-            let currentExpiry = now;
-            if (subscriptionTarget?.expiresAt && subscriptionTarget.expiresAt > now) {
-              currentExpiry = subscriptionTarget.expiresAt;
-            }
+            const currentExpiry =
+              subscriptionTarget?.expiresAt && subscriptionTarget.expiresAt > now
+                ? subscriptionTarget.expiresAt
+                : now;
             const renewalTransactionId = `development:${input.projectId}:${input.actionId}`;
             yield* purchaseProcessing.renewSubscription({
               ...context,
@@ -641,12 +638,12 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                 ),
               ),
             db.query.persons.findMany({ columns: { id: true }, where: { projectId } }),
-          ]);
+          ], { concurrency: 1 });
           const mappingIds = mappings.map((mapping) => mapping.id);
           const personIds = people.map((person) => person.id);
           yield* db.transaction((tx) =>
-            Effect.gen(function* () {
-              if (personIds.length > 0) {
+            Effect.fn("resetDevelopmentData")(function* () {
+              if (Arr.isReadonlyArrayNonEmpty(personIds)) {
                 yield* tx
                   .delete(personUnlockedPerks)
                   .where(
@@ -656,7 +653,7 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                     ),
                   );
               }
-              if (mappingIds.length > 0) {
+              if (Arr.isReadonlyArrayNonEmpty(mappingIds)) {
                 yield* tx
                   .delete(transactions)
                   .where(
@@ -690,7 +687,7 @@ export class DevelopmentPaymentProviderService extends Context.Service<Developme
                     eq(purchaseLedger.providerId, "development"),
                   ),
                 );
-            }),
+            })(),
           );
         },
         (effect) =>

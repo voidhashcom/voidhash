@@ -1,5 +1,6 @@
+import * as P from "effect/Predicate";
+import * as Option from "effect/Option";
 import Constants from "expo-constants";
-import { Effect } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
@@ -35,14 +36,14 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
   const dev = options.dev ?? false;
-  const distinctId = options.distinctId ?? null;
+  const distinctId = Option.fromUndefinedOr(options.distinctId);
   const enabled = options.enabled ?? true;
-  const ingestUrl = options.ingestUrl;
+  const ingestUrl = Option.fromUndefinedOr(options.ingestUrl);
   const readOnly = !COMMERCE_FEATURES_ENABLED || (options.readOnly ?? false);
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
   const scheme =
     options.scheme ??
-    (typeof Constants.expoConfig?.scheme === "string"
+    (P.isString(Constants.expoConfig?.scheme)
       ? Constants.expoConfig?.scheme
       : Constants.expoConfig?.scheme?.[0]);
 
@@ -50,7 +51,7 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
   // back into the app: requiring one would force apps that ship the SDK behind
   // a feature flag to configure a deep-link scheme they don't use yet.
   if (!scheme && enabled && COMMERCE_FEATURES_ENABLED) {
-    return Effect.runSync(Effect.die(new SchemeNotSetError()));
+    throw new SchemeNotSetError();
   }
 
   const atomRegistry = AtomRegistry.make();
@@ -70,7 +71,9 @@ export function createVoidhashClient(publishableKey: string, options: VoidhashCl
     options.unstable_internalSchema,
     dev,
     enabled,
-    options.unstable_nativeEngine === true ? getVoidhashEngine() : undefined,
+    options.unstable_nativeEngine === true
+      ? Option.getOrUndefined(getVoidhashEngine())
+      : undefined,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

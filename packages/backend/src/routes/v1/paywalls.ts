@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema";
 import {
   ActivatedPaywallRelease,
   createdResponse,
@@ -23,20 +24,20 @@ import {
 } from "@voidhash/core/services";
 import { paginate, resolveRequestProjectId } from "@voidhash/core/utils";
 import { AuthSession } from "@voidhash/rpc";
-import { Effect } from "effect";
+import * as Effect from "effect/Effect";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { bridgeAuthSession, requireCredential } from "../../ApiMiddlewares.ts";
 
 /** Projects a stored paywall row onto the public resource shape. */
 const toPaywall = (row: {
-  readonly archivedAt: Date | null;
-  readonly createdAt: Date | null;
+  readonly archivedAt: Date | typeof Schema.Null.Type;
+  readonly createdAt: Date | typeof Schema.Null.Type;
   readonly id: string;
   readonly name: string;
   readonly projectId: string;
   readonly slug: string;
-  readonly thumbnailUrl: string | null;
+  readonly thumbnailUrl: string | typeof Schema.Null.Type;
 }) =>
   new Paywall({
     archivedAt: row.archivedAt,
@@ -62,7 +63,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
     return handlers
       .handle("listPaywalls", ({ query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const projectId = yield* resolveRequestProjectId(authSession, query.projectId);
@@ -71,7 +72,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
               query.includeArchived === "true",
             );
             return yield* paginate(rows.map(toPaywall), (paywall) => paywall.id, query);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -82,7 +83,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("createPaywall", ({ payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const projectId = yield* resolveRequestProjectId(authSession, payload.projectId);
@@ -93,7 +94,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
             });
             const paywall = toPaywall(yield* paywallService.getPaywallById(created.id));
             return yield* createdResponse(Paywall, paywall, `/paywalls/${paywall.id}`);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -111,11 +112,11 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("getPaywall", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             return toPaywall(yield* paywallService.getPaywallById(params.paywallId));
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -128,7 +129,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("updatePaywall", ({ params, payload }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             if (payload.name !== undefined) {
@@ -138,7 +139,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
               });
             }
             return toPaywall(yield* paywallService.getPaywallById(params.paywallId));
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -152,11 +153,11 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("archivePaywall", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             return yield* paywallService.archivePaywall({ paywallId: params.paywallId });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -170,12 +171,12 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("restorePaywall", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             yield* paywallService.restorePaywall({ paywallId: params.paywallId });
             return toPaywall(yield* paywallService.getPaywallById(params.paywallId));
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -189,7 +190,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("listPaywallReleases", ({ params, query }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const draft = yield* releaseService.getDraftRelease(params.paywallId);
@@ -209,7 +210,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
               );
             }
             return yield* paginate(items, (release) => release.releaseId, query);
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -223,7 +224,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("createPaywallRelease", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             // A release records its author, so this needs a real user.
             yield* requireCredential(authSession, ["user"]);
@@ -237,7 +238,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
               url: draft.draftUrl,
               version: draft.version,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -251,7 +252,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("publishPaywallRelease", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const published = yield* releaseService.publishRelease(
@@ -267,7 +268,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
               url: published.htmlUrl,
               version: published.version,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>
@@ -283,7 +284,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
       )
       .handle("activatePaywallRelease", ({ params }) =>
         bridgeAuthSession(
-          Effect.gen(function* () {
+          Effect.fn("PaywallsGroupLive")(function* () {
             const authSession = yield* AuthSession;
             yield* requireCredential(authSession, ["user", "secret-key"]);
             const activated = yield* deployService.setActivePaywallRelease({
@@ -294,7 +295,7 @@ export const PaywallsGroupLive = HttpApiBuilder.group(VoidhashV1Api, "paywalls",
               releaseId: activated.id,
               version: activated.version,
             });
-          }),
+          })(),
         ).pipe(
           Effect.catchTags({
             ActionForbiddenError: (e) =>

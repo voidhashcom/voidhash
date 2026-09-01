@@ -1,15 +1,14 @@
-import { Effect } from "effect";
+import * as Option from "effect/Option";
 import React from "react";
 
+import { VoidhashError } from "../../errors";
 import { VoidhashReactContext } from "../provider";
 
 export const useVoidhash = () => {
   const context = React.useContext(VoidhashReactContext);
-  if (!context) {
-    return Effect.runSync(
-      Effect.die(new Error("useVoidhash must be used within a VoidhashProvider.")),
-    );
+  if (Option.isNone(context)) {
+    throw new VoidhashError("useVoidhash must be used within a VoidhashProvider.");
   }
 
-  return context;
+  return context.value;
 };

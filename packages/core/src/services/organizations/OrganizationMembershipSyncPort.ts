@@ -1,5 +1,8 @@
 import { Db } from "@voidhash/db";
-import { Context, Effect, Layer, Schema } from "effect";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 /** Stable failure boundary for an organization-membership synchronization extension. */
 export class OrganizationMembershipSyncPortError extends Schema.TaggedErrorClass<OrganizationMembershipSyncPortError>(
@@ -30,8 +33,7 @@ export class OrganizationMembershipSyncPort extends Context.Service<
   static readonly noop = Layer.succeed(
     OrganizationMembershipSyncPort,
     OrganizationMembershipSyncPort.of({
-      syncMemberships: () =>
-        Effect.succeed({ syncedMembershipIds: [], syncedOrganizationIds: [] }),
+      syncMemberships: () => Effect.succeed({ syncedMembershipIds: [], syncedOrganizationIds: [] }),
     }),
   );
 }

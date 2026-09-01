@@ -1,6 +1,8 @@
-import { Effect, Context } from "effect";
+import * as Effect from "effect/Effect";
+import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 
-import type { PackageJsonSchema } from "../domain/schema/package-json";
+import type { PackageJson } from "../domain/schema/package-json";
 import { SourceCode } from "../domain/services/source-code";
 import type { PackageManager, SourceCodeLanguage } from "../domain/types";
 import { checkIsExpoProject } from "./source-code";
@@ -10,8 +12,8 @@ export interface SourceCodeDetailsType {
   packageManager: PackageManager;
   srcDir: string;
   isExpoProject: boolean;
-  monorepoRootPath: string | null;
-  packageJson: typeof PackageJsonSchema.Type;
+  monorepoRootPath: Option.Option<string>;
+  packageJson: typeof PackageJson.Type;
 }
 
 export class SourceCodeDetails extends Context.Service<SourceCodeDetails, SourceCodeDetailsType>()(
@@ -42,7 +44,9 @@ export const retrieveSourceCodeDetails = () =>
       },
     );
 
-    const packageManager = yield* sourceCode.detectPackageManager(monorepoRootPath ?? "./");
+    const packageManager = yield* sourceCode.detectPackageManager(
+      Option.getOrElse(monorepoRootPath, () => "./"),
+    );
     const isExpoProject = checkIsExpoProject(packageJson);
 
     return {

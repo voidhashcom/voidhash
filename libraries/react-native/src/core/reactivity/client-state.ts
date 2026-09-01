@@ -1,4 +1,7 @@
 import type { SdkPerson } from "@voidhash/generated-clients";
+import * as Arr from "effect/Array";
+import * as Option from "effect/Option";
+import * as Str from "effect/String";
 import { Atom } from "effect/unstable/reactivity";
 
 import type { FeatureFlagsResult } from "../feature-flags/feature-flag-service";
@@ -10,7 +13,8 @@ export type { FeatureFlagsResult };
  * Reactive store of the currently identified person. Written by the
  * person/identity facade paths and read by `useCurrentPerson`.
  */
-export const currentPersonAtom: Atom.Writable<SdkPerson | null> = Atom.make<SdkPerson | null>(null);
+export const currentPersonAtom: Atom.Writable<Option.Option<SdkPerson>> =
+  Atom.make<Option.Option<SdkPerson>>(Option.none());
 
 /**
  * Reactive store of the runtime schema fetched at init time and refreshed
@@ -21,9 +25,8 @@ export const currentPersonAtom: Atom.Writable<SdkPerson | null> = Atom.make<SdkP
  * publishes — the cached value first, then the freshly refreshed value
  * when the background fetch lands. The two values are usually identical.
  */
-export const schemaAtom: Atom.Writable<RuntimeSchema | null> = Atom.make<RuntimeSchema | null>(
-  null,
-);
+export const schemaAtom: Atom.Writable<Option.Option<RuntimeSchema>> =
+  Atom.make<Option.Option<RuntimeSchema>>(Option.none());
 
 /**
  * Reactive store of feature flag results, keyed by their normalized flag-key
@@ -41,16 +44,20 @@ export const featureFlagsByKeyAtom: Atom.Writable<Readonly<Record<string, Featur
  * be mutated.
  */
 export const normalizeFeatureFlagKeys = (flagKeys?: readonly string[]): string => {
-  if (!flagKeys || flagKeys.length === 0) {
-    return "all";
-  }
-  return [...flagKeys].sort().join(",");
+  return Option.match(Option.fromUndefinedOr(flagKeys), {
+    onNone: () => "all",
+    onSome: (keys) =>
+      Arr.match(keys, {
+        onEmpty: () => "all",
+        onNonEmpty: (values) => Arr.sort(values, Str.Order).join(","),
+      }),
+  });
 };
 
 const featureFlagsForNormalizedKeyAtom = Atom.family((normalizedKey: string) =>
-  Atom.make((get): FeatureFlagsResult | null => {
+  Atom.make((get): Option.Option<FeatureFlagsResult> => {
     const byKey = get(featureFlagsByKeyAtom);
-    return byKey[normalizedKey] ?? null;
+    return Option.fromUndefinedOr(byKey[normalizedKey]);
   }),
 );
 

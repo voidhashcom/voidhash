@@ -3,7 +3,7 @@
  * feature flag, override, or target row. Row data lives in the `featureFlags`
  * Drizzle table.
  */
-import { Schema } from "effect";
+import * as Schema from "effect/Schema";
 
 /** Feature-flag row not found. */
 export class FeatureFlagNotFoundError extends Schema.TaggedErrorClass<FeatureFlagNotFoundError>(

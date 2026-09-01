@@ -1,4 +1,9 @@
-import { Effect } from "effect";
+import * as DateTime from "effect/DateTime";
+import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import * as Schema from "effect/Schema";
+
+const encodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
 export const LogLevel = {
   DEBUG: 0,
@@ -13,88 +18,28 @@ export type LogLevel = (typeof LogLevel)[keyof typeof LogLevel];
 export interface LogEntry {
   level: LogLevel;
   message: string;
-  timestamp: Date;
+  timestamp: DateTime.Utc;
   context?: string;
   data?: unknown;
 }
 
 export interface LogHandler {
-  handle(entry: LogEntry): void;
+  handle(entry: LogEntry): Effect.Effect<void>;
 }
 
 export class ConsoleLogHandler implements LogHandler {
-  private getLevelString(level: LogLevel): string {
-    switch (level) {
-      case LogLevel.DEBUG: {
-        return "DEBUG";
-      }
-      case LogLevel.INFO: {
-        return "INFO";
-      }
-      case LogLevel.WARN: {
-        return "WARN";
-      }
-      case LogLevel.ERROR: {
-        return "ERROR";
-      }
-      default: {
-        return "UNKNOWN";
-      }
-    }
-  }
-
-  private getLevelColor(level: LogLevel): string {
-    switch (level) {
-      case LogLevel.DEBUG: {
-        return "\u001B[36m";
-      } // Cyan
-      case LogLevel.INFO: {
-        return "\u001B[32m";
-      } // Green
-      case LogLevel.WARN: {
-        return "\u001B[33m";
-      } // Yellow
-      case LogLevel.ERROR: {
-        return "\u001B[31m";
-      } // Red
-      default: {
-        return "\u001B[0m";
-      } // Reset
-    }
-  }
-
-  handle(entry: LogEntry): void {
-    const timestamp = entry.timestamp.toISOString();
-    const levelString = this.getLevelString(entry.level);
-    const color = this.getLevelColor(entry.level);
-    const reset = "\u001B[0m";
-
+  handle(entry: LogEntry): Effect.Effect<void> {
+    const timestamp = DateTime.formatIso(entry.timestamp);
     const context = entry.context ? ` [${entry.context}]` : "";
-    const data = entry.data ? ` ${JSON.stringify(entry.data, null, 2)}` : "";
-
-    const logMessage = `${color}[${timestamp}] ${levelString}${context}: ${entry.message}${data}${reset}`;
-
-    switch (entry.level) {
-      case LogLevel.DEBUG: {
-        console.debug(logMessage);
-        break;
-      }
-      case LogLevel.INFO: {
-        console.info(logMessage);
-        break;
-      }
-      case LogLevel.WARN: {
-        console.warn(logMessage);
-        break;
-      }
-      case LogLevel.ERROR: {
-        console.error(logMessage);
-        break;
-      }
-      default: {
-        console.log(logMessage);
-      }
-    }
+    const data = entry.data ? ` ${encodeJson(entry.data)}` : "";
+    const logMessage = `[${timestamp}]${context}: ${entry.message}${data}`;
+    return Match.value(entry.level).pipe(
+      Match.when(LogLevel.DEBUG, () => Effect.logDebug(logMessage)),
+      Match.when(LogLevel.INFO, () => Effect.logInfo(logMessage)),
+      Match.when(LogLevel.WARN, () => Effect.logWarning(logMessage)),
+      Match.when(LogLevel.ERROR, () => Effect.logError(logMessage)),
+      Match.orElse(() => Effect.void),
+    );
   }
 }
 
@@ -138,54 +83,48 @@ export class Logger {
     return level >= this.level;
   }
 
-  private log(level: LogLevel, message: string, data?: unknown): void {
+  private log(level: LogLevel, message: string, data?: unknown): Effect.Effect<void> {
     if (!this.shouldLog(level)) {
-      return;
+      return Effect.void;
     }
-
-    const entry: LogEntry = {
-      context: this.context,
-      data,
-      level,
-      message,
-      timestamp: new Date(),
-    };
-
-    for (const handler of this.handlers) {
-      Effect.runSync(
-        Effect.try({
-          try: () => handler.handle(entry),
-          catch: (error) => error,
-        }).pipe(
-          Effect.catch((error) =>
-            Effect.sync(() => {
-              console.error("Logger handler error:", error);
-            }),
-          ),
-        ),
-      );
-    }
+    return Effect.gen({ self: this }, function* log() {
+      const entry: LogEntry = {
+        context: this.context,
+        data,
+        level,
+        message,
+        timestamp: yield* DateTime.now,
+      };
+      yield* Effect.forEach(this.handlers, (handler) => handler.handle(entry), {
+        concurrency: 1,
+        discard: true,
+      });
+    });
   }
 
-  debug(message: string, data?: unknown): void {
-    this.log(LogLevel.DEBUG, message, data);
+  debug(message: string, data?: unknown): Effect.Effect<void> {
+    return this.log(LogLevel.DEBUG, message, data);
   }
 
-  info(message: string, data?: unknown): void {
-    this.log(LogLevel.INFO, message, data);
+  info(message: string, data?: unknown): Effect.Effect<void> {
+    return this.log(LogLevel.INFO, message, data);
   }
 
-  warn(message: string, data?: unknown): void {
-    this.log(LogLevel.WARN, message, data);
+  warn(message: string, data?: unknown): Effect.Effect<void> {
+    return this.log(LogLevel.WARN, message, data);
   }
 
-  error(message: string, data?: unknown): void {
-    this.log(LogLevel.ERROR, message, data);
+  error(message: string, data?: unknown): Effect.Effect<void> {
+    return this.log(LogLevel.ERROR, message, data);
   }
 
   // Convenience method for logging errors with stack traces
-  errorWithStack(message: string, error: Error, data?: Record<string, unknown>): void {
-    this.log(LogLevel.ERROR, message, {
+  errorWithStack(
+    message: string,
+    error: Error,
+    data?: Record<string, unknown>,
+  ): Effect.Effect<void> {
+    return this.log(LogLevel.ERROR, message, {
       ...data,
       error: {
         message: error.message,
@@ -203,9 +142,7 @@ export class Logger {
     );
 
     // Copy handlers from parent
-    for (const handler of this.handlers) {
-      childLogger.addHandler(handler);
-    }
+    this.handlers.forEach((handler) => childLogger.addHandler(handler));
 
     return childLogger;
   }

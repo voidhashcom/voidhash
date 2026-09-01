@@ -1,4 +1,8 @@
-import { Effect } from "effect";
+import * as P from "effect/Predicate";
+import * as Arr from "effect/Array";
+import * as Effect from "effect/Effect";
+import * as EffectRuntime from "effect/Effect";
+import * as Option from "effect/Option";
 import * as paywalls from "@voidhash/paywalls";
 import * as paywallsJsxRuntime from "@voidhash/paywalls/jsx-runtime";
 import { extractComponentManifest } from "@voidhash/paywalls";
@@ -42,7 +46,7 @@ const REQUIRE_MODULES: Readonly<Record<string, unknown>> = {
 
 /** The `errors` array esbuild attaches to a transform failure, when present. */
 function esbuildErrors(cause: unknown): readonly unknown[] {
-  if (typeof cause !== "object" || cause === null || !("errors" in cause)) return [];
+  if (!P.isObject(cause) || cause === null || !("errors" in cause)) return [];
   const { errors } = cause;
   if (!Array.isArray(errors)) return [];
   return errors;
@@ -50,9 +54,9 @@ function esbuildErrors(cause: unknown): readonly unknown[] {
 
 /** The `text` of an esbuild message, falling back to its stringification. */
 function esbuildText(message: unknown): string {
-  if (typeof message === "object" && message !== null && "text" in message) {
+  if (P.isObject(message) && message !== null && "text" in message) {
     const { text } = message;
-    if (typeof text === "string") return text;
+    if (P.isString(text)) return text;
   }
   return String(message);
 }
@@ -62,12 +66,12 @@ function esbuildText(message: unknown): string {
  * columns are 0-based).
  */
 function esbuildPosition(message: unknown): { line?: number; column?: number } {
-  if (typeof message !== "object" || message === null || !("location" in message)) return {};
+  if (!P.isObject(message) || message === null || !("location" in message)) return {};
   const { location } = message;
-  if (typeof location !== "object" || location === null) return {};
+  if (!P.isObject(location) || location === null) return {};
   const position: { line?: number; column?: number } = {};
-  if ("line" in location && typeof location.line === "number") position.line = location.line;
-  if ("column" in location && typeof location.column === "number") {
+  if ("line" in location && P.isNumber(location.line)) position.line = location.line;
+  if ("column" in location && P.isNumber(location.column)) {
     position.column = location.column + 1;
   }
   return position;
@@ -76,17 +80,17 @@ function esbuildPosition(message: unknown): { line?: number; column?: number } {
 /** Lower an esbuild transform failure to compile diagnostics. */
 function compileFailure(cause: unknown): CompileOutcome {
   const errors = esbuildErrors(cause);
-  if (errors.length > 0) {
-    return {
-      diagnostics: errors.map(
+  return Arr.match(errors, {
+    onNonEmpty: (messages) => ({
+      diagnostics: messages.map(
         (message): BuildDiagnosticInput => ({
           message: esbuildText(message),
           ...esbuildPosition(message),
         }),
       ),
-    };
-  }
-  return { diagnostics: [{ message: causeMessage(cause) }] };
+    }),
+    onEmpty: () => ({ diagnostics: [{ message: causeMessage(cause) }] }),
+  });
 }
 
 /**
@@ -95,9 +99,9 @@ function compileFailure(cause: unknown): CompileOutcome {
  * message text with 1-based line/column when available).
  */
 function nodeCompile(source: string): Promise<CompileOutcome> {
-  return Effect.runPromise(
+  return EffectRuntime.runPromise(
     Effect.gen(function* () {
-      const esbuild = yield* Effect.promise(() => import("esbuild"));
+      const esbuild = yield* Effect.tryPromise(() => import("esbuild"));
       return yield* Effect.tryPromise({
         try: () => esbuild.transform(source, TRANSFORM_OPTIONS),
         catch: (cause) => cause,
@@ -117,7 +121,7 @@ function requireShim(specifier: string): unknown {
   if (mod === undefined) {
     // The CJS contract is to raise on an unresolvable specifier; the raised
     // defect is caught below and surfaced as an extraction diagnostic.
-    return Effect.runSync(Effect.die(new Error(`Cannot find module '${specifier}'`)));
+    return EffectRuntime.runSync(Effect.die(new TypeError(`Cannot find module '${specifier}'`)));
   }
   return mod;
 }
@@ -131,10 +135,10 @@ function hasRender(value: object): value is { readonly render: unknown } {
 function isDefinitionExport(
   value: unknown,
 ): value is Parameters<typeof extractComponentManifest>[0] {
-  if (typeof value !== "object" && typeof value !== "function") return false;
+  if (!P.isObject(value) && !P.isFunction(value)) return false;
   if (value === null) return false;
   if (!hasRender(value)) return false;
-  return typeof value.render === "function";
+  return P.isFunction(value.render);
 }
 
 /**
@@ -148,7 +152,7 @@ function isDefinitionExport(
  * an extraction diagnostic (the build attributes it to the `runtime` phase).
  */
 function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
-  return Effect.runPromise(
+  return EffectRuntime.runPromise(
     Effect.gen(function* () {
       const moduleObj: { exports: Record<string, unknown> } = { exports: {} };
 
@@ -163,13 +167,13 @@ function nodeExtractManifest(compiledCode: string): Promise<ExtractOutcome> {
         catch: (cause) => cause,
       }).pipe(
         Effect.match({
-          onSuccess: (): ExtractOutcome | null => null,
-          onFailure: (cause): ExtractOutcome | null => ({
+          onSuccess: () => Option.none<ExtractOutcome>(),
+          onFailure: (cause) => Option.some<ExtractOutcome>({
             diagnostics: [{ message: causeMessage(cause) }],
           }),
         }),
       );
-      if (evaluationFailure) return evaluationFailure;
+      if (Option.isSome(evaluationFailure)) return evaluationFailure.value;
 
       const definition = moduleObj.exports.default;
       if (!isDefinitionExport(definition)) {

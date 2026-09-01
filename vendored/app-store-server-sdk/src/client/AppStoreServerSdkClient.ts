@@ -1,4 +1,10 @@
-import { Effect, Option, Schema } from "effect";
+import * as Arr from "effect/Array";
+import * as R from "effect/Record";
+import * as P from "effect/Predicate";
+import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { constant } from "@voidhash/lib/lang";
 import { HttpBody, HttpClientRequest } from "effect/unstable/http";
 import type { HttpClientResponse } from "effect/unstable/http";
@@ -263,22 +269,17 @@ export interface AppStoreServerSdkClient {
 }
 
 const getBaseUrl = (environment: (typeof Environment)[keyof typeof Environment]) => {
-  switch (environment) {
-    case Environment.PRODUCTION:
-      return PRODUCTION_URL;
-    case Environment.SANDBOX:
-      return SANDBOX_URL;
-    case Environment.LOCAL_TESTING:
-      return LOCAL_TESTING_URL;
-    case Environment.XCODE:
-      // An unsupported environment is a caller mistake, not a recoverable
-      // failure: `runSync` rethrows the defect at construction time.
-      return Effect.runSync(
-        Effect.die(new Error("Xcode is not a supported environment for an AppStoreServerSdkClient")),
-      );
-    default:
-      return PRODUCTION_URL;
-  }
+  return Match.value(environment).pipe(
+    Match.when(Environment.PRODUCTION, () => PRODUCTION_URL),
+    Match.when(Environment.SANDBOX, () => SANDBOX_URL),
+    Match.when(Environment.LOCAL_TESTING, () => LOCAL_TESTING_URL),
+    Match.when(Environment.XCODE, () =>
+      Schema.decodeUnknownSync(Schema.Never)(
+        "Xcode is not a supported environment for an AppStoreServerSdkClient",
+      ),
+    ),
+    Match.exhaustive,
+  );
 };
 
 const appendQueryParamOption = <T>(
@@ -295,14 +296,15 @@ const appendQueryParamOption = <T>(
 const optionFromRecord = (
   queryParams: Record<string, string[]>,
 ): Option.Option<Record<string, string[]>> => {
-  if (Object.keys(queryParams).length > 0) return Option.some(queryParams);
+  if (Arr.isReadonlyArrayNonEmpty(R.keys(queryParams))) return Option.some(queryParams);
   return Option.none();
 };
 
-const asOption = <T>(value: Option.Option<T> | T | null | undefined): Option.Option<T> => {
+function asOption<T>(value: Option.Option<T>): Option.Option<T>;
+function asOption(value: unknown): Option.Option<unknown> {
   if (Option.isOption(value)) return value;
   return Option.fromNullishOr(value);
-};
+}
 
 const toJsonValue = (value: unknown): unknown => {
   if (Option.isOption(value)) {
@@ -314,10 +316,18 @@ const toJsonValue = (value: unknown): unknown => {
   if (Array.isArray(value)) {
     return value.map(toJsonValue);
   }
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .map(([key, item]) => constant([key, toJsonValue(item)]))
+  if (P.isObject(value) && value !== null) {
+    return R.fromEntries(
+      R.toEntries(value)
+        .map(([key, item]) => {
+          if (key === "isCustomerConsented") {
+            return constant(["customerConsented", toJsonValue(item)]);
+          }
+          if (key === "isSampleContentProvided") {
+            return constant(["sampleContentProvided", toJsonValue(item)]);
+          }
+          return constant([key, toJsonValue(item)]);
+        })
         .filter(([, item]) => item !== undefined),
     );
   }
@@ -325,13 +335,13 @@ const toJsonValue = (value: unknown): unknown => {
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+  P.isObject(value) && value !== null;
 
 /** Reads a numeric field out of an untyped App Store error body. */
 const readNumberField = (body: unknown, key: string): Option.Option<number> => {
   if (!isRecord(body)) return Option.none();
   const value = body[key];
-  if (typeof value !== "number") return Option.none();
+  if (!P.isNumber(value)) return Option.none();
   return Option.some(value);
 };
 
@@ -339,14 +349,15 @@ const readNumberField = (body: unknown, key: string): Option.Option<number> => {
 const readStringField = (body: unknown, key: string): Option.Option<string> => {
   if (!isRecord(body)) return Option.none();
   const value = body[key];
-  if (typeof value !== "string") return Option.none();
+  if (!P.isString(value)) return Option.none();
   return Option.some(value);
 };
 
 const encodeRequestBody = <T>(request: T, schema: EncodableSchema<T>): Effect.Effect<unknown> =>
-  Schema.encodeUnknownEffect(schema)(request).pipe(
-    Effect.catch(() => Effect.sync(() => toJsonValue(request))),
-  );
+  Effect.matchEffect(Schema.encodeUnknownEffect(schema)(request), {
+    onFailure: () => Effect.sync(() => toJsonValue(request)),
+    onSuccess: Effect.succeed,
+  });
 
 export const AppStoreServerSdkClient = {
   /**
@@ -386,12 +397,11 @@ export const AppStoreServerSdkClient = {
 
         let url = `${baseUrl}${path}`;
         if (Option.isSome(queryParams)) {
-          const params = new URLSearchParams();
-          for (const [key, values] of Object.entries(queryParams.value)) {
-            for (const value of values) {
-              params.append(key, value);
-            }
-          }
+          const params = new URLSearchParams(
+            Arr.flatMap(R.toEntries(queryParams.value), ([key, values]) =>
+              values.map((value) => [key, value]),
+            ),
+          );
           url = `${url}?${params.toString()}`;
         }
 
@@ -430,7 +440,10 @@ export const AppStoreServerSdkClient = {
           return response;
         }
 
-        const errorBody = yield* response.json.pipe(Effect.catch(() => Effect.succeed({})));
+        const errorBody = yield* Effect.matchEffect(response.json, {
+          onFailure: () => Effect.succeed({}),
+          onSuccess: Effect.succeed,
+        });
 
         const errorCode = readNumberField(errorBody, "errorCode");
         const errorMessage = readStringField(errorBody, "errorMessage");
