@@ -27,6 +27,8 @@ public actor VoidhashClient {
         }
         var openExternalUrl: (@Sendable (String) async -> Void)?
         var startAutoFlush = true
+        /// The commerce release gate; tests flip it to exercise owner-mode behaviour.
+        var isCommerceEnabled = commerceFeaturesEnabled
     }
 
     private static let personCacheTtlMilliseconds: Double = 1000 * 60 * 60 * 24 * 2
@@ -35,6 +37,7 @@ public actor VoidhashClient {
     private let options: VoidhashOptions
     private let dependencies: Dependencies
     private let warn: VoidhashWarningHandler
+    private let commerceEnabled: Bool
     private let readOnlyFlag: AtomicBool
     /// Development mode: purchases run against a mock store and are recorded under the
     /// development environment. Only ever true in debug builds.
@@ -64,7 +67,8 @@ public actor VoidhashClient {
         self.options = options
         self.dependencies = dependencies
         warn = options.onWarning ?? VoidhashWarnings.standard
-        readOnlyFlag = AtomicBool(options.readOnly || !commerceFeaturesEnabled)
+        commerceEnabled = dependencies.isCommerceEnabled
+        readOnlyFlag = AtomicBool(options.readOnly || !commerceEnabled)
         // Development mode is a debug-build-only affordance: the flag alone is never enough,
         // so it can never reach a production release.
         #if DEBUG
@@ -172,12 +176,15 @@ public actor VoidhashClient {
     }
 
     /// Buys `product`, syncs the transaction and finishes it with the store.
-    /// Temporarily unavailable while the SDK is observer-only.
+    ///
+    /// Unavailable in observer mode: an observer never owns a transaction, so it must never
+    /// start one it would then be unable to finish. The check reads the live flag, so it also
+    /// covers the commerce release gate.
     public func purchase(product: VoidhashProduct) async throws {
         guard options.enabled else {
             return
         }
-        guard commerceFeaturesEnabled else {
+        guard !readOnlyFlag.value else {
             throw VoidhashStoreError.readOnlyPurchaseNotAllowed
         }
         let schema = try await ensureInitialized()
@@ -271,8 +278,16 @@ public actor VoidhashClient {
 
     /// Toggles observer mode. Purchases already in flight still finish with the store. While
     /// commerce is unavailable, passing `false` keeps observer mode enabled.
-    public func setReadOnly(_ readOnly: Bool) {
-        readOnlyFlag.value = readOnly || !commerceFeaturesEnabled
+    ///
+    /// `nonisolated` so embedding hosts (the React Native engine) can flip the mode
+    /// synchronously; the flag is an atomic the header factory and orchestrator already share.
+    public nonisolated func setReadOnly(_ readOnly: Bool) {
+        readOnlyFlag.value = readOnly || !commerceEnabled
+    }
+
+    /// Whether the SDK currently runs in observer mode.
+    public nonisolated var isReadOnly: Bool {
+        return readOnlyFlag.value
     }
 
     // MARK: - Feature flags and analytics
@@ -311,7 +326,7 @@ public actor VoidhashClient {
 
     /// Presents the offer code redemption sheet. Inert while commerce is unavailable.
     public func presentCodeRedemptionSheet() throws {
-        guard options.enabled, commerceFeaturesEnabled else {
+        guard options.enabled, commerceEnabled else {
             return
         }
         try engine.presentCodeRedemptionSheet()
@@ -319,7 +334,7 @@ public actor VoidhashClient {
 
     /// Presents the subscription management sheet. Inert while commerce is unavailable.
     public func showManageSubscriptions() async throws {
-        guard options.enabled, commerceFeaturesEnabled else {
+        guard options.enabled, commerceEnabled else {
             return
         }
         try await engine.showManageSubscriptions()
@@ -335,7 +350,7 @@ public actor VoidhashClient {
     public func presentPaywall(
         location: String, delegate: (any VoidhashPaywallDelegate)? = nil
     ) async throws -> PaywallPresentationResult {
-        guard options.enabled, commerceFeaturesEnabled else {
+        guard options.enabled, commerceEnabled else {
             return .notAssigned
         }
         _ = try await ensureInitialized()
@@ -358,7 +373,7 @@ public actor VoidhashClient {
 
     /// Dismisses the presented paywall.
     public func dismissPaywall() async throws {
-        guard options.enabled, commerceFeaturesEnabled else {
+        guard options.enabled, commerceEnabled else {
             return
         }
         try await paywallCoordinator().dismiss()
@@ -369,7 +384,7 @@ public actor VoidhashClient {
     /// Embedded hosts (for example the React Native SDK) use this together with their own
     /// presenter; the returned envelope carries everything a renderer needs.
     public func getPaywall(location: String) async throws -> SdkResolvedPaywall? {
-        guard options.enabled, commerceFeaturesEnabled else {
+        guard options.enabled, commerceEnabled else {
             return nil
         }
         _ = try await ensureInitialized()
@@ -445,7 +460,7 @@ public actor VoidhashClient {
         distinctId: String,
         locationSlug: String
     ) async throws -> SdkResolvedPaywall? {
-        guard commerceFeaturesEnabled else {
+        guard commerceEnabled else {
             return nil
         }
         return try await apiClient.resolvePaywall(

@@ -21,6 +21,11 @@ export interface VoidhashEngine extends HybridObject<{
    * `{ baseUrl?, ingestUrl?, debug?, enabled?, readOnly?, dev? }`.
    */
   configure(publishableKey: string, optionsJson: string): void;
+  /**
+   * Mirrors the JS observer-mode decision into the native client so the
+   * `x-observer-mode` header it sends never drifts from `client.setReadOnly()`.
+   */
+  setReadOnly(readOnly: boolean): void;
   /** Fetches the runtime schema. Never touches the store — data plane only. */
   fetchSchema(distinctId: string): Promise<string>;
   /** Fetches the person snapshot for [distinctId]; resolves `"null"` when absent. */

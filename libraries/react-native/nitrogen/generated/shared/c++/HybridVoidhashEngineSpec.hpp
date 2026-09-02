@@ -50,6 +50,7 @@ namespace margelo::nitro::voidhash {
     public:
       // Methods
       virtual void configure(const std::string& publishableKey, const std::string& optionsJson) = 0;
+      virtual void setReadOnly(bool readOnly) = 0;
       virtual std::shared_ptr<Promise<std::string>> fetchSchema(const std::string& distinctId) = 0;
       virtual std::shared_ptr<Promise<std::string>> fetchPerson(const std::string& distinctId, bool forceFetch) = 0;
       virtual std::shared_ptr<Promise<std::string>> identify(const std::string& distinctId, const std::string& bodyJson) = 0;

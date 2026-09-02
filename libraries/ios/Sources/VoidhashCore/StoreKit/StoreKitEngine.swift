@@ -11,6 +11,10 @@ public typealias StoreKitTransactionListener = @Sendable (StoreKitTransactionInf
 /// The StoreKit surface consumed by the SDKs, expressed as plain values so it can be mocked.
 public protocol StoreKitEngineProtocol: AnyObject, Sendable {
     /// Opens the store connection and returns whether the device can make payments.
+    ///
+    /// `onTransaction` receives every transaction the store reports for the lifetime of the
+    /// connection — purchases this engine made and purchases made outside it (another SDK,
+    /// renewals, Ask to Buy approvals). The engine only retains and reports; it never finishes.
     func initConnection(onTransaction: StoreKitTransactionListener?) async throws -> Bool
     /// Tears down the store connection, dropping cached products and retained transactions.
     @discardableResult
@@ -38,6 +42,7 @@ public final class StoreKitEngine: StoreKitEngineProtocol, @unchecked Sendable {
     private let lock = NSLock()
     private var productStore: ProductStore?
     private var onTransactionListener: StoreKitTransactionListener?
+    private var transactionUpdatesTask: Task<Void, Never>?
     private var subscriptionPollingTask: Task<Void, Never>?
     private var pollingSkus: Set<String> = []
 
@@ -52,10 +57,15 @@ public final class StoreKitEngine: StoreKitEngineProtocol, @unchecked Sendable {
     #endif
 
     public func initConnection(onTransaction: StoreKitTransactionListener?) async throws -> Bool {
-        lock.withLock {
+        let previousUpdatesTask = lock.withLock {
             self.productStore = ProductStore()
             self.onTransactionListener = onTransaction
+            let previous = transactionUpdatesTask
+            transactionUpdatesTask = nil
+            return previous
         }
+        previousUpdatesTask?.cancel()
+        startObservingTransactionUpdates()
         return AppStore.canMakePayments
     }
 
@@ -66,11 +76,51 @@ public final class StoreKitEngine: StoreKitEngineProtocol, @unchecked Sendable {
         }
         await productStore.removeAll()
         transactions.removeAll()
-        lock.withLock {
+        let updatesTask = lock.withLock {
             self.productStore = nil
             self.onTransactionListener = nil
+            let task = transactionUpdatesTask
+            transactionUpdatesTask = nil
+            return task
         }
+        updatesTask?.cancel()
         return true
+    }
+
+    /// Subscribes to `Transaction.updates` for the lifetime of the connection so transactions
+    /// that did not go through ``buyProduct(sku:appAccountToken:quantity:)`` — renewals, Ask to
+    /// Buy approvals, purchases made by another SDK in the same app — are retained and reported
+    /// to the listener. Observer-mode hosts rely on this stream to collect anything at all.
+    ///
+    /// Transactions still unfinished when the connection opens (completed while the app was not
+    /// running, or before the listener attached) are reported first, so nothing that landed in
+    /// the store queue is ever missed.
+    private func startObservingTransactionUpdates() {
+        let task = Task { [weak self] in
+            for await verification in Transaction.unfinished {
+                guard let self, !Task.isCancelled else {
+                    return
+                }
+                self.observe(verification)
+            }
+            for await verification in Transaction.updates {
+                guard let self, !Task.isCancelled else {
+                    return
+                }
+                self.observe(verification)
+            }
+        }
+        lock.withLock {
+            transactionUpdatesTask = task
+        }
+    }
+
+    private func observe(_ verification: VerificationResult<Transaction>) {
+        guard let transaction = try? Self.checkVerified(verification) else {
+            return
+        }
+        transactions.retain(id: String(transaction.id), value: transaction)
+        currentTransactionListener?(StoreKitTransactionInfo(transaction: transaction))
     }
 
     public func getItems(skus: [String]) async throws -> [StoreKitProductInfo] {

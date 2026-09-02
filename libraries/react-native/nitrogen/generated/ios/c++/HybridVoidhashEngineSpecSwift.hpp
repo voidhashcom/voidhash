@@ -73,6 +73,12 @@ namespace margelo::nitro::voidhash {
         std::rethrow_exception(__result.error());
       }
     }
+    inline void setReadOnly(bool readOnly) override {
+      auto __result = _swiftPart.setReadOnly(std::forward<decltype(readOnly)>(readOnly));
+      if (__result.hasError()) [[unlikely]] {
+        std::rethrow_exception(__result.error());
+      }
+    }
     inline std::shared_ptr<Promise<std::string>> fetchSchema(const std::string& distinctId) override {
       auto __result = _swiftPart.fetchSchema(distinctId);
       if (__result.hasError()) [[unlikely]] {

@@ -136,6 +136,17 @@ open class HybridVoidhashEngineSpec_cxx {
   }
   
   @inline(__always)
+  public final func setReadOnly(readOnly: Bool) -> bridge.Result_void_ {
+    do {
+      try self.__implementation.setReadOnly(readOnly: readOnly)
+      return bridge.create_Result_void_()
+    } catch (let __error) {
+      let __exceptionPtr = __error.toCpp()
+      return bridge.create_Result_void_(__exceptionPtr)
+    }
+  }
+  
+  @inline(__always)
   public final func fetchSchema(distinctId: std.string) -> bridge.Result_std__shared_ptr_Promise_std__string___ {
     do {
       let __result = try self.__implementation.fetchSchema(distinctId: String(distinctId))

@@ -14,6 +14,7 @@ public protocol HybridVoidhashEngineSpec_protocol: HybridObject {
 
   // Methods
   func configure(publishableKey: String, optionsJson: String) throws -> Void
+  func setReadOnly(readOnly: Bool) throws -> Void
   func fetchSchema(distinctId: String) throws -> Promise<String>
   func fetchPerson(distinctId: String, forceFetch: Bool) throws -> Promise<String>
   func identify(distinctId: String, bodyJson: String) throws -> Promise<String>

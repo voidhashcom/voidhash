@@ -224,6 +224,8 @@ export class VoidhashClient {
   private unstableSwallowErrors: boolean;
   private atomRegistry: AtomRegistry.AtomRegistry;
   private developmentMode: boolean;
+  /** The configured embedded engine, when this client routes through one. */
+  private nativeEngine?: VoidhashEngineSpec;
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
 
@@ -278,6 +280,7 @@ export class VoidhashClient {
           readOnly: this.sdkConfiguration.isReadOnly(),
         }),
       );
+      this.nativeEngine = nativeEngine;
     }
     this.effectRuntime = CreateEffectRuntime(
       platform,
@@ -460,7 +463,8 @@ export class VoidhashClient {
    * - `purchase()` / `setPersonAttributesSync()` gating,
    * - the transaction observer's finish/acknowledge decision for transactions
    *   it processes after this call,
-   * - the `x-observer-mode` header of subsequent requests.
+   * - the `x-observer-mode` header of subsequent requests, including those the
+   *   embedded native engine sends on this client's behalf.
    *
    * A purchase that already started keeps the mode it started with: switching
    * to observer mode mid-purchase must not leave that transaction unfinished
@@ -472,6 +476,7 @@ export class VoidhashClient {
    */
   setReadOnly(readOnly: boolean) {
     this.sdkConfiguration.setReadOnly(readOnly || !COMMERCE_FEATURES_ENABLED);
+    this.nativeEngine?.setReadOnly(this.sdkConfiguration.isReadOnly());
   }
 
   /**

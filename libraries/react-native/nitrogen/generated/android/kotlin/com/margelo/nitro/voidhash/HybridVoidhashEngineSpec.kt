@@ -35,6 +35,10 @@ abstract class HybridVoidhashEngineSpec: HybridObject() {
   
   @DoNotStrip
   @Keep
+  abstract fun setReadOnly(readOnly: Boolean): Unit
+  
+  @DoNotStrip
+  @Keep
   abstract fun fetchSchema(distinctId: String): Promise<String>
   
   @DoNotStrip

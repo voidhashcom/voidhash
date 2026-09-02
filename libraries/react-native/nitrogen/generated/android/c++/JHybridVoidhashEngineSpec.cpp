@@ -51,6 +51,10 @@ namespace margelo::nitro::voidhash {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* publishableKey */, jni::alias_ref<jni::JString> /* optionsJson */)>("configure");
     method(_javaPart, jni::make_jstring(publishableKey), jni::make_jstring(optionsJson));
   }
+  void JHybridVoidhashEngineSpec::setReadOnly(bool readOnly) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jboolean /* readOnly */)>("setReadOnly");
+    method(_javaPart, readOnly);
+  }
   std::shared_ptr<Promise<std::string>> JHybridVoidhashEngineSpec::fetchSchema(const std::string& distinctId) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* distinctId */)>("fetchSchema");
     auto __result = method(_javaPart, jni::make_jstring(distinctId));

@@ -15,6 +15,7 @@ namespace margelo::nitro::voidhash {
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridMethod("configure", &HybridVoidhashEngineSpec::configure);
+      prototype.registerHybridMethod("setReadOnly", &HybridVoidhashEngineSpec::setReadOnly);
       prototype.registerHybridMethod("fetchSchema", &HybridVoidhashEngineSpec::fetchSchema);
       prototype.registerHybridMethod("fetchPerson", &HybridVoidhashEngineSpec::fetchPerson);
       prototype.registerHybridMethod("identify", &HybridVoidhashEngineSpec::identify);

@@ -67,6 +67,7 @@
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "expo-module build && tsc -p tsconfig.metro.json",
     "test": "vitest --config vitest.unit.mts run",
+    "test:android-engine": "ANDROID_HOME=\"${ANDROID_HOME:-$HOME/Library/Android/sdk}\" \"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))\")/gradlew\" -p ../android :react-native-engine-tests:testDebugUnitTest --no-daemon",
     "test:android-purchase-coordinator": "\"$(node -p \"require('node:path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))\")/gradlew\" -p android/coordinator-tests test --no-daemon",
     "test:storekit-purchase-coordinator": "swift test --package-path .",
     "test:storekit-simulator": "bash ios-storekit-tests/run-tests.sh",

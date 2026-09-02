@@ -54,8 +54,10 @@ class VoidhashClient internal constructor(
     private val enabled: Boolean,
     readOnly: Boolean,
     private val onWarning: (String) -> Unit = {},
+    /** The commerce release gate; tests flip it to exercise owner-mode behaviour. */
+    private val commerceFeaturesEnabled: Boolean = COMMERCE_FEATURES_ENABLED,
 ) {
-    private val readOnlyFlag = AtomicBoolean(readOnly || !COMMERCE_FEATURES_ENABLED)
+    private val readOnlyFlag = AtomicBoolean(readOnly || !commerceFeaturesEnabled)
     private val schemaRef = AtomicReference<RuntimeSchema?>(null)
     private val initMutex = Mutex()
     private var initialized = false
@@ -64,14 +66,17 @@ class VoidhashClient internal constructor(
         override suspend fun products(): List<VoidhashProduct> = getProducts()
 
         override suspend fun purchase(product: VoidhashProduct): VoidhashTransaction =
-            orchestrator.purchase(product, requireSchema())
+            purchaseProduct(product)
 
         override suspend fun restorePurchases() {
             this@VoidhashClient.restorePurchases()
         }
     }
 
-    internal val currentReadOnly: Boolean get() = readOnlyFlag.get()
+    /** Whether the SDK currently runs in observer mode. */
+    val isReadOnly: Boolean get() = readOnlyFlag.get()
+
+    internal val currentReadOnly: Boolean get() = isReadOnly
 
     /**
      * Connects to the store, resolves the schema and reconciles anything the
@@ -133,22 +138,31 @@ class VoidhashClient internal constructor(
 
     /**
      * Buys [product]. [activity] becomes the activity Play Billing launches its
-     * flow from. Temporarily unavailable while the SDK is observer-only.
+     * flow from.
+     *
+     * Unavailable in observer mode: an observer never owns a transaction, so it
+     * must never start one it would then be unable to finish. The check reads
+     * the live flag, so it also covers the commerce release gate.
      */
     suspend fun purchase(activity: Activity, product: VoidhashProduct): VoidhashTransaction {
+        activitySink(activity)
+        return try {
+            purchaseProduct(product)
+        } finally {
+            activitySink(null)
+        }
+    }
+
+    /** The single purchase entry point shared by [purchase] and the paywall bridge. */
+    private suspend fun purchaseProduct(product: VoidhashProduct): VoidhashTransaction {
         check(enabled) { "CONFIGURATION_MISSING: Voidhash is disabled" }
-        if (!COMMERCE_FEATURES_ENABLED) {
+        if (readOnlyFlag.get()) {
             throw VoidhashException(
                 "READ_ONLY_PURCHASE_NOT_ALLOWED",
                 "Read-only mode is enabled. Purchasing is disabled for observer-only operation.",
             )
         }
-        activitySink(activity)
-        return try {
-            orchestrator.purchase(product, requireSchema())
-        } finally {
-            activitySink(null)
-        }
+        return orchestrator.purchase(product, requireSchema())
     }
 
     /** Reconciles every purchase the store still reports and refreshes the person. */
@@ -235,7 +249,7 @@ class VoidhashClient internal constructor(
      * While commerce is unavailable, passing `false` keeps observer mode enabled.
      */
     fun setReadOnly(readOnly: Boolean) {
-        readOnlyFlag.set(readOnly || !COMMERCE_FEATURES_ENABLED)
+        readOnlyFlag.set(readOnly || !commerceFeaturesEnabled)
     }
 
     /**
@@ -249,7 +263,7 @@ class VoidhashClient internal constructor(
         location: String,
         listener: PaywallListener? = null,
     ): Boolean {
-        if (!enabled || !COMMERCE_FEATURES_ENABLED) return false
+        if (!enabled || !commerceFeaturesEnabled) return false
         activitySink(activity)
 
         val coordinator = paywallCoordinatorFactory(paywallPurchaseHandler)
@@ -292,7 +306,7 @@ class VoidhashClient internal constructor(
      * needs.
      */
     suspend fun resolvePaywall(location: String): ResolvedPaywall? {
-        if (!enabled || !COMMERCE_FEATURES_ENABLED) return null
+        if (!enabled || !commerceFeaturesEnabled) return null
         return apiClient.resolvePaywall(identityStore.getDistinctId(), location)
     }
 
