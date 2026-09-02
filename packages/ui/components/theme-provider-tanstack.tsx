@@ -16,7 +16,6 @@ import * as React from "react";
 import * as Schema from "effect/Schema";
 const effectEncodeJson = Schema.encodeSync(Schema.UnknownFromJsonString);
 
-
 interface ValueObject {
   [themeName: string]: string;
 }
@@ -61,7 +60,7 @@ export interface ThemeProviderProps extends React.PropsWithChildren {
 
 const colorSchemes = HashSet.make("light", "dark");
 const MEDIA = "(prefers-color-scheme: dark)";
-const isServer = P.isUndefined(window);
+const isServer = P.isUndefined(globalThis.window);
 const defaultContext: UseThemeProps = { setTheme: (_) => {}, themes: [] };
 const ThemeContext = React.createContext<Option.Option<UseThemeProps>>(Option.none());
 
@@ -264,7 +263,7 @@ const ThemeScript = React.memo(
         dangerouslySetInnerHTML={{
           __html: `(${script.toString()})(${scriptArgs})`,
         }}
-        nonce={P.isUndefined(window) ? nonce : ""}
+        nonce={P.isUndefined(globalThis.window) ? nonce : ""}
         // Needed to inject script before hydration
         suppressHydrationWarning
       />
@@ -330,16 +329,18 @@ type ThemeScriptArgs = [
   enableColorScheme?: boolean,
 ];
 
-export const script = (...[
-  attribute,
-  storageKey,
-  defaultTheme,
-  forcedTheme,
-  themes = [],
-  value,
-  enableSystem,
-  enableColorScheme,
-]: ThemeScriptArgs): void => {
+export const script = (
+  ...[
+    attribute,
+    storageKey,
+    defaultTheme,
+    forcedTheme,
+    themes = [],
+    value,
+    enableSystem,
+    enableColorScheme,
+  ]: ThemeScriptArgs
+): void => {
   const el = document.documentElement;
   const systemThemes = ["light", "dark"];
   const isClass = attribute === "class";
